@@ -12,7 +12,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Laravel\Cashier\Events\WebhookReceived;
+use App\Events\Stripe\WebhookReceived;
 
 /**
  * Sweeps unprocessed stripe_webhook_events rows and runs them back through

@@ -8,7 +8,7 @@ use App\Events;
 use App\Listeners;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
-use Laravel\Cashier\Events\WebhookReceived;
+use App\Events\Stripe\WebhookReceived;
 
 class AppServiceProvider extends ServiceProvider
 {

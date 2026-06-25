@@ -8,7 +8,7 @@ use App\Models\StripeWebhookEvent;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Laravel\Cashier\Events\WebhookReceived;
+use App\Events\Stripe\WebhookReceived;
 
 /**
  * Handles incoming Stripe webhooks. Logs every event to stripe_webhook_events,
