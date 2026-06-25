@@ -1,0 +1,46 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models;
+
+use App\Enums\NewsPostType;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class NewsPost extends Model
+{
+    use HasFactory, SoftDeletes;
+
+    protected $table        = 'news_posts';
+    protected $keyType      = 'string';
+    public    $incrementing = false;
+
+    protected $fillable = [
+        'id', 'author_id', 'title', 'body', 'post_type',
+        'role_visibility', 'published', 'pinned', 'published_at',
+    ];
+
+    protected $casts = [
+        'post_type'    => NewsPostType::class,
+        'published'    => 'boolean',
+        'pinned'       => 'boolean',
+        'published_at' => 'datetime',
+    ];
+
+    public function author(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'author_id');
+    }
+
+    public function comments(): HasMany  { return $this->hasMany(NewsComment::class, 'post_id'); }
+    public function reactions(): HasMany { return $this->hasMany(NewsReaction::class, 'post_id'); }
+    public function pollVotes(): HasMany { return $this->hasMany(NewsPollVote::class, 'post_id'); }
+
+    public function scopePublished($q) { return $q->where('published', 1); }
+    public function scopePinned($q)    { return $q->where('pinned', 1); }
+    public function scopeOfType($q, NewsPostType $t) { return $q->where('post_type', $t->value); }
+}
