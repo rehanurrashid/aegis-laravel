@@ -19,11 +19,11 @@
       </div>
 
       <div class="auth-footer">
-        <a :href="route('public.home')" class="auth-footer-link">About Aegis</a>
+        <a :href="route('home')" class="auth-footer-link">About Aegis</a>
         <span class="auth-footer-sep">·</span>
-        <a :href="route('pricing')" class="auth-footer-link">Pricing</a>
+        <a href="#" class="auth-footer-link">Pricing</a>
         <span class="auth-footer-sep">·</span>
-        <a :href="route('support.public')" class="auth-footer-link">Support</a>
+        <a href="#" class="auth-footer-link">Support</a>
       </div>
     </div>
 

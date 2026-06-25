@@ -6,7 +6,7 @@
         "build": "vite build"
     },
     "dependencies": {
-        "@inertiajs/vue3": "^1.0",
+        "@inertiajs/vue3": "^3.0",
         "axios": "^1.6",
         "laravel-echo": "^1.19.0",
         "pinia": "^2.3.1",

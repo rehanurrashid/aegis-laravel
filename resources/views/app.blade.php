@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title inertia>Aegis</title>
+    <title data-inertia>Aegis</title>
     <link rel="icon" type="image/svg+xml" href="/aegis-favicon.svg">
     <link rel="stylesheet" href="/css/_shared.css">
     @routes

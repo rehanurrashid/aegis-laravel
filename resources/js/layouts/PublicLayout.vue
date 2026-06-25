@@ -10,12 +10,12 @@
 <template>
   <div class="public-shell">
     <header class="public-header">
-      <a :href="route('public.home')" class="public-brand-link">
+      <a :href="route('home')" class="public-brand-link">
         <img src="/aegis-favicon.svg" alt="" class="public-brand-mark" />
         <span class="public-brand-name">Aegis</span>
       </a>
       <nav class="public-header-nav">
-        <a :href="route('pricing')" class="public-header-link">Pricing</a>
+        <a href="#" class="public-header-link">Pricing</a>
         <a :href="route('login')" class="public-header-link">Sign in</a>
         <a :href="route('register')" class="btn btn-sm btn-primary">Get started</a>
       </nav>
@@ -32,9 +32,9 @@
           <span>Powered by Aegis</span>
         </div>
         <div class="public-footer-links">
-          <a :href="route('public.home')">About</a>
-          <a :href="route('pricing')">Pricing</a>
-          <a :href="route('support.public')">Support</a>
+          <a :href="route('home')">About</a>
+          <a href="#">Pricing</a>
+          <a href="#">Support</a>
         </div>
       </div>
     </footer>
