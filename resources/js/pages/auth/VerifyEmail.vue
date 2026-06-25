@@ -1,0 +1,14 @@
+<!--
+  pages/auth/VerifyEmail.vue — stub (page not yet built).
+-->
+<template>
+  <AuthLayout>
+    <div class="auth-heading">
+      <h1 class="auth-title">Verify Email</h1>
+      <p class="auth-subtitle">Coming soon.</p>
+    </div>
+  </AuthLayout>
+</template>
+<script setup>
+import AuthLayout from '@/layouts/AuthLayout.vue'
+</script>

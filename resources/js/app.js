@@ -20,11 +20,32 @@ import IncidentBanner from '@/components/features/IncidentBanner.vue'
 createInertiaApp({
     title: (title) => (title ? `${title} — Aegis` : 'Aegis'),
 
-    resolve: (name) =>
-        resolvePageComponent(
-            `./pages/${name}.vue`,
+    resolve: (name) => {
+        // Controllers use PascalCase portal names; disk folders use kebab-lowercase.
+        // Map: 'BusinessPartner/Foo' -> 'business-partner/Foo'
+        //      'ContinuitySteward/Foo' -> 'continuity-steward/Foo'
+        //      'SupportSteward/Foo' -> 'support-steward/Foo'
+        //      'Auth/Foo' -> 'auth/Foo', 'Admin/Foo' -> 'admin/Foo', etc.
+        const folderMap = {
+            'BusinessPartner':   'business-partner',
+            'ContinuitySteward': 'continuity-steward',
+            'SupportSteward':    'support-steward',
+            'Provider':          'provider',
+            'Admin':             'admin',
+            'Auth':              'auth',
+            'Public':            'public',
+            'Shared':            'shared',
+        }
+        const parts = name.split('/')
+        if (parts.length >= 2 && folderMap[parts[0]]) {
+            parts[0] = folderMap[parts[0]]
+        }
+        const resolved = parts.join('/')
+        return resolvePageComponent(
+            `./pages/${resolved}.vue`,
             import.meta.glob('./pages/**/*.vue'),
-        ),
+        )
+    },
 
     setup({ el, App, props, plugin }) {
         const pinia = createPinia()
