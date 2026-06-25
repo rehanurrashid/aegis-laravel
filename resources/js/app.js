@@ -18,7 +18,7 @@ import AegisEmptyState from '@/components/ui/AegisEmptyState.vue'
 import IncidentBanner from '@/components/features/IncidentBanner.vue'
 
 createInertiaApp({
-    title: (title) => (title ? `${title} — Aegis` : 'Aegis'),
+    title: (title) => (title ? `${title}` : 'Aegis'),
 
     resolve: (name) => {
         // Controllers use PascalCase portal names; disk folders use kebab-lowercase.

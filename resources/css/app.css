@@ -533,7 +533,7 @@ body {
 .auth-bg {
     position: absolute;
     inset: 0;
-    background-image: url('/aegis-bg.svg');
+    background-image: url('../images/aegis-bg.svg');
     background-size: cover;
     background-position: center;
     opacity: 0.5;
