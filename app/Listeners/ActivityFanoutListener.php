@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Listeners;
 
 use App\Enums\ActivitySeverity;
+use App\Enums\UserRole;
 use App\Events\Admin\RefundProcessed;
 use App\Events\Admin\UserLocked;
 use App\Events\Admin\UserRoleChanged;
@@ -153,9 +154,11 @@ class ActivityFanoutListener
         return [];
     }
 
-    private function portalFor(string $role): string
+    private function portalFor(UserRole|string $role): string
     {
-        return match ($role) {
+        $value = $role instanceof UserRole ? $role->value : $role;
+
+        return match ($value) {
             'practitioner'       => 'provider',
             'continuity_steward' => 'continuity_steward',
             'support_steward'    => 'support_steward',

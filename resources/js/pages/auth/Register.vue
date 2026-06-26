@@ -453,7 +453,7 @@ function submit() {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 48px 52px;
+  padding: clamp(20px, 4vh, 48px) clamp(28px, 4vw, 52px);
   overflow: hidden;
   flex-shrink: 0;
   height: 100vh;
@@ -491,7 +491,9 @@ function submit() {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 40px 0;
+  padding: clamp(12px, 2.5vh, 40px) 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .ob-panel-left-eyebrow {
@@ -500,16 +502,16 @@ function submit() {
   letter-spacing: 2px;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.65);
-  margin-bottom: 16px;
+  margin-bottom: clamp(8px, 1.5vh, 16px);
 }
 
 .ob-panel-left-title {
   font-family: var(--font-serif);
-  font-size: 36px;
+  font-size: clamp(24px, 2.4vw + 0.8rem, 36px);
   font-weight: 700;
   color: var(--text-inverted);
   line-height: 1.22;
-  margin-bottom: 20px;
+  margin-bottom: clamp(10px, 1.8vh, 20px);
 }
 
 .ob-panel-left-body {
@@ -523,8 +525,8 @@ function submit() {
 .ob-panel-features {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  margin-top: 36px;
+  gap: clamp(8px, 1.4vh, 14px);
+  margin-top: clamp(16px, 2.8vh, 36px);
 }
 
 .ob-panel-feature {
@@ -561,7 +563,7 @@ function submit() {
 
 /* Progress pips */
 .ob-progress-track {
-  margin-top: 32px;
+  margin-top: clamp(14px, 2.4vh, 32px);
   display: flex;
   gap: 5px;
   align-items: center;
@@ -682,7 +684,7 @@ function submit() {
 }
 
 .ob-role-card {
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 20px 22px;
   cursor: pointer;
@@ -695,14 +697,12 @@ function submit() {
 
 .ob-role-card:hover {
   border-color: var(--gold);
-  box-shadow: var(--shadow-sm);
   transform: translateY(-1px);
 }
 
 .ob-role-card.selected {
   border-color: var(--gold);
   background: rgba(196, 169, 106, 0.04);
-  box-shadow: 0 0 0 3px rgba(196, 169, 106, 0.12);
 }
 
 .ob-role-card-icon {
@@ -1027,6 +1027,14 @@ function submit() {
 }
 
 /* ──────────── RESPONSIVE ──────────── */
+
+/* Short viewports: drop features first. Progress pips are tiny
+   and kept (functional flow indicator). These come before the
+   width queries so width-based stacking can still override. */
+@media (max-height: 680px) {
+  .ob-panel-features { display: none; }
+}
+
 @media (max-width: 900px) {
   .ob-panel-left { width: 36%; padding: 36px 32px; }
   .ob-panel-right-inner { padding: 40px 36px; }

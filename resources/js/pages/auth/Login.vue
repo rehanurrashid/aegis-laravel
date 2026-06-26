@@ -171,11 +171,14 @@
 
           </form>
 
+          <!-- SSO temporarily hidden — backend has no OAuth providers wired.
+               When SSO is greenlit, uncomment this block and add the
+               corresponding routes + OAuthController.
           <div class="signin-divider">or continue with</div>
 
           <div class="signin-sso-grid">
             <button class="signin-sso-btn" type="button" disabled data-tooltip="Coming soon">
-              <!-- Google wordmark SVG — brand asset, inline required -->
+              &lt;!&ndash; Google wordmark SVG &mdash; brand asset, inline required &ndash;&gt;
               <svg viewBox="0 0 24 24" fill="none" width="16" height="16" aria-hidden="true">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -185,7 +188,7 @@
               Google
             </button>
             <button class="signin-sso-btn" type="button" disabled data-tooltip="Coming soon">
-              <!-- Microsoft brand grid — brand asset, inline required -->
+              &lt;!&ndash; Microsoft brand grid &mdash; brand asset, inline required &ndash;&gt;
               <svg viewBox="0 0 24 24" fill="none" width="16" height="16" aria-hidden="true">
                 <rect x="1"  y="1"  width="10" height="10" fill="#F25022"/>
                 <rect x="13" y="1"  width="10" height="10" fill="#7FBA00"/>
@@ -195,6 +198,7 @@
               Microsoft
             </button>
           </div>
+          -->
 
           <p class="auth-altline">
             Don't have an account?
@@ -347,7 +351,7 @@ function submitReset() {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 48px 52px;
+  padding: clamp(20px, 4vh, 48px) clamp(28px, 4vw, 52px);
   overflow: hidden;
   flex-shrink: 0;
   height: 100vh;
@@ -385,7 +389,9 @@ function submitReset() {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 40px 0;
+  padding: clamp(12px, 2.5vh, 40px) 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .signin-left-eyebrow {
@@ -394,16 +400,16 @@ function submitReset() {
   letter-spacing: 2px;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.88);
-  margin-bottom: 16px;
+  margin-bottom: clamp(8px, 1.5vh, 16px);
 }
 
 .signin-left-title {
   font-family: var(--font-serif);
-  font-size: 36px;
+  font-size: clamp(24px, 2.4vw + 0.8rem, 36px);
   font-weight: 700;
   color: var(--text-inverted);
   line-height: 1.22;
-  margin-bottom: 20px;
+  margin-bottom: clamp(10px, 1.8vh, 20px);
 }
 
 .signin-left-body {
@@ -411,14 +417,14 @@ function submitReset() {
   color: rgba(255, 255, 255, 0.78);
   line-height: 1.65;
   max-width: 340px;
-  margin-bottom: 40px;
+  margin-bottom: clamp(16px, 3vh, 40px);
 }
 
 /* Trust items */
 .signin-trust-items {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: clamp(8px, 1.4vh, 16px);
 }
 
 .signin-trust-item {
@@ -455,8 +461,8 @@ function submitReset() {
 
 /* Testimonial */
 .signin-testimonial {
-  margin-top: 44px;
-  padding: 20px 22px;
+  margin-top: clamp(16px, 3.2vh, 44px);
+  padding: clamp(12px, 1.8vh, 20px) clamp(14px, 1.8vw, 22px);
   background: rgba(255, 255, 255, 0.07);
   border-radius: var(--radius);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -792,6 +798,18 @@ button.form-label-link {
 }
 
 /* ──────────────── RESPONSIVE ──────────────── */
+
+/* Short viewports: drop the testimonial first, then trust items.
+   Order matters — these come before the width queries so width-based
+   stacking (≤720px) can still override `display: none` if needed. */
+@media (max-height: 760px) {
+  .signin-testimonial { display: none; }
+}
+
+@media (max-height: 620px) {
+  .signin-trust-items { display: none; }
+}
+
 @media (max-width: 900px) {
   .signin-panel-left {
     width: 38%;
