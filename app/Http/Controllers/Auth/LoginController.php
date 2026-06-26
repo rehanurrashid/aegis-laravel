@@ -13,22 +13,24 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class LoginController extends Controller
 {
-    /** GET /login */
     public function show(): Response
     {
         return Inertia::render('Auth/Login');
     }
 
-    /** POST /login */
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(LoginRequest $request): SymfonyResponse
     {
+        $trace = '[LOGIN:' . substr(md5((string) microtime(true)), 0, 6) . ']';
+
         $key = 'login.' . $request->ip() . '.' . strtolower((string) $request->email);
 
         if (RateLimiter::tooManyAttempts($key, 5)) {
@@ -75,7 +77,6 @@ class LoginController extends Controller
 
         RateLimiter::clear($key);
 
-        // MFA gate — defer login if user has active 2FA
         $mfa       = $user->mfaToken;
         $mfaActive = $user->two_factor_enabled
             && $mfa !== null
@@ -85,24 +86,34 @@ class LoginController extends Controller
         if ($mfaActive) {
             $request->session()->put('mfa_pending_user_id', $user->id);
             $request->session()->put('mfa_remember', $request->boolean('remember'));
-            return redirect()->route('mfa.challenge');
+            return Inertia::location(route('mfa.challenge'));
         }
 
+        // ── KEY CHANGE ────────────────────────────────────────────────────────
+        // Auth::login() internally calls session()->migrate(true) which already
+        // regenerates the session ID and preserves in-memory attributes.
+        // Do NOT call regenerate() or save() — that triggers a double-save race
+        // where the middleware terminate phase rewrites the session row with
+        // stale attributes, wiping the login_web_* key.
         Auth::login($user, $request->boolean('remember'));
+
+        Log::info("{$trace} after Auth::login", [
+            'auth_check' => Auth::check(),
+            'auth_id'    => Auth::id(),
+            'session_id' => $request->session()->getId(),
+            'session_keys' => array_keys($request->session()->all()),
+        ]);
 
         $user->forceFill([
             'failed_login_count' => 0,
             'last_login_at'      => now(),
         ])->save();
 
-        $request->session()->regenerate();
-
         event(new UserLoggedIn($user, 'web'));
 
-        return redirect()->intended($this->portalHomeFor($user));
+        return Inertia::location($this->portalHomeFor($user));
     }
 
-    /** POST /logout */
     public function destroy(Request $request): RedirectResponse
     {
         $user = $request->user();
@@ -130,7 +141,7 @@ class LoginController extends Controller
             UserRole::SupportSteward    => route('ss.dashboard'),
             UserRole::BusinessPartner   => route('bp.dashboard'),
             UserRole::Admin             => route('admin.dashboard'),
-            default                     => '/',
+            default                     => url('/'),
         };
     }
 }

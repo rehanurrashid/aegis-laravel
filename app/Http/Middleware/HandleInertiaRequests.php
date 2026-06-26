@@ -10,6 +10,7 @@ use App\Enums\UserRole;
 use App\Models\ActivityEvent;
 use App\Models\CriticalIncident;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -24,6 +25,21 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user         = $request->user();
+
+        Log::info('[INERTIA_SHARE]', [
+            'url'          => $request->fullUrl(),
+            'route'        => $request->route()?->getName(),
+            'method'       => $request->method(),
+            'session_id'   => $request->session()->getId(),
+            'auth_check'   => auth()->check(),
+            'auth_id'      => auth()->id(),
+            'user_class'   => $user ? get_class($user) : null,
+            'user_id'      => $user?->id,
+            'user_role'    => $user?->role instanceof \App\Enums\UserRole ? $user->role->value : ($user?->role ?? null),
+            'session_keys' => array_keys($request->session()->all()),
+            'cookie_session' => $request->cookies->has(config('session.cookie')) ? 'present' : 'missing',
+        ]);
+
         $hasEmergency = false;
         $unreadCount  = 0;
         $roleSlugs    = [];
