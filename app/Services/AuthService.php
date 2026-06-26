@@ -25,58 +25,59 @@ class AuthService
     public function __construct(private ActivityService $activity) {}
 
     /**
-     * Register a new user. Creates User + default UserRoleAssignment + default notify_* UserMeta rows.
+     * Register a new user.
+     * Creates User + UserRoleAssignment + default notify_* UserMeta rows.
      */
     public function register(array $data): User
     {
         return DB::transaction(function () use ($data) {
-            $userId = 'u_' . Str::lower(Str::random(12));
+            $userId = 'ae_' . Str::lower(Str::random(12));
             $slug   = $this->generateSlug($data['display_name']);
 
             /** @var User $user */
-            $user = User::create([
-                'id'            => $userId,
-                'role'          => $data['role'],
-                'display_name'  => $data['display_name'],
-                'email'         => $data['email'],
-                'password'      => Hash::make($data['password']),
-                'phone'         => $data['phone'] ?? null,
-                'slug'          => $slug,
-                'tier'          => $data['tier'] ?? 'access',
-                'verified'      => 0,
-                'created_at'    => now(),
-            ]);
+            $user = new User();
+            $user->forceFill([
+                'id'           => $userId,
+                'role'         => $data['role'],
+                'display_name' => $data['display_name'],
+                'email'        => $data['email'],
+                'password'     => Hash::make($data['password']),
+                'phone'        => $data['phone'] ?? null,
+                'slug'         => $slug,
+                'tier'         => $data['tier'] ?? 'access',
+                'verified'     => 0,
+                'bp_type'      => ($data['role'] === 'business_partner') ? ($data['bp_type'] ?? null) : null,
+            ])->save();
 
             UserRoleAssignment::create([
+                'id'         => 'ur_' . Str::lower(Str::random(12)),
                 'user_id'    => $user->id,
-                'role'       => $user->role,
+                'role'       => $data['role'],
                 'is_default' => 1,
                 'enabled_at' => now(),
             ]);
 
-            // Default notification preferences — all true on create
-            $defaultPrefs = [
-                'notify_email'         => '1',
-                'notify_sms'           => '0',
-                'notify_in_app'        => '1',
-                'notify_summary'       => '1',
-                'notify_plan'          => '1',
-                'notify_vault'         => '1',
-                'notify_incident'      => '1',
-                'notify_steward'       => '1',
-                'notify_payment'       => '1',
-                'notify_message'       => '1',
-                'notify_referral'      => '1',
-                'notify_account'       => '1',
+            // Default notification preferences
+            $now         = now();
+            $notifyKeys  = [
+                'notify_email', 'notify_incident', 'notify_message', 'notify_task',
+                'notify_assignment', 'notify_attestation', 'notify_plan_change',
+                'notify_plan_review', 'notify_role_change', 'notify_payment',
+                'notify_proposal', 'notify_agreement', 'notify_summary',
             ];
-            foreach ($defaultPrefs as $key => $val) {
-                UserMeta::create([
+            $metaRows = [];
+            foreach ($notifyKeys as $key) {
+                $metaRows[] = [
+                    'id'         => 'um_' . Str::lower(Str::random(12)),
                     'user_id'    => $user->id,
                     'meta_key'   => $key,
-                    'meta_value' => $val,
-                    'meta_type'  => 'bool',
-                ]);
+                    'meta_value' => '1',
+                    'meta_type'  => 'boolean',   // matches migration enum
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
             }
+            UserMeta::insert($metaRows);
 
             event(new UserRegistered($user));
             return $user;
@@ -84,8 +85,8 @@ class AuthService
     }
 
     /**
-     * Verify credentials, check lock/deactivation state, and return user on success.
-     * Throws on failure (validation exception model handles it in controller).
+     * Verify credentials and return the user on success, null on failure.
+     * Rate-limiting and MFA gate are handled in LoginController.
      */
     public function login(string $email, string $password, string $device = 'web'): ?User
     {
@@ -99,15 +100,15 @@ class AuthService
             return null;
         }
 
-        if (!Hash::check($password, $user->password)) {
+        if (!Hash::check($password, (string) $user->password)) {
             $this->incrementFailedLogin($user);
             return null;
         }
 
-        $user->update([
+        $user->forceFill([
             'failed_login_count' => 0,
-            'last_login'         => now(),
-        ]);
+            'last_login_at'      => now(),    // correct column name
+        ])->save();
 
         event(new UserLoggedIn($user, $device));
         return $user;
@@ -121,7 +122,7 @@ class AuthService
     public function incrementFailedLogin(User $user): void
     {
         $count = ($user->failed_login_count ?? 0) + 1;
-        $user->update(['failed_login_count' => $count]);
+        $user->forceFill(['failed_login_count' => $count])->save();
 
         if ($count >= 5) {
             $this->lockAccount($user, 'Too many failed login attempts');
@@ -130,17 +131,20 @@ class AuthService
 
     public function lockAccount(User $user, string $reason): void
     {
-        $user->update([
+        $user->forceFill([
             'locked_at'     => now(),
             'locked_reason' => $reason,
-        ]);
-        $user->tokens()->delete();
+        ])->save();
+
+        if (method_exists($user, 'tokens')) {
+            $user->tokens()->delete();
+        }
 
         event(new UserLocked($user, $reason));
 
         $this->activity->log(
             $user->id,
-            $this->portalFor($user->role),
+            $this->portalFor((string) $user->role->value ?? $user->role),
             'account',
             ActivitySeverity::Critical,
             'account_locked',
@@ -153,31 +157,35 @@ class AuthService
 
     public function unlockAccount(User $user): void
     {
-        $user->update([
+        $user->forceFill([
             'locked_at'          => null,
             'locked_reason'      => null,
             'failed_login_count' => 0,
-        ]);
+        ])->save();
     }
 
     public function forgotPassword(string $email): bool
     {
         $user = User::where('email', $email)->first();
-        if (!$user) return true; // Always-true response to prevent enumeration
+        if (!$user) {
+            return true; // prevent enumeration
+        }
 
         PasswordResetToken::where('user_id', $user->id)->delete();
 
-        $token = Str::random(64);
+        $rawToken = bin2hex(random_bytes(32));
+
         PasswordResetToken::create([
-            'token'      => hash('sha256', $token),
+            'id'         => 'prt_' . Str::lower(Str::random(12)),
             'user_id'    => $user->id,
-            'created_at' => now(),
+            'token'      => hash('sha256', $rawToken),
             'expires_at' => now()->addHours(2),
+            'created_at' => now(),
         ]);
 
         \App\Jobs\SendEmailJob::dispatch(
             'emails.account.05-password-reset',
-            ['token' => $token, 'email' => $email],
+            ['token' => $rawToken, 'email' => $email],
             $user->id
         );
 
@@ -187,7 +195,9 @@ class AuthService
     public function resetPassword(string $email, string $token, string $newPassword): bool
     {
         $user = User::where('email', $email)->first();
-        if (!$user) return false;
+        if (!$user) {
+            return false;
+        }
 
         $hashed = hash('sha256', $token);
         $record = PasswordResetToken::where('token', $hashed)
@@ -196,14 +206,17 @@ class AuthService
             ->where('expires_at', '>', now())
             ->first();
 
-        if (!$record) return false;
+        if (!$record) {
+            return false;
+        }
 
-        $user->update([
+        $user->forceFill([
             'password'           => Hash::make($newPassword),
             'failed_login_count' => 0,
             'locked_at'          => null,
             'locked_reason'      => null,
-        ]);
+        ])->save();
+
         $record->update(['used_at' => now()]);
 
         event(new PasswordReset($user));
@@ -212,10 +225,10 @@ class AuthService
 
     public function changePassword(User $user, string $currentPassword, string $newPassword): bool
     {
-        if (!Hash::check($currentPassword, $user->password)) {
+        if (!Hash::check($currentPassword, (string) $user->password)) {
             return false;
         }
-        $user->update(['password' => Hash::make($newPassword)]);
+        $user->forceFill(['password' => Hash::make($newPassword)])->save();
         event(new PasswordReset($user));
         return true;
     }
@@ -225,43 +238,45 @@ class AuthService
         $totp = TOTP::generate();
         $totp->setLabel($user->email);
         $totp->setIssuer('Aegis');
-        $user->update(['mfa_secret' => $totp->getSecret()]);
 
         return [
-            'secret' => $totp->getSecret(),
+            'secret'           => $totp->getSecret(),
             'provisioning_uri' => $totp->getProvisioningUri(),
         ];
     }
 
     public function verifyMfa(User $user, string $code): bool
     {
-        if (!$user->mfa_secret) return false;
+        $mfa = $user->mfaToken;
+        if (!$mfa || !$mfa->secret) {
+            return false;
+        }
 
-        $totp = TOTP::createFromSecret($user->mfa_secret);
+        $totp = TOTP::createFromSecret($mfa->secret);
         if (!$totp->verify($code, null, 1)) {
             return false;
         }
 
-        $user->update(['mfa_enabled' => true]);
+        $user->forceFill(['two_factor_enabled' => true])->save();
         event(new MfaEnabled($user));
         return true;
     }
 
     public function disableMfa(User $user, string $password): bool
     {
-        if (!Hash::check($password, $user->password)) {
+        if (!Hash::check($password, (string) $user->password)) {
             return false;
         }
-        $user->update(['mfa_enabled' => false, 'mfa_secret' => null]);
+        $user->forceFill(['two_factor_enabled' => false])->save();
         event(new MfaDisabled($user));
         return true;
     }
 
     private function generateSlug(string $name): string
     {
-        $base = Str::slug(preg_replace('/^(dr|mr|mrs|ms|prof)\.?\s+/i', '', $name));
+        $base = Str::slug(preg_replace('/^(dr|mr|mrs|ms|prof)\.?\s+/i', '', $name)) ?: 'user';
         $slug = $base;
-        $i = 1;
+        $i    = 1;
         while (User::where('slug', $slug)->exists()) {
             $slug = "{$base}-{$i}";
             $i++;
@@ -269,9 +284,10 @@ class AuthService
         return $slug;
     }
 
-    private function portalFor(string $role): string
+    private function portalFor(mixed $role): string
     {
-        return match ($role) {
+        $value = is_object($role) ? ($role->value ?? '') : (string) $role;
+        return match ($value) {
             'practitioner'       => 'provider',
             'continuity_steward' => 'continuity_steward',
             'support_steward'    => 'support_steward',

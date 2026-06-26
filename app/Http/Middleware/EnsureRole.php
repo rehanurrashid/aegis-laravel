@@ -23,18 +23,21 @@ class EnsureRole
             return redirect()->route('login');
         }
 
-        // Primary check: user_roles table (default role assignment)
+        // Resolve the user's primary role as a plain string for comparison
+        $userRoleValue = $user->role instanceof UserRole
+            ? $user->role->value
+            : (string) $user->role;
+
+        // Check user_roles table (default assignment) — compare as raw strings
+        // to avoid enum serialization issues in whereIn
         $hasRole = $user->roleAssignments()
-            ->whereIn('role', $roles)
             ->where('is_default', 1)
+            ->whereRaw('LOWER(role) IN (' . implode(',', array_fill(0, count($roles), '?')) . ')', $roles)
             ->exists();
 
-        // Fallback: users.role column (in case the assignment row is missing)
+        // Fallback: users.role column
         if (!$hasRole) {
-            $userRole = $user->role instanceof UserRole
-                ? $user->role->value
-                : (string) $user->role;
-            $hasRole = in_array($userRole, $roles, true);
+            $hasRole = in_array($userRoleValue, $roles, true);
         }
 
         if (!$hasRole) {

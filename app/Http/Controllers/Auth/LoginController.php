@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Enums\UserRole;
+use App\Events\Auth\UserLoggedIn;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,13 +27,8 @@ class LoginController extends Controller
     }
 
     /** POST /login */
-    public function store(Request $request): RedirectResponse
+    public function store(LoginRequest $request): RedirectResponse
     {
-        $request->validate([
-            'email'    => ['required', 'email'],
-            'password' => ['required', 'string'],
-        ]);
-
         $key = 'login.' . $request->ip() . '.' . strtolower((string) $request->email);
 
         if (RateLimiter::tooManyAttempts($key, 5)) {
@@ -60,8 +57,10 @@ class LoginController extends Controller
             RateLimiter::hit($key, 60);
 
             if ($user) {
-                $user->increment('failed_login_count');
-                if ($user->failed_login_count >= 5) {
+                $count = ($user->failed_login_count ?? 0) + 1;
+                $user->forceFill(['failed_login_count' => $count])->save();
+
+                if ($count >= 5) {
                     $user->forceFill([
                         'locked_at'     => now(),
                         'locked_reason' => 'Too many failed login attempts',
@@ -76,8 +75,8 @@ class LoginController extends Controller
 
         RateLimiter::clear($key);
 
-        // MFA gate — if user has a confirmed, not-disabled MFA token, defer login
-        $mfa = $user->mfaToken;
+        // MFA gate — defer login if user has active 2FA
+        $mfa       = $user->mfaToken;
         $mfaActive = $user->two_factor_enabled
             && $mfa !== null
             && $mfa->confirmed_at !== null
@@ -90,11 +89,15 @@ class LoginController extends Controller
         }
 
         Auth::login($user, $request->boolean('remember'));
+
         $user->forceFill([
             'failed_login_count' => 0,
             'last_login_at'      => now(),
         ])->save();
+
         $request->session()->regenerate();
+
+        event(new UserLoggedIn($user, 'web'));
 
         return redirect()->intended($this->portalHomeFor($user));
     }
@@ -115,7 +118,6 @@ class LoginController extends Controller
         return redirect()->route('login');
     }
 
-    /** Resolve a user's portal-home URL. */
     private function portalHomeFor(User $user): string
     {
         $role = $user->role instanceof UserRole
