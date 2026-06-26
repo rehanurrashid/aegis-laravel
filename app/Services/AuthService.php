@@ -27,10 +27,12 @@ class AuthService
     /**
      * Register a new user.
      * Creates User + UserRoleAssignment + default notify_* UserMeta rows.
+     * Returns a fresh() User instance so all casts (role enum, tier enum) are
+     * properly hydrated before the controller uses the object.
      */
     public function register(array $data): User
     {
-        return DB::transaction(function () use ($data) {
+        $user = DB::transaction(function () use ($data) {
             $userId = 'ae_' . Str::lower(Str::random(12));
             $slug   = $this->generateSlug($data['display_name']);
 
@@ -58,8 +60,8 @@ class AuthService
             ]);
 
             // Default notification preferences
-            $now         = now();
-            $notifyKeys  = [
+            $now        = now();
+            $notifyKeys = [
                 'notify_email', 'notify_incident', 'notify_message', 'notify_task',
                 'notify_assignment', 'notify_attestation', 'notify_plan_change',
                 'notify_plan_review', 'notify_role_change', 'notify_payment',
@@ -72,21 +74,25 @@ class AuthService
                     'user_id'    => $user->id,
                     'meta_key'   => $key,
                     'meta_value' => '1',
-                    'meta_type'  => 'boolean',   // matches migration enum
+                    'meta_type'  => 'boolean',
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];
             }
             UserMeta::insert($metaRows);
 
-            event(new UserRegistered($user));
             return $user;
         });
+
+        // Fire event AFTER transaction commits so listeners can safely query
+        event(new UserRegistered($user));
+
+        // Return a fresh DB-hydrated instance so all enum casts resolve correctly
+        return $user->fresh();
     }
 
     /**
      * Verify credentials and return the user on success, null on failure.
-     * Rate-limiting and MFA gate are handled in LoginController.
      */
     public function login(string $email, string $password, string $device = 'web'): ?User
     {
@@ -107,7 +113,7 @@ class AuthService
 
         $user->forceFill([
             'failed_login_count' => 0,
-            'last_login_at'      => now(),    // correct column name
+            'last_login_at'      => now(),
         ])->save();
 
         event(new UserLoggedIn($user, $device));
@@ -142,9 +148,13 @@ class AuthService
 
         event(new UserLocked($user, $reason));
 
+        $roleValue = $user->role instanceof \BackedEnum
+            ? $user->role->value
+            : (string) $user->role;
+
         $this->activity->log(
             $user->id,
-            $this->portalFor((string) $user->role->value ?? $user->role),
+            $this->portalFor($roleValue),
             'account',
             ActivitySeverity::Critical,
             'account_locked',
@@ -284,10 +294,9 @@ class AuthService
         return $slug;
     }
 
-    private function portalFor(mixed $role): string
+    private function portalFor(string $role): string
     {
-        $value = is_object($role) ? ($role->value ?? '') : (string) $role;
-        return match ($value) {
+        return match ($role) {
             'practitioner'       => 'provider',
             'continuity_steward' => 'continuity_steward',
             'support_steward'    => 'support_steward',
