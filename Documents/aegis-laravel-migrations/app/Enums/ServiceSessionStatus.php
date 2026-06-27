@@ -1,0 +1,33 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Enums;
+
+enum ServiceSessionStatus: string
+{
+    case Scheduled = 'scheduled';
+    case Completed = 'completed';
+    case Cancelled = 'cancelled';
+    case NoShow    = 'no_show';
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::Scheduled => 'Scheduled',
+            self::Completed => 'Completed',
+            self::Cancelled => 'Cancelled',
+            self::NoShow    => 'No Show',
+        };
+    }
+
+    public function color(): string
+    {
+        return match ($this) {
+            self::Scheduled => 'blue',
+            self::Completed => 'green',
+            self::Cancelled => 'gray',
+            self::NoShow    => 'red',
+        };
+    }
+}

@@ -174,6 +174,22 @@ class UserMetaSeeder extends Seeder
             $rows[] = $this->row('ss_linda', $k, $v, $t);
         }
 
+        // ── Coarse notify_* gate keys consumed by the email layer ──────────────
+        // The fine-grained notify_* keys above are descriptive demo data; the email
+        // notification path (NotificationService::shouldSend / SendEmailNotificationListener)
+        // actually gates on these coarse keys, so every demo user needs them present.
+        $gateKeys = [
+            'notify_email', 'notify_account', 'notify_incident', 'notify_message',
+            'notify_payment', 'notify_plan', 'notify_referral', 'notify_steward',
+            'notify_vault', 'notify_summary',
+        ];
+        $demoUserIds = ['p_sarah', 'p_david', 'p_maria', 'cs_marcus', 'cs_priya', 'bp_acme', 'bp_jamal', 'ss_linda'];
+        foreach ($demoUserIds as $uid) {
+            foreach ($gateKeys as $gk) {
+                $rows[] = $this->row($uid, $gk, '1', 'boolean');
+            }
+        }
+
         // Bulk upsert
         foreach ($rows as $row) {
             DB::table('user_meta')->updateOrInsert(

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\Service\ServiceRequestSubmitted;
+use App\Events\Service\ServiceRequestResponded;
+
 use App\Enums\ActivitySeverity;
 use App\Models\Service;
 use App\Models\ServiceRequest;
@@ -88,6 +91,8 @@ class ServiceService
             'service_request', $req->id, $requester->id
         );
 
+        event(new ServiceRequestSubmitted($req, $requester));
+
         return $req;
     }
 
@@ -104,6 +109,8 @@ class ServiceService
             "{$service->title}",
             'service_request', $req->id, $req->practitioner_id
         );
+
+        event(new ServiceRequestResponded($req->fresh(), 'accepted'));
 
         return $req->fresh();
     }
@@ -123,6 +130,8 @@ class ServiceService
             $reason ?? 'No reason given.',
             'service_request', $req->id, $req->practitioner_id
         );
+
+        event(new ServiceRequestResponded($req->fresh(), 'declined'));
 
         return $req->fresh();
     }

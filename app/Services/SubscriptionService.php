@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\Business\SubscriptionTierChanged;
+use App\Events\Business\SubscriptionCancelled;
+
 use App\Models\User;
 use Illuminate\Support\Str;
 use Laravel\Cashier\Subscription;
@@ -18,7 +21,7 @@ class SubscriptionService
         return $user->newSubscription($planName, $stripePriceId)->create($paymentMethod);
     }
 
-    public function upgrade(User $user, string $newPriceId, string $planName = 'default'): Subscription
+    public function upgrade(User $user, string $newPriceId, string $planName = 'default', string $direction = 'upgrade'): Subscription
     {
         $sub = $user->subscription($planName);
         $sub->swap($newPriceId);
@@ -27,18 +30,21 @@ class SubscriptionService
         $tier = $this->tierForPriceId($newPriceId);
         if ($tier) $user->update(['tier' => $tier]);
 
+        event(new SubscriptionTierChanged($user->fresh(), $direction, $tier));
+
         return $sub->refresh();
     }
 
     public function downgrade(User $user, string $newPriceId, string $planName = 'default'): Subscription
     {
-        return $this->upgrade($user, $newPriceId, $planName);
+        return $this->upgrade($user, $newPriceId, $planName, 'downgrade');
     }
 
     public function cancel(User $user, string $planName = 'default'): Subscription
     {
         $sub = $user->subscription($planName);
         $sub->cancel(); // ends at period end
+        event(new SubscriptionCancelled($user->fresh()));
         return $sub->refresh();
     }
 

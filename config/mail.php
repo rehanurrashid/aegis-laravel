@@ -115,4 +115,20 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Global "Reply-To" Address
+    |--------------------------------------------------------------------------
+    |
+    | Optional. When MAIL_REPLY_TO_ADDRESS is set, GenericMailable adds this
+    | Reply-To header so recipient replies route to support rather than the
+    | unattended "from" address. Leave the env blank to disable.
+    |
+    */
+
+    'reply_to' => [
+        'address' => env('MAIL_REPLY_TO_ADDRESS'),
+        'name' => env('MAIL_REPLY_TO_NAME', env('MAIL_FROM_NAME', 'Aegis')),
+    ],
+
 ];

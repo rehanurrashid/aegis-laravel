@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\Network\ReferralReceived;
+use App\Events\Network\ReferralResponded;
+
 use App\Enums\ActivitySeverity;
 use App\Models\Referral;
 use App\Models\ReferralMeta;
@@ -57,6 +60,8 @@ class ReferralService
             'referral', $referral->id, $sender->id
         );
 
+        event(new ReferralReceived($referral, $sender, $recipient));
+
         return $referral;
     }
 
@@ -71,6 +76,8 @@ class ReferralService
             $referral->subject ?? 'Tap to view.',
             'referral', $referral->id, $referral->recipient_id
         );
+
+        event(new ReferralResponded($referral->fresh(), 'accepted'));
 
         return $referral->fresh();
     }
@@ -96,6 +103,8 @@ class ReferralService
             $reason ?? 'No reason given.',
             'referral', $referral->id, $referral->recipient_id
         );
+
+        event(new ReferralResponded($referral->fresh(), 'declined'));
 
         return $referral->fresh();
     }

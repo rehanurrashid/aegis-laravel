@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\Plan\DocumentRequested;
+
 use App\Enums\ActivitySeverity;
 use App\Jobs\SendEmailJob;
 use App\Models\ContinuityDocument;
@@ -91,6 +93,8 @@ class DocumentService
                 'continuity_document', $doc->id, $requester->id
             );
         }
+
+        event(new DocumentRequested($doc, $plan, $requester));
 
         return $doc;
     }

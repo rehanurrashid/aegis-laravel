@@ -1,0 +1,54 @@
+import './bootstrap'
+
+import { createApp, h } from 'vue'
+import { createInertiaApp } from '@inertiajs/vue3'
+import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'
+import { createPinia } from 'pinia'
+import { ZiggyVue } from '../../vendor/tightenco/ziggy'
+
+import AegisIcon from '@/components/ui/AegisIcon.vue'
+import AegisModal from '@/components/ui/AegisModal.vue'
+import AegisToast from '@/components/ui/AegisToast.vue'
+import AegisConfirm from '@/components/ui/AegisConfirm.vue'
+import AegisBadge from '@/components/ui/AegisBadge.vue'
+import AegisStatChip from '@/components/ui/AegisStatChip.vue'
+import AegisHeroBanner from '@/components/ui/AegisHeroBanner.vue'
+import AegisCard from '@/components/ui/AegisCard.vue'
+import AegisEmptyState from '@/components/ui/AegisEmptyState.vue'
+import IncidentBanner from '@/components/features/IncidentBanner.vue'
+
+createInertiaApp({
+    title: (title) => (title ? `${title} — Aegis` : 'Aegis'),
+
+    resolve: (name) =>
+        resolvePageComponent(
+            `./pages/${name}.vue`,
+            import.meta.glob('./pages/**/*.vue'),
+        ),
+
+    setup({ el, App, props, plugin }) {
+        const pinia = createPinia()
+
+        createApp({ render: () => h(App, props) })
+            .use(plugin)
+            .use(pinia)
+            .use(ZiggyVue)
+            // Globally available primitives — no per-page imports needed.
+            .component('AegisIcon', AegisIcon)
+            .component('AegisModal', AegisModal)
+            .component('AegisToast', AegisToast)
+            .component('AegisConfirm', AegisConfirm)
+            .component('AegisBadge', AegisBadge)
+            .component('AegisStatChip', AegisStatChip)
+            .component('AegisHeroBanner', AegisHeroBanner)
+            .component('AegisCard', AegisCard)
+            .component('AegisEmptyState', AegisEmptyState)
+            .component('IncidentBanner', IncidentBanner)
+            .mount(el)
+    },
+
+    progress: {
+        color: '#a0813e', // var(--gold-dark)
+        showSpinner: false,
+    },
+})

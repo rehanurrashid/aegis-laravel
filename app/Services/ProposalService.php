@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\Business\ProposalDeclined;
+
 use App\Enums\ActivitySeverity;
 use App\Events\Business\ContractCreated;
 use App\Events\Business\ProposalAccepted;
@@ -124,6 +126,8 @@ class ProposalService
             $reason ?? 'No reason given.',
             'bp_proposal', $proposal->id
         );
+
+        event(new ProposalDeclined($proposal->fresh(), $reason));
 
         return $proposal->fresh();
     }

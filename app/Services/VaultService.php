@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\Plan\VaultItemShared;
+
 use App\Enums\ActivitySeverity;
 use App\Models\ContinuityPlan;
 use App\Models\PlanSteward;
@@ -114,6 +116,8 @@ class VaultService
                 $sharer->id
             );
         }
+
+        event(new VaultItemShared($item, $stewardIds, $sharer));
     }
 
     /**

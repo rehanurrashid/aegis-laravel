@@ -101,7 +101,9 @@ class StewardService
             ]);
 
             SendEmailJob::dispatch(
-                'emails.steward.06-external-invitation',
+                $stewardType === 'support_steward'
+                    ? 'emails.steward.19-ss-invite-external'
+                    : 'emails.steward.06-external-invitation',
                 ['plan_id' => $plan->id, 'steward_id' => $row->id, 'invited' => true],
                 $stub->id
             );

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\Business\ContractCancelled;
+
 use App\Enums\ActivitySeverity;
 use App\Events\Business\ContractSigned;
 use App\Models\BpContract;
@@ -87,6 +89,8 @@ class ContractService
             $reason ?? 'No reason given.',
             'bp_contract', $contract->id, $actor->id
         );
+
+        event(new ContractCancelled($contract->fresh(), $actor, $reason));
 
         return $contract->fresh();
     }

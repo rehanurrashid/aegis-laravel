@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Jobs\SendEmailJob;
+
 use App\Enums\ActivitySeverity;
 use App\Models\BpTeamInvitation;
 use App\Models\BpTeamMember;
@@ -26,7 +28,7 @@ class TeamService
             throw new RuntimeException('Inviter must be persisted.');
         }
 
-        return BpTeamInvitation::create([
+        $invitation = BpTeamInvitation::create([
             'id'              => 'ti_' . Str::lower(Str::random(12)),
             'agency_id'       => $agency->id,
             'email'           => $email,
@@ -37,6 +39,20 @@ class TeamService
             'expires_at'      => now()->addDays(14),
             'created_at'      => now(),
         ]);
+
+        SendEmailJob::dispatch(
+            'emails.bp.41-team-invite',
+            [
+                'invitation_id' => $invitation->id,
+                'agency_name'   => $agency->display_name,
+                'invite_token'  => $invitation->token,
+                'ungated'       => true,
+            ],
+            null,
+            $email
+        );
+
+        return $invitation;
     }
 
     public function acceptInvite(BpTeamInvitation $invite, User $member): BpTeamMember

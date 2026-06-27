@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\Support\FeedbackReceived;
+use App\Events\Support\TicketResolved;
+
 use App\Enums\ActivitySeverity;
 use App\Events\Support\TicketCreated;
 use App\Events\Support\TicketReplied;
@@ -38,7 +41,7 @@ class SupportService
 
     public function submitFeedback(User $submitter, string $body, string $channel = 'in_app'): Complaint
     {
-        return Complaint::create([
+        $complaint = Complaint::create([
             'id'                 => 'cpt_' . Str::lower(Str::random(12)),
             'submitter_id'       => $submitter->id,
             'subject'            => 'User Feedback',
@@ -49,6 +52,10 @@ class SupportService
             'status'             => 'open',
             'created_at'         => now(),
         ]);
+
+        event(new FeedbackReceived($complaint));
+
+        return $complaint;
     }
 
     /**
@@ -94,6 +101,9 @@ class SupportService
             abort(403, 'Only the submitter can self-close.');
         }
         $ticket->update(['status' => 'closed', 'resolved_at' => now()]);
+
+        event(new TicketResolved($ticket->fresh()));
+
         return $ticket->fresh();
     }
 

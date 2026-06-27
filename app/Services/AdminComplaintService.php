@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\Support\TicketResolved;
+
 use App\Enums\ActivitySeverity;
 use App\Events\Support\TicketReplied;
 use App\Models\AdminAuditLog;
@@ -94,6 +96,11 @@ class AdminComplaintService
         $complaint->update($update);
 
         $this->audit($admin, 'set_complaint_status', $complaint, ['status' => $status]);
+
+        if (in_array($status, ['resolved', 'closed'], true)) {
+            event(new TicketResolved($complaint->fresh()));
+        }
+
         return $complaint->fresh();
     }
 

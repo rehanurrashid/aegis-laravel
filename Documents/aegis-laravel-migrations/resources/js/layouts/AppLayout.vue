@@ -1,0 +1,98 @@
+<!--
+  AppLayout.vue — authenticated portal shell.
+
+  Replaces the PHP chain: page_head.php → sidebar.php → header.php →
+  layout.php → page_foot.php.
+
+  Provides:
+    • Sidebar (5 portals + emergency badge)
+    • Header (search, bell, user menu)
+    • Incident banner (when hasEmergency=true)
+    • Slot for the page body
+    • Global modals (upgrade) + toast stack + floating support widget
+    • Dev-only demo switcher
+
+  All pages render through this layout unless explicitly using AuthLayout
+  (login/register) or PublicLayout (public profile pages).
+-->
+<template>
+  <div class="app-shell" :class="{ 'app-shell--collapsed': ui.sidebarCollapsed }">
+    <AppSidebar />
+
+    <div class="main-content">
+      <AppHeader />
+
+      <IncidentBanner />
+
+      <main class="page-body">
+        <slot />
+      </main>
+    </div>
+
+    <!-- Global modals: available on every authenticated page. -->
+    <AegisUpgradeModal />
+
+    <!-- Global confirm host — backs useConfirm().confirmAction(). -->
+    <AegisConfirm
+      :model-value="ui.confirmState.open"
+      :title="ui.confirmState.title"
+      :message="ui.confirmState.message"
+      :confirm-label="ui.confirmState.confirmLabel"
+      :cancel-label="ui.confirmState.cancelLabel"
+      :destructive="ui.confirmState.destructive"
+      @confirm="ui.resolveConfirm"
+      @update:model-value="(v) => { if (!v) ui.cancelConfirm() }"
+    />
+
+    <!-- Floating feedback / support FAB (skipped on Support page itself). -->
+    <SupportWidget v-if="$page.component !== 'shared/Support'" />
+
+    <!-- Dev-only demo user switcher. -->
+    <DemoSwitcher />
+
+    <!-- Toast stack — always last so it layers above modals. -->
+    <div class="toast-container">
+      <AegisToast
+        v-for="toast in ui.toastQueue"
+        :key="toast.id"
+        :message="toast.message"
+        :level="toast.level"
+        @dismiss="ui.dismissToast(toast.id)"
+      />
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { onMounted, onBeforeUnmount } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+import { useUiStore } from '@/stores/ui'
+import { useNotificationStore } from '@/stores/notifications'
+
+import AppSidebar from '@/components/chrome/AppSidebar.vue'
+import AppHeader from '@/components/chrome/AppHeader.vue'
+import DemoSwitcher from '@/components/chrome/DemoSwitcher.vue'
+
+import IncidentBanner from '@/components/features/IncidentBanner.vue'
+import SupportWidget from '@/components/features/SupportWidget.vue'
+
+import AegisUpgradeModal from '@/components/ui/AegisUpgradeModal.vue'
+import AegisConfirm from '@/components/ui/AegisConfirm.vue'
+
+const auth = useAuthStore()
+const ui   = useUiStore()
+const notifications = useNotificationStore()
+
+// Subscribe to incident events on the authenticated user's private channel.
+onMounted(() => {
+  if (auth.user?.id) {
+    notifications.listenForIncident(auth.user.id)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (auth.user?.id) {
+    notifications.stopListening(auth.user.id)
+  }
+})
+</script>

@@ -1,0 +1,70 @@
+@include('emails._partials.head', ['email_title' => 'Payment failed for your Aegis subscription'])
+
+              <h1 style="margin:0 0 16px;font-family:'Georgia','Times New Roman',serif;
+                         font-size:22px;font-weight:700;color:#2d2a26;line-height:1.3;">
+                We were unable to process your payment
+              </h1>
+
+              <p style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;
+                        font-size:14px;line-height:1.6;color:#4a4741;">
+                Dear {{ $recipient_name ?? 'there' }},
+                we were unable to process your Aegis subscription payment
+                @if(!empty($amount))
+                  of <strong>{{ $amount }}</strong>
+                @endif.
+                Please update your billing details to keep your account active.
+              </p>
+
+              <!-- Failure details box -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="margin:0 0 24px;">
+                <tr>
+                  <td style="background-color:#fdf2f2;border-left:3px solid #c0392b;
+                             padding:14px 16px;border-radius:0 6px 6px 0;">
+                    @if(!empty($failure_reason))
+                    <p style="margin:0 0 6px;font-family:Arial,Helvetica,sans-serif;
+                              font-size:13px;color:#4a4741;line-height:1.5;">
+                      <strong>Reason:</strong>
+                      {{ $failure_reason }}
+                    </p>
+                    @endif
+                    @if(!empty($retry_date))
+                    <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
+                              font-size:13px;color:#4a4741;line-height:1.5;">
+                      <strong>Next retry:</strong>
+                      {{ $retry_date }}
+                    </p>
+                    @else
+                    <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
+                              font-size:13px;color:#4a4741;line-height:1.5;">
+                      Please update your payment method before the next retry to avoid
+                      any interruption to your service.
+                    </p>
+                    @endif
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Primary CTA -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+                     style="margin:0 auto 24px;">
+                <tr>
+                  <td style="background-color:#a0813e;border-radius:8px;">
+                    <a href="{{ $billing_url ?? rtrim(config('app.url'),'/') . '/billing' }}"
+                       style="display:inline-block;padding:12px 28px;
+                              font-family:Arial,Helvetica,sans-serif;font-size:14px;
+                              font-weight:600;color:#ffffff;text-decoration:none;">
+                      Update billing details
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
+                        font-size:12px;color:#8a8378;line-height:1.5;">
+                If you need assistance, contact
+                <a href="mailto:support@aegis.devlet.tech"
+                   style="color:#8a8378;">support@aegis.devlet.tech</a>.
+              </p>
+
+@include('emails._partials.foot', ['ungated' => true])

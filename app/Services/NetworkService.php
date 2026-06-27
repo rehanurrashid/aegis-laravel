@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\Network\ConnectionAccepted;
+
 use App\Enums\ActivitySeverity;
 use App\Jobs\SendEmailJob;
 use App\Models\NetworkConnection;
@@ -90,6 +92,8 @@ class NetworkService
                 $conn->id,
                 $accepter->id
             );
+
+            event(new ConnectionAccepted($conn, $accepter));
 
             return $conn;
         });

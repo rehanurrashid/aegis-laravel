@@ -66,6 +66,8 @@ class AuthService
                 'notify_assignment', 'notify_attestation', 'notify_plan_change',
                 'notify_plan_review', 'notify_role_change', 'notify_payment',
                 'notify_proposal', 'notify_agreement', 'notify_summary',
+                // Gate keys consumed by SendEmailNotificationListener / NotificationService::getGateKey
+                'notify_account', 'notify_plan', 'notify_referral', 'notify_steward', 'notify_vault',
             ];
             $metaRows = [];
             foreach ($notifyKeys as $key) {

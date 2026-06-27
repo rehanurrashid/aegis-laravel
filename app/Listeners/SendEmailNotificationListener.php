@@ -24,6 +24,24 @@ use App\Events\Steward\StewardDesignated;
 use App\Events\Steward\StewardRemoved;
 use App\Events\Support\TicketCreated;
 use App\Events\Support\TicketReplied;
+use App\Events\Auth\MfaEnabled;
+use App\Events\Auth\MfaDisabled;
+use App\Events\Incident\IncidentEscalated;
+use App\Events\Admin\UserRoleChanged;
+use App\Events\Business\ContractCancelled;
+use App\Events\Business\ProposalDeclined;
+use App\Events\Business\SubscriptionTierChanged;
+use App\Events\Business\SubscriptionCancelled;
+use App\Events\Service\ServiceRequestSubmitted;
+use App\Events\Service\ServiceRequestResponded;
+use App\Events\Plan\DocumentRequested;
+use App\Events\Plan\VaultItemShared;
+use App\Events\Network\ConnectionAccepted;
+use App\Events\Network\ReferralReceived;
+use App\Events\Network\ReferralResponded;
+use App\Events\Support\FeedbackReceived;
+use App\Events\Support\TicketResolved;
+use App\Events\Account\AccountClosed;
 use App\Jobs\SendEmailJob;
 use App\Models\BpPayout;
 use App\Models\PlanSteward;
@@ -84,6 +102,24 @@ class SendEmailNotificationListener
             $event instanceof TicketCreated           => $this->ticketCreated($event),
             $event instanceof TicketReplied           => $this->ticketReplied($event),
             $event instanceof UserLocked              => $this->userLocked($event),
+            $event instanceof MfaEnabled              => $this->mfaEnabled($event),
+            $event instanceof MfaDisabled             => $this->mfaDisabled($event),
+            $event instanceof IncidentEscalated       => $this->incidentEscalated($event),
+            $event instanceof UserRoleChanged         => $this->userRoleChanged($event),
+            $event instanceof ContractCancelled       => $this->contractCancelled($event),
+            $event instanceof ProposalDeclined        => $this->proposalDeclined($event),
+            $event instanceof SubscriptionTierChanged => $this->subscriptionTierChanged($event),
+            $event instanceof SubscriptionCancelled   => $this->subscriptionCancelled($event),
+            $event instanceof ServiceRequestSubmitted => $this->serviceRequestSubmitted($event),
+            $event instanceof ServiceRequestResponded => $this->serviceRequestResponded($event),
+            $event instanceof DocumentRequested       => $this->documentRequested($event),
+            $event instanceof VaultItemShared         => $this->vaultItemShared($event),
+            $event instanceof ConnectionAccepted      => $this->connectionAccepted($event),
+            $event instanceof ReferralReceived        => $this->referralReceived($event),
+            $event instanceof ReferralResponded       => $this->referralResponded($event),
+            $event instanceof FeedbackReceived        => $this->feedbackReceived($event),
+            $event instanceof TicketResolved          => $this->ticketResolved($event),
+            $event instanceof AccountClosed           => $this->accountClosed($event),
             default                                   => [],
         };
     }
@@ -127,7 +163,9 @@ class SendEmailNotificationListener
         foreach ($this->stewardRecipients($e->plan->id) as $r) {
             $rows[] = [
                 'user_id' => $r['user_id'], 'gate_key' => 'notify_vault',
-                'template' => 'emails.vault.12-vault-attested',
+                'template' => $r['portal'] === 'support_steward'
+                    ? 'emails.plan.13-vault-attested-ss'
+                    : 'emails.vault.12-vault-attested',
                 'data' => ['plan_id' => $e->plan->id],
             ];
         }
@@ -160,8 +198,11 @@ class SendEmailNotificationListener
 
     private function stewardDesignated(StewardDesignated $e): array
     {
+        $isSs = $e->steward->steward_type === 'support_steward';
         return [['user_id' => $e->steward->steward_id, 'gate_key' => 'notify_steward',
-                 'template' => 'emails.steward.07-steward-invitation',
+                 'template' => $isSs
+                     ? 'emails.steward.20-ss-invite-internal'
+                     : 'emails.steward.07-steward-invitation',
                  'data' => ['plan_steward_id' => $e->steward->id]]];
     }
 
@@ -273,6 +314,154 @@ class SendEmailNotificationListener
         return [['user_id' => $e->user->id, 'gate_key' => 'notify_account',
                  'template' => 'emails.account.04-account-locked',
                  'data' => ['reason' => $e->reason]]];
+    }
+
+    private function mfaEnabled(MfaEnabled $e): array
+    {
+        return [['user_id' => $e->user->id, 'gate_key' => 'notify_account',
+                 'template' => 'emails.auth.05-mfa-enabled',
+                 'data' => ['user_id' => $e->user->id]]];
+    }
+
+    private function mfaDisabled(MfaDisabled $e): array
+    {
+        return [['user_id' => $e->user->id, 'gate_key' => 'notify_account',
+                 'template' => 'emails.auth.06-mfa-disabled',
+                 'data' => ['user_id' => $e->user->id]]];
+    }
+
+    private function incidentEscalated(IncidentEscalated $e): array
+    {
+        $rows = [['user_id' => $e->incident->practitioner_id, 'gate_key' => 'notify_incident',
+                  'template' => 'emails.incident.30-incident-escalated',
+                  'data' => ['incident_id' => $e->incident->id, 'reason' => $e->reason]]];
+        foreach ($this->stewardRecipients($e->incident->plan_id) as $r) {
+            $rows[] = ['user_id' => $r['user_id'], 'gate_key' => 'notify_incident',
+                       'template' => 'emails.incident.30-incident-escalated',
+                       'data' => ['incident_id' => $e->incident->id, 'reason' => $e->reason]];
+        }
+        return $rows;
+    }
+
+    private function userRoleChanged(UserRoleChanged $e): array
+    {
+        return [['user_id' => $e->user->id, 'gate_key' => 'notify_account',
+                 'template' => 'emails.admin.50-account-action',
+                 'data' => ['user_id' => $e->user->id, 'before' => $e->before, 'after' => $e->after]]];
+    }
+
+    private function contractCancelled(ContractCancelled $e): array
+    {
+        return [
+            ['user_id' => $e->contract->practitioner_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.gaps.67-contract-cancelled',
+             'data' => ['contract_id' => $e->contract->id, 'reason' => $e->reason]],
+            ['user_id' => $e->contract->bp_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.gaps.67-contract-cancelled',
+             'data' => ['contract_id' => $e->contract->id, 'reason' => $e->reason]],
+        ];
+    }
+
+    private function proposalDeclined(ProposalDeclined $e): array
+    {
+        return [['user_id' => $e->proposal->bp_id, 'gate_key' => 'notify_payment',
+                 'template' => 'emails.bp.34-proposal-declined',
+                 'data' => ['proposal_id' => $e->proposal->id, 'reason' => $e->reason]]];
+    }
+
+    private function subscriptionTierChanged(SubscriptionTierChanged $e): array
+    {
+        $template = $e->direction === 'downgrade'
+            ? 'emails.admin.52-plan-downgraded'
+            : 'emails.admin.51-plan-upgraded';
+        return [['user_id' => $e->user->id, 'gate_key' => 'notify_payment',
+                 'template' => $template,
+                 'data' => ['user_id' => $e->user->id, 'tier' => $e->tier]]];
+    }
+
+    private function subscriptionCancelled(SubscriptionCancelled $e): array
+    {
+        return [['user_id' => $e->user->id, 'gate_key' => 'notify_payment',
+                 'template' => 'emails.gaps.68-subscription-cancelled',
+                 'data' => ['user_id' => $e->user->id]]];
+    }
+
+    private function serviceRequestSubmitted(ServiceRequestSubmitted $e): array
+    {
+        return [['user_id' => $e->request->practitioner_id, 'gate_key' => 'notify_referral',
+                 'template' => 'emails.gaps.58-service-inquiry-received',
+                 'data' => ['service_request_id' => $e->request->id]]];
+    }
+
+    private function serviceRequestResponded(ServiceRequestResponded $e): array
+    {
+        return [['user_id' => $e->request->inquirer_id, 'gate_key' => 'notify_referral',
+                 'template' => 'emails.gaps.59-service-inquiry-responded',
+                 'data' => ['service_request_id' => $e->request->id, 'outcome' => $e->outcome]]];
+    }
+
+    private function documentRequested(DocumentRequested $e): array
+    {
+        $rows = [];
+        foreach ($this->stewardRecipients($e->plan->id) as $r) {
+            $rows[] = ['user_id' => $r['user_id'], 'gate_key' => 'notify_plan',
+                       'template' => 'emails.gaps.60-document-requested',
+                       'data' => ['document_id' => $e->document->id, 'plan_id' => $e->plan->id]];
+        }
+        return $rows;
+    }
+
+    private function vaultItemShared(VaultItemShared $e): array
+    {
+        $rows = [];
+        foreach ($e->stewardIds as $sid) {
+            $rows[] = ['user_id' => $sid, 'gate_key' => 'notify_vault',
+                       'template' => 'emails.gaps.63-vault-item-shared',
+                       'data' => ['vault_item_id' => $e->item->id]];
+        }
+        return $rows;
+    }
+
+    private function connectionAccepted(ConnectionAccepted $e): array
+    {
+        return [['user_id' => $e->connection->user_a_id, 'gate_key' => 'notify_account',
+                 'template' => 'emails.network.43-connection-accepted',
+                 'data' => ['connection_id' => $e->connection->id]]];
+    }
+
+    private function referralReceived(ReferralReceived $e): array
+    {
+        return [['user_id' => $e->recipient->id, 'gate_key' => 'notify_referral',
+                 'template' => 'emails.network.44-referral-received',
+                 'data' => ['referral_id' => $e->referral->id]]];
+    }
+
+    private function referralResponded(ReferralResponded $e): array
+    {
+        return [['user_id' => $e->referral->sender_id, 'gate_key' => 'notify_referral',
+                 'template' => 'emails.network.45-referral-responded',
+                 'data' => ['referral_id' => $e->referral->id, 'outcome' => $e->outcome]]];
+    }
+
+    private function feedbackReceived(FeedbackReceived $e): array
+    {
+        return [['user_id' => $e->complaint->submitter_id, 'gate_key' => 'notify_account',
+                 'template' => 'emails.support.49-feedback-received',
+                 'data' => ['complaint_id' => $e->complaint->id]]];
+    }
+
+    private function ticketResolved(TicketResolved $e): array
+    {
+        return [['user_id' => $e->complaint->submitter_id, 'gate_key' => 'notify_account',
+                 'template' => 'emails.support.48-ticket-resolved',
+                 'data' => ['complaint_id' => $e->complaint->id]]];
+    }
+
+    private function accountClosed(AccountClosed $e): array
+    {
+        return [['user_id' => $e->user->id, 'gate_key' => 'notify_account',
+                 'template' => 'emails.auth.09-account-closure',
+                 'data' => ['user_id' => $e->user->id, 'reason' => $e->reason]]];
     }
 
     private function stewardRecipients(string $planId): array

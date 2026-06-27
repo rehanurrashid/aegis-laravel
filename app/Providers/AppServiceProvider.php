@@ -78,13 +78,31 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Business\InvoiceVoided::class,        Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Admin\HelpArticlePublished::class,    Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Admin\PayoutReleasedManually::class,  Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Auth\MfaEnabled::class,               Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Auth\MfaDisabled::class,              Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Incident\IncidentEscalated::class,    Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Admin\UserRoleChanged::class,         Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\ProposalDeclined::class,     Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\SubscriptionTierChanged::class, Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\SubscriptionCancelled::class, Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Service\ServiceRequestSubmitted::class, Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Service\ServiceRequestResponded::class, Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Plan\DocumentRequested::class,        Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Plan\VaultItemShared::class,          Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Network\ConnectionAccepted::class,    Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Network\ReferralReceived::class,      Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Network\ReferralResponded::class,     Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Support\FeedbackReceived::class,      Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Support\TicketResolved::class,        Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Account\AccountClosed::class,         Listeners\SendEmailNotificationListener::class);
 
         // ── UNGATED incident alerts (bypass notify_* prefs entirely) ─────────────
         Event::listen(Events\Incident\IncidentReported::class,     Listeners\SendIncidentAlertsListener::class);
         Event::listen(Events\Incident\IncidentVerified::class,     Listeners\SendIncidentAlertsListener::class);
         Event::listen(Events\Incident\IncidentActivated::class,    Listeners\SendIncidentAlertsListener::class);
-        Event::listen(Events\Incident\IncidentReopened::class,     Listeners\SendIncidentAlertsListener::class);
-        Event::listen(Events\Incident\IncidentWithdrawn::class,    Listeners\SendIncidentAlertsListener::class);
+        // NB: IncidentReopened / IncidentWithdrawn are handled by ActivityFanoutListener only.
+        // SendIncidentAlertsListener::handle() does not accept them (would TypeError), so they
+        // are intentionally NOT registered here.
 
         // ── Stripe webhooks (Cashier) ────────────────────────────────────────────
         Event::listen(WebhookReceived::class,                      Listeners\StripeEventListener::class);

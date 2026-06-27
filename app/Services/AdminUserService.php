@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\Account\AccountClosed;
+
 use App\Enums\ActivitySeverity;
 use App\Events\Admin\UserLocked;
 use App\Events\Admin\UserRoleChanged;
@@ -128,6 +130,7 @@ class AdminUserService
         $target->update(['deactivated_at' => now()]);
         $target->tokens()->delete();
         $this->audit($admin, 'deactivate_user', $target, ['reason' => $reason]);
+        event(new AccountClosed($target->fresh(), $reason));
         return $target->fresh();
     }
 

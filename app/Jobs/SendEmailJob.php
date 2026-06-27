@@ -13,6 +13,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 
 class SendEmailJob implements ShouldQueue
 {
@@ -49,9 +50,20 @@ class SendEmailJob implements ShouldQueue
         }
 
         try {
+            // Inject a live, signed one-click unsubscribe link when we have a user.
+            // Transactional/auth templates set $ungated=true and hide it in the footer,
+            // so this is safe to attach unconditionally. Caller-supplied URLs win.
+            $data = $this->data;
+            if ($this->recipientUserId && empty($data['unsubscribe_url'])) {
+                $data['unsubscribe_url'] = URL::signedRoute('email.unsubscribe', [
+                    'user_id' => $this->recipientUserId,
+                    'gate'    => $this->gateForTemplate($this->template),
+                ]);
+            }
+
             Mail::to($email)->send(new GenericMailable(
                 template: $this->template,
-                data: $this->data,
+                data: $data,
                 userId: $this->recipientUserId
             ));
         } catch (\Throwable $e) {
@@ -71,5 +83,27 @@ class SendEmailJob implements ShouldQueue
             'user_id'  => $this->recipientUserId,
             'error'    => $e->getMessage(),
         ]);
+    }
+
+    /**
+     * Map an email template to the notify_* gate its unsubscribe link should flip.
+     * Only returns keys actually seeded in AuthService::register(); anything
+     * unmapped falls back to the master 'notify_email' gate.
+     */
+    private function gateForTemplate(string $template): string
+    {
+        $segments = explode('.', $template);
+        $domain   = $segments[1] ?? '';
+
+        return match ($domain) {
+            'incident'           => 'notify_incident',
+            'plan', 'document'   => 'notify_plan_change',
+            'vault'              => 'notify_attestation',
+            'steward'            => 'notify_assignment',
+            'bp', 'business'     => 'notify_payment',
+            'support'            => 'notify_message',
+            'digest', 'summary'  => 'notify_summary',
+            default              => 'notify_email',
+        };
     }
 }

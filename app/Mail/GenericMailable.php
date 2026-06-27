@@ -31,8 +31,18 @@ class GenericMailable extends Mailable
     {
         $subject = $this->data['subject'] ?? $this->deriveSubject($this->template);
 
+        $replyTo = [];
+        $replyAddress = config('mail.reply_to.address');
+        if (! empty($replyAddress)) {
+            $replyTo[] = new \Illuminate\Mail\Mailables\Address(
+                $replyAddress,
+                config('mail.reply_to.name') ?: null
+            );
+        }
+
         return new Envelope(
             subject: $subject,
+            replyTo: $replyTo,
         );
     }
 

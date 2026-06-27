@@ -123,6 +123,10 @@ Route::middleware('auth')->group(function () {
         ->middleware('throttle:6,1')->name('verification.resend');
 });
 
+// ── Email unsubscribe (no auth; signed link from email footer) ────────────────
+Route::get('/email/unsubscribe', \App\Http\Controllers\Email\UnsubscribeController::class)
+    ->middleware('signed')->name('email.unsubscribe');
+
 // ── MFA challenge (session-gated, no auth middleware yet) ─────────────────────
 Route::get('/mfa/challenge', [MfaController::class, 'showChallenge'])->name('mfa.challenge');
 Route::post('/mfa/challenge', [MfaController::class, 'challenge'])->name('mfa.challenge.store');
