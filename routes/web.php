@@ -486,6 +486,7 @@ Route::middleware(['auth', 'check.locked'])->group(function () {
     // Activity Feed
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
     Route::post('/activity/{event}/read', [ActivityController::class, 'markRead'])->name('activity.read');
+    Route::post('/activity/read-all', [ActivityController::class, 'markAllRead'])->name('activity.mark-all-read');
 
     // Support / Help Desk
     Route::get('/support', [SupportController::class, 'index'])->name('support.index');
