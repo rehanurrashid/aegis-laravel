@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Events\Business\ProposalDeclined;
+use App\Events\Business\ProposalSubmitted;
 
 use App\Enums\ActivitySeverity;
 use App\Events\Business\ContractCreated;
@@ -52,6 +53,8 @@ class ProposalService
             "Bid: $" . number_format($proposal->bid_cents / 100, 2),
             'bp_proposal', $proposal->id, $bp->id
         );
+
+        event(new ProposalSubmitted($proposal));
 
         return $proposal;
     }

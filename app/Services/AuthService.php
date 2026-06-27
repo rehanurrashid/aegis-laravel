@@ -7,12 +7,14 @@ namespace App\Services;
 use App\Enums\ActivitySeverity;
 use App\Events\Auth\MfaDisabled;
 use App\Events\Auth\MfaEnabled;
+use App\Events\Auth\NewDeviceLogin;
 use App\Events\Auth\PasswordReset;
 use App\Events\Auth\UserLoggedIn;
 use App\Events\Auth\UserRegistered;
 use App\Events\Admin\UserLocked;
 use App\Models\PasswordResetToken;
 use App\Models\User;
+use App\Models\UserKnownDevice;
 use App\Models\UserMeta;
 use App\Models\UserRoleAssignment;
 use Illuminate\Support\Facades\DB;
@@ -135,6 +137,72 @@ class AuthService
         if ($count >= 5) {
             $this->lockAccount($user, 'Too many failed login attempts');
         }
+    }
+
+    /**
+     * Check if the incoming request is from a previously unseen device for this user.
+     * Fires NewDeviceLogin if new; always updates last_seen_at for known devices.
+     * Returns true when a new-device email should be sent (callers may check the return).
+     */
+    public function trackDeviceLogin(User $user, \Illuminate\Http\Request $request): bool
+    {
+        $ua       = (string) $request->userAgent();
+        $subnet   = implode('.', array_slice(explode('.', (string) $request->ip()), 0, 3)) . '.0';
+        $fp       = hash('sha256', $user->id . '|' . $ua . '|' . $subnet);
+
+        $existing = UserKnownDevice::where('user_id', $user->id)
+            ->where('fingerprint', $fp)
+            ->first();
+
+        if ($existing) {
+            $existing->update(['last_seen_at' => now()]);
+            return false;
+        }
+
+        $deviceLabel   = $this->parseDeviceLabel($ua);
+        $locationLabel = $request->ip() === '127.0.0.1' ? 'Local' : $request->ip();
+
+        UserKnownDevice::create([
+            'id'             => 'kd_' . Str::lower(Str::random(12)),
+            'user_id'        => $user->id,
+            'fingerprint'    => $fp,
+            'device_label'   => $deviceLabel,
+            'location_label' => $locationLabel,
+            'ip'             => $request->ip(),
+            'first_seen_at'  => now(),
+            'last_seen_at'   => now(),
+        ]);
+
+        event(new NewDeviceLogin(
+            $user,
+            $deviceLabel,
+            $locationLabel,
+            now()->toDateTimeString()
+        ));
+
+        return true;
+    }
+
+    /** Parse a minimal device label from the User-Agent string without a dependency. */
+    private function parseDeviceLabel(string $ua): string
+    {
+        $browser = match (true) {
+            str_contains($ua, 'Edg/')     => 'Edge',
+            str_contains($ua, 'Chrome/')  => 'Chrome',
+            str_contains($ua, 'Firefox/') => 'Firefox',
+            str_contains($ua, 'Safari/')  => 'Safari',
+            str_contains($ua, 'OPR/')     => 'Opera',
+            default                       => 'Browser',
+        };
+        $os = match (true) {
+            str_contains($ua, 'Windows') => 'Windows',
+            str_contains($ua, 'Mac OS')  => 'macOS',
+            str_contains($ua, 'Linux')   => 'Linux',
+            str_contains($ua, 'Android') => 'Android',
+            str_contains($ua, 'iPhone')  => 'iOS',
+            default                      => 'Unknown OS',
+        };
+        return "{$browser} on {$os}";
     }
 
     public function lockAccount(User $user, string $reason): void

@@ -9,6 +9,7 @@ use App\Events\Auth\UserLoggedIn;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User;
+use App\Services\AuthService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -94,6 +95,9 @@ class LoginController extends Controller
         ])->save();
 
         event(new UserLoggedIn($user, 'web'));
+
+        // Track device; fires NewDeviceLogin event if this is a first-time device.
+        app(AuthService::class)->trackDeviceLogin($user, $request);
 
         Log::info("{$trace} login complete", [
             'auth_check'   => Auth::check(),

@@ -35,6 +35,11 @@ use App\Events\Business\SubscriptionCancelled;
 use App\Events\Service\ServiceRequestSubmitted;
 use App\Events\Service\ServiceRequestResponded;
 use App\Events\Plan\DocumentRequested;
+use App\Events\Plan\DocumentReleaseRequested;
+use App\Events\Plan\DocumentUpdated;
+use App\Events\Plan\PlanReadyForCs;
+use App\Events\Plan\PlanReadyForSs;
+use App\Events\Plan\PlanVersionUpdated;
 use App\Events\Plan\VaultItemShared;
 use App\Events\Network\ConnectionAccepted;
 use App\Events\Network\ReferralReceived;
@@ -42,6 +47,17 @@ use App\Events\Network\ReferralResponded;
 use App\Events\Support\FeedbackReceived;
 use App\Events\Support\TicketResolved;
 use App\Events\Account\AccountClosed;
+use App\Events\Auth\NewDeviceLogin;
+use App\Events\Business\MaatAddonChanged;
+use App\Events\Business\MilestoneApproved;
+use App\Events\Business\MilestoneSubmitted;
+use App\Events\Business\ProposalSubmitted;
+use App\Events\Incident\IncidentTaskAssigned;
+use App\Events\Steward\AlternateCSActivated;
+use App\Events\Steward\StewardRoleChangeRequested;
+use App\Events\Stripe\PaymentFailed;
+use App\Events\Stripe\PaymentReceived;
+use App\Events\Stripe\SubscriptionRenewalUpcoming;
 use App\Jobs\SendEmailJob;
 use App\Models\BpPayout;
 use App\Models\PlanSteward;
@@ -120,6 +136,22 @@ class SendEmailNotificationListener
             $event instanceof FeedbackReceived        => $this->feedbackReceived($event),
             $event instanceof TicketResolved          => $this->ticketResolved($event),
             $event instanceof AccountClosed           => $this->accountClosed($event),
+            $event instanceof MilestoneSubmitted      => $this->milestoneSubmitted($event),
+            $event instanceof MilestoneApproved       => $this->milestoneApproved($event),
+            $event instanceof DocumentReleaseRequested => $this->documentReleaseRequested($event),
+            $event instanceof DocumentUpdated         => $this->documentUpdated($event),
+            $event instanceof StewardRoleChangeRequested => $this->stewardRoleChangeRequested($event),
+            $event instanceof AlternateCSActivated    => $this->alternateCSActivated($event),
+            $event instanceof IncidentTaskAssigned    => $this->incidentTaskAssigned($event),
+            $event instanceof PlanReadyForCs          => $this->planReadyForCs($event),
+            $event instanceof PlanReadyForSs          => $this->planReadyForSs($event),
+            $event instanceof PlanVersionUpdated      => $this->planVersionUpdated($event),
+            $event instanceof NewDeviceLogin          => $this->newDeviceLogin($event),
+            $event instanceof ProposalSubmitted       => $this->proposalSubmitted($event),
+            $event instanceof MaatAddonChanged        => $this->maatAddonChanged($event),
+            $event instanceof PaymentFailed           => $this->paymentFailed($event),
+            $event instanceof PaymentReceived         => $this->paymentReceived($event),
+            $event instanceof SubscriptionRenewalUpcoming => $this->subscriptionRenewalUpcoming($event),
             default                                   => [],
         };
     }
@@ -462,6 +494,158 @@ class SendEmailNotificationListener
         return [['user_id' => $e->user->id, 'gate_key' => 'notify_account',
                  'template' => 'emails.auth.09-account-closure',
                  'data' => ['user_id' => $e->user->id, 'reason' => $e->reason]]];
+    }
+
+    private function milestoneSubmitted(MilestoneSubmitted $e): array
+    {
+        $contract = $e->milestone->contract;
+        return [['user_id' => $contract->practitioner_id, 'gate_key' => 'notify_payment',
+                 'template' => 'emails.bp.36-milestone-submitted',
+                 'data' => ['milestone_id' => $e->milestone->id, 'contract_id' => $contract->id]]];
+    }
+
+    private function milestoneApproved(MilestoneApproved $e): array
+    {
+        $contract = $e->milestone->contract;
+        return [['user_id' => $contract->bp_id, 'gate_key' => 'notify_payment',
+                 'template' => 'emails.bp.37-milestone-approved',
+                 'data' => ['milestone_id' => $e->milestone->id]]];
+    }
+
+    private function documentReleaseRequested(DocumentReleaseRequested $e): array
+    {
+        return [['user_id' => $e->document->practitioner_id, 'gate_key' => 'notify_plan',
+                 'template' => 'emails.gaps.61-document-release-requested',
+                 'data' => ['document_id' => $e->document->id]]];
+    }
+
+    private function documentUpdated(DocumentUpdated $e): array
+    {
+        $rows = [];
+        foreach ($this->stewardRecipients($e->document->plan_id) as $r) {
+            $rows[] = ['user_id' => $r['user_id'], 'gate_key' => 'notify_plan',
+                       'template' => 'emails.gaps.64-document-updated',
+                       'data' => ['document_id' => $e->document->id, 'change_type' => $e->changeType]];
+        }
+        return $rows;
+    }
+
+    private function stewardRoleChangeRequested(StewardRoleChangeRequested $e): array
+    {
+        $plan = \App\Models\ContinuityPlan::find($e->steward->plan_id);
+        if (! $plan) return [];
+        return [['user_id' => $plan->practitioner_id, 'gate_key' => 'notify_steward',
+                 'template' => 'emails.steward.23-cs-role-change',
+                 'data' => ['plan_steward_id' => $e->steward->id,
+                            'requested_role'  => $e->requestedRole,
+                            'request_note'    => $e->requestNote]]];
+    }
+
+    private function alternateCSActivated(AlternateCSActivated $e): array
+    {
+        $plan = \App\Models\ContinuityPlan::find($e->alternate->plan_id);
+        if (! $plan) return [];
+        $rows = [
+            ['user_id' => $plan->practitioner_id, 'gate_key' => 'notify_steward',
+             'template' => 'emails.steward.25-alternate-cs-activated',
+             'data' => ['plan_steward_id' => $e->alternate->id, 'incident_id' => $e->incident->id]],
+        ];
+        // Notify the newly activated alternate CS too.
+        $rows[] = ['user_id' => $e->alternate->steward_id, 'gate_key' => 'notify_steward',
+                   'template' => 'emails.steward.25-alternate-cs-activated',
+                   'data' => ['plan_steward_id' => $e->alternate->id, 'incident_id' => $e->incident->id]];
+        return $rows;
+    }
+
+    private function incidentTaskAssigned(IncidentTaskAssigned $e): array
+    {
+        return [['user_id' => $e->assignee->id, 'gate_key' => 'notify_incident',
+                 'template' => 'emails.incident.29-incident-task-assigned',
+                 'data' => ['incident_task_id' => $e->task->id, 'incident_id' => $e->task->incident_id]]];
+    }
+
+    private function planReadyForCs(PlanReadyForCs $e): array
+    {
+        return [['user_id' => $e->steward->steward_id, 'gate_key' => 'notify_plan',
+                 'template' => 'emails.plan.11-plan-ready-cs',
+                 'data' => ['plan_id' => $e->plan->id, 'plan_steward_id' => $e->steward->id]]];
+    }
+
+    private function planReadyForSs(PlanReadyForSs $e): array
+    {
+        return [['user_id' => $e->steward->steward_id, 'gate_key' => 'notify_plan',
+                 'template' => 'emails.plan.11-plan-ready-ss',
+                 'data' => ['plan_id' => $e->plan->id, 'plan_steward_id' => $e->steward->id]]];
+    }
+
+    private function planVersionUpdated(PlanVersionUpdated $e): array
+    {
+        $rows = [];
+        foreach ($this->stewardRecipients($e->plan->id) as $r) {
+            $rows[] = ['user_id' => $r['user_id'], 'gate_key' => 'notify_plan',
+                       'template' => 'emails.plan.16-plan-version-updated',
+                       'data' => ['plan_id' => $e->plan->id, 'change_summary' => $e->changeType]];
+        }
+        return $rows;
+    }
+
+    private function newDeviceLogin(NewDeviceLogin $e): array
+    {
+        return [['user_id' => $e->user->id, 'gate_key' => 'notify_account',
+                 'template' => 'emails.auth.07-new-device-login',
+                 'data' => ['device_label'   => $e->deviceLabel,
+                            'location_label' => $e->locationLabel,
+                            'login_at'       => $e->loginAt,
+                            'support_url'    => rtrim(config('app.url'), '/') . '/support',
+                            'ungated'        => true]]];
+    }
+
+    private function proposalSubmitted(ProposalSubmitted $e): array
+    {
+        return [['user_id' => $e->proposal->practitioner_id, 'gate_key' => 'notify_payment',
+                 'template' => 'emails.bp.32-support-request-received',
+                 'data' => ['proposal_id' => $e->proposal->id]]];
+    }
+
+    private function maatAddonChanged(MaatAddonChanged $e): array
+    {
+        return [['user_id' => $e->user->id, 'gate_key' => 'notify_payment',
+                 'template' => 'emails.gaps.69-maat-addon-change',
+                 'data' => ['addon_state'  => $e->addonState,
+                            'billing_url'  => rtrim(config('app.url'), '/') . '/settings/billing']]];
+    }
+
+    private function paymentFailed(PaymentFailed $e): array
+    {
+        return [['user_id' => $e->user->id, 'gate_key' => 'notify_payment',
+                 'template' => 'emails.admin.53-payment-failed',
+                 'data' => ['amount'         => '$' . number_format($e->amountCents / 100, 2),
+                            'failure_reason' => $e->failureReason,
+                            'retry_date'     => $e->retryDate ?? 'N/A',
+                            'billing_url'    => rtrim(config('app.url'), '/') . '/settings/billing',
+                            'ungated'        => true]]];
+    }
+
+    private function paymentReceived(PaymentReceived $e): array
+    {
+        return [['user_id' => $e->user->id, 'gate_key' => 'notify_payment',
+                 'template' => 'emails.admin.54-payment-receipt',
+                 'data' => ['amount'       => '$' . number_format($e->amountCents / 100, 2),
+                            'paid_at'      => now()->toFormattedDateString(),
+                            'payment_ref'  => $e->paymentRef,
+                            'period_label' => $e->periodLabel,
+                            'plan_label'   => $e->planLabel,
+                            'receipt_url'  => rtrim(config('app.url'), '/') . '/settings/billing']]];
+    }
+
+    private function subscriptionRenewalUpcoming(SubscriptionRenewalUpcoming $e): array
+    {
+        return [['user_id' => $e->user->id, 'gate_key' => 'notify_payment',
+                 'template' => 'emails.admin.55-renewal-upcoming',
+                 'data' => ['amount'       => '$' . number_format($e->amountCents / 100, 2),
+                            'renewal_date' => $e->renewalDate,
+                            'plan_label'   => $e->planLabel,
+                            'billing_url'  => rtrim(config('app.url'), '/') . '/settings/billing']]];
     }
 
     private function stewardRecipients(string $planId): array

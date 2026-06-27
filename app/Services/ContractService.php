@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Events\Business\ContractCancelled;
-
+use App\Events\Business\MilestoneApproved;
+use App\Events\Business\MilestoneSubmitted;
 use App\Enums\ActivitySeverity;
+use App\Enums\MilestoneStatus;
 use App\Events\Business\ContractSigned;
 use App\Models\BpContract;
+use App\Models\BpMilestone;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
@@ -111,6 +114,48 @@ class ContractService
     {
         $contract->update(['status' => 'completed', 'completed_at' => now()]);
         return $contract->fresh();
+    }
+
+    public function submitMilestone(BpMilestone $milestone, User $submitter): BpMilestone
+    {
+        $milestone->update([
+            'status'       => MilestoneStatus::Submitted->value,
+            'submitted_at' => now(),
+        ]);
+
+        $contract = $milestone->contract;
+
+        $this->activity->log(
+            $contract->practitioner_id, 'provider', 'payment', ActivitySeverity::Info,
+            'milestone_submitted',
+            "{$submitter->display_name} submitted milestone: {$milestone->title}",
+            'Review and approve to release payment.',
+            'bp_milestone', $milestone->id, $submitter->id
+        );
+
+        event(new MilestoneSubmitted($milestone->fresh()));
+        return $milestone->fresh();
+    }
+
+    public function approveMilestone(BpMilestone $milestone, User $approver): BpMilestone
+    {
+        $milestone->update([
+            'status'      => MilestoneStatus::Approved->value,
+            'approved_at' => now(),
+        ]);
+
+        $contract = $milestone->contract;
+
+        $this->activity->log(
+            $contract->bp_id, 'business_partner', 'payment', ActivitySeverity::Info,
+            'milestone_approved',
+            "{$approver->display_name} approved milestone: {$milestone->title}",
+            'Payout will be processed shortly.',
+            'bp_milestone', $milestone->id, $approver->id
+        );
+
+        event(new MilestoneApproved($milestone->fresh()));
+        return $milestone->fresh();
     }
 
     public function getForPractitioner(string $practitionerId): Collection

@@ -51,6 +51,10 @@ class GenericMailable extends Mailable
         // Inject userId into view data so templates can reference recipient if needed.
         $payload = array_merge($this->data, ['user_id' => $this->userId ?? ($this->data['user_id'] ?? null)]);
 
+        // Hydrate universal display fields (recipient_name, role_label, portal_url, …).
+        // Caller-supplied values win; this only fills blanks.
+        $payload = app(\App\Services\EmailDataResolver::class)->enrich($this->template, $payload, $this->userId);
+
         return new Content(
             view: $this->template,
             with: $payload,

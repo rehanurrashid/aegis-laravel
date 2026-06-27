@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Events\Plan\DocumentRequested;
+use App\Events\Plan\DocumentReleaseRequested;
+use App\Events\Plan\DocumentUpdated;
 
 use App\Enums\ActivitySeverity;
 use App\Jobs\SendEmailJob;
@@ -111,6 +113,46 @@ class DocumentService
     public function archive(ContinuityDocument $doc): ContinuityDocument
     {
         $doc->update(['status' => 'archived']);
+        return $doc->fresh();
+    }
+
+    public function requestRelease(ContinuityDocument $doc, User $requester): void
+    {
+        $doc->update(['status' => 'release_requested']);
+
+        $this->activity->log(
+            $doc->practitioner_id, 'provider', 'document', ActivitySeverity::Info,
+            'document_release_requested',
+            "{$requester->display_name} requested release of: {$doc->title}",
+            'Review the release request in your Documents section.',
+            'continuity_document', $doc->id, $requester->id
+        );
+
+        event(new DocumentReleaseRequested($doc->fresh(), $requester));
+    }
+
+    public function update(ContinuityDocument $doc, array $data, User $updater): ContinuityDocument
+    {
+        $changeType = $data['change_type'] ?? 'content';
+        $doc->update(array_filter([
+            'title'      => $data['title'] ?? null,
+            'body'       => $data['body'] ?? null,
+            'expires_at' => $data['expires_at'] ?? null,
+            'status'     => $data['status'] ?? null,
+        ], fn ($v) => $v !== null));
+
+        $recipients = $this->activity->getPlanStewardRecipients($doc->plan_id);
+        foreach ($recipients as $r) {
+            $this->activity->log(
+                $r['user_id'], $r['portal'], 'document', ActivitySeverity::Info,
+                'document_updated',
+                "{$updater->display_name} updated: {$doc->title}",
+                'Review the latest version.',
+                'continuity_document', $doc->id, $updater->id
+            );
+        }
+
+        event(new DocumentUpdated($doc->fresh(), $updater, $changeType));
         return $doc->fresh();
     }
 

@@ -1,0 +1,196 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Models\BpMilestone;
+use App\Models\BpProposal;
+use App\Models\ContinuityDocument;
+use App\Models\ContinuityPlan;
+use App\Models\IncidentTask;
+use App\Models\PlanSteward;
+use App\Models\User;
+
+/**
+ * Hydrates email merge-fields in two passes:
+ *
+ * 1. Universal fields from the recipient User (recipient_name, portal_url, …)
+ * 2. Entity-specific fields from IDs the listener passed (milestone_id, document_id, …)
+ *
+ * Caller-supplied values always win — only fills blanks.
+ */
+class EmailDataResolver
+{
+    public function enrich(string $template, array $data, ?string $userId): array
+    {
+        $userId = $userId ?? ($data['user_id'] ?? null);
+        $base   = rtrim((string) config('app.url'), '/');
+
+        // Pass 1 — universal recipient fields.
+        if ($userId) {
+            $user = User::find($userId);
+            if ($user) {
+                $data += array_filter([
+                    'recipient_name'  => $user->display_name,
+                    'recipient_email' => $user->email,
+                    'role_label'      => $user->role?->label(),
+                    'portal_url'      => $base . '/' . ($user->role?->portal() ?? 'provider'),
+                    'settings_url'    => $base . '/settings',
+                ], static fn ($v) => $v !== null && $v !== '');
+            }
+        }
+
+        // Pass 2 — entity-specific by domain segment.
+        $domain = explode('.', $template)[1] ?? '';
+
+        if ($domain === 'bp') {
+            $data = $this->enrichBp($data, $base);
+        } elseif ($domain === 'gaps') {
+            $data = $this->enrichGaps($data, $base);
+        } elseif ($domain === 'steward') {
+            $data = $this->enrichSteward($template, $data, $base);
+        } elseif ($domain === 'incident') {
+            $data = $this->enrichIncident($data, $base);
+        } elseif ($domain === 'plan') {
+            $data = $this->enrichPlan($data, $base);
+        }
+
+        return $data;
+    }
+
+    private function enrichBp(array $d, string $base): array
+    {
+        if (! empty($d['milestone_id'])) {
+            $m = BpMilestone::with('contract')->find($d['milestone_id']);
+            if ($m) {
+                $contract = $m->contract;
+                $d += [
+                    'milestone_title'   => $m->title,
+                    'contract_title'    => $contract?->title ?? 'Contract #' . ($contract?->id ?? ''),
+                    'milestone_url'     => $base . '/bp/contracts/' . ($contract?->id ?? ''),
+                    'bp_name'           => User::find($contract?->bp_id)?->display_name ?? '',
+                    'practitioner_name' => User::find($contract?->practitioner_id)?->display_name ?? '',
+                    'submitted_at'      => $m->submitted_at?->toFormattedDateString() ?? '',
+                    'approved_at'       => $m->approved_at?->toFormattedDateString() ?? '',
+                    'payout_eta'        => $m->approved_at?->addDays(3)->toFormattedDateString()
+                                          ?? 'Within 3 business days',
+                ];
+            }
+        }
+        if (! empty($d['proposal_id'])) {
+            $p = BpProposal::find($d['proposal_id']);
+            if ($p) {
+                $d += [
+                    'proposal_title' => $p->job?->title ?? 'Proposal #' . $p->id,
+                    'proposal_url'   => $base . '/provider/jobs/' . ($p->job_id ?? ''),
+                    'bp_name'        => User::find($p->bp_id)?->display_name ?? '',
+                    'submitted_at'   => $p->submitted_at?->toFormattedDateString() ?? '',
+                ];
+            }
+        }
+        return $d;
+    }
+
+    private function enrichGaps(array $d, string $base): array
+    {
+        if (! empty($d['document_id'])) {
+            $doc = ContinuityDocument::with('practitioner')->find($d['document_id']);
+            if ($doc) {
+                $steward = PlanSteward::where('plan_id', $doc->plan_id)
+                    ->where('status', 'active')
+                    ->where('steward_type', 'continuity_steward')
+                    ->with('steward')
+                    ->first();
+                $d += [
+                    'document_title'    => $doc->title,
+                    'document_url'      => $base . '/provider/documents/' . $doc->id,
+                    'practitioner_name' => $doc->practitioner?->display_name ?? '',
+                    'steward_name'      => $steward?->steward?->display_name ?? '',
+                    'new_expiry_date'   => $doc->expires_at?->toFormattedDateString() ?? '',
+                ];
+            }
+        }
+        return $d;
+    }
+
+    private function enrichSteward(string $tpl, array $d, string $base): array
+    {
+        if (! empty($d['plan_steward_id'])) {
+            $ps = PlanSteward::with(['steward', 'plan'])->find($d['plan_steward_id']);
+            if ($ps) {
+                $practitioner = User::find($ps->plan?->practitioner_id);
+                $d += [
+                    'cs_name'           => $ps->steward?->display_name ?? '',
+                    'practitioner_name' => $practitioner?->display_name ?? '',
+                    'plan_url'          => $base . '/provider/plan',
+                    'review_url'        => $base . '/provider/stewards',
+                    'requested_at'      => now()->toFormattedDateString(),
+                    'activated_at'      => now()->toFormattedDateString(),
+                ];
+                if (str_contains($tpl, '25-alternate')) {
+                    $former = PlanSteward::where('plan_id', $ps->plan_id)
+                        ->where('steward_id', '!=', $ps->steward_id)
+                        ->where('steward_type', 'continuity_steward')
+                        ->with('steward')
+                        ->first();
+                    $d += [
+                        'alternate_cs_name' => $ps->steward?->display_name ?? '',
+                        'former_cs_name'    => $former?->steward?->display_name ?? '',
+                    ];
+                }
+            }
+        }
+        return $d;
+    }
+
+    private function enrichIncident(array $d, string $base): array
+    {
+        if (! empty($d['incident_task_id'])) {
+            $task = IncidentTask::with('incident')->find($d['incident_task_id']);
+            if ($task) {
+                $incident     = $task->incident;
+                $practitioner = User::find($incident?->practitioner_id);
+                $d += [
+                    'task_title'        => $task->title,
+                    'task_note'         => $task->description ?? '',
+                    'task_due_date'     => '',
+                    'task_url'          => $base . '/cs/incidents/' . ($incident?->id ?? ''),
+                    'practitioner_name' => $practitioner?->display_name ?? '',
+                    'cs_name'           => User::find($task->assigned_to_id)?->display_name ?? '',
+                ];
+            }
+        }
+        return $d;
+    }
+
+    private function enrichPlan(array $d, string $base): array
+    {
+        $planId = $d['plan_id'] ?? null;
+        if (! $planId) {
+            return $d;
+        }
+        $plan = ContinuityPlan::find($planId);
+        if (! $plan) {
+            return $d;
+        }
+        $practitioner = User::find($plan->practitioner_id);
+        $d += [
+            'plan_title'        => $plan->title ?? 'Continuity Plan',
+            'plan_url'          => $base . '/provider/plan',
+            'practitioner_name' => $practitioner?->display_name ?? '',
+            'updated_at'        => now()->toFormattedDateString(),
+        ];
+        if (! empty($d['plan_steward_id'])) {
+            $ps = PlanSteward::with('steward')->find($d['plan_steward_id']);
+            if ($ps) {
+                $d += [
+                    'cs_name'  => $ps->steward?->display_name ?? '',
+                    'ss_name'  => $ps->steward?->display_name ?? '',
+                    'sign_url' => $base . '/provider/plan/sign',
+                ];
+            }
+        }
+        return $d;
+    }
+}

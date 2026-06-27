@@ -5,7 +5,9 @@ declare(strict_types=1);
 use App\Jobs\AnnualReviewReminderJob;
 use App\Jobs\DigestEmailJob;
 use App\Jobs\StaleIncidentAlertJob;
+use App\Jobs\StewardResponsivenessCheckJob;
 use App\Jobs\StripeWebhookProcessorJob;
+use App\Jobs\SubscriptionRenewalCheckJob;
 use App\Jobs\VaultSealCheckJob;
 use Illuminate\Support\Facades\Schedule;
 
@@ -35,3 +37,9 @@ Schedule::job(new DigestEmailJob('monthly'))->monthlyOn(1, '08:00')->name('aegis
 
 // Every 5 minutes — sweep any unprocessed Stripe webhook rows.
 Schedule::job(new StripeWebhookProcessorJob)->everyFiveMinutes()->name('aegis.stripe_webhook_sweep');
+
+// Daily 10:00 UTC — flag Continuity Stewards who have been inactive for 14+ days.
+Schedule::job(new StewardResponsivenessCheckJob)->dailyAt('10:00')->name('aegis.steward_responsiveness_check');
+
+// Daily 08:00 UTC — warn users whose subscription renews in 7 days.
+Schedule::job(new SubscriptionRenewalCheckJob)->dailyAt('08:00')->name('aegis.subscription_renewal_check');

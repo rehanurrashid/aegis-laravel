@@ -6,11 +6,14 @@ namespace App\Services;
 
 use App\Enums\ActivitySeverity;
 use App\Events\Plan\AnnualReviewCompleted;
+use App\Events\Plan\PlanReadyForCs;
+use App\Events\Plan\PlanReadyForSs;
 use App\Events\Plan\PlanSigned;
 use App\Events\Plan\PlanVersionUpdated;
 use App\Events\Plan\VaultAttested;
 use App\Models\ContinuityPlan;
 use App\Models\PlanIncidentConfig;
+use App\Models\PlanSteward;
 use App\Models\PlanTask;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
@@ -213,6 +216,57 @@ class PlanService
             'related_user_id' => $practitioner->id,
         ]);
 
+        return $plan->fresh();
+    }
+
+    public function submitForReview(ContinuityPlan $plan): ContinuityPlan
+    {
+        $plan->update(['status' => 'review_pending']);
+
+        $stewards = PlanSteward::where('plan_id', $plan->id)
+            ->where('status', 'active')
+            ->get();
+
+        foreach ($stewards as $steward) {
+            $portal = $steward->steward_type === 'support_steward' ? 'support_steward' : 'continuity_steward';
+            $this->activity->log(
+                $steward->steward_id, $portal, 'plan', ActivitySeverity::Info,
+                'plan_ready_for_review',
+                'Continuity Plan is ready for your review',
+                'Please review and sign the plan.',
+                'continuity_plan', $plan->id, $plan->practitioner_id
+            );
+
+            if ($steward->steward_type === 'support_steward') {
+                event(new PlanReadyForSs($plan, $steward));
+            } else {
+                event(new PlanReadyForCs($plan, $steward));
+            }
+        }
+
+        return $plan->fresh();
+    }
+
+    public function publishVersion(ContinuityPlan $plan, string $changeSummary): ContinuityPlan
+    {
+        $plan->update(['version' => ($plan->version ?? 1) + 1, 'last_published_at' => now()]);
+
+        $stewards = PlanSteward::where('plan_id', $plan->id)
+            ->where('status', 'active')
+            ->get();
+
+        foreach ($stewards as $steward) {
+            $portal = $steward->steward_type === 'support_steward' ? 'support_steward' : 'continuity_steward';
+            $this->activity->log(
+                $steward->steward_id, $portal, 'plan', ActivitySeverity::Info,
+                'plan_version_updated',
+                'Continuity Plan has been updated',
+                $changeSummary,
+                'continuity_plan', $plan->id, $plan->practitioner_id
+            );
+        }
+
+        event(new PlanVersionUpdated($plan->fresh(), $changeSummary));
         return $plan->fresh();
     }
 

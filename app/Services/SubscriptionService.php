@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Events\Business\SubscriptionTierChanged;
+use App\Events\Business\MaatAddonChanged;
 use App\Events\Business\SubscriptionCancelled;
 
 use App\Models\User;
@@ -78,6 +79,16 @@ class SubscriptionService
     {
         // Cashier's hooks handle this on webhook receive; manual hook for admin tools.
         $user->refresh();
+    }
+
+    public function toggleMaatAddon(User $user, bool $enable): User
+    {
+        $user->update(['maat_addon' => $enable ? 1 : 0]);
+
+        $addonState = $enable ? 'activated' : 'deactivated';
+
+        event(new MaatAddonChanged($user->fresh(), $addonState));
+        return $user->fresh();
     }
 
     private function tierForPriceId(string $priceId): ?string

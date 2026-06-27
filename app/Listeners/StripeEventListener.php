@@ -8,6 +8,8 @@ use App\Models\StripeWebhookEvent;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use App\Events\Stripe\PaymentFailed;
+use App\Events\Stripe\PaymentReceived;
 use App\Events\Stripe\WebhookReceived;
 
 /**
@@ -64,25 +66,39 @@ class StripeEventListener
 
     private function handlePaymentSucceeded(array $payload): void
     {
-        $invoice = $payload['data']['object'] ?? [];
+        $invoice    = $payload['data']['object'] ?? [];
         $customerId = $invoice['customer'] ?? null;
-        if (!$customerId) return;
+        if (! $customerId) return;
 
         $user = User::where('stripe_id', $customerId)->first();
-        if (!$user) return;
+        if (! $user) return;
 
-        // Cashier will sync the subscription state via its own listener.
+        $amountCents = (int) ($invoice['amount_paid'] ?? 0);
+        $paymentRef  = $invoice['number'] ?? ($invoice['id'] ?? 'N/A');
+        $periodStart = isset($invoice['period_start'])
+            ? \Carbon\Carbon::createFromTimestamp($invoice['period_start'])->format('M Y')
+            : now()->format('M Y');
+        $priceId     = $invoice['lines']['data'][0]['price']['id'] ?? null;
+        $planLabel   = $priceId ? (config("aegis.stripe_price_to_tier.{$priceId}") ?? 'Standard') : 'Standard';
+
         Log::info('Stripe payment succeeded', ['user' => $user->id, 'invoice' => $invoice['id'] ?? null]);
+
+        event(new PaymentReceived($user, $amountCents, $paymentRef, $periodStart, $planLabel));
     }
 
     private function handlePaymentFailed(array $payload): void
     {
-        $invoice = $payload['data']['object'] ?? [];
+        $invoice    = $payload['data']['object'] ?? [];
         $customerId = $invoice['customer'] ?? null;
-        $user = $customerId ? User::where('stripe_id', $customerId)->first() : null;
-        if (!$user) return;
+        $user       = $customerId ? User::where('stripe_id', $customerId)->first() : null;
+        if (! $user) return;
 
-        // Surface failure as a critical activity event for the practitioner.
+        $amountCents   = (int) ($invoice['amount_due'] ?? 0);
+        $failureReason = $invoice['last_payment_error']['message'] ?? 'Payment declined';
+        $nextRetry     = isset($invoice['next_payment_attempt'])
+            ? \Carbon\Carbon::createFromTimestamp($invoice['next_payment_attempt'])->toFormattedDateString()
+            : null;
+
         app(\App\Services\ActivityService::class)->log(
             $user->id,
             $user->role === 'business_partner' ? 'business_partner' : 'provider',
@@ -95,6 +111,8 @@ class StripeEventListener
             $invoice['id'] ?? null,
             null
         );
+
+        event(new PaymentFailed($user, $amountCents, $failureReason, $nextRetry));
     }
 
     private function handleSubscriptionCreated(array $payload): void

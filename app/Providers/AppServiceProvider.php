@@ -95,6 +95,22 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Support\FeedbackReceived::class,      Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Support\TicketResolved::class,        Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Account\AccountClosed::class,         Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\MilestoneSubmitted::class,   Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\MilestoneApproved::class,    Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Plan\DocumentReleaseRequested::class, Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Plan\DocumentUpdated::class,          Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Steward\StewardRoleChangeRequested::class, Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Steward\AlternateCSActivated::class,  Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Incident\IncidentTaskAssigned::class, Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Plan\PlanReadyForCs::class,           Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Plan\PlanReadyForSs::class,           Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Plan\PlanVersionUpdated::class,       Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Auth\NewDeviceLogin::class,           Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\ProposalSubmitted::class,    Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\MaatAddonChanged::class,     Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Stripe\PaymentFailed::class,          Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Stripe\PaymentReceived::class,        Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Stripe\SubscriptionRenewalUpcoming::class, Listeners\SendEmailNotificationListener::class);
 
         // ── UNGATED incident alerts (bypass notify_* prefs entirely) ─────────────
         Event::listen(Events\Incident\IncidentReported::class,     Listeners\SendIncidentAlertsListener::class);

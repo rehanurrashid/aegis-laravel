@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\Steward\AlternateCSActivated;
+use App\Events\Steward\StewardRoleChangeRequested;
+
 use App\Enums\ActivitySeverity;
 use App\Events\Steward\StewardAccepted;
 use App\Events\Steward\StewardDeclined;
@@ -236,6 +239,48 @@ class StewardService
             'authorized_cs_ids' => json_encode($authorizedCsIds),
             'authorized_ss_ids' => json_encode($authorizedSsIds),
         ]);
+    }
+
+    public function requestRoleChange(PlanSteward $steward, string $requestedRole, ?string $requestNote = null): PlanSteward
+    {
+        $plan = ContinuityPlan::findOrFail($steward->plan_id);
+
+        $this->activity->log(
+            $plan->practitioner_id, 'provider', 'steward', ActivitySeverity::Info,
+            'steward_role_change_requested',
+            "{$steward->steward?->display_name} requested role change to {$requestedRole}",
+            $requestNote ?? 'Review and approve the role change request.',
+            'plan_steward', $steward->id, $steward->steward_id
+        );
+
+        event(new StewardRoleChangeRequested($steward, $requestedRole, $requestNote));
+        return $steward;
+    }
+
+    public function activateAlternate(PlanSteward $alternate, PlanSteward $primary): PlanSteward
+    {
+        $alternate->update(['role' => 'primary', 'activated_at' => now()]);
+        $primary->update(['role' => 'alternate']);
+
+        $plan = ContinuityPlan::findOrFail($alternate->plan_id);
+        $incident = \App\Models\CriticalIncident::where('plan_id', $plan->id)
+            ->where('status', 'active')
+            ->latest()
+            ->first();
+
+        $this->activity->log(
+            $plan->practitioner_id, 'provider', 'steward', ActivitySeverity::Warning,
+            'alternate_cs_activated',
+            "Alternate Continuity Steward activated: {$alternate->steward?->display_name}",
+            "Former primary: {$primary->steward?->display_name}",
+            'plan_steward', $alternate->id, null
+        );
+
+        if ($incident) {
+            event(new AlternateCSActivated($alternate, $incident));
+        }
+
+        return $alternate->fresh();
     }
 
     public function getForPlan(string $planId): Collection

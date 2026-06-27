@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\Incident\IncidentTaskAssigned;
+
 use App\Enums\ActivitySeverity;
 use App\Events\Incident\IncidentActivated;
 use App\Events\Incident\IncidentClosed;
@@ -212,6 +214,25 @@ class IncidentService
         ]);
 
         return $incident;
+    }
+
+    public function assignTask(CriticalIncident $incident, IncidentTask $task, User $assignee): IncidentTask
+    {
+        $task->update([
+            'assigned_to_id' => $assignee->id,
+            'status'         => 'in_progress',
+        ]);
+
+        $this->activity->log(
+            $assignee->id, $assignee->portal, 'incident', ActivitySeverity::Info,
+            'incident_task_assigned',
+            "Task assigned: {$task->title}",
+            "Incident #{$incident->id}",
+            'incident_task', $task->id, null
+        );
+
+        event(new IncidentTaskAssigned($task->fresh(), $assignee));
+        return $task->fresh();
     }
 
     public function getActive(): Collection
