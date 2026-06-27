@@ -44,8 +44,11 @@ class PasswordResetController extends Controller
                 'created_at' => now(),
             ]);
 
-            // TODO: dispatch SES email job with the raw token in the link
-            // \App\Jobs\SendEmailJob::dispatch('emails.auth.03-password-reset', [...], $user->id);
+            \App\Jobs\SendEmailJob::dispatch(
+                'emails.account.05-password-reset',
+                ['token' => $rawToken, 'email' => $user->email],
+                $user->id
+            )->onQueue('email');
         }
 
         return back()->with('status', 'If that email exists in our system, a reset link has been sent.');

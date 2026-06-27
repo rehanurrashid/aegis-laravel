@@ -376,7 +376,7 @@
 
 <script setup>
 import { ref, reactive, computed } from 'vue'
-import { Head, useForm } from '@inertiajs/vue3'
+import { Head, useForm, router } from '@inertiajs/vue3'
 
 const currentStep  = ref(0)
 const showWws      = ref(false)
@@ -429,6 +429,11 @@ function checkPasswordStrength() {
 
 function submit() {
   form.post(route('register.store'), {
+    onSuccess: () => {
+      // After registration, always redirect to email verification notice.
+      // User is now logged in but email is unverified (verified = 0).
+      router.visit(route('verification.notice'), { replace: true })
+    },
     onFinish: () => form.reset('password', 'password_confirmation'),
   })
 }

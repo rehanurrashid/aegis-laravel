@@ -283,7 +283,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { Head, useForm } from '@inertiajs/vue3'
+import { Head, useForm, router, usePage } from '@inertiajs/vue3'
 
 // ── Local state ────────────────────────────────────────────────────────
 const activeView   = ref('signin')   // 'signin' | 'forgot' | 'success'
@@ -315,8 +315,34 @@ function showSignin() {
 }
 
 // ── Submit: sign in ────────────────────────────────────────────────────
+const loginPage = usePage()
+
+const portalRouteMap = {
+  practitioner:       'provider.dashboard',
+  business_partner:   'bp.dashboard',
+  continuity_steward: 'cs.dashboard',
+  support_steward:    'ss.dashboard',
+  admin:              'admin.dashboard',
+}
+
 function submitSignin() {
   loginForm.post(route('login.store'), {
+    onSuccess: () => {
+      const user      = loginPage.props.auth?.user
+      const role      = user?.role
+      const verified  = user?.verified
+
+      // If email not verified, send to verification notice
+      if (role && !verified) {
+        router.visit(route('verification.notice'), { replace: true })
+        return
+      }
+
+      const routeName = portalRouteMap[role]
+      if (routeName) {
+        router.visit(route(routeName), { replace: true })
+      }
+    },
     onFinish: () => loginForm.reset('password'),
   })
 }

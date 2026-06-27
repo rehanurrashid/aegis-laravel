@@ -43,7 +43,9 @@ class RegisterController extends Controller
             'session_keys' => array_keys($request->session()->all()),
         ]);
 
-        return Inertia::location($this->portalDashboardUrl($user));
+        // Redirect to email verification notice — Vue's onSuccess then navigates here.
+        // Server-side also points to verification page so non-JS clients work too.
+        return Inertia::location(route('verification.notice'));
     }
 
     private function portalDashboardUrl(User $user): string

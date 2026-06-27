@@ -64,13 +64,29 @@
 </template>
 
 <script setup>
-import { Head, useForm, router } from '@inertiajs/vue3'
+import { Head, useForm, router, usePage } from '@inertiajs/vue3'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 
-const form = useForm({ code: '' })
+const form    = useForm({ code: '' })
+const mfaPage = usePage()
+
+const portalRouteMap = {
+  practitioner:       'provider.dashboard',
+  business_partner:   'bp.dashboard',
+  continuity_steward: 'cs.dashboard',
+  support_steward:    'ss.dashboard',
+  admin:              'admin.dashboard',
+}
 
 function submit() {
   form.post(route('mfa.challenge.store'), {
+    onSuccess: () => {
+      const role      = mfaPage.props.auth?.user?.role
+      const routeName = portalRouteMap[role]
+      if (routeName) {
+        router.visit(route(routeName), { replace: true })
+      }
+    },
     onFinish: () => form.reset('code'),
   })
 }

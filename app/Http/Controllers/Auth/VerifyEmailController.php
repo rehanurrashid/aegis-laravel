@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\UserRole;
 use App\Events\Auth\EmailVerified;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendEmailJob;
@@ -51,7 +52,22 @@ class VerifyEmailController extends Controller
             event(new EmailVerified($user));
         }
 
-        return redirect()->route('home')->with('success', 'Email verified. Welcome to Aegis.');
+        // Redirect to their portal dashboard now that email is verified
+        $role = $user->role instanceof UserRole
+            ? $user->role
+            : UserRole::tryFrom((string) $user->role);
+
+        $portalRoute = match ($role) {
+            UserRole::Practitioner      => 'provider.dashboard',
+            UserRole::ContinuitySteward => 'cs.dashboard',
+            UserRole::SupportSteward    => 'ss.dashboard',
+            UserRole::BusinessPartner   => 'bp.dashboard',
+            UserRole::Admin             => 'admin.dashboard',
+            default                     => 'home',
+        };
+
+        return redirect()->route($portalRoute)
+            ->with('success', 'Email verified. Welcome to Aegis.');
     }
 
     /** POST /email/verification-notification — resend */
