@@ -1,3 +1,34 @@
+
+/* ── AegisIcon inline alignment — GLOBAL RULE ─────────────────────────────────
+   Problem: <AegisIcon> renders as <svg> which is display:inline by default but
+   does not vertically align to text baseline, causing icon+text to misalign.
+
+   Fix strategy:
+   1. .aegis-icon — vertical-align:middle catches any raw-inline SVG context
+   2. Every container that mixes <AegisIcon> + text nodes gets display:inline-flex
+      + align-items:center + gap. This is the canonical pattern.
+
+   RULE FOR ALL VUE COMPONENTS:
+   Any element that contains both <AegisIcon> and a text node MUST use one of:
+     a) display:inline-flex; align-items:center; gap:4px  (for inline badges/labels)
+     b) display:flex; align-items:center; gap:Npx         (for block rows)
+   Never rely on vertical-align alone for icon+text combinations.
+── */
+.aegis-icon {
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* Form feedback rows — icon + message text */
+.form-error { display:inline-flex; align-items:center; gap:4px; }
+.form-hint  { display:inline-flex; align-items:center; gap:4px; }
+
+/* Badge / chip rows — icon + label text */
+.badge { display:inline-flex; align-items:center; gap:5px; }
+
+/* Alert rows — icon + message */
+.alert { display:flex; align-items:flex-start; gap:10px; }
+
 /* ── App-level resets ──────────────────────────────────────────────── */
 *,
 *::before,
@@ -726,12 +757,18 @@ body {
     border-radius: 4px;
     background: var(--surface);
     -webkit-appearance: none;
-    appearance: none;
     cursor: pointer;
     flex-shrink: 0;
     transition: background var(--transition-fast), border-color var(--transition-fast);
 }
-.auth-checkbox:checked { background: var(--gold-dark); border-color: var(--gold-dark); }
+.auth-checkbox:checked {
+    background: var(--gold-dark);
+    border-color: var(--gold-dark);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpolyline points='2,6 5,9 10,3' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 10px;
+}
 .auth-checkbox:focus-visible { outline: var(--focus-ring-checkbox); }
 .auth-checkbox-label { font-size: 0.85rem; color: var(--text-2); cursor: pointer; user-select: none; }
 .auth-altline { text-align: center; font-size: 0.85rem; color: var(--text-3); margin-top: 1.1rem; }

@@ -217,7 +217,7 @@
 
           <!-- Business Partner type -->
           <div v-if="form.role === 'business_partner'" class="ob-bp-type">
-            <label class="ob-form-label">Business type</label>
+            <label class="form-label">Business type</label>
             <div class="ob-option-chips">
               <button
                 type="button"
@@ -232,10 +232,10 @@
                 @click="form.bp_type = 'agency'"
               >Agency</button>
             </div>
-            <div v-if="form.errors.bp_type" class="ob-form-error">{{ form.errors.bp_type }}</div>
+            <div v-if="form.errors.bp_type" class="form-error">{{ form.errors.bp_type }}</div>
           </div>
 
-          <div v-if="form.errors.role" class="ob-form-error">{{ form.errors.role }}</div>
+          <div v-if="form.errors.role" class="form-error">{{ form.errors.role }}</div>
 
           <button
             type="button"
@@ -262,44 +262,44 @@
 
           <form @submit.prevent="submit" novalidate>
 
-            <div class="ob-form-group">
-              <label class="ob-form-label" for="display_name">Full Name</label>
+            <div class="form-group">
+              <label class="form-label" for="display_name">Full Name</label>
               <input
                 id="display_name"
                 v-model="form.display_name"
                 type="text"
-                class="ob-form-control"
-                :class="{ error: form.errors.display_name }"
+                class="form-input"
+                :class="{ 'is-error': form.errors.display_name }"
                 autocomplete="name"
                 autofocus
                 placeholder="Enter your full name"
               />
-              <div v-if="form.errors.display_name" class="ob-form-error">{{ form.errors.display_name }}</div>
+              <div v-if="form.errors.display_name" class="form-error">{{ form.errors.display_name }}</div>
             </div>
 
-            <div class="ob-form-group">
-              <label class="ob-form-label" for="reg-email">Email Address</label>
+            <div class="form-group">
+              <label class="form-label" for="reg-email">Email Address</label>
               <input
                 id="reg-email"
                 v-model="form.email"
                 type="email"
-                class="ob-form-control"
-                :class="{ error: form.errors.email }"
+                class="form-input"
+                :class="{ 'is-error': form.errors.email }"
                 autocomplete="email"
                 placeholder="your@email.com"
               />
-              <div v-if="form.errors.email" class="ob-form-error">{{ form.errors.email }}</div>
+              <div v-if="form.errors.email" class="form-error">{{ form.errors.email }}</div>
             </div>
 
-            <div class="ob-form-group">
-              <label class="ob-form-label" for="reg-password">Password</label>
+            <div class="form-group">
+              <label class="form-label" for="reg-password">Password</label>
               <div class="ob-password-wrap">
                 <input
                   id="reg-password"
                   v-model="form.password"
                   :type="showPassword ? 'text' : 'password'"
-                  class="ob-form-control"
-                  :class="{ error: form.errors.password }"
+                  class="form-input"
+                  :class="{ 'is-error': form.errors.password }"
                   autocomplete="new-password"
                   placeholder="Create a strong password"
                   @input="checkPasswordStrength"
@@ -308,7 +308,7 @@
                   <AegisIcon :name="showPassword ? 'eye-off' : 'eye'" :size="15" />
                 </button>
               </div>
-              <div v-if="form.errors.password" class="ob-form-error">{{ form.errors.password }}</div>
+              <div v-if="form.errors.password" class="form-error">{{ form.errors.password }}</div>
               <div class="ob-password-reqs">
                 <div class="ob-req-item" :class="{ valid: reqs.length, invalid: form.password && !reqs.length }">
                   <AegisIcon :name="reqs.length ? 'check-circle' : 'x-circle'" :size="11" />8+ characters
@@ -325,15 +325,15 @@
               </div>
             </div>
 
-            <div class="ob-form-group">
-              <label class="ob-form-label" for="reg-confirm">Confirm Password</label>
+            <div class="form-group">
+              <label class="form-label" for="reg-confirm">Confirm Password</label>
               <div class="ob-password-wrap">
                 <input
                   id="reg-confirm"
                   v-model="form.password_confirmation"
                   :type="showConfirm ? 'text' : 'password'"
-                  class="ob-form-control"
-                  :class="{ error: passwordMismatch }"
+                  class="form-input"
+                  :class="{ 'is-error': passwordMismatch }"
                   autocomplete="new-password"
                   placeholder="Re-enter your password"
                 />
@@ -341,17 +341,17 @@
                   <AegisIcon :name="showConfirm ? 'eye-off' : 'eye'" :size="15" />
                 </button>
               </div>
-              <div v-if="passwordMismatch" class="ob-form-error">Passwords do not match</div>
+              <div v-if="passwordMismatch" class="form-error">Passwords do not match</div>
             </div>
 
-            <label class="ob-checkbox-item">
-              <input v-model="agreeTerms" type="checkbox" class="ob-checkbox" />
-              <span class="ob-checkbox-label">I have read and agree to the Terms of Service and Privacy Policy.</span>
+            <label class="auth-remember">
+              <input v-model="agreeTerms" type="checkbox" class="auth-checkbox" />
+              <span class="auth-checkbox-label">I have read and agree to the Terms of Service and Privacy Policy.</span>
             </label>
 
-            <label class="ob-checkbox-item" style="margin-bottom: 22px;">
-              <input v-model="emailOptIn" type="checkbox" class="ob-checkbox" />
-              <span class="ob-checkbox-label">
+            <label class="auth-remember ob-terms-row">
+              <input v-model="emailOptIn" type="checkbox" class="auth-checkbox" />
+              <span class="auth-checkbox-label">
                 I agree to receive platform updates and communications
                 <small>You can unsubscribe at any time</small>
               </span>
@@ -577,9 +577,9 @@ function submit() {
 .ob-progress-pip {
   height: 3px;
   flex: 1;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.2);
-  transition: all 0.3s ease;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.2);
+  transition: all var(--transition);
 }
 
 .ob-progress-pip.active { background: var(--gold-light); }
@@ -623,8 +623,8 @@ function submit() {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 52px 64px;
-  max-width: 560px;
+  padding: 48px 52px;
+  max-width: 620px;
   width: 100%;
   margin: 0 auto;
 }
@@ -812,51 +812,10 @@ function submit() {
 .ob-option-chip.selected { border-color: var(--gold-dark); background: rgba(196, 169, 106, 0.08); color: var(--gold-dark); }
 
 /* ──────────── FORM ELEMENTS ──────────── */
-.ob-form-group {
-  margin-bottom: 18px;
-}
-
-.ob-form-label {
-  display: block;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  color: var(--text-2);
-  margin-bottom: 6px;
-}
-
-.ob-form-control {
-  display: block;
-  width: 100%;
-  padding: 10px 13px;
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text);
-  background-color: var(--surface);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm);
-  transition: border-color var(--transition), box-shadow var(--transition);
-  -webkit-appearance: none;
-  outline: none;
-}
-
-.ob-form-control::placeholder { color: var(--text-4); font-weight: 400; }
-.ob-form-control:focus { border-color: var(--gold); box-shadow: var(--focus-ring); }
-.ob-form-control.error { border-color: var(--red); }
-
-.ob-form-error {
-  font-size: 11px;
-  color: var(--red);
-  margin-top: 5px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
 
 /* Password */
 .ob-password-wrap { position: relative; }
+.ob-password-wrap .form-input { padding-right: 42px; }
 
 .ob-password-toggle {
   position: absolute;
@@ -895,50 +854,23 @@ function submit() {
 .ob-req-item.valid   { color: var(--green); }
 .ob-req-item.invalid { color: var(--red); }
 
-/* Checkboxes */
-.ob-checkbox-item {
-  display: flex;
+/* Terms/opt-in checkbox rows */
+.ob-terms-row { margin-bottom: 22px; }
+
+/* Override auth-remember for the register page — align-items:center keeps
+   single-line labels on the midline; for multi-line labels flex-start is used */
+.auth-remember {
   align-items: flex-start;
   gap: 10px;
-  cursor: pointer;
   margin-bottom: 10px;
+  cursor: pointer;
 }
 
-.ob-checkbox {
-  -webkit-appearance: none;
-  width: 17px;
-  height: 17px;
-  border: 1.5px solid var(--border-dark);
-  border-radius: 4px;
-  background: var(--surface);
-  cursor: pointer;
+.auth-checkbox {
+  margin-top: 2px;   /* nudge checkbox down to align with first text line */
   flex-shrink: 0;
-  margin-top: 1px;
-  transition: all var(--transition);
 }
-
-.ob-checkbox:checked {
-  background: var(--gold);
-  border-color: var(--gold);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpolyline points='2,6 5,9 10,3' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 11px;
-}
-
-.ob-checkbox:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(196, 169, 106, 0.18);
-}
-
-.ob-checkbox-label {
-  font-size: 13px;
-  color: var(--text-2);
-  line-height: 1.5;
-  cursor: pointer;
-}
-
-.ob-checkbox-label small {
+.ob-terms-row .auth-checkbox-label small {
   display: block;
   font-size: 11px;
   color: var(--text-4);

@@ -1,122 +1,116 @@
 <!--
   pages/auth/MfaChallenge.vue — TOTP verification on login.
-
   Route: POST mfa.challenge.store
-  Session-gated: controller redirects to login if no pending MFA session.
-  Source: onboarding.php step 5 (2FA) / MfaController
-  Layout: AuthLayout
+  Layout: self-contained split-panel (no AuthLayout)
 -->
 <template>
-  <AuthLayout>
-    <Head title="Two-Factor Verification" />
+  <Head title="Two-Factor Verification — Aegis" />
 
-    <div class="auth-mfa-icon">
-      <AegisIcon name="shield-check" :size="40" />
-    </div>
-
-    <div class="auth-heading">
-      <h1 class="auth-title">Two-Factor Verification</h1>
-      <p class="auth-subtitle">Enter the 6-digit code from your authenticator app.</p>
-    </div>
-
-    <form @submit.prevent="submit" novalidate>
-
-      <div class="form-group mfa-code-group">
-        <label class="form-label" for="mfa-code">Authentication Code</label>
-        <input
-          id="mfa-code"
-          v-model="form.code"
-          type="text"
-          inputmode="numeric"
-          pattern="[0-9]*"
-          maxlength="6"
-          class="form-input auth-code-input"
-          :class="{ 'is-error': form.errors.code }"
-          autocomplete="one-time-code"
-          autofocus
-          placeholder="_ _ _ _ _ _"
-        />
-        <div v-if="form.errors.code" class="form-error">{{ form.errors.code }}</div>
+  <div class="ob-layout">
+    <div class="ob-panel-left">
+      <img src="/aegis-bg.svg" class="ob-panel-left-bg" alt="" aria-hidden="true" />
+      <div class="ob-brand-logo"><span class="ob-brand-logo-text">Aegis</span></div>
+      <div class="ob-panel-left-content">
+        <div class="ob-panel-left-eyebrow">Security Verification</div>
+        <h1 class="ob-panel-left-title">Two-factor authentication keeps your practice safe.</h1>
+        <p class="ob-panel-left-body">Your account is protected by an additional layer of security. Open your authenticator app to retrieve the 6-digit code.</p>
+        <div class="ob-panel-features">
+          <div class="ob-panel-feature">
+            <div class="ob-panel-feature-icon"><AegisIcon name="shield-check" :size="15" /></div>
+            <div class="ob-panel-feature-text"><strong>Time-based codes</strong>Codes refresh every 30 seconds for maximum security.</div>
+          </div>
+          <div class="ob-panel-feature">
+            <div class="ob-panel-feature-icon"><AegisIcon name="smartphone" :size="15" /></div>
+            <div class="ob-panel-feature-text"><strong>Authenticator app required</strong>Use Google Authenticator, Authy, or any TOTP app.</div>
+          </div>
+        </div>
       </div>
+      <div class="ob-panel-left-footer"><p>© {{ year }} Aegis Platform. All rights reserved.</p></div>
+    </div>
 
-      <button
-        type="submit"
-        class="btn btn-primary btn-block"
-        :disabled="form.processing || form.code.length !== 6"
-      >{{ form.processing ? 'Verifying…' : 'Verify' }}</button>
+    <div class="ob-panel-right">
+      <div class="ob-panel-right-inner">
+        <div class="mfa-icon"><AegisIcon name="shield-check" :size="36" /></div>
+        <div class="ob-step-header">
+          <div class="ob-step-eyebrow">Security Verification</div>
+          <h2 class="ob-step-title">Two-Factor Verification</h2>
+          <p class="ob-step-subtitle">Enter the 6-digit code from your authenticator app.</p>
+        </div>
 
-    </form>
+        <form @submit.prevent="submit" novalidate>
+          <div class="form-group">
+            <label class="form-label" for="mfa-code">Authentication Code</label>
+            <input id="mfa-code" v-model="form.code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" class="form-input mfa-code-input" :class="{ 'is-error': form.errors.code }" autocomplete="one-time-code" autofocus placeholder="000000" />
+            <div v-if="form.errors.code" class="form-error">{{ form.errors.code }}</div>
+          </div>
+          <button type="submit" class="btn btn-primary ob-btn-full" :disabled="form.processing || form.code.length !== 6">
+            {{ form.processing ? 'Verifying…' : 'Verify Code' }}
+          </button>
+        </form>
 
-    <p class="auth-altline" style="margin-top: 16px;">
-      Having trouble?
-      <a href="#" class="auth-altline-link">Use Backup Code</a>
-    </p>
-
-    <p class="auth-altline">
-      <a
-        :href="route('logout')"
-        class="auth-altline-link"
-        @click.prevent="logout"
-      >Sign in with a different account</a>
-    </p>
-
-  </AuthLayout>
+        <p class="ob-altline">
+          <button type="button" class="ob-altline-link" @click="logout">Sign in with a different account</button>
+        </p>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
 import { Head, useForm, router, usePage } from '@inertiajs/vue3'
-import AuthLayout from '@/layouts/AuthLayout.vue'
 
+const year    = new Date().getFullYear()
 const form    = useForm({ code: '' })
 const mfaPage = usePage()
-
 const portalRouteMap = {
-  practitioner:       'provider.dashboard',
-  business_partner:   'bp.dashboard',
-  continuity_steward: 'cs.dashboard',
-  support_steward:    'ss.dashboard',
-  admin:              'admin.dashboard',
+  practitioner: 'provider.dashboard', business_partner: 'bp.dashboard',
+  continuity_steward: 'cs.dashboard', support_steward: 'ss.dashboard', admin: 'admin.dashboard',
 }
 
 function submit() {
   form.post(route('mfa.challenge.store'), {
     onSuccess: () => {
-      const role      = mfaPage.props.auth?.user?.role
+      const role = mfaPage.props.auth?.user?.role
       const routeName = portalRouteMap[role]
-      if (routeName) {
-        router.visit(route(routeName), { replace: true })
-      }
+      if (routeName) router.visit(route(routeName), { replace: true })
     },
     onFinish: () => form.reset('code'),
   })
 }
-
-function logout() {
-  router.post(route('logout'))
-}
+function logout() { router.post(route('logout')) }
 </script>
 
 <style scoped>
-/* Center + enlarge the code input to match PHP step 5 OTP style */
-.mfa-code-group .auth-code-input {
-  text-align: center;
-  font-family: var(--font-serif);
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: 8px;
-}
-
-/* Pill button */
-.btn-primary {
-  border-radius: var(--radius-full);
-  padding: 11px 22px;
-  background: var(--primary);
-  color: var(--text-inverted);
-  border: 1.5px solid var(--primary);
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: var(--primary-mid);
-  border-color: var(--primary-mid);
-}
+.ob-layout { display:flex; width:100%; height:100vh; overflow:hidden; }
+.ob-panel-left { width:42%; background:#1a140d; position:relative; display:flex; flex-direction:column; justify-content:space-between; padding:clamp(20px,4vh,48px) clamp(28px,4vw,52px); overflow:hidden; flex-shrink:0; height:100vh; }
+.ob-panel-left-bg { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center top; pointer-events:none; z-index:0; }
+.ob-brand-logo { position:relative; z-index:1; }
+.ob-brand-logo-text { font-family:var(--font-serif); font-size:26px; font-weight:700; color:var(--text-inverted); letter-spacing:-0.5px; line-height:1; }
+.ob-panel-left-content { position:relative; z-index:1; flex:1; display:flex; flex-direction:column; justify-content:center; padding:clamp(12px,2.5vh,40px) 0; min-height:0; overflow:hidden; }
+.ob-panel-left-eyebrow { font-size:10px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.65); margin-bottom:clamp(8px,1.5vh,16px); }
+.ob-panel-left-title { font-family:var(--font-serif); font-size:clamp(22px,2.2vw + 0.6rem,34px); font-weight:700; color:var(--text-inverted); line-height:1.22; margin-bottom:clamp(10px,1.8vh,20px); }
+.ob-panel-left-body { font-size:13.5px; color:rgba(255,255,255,0.78); line-height:1.65; max-width:340px; }
+.ob-panel-features { display:flex; flex-direction:column; gap:clamp(8px,1.4vh,14px); margin-top:clamp(16px,2.8vh,36px); }
+.ob-panel-feature { display:flex; align-items:flex-start; gap:12px; }
+.ob-panel-feature-icon { width:28px; height:28px; background:rgba(196,169,106,0.15); border-radius:6px; display:flex; align-items:center; justify-content:center; color:var(--gold); flex-shrink:0; }
+.ob-panel-feature-text { font-size:12.5px; color:rgba(255,255,255,0.72); line-height:1.5; }
+.ob-panel-feature-text strong { color:rgba(255,255,255,0.92); display:block; margin-bottom:1px; }
+.ob-panel-left-footer { position:relative; z-index:1; }
+.ob-panel-left-footer p { font-size:11px; color:rgba(255,255,255,0.38); line-height:1.5; }
+.ob-panel-right { flex:1; display:flex; flex-direction:column; overflow-y:auto; background-color:var(--surface); }
+.ob-panel-right-inner { flex:1; display:flex; flex-direction:column; justify-content:center; padding:clamp(32px,5vh,64px) clamp(28px,5vw,72px); max-width:480px; width:100%; margin:0 auto; }
+.mfa-icon { width:72px; height:72px; background:rgba(196,169,106,0.1); border-radius:var(--radius-lg); display:flex; align-items:center; justify-content:center; color:var(--gold-dark); margin-bottom:28px; }
+.ob-step-header { margin-bottom:28px; }
+.ob-step-eyebrow { font-size:10px; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; color:var(--gold-dark); margin-bottom:8px; }
+.ob-step-title { font-family:var(--font-serif); font-size:clamp(22px,2vw + 0.6rem,30px); font-weight:700; color:var(--text); line-height:1.22; margin-bottom:8px; }
+.ob-step-subtitle { font-size:13.5px; color:var(--text-2); line-height:1.55; }
+.mfa-code-input { text-align:center; font-family:var(--font-serif); font-size:24px; font-weight:700; letter-spacing:10px; height:56px; }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:11px 22px; font-family:var(--font-sans); font-size:13px; font-weight:700; border-radius:var(--radius-full); border:1.5px solid transparent; cursor:pointer; transition:all var(--transition); -webkit-appearance:none; outline:none; }
+.btn-primary { background:var(--primary); color:var(--text-inverted); border-color:var(--primary); }
+.btn-primary:hover:not(:disabled) { background:var(--primary-mid); border-color:var(--primary-mid); }
+.btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
+.ob-btn-full { width:100%; }
+.ob-altline { text-align:center; margin-top:20px; font-size:12.5px; color:var(--text-2); }
+.ob-altline-link { color:var(--gold-dark); text-decoration:none; font-weight:600; background:none; border:none; cursor:pointer; font-size:inherit; padding:0; }
+.ob-altline-link:hover { text-decoration:underline; }
 </style>

@@ -47,7 +47,7 @@
           {{ flash.success }}
         </div>
 
-        <div v-if="errors.email" class="ob-form-error">{{ errors.email }}</div>
+        <div v-if="errors.email" class="form-error">{{ errors.email }}</div>
 
         <button
           type="button"
@@ -129,7 +129,6 @@ onUnmounted(() => clearInterval(timer))
 .ob-step-subtitle strong { color:var(--text); font-weight:600; }
 
 .verify-success { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--green); background:rgba(76,175,125,0.08); border:1px solid rgba(76,175,125,0.2); border-radius:var(--radius-sm); padding:10px 14px; margin-bottom:20px; }
-.ob-form-error { font-size:12px; color:var(--red); margin-bottom:16px; }
 
 .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:11px 22px; font-family:var(--font-sans); font-size:13px; font-weight:700; border-radius:var(--radius-full); border:1.5px solid transparent; cursor:pointer; transition:all var(--transition); -webkit-appearance:none; outline:none; }
 .btn-primary { background:var(--primary); color:var(--text-inverted); border-color:var(--primary); }
