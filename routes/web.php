@@ -244,6 +244,13 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::post('/settings/mfa/verify', [MfaController::class, 'verify'])->name('settings.mfa.verify');
         Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->name('settings.mfa.disable');
+
+        // Shared pages (portal-prefixed aliases → Shared controllers)
+        Route::get('/overview',  [\App\Http\Controllers\Shared\OverviewController::class,  'index'])->name('overview');
+        Route::get('/messages',  [\App\Http\Controllers\Shared\MessagesController::class,  'index'])->name('messages');
+        Route::get('/activity',  [\App\Http\Controllers\Shared\ActivityController::class,  'index'])->name('activity');
+        Route::get('/support',   [\App\Http\Controllers\Shared\SupportController::class,   'index'])->name('support');
+        Route::get('/help-center', fn() => \Inertia\Inertia::render('provider/HelpCenter', ['articles' => \App\Models\HelpArticle::where('published', 1)->where(fn($q) => $q->where('role_visibility', 'all')->orWhere('role_visibility', 'provider'))->orderBy('sort_order')->get()]))->name('help-center');
     });
 
 // ── Continuity Steward Portal ─────────────────────────────────────────────────
@@ -300,6 +307,13 @@ Route::middleware(['auth', 'role:continuity_steward', 'check.locked'])
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::post('/settings/mfa/verify', [MfaController::class, 'verify'])->name('settings.mfa.verify');
         Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->name('settings.mfa.disable');
+
+        // Shared pages (portal-prefixed aliases → Shared controllers)
+        Route::get('/overview',  [\App\Http\Controllers\Shared\OverviewController::class,  'index'])->name('overview');
+        Route::get('/messages',  [\App\Http\Controllers\Shared\MessagesController::class,  'index'])->name('messages');
+        Route::get('/activity',  [\App\Http\Controllers\Shared\ActivityController::class,  'index'])->name('activity');
+        Route::get('/support',   [\App\Http\Controllers\Shared\SupportController::class,   'index'])->name('support');
+        Route::get('/help-center', [\App\Http\Controllers\ContinuitySteward\SupportController::class, 'help'])->name('help-center');
     });
 
 // ── Support Steward Portal ────────────────────────────────────────────────────
@@ -342,6 +356,13 @@ Route::middleware(['auth', 'role:support_steward', 'check.locked'])
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::post('/settings/mfa/verify', [MfaController::class, 'verify'])->name('settings.mfa.verify');
         Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->name('settings.mfa.disable');
+
+        // Shared pages (portal-prefixed aliases → Shared controllers)
+        Route::get('/overview',  [\App\Http\Controllers\Shared\OverviewController::class,  'index'])->name('overview');
+        Route::get('/messages',  [\App\Http\Controllers\Shared\MessagesController::class,  'index'])->name('messages');
+        Route::get('/activity',  [\App\Http\Controllers\Shared\ActivityController::class,  'index'])->name('activity');
+        Route::get('/support',   [\App\Http\Controllers\Shared\SupportController::class,   'index'])->name('support');
+        Route::get('/help-center', [\App\Http\Controllers\SupportSteward\SupportController::class, 'help'])->name('help-center');
     });
 
 // ── Business Partner Portal ───────────────────────────────────────────────────
@@ -407,6 +428,13 @@ Route::middleware(['auth', 'role:business_partner', 'check.locked'])
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::post('/settings/mfa/verify', [MfaController::class, 'verify'])->name('settings.mfa.verify');
         Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->name('settings.mfa.disable');
+
+        // Shared pages (portal-prefixed aliases → Shared controllers)
+        Route::get('/overview',  [\App\Http\Controllers\Shared\OverviewController::class,  'index'])->name('overview');
+        Route::get('/messages',  [\App\Http\Controllers\Shared\MessagesController::class,  'index'])->name('messages');
+        Route::get('/activity',  [\App\Http\Controllers\Shared\ActivityController::class,  'index'])->name('activity');
+        Route::get('/support',   [\App\Http\Controllers\Shared\SupportController::class,   'index'])->name('support');
+        Route::get('/help-center', [\App\Http\Controllers\BusinessPartner\SupportController::class, 'help'])->name('help-center');
     });
 
 // ── Admin Portal ──────────────────────────────────────────────────────────────
@@ -471,6 +499,13 @@ Route::middleware(['auth', 'admin'])
         Route::put('/help-articles/{article}', [HelpArticlesController::class, 'update'])->name('help.update');
         Route::post('/help-articles/{article}/publish', [HelpArticlesController::class, 'publish'])->name('help.publish');
         Route::delete('/help-articles/{article}', [HelpArticlesController::class, 'destroy'])->name('help.destroy');
+
+        // Shared pages (portal-prefixed aliases → Shared controllers)
+        Route::get('/overview',  [\App\Http\Controllers\Shared\OverviewController::class,  'index'])->name('overview');
+        Route::get('/messages',  [\App\Http\Controllers\Shared\MessagesController::class,  'index'])->name('messages');
+        Route::get('/activity',  [\App\Http\Controllers\Shared\ActivityController::class,  'index'])->name('activity');
+        Route::get('/support',   [\App\Http\Controllers\Shared\SupportController::class,   'index'])->name('support');
+        Route::get('/help-center', fn() => \Inertia\Inertia::render('admin/HelpCenter', ['articles' => \App\Models\HelpArticle::where('published', 1)->orderBy('sort_order')->get()]))->name('help-center');
     });
 
 // ── Shared routes (any authenticated role) ────────────────────────────────────

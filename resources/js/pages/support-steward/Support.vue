@@ -1,12 +1,17 @@
-<!--
-  pages/support-steward/Support.vue — stub (page not yet built).
--->
+<!-- pages/support-steward/Support.vue -->
+<!-- Stub — delegates entirely to pages/shared/Support.vue -->
+<!-- Controller renders 'Shared/Support'; this file exists so Inertia's resolver has a file to find if needed. -->
 <template>
-  <AppLayout>
-    <AegisHeroBanner title="Support" eyebrow="Coming soon" />
-    <AegisEmptyState icon="clock" title="This page is under construction." />
-  </AppLayout>
+  <SharedPage v-bind="$props" />
 </template>
+
 <script setup>
-import AppLayout from '@/layouts/AppLayout.vue'
+import SharedPage from '@/pages/shared/Support.vue'
+
+// Props copied exactly from pages/shared/Support.vue defineProps
+defineProps({
+  tickets:      { type: Array, default: () => [] },
+  helpArticles: { type: Array, default: () => [] },
+  initialTab:   { type: String, default: 'tickets' },
+})
 </script>

@@ -1,4 +1,4 @@
-<!-- pages/business-partner/Messages.vue -->
+<!-- pages/support-steward/Messages.vue -->
 <!-- Stub — delegates entirely to pages/shared/Messages.vue -->
 <!-- Controller renders 'Shared/Messages'; this file exists so Inertia's resolver has a file to find if needed. -->
 <template>

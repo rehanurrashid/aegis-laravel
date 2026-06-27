@@ -1,12 +1,15 @@
-<!--
-  pages/business-partner/HelpCenter.vue — stub (page not yet built).
--->
+<!-- pages/business-partner/HelpCenter.vue -->
+<!-- Stub — delegates entirely to pages/shared/HelpCenter.vue -->
+<!-- Controller renders 'business-partner/HelpCenter' with articles prop (role-filtered). -->
 <template>
-  <AppLayout>
-    <AegisHeroBanner title="Help Center" eyebrow="Coming soon" />
-    <AegisEmptyState icon="clock" title="This page is under construction." />
-  </AppLayout>
+  <SharedHelpCenter v-bind="$props" />
 </template>
+
 <script setup>
-import AppLayout from '@/layouts/AppLayout.vue'
+import SharedHelpCenter from '@/pages/shared/HelpCenter.vue'
+
+// Props copied exactly from pages/shared/HelpCenter.vue defineProps
+defineProps({
+  articles: { type: Array, default: () => [] },
+})
 </script>

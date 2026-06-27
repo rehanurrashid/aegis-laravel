@@ -1,6 +1,6 @@
-<!-- pages/support-steward/HelpCenter.vue -->
+<!-- pages/provider/HelpCenter.vue -->
 <!-- Stub — delegates entirely to pages/shared/HelpCenter.vue -->
-<!-- Controller renders 'support-steward/HelpCenter' with articles prop (role-filtered). -->
+<!-- Controller renders 'provider/HelpCenter' with articles prop (role-filtered). -->
 <template>
   <SharedHelpCenter v-bind="$props" />
 </template>

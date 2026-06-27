@@ -1,4 +1,4 @@
-<!-- pages/provider/Support.vue -->
+<!-- pages/admin/Support.vue -->
 <!-- Stub — delegates entirely to pages/shared/Support.vue -->
 <!-- Controller renders 'Shared/Support'; this file exists so Inertia's resolver has a file to find if needed. -->
 <template>
