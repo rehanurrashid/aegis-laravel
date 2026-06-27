@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
 use App\Services\AuthService;
+use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -30,15 +31,12 @@ class RegisterController extends Controller
 
         $user = $this->authService->register($request->validated());
 
-        // ── KEY CHANGE ────────────────────────────────────────────────────────
-        // Auth::login() internally calls session()->migrate(true) which already
-        // regenerates the session ID and preserves in-memory attributes.
-        // Do NOT call regenerate() or save() — that triggers a double-save race
-        // where the middleware terminate phase rewrites the session row with
-        // stale attributes, wiping the login_web_* key.
         Auth::login($user);
 
-        Log::info("{$trace} after Auth::login", [
+        // Send verification email asynchronously
+        VerifyEmailController::sendVerificationEmail($user);
+
+        Log::info("{$trace} login complete", [
             'auth_check'   => Auth::check(),
             'auth_id'      => Auth::id(),
             'session_id'   => $request->session()->getId(),

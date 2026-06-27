@@ -19,7 +19,12 @@ class HandleInertiaRequests extends Middleware
 
     public function version(Request $request): ?string
     {
-        return parent::version($request);
+        // Return null to disable Inertia's asset-version check.
+        // The default parent::version() hashes the Vite manifest; on staging
+        // this triggers 409 Conflict responses after every deploy/rebuild,
+        // causing Inertia::location() navigations to land on stale pages.
+        // Re-enable once a proper asset versioning strategy is in place.
+        return null;
     }
 
     public function share(Request $request): array

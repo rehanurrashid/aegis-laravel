@@ -143,13 +143,13 @@ class MfaController extends Controller
         $request->session()->forget('mfa_pending_user_id');
 
         Auth::login($user, $remember);
+
         $user->forceFill([
             'failed_login_count' => 0,
             'last_login_at'      => now(),
         ])->save();
-        $request->session()->regenerate();
 
-        return redirect()->intended($this->portalHomeFor($user));
+        return Inertia::location($this->portalHomeFor($user));
     }
 
     private function portalHomeFor(User $user): string

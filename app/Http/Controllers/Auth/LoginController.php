@@ -57,11 +57,9 @@ class LoginController extends Controller
 
         if (!$user || !Hash::check($request->password, (string) $user->password)) {
             RateLimiter::hit($key, 60);
-
             if ($user) {
                 $count = ($user->failed_login_count ?? 0) + 1;
                 $user->forceFill(['failed_login_count' => $count])->save();
-
                 if ($count >= 5) {
                     $user->forceFill([
                         'locked_at'     => now(),
@@ -69,7 +67,6 @@ class LoginController extends Controller
                     ])->save();
                 }
             }
-
             throw ValidationException::withMessages([
                 'email' => 'The provided credentials are incorrect.',
             ]);
@@ -89,20 +86,7 @@ class LoginController extends Controller
             return Inertia::location(route('mfa.challenge'));
         }
 
-        // ── KEY CHANGE ────────────────────────────────────────────────────────
-        // Auth::login() internally calls session()->migrate(true) which already
-        // regenerates the session ID and preserves in-memory attributes.
-        // Do NOT call regenerate() or save() — that triggers a double-save race
-        // where the middleware terminate phase rewrites the session row with
-        // stale attributes, wiping the login_web_* key.
         Auth::login($user, $request->boolean('remember'));
-
-        Log::info("{$trace} after Auth::login", [
-            'auth_check' => Auth::check(),
-            'auth_id'    => Auth::id(),
-            'session_id' => $request->session()->getId(),
-            'session_keys' => array_keys($request->session()->all()),
-        ]);
 
         $user->forceFill([
             'failed_login_count' => 0,
@@ -111,21 +95,21 @@ class LoginController extends Controller
 
         event(new UserLoggedIn($user, 'web'));
 
+        Log::info("{$trace} login complete", [
+            'auth_check'   => Auth::check(),
+            'auth_id'      => Auth::id(),
+            'session_id'   => $request->session()->getId(),
+            'session_keys' => array_keys($request->session()->all()),
+        ]);
+
         return Inertia::location($this->portalHomeFor($user));
     }
 
     public function destroy(Request $request): RedirectResponse
     {
-        $user = $request->user();
-
-        if ($user && method_exists($user, 'tokens')) {
-            $user->tokens()->delete();
-        }
-
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-
         return redirect()->route('login');
     }
 

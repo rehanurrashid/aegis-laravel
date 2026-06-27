@@ -10,7 +10,9 @@ use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\EnsureServicesMode;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\ImpersonateForDemo;
+use App\Http\Middleware\StartSessionFixed;
 use Illuminate\Foundation\Application;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 
@@ -21,6 +23,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Replace StartSession with our fixed version that prevents
+        // the terminate-phase save from wiping the login_web_* session key.
+        $middleware->replace(StartSession::class, StartSessionFixed::class);
+
         // ── Middleware aliases ────────────────────────────────────────────────
         $middleware->alias([
             'role'            => EnsureRole::class,

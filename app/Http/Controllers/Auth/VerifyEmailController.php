@@ -6,31 +6,81 @@ namespace App\Http\Controllers\Auth;
 
 use App\Events\Auth\EmailVerified;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Auth\VerifyEmailRequest;
+use App\Jobs\SendEmailJob;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class VerifyEmailController extends Controller
 {
-    public function notice(): Response
+    /** GET /email/verify — show "check your inbox" notice */
+    public function notice(Request $request): Response|RedirectResponse
     {
-        return Inertia::render('auth/VerifyEmail');
+        /** @var User $user */
+        $user = $request->user();
+
+        if ($user->verified) {
+            return redirect()->route('home');
+        }
+
+        return Inertia::render('Auth/VerifyEmail', [
+            'email' => $user->email,
+        ]);
     }
 
-    public function verify(VerifyEmailRequest $request): RedirectResponse
+    /** GET /email/verify/{id}/{hash} — signed link from inbox */
+    public function verify(Request $request, string $id): RedirectResponse
     {
+        /** @var User|null $user */
         $user = $request->user();
-        if ($user && !$user->email_verified_at) {
-            $user->forceFill(['email_verified_at' => now()])->save();
+
+        if (!$user || $user->id !== $id) {
+            return redirect()->route('login');
+        }
+
+        if (!$request->hasValidSignature()) {
+            return redirect()->route('verification.notice')
+                ->withErrors(['email' => 'Verification link is invalid or has expired.']);
+        }
+
+        if (!$user->verified) {
+            $user->forceFill(['verified' => 1])->save();
             event(new EmailVerified($user));
         }
-        return redirect()->route('home')->with('success', 'Email verified.');
+
+        return redirect()->route('home')->with('success', 'Email verified. Welcome to Aegis.');
     }
 
-    public function resend(VerifyEmailRequest $request): RedirectResponse
+    /** POST /email/verification-notification — resend the link */
+    public function resend(Request $request): RedirectResponse
     {
-        // Re-dispatches verification email via SendEmailJob; gated by notify_email.
-        return back()->with('success', 'Verification link sent.');
+        /** @var User $user */
+        $user = $request->user();
+
+        if ($user->verified) {
+            return redirect()->route('home');
+        }
+
+        $this->sendVerificationEmail($user);
+
+        return back()->with('success', 'Verification link sent. Check your inbox.');
+    }
+
+    public static function sendVerificationEmail(User $user): void
+    {
+        $url = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(60),
+            ['id' => $user->id, 'hash' => sha1($user->email)]
+        );
+
+        SendEmailJob::dispatch(
+            'emails.account.02-verify-email',
+            ['verification_url' => $url],
+            $user->id
+        )->onQueue('email');
     }
 }
