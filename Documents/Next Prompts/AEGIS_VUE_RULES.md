@@ -22,6 +22,8 @@ Break any of these and the component is wrong:
 10. **NEVER skip PHP sections, modals, buttons, or conditionals** — 100% parity required.
 11. **NEVER store money as float** — integer cents only.
 12. **NEVER write business logic in components** — controllers call services, components call composables.
+13. **NEVER use `size="md"` or `size="lg"` on multi-step modals** — `size="xl"` or `size="fullscreen"` only (see Section 12).
+14. **NEVER submit a form without client-side validation** — Vuelidate runs first, server validation is the boundary (see Section 13).
 ---
  
 ## SECTION 2 — IMPORT CHEATSHEET
@@ -54,6 +56,14 @@ import { useForm, router, usePage, Link } from '@inertiajs/vue3'
  
 // Vue
 import { ref, reactive, computed, watch, onMounted } from 'vue'
+
+// Client-side validation (every form)
+import { useVuelidate } from '@vuelidate/core'
+import {
+    required, email, minLength, maxLength, sameAs,
+    numeric, integer, minValue, maxValue, url,
+    requiredIf, helpers,
+} from '@vuelidate/validators'
 ```
  
 **Globally registered (NO import in page components):**
@@ -572,11 +582,29 @@ const tabs = [
 ---
  
 ## SECTION 12 — MULTI-STEP MODAL PATTERN
- 
+
+**RULE: Multi-step modals MUST use `size="xl"` or `size="fullscreen"`.**
+Multi-step content frequently overflows on `sm`/`md`/`lg`, causing the step strip, field labels, or button rows to wrap to a second line. That looks broken. The fix is structural, not cosmetic — give the wizard room.
+
+### Sizing rules
+
+| Step count | Has long fields (textarea, file picker, multi-column)? | Required size |
+|------------|-------------------------------------------------------|---------------|
+| 2 steps | No | `xl` |
+| 2 steps | Yes | `xl` or `fullscreen` |
+| 3+ steps | Any | **`fullscreen`** |
+| Any wizard with file upload + preview | Any | **`fullscreen`** |
+| Any wizard with summary/review step | Any | **`fullscreen`** |
+
+**`size="md"` or `size="lg"` are FORBIDDEN for any modal that contains `.modal-steps`.**
+
+### Fullscreen variant
+The `AegisModal` `size="fullscreen"` variant fills the viewport with a fixed inner max-width of 960px, allowing the step strip and content to breathe without becoming uncomfortably wide on large monitors.
+
 ```vue
-<AegisModal v-model="modals.wizard" title="Designate Steward" size="lg">
- 
-  <!-- Steps row between header and body -->
+<AegisModal v-model="modals.wizard" title="Designate Steward" size="fullscreen">
+
+  <!-- Step strip — between header and body -->
   <div class="modal-steps">
     <div
       v-for="(s, i) in steps"
@@ -595,34 +623,373 @@ const tabs = [
       <div v-if="i < steps.length - 1" class="modal-step-divider" />
     </div>
   </div>
- 
+
+  <!-- Step bodies -->
   <div v-show="currentStep === 0">...step 1 form...</div>
   <div v-show="currentStep === 1">...step 2 form...</div>
   <div v-show="currentStep === 2">...step 3 form...</div>
- 
+
   <template #footer>
     <button v-if="currentStep > 0" class="btn btn-outline" @click="currentStep--">Back</button>
     <button v-if="currentStep < steps.length - 1"
             class="btn btn-primary"
-            @click="currentStep++">Continue</button>
+            :disabled="!isStepValid(currentStep)"
+            @click="advance">Continue</button>
     <button v-else
             class="btn btn-primary"
             @click="submit"
-            :disabled="form.processing">
+            :disabled="form.processing || !isStepValid(currentStep)">
       {{ form.processing ? 'Submitting...' : 'Submit' }}
     </button>
   </template>
- 
+
 </AegisModal>
- 
+
 <style scoped>
+/* Required spacing — keeps the step strip tight to the body */
 .modal-steps + .modal-body { padding-top: 2px; }
 </style>
 ```
+
+### Step validation gate
+**Every step must validate before advancing.** Disable Continue until the current step is valid:
+
+```js
+function isStepValid(step) {
+    if (step === 0) return !v$.step1.$invalid
+    if (step === 1) return !v$.step2.$invalid
+    if (step === 2) return !v$.step3.$invalid
+    return true
+}
+
+function advance() {
+    // Run touched flag so errors show
+    if (step === 0) v$.step1.$touch()
+    if (!isStepValid(currentStep.value)) return
+    currentStep.value++
+}
+```
+
+See **Section 13 — Client-Side Validation** for the full validation pattern.
+
+### Anti-patterns
+- ❌ `size="md"` on a 3-step modal — fields wrap
+- ❌ `size="lg"` with file upload step — preview area gets clipped
+- ❌ Allowing Continue without validating current step
+- ❌ Custom inline width/height styles to "make it fit" — use `fullscreen`
+- ❌ Removing `.modal-step-label` to "save space" — fix the size instead
  
 ---
  
-## SECTION 13 — UPLOAD / DROPZONE PATTERN
+## SECTION 13 — CLIENT-SIDE VALIDATION
+
+**RULE: Every form validates on the client BEFORE submitting to the server.**
+
+Server validation is the source of truth (FormRequest rules + Policy authorization), but client-side validation catches obvious mistakes instantly — no network round-trip, no flicker, no failed submission. The two layers work together:
+
+- **Client validation** = immediate, friendly feedback as the user fills the form
+- **Server validation** = final word, the security boundary, always trusted
+
+### Library: Vuelidate (`@vuelidate/core` + `@vuelidate/validators`)
+
+Standard across all forms. Already installed; if missing:
+```bash
+npm install @vuelidate/core @vuelidate/validators
+```
+
+### Standard form pattern
+
+```vue
+<script setup>
+import { reactive, computed } from 'vue'
+import { useVuelidate } from '@vuelidate/core'
+import {
+    required, email, minLength, maxLength, sameAs, numeric,
+    helpers, requiredIf, minValue, url,
+} from '@vuelidate/validators'
+import { useForm } from '@inertiajs/vue3'
+import { useToast } from '@/composables/useToast'
+
+const toast = useToast()
+
+// Inertia form (server submission)
+const form = useForm({
+    display_name: '',
+    email:        '',
+    password:     '',
+    password_confirmation: '',
+    role:         '',
+    bp_type:      null,
+    amount_cents: 0,
+})
+
+// Vuelidate rules — keep keys identical to form fields
+const rules = computed(() => ({
+    display_name: {
+        required: helpers.withMessage('Name is required.', required),
+        max:      helpers.withMessage('Name must be 100 characters or less.', maxLength(100)),
+    },
+    email: {
+        required: helpers.withMessage('Email is required.', required),
+        email:    helpers.withMessage('Enter a valid email address.', email),
+    },
+    password: {
+        required: helpers.withMessage('Password is required.', required),
+        min:      helpers.withMessage('Password must be at least 8 characters.', minLength(8)),
+    },
+    password_confirmation: {
+        required: helpers.withMessage('Please confirm your password.', required),
+        sameAs:   helpers.withMessage('Passwords do not match.', sameAs(form.password)),
+    },
+    role: {
+        required: helpers.withMessage('Select a role.', required),
+    },
+    bp_type: {
+        requiredIf: helpers.withMessage(
+            'Choose freelancer or agency.',
+            requiredIf(() => form.role === 'business_partner')
+        ),
+    },
+    amount_cents: {
+        required: helpers.withMessage('Amount is required.', required),
+        numeric:  helpers.withMessage('Amount must be a number.', numeric),
+        min:      helpers.withMessage('Amount must be greater than zero.', minValue(1)),
+    },
+}))
+
+const v$ = useVuelidate(rules, form)
+
+// Submit handler — validate first, submit only if valid
+async function submit() {
+    const valid = await v$.value.$validate()
+    if (!valid) {
+        toast.error('Please fix the highlighted fields.')
+        return
+    }
+    form.post(route('register.store'), {
+        onSuccess: () => toast.success('Account created.'),
+        onError:   () => toast.error('Please check the form.'),
+    })
+}
+</script>
+```
+
+### Error display — UNIFIED with server errors
+
+Client and server errors render through the **same `.form-error` element with the same styling**. The template chooses which message to show — client (Vuelidate) takes precedence while the user is editing, then server takes over after submit if it fires:
+
+```vue
+<template>
+  <div class="form-group">
+    <label class="form-label" for="email">Email address</label>
+    <input
+      id="email"
+      v-model="form.email"
+      type="email"
+      class="form-input"
+      :class="{ 'is-error': fieldError('email') }"
+      @blur="v$.email.$touch()"
+    />
+    <!-- ONE error element, sources merged via fieldError() -->
+    <div v-if="fieldError('email')" class="form-error">
+      {{ fieldError('email') }}
+    </div>
+  </div>
+</template>
+
+<script setup>
+// Helper — client error wins if field touched, otherwise show server error
+function fieldError(field) {
+    // Client error (Vuelidate)
+    if (v$.value[field]?.$error) {
+        return v$.value[field].$errors[0]?.$message
+    }
+    // Server error (Inertia)
+    if (form.errors[field]) {
+        return form.errors[field]
+    }
+    return null
+}
+</script>
+```
+
+**Why both must look identical:**
+- Same `.form-error` class → same red text, same spacing, same icon
+- Same `.is-error` class on the input → same red border, same focus ring
+- User can't tell whether an error came from client or server — and shouldn't have to
+
+### Validation timing — when errors appear
+
+| Trigger | Behavior |
+|---------|----------|
+| User typing | NO error shown (don't punish mid-typing) |
+| User leaves field (`@blur`) | `v$.field.$touch()` — errors appear if invalid |
+| User clicks Submit | `v$.$validate()` — all fields touched + checked |
+| Server returns 422 | `form.errors.field` populated by Inertia — shown via `fieldError()` |
+| User edits a field with server error | Server error stays until next submit (Inertia handles) |
+
+### Common validators
+
+```js
+import {
+    required,         // not empty
+    email,            // valid email
+    numeric,          // numeric value
+    integer,          // integer only
+    minLength(n),     // min string length
+    maxLength(n),     // max string length
+    minValue(n),      // min numeric value
+    maxValue(n),      // max numeric value
+    between(a, b),    // numeric in range
+    url,              // valid URL
+    sameAs(ref),      // matches another field (passwords)
+    requiredIf(fn),   // required only when fn() truthy
+    requiredUnless(fn),
+    alphaNum,         // letters + numbers only
+    decimal,          // decimal number
+    ipAddress,        // valid IP
+    macAddress,       // valid MAC
+    helpers,          // for custom + withMessage
+} from '@vuelidate/validators'
+```
+
+### Custom validators
+
+```js
+// Phone number (US-only example)
+const usPhone = helpers.withMessage(
+    'Enter a 10-digit US phone number.',
+    helpers.regex(/^\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$/)
+)
+
+// Money — accepts dollars in UI, validates >= 0
+const positiveMoney = helpers.withMessage(
+    'Amount must be greater than zero.',
+    (value) => Number(value) > 0
+)
+
+// Conditional — requires field A only if field B === value
+const requiredIfBpAgency = helpers.withMessage(
+    'Required for agency accounts.',
+    requiredIf(() => form.role === 'business_partner' && form.bp_type === 'agency')
+)
+
+// Async custom — checks something dynamically
+const slugUnique = helpers.withMessage(
+    'That slug is already taken.',
+    helpers.withAsync(async (value) => {
+        if (!value) return true
+        const res = await fetch(`/api/check-slug?slug=${value}`)
+        return (await res.json()).available
+    })
+)
+```
+
+### Money field validation
+
+Money is always integer cents in the form. The dollar input is a separate display value:
+
+```vue
+<script setup>
+import { ref, watch } from 'vue'
+
+const displayAmount = ref(0)
+watch(displayAmount, v => {
+    form.amount_cents = Math.round(Number(v) * 100)
+    v$.value.amount_cents.$touch()
+})
+</script>
+
+<template>
+  <div class="form-group">
+    <label class="form-label" for="amount">Amount</label>
+    <input
+      id="amount"
+      v-model="displayAmount"
+      type="number"
+      step="0.01"
+      min="0"
+      class="form-input"
+      :class="{ 'is-error': fieldError('amount_cents') }"
+    />
+    <div v-if="fieldError('amount_cents')" class="form-error">
+      {{ fieldError('amount_cents') }}
+    </div>
+  </div>
+</template>
+```
+
+### Multi-step modal validation gate
+
+For wizards, validate per-step. Continue button disabled until the current step's fields are valid:
+
+```js
+function stepFields(step) {
+    return {
+        0: ['display_name', 'email'],
+        1: ['password', 'password_confirmation'],
+        2: ['role', 'bp_type'],
+    }[step] ?? []
+}
+
+function isStepValid(step) {
+    return stepFields(step).every(f => !v$.value[f].$invalid)
+}
+
+async function advance() {
+    // Touch all fields in current step so errors render
+    stepFields(currentStep.value).forEach(f => v$.value[f].$touch())
+    if (!isStepValid(currentStep.value)) return
+    currentStep.value++
+}
+```
+
+### Validation rule pairing — client mirrors server
+
+**Client rules must reflect server rules so users don't get tricked into a server rejection.** When `FormRequest::rules()` says `email|max:255`, the Vuelidate rule should be `email + maxLength(255)`. Same for `min:8`, `required_if`, `in:enum,values`, etc.
+
+Pairing examples:
+
+| Server FormRequest rule | Client Vuelidate validator |
+|-------------------------|---------------------------|
+| `'required'` | `required` |
+| `'email'` | `email` |
+| `'min:8'` (string) | `minLength(8)` |
+| `'max:200'` | `maxLength(200)` |
+| `'numeric\|min:1'` | `numeric + minValue(1)` |
+| `'integer\|min:0'` (money) | `integer + minValue(0)` |
+| `'confirmed'` (password_confirmation) | `sameAs(form.password)` on `password_confirmation` |
+| `'required_if:role,business_partner'` | `requiredIf(() => form.role === 'business_partner')` |
+| `'Rule::in(UserRole::cases())'` | check `value` is in same enum array on client |
+| `'url'` | `url` |
+| `'date\|after:today'` | custom `helpers.regex` + future-date check |
+| `'mimes:pdf,jpg,png'` | check `file.type` on FileReader load |
+| `'max:10240'` (KB file size) | check `file.size <= 10485760` |
+
+### Anti-patterns
+
+- ❌ Client-only validation — server validation MUST also exist (security boundary)
+- ❌ Showing errors while user is still typing (only show after blur or submit)
+- ❌ Different visual style for client vs server errors
+- ❌ Skipping `v$.$validate()` before submit — relying on server alone defeats the purpose
+- ❌ Stale Vuelidate refs after form reset — call `v$.$reset()` after `form.reset()`
+- ❌ Hardcoding error messages without `helpers.withMessage()` — Vuelidate's defaults are generic
+- ❌ Validating money in dollars but server expects cents — paired rules diverge
+
+### Reset pattern
+
+When closing a modal or resetting a form:
+```js
+function closeModal() {
+    modals.create = false
+    form.reset()
+    v$.value.$reset()    // ← clear all validation state
+}
+```
+
+---
+
+## SECTION 14 — UPLOAD / DROPZONE PATTERN
  
 ```vue
 <template>
@@ -648,7 +1015,7 @@ function submit() {
  
 ---
  
-## SECTION 14 — ANTI-PATTERN HALL OF SHAME
+## SECTION 15 — ANTI-PATTERN HALL OF SHAME
  
 | ❌ Wrong | ✅ Correct |
 |----------|-----------|
@@ -670,10 +1037,21 @@ function submit() {
 | Page-local CSS `.btn-primary { ... }` overriding global | Scoped `.page-x .btn-primary { ... }` |
 | `class="btn btn-outline btn-icon"` chain | `class="btn-icon"` alone |
 | `btn-icon` with icon size 13 in a table row | `btn-icon` with icon size 14 |
+| `<AegisModal size="md">` on a 3-step wizard | `<AegisModal size="fullscreen">` (see Section 12) |
+| `<AegisModal size="lg">` with file upload step | `<AegisModal size="fullscreen">` |
+| Inline `style="width: 1200px"` to force modal width | Use `size="fullscreen"` |
+| Removing `.modal-step-label` to save space | Resize the modal — never strip labels |
+| Submit handler that goes straight to `form.post()` | `await v$.$validate()` first, then submit |
+| `<div v-if="form.errors.x">` only — no client check | `<div v-if="fieldError('x')">` — unified client + server |
+| Different `.form-error-client` class for Vuelidate | Same `.form-error` for both sources |
+| Client validation in `mounted()` lifecycle | Reactive `useVuelidate(rules, form)` at setup |
+| `form.reset()` without `v$.$reset()` | Both must reset together |
+| Showing errors while user is typing | Only after `@blur` or submit (`v$.field.$touch()`) |
+| Server `required_if:role,business_partner` with no client mirror | Pair with `requiredIf(() => form.role === '...')` |
  
 ---
  
-## SECTION 15 — CSS CLASS REFERENCE
+## SECTION 16 — CSS CLASS REFERENCE
  
 Curated list of `_shared.css` classes Vue components actually use. Use these directly — never invent new class names.
  
@@ -708,7 +1086,7 @@ Curated list of `_shared.css` classes Vue components actually use. Use these dir
 `.data-table` · `.data-table th` · `.data-table td` · `.data-table tr:hover`
  
 ### Modals
-`.modal-overlay` · `.modal` · `.modal-sm` · `.modal-md` · `.modal-lg` · `.modal-xl` · `.modal-header` · `.modal-title` · `.modal-close` · `.modal-body` · `.modal-footer` · `.modal-steps` · `.modal-step` · `.modal-step-num` · `.modal-step-divider`
+`.modal-overlay` · `.modal` · `.modal-sm` · `.modal-md` · `.modal-lg` · `.modal-xl` · `.modal-fullscreen` · `.modal-header` · `.modal-title` · `.modal-close` · `.modal-body` · `.modal-footer` · `.modal-steps` · `.modal-step` · `.modal-step-num` · `.modal-step-divider`
  
 ### Activity feed
 `.activity-feed` · `.activity-item` · `.activity-item--info` · `.activity-item--warning` · `.activity-item--critical` · `.activity-item-icon` · `.activity-item-title` · `.activity-item-desc` · `.activity-item-time`
@@ -724,7 +1102,7 @@ Curated list of `_shared.css` classes Vue components actually use. Use these dir
  
 ---
  
-## SECTION 16 — CSS TOKEN REFERENCE
+## SECTION 17 — CSS TOKEN REFERENCE
  
 Only these `var(--*)` values may appear in Vue component styles.
  
@@ -770,7 +1148,7 @@ Inter is the body default — no variable needed
  
 ---
  
-## SECTION 17 — FILE NAMING & LOCATION
+## SECTION 18 — FILE NAMING & LOCATION
  
 ```
 resources/js/
@@ -804,7 +1182,7 @@ resources/js/
   - `continuity-steward-portal/my-tasks.php` → `pages/continuity-steward/MyTasks.vue`
 ---
  
-## SECTION 18 — VERIFICATION CHECKLIST
+## SECTION 19 — VERIFICATION CHECKLIST
  
 Before declaring any component "done":
  
@@ -814,6 +1192,10 @@ Before declaring any component "done":
 - [ ] Every `aegis_icon()` is `<AegisIcon>` — no raw `<svg>`
 - [ ] Every `data-tooltip` from PHP is in Vue — no `title=`
 - [ ] Every form uses `useForm()` with onSuccess + onError
+- [ ] Every form uses Vuelidate (`useVuelidate`) — client validates before submit
+- [ ] Every form field shows errors via `fieldError(name)` helper — same `.form-error` for client + server
+- [ ] Every multi-step modal uses `size="xl"` or `size="fullscreen"` — never `md` / `lg`
+- [ ] Every step in a wizard validates before Continue is enabled
 - [ ] Every submit button has `:disabled="form.processing"`
 - [ ] Every link uses `route()` — no hardcoded URLs
 - [ ] Every condition uses store getters (auth.isAccessTier, incident.hasEmergency)
@@ -822,6 +1204,8 @@ Before declaring any component "done":
 - [ ] No bare hex colors (except brand SVGs with comment)
 - [ ] No icons inside modal titles
 - [ ] Stat chips outside `<AegisHeroBanner>`
-- [ ] All money fields are integer cents
+- [ ] All money fields are integer cents (form) — dollar input as separate display ref with watcher
 - [ ] All write routes match the controller exactly
 - [ ] All props match what the controller returns
+- [ ] Client validation rules pair with server FormRequest rules (Section 13 pairing table)
+- [ ] `v$.$reset()` is called after `form.reset()` on modal close

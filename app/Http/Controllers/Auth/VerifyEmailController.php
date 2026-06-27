@@ -16,7 +16,7 @@ use Inertia\Response;
 
 class VerifyEmailController extends Controller
 {
-    /** GET /email/verify — show "check your inbox" notice */
+    /** GET /email/verify */
     public function notice(Request $request): Response|RedirectResponse
     {
         /** @var User $user */
@@ -31,7 +31,7 @@ class VerifyEmailController extends Controller
         ]);
     }
 
-    /** GET /email/verify/{id}/{hash} — signed link from inbox */
+    /** GET /email/verify/{id}/{hash} — signed link click */
     public function verify(Request $request, string $id): RedirectResponse
     {
         /** @var User|null $user */
@@ -54,7 +54,7 @@ class VerifyEmailController extends Controller
         return redirect()->route('home')->with('success', 'Email verified. Welcome to Aegis.');
     }
 
-    /** POST /email/verification-notification — resend the link */
+    /** POST /email/verification-notification — resend */
     public function resend(Request $request): RedirectResponse
     {
         /** @var User $user */
@@ -64,7 +64,7 @@ class VerifyEmailController extends Controller
             return redirect()->route('home');
         }
 
-        $this->sendVerificationEmail($user);
+        static::sendVerificationEmail($user);
 
         return back()->with('success', 'Verification link sent. Check your inbox.');
     }

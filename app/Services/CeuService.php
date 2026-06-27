@@ -17,18 +17,17 @@ class CeuService
             'id'              => 'ceu_' . Str::lower(Str::random(12)),
             'practitioner_id' => $practitioner->id,
             'title'           => $data['title'],
-            'provider'        => $data['provider'] ?? null,
-            'category'        => $data['category'] ?? null,
-            'credits'         => $data['credits'] ?? 0,
-            'completed_at'    => $data['completed_at'] ?? now(),
-            'cert_url'        => $data['cert_url'] ?? null,
-            'created_at'      => now(),
+            'provider_name'   => $data['provider_name'] ?? $data['provider'] ?? null,
+            'credit_hours'    => $data['credit_hours'] ?? $data['credits'] ?? 0,
+            'completed_on'    => $data['completed_on'] ?? $data['completed_at'] ?? now(),
+            'expires_on'      => $data['expires_on'] ?? null,
+            'certificate_ref' => $data['certificate_ref'] ?? $data['cert_url'] ?? null,
         ]);
     }
 
     public function update(CeuEntry $ceu, array $data): CeuEntry
     {
-        $allowed = ['title', 'provider', 'category', 'credits', 'completed_at', 'cert_url'];
+        $allowed = ['title', 'provider_name', 'credit_hours', 'completed_on', 'expires_on', 'certificate_ref'];
         $ceu->update(array_intersect_key($data, array_flip($allowed)));
         return $ceu->fresh();
     }
@@ -41,25 +40,24 @@ class CeuService
     public function getForPractitioner(string $practitionerId): Collection
     {
         return CeuEntry::where('practitioner_id', $practitionerId)
-            ->orderByDesc('completed_at')
+            ->orderByDesc('completed_on')
             ->get();
     }
 
     public function getProgress(string $practitionerId, ?int $year = null): array
     {
         $year = $year ?? (int) date('Y');
+
         $rows = CeuEntry::where('practitioner_id', $practitionerId)
-            ->whereYear('completed_at', $year)
+            ->whereYear('completed_on', $year)
             ->get();
 
-        $total = $rows->sum('credits');
-        $byCategory = $rows->groupBy('category')->map->sum('credits')->toArray();
+        $total = $rows->sum('credit_hours');
 
         return [
-            'year'        => $year,
-            'total'       => $total,
-            'by_category' => $byCategory,
-            'count'       => $rows->count(),
+            'year'  => $year,
+            'total' => round((float) $total, 2),
+            'count' => $rows->count(),
         ];
     }
 }

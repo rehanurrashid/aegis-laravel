@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
@@ -387,6 +388,7 @@ class UserSeeder extends Seeder
         foreach ($users as $user) {
             // Set defaults for nullable columns not explicitly set
             $user = array_merge([
+                'password'              => Hash::make('Demo1234!'),
                 'credentials'           => null,
                 'phone'                 => null,
                 'location'              => null,

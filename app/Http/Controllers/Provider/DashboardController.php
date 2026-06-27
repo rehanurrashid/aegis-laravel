@@ -57,7 +57,7 @@ class DashboardController extends Controller
             'supportStewards'     => $stewards->where('steward_type', 'support_steward')->values(),
             'recentActivity'      => $this->activity->getForUser($user->id, [], 10),
             'upcomingCEUs'        => CeuEntry::where('practitioner_id', $user->id)
-                                        ->orderByDesc('completed_at')->limit(5)->get(),
+                                        ->orderByDesc('completed_on')->limit(5)->get(),
         ]);
     }
 }
