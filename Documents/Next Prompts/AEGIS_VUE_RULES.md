@@ -22,8 +22,9 @@ Break any of these and the component is wrong:
 10. **NEVER skip PHP sections, modals, buttons, or conditionals** — 100% parity required.
 11. **NEVER store money as float** — integer cents only.
 12. **NEVER write business logic in components** — controllers call services, components call composables.
-13. **NEVER use `size="md"` or `size="lg"` on multi-step modals** — `size="xl"` or `size="fullscreen"` only (see Section 12).
-14. **NEVER submit a form without client-side validation** — Vuelidate runs first, server validation is the boundary (see Section 13).
+13. **NEVER use `size="md"` or `size="lg"` on multi-step modals** — `size="xl"` or `size="fullscreen"` only (see Section 13).
+14. **NEVER submit a form without client-side validation** — Vuelidate runs first, server validation is the boundary (see Section 14).
+15. **NEVER place an `<AegisIcon>` next to text inside a plain `<span>` or `<div>`** — the parent must be `inline-flex` (badges, pills) or `flex` (alerts, rows) with `align-items: center` and a `gap` (see Section 11).
 ---
  
 ## SECTION 2 — IMPORT CHEATSHEET
@@ -544,7 +545,106 @@ Every `title=` from PHP becomes `data-tooltip=` in Vue. No exceptions.
  
 ---
  
-## SECTION 11 — TAB PATTERN
+Every `title=` from PHP becomes `data-tooltip=` in Vue. No exceptions.
+
+---
+
+## SECTION 11 — ICON + TEXT ALIGNMENT
+
+**RULE: Any element containing an `<AegisIcon>` AND text MUST use `inline-flex` (inline contexts) or `flex` (block contexts) with `align-items: center` and an explicit `gap`.**
+
+Icons are inline `<span>` elements with intrinsic dimensions. When placed inside a plain `<span>` or `<div>` next to text, they sit on the text baseline — which is below the visual center of the icon. The result: icon and text look misaligned by a few pixels everywhere they appear.
+
+The fix is structural — the parent decides the alignment, not the icon.
+
+### When to use which
+
+| Container role | Display | Example use |
+|---------------|---------|------------|
+| **Inline** badge, pill, status chip, label inside a row | `inline-flex` | Badge, kbd, tag, chip |
+| **Block** alert, button content, list row, card header | `flex` | Alerts, list items, headers, button slot |
+
+Both require `align-items: center` and a `gap` (typically 4–8px).
+
+### Examples
+
+```vue
+<!-- ✅ Inline badge / label (inline-flex) -->
+<div class="my-badge">
+  <AegisIcon name="check" :size="10" />
+  Verified
+</div>
+<!-- .my-badge { display: inline-flex; align-items: center; gap: 4px; } -->
+
+<!-- ✅ Block row / alert (flex) -->
+<div class="my-alert">
+  <AegisIcon name="alert-circle" :size="15" />
+  <span>Something went wrong</span>
+</div>
+<!-- .my-alert { display: flex; align-items: center; gap: 8px; } -->
+
+<!-- ✅ Button — .btn already handles flex internally, just add gap -->
+<button class="btn btn-primary">
+  <AegisIcon name="plus" :size="14" />
+  Add Item
+</button>
+<!-- .btn already sets display: inline-flex; align-items: center; gap: 6px; -->
+
+<!-- ❌ WRONG — icon floats out of line with text -->
+<span>
+  <AegisIcon name="check" :size="12" /> Done
+</span>
+<!-- inline span = baseline alignment = icon sits low -->
+
+<!-- ❌ WRONG — flex but no gap → text touches icon -->
+<div style="display: flex; align-items: center;">
+  <AegisIcon name="user" :size="14" />
+  <span>Profile</span>
+</div>
+
+<!-- ❌ WRONG — no align-items → icon top-aligns with text -->
+<div style="display: inline-flex; gap: 4px;">
+  <AegisIcon name="user" :size="14" />
+  Profile
+</div>
+```
+
+### Gap sizing guide
+
+| Icon size | Gap |
+|-----------|-----|
+| 10–12px | `4px` |
+| 13–15px | `6px` |
+| 16–18px | `8px` |
+| 20px+ | `10–12px` |
+
+### Inside `_shared.css` — what already handles this for you
+
+These canonical classes already include the flex + align + gap recipe — use them and you never have to write the rules yourself:
+
+- `.btn` — `inline-flex; align-items: center; gap: 6px`
+- `.btn-icon` — square icon-only button, centers automatically
+- `.badge` (all variants) — `inline-flex; align-items: center; gap: 4px`
+- `.tab-pill` — `inline-flex; align-items: center; gap: 6px`
+- `.stat-chip` — `flex; align-items: center; gap: 10px`
+- `.alert` — `flex; align-items: center; gap: 8px`
+- `.activity-item` — `flex; align-items: center`
+- `.modal-step` — `inline-flex; align-items: center; gap: 6px`
+
+**If the design uses one of these classes, you do NOT add extra flex/gap CSS.** Only add the recipe when building a NEW custom container.
+
+### Anti-patterns
+
+- ❌ Wrapping icon + text in plain `<span>` and hoping vertical-align fixes it
+- ❌ `vertical-align: middle` on the icon — fragile, breaks with mixed font sizes
+- ❌ Negative `margin-top` to "nudge" the icon up — breaks at different zoom levels
+- ❌ `<br>` or whitespace between icon and text — gap is the only spacer
+- ❌ Mixing `flex` on one row and `inline-flex` on another in the same table column — pick one per container type
+- ❌ Setting `gap` without `display: flex` (or `inline-flex`) — gap requires a flex/grid parent
+
+---
+
+## SECTION 12 — TAB PATTERN
  
 ```vue
 <script setup>
@@ -581,7 +681,7 @@ const tabs = [
  
 ---
  
-## SECTION 12 — MULTI-STEP MODAL PATTERN
+## SECTION 13 — MULTI-STEP MODAL PATTERN
 
 **RULE: Multi-step modals MUST use `size="xl"` or `size="fullscreen"`.**
 Multi-step content frequently overflows on `sm`/`md`/`lg`, causing the step strip, field labels, or button rows to wrap to a second line. That looks broken. The fix is structural, not cosmetic — give the wizard room.
@@ -670,7 +770,7 @@ function advance() {
 }
 ```
 
-See **Section 13 — Client-Side Validation** for the full validation pattern.
+See **Section 14 — Client-Side Validation** for the full validation pattern.
 
 ### Anti-patterns
 - ❌ `size="md"` on a 3-step modal — fields wrap
@@ -681,7 +781,7 @@ See **Section 13 — Client-Side Validation** for the full validation pattern.
  
 ---
  
-## SECTION 13 — CLIENT-SIDE VALIDATION
+## SECTION 14 — CLIENT-SIDE VALIDATION
 
 **RULE: Every form validates on the client BEFORE submitting to the server.**
 
@@ -989,7 +1089,7 @@ function closeModal() {
 
 ---
 
-## SECTION 14 — UPLOAD / DROPZONE PATTERN
+## SECTION 15 — UPLOAD / DROPZONE PATTERN
  
 ```vue
 <template>
@@ -1015,7 +1115,7 @@ function submit() {
  
 ---
  
-## SECTION 15 — ANTI-PATTERN HALL OF SHAME
+## SECTION 16 — ANTI-PATTERN HALL OF SHAME
  
 | ❌ Wrong | ✅ Correct |
 |----------|-----------|
@@ -1037,7 +1137,7 @@ function submit() {
 | Page-local CSS `.btn-primary { ... }` overriding global | Scoped `.page-x .btn-primary { ... }` |
 | `class="btn btn-outline btn-icon"` chain | `class="btn-icon"` alone |
 | `btn-icon` with icon size 13 in a table row | `btn-icon` with icon size 14 |
-| `<AegisModal size="md">` on a 3-step wizard | `<AegisModal size="fullscreen">` (see Section 12) |
+| `<AegisModal size="md">` on a 3-step wizard | `<AegisModal size="fullscreen">` (see Section 13) |
 | `<AegisModal size="lg">` with file upload step | `<AegisModal size="fullscreen">` |
 | Inline `style="width: 1200px"` to force modal width | Use `size="fullscreen"` |
 | Removing `.modal-step-label` to save space | Resize the modal — never strip labels |
@@ -1048,10 +1148,14 @@ function submit() {
 | `form.reset()` without `v$.$reset()` | Both must reset together |
 | Showing errors while user is typing | Only after `@blur` or submit (`v$.field.$touch()`) |
 | Server `required_if:role,business_partner` with no client mirror | Pair with `requiredIf(() => form.role === '...')` |
+| `<span><AegisIcon /> Done</span>` — baseline drift | Wrap in `inline-flex; align-items: center; gap: 4px` container |
+| `display: flex` on icon row but no `gap` | Add `gap: 6–8px` to space icon from text |
+| `vertical-align: middle` on `<AegisIcon>` | Parent: `align-items: center` on flex/inline-flex |
+| Custom `margin-top: -2px` to "nudge" icon | Use flex centering on the parent instead |
  
 ---
  
-## SECTION 16 — CSS CLASS REFERENCE
+## SECTION 17 — CSS CLASS REFERENCE
  
 Curated list of `_shared.css` classes Vue components actually use. Use these directly — never invent new class names.
  
@@ -1102,7 +1206,7 @@ Curated list of `_shared.css` classes Vue components actually use. Use these dir
  
 ---
  
-## SECTION 17 — CSS TOKEN REFERENCE
+## SECTION 18 — CSS TOKEN REFERENCE
  
 Only these `var(--*)` values may appear in Vue component styles.
  
@@ -1148,7 +1252,7 @@ Inter is the body default — no variable needed
  
 ---
  
-## SECTION 18 — FILE NAMING & LOCATION
+## SECTION 19 — FILE NAMING & LOCATION
  
 ```
 resources/js/
@@ -1182,7 +1286,7 @@ resources/js/
   - `continuity-steward-portal/my-tasks.php` → `pages/continuity-steward/MyTasks.vue`
 ---
  
-## SECTION 19 — VERIFICATION CHECKLIST
+## SECTION 20 — VERIFICATION CHECKLIST
  
 Before declaring any component "done":
  
@@ -1207,5 +1311,7 @@ Before declaring any component "done":
 - [ ] All money fields are integer cents (form) — dollar input as separate display ref with watcher
 - [ ] All write routes match the controller exactly
 - [ ] All props match what the controller returns
-- [ ] Client validation rules pair with server FormRequest rules (Section 13 pairing table)
+- [ ] Every `<AegisIcon>` placed next to text sits inside an `inline-flex` or `flex` container with `align-items: center` + `gap`
+- [ ] No `<AegisIcon>` next to text inside a plain `<span>` or `<div>` (baseline drift)
+- [ ] Client validation rules pair with server FormRequest rules (Section 14 pairing table)
 - [ ] `v$.$reset()` is called after `form.reset()` on modal close
