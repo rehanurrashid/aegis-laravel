@@ -61,6 +61,7 @@
 
 <script setup>
 import { onMounted, onBeforeUnmount } from 'vue'
+import { usePage } from '@inertiajs/vue3'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
 import { useNotificationStore } from '@/stores/notifications'
@@ -74,12 +75,21 @@ import SupportWidget from '@/components/features/SupportWidget.vue'
 import AegisUpgradeModal from '@/components/ui/AegisUpgradeModal.vue'
 import AegisConfirm from '@/components/ui/AegisConfirm.vue'
 
-const auth = useAuthStore()
-const ui   = useUiStore()
-const notifications = useNotificationStore()
+import { useToast } from '@/composables/useToast'
 
-// Subscribe to incident events on the authenticated user's private channel.
+const auth  = useAuthStore()
+const ui    = useUiStore()
+const toast = useToast()
+const notifications = useNotificationStore()
+const page  = usePage()
+
+// Fire flash toasts on every Inertia page load (covers post-login redirect).
 onMounted(() => {
+  if (page.props.flash?.success) toast.success(page.props.flash.success)
+  if (page.props.flash?.error)   toast.error(page.props.flash.error)
+  if (page.props.flash?.info)    toast.info(page.props.flash.info)
+  if (page.props.flash?.warning) toast.warning(page.props.flash.warning)
+
   if (auth.user?.id) {
     notifications.listenForIncident(auth.user.id)
   }

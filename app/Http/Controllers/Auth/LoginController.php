@@ -108,7 +108,8 @@ class LoginController extends Controller
             'session_keys' => array_keys($request->session()->all()),
         ]);
 
-        return redirect($this->portalHomeFor($user));
+        return redirect($this->portalHomeFor($user))
+            ->with('success', 'Welcome back, ' . $user->display_name . '.');
     }
 
     public function destroy(Request $request): RedirectResponse

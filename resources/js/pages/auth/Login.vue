@@ -366,16 +366,15 @@ async function submitSignin() {
   }
   loginForm.post(route('login.store'), {
     onSuccess: () => {
-      // Inertia::location() on the server side fires a browser-level redirect.
-      // Do NOT call router.visit() here — that races against the redirect
-      // and produces the "error shown then immediate login" glitch.
+      toast.success('Signed in successfully.')
     },
-    onError:   (errors) => {
+    onError: (errors) => {
       if (Object.keys(errors).length > 0) {
         toast.error('Invalid credentials. Please try again.')
       }
+      loginForm.reset('password')
     },
-    onFinish:  () => loginForm.reset('password'),
+    onFinish: () => loginForm.reset('password'),
   })
 }
 
