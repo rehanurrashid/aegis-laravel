@@ -108,7 +108,7 @@ class LoginController extends Controller
             'session_keys' => array_keys($request->session()->all()),
         ]);
 
-        return Inertia::location($this->portalHomeFor($user));
+        return redirect($this->portalHomeFor($user));
     }
 
     public function destroy(Request $request): RedirectResponse

@@ -370,7 +370,11 @@ async function submitSignin() {
       // Do NOT call router.visit() here — that races against the redirect
       // and produces the "error shown then immediate login" glitch.
     },
-    onError:   () => toast.error('Invalid credentials. Please try again.'),
+    onError:   (errors) => {
+      if (Object.keys(errors).length > 0) {
+        toast.error('Invalid credentials. Please try again.')
+      }
+    },
     onFinish:  () => loginForm.reset('password'),
   })
 }
