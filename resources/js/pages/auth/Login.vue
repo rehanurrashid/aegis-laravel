@@ -155,16 +155,6 @@
               <div v-if="loginFieldError('password')" class="form-error">{{ loginFieldError('password') }}</div>
             </div>
 
-            <div class="auth-remember">
-              <input
-                id="remember"
-                v-model="loginForm.remember"
-                type="checkbox"
-                class="auth-checkbox"
-              />
-              <label for="remember" class="auth-checkbox-label">Keep me signed in for 30 days</label>
-            </div>
-
             <button
               type="submit"
               class="btn btn-primary btn-block"
@@ -301,7 +291,6 @@ const resetEmailSent = ref('')
 const loginForm = useForm({
   email:    '',
   password: '',
-  remember: false,
 })
 
 const resetForm = useForm({
@@ -749,11 +738,6 @@ async function submitReset() {
 
 .signin-back-link:hover {
   color: var(--gold-dark);
-}
-
-/* Match PHP .remember-row margin-bottom — closes gap between checkbox and Sign In button */
-.signin-view .auth-remember {
-  margin-bottom: 24px;
 }
 
 /* ── "Forgot password?" button reset ──────────────────────────────────

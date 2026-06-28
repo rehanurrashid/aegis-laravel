@@ -83,13 +83,13 @@ class LoginController extends Controller
 
         if ($mfaActive) {
             $request->session()->put('mfa_pending_user_id', $user->id);
-            $request->session()->put('mfa_remember', $request->boolean('remember'));
+            $request->session()->put('mfa_remember', true);
             return Inertia::location(route('mfa.challenge'));
         }
 
         $request->session()->regenerate();
 
-        Auth::login($user, $request->boolean('remember'));
+        Auth::login($user, true);
 
         $user->forceFill([
             'failed_login_count' => 0,
