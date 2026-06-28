@@ -103,7 +103,7 @@
             <span>{{ loginForm.errors.email || loginForm.errors.password }}</span>
           </div>
 
-          <form class="signin-form" @submit.prevent="submitSignin" novalidate>
+          <form class="signin-form" @submit.prevent="submitSignin" autocomplete="on" novalidate>
 
             <div class="form-group">
               <label class="form-label" for="email">Email Address</label>
@@ -139,7 +139,7 @@
                   class="form-input"
                   :class="{ 'is-error': loginFieldError('password') }"
                   placeholder="Enter your password"
-                  autocomplete="current-password"
+                  :autocomplete="rememberCredentials ? 'current-password' : 'off'"
                   @blur="v$login.password.$touch()"
                   @input="loginForm.clearErrors('password')"
                 />
@@ -153,6 +153,16 @@
                 </button>
               </div>
               <div v-if="loginFieldError('password')" class="form-error">{{ loginFieldError('password') }}</div>
+            </div>
+
+            <div class="auth-remember">
+              <input
+                id="remember-credentials"
+                v-model="rememberCredentials"
+                type="checkbox"
+                class="auth-checkbox"
+              />
+              <label for="remember-credentials" class="auth-checkbox-label">Remember my credentials</label>
             </div>
 
             <button
@@ -274,7 +284,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Head, useForm } from '@inertiajs/vue3'
 import { useVuelidate } from '@vuelidate/core'
 import { required, email, minLength, helpers } from '@vuelidate/validators'
@@ -286,6 +296,14 @@ const toast = useToast()
 const activeView     = ref('signin')   // 'signin' | 'forgot' | 'success'
 const showPassword   = ref(false)
 const resetEmailSent = ref('')
+
+// Persist "remember credentials" preference across visits
+const rememberCredentials = ref(
+  localStorage.getItem('aegis_remember_credentials') !== 'false'
+)
+watch(rememberCredentials, (val) => {
+  localStorage.setItem('aegis_remember_credentials', String(val))
+})
 
 // ── Forms ──────────────────────────────────────────────────────────────
 const loginForm = useForm({
@@ -353,9 +371,28 @@ async function submitSignin() {
     toast.error('Please fix the highlighted fields.')
     return
   }
+
+  // Capture credentials before form resets — needed for credential save after success
+  const savedEmail    = loginForm.email
+  const savedPassword = loginForm.password
+
   loginForm.post(route('login.store'), {
     onSuccess: () => {
       toast.success('Signed in successfully.')
+
+      // Tell the browser to save credentials via the Credential Management API.
+      // This is required because Inertia uses fetch(), not a real form POST,
+      // so the browser never auto-detects a login to trigger its save prompt.
+      if (rememberCredentials.value && window.PasswordCredential) {
+        const cred = new window.PasswordCredential({
+          id:       savedEmail,
+          password: savedPassword,
+          name:     savedEmail,
+        })
+        navigator.credentials.store(cred).catch(() => {
+          // Silently ignore — credential storage is best-effort
+        })
+      }
     },
     onError: (errors) => {
       if (Object.keys(errors).length > 0) {
@@ -842,6 +879,11 @@ button.form-label-link {
 /* ──────────────── FORM (right-panel shared) ──────────────── */
 .signin-form {
   width: 100%;
+}
+
+/* Remember credentials checkbox — margin closes gap to Sign In button */
+.signin-view .auth-remember {
+  margin-bottom: 24px;
 }
 
 /* ──────────────── RESPONSIVE ──────────────── */
