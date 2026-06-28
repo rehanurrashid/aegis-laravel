@@ -20,7 +20,7 @@
             <div class="ob-panel-feature-text"><strong>Time-based codes</strong>Codes refresh every 30 seconds for maximum security.</div>
           </div>
           <div class="ob-panel-feature">
-            <div class="ob-panel-feature-icon"><AegisIcon name="smartphone" :size="15" /></div>
+            <div class="ob-panel-feature-icon"><AegisIcon name="phone" :size="15" /></div>
             <div class="ob-panel-feature-text"><strong>Authenticator app required</strong>Use Google Authenticator, Authy, or any TOTP app.</div>
           </div>
         </div>
@@ -58,7 +58,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { Head, useForm, router, usePage } from '@inertiajs/vue3'
+import { Head, useForm, router } from '@inertiajs/vue3'
 import { useVuelidate } from '@vuelidate/core'
 import { required, minLength, maxLength, numeric, helpers } from '@vuelidate/validators'
 import { useToast } from '@/composables/useToast'
@@ -66,12 +66,6 @@ import { useToast } from '@/composables/useToast'
 const toast   = useToast()
 const year    = new Date().getFullYear()
 const form    = useForm({ code: '' })
-const mfaPage = usePage()
-
-const portalRouteMap = {
-  practitioner: 'provider.dashboard', business_partner: 'bp.dashboard',
-  continuity_steward: 'cs.dashboard', support_steward: 'ss.dashboard', admin: 'admin.dashboard',
-}
 
 // ── Vuelidate ──────────────────────────────────────────────────────────
 const rules = computed(() => ({
@@ -98,9 +92,7 @@ async function submit() {
   }
   form.post(route('mfa.challenge.store'), {
     onSuccess: () => {
-      const role = mfaPage.props.auth?.user?.role
-      const routeName = portalRouteMap[role]
-      if (routeName) router.visit(route(routeName), { replace: true })
+      // Toast is handled by AppLayout via flash — no duplicate needed here.
     },
     onError:  () => toast.error('Invalid code. Please try again.'),
     onFinish: () => { form.reset('code'); v$.value.$reset() },

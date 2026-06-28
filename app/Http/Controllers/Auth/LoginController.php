@@ -84,7 +84,7 @@ class LoginController extends Controller
         if ($mfaActive) {
             $request->session()->put('mfa_pending_user_id', $user->id);
             $request->session()->put('mfa_remember', true);
-            return Inertia::location(route('mfa.challenge'));
+            return redirect()->route('mfa.challenge');
         }
 
         $request->session()->regenerate();
@@ -109,7 +109,7 @@ class LoginController extends Controller
         ]);
 
         return redirect($this->portalHomeFor($user))
-            ->with('success', 'Welcome back, ' . $user->display_name . '.');
+            ->with('success', 'Signed in successfully.');
     }
 
     public function destroy(Request $request): RedirectResponse

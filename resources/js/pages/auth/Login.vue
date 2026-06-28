@@ -378,7 +378,7 @@ async function submitSignin() {
 
   loginForm.post(route('login.store'), {
     onSuccess: () => {
-      toast.success('Signed in successfully.')
+      // Toast is handled by AppLayout via flash — no duplicate needed here.
 
       // Tell the browser to save credentials via the Credential Management API.
       // This is required because Inertia uses fetch(), not a real form POST,

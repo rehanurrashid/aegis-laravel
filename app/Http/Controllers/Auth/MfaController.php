@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
-use OTPHP\TOTP;
 
 class MfaController extends Controller
 {
@@ -30,10 +29,7 @@ class MfaController extends Controller
             return response()->json(['message' => 'Two-factor authentication is already enabled.'], 422);
         }
 
-        $totp = TOTP::generate();
-        $totp->setLabel($user->email);
-        $totp->setIssuer('Aegis');
-        $secret = $totp->getSecret();
+        $secret = $this->generateTotpSecret();
 
         MfaToken::updateOrCreate(
             ['user_id' => $user->id],
@@ -45,9 +41,17 @@ class MfaController extends Controller
             ]
         );
 
+        $provisioningUri = sprintf(
+            'otpauth://totp/%s:%s?secret=%s&issuer=%s&algorithm=SHA1&digits=6&period=30',
+            rawurlencode('Aegis'),
+            rawurlencode($user->email),
+            $secret,
+            rawurlencode('Aegis')
+        );
+
         return response()->json([
             'secret'           => $secret,
-            'provisioning_uri' => $totp->getProvisioningUri(),
+            'provisioning_uri' => $provisioningUri,
         ]);
     }
 
@@ -64,9 +68,7 @@ class MfaController extends Controller
             return back()->withErrors(['code' => 'Two-factor setup has not been initiated.']);
         }
 
-        $totp = TOTP::createFromSecret($mfa->secret);
-
-        if (!$totp->verify($request->code, null, 1)) {
+        if (!$this->verifyTotp($mfa->secret, $request->code)) {
             return back()->withErrors(['code' => 'Invalid verification code.']);
         }
 
@@ -133,9 +135,7 @@ class MfaController extends Controller
                 ->withErrors(['email' => 'Two-factor session is invalid.']);
         }
 
-        $totp = TOTP::createFromSecret($mfa->secret);
-
-        if (!$totp->verify($request->code, null, 1)) {
+        if (!$this->verifyTotp($mfa->secret, $request->code)) {
             return back()->withErrors(['code' => 'Invalid authentication code.']);
         }
 
@@ -143,13 +143,101 @@ class MfaController extends Controller
         $request->session()->forget('mfa_pending_user_id');
 
         Auth::login($user, $remember);
+        $request->session()->regenerate();
 
         $user->forceFill([
             'failed_login_count' => 0,
             'last_login_at'      => now(),
         ])->save();
 
-        return Inertia::location($this->portalHomeFor($user));
+        return redirect($this->portalHomeFor($user))
+            ->with('success', 'Signed in successfully.');
+    }
+
+    // ── TOTP helpers (RFC 6238 / RFC 4226) ───────────────────────────────────
+
+    /**
+     * Verify a 6-digit TOTP code against a base32 secret.
+     * Allows ±1 time-step (30 s) drift to handle clock skew.
+     */
+    private function verifyTotp(string $secret, string $code): bool
+    {
+        $timestamp = (int) floor(time() / 30);
+
+        foreach ([-1, 0, 1] as $offset) {
+            if (hash_equals($this->generateTotp($secret, $timestamp + $offset), $code)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Generate a 6-digit TOTP code for a given counter value (RFC 4226 HOTP).
+     */
+    private function generateTotp(string $secret, int $counter): string
+    {
+        $key  = $this->base32Decode($secret);
+        $msg  = pack('N*', 0) . pack('N*', $counter);
+        $hash = hash_hmac('sha1', $msg, $key, true);
+        $offset = ord($hash[19]) & 0xF;
+        $code = (
+            ((ord($hash[$offset])     & 0x7F) << 24) |
+            ((ord($hash[$offset + 1]) & 0xFF) << 16) |
+            ((ord($hash[$offset + 2]) & 0xFF) << 8)  |
+             (ord($hash[$offset + 3]) & 0xFF)
+        ) % 1_000_000;
+
+        return str_pad((string) $code, 6, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Decode a base32 string to binary (RFC 4648, case-insensitive, no padding required).
+     */
+    private function base32Decode(string $input): string
+    {
+        $map   = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        $input = strtoupper(rtrim($input, '='));
+        $output = '';
+        $buffer = 0;
+        $bits   = 0;
+
+        foreach (str_split($input) as $char) {
+            $pos = strpos($map, $char);
+            if ($pos === false) {
+                continue;
+            }
+            $buffer = ($buffer << 5) | $pos;
+            $bits  += 5;
+            if ($bits >= 8) {
+                $bits   -= 8;
+                $output .= chr(($buffer >> $bits) & 0xFF);
+            }
+        }
+
+        return $output;
+    }
+
+    /**
+     * Generate a cryptographically random base32 TOTP secret (160-bit).
+     */
+    private function generateTotpSecret(): string
+    {
+        $map   = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        $bytes = random_bytes(20);
+        $bits  = '';
+
+        foreach (str_split($bytes) as $byte) {
+            $bits .= str_pad(decbin(ord($byte)), 8, '0', STR_PAD_LEFT);
+        }
+
+        $secret = '';
+        foreach (str_split($bits, 5) as $chunk) {
+            $secret .= $map[bindec(str_pad($chunk, 5, '0', STR_PAD_RIGHT))];
+        }
+
+        return $secret;
     }
 
     private function portalHomeFor(User $user): string

@@ -12,7 +12,7 @@ return new class extends Migration
         Schema::create('mfa_tokens', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->char('user_id', 36)->index();
-            $table->string('secret', 255);
+            $table->text('secret');
             $table->json('recovery_codes')->nullable();
             $table->timestamp('confirmed_at')->nullable();
             $table->timestamp('disabled_at')->nullable();
