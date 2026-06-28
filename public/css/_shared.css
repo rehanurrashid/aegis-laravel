@@ -72,7 +72,6 @@
   --teal-light:               #e0f5f2;
   --teal-dark:                #1a8c7a;
 
-
   /* ── Emergency / Alert Special (matched to new red palette) ── */
   --emergency:         #a02d22;
   --emergency-light:   #fdf0f0;
@@ -312,13 +311,8 @@ p {
 .layout { display: flex; min-height: 100vh; }
 
 .main-content {
-  margin-left: var(--sidebar-width);
   flex: 1;
-  display: flex;
-  flex-direction: column;
   min-height: 100vh;
-  min-width: 0;
-  transition: margin-left var(--transition-slow);
 }
 
 .page-body { padding: 28px 32px; flex: 1; background: var(--bg); }
@@ -1054,9 +1048,6 @@ p {
 
 /* Main content margin animates with the same curve so the page body
    reflows in lockstep with the sidebar's contraction. */
-.main-content {
-  transition: margin-left 380ms cubic-bezier(0.65, 0, 0.35, 1);
-}
 
 .sidebar::-webkit-scrollbar { display: none; }
 
@@ -1349,7 +1340,6 @@ p {
    The collapsed-specific compact sizing is below. */
 
 /* ─── Sidebar Collapsed (desktop icon rail) ─────────────────── */
-html.sidebar-collapsed .main-content { margin-left: var(--sidebar-collapsed-width); }
 
 .sidebar.collapsed {
   width: var(--sidebar-collapsed-width);
@@ -3541,7 +3531,7 @@ html.sidebar-collapsed .save-bar { left: var(--sidebar-collapsed-width); }
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--transition);
-  z-index: 100000;
+  z-index: 2147483647;
   box-shadow: 0 2px 8px rgba(30,28,26,0.18);
 }
 
@@ -3560,7 +3550,7 @@ html.sidebar-collapsed .save-bar { left: var(--sidebar-collapsed-width); }
 /* Topbar icon tooltips need to outrank the open profile dropdown
    (.ep-profile-drop.open at z-index 9999) when the dropdown overlaps
    the icon area on hover. */
-.topbar [data-tooltip]::after { z-index: 100001; }
+.topbar [data-tooltip]::after { z-index: 2147483647; }
 
 /* Suppress the CSS-only tooltip on the sidebar toggle — it uses the
    JS-driven .sidebar-floating-tooltip instead so it can escape the
@@ -3640,7 +3630,6 @@ html.sidebar-collapsed .save-bar { left: var(--sidebar-collapsed-width); }
   .sidebar.open { transform: translateX(0); }
   .sidebar-overlay.open { display: block; }
 
-  .main-content { margin-left: 0; }
   .page-body    { padding: 20px 16px; }
 
   .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; }
@@ -3680,7 +3669,7 @@ html.sidebar-collapsed .save-bar { left: var(--sidebar-collapsed-width); }
 @media print {
   .sidebar, .topbar, .btn, .modal-overlay,
   .toast-container, .save-bar { display: none !important; }
-  .main-content { margin-left: 0; }
+
   .page-body { padding: 0; }
 }
 

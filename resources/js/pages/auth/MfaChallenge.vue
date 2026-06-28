@@ -40,10 +40,10 @@
         <form @submit.prevent="submit" novalidate>
           <div class="form-group">
             <label class="form-label" for="mfa-code">Authentication Code</label>
-            <input id="mfa-code" v-model="form.code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" class="form-input mfa-code-input" :class="{ 'is-error': form.errors.code }" autocomplete="one-time-code" autofocus placeholder="000000" />
-            <div v-if="form.errors.code" class="form-error">{{ form.errors.code }}</div>
+            <input id="mfa-code" v-model="form.code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" class="form-input mfa-code-input" :class="{ 'is-error': fieldError('code') }" autocomplete="one-time-code" autofocus placeholder="000000" @blur="v$.code.$touch()" />
+            <div v-if="fieldError('code')" class="form-error">{{ fieldError('code') }}</div>
           </div>
-          <button type="submit" class="btn btn-primary ob-btn-full" :disabled="form.processing || form.code.length !== 6">
+          <button type="submit" class="btn btn-primary ob-btn-full" :disabled="form.processing">
             {{ form.processing ? 'Verifying…' : 'Verify Code' }}
           </button>
         </form>
@@ -57,24 +57,53 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { Head, useForm, router, usePage } from '@inertiajs/vue3'
+import { useVuelidate } from '@vuelidate/core'
+import { required, minLength, maxLength, numeric, helpers } from '@vuelidate/validators'
+import { useToast } from '@/composables/useToast'
 
+const toast   = useToast()
 const year    = new Date().getFullYear()
 const form    = useForm({ code: '' })
 const mfaPage = usePage()
+
 const portalRouteMap = {
   practitioner: 'provider.dashboard', business_partner: 'bp.dashboard',
   continuity_steward: 'cs.dashboard', support_steward: 'ss.dashboard', admin: 'admin.dashboard',
 }
 
-function submit() {
+// ── Vuelidate ──────────────────────────────────────────────────────────
+const rules = computed(() => ({
+  code: {
+    required:  helpers.withMessage('Authentication code is required.', required),
+    minLength: helpers.withMessage('Code must be 6 digits.', minLength(6)),
+    maxLength: helpers.withMessage('Code must be 6 digits.', maxLength(6)),
+    numeric:   helpers.withMessage('Code must contain only digits.', numeric),
+  },
+}))
+const v$ = useVuelidate(rules, form)
+
+function fieldError(field) {
+  if (v$.value[field]?.$error) return v$.value[field].$errors[0]?.$message
+  if (form.errors[field]) return form.errors[field]
+  return null
+}
+
+async function submit() {
+  const valid = await v$.value.$validate()
+  if (!valid) {
+    toast.error('Please enter your 6-digit authentication code.')
+    return
+  }
   form.post(route('mfa.challenge.store'), {
     onSuccess: () => {
       const role = mfaPage.props.auth?.user?.role
       const routeName = portalRouteMap[role]
       if (routeName) router.visit(route(routeName), { replace: true })
     },
-    onFinish: () => form.reset('code'),
+    onError:  () => toast.error('Invalid code. Please try again.'),
+    onFinish: () => { form.reset('code'); v$.value.$reset() },
   })
 }
 function logout() { router.post(route('logout')) }

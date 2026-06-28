@@ -87,6 +87,8 @@ Achieve 100% PHP-to-Vue parity AND full backend wiring across three phases:
 
 Each phase has its own gates. Do not advance to the next phase until the current phase passes all gates.
 
+> ⚠️ **NEVER rewrite from scratch.** The attached Vue component is the working base. Every fix is a surgical `str_replace` on the existing file — find the exact lines that are wrong or missing, change only those, leave everything else untouched. A full rewrite introduces regressions in already-correct code and wastes context. If a section is missing, insert it at the correct position. If a section is wrong, fix only that section. Deliver the updated file, not a new one.
+
 ---
 
 # PHASE 1 — DESIGN & UI PARITY
@@ -188,6 +190,8 @@ title= attributes in Vue (should be 0): N
 ```
 
 ## 1.3 — Phase 1 Fixes
+
+> **Surgical edits only — no rewrites.** For each gap found in the diff, make the minimum change that closes it. `str_replace` the specific block. Never regenerate the whole template.
 
 Fix in priority order:
 1. Missing sections (entire blocks absent)
@@ -330,6 +334,8 @@ For every form on the page:
 
 ## 2.6 — Phase 2 Fixes
 
+> **Surgical edits only.** Update only the specific store, composable, or form wiring that is wrong. Do not touch anything already correct.
+
 Apply in this order:
 1. Update store files (auth.js, ui.js, etc.) with new properties/methods
 2. Update composables (useActivity.js, etc.) with new helpers
@@ -439,6 +445,8 @@ Compare the Vue page's needs against what exists in the Laravel codebase:
 ```
 
 ## 3.3 — Backend Fixes
+
+> **Surgical edits only.** Fix the specific method, class, or column that is wrong. Never regenerate an entire service, controller, or migration file unless it is completely absent.
 
 Generate or surgically fix each backend item. ALWAYS use this order:
 1. **Migrations** — add/fix columns if needed
@@ -611,11 +619,12 @@ Phase 3: 9/9 ✅
    - **Controller:** e.g. `Provider\DashboardController`
 4. Claude will:
    - Clone fresh repo + read all rules
-   - Run Phase 1 (output diff + fix UI/design)
+   - **Read the attached Vue component as the working base — never discard it**
+   - Run Phase 1 (diff PHP vs existing Vue, fix only the gaps)
    - Run Phase 2 (audit + fix state/wiring)
    - Run Phase 3 (audit + fix backend)
-   - Run all 22 gates
-   - Deliver one ZIP with every file changed across all 3 phases
+   - Run all gates
+   - Deliver the **updated** file (not a rewrite) + ZIP of all changed files
 
 ---
 

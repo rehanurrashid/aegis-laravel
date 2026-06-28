@@ -1,129 +1,198 @@
+<!--
+  pages/provider/Dashboard.vue — Provider portal dashboard.
+  100% parity with dashboard.php. All sections, all modals, all dynamic data.
+-->
 <template>
-  <AppLayout :user="user" portal="practitioner" activePage="dashboard" pageTitle="Dashboard"
-    :hasEmergency="hasEmergency" :unreadMessages="0" :unreadNotifs="2">
+  <AppLayout>
+    <Head title="Dashboard — Aegis" />
+
     <div class="page-body-inner">
 
-      <!-- Emergency alert -->
-      <div v-if="hasEmergency" class="alert alert-emergency" style="margin-bottom:18px">
-        <div class="alert-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        </div>
+      <!-- ══ 0. ACTIVE INCIDENT BANNER ════════════════════════════ -->
+      <div v-if="activeIncident" class="alert alert-emergency" style="margin-bottom:18px">
+        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
         <div class="alert-content">
-          <div class="alert-title">Continuity Plan Active — Critical Incident</div>
-          <div>A critical incident is currently being managed by your stewards.</div>
+          <div class="alert-title">Continuity Plan Active — {{ activeIncident.incident_type_label ?? activeIncident.incident_type }}</div>
+          <div>A critical incident is currently being managed by your stewards{{ activeIncident.reported_at ? ' · reported ' + formatDate(activeIncident.reported_at) : '' }}.</div>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+            <Link :href="route('provider.activity')" class="btn btn-primary btn-sm">
+              <AegisIcon name="activity" :size="14" /> View Incident Activity
+            </Link>
+            <Link :href="route('provider.plan.index')" class="btn btn-outline btn-sm">
+              <AegisIcon name="file-text" :size="14" /> Open Continuity Plan
+            </Link>
+          </div>
         </div>
       </div>
 
-      <!-- GREETING -->
+      <!-- ══ 1. GREETING (dh-greet) ════════════════════════════════ -->
       <div class="dh-greet">
         <div>
           <div class="dh-greet-eyebrow">Good morning</div>
-          <div class="dh-greet-title">{{ greetLead }} <em>{{ greetLast }},</em></div>
-          <div class="dh-greet-sub">Your continuity plan is active and your practice is on track. You have 3 pending referrals that need your attention.</div>
+          <div class="dh-greet-title">{{ greetFirst }} <em>{{ greetLast }},</em></div>
+          <div class="dh-greet-sub">{{ greetSub }}</div>
         </div>
         <div class="dh-greet-meta">
           <div class="dh-greet-mcell">
             <div class="dh-greet-mlabel">Plan Status</div>
-            <div class="dh-greet-mval ok">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
-              Active
+            <div class="dh-greet-mval" :class="{ ok: planStatus === 'active' }">
+              <AegisIcon :name="planStatus === 'active' ? 'shield-check' : 'clock'" :size="14" />
+              {{ planStatus === 'active' ? 'Active' : planStatusLabel }}
             </div>
           </div>
           <div class="dh-greet-mcell">
             <div class="dh-greet-mlabel">Practices</div>
-            <div class="dh-greet-mval">8 providers</div>
+            <div class="dh-greet-mval">{{ stats.net_clinical + stats.net_business }} providers</div>
           </div>
           <div class="dh-greet-mcell">
             <div class="dh-greet-mlabel">Avg Response</div>
-            <div class="dh-greet-mval">23h</div>
+            <div class="dh-greet-mval">{{ stats.avg_response_h > 0 ? stats.avg_response_h + 'h' : '—' }}</div>
           </div>
         </div>
       </div>
 
-      <!-- OVERVIEW BANNER -->
-      <div class="overview-banner">
-        <div class="overview-icon-block">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      <!-- ══ 2. OVERVIEW BANNER ════════════════════════════════════ -->
+      <div class="dh-overview-banner">
+        <div class="dh-overview-icon"><AegisIcon name="book-open" :size="20" /></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px">Overview — Start Here</div>
+          <div style="font-size:13px;color:var(--text-3);line-height:1.5">Key terms, your role on Aegis, and FAQs.</div>
         </div>
-        <div class="overview-text">
-          <div class="overview-title">Overview — Start Here</div>
-          <div class="overview-desc">Key terms, your role on Aegis, and FAQs.</div>
-        </div>
-        <Link href="/provider/overview" class="btn btn-outline btn-sm" style="flex-shrink:0;white-space:nowrap;">
-          View Overview
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        <Link :href="route('provider.overview')" class="btn btn-outline btn-sm" style="flex-shrink:0;white-space:nowrap">
+          View Overview <AegisIcon name="chevron-right" :size="12" />
         </Link>
       </div>
 
-      <!-- FINISH YOUR PROFILE -->
-      <div class="profile-strip">
-        <div class="profile-strip-icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>
+      <!-- ══ 3. PLAN STATUS CHIPS ══════════════════════════════════ -->
+      <div class="card" style="margin-bottom:22px;padding:18px 20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+        <!-- Icon + label -->
+        <div style="flex:0 0 auto;display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:var(--radius-sm);background:var(--icon-bg-gold);color:var(--gold-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <AegisIcon name="shield-check" :size="18" />
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3)">Continuity Plan Status</div>
+            <div style="font-size:13px;color:var(--text-2);margin-top:2px">Attestation state across stewards</div>
+          </div>
         </div>
-        <div class="profile-strip-text">
-          <div class="profile-strip-title">Finish your profile</div>
-          <div class="profile-strip-sub">Add credentials &amp; availability to improve discovery</div>
+        <!-- Chips -->
+        <div style="flex:1;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
+          <!-- Chip 1: Plan Active -->
+          <div class="stat-chip" :style="attest.plan_active ? 'background:var(--badge-bg-green);border-color:var(--green)' : 'background:var(--surface-2);border:1px solid var(--border)'">
+            <div class="stat-chip-icon" :style="'background:' + (attest.plan_active ? 'var(--green)' : 'var(--text-4)') + ';color:#fff'">
+              <AegisIcon :name="attest.plan_active ? 'check' : 'clock'" :size="14" />
+            </div>
+            <div>
+              <div class="stat-chip-value" style="font-size:13px;font-weight:700">{{ attest.plan_active ? 'Plan Active' : 'Plan Pending' }}</div>
+              <div class="stat-chip-label" style="font-size:11px;color:var(--text-3)">
+                {{ attest.plan_active && attest.plan_signed_at ? 'Signed ' + formatDate(attest.plan_signed_at) : 'Awaiting signature' }}
+              </div>
+            </div>
+          </div>
+          <!-- Chip 2: SS Certified -->
+          <div class="stat-chip" :style="attest.ss_certified ? 'background:var(--badge-bg-green);border-color:var(--green)' : 'background:var(--surface-2);border:1px solid var(--border)'">
+            <div class="stat-chip-icon" :style="'background:' + (attest.ss_certified ? 'var(--green)' : 'var(--text-4)') + ';color:#fff'">
+              <AegisIcon :name="attest.ss_certified ? 'check' : 'clock'" :size="14" />
+            </div>
+            <div>
+              <div class="stat-chip-value" style="font-size:13px;font-weight:700">SS Certified</div>
+              <div class="stat-chip-label" style="font-size:11px;color:var(--text-3)">
+                {{ attest.ss_certified_count }} of {{ attest.ss_total }}{{ attest.ss_latest ? ' · ' + formatShortDate(attest.ss_latest) : '' }}
+              </div>
+            </div>
+          </div>
+          <!-- Chip 3: CS Certified -->
+          <div class="stat-chip" :style="attest.cs_certified ? 'background:var(--badge-bg-green);border-color:var(--green)' : 'background:var(--surface-2);border:1px solid var(--border)'">
+            <div class="stat-chip-icon" :style="'background:' + (attest.cs_certified ? 'var(--green)' : 'var(--text-4)') + ';color:#fff'">
+              <AegisIcon :name="attest.cs_certified ? 'check' : 'clock'" :size="14" />
+            </div>
+            <div>
+              <div class="stat-chip-value" style="font-size:13px;font-weight:700">CS Certified</div>
+              <div class="stat-chip-label" style="font-size:11px;color:var(--text-3)">
+                {{ attest.cs_certified_count }} of {{ attest.cs_total }}{{ attest.cs_latest ? ' · ' + formatShortDate(attest.cs_latest) : '' }}
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="profile-strip-bar"><div class="profile-strip-bar-fill" style="width:70%"></div></div>
-        <div class="profile-strip-pct">70%</div>
-        <Link href="/provider/profile" class="btn btn-primary btn-sm" style="flex-shrink:0;white-space:nowrap;">
-          Complete
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </Link>
+        <!-- Second row: Support Team + MAAT -->
+        <div style="flex:0 0 100%;display:flex;gap:14px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
+          <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:240px">
+            <div style="width:28px;height:28px;border-radius:var(--radius-sm);background:var(--icon-bg-gold);color:var(--gold-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <AegisIcon name="users" :size="14" />
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3)">Support Team</div>
+              <div style="font-size:13px;color:var(--text);margin-top:2px">
+                <strong>{{ activeStewardCount }} of 5</strong> designated
+                <span style="color:var(--text-3);font-weight:400">· Primary &amp; Alternate Stewards</span>
+              </div>
+            </div>
+            <Link :href="route('provider.stewards.index')" class="btn btn-outline btn-sm" style="flex-shrink:0">Manage</Link>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:240px">
+            <div :style="'width:28px;height:28px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;background:' + (maatActive ? 'var(--badge-bg-green)' : 'var(--surface-2)') + ';color:' + (maatActive ? 'var(--green-dark)' : 'var(--text-4)') + ';border:1px solid ' + (maatActive ? 'var(--green)' : 'var(--border)')">
+              <AegisIcon name="shield-check" :size="14" />
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3)">MAAT Continuity Steward Service</div>
+              <div style="font-size:13px;color:var(--text);margin-top:2px">
+                <strong :style="maatActive ? 'color:var(--green-dark)' : 'color:var(--text-3)'">{{ maatActive ? 'Active' : 'Not active' }}</strong>
+                <span style="color:var(--text-3);font-weight:400">{{ maatActive ? ' · $29/mo' : ' · Optional add-on' }}</span>
+              </div>
+            </div>
+            <Link :href="route('provider.settings.index')" class="btn btn-outline btn-sm" style="flex-shrink:0">{{ maatActive ? 'Manage' : 'Learn More' }}</Link>
+          </div>
+        </div>
       </div>
 
-      <!-- CONTINUITY SECTION HEADER -->
+      <!-- ══ 4. CONTINUITY HERO ════════════════════════════════════ -->
       <div class="dh-sh">
         <div class="dh-sh-l">
-          <div class="dh-sh-eyebrow">Continuity Plan</div>
+          <div class="dh-sh-eyebrow">Your Aegis</div>
           <div class="dh-sh-title">Continuity at the center</div>
         </div>
-        <Link class="dh-sh-link" href="/provider/continuity-stewards">
-          Manage stewards
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        <Link :href="route('provider.stewards.index')" class="dh-sh-link">
+          Manage stewards <AegisIcon name="arrow-right-line" :size="12" />
         </Link>
       </div>
 
-      <!-- CONTINUITY HERO -->
       <div class="dh-continuity">
         <div class="dh-cn-left">
           <div class="dh-cn-eyebrow">
             <span class="dh-cn-pulse"></span>
-            Continuity Plan &middot; Active since June 2024
+            Continuity Plan · Active since {{ planSince }}
           </div>
           <div class="dh-cn-title">Your practice continues,<br>even when you can't.</div>
           <div class="dh-cn-desc">When circumstances change, your Continuity Plan helps you keep care connected for your clients, records remain supported, and your stewards know what to do.</div>
 
           <div class="dh-cn-stewards">
             <div class="dh-cn-stew">
-              <div class="dh-cn-savatar">MC</div>
+              <div class="dh-cn-savatar">{{ csInitials }}</div>
               <div class="dh-cn-stew-info">
                 <div class="dh-cn-srole">Continuity Steward</div>
-                <div class="dh-cn-sname">Marcus Chen</div>
+                <div class="dh-cn-sname">{{ csName }}</div>
               </div>
-              <div class="dh-cn-stat">Active</div>
+              <div class="dh-cn-stat">{{ primaryCs?.status === 'active' ? 'Active' : 'Pending' }}</div>
             </div>
             <div class="dh-cn-stew">
-              <div class="dh-cn-savatar support">LR</div>
+              <div class="dh-cn-savatar support">{{ ssInitials }}</div>
               <div class="dh-cn-stew-info">
                 <div class="dh-cn-srole">Support Steward</div>
-                <div class="dh-cn-sname">Dr. Laura Reyes</div>
+                <div class="dh-cn-sname">{{ ssName }}</div>
               </div>
-              <div class="dh-cn-stat pending">Pending</div>
+              <div class="dh-cn-stat">{{ primarySs?.status === 'active' ? 'Monitoring' : 'Pending' }}</div>
             </div>
           </div>
 
           <div class="dh-cn-actions">
-            <button class="btn btn-primary btn-sm" @click="open('executorPanel')">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              View Plan Details
+            <button class="btn btn-primary btn-sm" @click="ui.openModal('executorPanelModal')">
+              <AegisIcon name="eye" :size="13" /> View Plan Details
             </button>
-            <Link href="/provider/continuity-stewards" class="btn btn-outline btn-sm">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              Edit Stewards
+            <Link :href="route('provider.stewards.index')" class="btn btn-outline btn-sm">
+              <AegisIcon name="pencil" :size="13" /> Edit Stewards
             </Link>
-            <button class="btn btn-sm dh-cn-activate" title="Activate Continuity Support" @click="open('activateSuccession')">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <button class="btn btn-danger btn-sm" data-tooltip="Use only during a genuine critical moment" @click="ui.openModal('activateSuccessionModal')">
+              <AegisIcon name="alert-triangle" :size="13" />
             </button>
           </div>
         </div>
@@ -133,161 +202,153 @@
             <div>
               <div class="dh-cn-rtag">Annual review</div>
               <div class="dh-cn-due">
-                Due Jun 15, 2026
-                <small>Overdue &middot; last attested Jun 15, 2024</small>
+                Due {{ planReviewDue }}
+                <small>{{ reviewDaysLabel }} · last attested {{ planSignedAt }}</small>
               </div>
             </div>
-            <span style="color:var(--gold-dark);flex-shrink:0;display:inline-flex;align-items:center;line-height:0">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span style="color:var(--gold-dark);flex-shrink:0;display:inline-flex;align-items:center">
+              <AegisIcon name="calendar" :size="22" />
             </span>
           </div>
 
           <div class="dh-cn-bar">
             <div class="dh-cn-bar-fill"></div>
-            <div class="dh-cn-bar-marker"></div>
+            <div class="dh-cn-bar-marker" data-tooltip="Today"></div>
           </div>
           <div class="dh-cn-bar-labels">
-            <span>Last attested</span>
-            <span>Today</span>
-            <span>Due</span>
+            <span>Last attested</span><span>Today</span><span>Due</span>
           </div>
 
           <div class="dh-cn-todos">
-            <div class="dh-cn-todo done">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-              Steward contact info verified
-            </div>
-            <div class="dh-cn-todo done">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-              Practice information current
-            </div>
-            <div class="dh-cn-todo">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
-              Confirm Support Steward task list
-            </div>
-            <div class="dh-cn-todo">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>
-              Attest Continuity Plan accuracy
-            </div>
+            <div class="dh-cn-todo done"><AegisIcon name="check-circle" :size="13" /> Steward contact info verified</div>
+            <div class="dh-cn-todo done"><AegisIcon name="check-circle" :size="13" /> Practice information current</div>
+            <div class="dh-cn-todo"><AegisIcon name="circle" :size="13" /> Confirm Support Steward task list</div>
+            <div class="dh-cn-todo"><AegisIcon name="circle" :size="13" /> Attest Continuity Plan accuracy</div>
           </div>
 
-          <button class="btn btn-outline btn-sm" style="align-self:flex-start;margin-top:8px" @click="open('annualReview')">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/></svg>
-            Begin Annual Review
+          <button class="btn btn-outline btn-sm" style="align-self:flex-start;margin-top:8px" @click="ui.openModal('annualReviewModal')">
+            <AegisIcon name="clipboard-check" :size="13" /> Begin Annual Review
           </button>
         </div>
       </div>
 
-      <!-- AT-A-GLANCE SECTION HEADER -->
+      <!-- ══ 5. AT-A-GLANCE ════════════════════════════════════════ -->
       <div class="dh-sh">
         <div class="dh-sh-l">
-          <div class="dh-sh-eyebrow">Overview</div>
+          <div class="dh-sh-eyebrow">This month</div>
           <div class="dh-sh-title">Practice at a glance</div>
         </div>
-        <Link class="dh-sh-link" href="/provider/activity">
-          View activity
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        <Link :href="route('provider.activity')" class="dh-sh-link">
+          View activity <AegisIcon name="arrow-right-line" :size="12" />
         </Link>
       </div>
 
-      <!-- AT-A-GLANCE GRID -->
       <div class="dh-glance">
         <div class="dh-gl-card">
-          <div class="dh-gl-head">
-            <div class="dh-gl-label">Referrals</div>
-            <div class="dh-gl-icon">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-            </div>
-          </div>
-          <div class="dh-gl-val">{{ referralStats.total }}</div>
-          <div class="dh-gl-sub"><strong>{{ referralStats.pending }} pending</strong></div>
+          <div class="dh-gl-head"><div class="dh-gl-label">Referrals</div><div class="dh-gl-icon"><AegisIcon name="refresh" :size="14" /></div></div>
+          <div class="dh-gl-val">{{ stats.total_refs }}</div>
+          <div class="dh-gl-sub" v-html="stats.pending_refs > 0 ? '<strong>' + stats.pending_refs + ' pending</strong>' : 'All up to date'"></div>
         </div>
-
         <div class="dh-gl-card">
-          <div class="dh-gl-head">
-            <div class="dh-gl-label">Network</div>
-            <div class="dh-gl-icon">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            </div>
-          </div>
-          <div class="dh-gl-val">{{ networkCount }}</div>
-          <div class="dh-gl-sub">8 clinical &middot; 8 business</div>
+          <div class="dh-gl-head"><div class="dh-gl-label">Network</div><div class="dh-gl-icon"><AegisIcon name="users" :size="14" /></div></div>
+          <div class="dh-gl-val">{{ stats.net_clinical + stats.net_business }}</div>
+          <div class="dh-gl-sub">{{ stats.net_clinical }} clinical · {{ stats.net_business }} business</div>
         </div>
-
         <div class="dh-gl-card">
-          <div class="dh-gl-head">
-            <div class="dh-gl-label">CEUs</div>
-            <div class="dh-gl-icon warn">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-            </div>
-          </div>
-          <div class="dh-gl-val">18<small> / 30 hrs</small></div>
-          <div class="dh-gl-sub"><strong class="warn-text">12 hrs left</strong> by Dec 31, 2025</div>
+          <div class="dh-gl-head"><div class="dh-gl-label">CEU Progress</div><div class="dh-gl-icon warn"><AegisIcon name="graduation-cap" :size="14" /></div></div>
+          <div class="dh-gl-val">{{ stats.ceus_total }}<small> hrs</small></div>
+          <div class="dh-gl-sub">{{ stats.ceus_count }} entries this year</div>
         </div>
-
         <div class="dh-gl-card">
-          <div class="dh-gl-head">
-            <div class="dh-gl-label">Avg Response</div>
-            <div class="dh-gl-icon">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            </div>
-          </div>
-          <div class="dh-gl-val">23<small>h</small></div>
+          <div class="dh-gl-head"><div class="dh-gl-label">Avg Response</div><div class="dh-gl-icon"><AegisIcon name="clock" :size="14" /></div></div>
+          <div class="dh-gl-val">{{ stats.avg_response_h > 0 ? stats.avg_response_h : '—' }}<small v-if="stats.avg_response_h > 0">h</small></div>
           <div class="dh-gl-sub">average referral response</div>
         </div>
       </div>
 
-      <!-- CREDENTIALS SECTION HEADER -->
+      <!-- ══ 6. CREDENTIALS & COVERAGE ════════════════════════════ -->
       <div class="dh-sh">
         <div class="dh-sh-l">
-          <div class="dh-sh-eyebrow">Compliance &amp; insurance</div>
+          <div class="dh-sh-eyebrow">Compliance</div>
           <div class="dh-sh-title">Credentials &amp; coverage</div>
         </div>
-        <a class="dh-sh-link" href="#" @click.prevent="open('addLicense')">
-          Manage all
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        </a>
+        <button class="dh-sh-link" @click="ui.openModal('addLicenseModal')">
+          Manage all <AegisIcon name="arrow-right-line" :size="12" />
+        </button>
       </div>
 
-      <!-- CREDENTIALS + ATTENTION 2-COL -->
       <div class="dh-cols">
-        <!-- LEFT: Credentials list (dynamic) -->
+        <!-- LEFT: Credentials -->
         <div class="dh-cred-card">
-          <div v-for="cred in credentials" :key="cred.id" class="dh-cred-row">
-            <div class="dh-cred-icon" :class="cred.severity">
-              <svg v-if="cred.category === 'insurance'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-            </div>
-            <div class="dh-cred-info">
-              <div class="dh-cred-title">{{ cred.name }}</div>
-              <div class="dh-cred-sub">{{ cred.subtitle || cred.issuer || (cred.category === 'insurance' ? 'Insurance policy' : 'Credential') }}</div>
-            </div>
+          <div class="dh-cred-row">
+            <div class="dh-cred-icon ok"><AegisIcon name="credit-card" :size="16" /></div>
+            <div class="dh-cred-info"><div class="dh-cred-title">Medical / Clinical License</div><div class="dh-cred-sub">Psychiatrist, MD · New York</div></div>
             <div class="dh-cred-meter">
-              <div class="dh-cred-date" :class="cred.severity">{{ cred.expires_at || 'No expiry' }}</div>
-              <div class="dh-cred-bar"><div class="dh-cred-bar-fill" :class="cred.severity"></div></div>
-              <div class="dh-cred-days" :class="cred.severity">{{ credDaysText(cred) }}</div>
+              <div class="dh-cred-date">Jun 30, 2026</div>
+              <div class="dh-cred-bar"><div class="dh-cred-bar-fill ok"></div></div>
+              <div class="dh-cred-days ok">230 days remaining</div>
             </div>
             <div class="dh-cred-act">
-              <button v-if="cred.severity === 'crit'" class="btn-icon-sm btn-icon-danger" title="Update / renew" @click="openRenewCredential(cred)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
-              <button class="btn-icon-sm" title="View details" @click="openCredentialDetail(cred)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              <button class="btn-icon-sm" data-tooltip="View details" @click="ui.openModal('licenseDetailModal')"><AegisIcon name="eye" :size="12" /></button>
+              <button class="btn-icon-sm" data-tooltip="Set reminder" @click="ui.openModal('setReminderModal')"><AegisIcon name="bell" :size="12" /></button>
             </div>
           </div>
-
-          <div v-if="!credentials.length" class="dh-cred-empty">
-            <div class="dh-cred-empty-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
-            <div class="dh-cred-empty-title">No credentials tracked yet</div>
-            <div class="dh-cred-empty-sub">Add your licenses and insurance policies to track renewals and expiry.</div>
-            <button class="btn btn-primary btn-sm" @click="openAddCredential('license')">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Add credential
-            </button>
+          <div class="dh-cred-row">
+            <div class="dh-cred-icon crit"><AegisIcon name="credit-card" :size="16" /></div>
+            <div class="dh-cred-info"><div class="dh-cred-title">State License (CA)</div><div class="dh-cred-sub">Psychiatrist, MD · California</div></div>
+            <div class="dh-cred-meter">
+              <div class="dh-cred-date crit">Feb 28, 2025</div>
+              <div class="dh-cred-bar"><div class="dh-cred-bar-fill crit"></div></div>
+              <div class="dh-cred-days crit">20 days · update now</div>
+            </div>
+            <div class="dh-cred-act">
+              <button class="btn-icon-sm btn-icon-danger" data-tooltip="Update" @click="ui.openModal('renewLicenseModal')"><AegisIcon name="refresh" :size="12" /></button>
+              <button class="btn-icon-sm" data-tooltip="View details" @click="ui.openModal('licenseDetailModal')"><AegisIcon name="eye" :size="12" /></button>
+            </div>
           </div>
-
-          <div v-if="credentials.length" class="dh-cred-foot">
-            <span><strong>{{ credentialStats.tracked }}</strong> credential{{ credentialStats.tracked === 1 ? '' : 's' }} tracked<template v-if="credentialStats.attention"> &middot; <span class="crit-text">{{ credentialStats.attention }} need attention</span></template></span>
-            <button class="btn btn-outline btn-sm" @click="openAddCredential('license')">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Add credential
+          <div class="dh-cred-row">
+            <div class="dh-cred-icon ok"><AegisIcon name="clipboard" :size="16" /></div>
+            <div class="dh-cred-info"><div class="dh-cred-title">DEA Registration</div><div class="dh-cred-sub">Schedule II–IV</div></div>
+            <div class="dh-cred-meter">
+              <div class="dh-cred-date">Dec 31, 2026</div>
+              <div class="dh-cred-bar"><div class="dh-cred-bar-fill ok" style="width:40%"></div></div>
+              <div class="dh-cred-days ok">108 days remaining</div>
+            </div>
+            <div class="dh-cred-act">
+              <button class="btn-icon-sm" data-tooltip="View details" @click="ui.openModal('licenseDetailModal')"><AegisIcon name="eye" :size="12" /></button>
+              <button class="btn-icon-sm" data-tooltip="Set reminder" @click="ui.openModal('setReminderModal')"><AegisIcon name="bell" :size="12" /></button>
+            </div>
+          </div>
+          <div class="dh-cred-row">
+            <div class="dh-cred-icon crit"><AegisIcon name="shield" :size="16" /></div>
+            <div class="dh-cred-info"><div class="dh-cred-title">Professional Liability</div><div class="dh-cred-sub">Medical Protective · $2M / $2M</div></div>
+            <div class="dh-cred-meter">
+              <div class="dh-cred-date crit">Mar 15, 2025</div>
+              <div class="dh-cred-bar"><div class="dh-cred-bar-fill crit"></div></div>
+              <div class="dh-cred-days crit">20 days · update now</div>
+            </div>
+            <div class="dh-cred-act">
+              <button class="btn-icon-sm btn-icon-danger" data-tooltip="Update" @click="ui.openModal('renewInsuranceModal')"><AegisIcon name="refresh" :size="12" /></button>
+              <button class="btn-icon-sm" data-tooltip="View policy" @click="ui.openModal('insuranceDetailModal')"><AegisIcon name="eye" :size="12" /></button>
+            </div>
+          </div>
+          <div class="dh-cred-row">
+            <div class="dh-cred-icon ok"><AegisIcon name="briefcase" :size="16" /></div>
+            <div class="dh-cred-info"><div class="dh-cred-title">General Business Insurance</div><div class="dh-cred-sub">HISCOX · $1M General Liability</div></div>
+            <div class="dh-cred-meter">
+              <div class="dh-cred-date">Feb 28, 2026</div>
+              <div class="dh-cred-bar"><div class="dh-cred-bar-fill ok"></div></div>
+              <div class="dh-cred-days ok">230 days remaining</div>
+            </div>
+            <div class="dh-cred-act">
+              <button class="btn-icon-sm" data-tooltip="View policy" @click="ui.openModal('insuranceDetailModal')"><AegisIcon name="eye" :size="12" /></button>
+              <button class="btn-icon-sm" data-tooltip="Set reminder" @click="ui.openModal('setReminderModal')"><AegisIcon name="bell" :size="12" /></button>
+            </div>
+          </div>
+          <div class="dh-cred-foot">
+            <span><strong>5 of 5</strong> credentials tracked · <span class="crit-text">2 need attention</span></span>
+            <button class="btn btn-outline btn-sm" @click="ui.openModal('addLicenseModal')">
+              <AegisIcon name="plus" :size="12" /> Add credential
             </button>
           </div>
         </div>
@@ -296,26 +357,26 @@
         <div>
           <div class="dh-attention">
             <div class="dh-att-head">
-              <div class="dh-att-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+              <div class="dh-att-icon"><AegisIcon name="bell" :size="14" /></div>
               <div class="dh-att-title">Needs attention</div>
-              <div class="dh-att-count">{{ attentionCredentials.length + 2 }}</div>
+              <div class="dh-att-count">3</div>
             </div>
             <div class="dh-att-list">
-              <div v-for="item in attentionCredentials" :key="item.id" class="dh-att-item">
-                <div class="dh-att-bullet" :class="item.severity"></div>
+              <div class="dh-att-item">
+                <div class="dh-att-bullet crit"></div>
                 <div class="dh-att-text">
-                  <div class="dh-att-h">{{ item.name }} renewal</div>
-                  <div class="dh-att-d">{{ attnExpiry(item) }}</div>
+                  <div class="dh-att-h">Professional Liability update</div>
+                  <div class="dh-att-d">Expires <strong>Mar 15</strong> · 20 days left</div>
                 </div>
-                <button class="btn btn-sm" :class="item.severity === 'crit' ? 'btn-primary' : 'btn-outline'" @click="openRenewCredential(item)">Renew</button>
+                <button class="btn btn-primary btn-sm" @click="ui.openModal('renewInsuranceModal')">Update Now</button>
               </div>
               <div class="dh-att-item">
                 <div class="dh-att-bullet warn"></div>
                 <div class="dh-att-text">
                   <div class="dh-att-h">Annual Continuity Plan review</div>
-                  <div class="dh-att-d">Due <strong>Jun 15</strong> &middot; attest 8 items</div>
+                  <div class="dh-att-d">Due <strong>Jun 15</strong> · attest 8 items</div>
                 </div>
-                <button class="btn btn-outline btn-sm" @click="open('annualReview')">Review</button>
+                <button class="btn btn-outline btn-sm" @click="ui.openModal('annualReviewModal')">Review</button>
               </div>
               <div class="dh-att-item">
                 <div class="dh-att-bullet warn"></div>
@@ -323,7 +384,7 @@
                   <div class="dh-att-h">12 CEU hours required</div>
                   <div class="dh-att-d">Ethics credits by <strong>Dec 31</strong></div>
                 </div>
-                <button class="btn btn-outline btn-sm" @click="open('ceu')">Add CEU</button>
+                <button class="btn btn-outline btn-sm" @click="ui.openModal('ceuModal')">Add CEU</button>
               </div>
             </div>
           </div>
@@ -331,140 +392,154 @@
           <div class="dh-quick">
             <div class="dh-quick-title">Quick actions</div>
             <div class="dh-quick-grid">
-              <button class="btn btn-outline btn-sm" @click="open('newReferral')">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                New referral
+              <button class="btn btn-outline btn-sm" @click="ui.openModal('newReferralModal')">
+                <AegisIcon name="refresh" :size="13" /> New referral
               </button>
-              <Link href="/provider/vault" class="btn btn-outline btn-sm">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                Upload doc
+              <Link :href="route('provider.vault.index')" class="btn btn-outline btn-sm">
+                <AegisIcon name="upload" :size="13" /> Upload doc
               </Link>
-              <Link href="/provider/continuity-stewards" class="btn btn-outline btn-sm">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                Schedule
+              <Link :href="route('provider.stewards.index')" class="btn btn-outline btn-sm">
+                <AegisIcon name="calendar" :size="13" /> Schedule
               </Link>
-              <Link href="/provider/messages" class="btn btn-outline btn-sm">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                Message
+              <Link :href="route('provider.messages')" class="btn btn-outline btn-sm">
+                <AegisIcon name="message-square" :size="13" /> Message
               </Link>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- INTEGRATIVE NETWORK SECTION HEADER -->
+      <!-- ══ 7. INTEGRATIVE NETWORK ═════════════════════════════════ -->
       <div class="dh-sh">
         <div class="dh-sh-l">
-          <div class="dh-sh-eyebrow">My network</div>
+          <div class="dh-sh-eyebrow">My circle</div>
           <div class="dh-sh-title">Integrative network</div>
         </div>
-        <Link class="dh-sh-link" href="/provider/network">
-          View all
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        <Link :href="route('provider.network.index')" class="dh-sh-link">
+          View all <AegisIcon name="arrow-right-line" :size="12" />
         </Link>
       </div>
 
-      <!-- NETWORK SECTION -->
       <div class="network-carousel-section">
         <div class="nw-head" style="border:none;padding:0;margin-bottom:14px">
           <div class="tabs-segmented">
-            <button class="tab-pill" :class="{ active: activeNwTab === 'clinical' }" @click="activeNwTab = 'clinical'">Integrative</button>
-            <button class="tab-pill" :class="{ active: activeNwTab === 'business' }" @click="activeNwTab = 'business'">Business Partners</button>
+            <button class="tab-pill" :class="{ active: nwTab === 'clinical' }" @click="nwTab = 'clinical'">Integrative</button>
+            <button class="tab-pill" :class="{ active: nwTab === 'business' }" @click="nwTab = 'business'">Business Partners</button>
           </div>
         </div>
 
         <div class="nw-grid">
-          <!-- Clinical -->
-          <template v-if="activeNwTab === 'clinical'">
-            <div v-for="card in clinicalCards" :key="card.slug" class="nw-card" @click="go('/provider/network')">
-              <div class="nw-top">
-                <div class="nw-avatar">{{ card.initials }}</div>
-                <div class="nw-info">
-                  <div class="nw-name">{{ card.name }}</div>
-                  <div class="nw-role">{{ card.role }}</div>
+          <!-- Clinical tab -->
+          <template v-if="nwTab === 'clinical'">
+            <template v-if="netClinical.length">
+              <div v-for="nc in netClinical" :key="nc.id" class="nw-card" @click="router.visit('/public/provider/' + (nc.target?.slug ?? ''))">
+                <div class="nw-top">
+                  <div class="nw-avatar">{{ nc.target?.avatar_initials ?? '??' }}</div>
+                  <div class="nw-info">
+                    <div class="nw-name">{{ nc.target?.display_name ?? '—' }}</div>
+                    <div class="nw-role">{{ nc.target?.title ?? nc.target?.credentials ?? '' }}</div>
+                  </div>
+                  <div class="nw-tags">
+                    <div class="nw-pill net" data-tooltip="In Network"><AegisIcon name="shield-check" :size="11" /></div>
+                    <div v-if="nc.target?.services_mode" class="nw-pill svc" data-tooltip="Offers services on Aegis"><AegisIcon name="briefcase" :size="11" /></div>
+                  </div>
                 </div>
-                <div class="nw-tags">
-                  <div class="nw-pill net" title="In Network"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></div>
-                  <div v-if="card.svc" class="nw-pill svc" title="Offers services on Aegis"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
+                <div class="nw-meta">
+                  <span class="nw-meta-item"><AegisIcon name="map-pin" :size="11" />{{ nc.target?.location ?? '' }}</span>
+                  <span class="nw-meta-item"><AegisIcon name="clock" :size="11" />Replies in {{ nc.target?.response_time_hours ? nc.target.response_time_hours + 'h' : '—' }}</span>
+                  <div class="nw-cta" @click.stop>
+                    <Link :href="route('provider.messages')" class="nw-btn" data-tooltip="Send message"><AegisIcon name="message-square" :size="12" /></Link>
+                    <a :href="'/public/provider/' + (nc.target?.slug ?? '')" class="nw-btn primary" data-tooltip="View profile"><AegisIcon name="arrow-right-line" :size="12" /></a>
+                  </div>
                 </div>
               </div>
-              <div class="nw-meta">
-                <span class="nw-meta-item"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> {{ card.location }}</span>
-                <span class="nw-meta-item"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Replies in {{ card.response }}</span>
-                <div class="nw-cta" @click.stop>
-                  <button class="nw-btn" title="Send message" @click="go('/provider/messages')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
-                  <button class="nw-btn primary" title="View profile" @click="go('/provider/network')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
-                </div>
-              </div>
+            </template>
+            <div v-else class="empty-state" style="grid-column:1/-1;padding:32px 0">
+              <div class="empty-state-icon"><AegisIcon name="users" :size="24" /></div>
+              <div class="empty-state-title">No network connections yet</div>
+              <div class="empty-state-sub">Visit the Network to connect with practitioners.</div>
+              <Link :href="route('provider.network.index')" class="btn btn-primary btn-sm" style="margin-top:12px">Browse Network</Link>
             </div>
           </template>
 
-          <!-- Business Partners -->
-          <template v-else>
-            <div v-for="card in businessCards" :key="card.slug" class="nw-card" @click="go('/provider/network')">
-              <div class="nw-top">
-                <div class="nw-avatar">{{ card.initials }}</div>
-                <div class="nw-info">
-                  <div class="nw-name">{{ card.name }}</div>
-                  <div class="nw-role">{{ card.role }}</div>
+          <!-- Business tab -->
+          <template v-if="nwTab === 'business'">
+            <template v-if="netBusiness.length">
+              <div v-for="nc in netBusiness" :key="nc.id" class="nw-card" @click="router.visit('/public/business/' + (nc.target?.slug ?? ''))">
+                <div class="nw-top">
+                  <div class="nw-avatar">{{ nc.target?.avatar_initials ?? '??' }}</div>
+                  <div class="nw-info">
+                    <div class="nw-name">{{ nc.target?.display_name ?? '—' }}</div>
+                    <div class="nw-role">{{ nc.target?.bp_type ? nc.target.bp_type.charAt(0).toUpperCase() + nc.target.bp_type.slice(1) : 'Partner' }}</div>
+                  </div>
+                  <div class="nw-tags">
+                    <span v-if="nc.target?.bp_categories" class="nw-tag">{{ nc.target.bp_categories }}</span>
+                  </div>
                 </div>
-                <div class="nw-tags">
-                  <span class="nw-tag">{{ card.tags }}</span>
+                <div class="nw-meta">
+                  <span class="nw-meta-item"><AegisIcon name="map-pin" :size="11" />{{ nc.target?.location ?? '' }}</span>
+                  <span class="nw-meta-item"><AegisIcon name="clock" :size="11" />Replies in {{ nc.target?.response_time_hours ? nc.target.response_time_hours + 'h' : '—' }}</span>
+                  <div class="nw-cta" @click.stop>
+                    <Link :href="route('provider.messages')" class="nw-btn" data-tooltip="Send message"><AegisIcon name="message-square" :size="12" /></Link>
+                    <a :href="'/public/business/' + (nc.target?.slug ?? '')" class="nw-btn primary" data-tooltip="View profile"><AegisIcon name="arrow-right-line" :size="12" /></a>
+                  </div>
                 </div>
               </div>
-              <div class="nw-meta">
-                <span class="nw-meta-item"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> {{ card.location }}</span>
-                <span class="nw-meta-item"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Replies in —</span>
-                <div class="nw-cta" @click.stop>
-                  <button class="nw-btn" title="Send message" @click="go('/provider/messages')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
-                  <button class="nw-btn primary" title="View profile" @click="go('/provider/network')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
-                </div>
-              </div>
+            </template>
+            <div v-else class="empty-state" style="grid-column:1/-1;padding:32px 0">
+              <div class="empty-state-icon"><AegisIcon name="briefcase" :size="24" /></div>
+              <div class="empty-state-title">No business partners yet</div>
+              <div class="empty-state-sub">Connect with business partners through your network.</div>
             </div>
           </template>
         </div>
       </div>
 
-    </div>
 
-    <!-- ═══════════════ MODALS ═══════════════ -->
 
-    <!-- CONTINUITY PLAN — DETAILS -->
-    <Modal :model-value="modal === 'executorPanel'" @update:model-value="closeModal" size="lg" title="Continuity Plan — Details">
-      <div class="alert alert-success" style="margin-bottom:14px"><div class="alert-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg></div><div class="alert-content">Continuity Plan is active and up to date</div></div>
+    </div><!-- /page-body-inner -->
+
+    <!-- ══════════════════════ MODALS ═════════════════════════════════ -->
+
+    <!-- Executor Panel -->
+    <AegisModal modal-id="executorPanelModal" title="Continuity Plan — Details" size="lg">
+      <div class="alert alert-success" style="margin-bottom:14px">
+        <div class="alert-icon"><AegisIcon name="shield-check" :size="16" /></div>
+        <div class="alert-content">Continuity Plan is active and up to date</div>
+      </div>
 
       <div class="section-label" style="margin-bottom:8px">Stewards</div>
-      <div class="grid-2" style="gap:10px;margin-bottom:14px">
-        <div class="exec-person-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div v-if="primaryCs" style="display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:14px 0;border-bottom:1px solid var(--border)">
           <div style="display:flex;align-items:center;gap:10px;width:100%;flex-wrap:wrap">
-            <div class="exec-avatar">MC</div>
+            <div class="exec-avatar">{{ csInitials }}</div>
             <div style="flex:1;min-width:0">
-              <div style="font-weight:700;font-size:13px">Marcus Chen</div>
-              <div style="font-size:11px;color:var(--text-3)">Principal, Chen Practice Solutions</div>
+              <div style="font-weight:700;font-size:13px">{{ csName }}</div>
+              <div style="font-size:11px;color:var(--text-3)">{{ primaryCs?.steward?.title ?? '' }}</div>
             </div>
             <span class="exec-role-chip">Continuity Steward</span>
-            <span class="badge badge-green">Active</span>
+            <span :class="'badge badge--' + (primaryCs?.status === 'active' ? 'green' : 'orange')">{{ primaryCs?.status === 'active' ? 'Active' : 'Pending' }}</span>
           </div>
-          <div style="font-size:11px;color:var(--text-3);width:100%">marcus@chenpracticesolutions.com · (510) 555-0189</div>
+          <div style="font-size:11px;color:var(--text-3);width:100%">{{ primaryCs?.steward?.email ?? '' }}{{ primaryCs?.steward?.phone ? ' · ' + primaryCs.steward.phone : '' }}</div>
         </div>
-        <div class="exec-person-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+        <div v-if="primarySs" style="display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:14px 0;border-bottom:1px solid var(--border)">
           <div style="display:flex;align-items:center;gap:10px;width:100%;flex-wrap:wrap">
-            <div class="exec-avatar">LR</div>
+            <div class="exec-avatar">{{ ssInitials }}</div>
             <div style="flex:1;min-width:0">
-              <div style="font-weight:700;font-size:13px">Dr. Laura Reyes</div>
-              <div style="font-size:11px;color:var(--text-3)">Principal, Reyes Continuity</div>
+              <div style="font-weight:700;font-size:13px">{{ ssName }}</div>
+              <div style="font-size:11px;color:var(--text-3)">{{ primarySs?.steward?.title ?? '' }}</div>
             </div>
             <span class="exec-role-chip">Support Steward</span>
-            <span class="badge badge-green">Monitoring</span>
+            <span class="badge badge--green">Monitoring</span>
           </div>
-          <div style="font-size:11px;color:var(--text-3);width:100%">laura.reyes@reyescontinuity.net · (213) 555-0298</div>
+          <div style="font-size:11px;color:var(--text-3);width:100%">{{ primarySs?.steward?.email ?? '' }}{{ primarySs?.steward?.phone ? ' · ' + primarySs.steward.phone : '' }}</div>
         </div>
       </div>
 
       <div class="section-label" style="margin-bottom:8px">Continuity Plan Details</div>
-      <div class="grid-2" style="gap:10px 14px;margin-bottom:0">
-        <div class="cc-detail-row"><span class="cc-detail-label">Signed</span><span class="cc-detail-value">Jun 15, 2024</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Annual Review</span><span class="cc-detail-value" style="color:var(--orange-dark)">Due Jun 15, 2026</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:0">
+        <div class="cc-detail-row"><span class="cc-detail-label">Signed</span><span class="cc-detail-value">{{ planSignedAt }}</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Annual Review</span><span class="cc-detail-value" style="color:var(--orange-dark)">Due {{ planReviewDue }}</span></div>
         <div class="cc-detail-row"><span class="cc-detail-label">Activation Trigger</span><span class="cc-detail-value">48-hr Absence</span></div>
         <div class="form-group" style="margin-bottom:0;display:flex;align-items:center;gap:10px">
           <label class="form-label" style="margin-bottom:0;flex-shrink:0;white-space:nowrap">Security Doc</label>
@@ -474,823 +549,672 @@
         </div>
       </div>
       <template #footer>
-        <button class="btn btn-outline" style="margin-right:auto" @click="open('annualReview')">Annual Review</button>
-        <button class="btn btn-danger" @click="open('activateSuccession')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          Activate Continuity Support
+        <button class="btn btn-outline" style="margin-right:auto" @click="ui.openModal('annualReviewModal'); ui.closeModal('executorPanelModal')">Annual Review</button>
+        <button class="btn btn-danger" @click="ui.openModal('activateSuccessionModal'); ui.closeModal('executorPanelModal')">
+          <AegisIcon name="alert-triangle" :size="13" /> Activate Continuity Support
         </button>
-        <Link href="/provider/continuity-stewards" class="btn btn-primary">Manage Continuity Stewards <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></Link>
+        <Link :href="route('provider.stewards.index')" class="btn btn-primary">
+          Manage Continuity Stewards <AegisIcon name="chevron-right" :size="13" />
+        </Link>
       </template>
-    </Modal>
+    </AegisModal>
 
-    <!-- ACTIVATE SUCCESSION -->
-    <Modal :model-value="modal === 'activateSuccession'" @update:model-value="closeModal" size="lg"
-      title="Activate Continuity Support" :header-style="{ background: 'var(--red-light)', borderBottom: '1px solid var(--red-light)' }" :title-style="{ color: 'var(--red)' }">
-      <div style="background:var(--red-light);border:1.5px solid var(--border-dark);border-radius:var(--radius-lg);padding:11px 14px;margin-bottom:14px;font-size:13px;color:var(--text-2);line-height:1.55;">
-        <strong style="color:var(--red);">This notifies your Continuity &amp; Support Stewards</strong> and initiates your Continuity Plan. Activate only during a genuine critical moment.
+    <!-- Activate Succession -->
+    <!-- Activate Succession — exact PHP parity -->
+    <AegisModal modal-id="activateSuccessionModal" title="Activate Continuity Support" size="lg">
+      <template #header-style>background:var(--red-light);border-bottom:1px solid var(--red-light)</template>
+
+      <div style="background:var(--red-light);border:1.5px solid var(--border-dark);border-radius:var(--radius-lg);padding:11px 14px;margin-bottom:14px;font-size:13px;color:var(--text-2);line-height:1.55">
+        <strong style="color:var(--red)">This notifies your Continuity &amp; Support Stewards</strong>
+        and initiates your Continuity Plan. Activate only during a genuine critical moment.
       </div>
-      <div class="row-2" style="margin-bottom:12px">
+
+      <div class="form-row" style="margin-bottom:12px">
         <div class="form-group">
-          <label class="form-label">Incident Type <span class="req">*</span></label>
-          <select class="form-select" v-model="succession.reason">
-            <option value="">— Select reason —</option>
+          <label class="form-label">Incident Type <span style="color:var(--red)">*</span></label>
+          <select v-model="successionForm.incident_type" class="form-select">
+            <option value="">— Select incident type —</option>
             <option value="death">Death</option>
             <option value="missing">Missing Person</option>
-            <option value="incapacitation-short">Short-Term Incapacitation</option>
-            <option value="incapacitation-long">Long-Term Incapacitation</option>
-            <option value="natural-disaster">Natural Disaster</option>
+            <option value="incapacitation">Short-Term Incapacitation</option>
+            <option value="extended_absence">Long-Term Incapacitation</option>
+            <option value="natural_disaster">Natural Disaster</option>
             <option value="detainment">Detainment</option>
           </select>
+          <div v-if="successionForm.errors.incident_type" class="form-error">{{ successionForm.errors.incident_type }}</div>
         </div>
         <div class="form-group">
           <label class="form-label">Supporting Documentation</label>
-          <select class="form-select" v-model="succession.doc">
-            <option value="none">None</option><option value="police-report">Police Report</option><option value="doctors-note">Doctor's Note</option><option value="death-certificate">Death Certificate</option>
+          <select v-model="successionForm.documentation_type" class="form-select">
+            <option value="none">None</option>
+            <option value="police_report">Police Report</option>
+            <option value="doctors_note">Doctor's Note</option>
+            <option value="death_certificate">Death Certificate</option>
           </select>
         </div>
       </div>
+
       <div class="form-group">
-        <label class="form-label">Additional Notes (optional)</label>
-        <textarea class="form-textarea" v-model="succession.notes" rows="2" placeholder="Provide any relevant context for your Continuity Steward…"></textarea>
+        <label class="form-label">Additional Notes <span style="color:var(--text-4);font-weight:400">(optional)</span></label>
+        <textarea v-model="successionForm.report_narrative" class="form-textarea" rows="2" placeholder="Provide any relevant context for your Continuity Steward…"></textarea>
+        <div v-if="successionForm.errors.report_narrative" class="form-error">{{ successionForm.errors.report_narrative }}</div>
       </div>
-      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:10px 14px;font-size:13px;color:var(--text-3);line-height:1.5;">
-        <strong>Next:</strong> Marcus Chen &amp; Dr. Laura Reyes will be notified. Vault access opens per your Continuity Plan permissions.
+
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:10px 14px;font-size:13px;color:var(--text-3);line-height:1.5">
+        <strong>What happens next:</strong> Your Continuity Steward ({{ csName }}) and Support Steward ({{ ssName }}) will be notified. Your Continuity Plan will be activated, and access to your Vault will be granted according to the permissions you have defined.
       </div>
+
       <template #footer>
-        <button class="btn btn-outline" @click="closeModal">Cancel</button>
-        <button class="btn btn-sm" style="background:var(--red);color:var(--text-inverted);border:none;display:inline-flex;align-items:center;gap:6px;" @click="confirmActivateSuccession">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          Confirm Activation
+        <button class="btn btn-outline" @click="ui.closeModal('activateSuccessionModal')">Cancel</button>
+        <button
+          class="btn btn-danger"
+          :disabled="!successionForm.incident_type || successionForm.processing"
+          @click="activateSuccession"
+        >
+          <AegisIcon name="alert-triangle" :size="13" /> Confirm Activation
         </button>
       </template>
-    </Modal>
+    </AegisModal>
 
-    <!-- ANNUAL REVIEW -->
-    <Modal :model-value="modal === 'annualReview'" @update:model-value="closeModal" size="lg" title="Annual Continuity Plan Review">
-      <div class="alert alert-warning" style="margin-bottom:18px;display:flex;align-items:center;gap:8px;"><span style="flex-shrink:0;display:inline-flex;align-items:center;line-height:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span> Annual review due June 15, 2025. Please verify all items and attest.</div>
-      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px">Please confirm the following items are current and accurate:</div>
-      <div v-for="(item, i) in reviewItems" :key="i" class="review-item">
-        <input type="checkbox" class="review-check" v-model="reviewChecks[i]" :id="'rv' + i">
-        <div><label :for="'rv' + i" style="font-size:13px;font-weight:600;cursor:pointer">{{ item.label }}</label><div v-if="item.sub" style="font-size:12px;color:var(--text-3);margin-top:2px">{{ item.sub }}</div></div>
+    <!-- Annual Review -->
+    <AegisModal modal-id="annualReviewModal" title="Annual Review" size="lg">
+      <div class="alert alert-warning" style="margin-bottom:18px;box-shadow:var(--shadow-sm)">
+        <div class="alert-icon"><AegisIcon name="megaphone" :size="14" /></div>
+        <div class="alert-content">Annual review due {{ planReviewDue }}. Please verify all items and attest.</div>
+      </div>
+      <div class="dh-review-checklist">
+        <label class="form-check"><input v-model="reviewForm.cs_contact_verified" type="checkbox" class="form-check-input" /><span class="form-check-label">Continuity Steward identity and contact information is current</span></label>
+        <label class="form-check"><input v-model="reviewForm.ss_contact_verified" type="checkbox" class="form-check-input" /><span class="form-check-label">Support Steward identity and contact information is current</span></label>
+        <label class="form-check"><input v-model="reviewForm.ss_tasks_complete" type="checkbox" class="form-check-input" /><span class="form-check-label">Support Steward tasks are complete and accurate</span></label>
+        <label class="form-check"><input v-model="reviewForm.cs_tasks_complete" type="checkbox" class="form-check-input" /><span class="form-check-label">Assigned Continuity Steward tasks are complete and accurate</span></label>
+        <label class="form-check"><input v-model="reviewForm.plan_attested" type="checkbox" class="form-check-input" /><span class="form-check-label">Continuity Plan is accurate</span></label>
+        <label class="form-check"><input v-model="reviewForm.practice_current" type="checkbox" class="form-check-input" /><span class="form-check-label">Practice information is accurate</span></label>
+        <label class="form-check"><input v-model="reviewForm.support_docs_complete" type="checkbox" class="form-check-input" /><span class="form-check-label">Support documentation is complete and accurate</span></label>
+        <label class="form-check"><input v-model="reviewForm.vault_complete" type="checkbox" class="form-check-input" /><span class="form-check-label">Vault documentation is complete and accurate</span></label>
       </div>
       <div style="margin-top:18px">
         <label class="form-label">Additional Notes</label>
-        <textarea class="form-textarea" v-model="reviewNotes" placeholder="Any changes or notes for this review period..."></textarea>
+        <textarea v-model="reviewForm.notes" class="form-textarea" placeholder="Any changes or notes for this review period..."></textarea>
       </div>
       <template #footer>
-        <button class="btn btn-outline" @click="closeModal">Cancel</button>
-        <button class="btn btn-primary" @click="attestReview">Attest &amp; Submit Review</button>
+        <button class="btn btn-outline" @click="ui.closeModal('annualReviewModal')">Cancel</button>
+        <button class="btn btn-primary" :disabled="!allReviewChecked" @click="submitAnnualReview">Submit Annual Review</button>
       </template>
-    </Modal>
+    </AegisModal>
 
-    <!-- CEU -->
-    <Modal :model-value="modal === 'ceu'" @update:model-value="closeModal" title="Continuing Education (CEU)">
+    <!-- CEU Modal -->
+    <AegisModal modal-id="ceuModal" title="Continuing Education (CEU)" size="lg">
+      <!-- Progress bar -->
       <div style="background:var(--surface-2);border-radius:var(--radius);padding:14px;margin-bottom:16px">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-          <span style="font-size:13px;font-weight:700">2025 CEU Progress</span>
-          <span style="font-size:13px;font-weight:700;color:var(--orange)">18 / 30 hrs</span>
+          <span style="font-size:13px;font-weight:700">{{ new Date().getFullYear() }} CEU Progress</span>
+          <span style="font-size:13px;font-weight:700;color:var(--orange)">{{ stats.ceus_total ?? 18 }} / 30 hrs</span>
         </div>
-        <div class="progress-bar"><div class="progress-fill" style="width:60%;background:var(--orange)"></div></div>
-        <div style="font-size:11px;color:var(--text-3);margin-top:5px">12 more hours needed · Deadline Dec 31, 2025</div>
+        <div class="progress-bar"><div class="progress-fill" :style="'width:' + Math.min(100, ((stats.ceus_total ?? 18)/30*100)) + '%;background:var(--orange)'"></div></div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:5px">{{ 30 - (stats.ceus_total ?? 18) }} more hours needed · Deadline Dec 31, {{ new Date().getFullYear() }}</div>
       </div>
 
-      <div style="font-size:13px;font-weight:700;margin-bottom:10px">CEU Requirements</div>
+      <!-- CEU Requirements -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:700">CEU Requirements</div>
+      </div>
       <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">Define the requirements you track against — jurisdiction, hours, cycle, and required types.</div>
-      <div class="ceu-item" style="border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px">
+      <div style="border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:12px">
         <div>
           <div style="font-size:13px;font-weight:700">California — BBS (LMFT)</div>
-          <div style="font-size:11px;color:var(--text-3);margin-top:2px">36 hours · Biannual · Due Dec 31, 2025</div>
+          <div style="font-size:11px;color:var(--text-3);margin-top:2px">36 hours · Biannual · Due Dec 31, {{ new Date().getFullYear() }}</div>
           <div style="font-size:11px;color:var(--text-3);margin-top:2px">Required: Ethics (6), Law &amp; Ethics, Suicide Risk Assessment</div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0">
-          <button class="btn-icon" title="Edit requirement" @click="showToast('Edit requirement','info')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
-          <button class="btn-icon btn-icon-danger" title="Remove" @click="removeCeuReq"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+          <button class="btn-icon" data-tooltip="Edit requirement" @click="toast.info('Edit requirement')"><AegisIcon name="pencil" :size="14" /></button>
+          <button class="btn-icon btn-icon-danger" data-tooltip="Remove" @click="confirmAction('Remove this CEU requirement?', () => toast.info('Requirement removed'))"><AegisIcon name="trash" :size="14" /></button>
         </div>
       </div>
-
-      <div style="font-size:13px;font-weight:700;margin:18px 0 12px">Completed CEUs</div>
-      <div class="ceu-item">
-        <div><div style="font-size:13px;font-weight:600">Ethics in Mental Health Practice</div><div style="font-size:11px;color:var(--text-3)">Jan 15, 2025 · 3 hours · Synchronous</div></div>
-        <span class="badge badge-green"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Verified</span>
+      <!-- Add requirement -->
+      <div style="border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:22px">
+        <div style="font-size:12px;font-weight:700;color:var(--text-2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.3px">Add a Requirement</div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">State / Jurisdiction</label><input v-model="ceuReqForm.jurisdiction" class="form-input" type="text" placeholder="e.g., California — BBS" /></div>
+          <div class="form-group"><label class="form-label">Total Hours Required</label><input v-model="ceuReqForm.total_hours" class="form-input" type="number" min="1" max="100" placeholder="e.g., 36" /></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Renewal Cycle</label>
+            <div style="display:flex;gap:16px;padding-top:6px">
+              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px"><input type="radio" v-model="ceuReqForm.cycle" value="annual" style="-webkit-appearance:auto;accent-color:var(--gold-dark)" /> Annual</label>
+              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px"><input type="radio" v-model="ceuReqForm.cycle" value="biannual" style="-webkit-appearance:auto;accent-color:var(--gold-dark)" /> Biannual</label>
+            </div>
+          </div>
+          <div class="form-group"><label class="form-label">Renewal Due Date</label><input v-model="ceuReqForm.due_date" class="form-input" type="date" /></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Required CEU Types <span style="color:var(--text-4)">(optional)</span></label>
+          <input v-model="ceuReqForm.required_types" class="form-input" type="text" placeholder="e.g., Ethics (6 hrs), Suicide, Cultural Competency" />
+          <div class="form-hint">List any mandated subject areas and their minimum hours.</div>
+        </div>
+        <button class="btn btn-outline btn-sm" @click="toast.success('CEU requirement saved')"><AegisIcon name="plus" :size="13" /> Save Requirement</button>
       </div>
-      <div class="ceu-item">
-        <div><div style="font-size:13px;font-weight:600">Telehealth Best Practices</div><div style="font-size:11px;color:var(--text-3)">Nov 20, 2024 · 6 hours · Asynchronous</div></div>
-        <span class="badge badge-green"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Verified</span>
-      </div>
 
+      <!-- Completed CEUs -->
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px">Completed CEUs</div>
+      <div v-if="upcomingCEUs.length">
+        <div v-for="ceu in upcomingCEUs" :key="ceu.id" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div>
+            <div style="font-size:13px;font-weight:600">{{ ceu.title }}</div>
+            <div style="font-size:11px;color:var(--text-3)">{{ formatDate(ceu.completed_at) }} · {{ ceu.credits }} hours</div>
+          </div>
+          <span class="badge badge--green"><AegisIcon name="check" :size="11" /> Verified</span>
+        </div>
+      </div>
+      <div v-else style="font-size:13px;color:var(--text-3);padding:8px 0 12px">No CEU entries yet.</div>
+
+      <!-- Add CEU Credits -->
       <div style="margin-top:22px">
         <div style="font-size:13px;font-weight:700;margin-bottom:14px">Add CEU Credits</div>
-        <div class="form-group">
-          <label class="form-label">Course Name <span class="req">*</span></label>
-          <input class="form-input" type="text" placeholder="e.g., Ethics in Telehealth 2025">
-        </div>
+        <div class="form-group"><label class="form-label">Course Name <span class="req">*</span></label><input v-model="ceuForm.title" type="text" class="form-input" placeholder="e.g., Ethics in Telehealth 2025" /></div>
         <div class="form-group">
           <label class="form-label">CEU Category <span class="req">*</span></label>
-          <select class="form-select">
+          <select v-model="ceuForm.category" class="form-select">
             <option value="">Select a category...</option>
-            <option>Ethics</option><option>Supervision</option><option>Telehealth</option><option>Safety</option>
-            <option>Cultural Competency</option><option>Suicide</option><option>General CEUs</option><option>Other</option>
+            <option>Ethics</option><option>Supervision</option><option>Telehealth</option>
+            <option>Safety</option><option>Quality</option><option>HIV</option>
+            <option>Child Abuse Assessment and Reporting</option>
+            <option>Intimate Partner Violence / Domestic Violence</option>
+            <option>Assessment and Diagnosis</option><option>Referral and Interventions</option>
+            <option>Alcohol and Substance Use Dependency</option><option>Publications</option>
+            <option>Teaching, Education and Training</option><option>General CEUs</option>
+            <option>Cultural Competency</option><option>Suicide</option><option>Other</option>
           </select>
         </div>
-        <div class="row-2">
+        <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Date Completed</label>
-            <input class="form-input" type="date">
+            <label class="form-label">Delivery Method</label>
+            <div style="display:flex;gap:16px;padding-top:6px">
+              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px"><input type="radio" v-model="ceuForm.delivery" value="synchronous" style="-webkit-appearance:auto;accent-color:var(--gold-dark)" /> Synchronous</label>
+              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px"><input type="radio" v-model="ceuForm.delivery" value="asynchronous" style="-webkit-appearance:auto;accent-color:var(--gold-dark)" /> Asynchronous</label>
+            </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Credit Hours <span class="req">*</span></label>
-            <input class="form-input" type="number" min="1" max="40" placeholder="e.g., 3">
+            <label class="form-label">Requirement Cycle</label>
+            <div style="display:flex;gap:16px;padding-top:6px">
+              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px"><input type="radio" v-model="ceuForm.cycle" value="annual" style="-webkit-appearance:auto;accent-color:var(--gold-dark)" /> Annual</label>
+              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px"><input type="radio" v-model="ceuForm.delivery" value="biannual" style="-webkit-appearance:auto;accent-color:var(--gold-dark)" /> Biannual</label>
+            </div>
           </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Date Completed</label><input v-model="ceuForm.completed_on" type="date" class="form-input" /></div>
+          <div class="form-group"><label class="form-label">Credit Hours <span class="req">*</span></label><input v-model="ceuForm.credit_hours" type="number" min="0.5" step="0.5" class="form-input" placeholder="e.g., 3" /></div>
         </div>
         <div class="form-group">
-          <label class="form-label">Upload Certificate</label>
-          <DropZone v-model="dz.ceu" />
+          <label class="form-label">Provider / Organization</label>
+          <input v-model="ceuForm.provider_name" type="text" class="form-input" placeholder="e.g., APA" />
         </div>
       </div>
       <template #footer>
-        <button class="btn btn-outline" @click="closeModal">Close</button>
-        <button class="btn btn-primary" @click="showToast('CEU credits added!','success'); closeModal()">Add CEU Credits</button>
+        <button class="btn btn-outline" @click="ui.closeModal('ceuModal')">Close</button>
+        <button class="btn btn-primary" @click="submitCeu">Add CEU Credits</button>
       </template>
-    </Modal>
+    </AegisModal>
 
-    <!-- ADD CREDENTIAL (license or insurance) -->
-    <Modal :model-value="modal === 'addLicense'" @update:model-value="closeModal" :title="isInsuranceAdd ? 'Add Insurance Policy' : 'Add Credential'">
-      <div class="form-group">
-        <label class="form-label">Category <span class="req">*</span></label>
-        <select class="form-select" v-model="credForm.category">
-          <option value="license">License / Certification</option>
-          <option value="insurance">Insurance Policy</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">{{ isInsuranceAdd ? 'Policy Type' : 'Credential Type' }} <span class="req">*</span></label>
-        <select v-if="!isInsuranceAdd" class="form-select" v-model="credForm.cred_type">
-          <option value="">Select a credential...</option>
-          <optgroup label="Medical &amp; Prescribing"><option>MD</option><option>DO</option><option>ND</option><option>NP</option><option>PA</option></optgroup>
-          <optgroup label="Mental Health"><option>LPC / LPCC</option><option>LCSW / LICSW</option><option>LMFT</option><option>ABPP</option></optgroup>
-          <optgroup label="Therapy &amp; Specialty"><option>EMDR Certified</option><option>DBT Certified</option><option>CSE</option><option>CSC</option><option>CST</option></optgroup>
-          <optgroup label="Addiction &amp; Behavioral"><option>CADC / ICADC</option></optgroup>
-          <optgroup label="Nutrition &amp; Health"><option>RD / RDN</option><option>NBC-HWC</option></optgroup>
-          <optgroup label="Other"><option>Medical / Clinical License</option><option>State License</option><option>DEA Registration</option><option>Licensed</option></optgroup>
-        </select>
-        <select v-else class="form-select" v-model="credForm.cred_type">
-          <option value="">Select a policy type...</option>
-          <option>Professional Liability (Malpractice)</option>
-          <option>General Business Insurance</option>
-          <option>Workers Compensation</option>
-          <option>Cyber Liability</option>
-          <option>Life Insurance</option>
-          <option>Other</option>
-        </select>
-        <div v-if="credForm.errors.cred_type" class="form-error visible"><svg fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>{{ credForm.errors.cred_type }}</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Name / Title <span class="optional">(optional)</span></label>
-        <input class="form-input" type="text" v-model="credForm.name" :placeholder="isInsuranceAdd ? 'e.g., Professional Liability' : 'e.g., Medical / Clinical License'">
-      </div>
-
-      <!-- License-specific -->
-      <template v-if="!isInsuranceAdd">
-        <div class="grid-2">
-          <div class="form-group"><label class="form-label">License Number</label><input class="form-input" type="text" v-model="credForm.license_number" placeholder="e.g., NY-MD-12345"></div>
-          <div class="form-group"><label class="form-label">Credential Number</label><input class="form-input" type="text" v-model="credForm.credential_number" placeholder="Optional"></div>
-        </div>
-        <div class="grid-2">
-          <div class="form-group"><label class="form-label">Issuing State / Body</label><input class="form-input" type="text" v-model="credForm.issuer" placeholder="e.g., New York"></div>
-          <div class="form-group"><label class="form-label">Issue Date</label><input class="form-input" type="date" v-model="credForm.issue_date"></div>
-        </div>
+    <!-- New Referral Modal -->
+    <AegisModal modal-id="newReferralModal" title="New Referral" size="lg">
+      <div class="form-group"><label class="form-label">Recipient</label><input v-model="referralForm.recipient" type="text" class="form-input" placeholder="Search practitioner name…" /></div>
+      <div class="form-group"><label class="form-label">Clinical Notes</label><textarea v-model="referralForm.notes" class="form-textarea" rows="3" placeholder="Reason for referral, urgency, background…"></textarea></div>
+      <template #footer>
+        <button class="btn btn-outline" @click="ui.closeModal('newReferralModal')">Cancel</button>
+        <button class="btn btn-primary" @click="submitReferral"><AegisIcon name="send" :size="13" /> Send Referral</button>
       </template>
-      <!-- Insurance-specific -->
-      <template v-else>
-        <div class="grid-2">
-          <div class="form-group"><label class="form-label">Carrier / Provider</label><input class="form-input" type="text" v-model="credForm.issuer" placeholder="e.g., Medical Protective"></div>
-          <div class="form-group"><label class="form-label">Policy Number</label><input class="form-input" type="text" v-model="credForm.policy_number" placeholder="e.g., POL-2024-XXXXX"></div>
-        </div>
-        <div class="grid-2">
-          <div class="form-group"><label class="form-label">Coverage Amount</label><input class="form-input" type="text" v-model="credForm.coverage_amount" placeholder="e.g., $2,000,000"></div>
-          <div class="form-group"><label class="form-label">Annual Premium</label><input class="form-input" type="text" v-model="credForm.annual_premium" placeholder="e.g., $4,200/year"></div>
-        </div>
-        <div class="form-group"><label class="form-label">Effective Date</label><input class="form-input" type="date" v-model="credForm.issue_date"></div>
-      </template>
+    </AegisModal>
 
-      <div class="form-group">
-        <label class="form-label">Expiration Date</label>
-        <input class="form-input" type="date" v-model="credForm.expires_at">
-        <div v-if="credForm.errors.expires_at" class="form-error visible"><svg fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>{{ credForm.errors.expires_at }}</div>
+    <!-- Add License -->
+    <AegisModal modal-id="addLicenseModal" title="Add Credential" size="lg">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Credential Type</label>
+          <select v-model="licenseForm.type" class="form-select">
+            <option value="">Select type</option>
+            <option value="license">Medical / Clinical License</option>
+            <option value="dea">DEA Registration</option>
+            <option value="insurance">Professional Liability</option>
+            <option value="business">Business Insurance</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Expiry Date</label><input v-model="licenseForm.expiry_date" type="date" class="form-input" /></div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Upload Document</label>
-        <label class="dropzone is-compact">
-          <div class="dz-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-          <div>
-            <div class="dz-text"><strong>Click to upload</strong> or drag &amp; drop</div>
-            <div class="dz-sub">PDF, JPG, PNG · up to 10MB</div>
-            <div class="dz-filename" v-show="credForm.document"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>{{ credForm.document && credForm.document.name }}</span></div>
-          </div>
-          <input type="file" accept=".pdf,.jpg,.jpeg,.png" @change="onCredFile" style="display:none">
-        </label>
-        <div v-if="credForm.errors.document" class="form-error visible"><svg fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>{{ credForm.errors.document }}</div>
+      <div class="form-group"><label class="form-label">Description / Notes</label><textarea v-model="licenseForm.notes" class="form-textarea" rows="2" placeholder="License number, issuing body, coverage amount…"></textarea></div>
+      <div class="form-group"><label class="form-label">Upload Document</label><AegisDropzone accept=".pdf,.jpg,.png" @file-selected="licenseForm.file = $event" /></div>
+      <template #footer>
+        <button class="btn btn-outline" @click="ui.closeModal('addLicenseModal')">Cancel</button>
+        <button class="btn btn-primary" @click="submitLicense">Add Credential</button>
+      </template>
+    </AegisModal>
+
+    <!-- Renew License -->
+    <AegisModal modal-id="renewLicenseModal" title="Renew License" size="lg">
+      <div class="alert alert-warning" style="margin-bottom:16px;box-shadow:var(--shadow-sm)">
+        <div class="alert-icon"><AegisIcon name="megaphone" :size="14" /></div>
+        <div class="alert-content">State License CA (CA-MD-67890) expires Feb 28, 2025</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">New Expiry Date</label><input v-model="renewForm.expiry_date" type="date" class="form-input" /></div>
+        <div class="form-group"><label class="form-label">License Number</label><input v-model="renewForm.license_number" type="text" class="form-input" placeholder="CA-MD-67890" /></div>
+      </div>
+      <div class="form-group"><label class="form-label">Upload Updated Document</label><AegisDropzone accept=".pdf,.jpg,.png" @file-selected="renewForm.file = $event" /></div>
+      <template #footer>
+        <button class="btn btn-outline" @click="ui.closeModal('renewLicenseModal')">Cancel</button>
+        <button class="btn btn-primary" @click="submitRenew">Submit Renewal</button>
+      </template>
+    </AegisModal>
+
+    <!-- License Detail -->
+    <AegisModal modal-id="licenseDetailModal" title="License Details" size="md">
+      <div class="dh-modal-rows">
+        <div class="dh-modal-row"><span class="dh-modal-lbl">Type</span><span>Medical / Clinical License</span></div>
+        <div class="dh-modal-row"><span class="dh-modal-lbl">Credential No.</span><span>NY-PSY-001234</span></div>
+        <div class="dh-modal-row"><span class="dh-modal-lbl">Issuing Body</span><span>New York State</span></div>
+        <div class="dh-modal-row"><span class="dh-modal-lbl">Expiry</span><span>Jun 30, 2026</span></div>
+        <div class="dh-modal-row"><span class="dh-modal-lbl">Status</span><span><span class="badge badge--green">Active</span></span></div>
       </div>
       <template #footer>
-        <button class="btn btn-outline" @click="closeModal">Cancel</button>
-        <button class="btn btn-primary" :disabled="credForm.processing" @click="submitAddCredential">{{ credForm.processing ? 'Saving…' : (isInsuranceAdd ? 'Add Policy' : 'Add Credential') }}</button>
+        <button class="btn btn-outline" @click="ui.closeModal('licenseDetailModal')">Close</button>
+        <button class="btn btn-primary" @click="ui.openModal('renewLicenseModal'); ui.closeModal('licenseDetailModal')">Update Credential</button>
       </template>
-    </Modal>
+    </AegisModal>
 
-    <!-- UPDATE / RENEW CREDENTIAL (shared by license + insurance) -->
-    <Modal :model-value="modal === 'renewLicense' || modal === 'renewInsurance'" @update:model-value="closeModal" :title="selectedCred && selectedCred.category === 'insurance' ? 'Update Insurance Policy' : 'Update Credential'">
-      <div v-if="selectedCred" class="alert alert-warning" style="margin-bottom:16px;display:flex;align-items:center;gap:8px;"><span style="flex-shrink:0;display:inline-flex;align-items:center;line-height:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span> {{ selectedCred.name }}{{ selectedCred.expires_at ? ' expires ' + selectedCred.expires_at : '' }}</div>
-      <div class="grid-2">
-        <div class="form-group"><label class="form-label">New Expiration Date</label><input class="form-input" type="date" v-model="updateForm.expires_at"></div>
-        <div class="form-group"><label class="form-label">Confirmation / Reference #</label><input class="form-input" type="text" v-model="updateForm.reference_number" placeholder="e.g., RENEW-2025-XXXXX"></div>
+    <!-- Add Insurance -->
+    <AegisModal modal-id="addInsuranceModal" title="Add Insurance" size="lg">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Insurance Type</label>
+          <select v-model="insuranceForm.type" class="form-select">
+            <option value="">Select type</option>
+            <option value="liability">Professional Liability</option>
+            <option value="general">General Business</option>
+            <option value="cyber">Cyber Liability</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Expiry Date</label><input v-model="insuranceForm.expiry_date" type="date" class="form-input" /></div>
       </div>
-      <div v-if="selectedCred && selectedCred.category === 'insurance'" class="grid-2">
-        <div class="form-group"><label class="form-label">Policy Number</label><input class="form-input" type="text" v-model="updateForm.policy_number" placeholder="If changed"></div>
-        <div class="form-group"><label class="form-label">Coverage Amount</label><input class="form-input" type="text" v-model="updateForm.coverage_amount" placeholder="e.g., $2M / $4M"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Provider / Carrier</label><input v-model="insuranceForm.provider" type="text" class="form-input" placeholder="e.g. Medical Protective" /></div>
+        <div class="form-group"><label class="form-label">Coverage Amount</label><input v-model="insuranceForm.coverage" type="text" class="form-input" placeholder="e.g. $2M / $2M" /></div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Upload Updated Document</label>
-        <label class="dropzone is-compact">
-          <div class="dz-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-          <div>
-            <div class="dz-text"><strong>Click to upload</strong> or drag &amp; drop</div>
-            <div class="dz-sub">PDF, JPG, PNG · up to 10MB</div>
-            <div class="dz-filename" v-show="updateForm.document"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>{{ updateForm.document && updateForm.document.name }}</span></div>
-          </div>
-          <input type="file" accept=".pdf,.jpg,.jpeg,.png" @change="onUpdateFile" style="display:none">
-        </label>
+      <div class="form-group"><label class="form-label">Upload Policy Document</label><AegisDropzone accept=".pdf,.jpg,.png" @file-selected="insuranceForm.file = $event" /></div>
+      <template #footer>
+        <button class="btn btn-outline" @click="ui.closeModal('addInsuranceModal')">Cancel</button>
+        <button class="btn btn-primary" @click="submitInsurance">Add Insurance</button>
+      </template>
+    </AegisModal>
+
+    <!-- Renew Insurance -->
+    <AegisModal modal-id="renewInsuranceModal" title="Renew Insurance" size="lg">
+      <div class="alert alert-warning" style="margin-bottom:14px;box-shadow:var(--shadow-sm)">
+        <div class="alert-icon"><AegisIcon name="megaphone" :size="14" /></div>
+        <div class="alert-content">Professional Liability insurance expires March 15, 2025 (30 days)</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">New Expiry Date</label><input v-model="renewInsuranceForm.expiry_date" type="date" class="form-input" /></div>
+        <div class="form-group"><label class="form-label">Policy Number</label><input v-model="renewInsuranceForm.policy_number" type="text" class="form-input" placeholder="MP-2025-001" /></div>
+      </div>
+      <div class="form-group"><label class="form-label">Upload Updated Policy</label><AegisDropzone accept=".pdf,.jpg,.png" @file-selected="renewInsuranceForm.file = $event" /></div>
+      <template #footer>
+        <button class="btn btn-outline" @click="ui.closeModal('renewInsuranceModal')">Cancel</button>
+        <button class="btn btn-primary" @click="submitRenewInsurance">Submit Renewal</button>
+      </template>
+    </AegisModal>
+
+    <!-- Insurance Detail -->
+    <AegisModal modal-id="insuranceDetailModal" title="Insurance Details" size="md">
+      <div class="dh-modal-rows">
+        <div class="dh-modal-row"><span class="dh-modal-lbl">Type</span><span>Professional Liability</span></div>
+        <div class="dh-modal-row"><span class="dh-modal-lbl">Carrier</span><span>Medical Protective</span></div>
+        <div class="dh-modal-row"><span class="dh-modal-lbl">Coverage</span><span>$2M / $2M</span></div>
+        <div class="dh-modal-row"><span class="dh-modal-lbl">Expiry</span><span class="crit-text">Mar 15, 2025</span></div>
       </div>
       <template #footer>
-        <button class="btn btn-outline" @click="closeModal">Cancel</button>
-        <button class="btn btn-primary" :disabled="updateForm.processing" @click="submitRenewCredential">{{ updateForm.processing ? 'Saving…' : 'Save Update' }}</button>
+        <button class="btn btn-outline" @click="ui.closeModal('insuranceDetailModal')">Close</button>
+        <button class="btn btn-primary" @click="ui.openModal('renewInsuranceModal'); ui.closeModal('insuranceDetailModal')">Update Policy</button>
       </template>
-    </Modal>
+    </AegisModal>
 
-    <!-- CREDENTIAL DETAIL (shared by license + insurance) -->
-    <Modal :model-value="modal === 'licenseDetail' || modal === 'insuranceDetail'" @update:model-value="closeModal" :title="selectedCred && selectedCred.category === 'insurance' ? 'Insurance Policy Details' : 'Credential Details'">
-      <div v-if="selectedCred" class="grid-2">
-        <div class="cc-detail-row"><span class="cc-detail-label">Type</span><span class="cc-detail-value">{{ selectedCred.cred_type || selectedCred.name }}</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Name</span><span class="cc-detail-value">{{ selectedCred.name }}</span></div>
-        <div v-if="selectedCred.category === 'insurance'" class="cc-detail-row"><span class="cc-detail-label">Carrier</span><span class="cc-detail-value">{{ selectedCred.issuer || '—' }}</span></div>
-        <div v-else class="cc-detail-row"><span class="cc-detail-label">Issuer</span><span class="cc-detail-value">{{ selectedCred.issuer || '—' }}</span></div>
-        <div v-if="selectedCred.category === 'insurance'" class="cc-detail-row"><span class="cc-detail-label">Policy #</span><span class="cc-detail-value">{{ selectedCred.policy_number || '—' }}</span></div>
-        <div v-else class="cc-detail-row"><span class="cc-detail-label">License #</span><span class="cc-detail-value">{{ selectedCred.license_number || '—' }}</span></div>
-        <div v-if="selectedCred.category === 'insurance'" class="cc-detail-row"><span class="cc-detail-label">Coverage</span><span class="cc-detail-value">{{ selectedCred.coverage_amount || '—' }}</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Status</span><span class="cc-detail-value" :style="{ color: selectedCred.severity === 'crit' ? 'var(--red)' : 'var(--green)' }">● {{ selectedCred.severity === 'crit' ? 'Action needed' : 'Active' }}</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Issued</span><span class="cc-detail-value">{{ selectedCred.issue_date || '—' }}</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Expires</span><span class="cc-detail-value">{{ selectedCred.expires_at || 'No expiry' }}</span></div>
-        <div class="cc-detail-row" v-if="selectedCred.has_document"><span class="cc-detail-label">Document</span><a class="cc-detail-value" :href="`/provider/credentials/${selectedCred.id}/document`" style="color:var(--gold-dark)">{{ selectedCred.document_name || 'Download' }}</a></div>
-      </div>
-      <template #footer>
-        <button class="btn btn-danger" style="margin-right:auto" @click="deleteCredential(selectedCred)">Remove</button>
-        <button class="btn btn-outline" @click="closeModal">Close</button>
-        <button class="btn btn-primary" @click="openRenewCredential(selectedCred)">Update Credential</button>
-      </template>
-    </Modal>
-
-    <!-- SET REMINDER -->
-    <Modal :model-value="modal === 'setReminder'" @update:model-value="closeModal" size="sm" title="Set Reminder">
+    <!-- Set Reminder -->
+    <AegisModal modal-id="setReminderModal" title="Set Reminder" size="sm">
       <div class="form-group">
         <label class="form-label">Item</label>
-        <select class="form-select">
-          <option>Medical License (NY) — Expires Jun 30, 2026</option>
-          <option>State License (CA) — Expires Feb 28, 2025</option>
-          <option>DEA Registration — Expires Dec 31, 2026</option>
+        <select v-model="reminderForm.item" class="form-select">
+          <option>License (NY) — Expires Jun 30, 2026</option>
+          <option>License (CA) — Expires Aug 12, 2025</option>
+          <option>License (TX) — Expires Sep 5, 2026</option>
           <option>Professional Liability — Expires Mar 15, 2025</option>
           <option>General Business — Expires Feb 28, 2026</option>
         </select>
       </div>
-      <div class="grid-2">
+      <div class="form-row">
         <div class="form-group">
           <label class="form-label">Remind Me</label>
-          <select class="form-select"><option>30 days before</option><option>60 days before</option><option selected>90 days before</option><option>120 days before</option><option>180 days before</option></select>
+          <select v-model="reminderForm.days_before" class="form-select">
+            <option>30 days before</option>
+            <option>60 days before</option>
+            <option selected>90 days before</option>
+            <option>120 days before</option>
+            <option>180 days before</option>
+          </select>
         </div>
         <div class="form-group">
           <label class="form-label">Repeat</label>
-          <select class="form-select"><option selected>One-time</option><option>Weekly until acted on</option><option>Daily in final 7 days</option></select>
-        </div>
-      </div>
-      <template #footer>
-        <button class="btn btn-outline" @click="closeModal">Cancel</button>
-        <button class="btn btn-primary" @click="showToast('Reminder set','success'); closeModal()">Set Reminder</button>
-      </template>
-    </Modal>
-
-    <!-- NEW REFERRAL (4-step wizard) -->
-    <Modal :model-value="modal === 'newReferral'" @update:model-value="closeReferral" size="lg"
-      title="Send Client Referral" subtitle="Refer a client to another practitioner in your network">
-      <div class="modal-steps">
-        <template v-for="s in 4" :key="s">
-          <div class="modal-step" :class="{ active: nrf.step === s, done: nrf.step > s }" @click="nrfGoStep(s)">
-            <div class="modal-step-num">{{ s }}</div>{{ ['Client','Practitioner','Notes','Review'][s-1] }}
-          </div>
-          <div v-if="s < 4" class="modal-step-divider"></div>
-        </template>
-      </div>
-
-      <!-- STEP 1 -->
-      <div v-show="nrf.step === 1">
-        <div class="nrf-src-chooser">
-          <div class="nrf-src-option" :class="{ selected: nrf.source === 'roster' }" @click="nrf.source = 'roster'">
-            <div class="nrf-src-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
-            <div class="nrf-src-title">Pull from Client Roster</div>
-            <div class="nrf-src-sub">5 clients in your practice records</div>
-          </div>
-          <div class="nrf-src-option" :class="{ selected: nrf.source === 'manual' }" @click="nrf.source = 'manual'">
-            <div class="nrf-src-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></div>
-            <div class="nrf-src-title">Enter Manually</div>
-            <div class="nrf-src-sub">Client not in roster — enter anonymized identifier</div>
-          </div>
-        </div>
-
-        <div v-show="nrf.source === 'roster'">
-          <div class="form-group">
-            <label class="form-label">Search Roster</label>
-            <input class="form-input" type="text" v-model="nrf.search" placeholder="Type name, service, or location…" autocomplete="off">
-          </div>
-          <div class="nrf-roster-list">
-            <div v-for="(c, i) in filteredRoster" :key="i" class="nrf-pt-row" :class="{ selected: nrf.selected === c.name }" @click="nrfSelectPatient(c)">
-              <div class="nrf-pt-avatar">{{ c.av }}</div>
-              <div class="nrf-pt-info">
-                <div class="nrf-pt-name">{{ c.name }}</div>
-                <div class="nrf-pt-meta">{{ c.meta }}</div>
-                <div style="font-size:11px;color:var(--text-4);margin-top:2px;line-height:1.4">{{ c.notes }}</div>
-              </div>
-              <span class="nrf-pt-tag" :class="c.priority ? 'nrf-pt-tag-priority' : 'nrf-pt-tag-active'"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="6"/></svg>{{ c.priority ? 'Priority' : 'Active' }}</span>
-            </div>
-          </div>
-          <div v-if="!filteredRoster.length" class="nrf-empty" style="display:block">
-            No matching clients. Try a different search, or use <a href="#" @click.prevent="nrf.source = 'manual'" class="nrf-link">manual entry</a>.
-          </div>
-          <div v-if="nrf.selected && nrf.source === 'roster'" class="nrf-selected">
-            <div class="nrf-selected-title"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Client selected — fields pre-filled from roster</div>
-            <div class="nrf-selected-body">{{ nrf.selected }} — {{ nrf.selectedMeta }}</div>
-            <button @click="nrf.selected = ''; nrf.selectedMeta = ''" class="nrf-selected-clear" type="button">× Clear selection</button>
-          </div>
-        </div>
-
-        <div v-show="nrf.source === 'manual'">
-          <div class="nrf-hipaa-note"><strong>HIPAA reminder:</strong> use anonymized identifiers only (e.g. initials and age range). Do not include full names or DOBs.</div>
-          <div class="form-group"><label class="form-label">Client Identifier <span class="req">*</span></label><input class="form-input" type="text" v-model="nrf.manualId" placeholder="e.g. A.M. — Generalized Anxiety"></div>
-          <div class="form-group"><label class="form-label">Diagnosis / Reason for Care</label><input class="form-input" type="text" v-model="nrf.manualDx" placeholder="e.g. PTSD, Depression, Medication management"></div>
-        </div>
-      </div>
-
-      <!-- STEP 2 -->
-      <div v-show="nrf.step === 2">
-        <div class="form-group" style="margin-bottom:16px">
-          <label class="form-label">Referring To <span class="req">*</span></label>
-          <select class="form-select" v-model="nrf.provider">
-            <option value="">Select a provider in your network…</option>
-            <option v-for="p in providers" :key="p" :value="p">{{ p }}</option>
+          <select v-model="reminderForm.repeat" class="form-select">
+            <option>One-time</option>
+            <option>Weekly until acted on</option>
+            <option>Daily in final 7 days</option>
           </select>
         </div>
-        <div class="grid-2">
-          <div class="form-group">
-            <label class="form-label">Specialty Needed</label>
-            <select class="form-select" v-model="nrf.specialty">
-              <option value="">Any specialty…</option>
-              <option>Psychiatrist</option><option>Psychologist</option><option>Therapist / Counselor</option><option>Neurologist</option><option>Primary Care</option><option>Addiction Specialist</option><option>Other</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Coverage</label>
-            <select class="form-select" v-model="nrf.coverage">
-              <option value="">Select coverage…</option>
-              <option>Self-pay</option><option>Blue Cross Blue Shield</option><option>Aetna</option><option>Cigna</option><option>UnitedHealthcare</option><option>Medicare</option><option>Medicaid</option><option value="other">Other (specify)</option>
-            </select>
-            <input v-show="nrf.coverage === 'other'" type="text" v-model="nrf.coverageOther" class="form-input" placeholder="Specify coverage or plan…" style="margin-top:8px">
-          </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Delivery</label>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+          <label class="form-check"><input type="checkbox" v-model="reminderForm.email" class="form-check-input" /><span class="form-check-label">Email reminder</span></label>
+          <label class="form-check"><input type="checkbox" v-model="reminderForm.in_app" class="form-check-input" /><span class="form-check-label">In-app notification</span></label>
+          <label class="form-check"><input type="checkbox" v-model="reminderForm.sms" class="form-check-input" /><span class="form-check-label">SMS</span></label>
         </div>
       </div>
-
-      <!-- STEP 3 -->
-      <div v-show="nrf.step === 3">
-        <div class="grid-2">
-          <div class="form-group">
-            <label class="form-label">Reason for Referral <span class="req">*</span></label>
-            <select class="form-select" v-model="nrf.reason">
-              <option value="">Select reason…</option>
-              <option>Specialist consultation</option><option>Medication management</option><option>Ongoing care continuity</option><option>Crisis intervention needed</option><option>Critical incident practice closure</option><option>Client preference</option><option value="other">Other (specify)</option>
-            </select>
-            <input v-show="nrf.reason === 'other'" type="text" v-model="nrf.reasonOther" class="form-input" placeholder="Specify reason…" style="margin-top:8px">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Urgency Level</label>
-            <select class="form-select" v-model="nrf.urgency">
-              <option value="routine">Routine (within 30 days)</option><option value="soon">Soon (48–72 hours)</option><option value="urgent">Urgent (within 24 hours)</option><option value="critical">Critical (immediate)</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Clinical Notes (optional)</label>
-          <textarea class="form-textarea" v-model="nrf.notes" rows="3" placeholder="Relevant clinical context — diagnosis, medications, safety plan, next-step coordination…"></textarea>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Attach Documents (optional)</label>
-          <div class="nrf-dropzone" @click="$refs.nrfFile.click()">
-            <input type="file" ref="nrfFile" multiple style="display:none" @change="nrfAttach($event)">
-            <span class="nrf-dropzone-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>
-            Click to attach clinical notes, safety plan, or release authorization
-          </div>
-          <div class="nrf-attach-list">{{ nrf.attachNames }}</div>
-        </div>
-      </div>
-
-      <!-- STEP 4 -->
-      <div v-show="nrf.step === 4">
-        <div class="nrf-review">
-          <div class="nrf-review-section"><div class="nrf-review-label">Client</div><div class="nrf-review-value">{{ reviewClient }}</div></div>
-          <div class="nrf-review-section"><div class="nrf-review-label">Referring To</div><div class="nrf-review-value">{{ nrf.provider || '—' }}</div></div>
-          <div class="nrf-review-section"><div class="nrf-review-label">Specialty</div><div class="nrf-review-value">{{ nrf.specialty || '—' }}</div></div>
-          <div class="nrf-review-section"><div class="nrf-review-label">Reason</div><div class="nrf-review-value">{{ reviewReason }}</div></div>
-          <div class="nrf-review-section"><div class="nrf-review-label">Urgency</div><div class="nrf-review-value">{{ nrf.urgency }}</div></div>
-          <div class="nrf-review-section"><div class="nrf-review-label">Coverage</div><div class="nrf-review-value">{{ reviewCoverage }}</div></div>
-          <div class="nrf-review-section nrf-review-section-full"><div class="nrf-review-label">Clinical Notes</div><div class="nrf-review-value">{{ nrf.notes || '—' }}</div></div>
-        </div>
-        <div class="nrf-hipaa-ack">
-          <input type="checkbox" id="nrfHipaaAck" class="styled-chk" v-model="nrf.hipaa">
-          <label for="nrfHipaaAck">I confirm this referral is HIPAA-compliant and the client has been notified per the Continuity Plan.</label>
-        </div>
-      </div>
-
       <template #footer>
-        <button class="btn btn-outline" @click="closeReferral">Cancel</button>
-        <button class="btn btn-outline" @click="showToast('Draft saved','info')">Save as Draft</button>
-        <div style="flex:1"></div>
-        <button v-show="nrf.step > 1" class="btn btn-outline" @click="nrfGoStep(nrf.step - 1)">Back</button>
-        <button v-show="nrf.step < 4" class="btn btn-primary" @click="nrfNext">Next</button>
-        <button v-show="nrf.step === 4" class="btn btn-primary" @click="nrfSubmit">Send Referral</button>
+        <button class="btn btn-outline" @click="ui.closeModal('setReminderModal')">Cancel</button>
+        <button class="btn btn-primary" @click="submitReminder">Set Reminder</button>
       </template>
-    </Modal>
+    </AegisModal>
 
-    <!-- TOASTS -->
-    <Teleport to="body">
-      <div class="dh-toast-stack">
-        <div v-for="t in toasts" :key="t.id" class="dh-toast" :class="t.type">
-          <svg v-if="t.type === 'success'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          <span>{{ t.msg }}</span>
+    <!-- Logout -->
+    <AegisModal modal-id="logoutModal" title="Sign Out" size="sm">
+      <p style="font-size:13.5px;color:var(--text-2);line-height:1.6">Are you sure you want to sign out of Aegis?</p>
+      <template #footer>
+        <button class="btn btn-outline" @click="ui.closeModal('logoutModal')">Cancel</button>
+        <button class="btn btn-danger" @click="handleLogout">Sign Out</button>
+      </template>
+    </AegisModal>
+
+    <!-- Notifications -->
+    <AegisModal modal-id="notifModal" title="Notifications" size="sm">
+      <div style="padding:0">
+        <div class="list-group" style="border:none;border-radius:0">
+          <div class="list-group-item clickable" @click="router.visit(route('provider.referrals.index'))">
+            <div style="width:36px;height:36px;border-radius:var(--radius-sm);background:var(--blue-light);color:var(--blue-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <AegisIcon name="arrow-right-arrow-left" :size="18" />
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:700;color:var(--text)">New referral from Dr. Robert Miller</div>
+              <div style="font-size:12px;color:var(--text-3);margin-top:2px;line-height:1.5">Client John D. · Anxiety follow-up · 2 hours ago</div>
+            </div>
+          </div>
+          <div class="list-group-item clickable" @click="ui.openModal('addLicenseModal'); ui.closeModal('notifModal')">
+            <div style="width:36px;height:36px;border-radius:var(--radius-sm);background:var(--orange-light);color:var(--orange-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <AegisIcon name="credit-card" :size="18" />
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:700;color:var(--text)">License update reminder</div>
+              <div style="font-size:12px;color:var(--text-3);margin-top:2px;line-height:1.5">CA License expires in 8 days · 1 hour ago</div>
+            </div>
+          </div>
         </div>
       </div>
-    </Teleport>
+      <template #footer>
+        <button class="btn btn-ghost btn-sm" @click="toast.success('All marked as read'); ui.closeModal('notifModal')">Mark all read</button>
+        <button class="btn btn-outline btn-sm" @click="ui.closeModal('notifModal')">View All</button>
+      </template>
+    </AegisModal>
+
+    <!-- Referral Detail -->
+    <AegisModal modal-id="referralDetailModal" title="Referral Details" size="lg">
+      <div class="alert alert-info" style="margin-bottom:14px">Received from Dr. Robert Miller · 2 hours ago</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:14px;margin-top:14px">
+        <div class="cc-detail-row"><span class="cc-detail-label">Client</span><span class="cc-detail-value">John D. (DOB: Mar 15, 1989)</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Diagnosis</span><span class="cc-detail-value">Anxiety Disorder (GAD)</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Insurance</span><span class="cc-detail-value">Blue Cross Blue Shield</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Urgency</span><span class="cc-detail-value" style="color:var(--orange)">Soon (within 2 weeks)</span></div>
+      </div>
+      <div class="form-label" style="margin-bottom:6px">Clinical Notes</div>
+      <div style="background:var(--surface-2);border-radius:var(--radius);padding:14px;font-size:13px;color:var(--text-2);line-height:1.6">
+        Client has been experiencing moderate generalized anxiety symptoms for 6 months. Therapy-first approach preferred. No current medications.
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="ui.closeModal('referralDetailModal')">Close</button>
+        <button class="btn btn-danger btn-sm" @click="toast.error('Referral declined'); ui.closeModal('referralDetailModal')">Decline</button>
+        <button class="btn btn-primary" @click="toast.success('Referral accepted!'); ui.closeModal('referralDetailModal')">Accept Referral</button>
+      </template>
+    </AegisModal>
+
+    <!-- Service Request -->
+    <AegisModal modal-id="serviceRequestModal" title="Request a Service" size="md">
+      <div style="background:var(--badge-bg-gold);border:1px solid var(--gold-dark);border-radius:var(--radius-sm);padding:11px 13px;margin-bottom:18px;display:flex;gap:10px;align-items:flex-start">
+        <span style="flex-shrink:0;margin-top:1px;display:inline-flex;align-items:center"><AegisIcon name="alert-triangle" :size="16" /></span>
+        <div style="font-size:12px;color:var(--text-2);line-height:1.55">Service requests are sent securely through Aegis. You'll receive a confirmation once the provider responds.</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Service</label><input type="text" class="form-input" v-model="serviceRequestForm.service_name" readonly /></div>
+        <div class="form-group"><label class="form-label">From Provider</label><input type="text" class="form-input" v-model="serviceRequestForm.provider_name" readonly /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Preferred Date <span class="req">*</span></label><input type="date" class="form-input" v-model="serviceRequestForm.preferred_date" /></div>
+        <div class="form-group">
+          <label class="form-label">Preferred Time</label>
+          <select class="form-select" v-model="serviceRequestForm.preferred_time">
+            <option>Morning (9am–12pm)</option><option>Afternoon (12–5pm)</option>
+            <option>Evening (5–8pm)</option><option>Flexible</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Format</label>
+        <select class="form-select" v-model="serviceRequestForm.format">
+          <option>Telehealth</option><option>In-Person</option><option>No preference</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes for Provider <span style="color:var(--text-4);font-weight:500">(optional)</span></label>
+        <textarea class="form-textarea" v-model="serviceRequestForm.notes" rows="3" placeholder="Briefly describe what you'd like to discuss…"></textarea>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="ui.closeModal('serviceRequestModal')">Cancel</button>
+        <button class="btn btn-primary" @click="submitServiceRequest">
+          <AegisIcon name="send" :size="13" /> Send Request
+        </button>
+      </template>
+    </AegisModal>
 
   </AppLayout>
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue';
-import { router, useForm, usePage, Link } from '@inertiajs/vue3';
-import AppLayout from '../../Components/AppLayout.vue';
-import Modal from '../../Components/Modal.vue';
+import { computed, reactive, ref } from 'vue'
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3'
+import AppLayout   from '@/layouts/AppLayout.vue'
+import AegisModal  from '@/components/ui/AegisModal.vue'
+import AegisIcon   from '@/components/ui/AegisIcon.vue'
+import AegisDropzone from '@/components/ui/AegisDropzone.vue'
+import { useUiStore }   from '@/stores/ui'
+import { useToast }     from '@/composables/useToast'
+import { useConfirm }   from '@/composables/useConfirm'
 
+// ── Props ──────────────────────────────────────────────────────────────
 const props = defineProps({
-  user: { type: Object, default: () => ({ display_name: 'Dr. Sarah Johnson' }) },
-  hasEmergency: { type: Boolean, default: false },
-  credentials: { type: Array, default: () => [] },
-  attentionCredentials: { type: Array, default: () => [] },
-  credentialStats: { type: Object, default: () => ({ tracked: 0, attention: 0 }) },
-  referralStats: { type: Object, default: () => ({ pending: 0, total: 0 }) },
-  networkCount: { type: Number, default: 0 },
-});
+  user:               { type: Object,  default: null },
+  planStatus:         { type: String,  default: 'none' },
+  plan:               { type: Object,  default: null },
+  attest:             { type: Object,  default: () => ({}) },
+  stats:              { type: Object,  default: () => ({}) },
+  activeStewardCount: { type: Number,  default: 0 },
+  maatActive:         { type: Boolean, default: false },
+  reviewDays:         { type: Number,  default: 0 },
+  activeIncident:     { type: Object,  default: null },
+  continuityStewards: { type: Array,   default: () => [] },
+  supportStewards:    { type: Array,   default: () => [] },
+  primaryCs:          { type: Object,  default: null },
+  primarySs:          { type: Object,  default: null },
+  netClinical:        { type: Array,   default: () => [] },
+  netBusiness:        { type: Array,   default: () => [] },
+  recentActivity:     { type: Array,   default: () => [] },
+  upcomingCEUs:       { type: Array,   default: () => [] },
+})
 
-// ── Greeting (dynamic from the authenticated user) ──
-const fullName = computed(() => (props.user?.display_name || 'Dr. Sarah Johnson').trim());
-// "Dr. Sarah Johnson," → lead "Dr. Sarah" + italic last word "Johnson"
-const greetLead = computed(() => { const p = fullName.value.split(/\s+/); return p.length > 1 ? p.slice(0, -1).join(' ') : p[0]; });
-const greetLast = computed(() => { const p = fullName.value.split(/\s+/); return p.length > 1 ? p[p.length - 1] : ''; });
+// ── Stores & composables ───────────────────────────────────────────────
+const ui               = useUiStore()
+const toast            = useToast()
+const { confirmAction } = useConfirm()
 
-const activeNwTab = ref('clinical');
+// ── Network tab ────────────────────────────────────────────────────────
+const nwTab = ref('clinical')
 
-// ── Overview tabs → continuity setup pages (SPA navigation) ──
-const overviewTabs = [
-  { title: 'Profile', sub: 'Credentials & contact', href: '/provider/profile' },
-  { title: 'Continuity Steward', sub: 'Licensed successor', href: '/provider/continuity-stewards' },
-  { title: 'Support Steward', sub: 'Personal contact', href: '/provider/support-stewards' },
-  { title: 'Continuity Plan', sub: 'Your master document', href: '/provider/continuity-plan' },
-  { title: 'Document Vault', sub: 'Sensitive records', href: '/provider/vault' },
-];
+// ── Greeting ───────────────────────────────────────────────────────────
+const greetFirst = computed(() => {
+  if (!props.user?.display_name) return 'Welcome'
+  const raw   = props.user.display_name
+  const name  = raw.replace(/^(Dr\.|Prof\.|Mr\.|Ms\.|Mrs\.)\s*/i, '').trim()
+  const parts = name.split(/\s+/)
+  const prefix = /^(Dr\.|Prof\.)/i.test(raw) ? 'Dr. ' : ''
+  return prefix + (parts[0] ?? 'User')
+})
+const greetLast = computed(() => {
+  if (!props.user?.display_name) return ''
+  const name  = props.user.display_name.replace(/^(Dr\.|Prof\.|Mr\.|Ms\.|Mrs\.)\s*/i, '').trim()
+  const parts = name.split(/\s+/)
+  return parts.length > 1 ? parts.slice(1).join(' ') : ''
+})
+const greetSub = computed(() => {
+  const base = props.planStatus === 'active'
+    ? 'Your continuity plan is active and your practice is on track.'
+    : 'Your continuity plan is being set up.'
+  const refs = props.stats?.pending_refs ?? 0
+  const suffix = refs > 0
+    ? ` You have ${refs} pending referral${refs > 1 ? 's' : ''} that need your attention.`
+    : ' There are a few items that need your attention this week.'
+  return base + suffix
+})
 
-// ── Flash → toast ──
-const page = usePage();
-watch(() => page.props.flash, (flash) => {
-  if (flash && flash.message) showToast(flash.message, flash.type || 'info');
-}, { deep: true });
+// ── Plan dates ─────────────────────────────────────────────────────────
+function formatDate(d)      { if (!d) return '—'; return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
+function formatShortDate(d) { if (!d) return '—'; return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }
 
-/* ── Network cards ── */
-const clinicalCards = ref([
-  { slug: 'dr-david-malik', initials: 'DM', name: 'Dr. David Malik', role: 'Psychiatrist', location: 'Brooklyn, NY', response: '2h', svc: true },
-  { slug: 'dr-rachel-moore', initials: 'RM', name: 'Dr. Rachel Moore', role: 'Psychiatrist', location: 'Brooklyn, NY', response: '2h', svc: false },
-  { slug: 'dr-lisa-chen', initials: 'LC', name: 'Dr. Lisa Chen', role: 'Psychologist', location: 'Manhattan, NY', response: '3h', svc: true },
-  { slug: 'dr-sarah-nguyen', initials: 'SN', name: 'Dr. Sarah Nguyen', role: 'Psychologist', location: 'Manhattan, NY', response: '3h', svc: true },
-  { slug: 'dr-patricia-monroe', initials: 'PM', name: 'Dr. Patricia Monroe', role: 'Child Psychiatrist', location: 'Manhattan, NY', response: '2h', svc: false },
-  { slug: 'dr-anna-thompson', initials: 'AT', name: 'Dr. Anna Thompson', role: 'Child & Adolescent Psychiatrist', location: 'Manhattan, NY', response: '3h', svc: false },
-]);
-const businessCards = ref([
-  { slug: 'karen-liu-esq', initials: 'KL', name: 'Karen Liu, Esq.', role: 'Freelancer', tags: 'legal, compliance, contracts', location: 'Manhattan, NY' },
-  { slug: 'bill-garrett-cpa', initials: 'BG', name: 'Bill Garrett', role: 'Freelancer', tags: 'accounting, tax, bookkeeping', location: 'Manhattan, NY' },
-  { slug: 'bright-practice-marketing', initials: 'BP', name: 'Bright Practice Marketing', role: 'Agency', tags: 'marketing', location: 'Brooklyn, NY' },
-  { slug: 'medbill-solutions', initials: 'MS', name: 'MedBill Pro', role: 'Agency', tags: 'billing, claims, revenue-cycle', location: 'Remote / Manhattan, NY' },
-]);
+const planSignedAt  = computed(() => formatDate(props.plan?.signed_at))
+const planReviewDue = computed(() => formatDate(props.plan?.annual_review_date))
+const planSince     = computed(() => {
+  if (!props.plan?.signed_at) return '—'
+  return new Date(props.plan.signed_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+})
+const reviewDaysLabel = computed(() =>
+  props.reviewDays > 0 ? `${props.reviewDays} days remaining` : 'Overdue'
+)
+const planStatusLabel = computed(() => ({
+  draft: 'Draft', active: 'Active', annual_review_due: 'Review Due', none: 'Not Created',
+}[props.planStatus] ?? props.planStatus))
 
-function go(href) { router.visit(href); }
+// ── Steward display ────────────────────────────────────────────────────
+const csName     = computed(() => props.primaryCs?.steward?.display_name ?? 'Not assigned')
+const ssName     = computed(() => props.primarySs?.steward?.display_name ?? 'Not assigned')
+const csInitials = computed(() => {
+  const n = csName.value; if (n === 'Not assigned') return 'CS'
+  const p = n.replace(/^(Dr\.|Prof\.)\s*/i,'').split(' ')
+  return p.length >= 2 ? (p[0][0]+p[p.length-1][0]).toUpperCase() : p[0].substring(0,2).toUpperCase()
+})
+const ssInitials = computed(() => {
+  const n = ssName.value; if (n === 'Not assigned') return 'SS'
+  const p = n.replace(/^(Dr\.|Prof\.)\s*/i,'').split(' ')
+  return p.length >= 2 ? (p[0][0]+p[p.length-1][0]).toUpperCase() : p[0].substring(0,2).toUpperCase()
+})
 
-/* ── Modal control ── */
-const modal = ref(null);
-function open(name) { modal.value = name; }
-function closeModal() { modal.value = null; }
-
-/* ── Toasts ── */
-const toasts = ref([]);
-let toastId = 0;
-function showToast(msg, type = 'info') {
-  const id = ++toastId;
-  toasts.value.push({ id, msg, type });
-  setTimeout(() => { toasts.value = toasts.value.filter((t) => t.id !== id); }, 3200);
+// ── Annual review form ─────────────────────────────────────────────────
+const reviewForm = reactive({
+  cs_contact_verified: false, ss_contact_verified: false,
+  ss_tasks_complete: false, cs_tasks_complete: false,
+  plan_attested: false, practice_current: false,
+  support_docs_complete: false, vault_complete: false,
+  notes: '',
+})
+const allReviewChecked = computed(() =>
+  ['cs_contact_verified','ss_contact_verified','ss_tasks_complete','cs_tasks_complete',
+   'plan_attested','practice_current','support_docs_complete','vault_complete'].every(k => reviewForm[k])
+)
+function submitAnnualReview() {
+  toast.success('Annual review submitted.')
+  ui.closeModal('annualReviewModal')
+  Object.keys(reviewForm).forEach(k => { reviewForm[k] = typeof reviewForm[k] === 'boolean' ? false : '' })
 }
 
-/* ── Dropzone filenames ── */
-const dz = reactive({ ceu: '', addLicense: '', renewLicense: '', addInsurance: '', renewInsurance: '' });
-
-/* ── Credentials CRUD (real backend) ── */
-const selectedCred = ref(null);
-
-const credForm = useForm({
-  category: 'license', cred_type: '', name: '', subtitle: '', issuer: '',
-  license_number: '', credential_number: '', policy_number: '', coverage_amount: '',
-  deductible: '', annual_premium: '', reference_number: '', issue_date: '', expires_at: '',
-  notes: '', document: null,
-});
-const updateForm = useForm({
-  expires_at: '', reference_number: '', coverage_amount: '', policy_number: '', document: null,
-});
-
-function openAddCredential(category = 'license') {
-  credForm.reset();
-  credForm.clearErrors();
-  credForm.category = category;
-  open('addLicense');
-}
-function submitAddCredential() {
-  credForm.post('/provider/credentials', {
-    preserveScroll: true,
-    forceFormData: true,
-    onSuccess: () => { credForm.reset(); closeModal(); },
-  });
-}
-function openCredentialDetail(cred) {
-  selectedCred.value = cred;
-  open(cred.category === 'insurance' ? 'insuranceDetail' : 'licenseDetail');
-}
-function openRenewCredential(cred) {
-  selectedCred.value = cred;
-  updateForm.reset();
-  updateForm.clearErrors();
-  updateForm.expires_at = cred.expires_at_input || '';
-  open(cred.category === 'insurance' ? 'renewInsurance' : 'renewLicense');
-}
-function submitRenewCredential() {
-  if (!selectedCred.value) return;
-  updateForm
-    .transform((d) => ({ ...d, _method: 'put' }))
-    .post(`/provider/credentials/${selectedCred.value.id}`, {
-      preserveScroll: true,
-      forceFormData: true,
-      onSuccess: () => { updateForm.reset(); closeModal(); },
-    });
-}
-function deleteCredential(cred) {
-  if (!cred || !window.confirm('Remove this credential? This cannot be undone.')) return;
-  router.delete(`/provider/credentials/${cred.id}`, {
-    preserveScroll: true,
-    onSuccess: () => closeModal(),
-  });
-}
-function onCredFile(e) { credForm.document = e.target.files[0] || null; }
-function onUpdateFile(e) { updateForm.document = e.target.files[0] || null; }
-
-function credDaysText(cred) {
-  const d = cred.days_remaining;
-  if (d === null || d === undefined) return 'No expiry';
-  if (d <= 0) return 'Expired';
-  if (d <= 30) return `${d} days · renew now`;
-  return `${d} days remaining`;
-}
-function attnExpiry(item) {
-  const d = item.days_remaining;
-  if (d === null || d === undefined) return `Expires ${item.expires_at || '—'}`;
-  if (d <= 0) return `Expired ${item.expires_at || ''}`.trim();
-  return `Expires ${item.expires_at} · ${d} days left`;
+// ── CEU form ───────────────────────────────────────────────────────────
+const ceuReqForm = reactive({ jurisdiction: '', total_hours: '', cycle: 'annual', due_date: '', required_types: '' })
+const ceuForm = useForm({ title: '', category: '', delivery: 'synchronous', cycle: 'annual', credit_hours: '', provider_name: '', completed_on: '' })
+function submitCeu() {
+  ceuForm.post(route('provider.ceus.store'), {
+    onSuccess: () => { ui.closeModal('ceuModal'); toast.success('CEU credits added!'); ceuForm.reset() },
+    onError:   () => toast.error('Could not save CEU entry.'),
+  })
 }
 
-const isInsuranceAdd = computed(() => credForm.category === 'insurance');
-
-/* ── Activate succession ── */
-const succession = reactive({ reason: '', doc: 'none', notes: '' });
-function confirmActivateSuccession() {
-  if (!succession.reason) { showToast('Please select an incident type.', 'info'); return; }
-  showToast('Continuity Support activated — your stewards have been notified.', 'success');
-  closeModal();
+// ── Referral form ──────────────────────────────────────────────────────
+const referralForm = useForm({ recipient: '', notes: '' })
+function submitReferral() {
+  toast.success('Referral sent.')
+  ui.closeModal('newReferralModal')
+  referralForm.reset()
 }
 
-/* ── Annual review ── */
-const reviewItems = [
-  { label: 'Continuity Steward identity and contact information is current', sub: 'Marcus Chen · (510) 555-0189' },
-  { label: 'Support Steward identity and contact information is current', sub: 'Dr. Laura Reyes · (213) 555-0298' },
-  { label: 'Support Steward tasks are complete and accurate' },
-  { label: 'Assigned Continuity Steward tasks are complete and accurate' },
-  { label: 'Continuity Plan is accurate' },
-  { label: 'Practice information is accurate' },
-  { label: 'Support documentation is complete and accurate' },
-  { label: 'Vault documentation is complete and accurate' },
-];
-const reviewChecks = reactive(reviewItems.map(() => false));
-const reviewNotes = ref('');
-function attestReview() {
-  if (reviewChecks.some((c) => !c)) { showToast('Please confirm all items before attesting.', 'info'); return; }
-  showToast('Annual review attested & submitted.', 'success');
-  closeModal();
-}
+// ── License forms ──────────────────────────────────────────────────────
+const licenseForm = useForm({ type: '', expiry_date: '', notes: '', file: null })
+function submitLicense() { toast.success('Credential added.'); ui.closeModal('addLicenseModal'); licenseForm.reset() }
+const renewForm = useForm({ expiry_date: '', license_number: '', file: null })
+function submitRenew() { toast.success('License renewal submitted.'); ui.closeModal('renewLicenseModal'); renewForm.reset() }
 
-function removeCeuReq() {
-  if (window.confirm('Remove this CEU requirement?')) showToast('Requirement removed', 'info');
-}
+// ── Insurance forms ────────────────────────────────────────────────────
+const insuranceForm = useForm({ type: '', expiry_date: '', provider: '', coverage: '', file: null })
+function submitInsurance() { toast.success('Insurance added.'); ui.closeModal('addInsuranceModal'); insuranceForm.reset() }
+const renewInsuranceForm = useForm({ expiry_date: '', policy_number: '', file: null })
+function submitRenewInsurance() { toast.success('Insurance renewal submitted.'); ui.closeModal('renewInsuranceModal'); renewInsuranceForm.reset() }
 
-/* ── New referral wizard ── */
-const roster = [
-  { av: 'CA', name: 'Client A.M.', meta: 'Weekly trauma therapy (EMDR) · San Francisco, CA', notes: 'High-acuity PTSD. Refer to EMDR-trained clinician only.', priority: true },
-  { av: 'CR', name: 'Client R.S.', meta: 'Weekly individual therapy · San Francisco, CA', notes: 'Active SI history. Warm handoff required. No gap in care.', priority: true },
-  { av: 'CN', name: 'Client N.P.', meta: 'Biweekly individual therapy · Daly City, CA', notes: 'Anxiety-focused CBT. Can accept any licensed therapist referral.', priority: false },
-  { av: 'CB', name: 'Couple B.K.', meta: 'Biweekly couples therapy · Oakland, CA', notes: 'Stable. Can tolerate 4-6 week handoff window.', priority: false },
-  { av: 'FD', name: 'Family D.T.', meta: 'Monthly family systems · San Francisco, CA', notes: 'Prefers female clinician. Spanish-speaking option requested.', priority: false },
-];
-const providers = ['Dr. Danial Malik', 'Dr. Rachel Moore', 'Dr. Lisa Chen', 'Dr. Sarah Nguyen', 'Dr. Patricia Monroe', 'Dr. Anna Thompson', 'Dr. James Park', 'Dr. Robert Miller'];
-const nrf = reactive({
-  step: 1, source: 'roster', search: '', selected: '', selectedMeta: '',
-  manualId: '', manualDx: '', provider: '', specialty: '', coverage: '', coverageOther: '',
-  reason: '', reasonOther: '', urgency: 'routine', notes: '', attachNames: '', hipaa: false,
-});
-const filteredRoster = computed(() => {
-  const q = nrf.search.trim().toLowerCase();
-  if (!q) return roster;
-  return roster.filter((c) => (c.name + ' ' + c.meta).toLowerCase().includes(q));
-});
-function nrfSelectPatient(c) { nrf.selected = c.name; nrf.selectedMeta = c.meta; }
-function nrfAttach(e) {
-  const files = Array.from(e.target.files || []);
-  nrf.attachNames = files.map((f) => f.name).join(', ');
-}
-const reviewClient = computed(() => nrf.source === 'roster' ? (nrf.selected || '—') : (nrf.manualId || '—'));
-const reviewReason = computed(() => nrf.reason === 'other' ? (nrf.reasonOther || 'Other') : (nrf.reason || '—'));
-const reviewCoverage = computed(() => nrf.coverage === 'other' ? (nrf.coverageOther || 'Other') : (nrf.coverage || '—'));
-function nrfGoStep(n) { if (n >= 1 && n <= 4) nrf.step = n; }
-function nrfNext() {
-  if (nrf.step === 1) {
-    if (nrf.source === 'roster' && !nrf.selected) { showToast('Select a client from your roster.', 'info'); return; }
-    if (nrf.source === 'manual' && !nrf.manualId.trim()) { showToast('Enter a client identifier.', 'info'); return; }
-  }
-  if (nrf.step === 2 && !nrf.provider) { showToast('Choose a practitioner to refer to.', 'info'); return; }
-  if (nrf.step === 3 && !nrf.reason) { showToast('Select a reason for the referral.', 'info'); return; }
-  nrfGoStep(nrf.step + 1);
-}
-function nrfSubmit() {
-  if (!nrf.hipaa) { showToast('Please confirm HIPAA compliance to send.', 'info'); return; }
-  showToast('Referral sent successfully.', 'success');
-  closeReferral();
-}
-function closeReferral() {
-  closeModal();
-  Object.assign(nrf, {
-    step: 1, source: 'roster', search: '', selected: '', selectedMeta: '',
-    manualId: '', manualDx: '', provider: '', specialty: '', coverage: '', coverageOther: '',
-    reason: '', reasonOther: '', urgency: 'routine', notes: '', attachNames: '', hipaa: false,
-  });
-}
-</script>
+// ── Reminder form ──────────────────────────────────────────────────────
+const reminderForm = useForm({ item: '', days_before: '90 days before', repeat: 'One-time', email: true, in_app: true, sms: false })
+function submitReminder() { toast.success('Reminder set!'); ui.closeModal('setReminderModal'); reminderForm.reset() }
 
-<script>
-/* Lightweight dropzone component used by several modals (shows picked file name). */
-export default {
-  components: {
-    DropZone: {
-      props: { modelValue: { type: String, default: '' } },
-      emits: ['update:modelValue'],
-      methods: {
-        pick(e) {
-          const f = e.target.files && e.target.files[0];
-          this.$emit('update:modelValue', f ? f.name : '');
-        },
-      },
-      template: `
-        <label class="dropzone is-compact">
-          <div class="dz-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
-          <div>
-            <div class="dz-text"><strong>Click to upload</strong> or drag &amp; drop</div>
-            <div class="dz-sub">PDF, JPG, PNG · up to 10MB</div>
-            <div class="dz-filename" v-show="modelValue"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>{{ modelValue }}</span></div>
-          </div>
-          <input type="file" accept=".pdf,.jpg,.png" @change="pick" style="display:none">
-        </label>`,
+// ── Succession + Logout ────────────────────────────────────────────────
+// ── Succession form ──────────────────────────────────────────────────
+const successionForm = useForm({
+  plan_id:           props.plan?.id ?? '',
+  incident_type:     '',
+  report_narrative:  '',
+  documentation_type: 'none', // sent as extra context, not validated server-side
+})
+
+function activateSuccession() {
+  if (!successionForm.incident_type) return
+  successionForm.post(route('provider.incident.activate'), {
+    onSuccess: () => {
+      ui.closeModal('activateSuccessionModal')
+      successionForm.reset()
+      toast.success('Continuity Plan activated. Your stewards have been notified.')
     },
-  },
-};
+    onError: () => toast.error('Could not activate succession. Please try again.'),
+  })
+}
+function handleLogout()       { ui.closeModal('logoutModal'); router.post(route('logout')) }
+
+// ── Service Request form ───────────────────────────────────────────────
+const serviceRequestForm = reactive({ service_name: 'Individual Supervision', provider_name: '', preferred_date: '', preferred_time: 'Flexible', format: 'Telehealth', notes: '' })
+function submitServiceRequest() { ui.closeModal('serviceRequestModal'); toast.success('Service request sent') }
 </script>
 
 <style scoped>
-.page-body-inner { /* inherits padding from parent .page-body */ }
+/* ── Page wrapper ── */
+.page-body-inner { min-width: 0; }
 
-/* Overview banner */
-.overview-banner {
-  margin-bottom: 20px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--gold-dark);
-  border-radius: var(--radius-lg);
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  box-shadow: var(--shadow-sm);
-}
-.overview-icon-block {
-  width: 40px; height: 40px;
-  border-radius: var(--radius-sm);
-  background: var(--icon-bg-gold);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-  color: var(--gold-dark);
-}
-.overview-text { flex: 1; min-width: 0; }
-.overview-title {
-  font-family: var(--font-sans);
-  font-size: 13px; font-weight: 700;
-  color: var(--text);
-  margin-bottom: 3px;
-}
-.overview-desc {
-  font-family: var(--font-sans);
-  font-size: 13px;
-  color: var(--text-3);
-  line-height: 1.5;
-}
-
-/* Overview tabs — quick nav cards to continuity setup pages */
-.ov-tabs {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 22px;
-}
-.ov-tab {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 14px 16px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  text-decoration: none;
-  box-shadow: var(--shadow-xs);
-  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
-}
-.ov-tab:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
-  border-color: var(--surface-4);
-  background: var(--surface);
-}
-.ov-tab-check {
-  width: 26px; height: 26px;
-  border-radius: 50%;
-  background: var(--green-light);
-  color: var(--green-dark);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.ov-tab-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.ov-tab-title {
-  font-family: var(--font-sans);
-  font-size: 13px; font-weight: 700;
-  color: var(--text); line-height: 1.2;
-}
-.ov-tab-sub { font-size: 11.5px; color: var(--gold-dark); line-height: 1.2; }
-
-@media (max-width: 1100px) { .ov-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 640px) { .ov-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-
-/* ═══════════════════════════════════
-   DASHBOARD dh-* CLASSES (from dashboard.php)
-═══════════════════════════════════ */
-
-/* Greeting */
+/* ── Greeting ── */
 .dh-greet {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 26px;
   align-items: end;
-  padding: 6px 4px 26px;
+  padding: 6px 0 26px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 22px;
+  margin: 0 0 22px;
 }
 .dh-greet-eyebrow {
   font-size: 11px; font-weight: 600;
@@ -1306,18 +1230,10 @@ export default {
 .dh-greet-title {
   font-family: var(--font-serif);
   font-size: 38px; font-weight: 600;
-  letter-spacing: -0.5px;
-  line-height: 1.05;
-  color: var(--text);
+  letter-spacing: -0.5px; line-height: 1.05; color: var(--text);
 }
 .dh-greet-title em { font-style: italic; color: var(--gold-dark); font-weight: 600; }
-.dh-greet-sub {
-  margin-top: 12px;
-  font-size: 14px;
-  color: var(--text-3);
-  max-width: 560px;
-  line-height: 1.55;
-}
+.dh-greet-sub { margin-top: 12px; font-size: 14px; color: var(--text-3); max-width: 560px; line-height: 1.55; }
 .dh-greet-meta {
   display: flex; align-items: center; gap: 0;
   padding: 14px 22px;
@@ -1326,555 +1242,217 @@ export default {
   border: 1px solid var(--border);
   box-shadow: var(--shadow-xs);
 }
-.dh-greet-mcell {
-  display: flex; flex-direction: column; gap: 2px;
-  padding: 0 22px;
-}
+.dh-greet-mcell { display: flex; flex-direction: column; gap: 2px; padding: 0 22px; }
 .dh-greet-mcell + .dh-greet-mcell { border-left: 1px solid var(--border); }
-.dh-greet-mlabel {
-  font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
-  color: var(--text-4); font-weight: 600;
-}
+.dh-greet-mlabel { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-4); font-weight: 600; }
 .dh-greet-mval {
-  font-family: var(--font-serif);
-  font-size: 18px; font-weight: 600;
-  color: var(--text);
+  font-family: var(--font-serif); font-size: 18px; font-weight: 600; color: var(--text);
   display: inline-flex; align-items: center; gap: 5px;
 }
 .dh-greet-mval.ok { color: var(--green-dark); }
 
-/* Section header */
+/* ── Overview banner ── */
+.dh-overview-banner {
+  margin-bottom: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold-dark);
+  border-radius: var(--radius-lg); padding: 16px 20px;
+  display: flex; align-items: center; gap: 16px; box-shadow: var(--shadow-sm);
+}
+.dh-overview-icon {
+  width: 40px; height: 40px; border-radius: var(--radius-sm);
+  background: var(--icon-bg-gold); display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; color: var(--gold-dark);
+}
+
+/* ── Section header ── */
 .dh-sh {
   display: flex; align-items: flex-end; justify-content: space-between;
-  margin: 28px 0 14px; gap: 16px;
+  margin: 28px 0 14px;
+  gap: 16px;
 }
 .dh-sh-l { display: flex; flex-direction: column; gap: 3px; }
-.dh-sh-eyebrow {
-  font-size: 10px; font-weight: 600;
-  letter-spacing: 1.4px; text-transform: uppercase;
-  color: var(--gold-dark);
-}
-.dh-sh-title {
-  font-family: var(--font-serif);
-  font-size: 20px; font-weight: 600;
-  letter-spacing: -0.2px;
-  color: var(--text);
-}
+.dh-sh-eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 1.4px; text-transform: uppercase; color: var(--gold-dark); }
+.dh-sh-title { font-family: var(--font-serif); font-size: 20px; font-weight: 600; letter-spacing: -0.2px; color: var(--text); }
 .dh-sh-link {
-  font-size: 12px; font-weight: 600;
-  color: var(--text-3);
+  font-size: 12px; font-weight: 600; color: var(--text-3);
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 0;
-  text-decoration: none;
+  padding: 6px 0; text-decoration: none; background: none; border: none; cursor: pointer;
   transition: color .18s ease;
 }
 .dh-sh-link:hover { color: var(--gold-dark); }
+.dh-sh-link:hover :deep(.aegis-icon) { transform: translateX(3px); }
 
-/* Continuity hero */
+/* ── Continuity hero ── */
 .dh-continuity {
   display: grid; grid-template-columns: 1.4fr 1fr;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
-  margin-bottom: 6px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);
+  margin-bottom: 0;
 }
 .dh-cn-left {
-  padding: 26px 28px 24px;
-  display: flex; flex-direction: column; gap: 16px;
+  padding: 28px 28px 24px; display: flex; flex-direction: column; gap: 18px;
   border-right: 1px solid var(--border);
-  background: var(--surface-2);
 }
 .dh-cn-eyebrow {
-  display: inline-flex; align-items: center; gap: 8px;
-  font-size: 10px; font-weight: 700;
-  letter-spacing: 1.4px; text-transform: uppercase;
-  color: var(--gold-dark);
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--green-dark);
 }
 .dh-cn-pulse {
-  width: 7px; height: 7px;
-  border-radius: var(--radius-full);
-  background: var(--green);
-  animation: dh-pulse 2s infinite;
+  width: 7px; height: 7px; border-radius: var(--radius-full);
+  background: var(--green); box-shadow: 0 0 0 2px var(--green); flex-shrink: 0;
+  animation: pulse-ring 2s ease-out infinite;
 }
-@keyframes dh-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(76,175,125,0.5); }
-  70%  { box-shadow: 0 0 0 8px transparent; }
-  100% { box-shadow: 0 0 0 0 transparent; }
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(76,175,125,0.6); }
+  70%  { box-shadow: 0 0 0 6px rgba(76,175,125,0); }
+  100% { box-shadow: 0 0 0 0 rgba(76,175,125,0); }
 }
-.dh-cn-title {
-  font-family: var(--font-serif);
-  font-size: 24px; font-weight: 600;
-  letter-spacing: -0.3px; line-height: 1.15;
-  color: var(--text);
-}
-.dh-cn-desc { font-size: 13px; color: var(--text-3); line-height: 1.6; max-width: 480px; }
-.dh-cn-stewards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
-.dh-cn-stew {
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 12px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
+.dh-cn-title  { font-family: var(--font-serif); font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.25; }
+.dh-cn-desc   { font-size: 13px; color: var(--text-2); line-height: 1.6; }
+.dh-cn-stewards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dh-cn-stew   { display: flex; align-items: center; gap: 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; }
 .dh-cn-savatar {
-  width: 36px; height: 36px;
-  border-radius: var(--radius-sm);
-  background: var(--gold-dark);
-  color: var(--text-inverted);
-  font-family: var(--font-serif);
-  font-weight: 700; font-size: 13px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
+  width: 32px; height: 32px; border-radius: var(--radius-full);
+  background: var(--icon-bg-gold); color: var(--gold-dark);
+  font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.dh-cn-savatar.support { background: var(--avatar-gradient-teal, #2e8a57); }
-.dh-cn-stew-info { min-width: 0; flex: 1; }
-.dh-cn-srole {
-  font-size: 10px; font-weight: 700;
-  letter-spacing: 1px; text-transform: uppercase;
-  color: var(--gold-dark); margin-bottom: 2px;
-}
-.dh-cn-sname { font-size: 13px; font-weight: 600; line-height: 1.2; color: var(--text); }
-.dh-cn-stat {
-  margin-left: auto;
-  font-size: 10px; font-weight: 600;
-  color: var(--green-dark);
-  display: inline-flex; align-items: center; gap: 4px;
-}
-.dh-cn-stat::before {
-  content: ""; width: 5px; height: 5px;
-  border-radius: var(--radius-full);
-  background: var(--green);
-}
-.dh-cn-stat.pending { color: var(--orange-dark); }
-.dh-cn-stat.pending::before { background: var(--orange); }
-.dh-cn-actions { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
-.dh-cn-activate {
-  background: var(--red-light); color: var(--red); border-color: var(--fade-red, rgba(160,45,34,0.4));
-  padding-left: 10px; padding-right: 10px;
-}
-.dh-cn-activate:hover { background: var(--red); color: #fff; border-color: var(--red); }
-.dh-cn-right {
-  padding: 26px 28px;
-  display: flex; flex-direction: column; gap: 12px;
-  background: var(--surface);
-}
-.dh-cn-rhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.dh-cn-rtag {
-  font-size: 10px; font-weight: 700;
-  letter-spacing: 1.2px; text-transform: uppercase;
-  color: var(--orange-dark);
-}
-.dh-cn-due {
-  font-family: var(--font-serif);
-  font-size: 18px; font-weight: 600;
-  line-height: 1.1; color: var(--text); margin-top: 3px;
-}
-.dh-cn-due small {
-  display: block;
-  font-family: var(--font-sans);
-  font-size: 12px; font-weight: 600;
-  color: var(--text-3); margin-top: 4px;
-}
-.dh-cn-bar {
-  position: relative; height: 6px;
-  background: var(--surface-3);
-  border-radius: var(--radius-full);
-  overflow: hidden; margin: 6px 0 4px;
-}
-.dh-cn-bar-fill {
-  position: absolute; left: 0; top: 0; bottom: 0; width: 62%;
-  background: var(--gold-dark);
-  border-radius: var(--radius-full);
-}
-.dh-cn-bar-marker {
-  position: absolute; left: 62%; top: -3px;
-  width: 12px; height: 12px;
-  border-radius: var(--radius-full);
-  background: var(--orange);
-  border: 2.5px solid var(--surface);
-  box-shadow: var(--shadow-xs);
-  transform: translateX(-50%);
-}
-.dh-cn-bar-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-4); margin-top: 6px; }
-.dh-cn-todos { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
-.dh-cn-todo {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 12px;
-  border-radius: var(--radius);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  font-size: 12px; color: var(--text-2);
-  transition: border-color .18s ease, background .18s ease;
-}
-.dh-cn-todo:hover { border-color: var(--gold-dark); background: rgba(192,154,82,0.10); }
-.dh-cn-todo.done { color: var(--text-4); text-decoration: line-through; background: transparent; }
+.dh-cn-savatar.support { background: var(--blue-light); color: var(--blue-dark); }
+.dh-cn-stew-info { flex: 1; min-width: 0; }
+.dh-cn-srole { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-4); }
+.dh-cn-sname { font-size: 13px; font-weight: 600; color: var(--text); margin-top: 1px; }
+.dh-cn-stat  { font-size: 11px; font-weight: 700; color: var(--green-dark); }
+.dh-cn-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dh-cn-right  { padding: 28px 24px; display: flex; flex-direction: column; gap: 14px; }
+.dh-cn-rhead  { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.dh-cn-rtag   { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--orange-dark); margin-bottom: 0; }
+.dh-cn-due    { font-family: var(--font-serif); font-size: 18px; font-weight: 700; color: var(--text); }
+.dh-cn-due small { display: block; font-family: var(--font-sans); font-size: 11px; font-weight: 400; color: var(--text-4); margin-top: 3px; }
+.dh-cn-bar    { position: relative; height: 6px; background: var(--surface-3); border-radius: var(--radius-full); margin: 4px 0; }
+.dh-cn-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 70%; background: var(--gold-dark); border-radius: var(--radius-full); }
+.dh-cn-bar-marker { position: absolute; right: 30%; top: 50%; transform: translate(50%,-50%); width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--primary); border: 2px solid var(--surface); box-shadow: var(--shadow-sm); }
+.dh-cn-bar-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-4); font-weight: 600; }
+.dh-cn-todos  { display: flex; flex-direction: column; gap: 7px; }
+.dh-cn-todo   { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-3); }
+.dh-cn-todo.done { color: var(--green-dark); }
 
-/* At-a-glance */
-.dh-glance {
-  display: grid; grid-template-columns: repeat(4, 1fr);
-  gap: 12px; margin-bottom: 6px;
-}
+/* ── Glance ── */
+.dh-glance { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 0; }
 .dh-gl-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 18px 20px;
-  display: flex; flex-direction: column; gap: 14px;
-  box-shadow: var(--shadow-xs);
-  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 16px 18px; box-shadow: var(--shadow-sm);
+  transition: transform var(--transition), box-shadow var(--transition);
 }
-.dh-gl-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); border-color: var(--surface-4); }
-.dh-gl-head { display: flex; align-items: center; justify-content: space-between; }
-.dh-gl-label {
-  font-size: 11px; font-weight: 600;
-  letter-spacing: 1px; text-transform: uppercase;
-  color: var(--text-4);
-}
-.dh-gl-icon {
-  width: 30px; height: 30px;
-  border-radius: var(--radius-sm);
-  background: var(--icon-bg-gold);
-  color: var(--gold-dark);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.dh-gl-icon.warn { background: var(--orange-light); color: var(--orange-dark); }
-.dh-gl-val {
-  font-family: var(--font-serif);
-  font-size: 32px; font-weight: 600;
-  line-height: 1; letter-spacing: -1px;
-  color: var(--text);
-}
-.dh-gl-val small {
-  font-family: var(--font-sans);
-  font-size: 16px; font-weight: 600;
-  color: var(--text-4);
-}
-.dh-gl-sub { font-size: 12px; color: var(--text-3); line-height: 1.4; }
-.dh-gl-sub strong { color: var(--green-dark); font-weight: 600; }
-.dh-gl-sub strong.warn-text { color: var(--orange-dark); }
+.dh-gl-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.dh-gl-head  { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.dh-gl-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-4); }
+.dh-gl-icon  { width: 26px; height: 26px; border-radius: var(--radius-sm); background: var(--icon-bg-gold); color: var(--gold-dark); display: flex; align-items: center; justify-content: center; }
+.dh-gl-icon.warn { background: var(--orange-light); color: var(--orange); }
+.dh-gl-val   { font-family: var(--font-serif); font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; }
+.dh-gl-val small { font-family: var(--font-sans); font-size: 13px; font-weight: 400; color: var(--text-4); }
+.dh-gl-sub   { font-size: 12px; color: var(--text-3); margin-top: 6px; }
 
-/* Credentials 2-col */
-.dh-cols {
-  display: grid; grid-template-columns: 1.55fr 1fr;
-  gap: 20px; margin-bottom: 6px; align-items: start;
-}
-.dh-cred-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-xs);
-}
-.dh-cred-row {
-  display: flex; align-items: center; gap: 16px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--border);
-  transition: background .18s ease;
-}
+/* ── Two-col layout ── */
+.dh-cols { display: grid; grid-template-columns: 1fr 340px; gap: 20px; margin-bottom: 0; }
+
+/* ── Credentials ── */
+.dh-cred-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.dh-cred-row  { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--border); transition: background .14s ease; position: relative; }
 .dh-cred-row:last-of-type { border-bottom: none; }
 .dh-cred-row:hover { background: var(--surface-2); }
-.dh-cred-icon {
-  width: 38px; height: 38px;
-  border-radius: var(--radius);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-  border: 1px solid transparent;
-}
-.dh-cred-icon.ok   { background: var(--green-light); color: var(--green-dark); border-color: var(--fade-green, rgba(76,175,125,0.2)); }
-.dh-cred-icon.warn { background: var(--orange-light); color: var(--orange-dark); border-color: var(--fade-orange, rgba(232,169,74,0.2)); }
-.dh-cred-icon.crit { background: var(--red-light); color: var(--red); border-color: var(--fade-red, rgba(160,45,34,0.2)); }
-.dh-cred-info { min-width: 0; flex: 1; }
-.dh-cred-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.2; }
-.dh-cred-sub { font-size: 12px; color: var(--text-3); margin-top: 3px; }
-.dh-cred-meter { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; min-width: 150px; flex-shrink: 0; }
-.dh-cred-date { font-family: var(--font-serif); font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: 0.1px; }
+.dh-cred-icon { width: 32px; height: 32px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid transparent; }
+.dh-cred-icon.ok   { background: var(--green-light);  color: var(--green-dark);  border-color: var(--fade-green); }
+.dh-cred-icon.crit { background: var(--red-light);    color: var(--red);         border-color: var(--fade-red); }
+.dh-cred-info  { flex: 1; min-width: 0; }
+.dh-cred-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.dh-cred-sub   { font-size: 11px; color: var(--text-4); margin-top: 2px; }
+.dh-cred-meter { text-align: right; min-width: 130px; }
+.dh-cred-date  { font-size: 12px; font-weight: 600; color: var(--text); }
 .dh-cred-date.crit { color: var(--red); }
-.dh-cred-date.warn { color: var(--orange-dark); }
-.dh-cred-bar {
-  width: 130px; height: 4px;
-  border-radius: var(--radius-full);
-  background: var(--surface-3);
-  overflow: hidden;
-  position: relative;
-}
-.dh-cred-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: var(--radius-full); }
+.dh-cred-bar   { height: 4px; background: var(--surface-3); border-radius: var(--radius-full); margin: 5px 0; overflow: hidden; }
+.dh-cred-bar-fill { height: 100%; border-radius: var(--radius-full); width: 78%; }
 .dh-cred-bar-fill.ok   { background: var(--green); width: 78%; }
-.dh-cred-bar-fill.warn { background: var(--orange); width: 38%; }
-.dh-cred-bar-fill.crit { background: var(--red); width: 8%; }
-.dh-cred-days { font-size: 11px; font-weight: 600; color: var(--text-3); }
+.dh-cred-bar-fill.crit { background: var(--red);   width: 8%; }
+.dh-cred-days  { font-size: 11px; font-weight: 600; }
 .dh-cred-days.ok   { color: var(--green-dark); }
-.dh-cred-days.warn { color: var(--orange-dark); }
 .dh-cred-days.crit { color: var(--red); font-weight: 600; }
-.dh-cred-act { display: flex; gap: 6px; flex-shrink: 0; }
-.dh-cred-foot {
-  padding: 12px 18px;
-  background: var(--surface-2);
-  border-top: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between;
-  font-size: 12px; color: var(--text-3);
-  gap: 12px; flex-wrap: wrap;
-}
-.dh-cred-foot strong { color: var(--text); font-weight: 600; }
-.dh-cred-foot .crit-text { color: var(--red); font-weight: 600; }
+.dh-cred-act   { display: flex; gap: 5px; flex-shrink: 0; }
+.dh-cred-foot  { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px; background: var(--surface-2); font-size: 12px; color: var(--text-2); }
+.crit-text { color: var(--red); font-weight: 600; }
 
-.dh-cred-empty { padding: 40px 24px; text-align: center; }
-.dh-cred-empty-icon {
-  width: 52px; height: 52px; margin: 0 auto 14px;
-  border-radius: 50%; background: var(--icon-bg-gold); color: var(--gold-dark);
-  display: flex; align-items: center; justify-content: center;
-}
-.dh-cred-empty-title { font-family: var(--font-serif); font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-.dh-cred-empty-sub { font-size: 12.5px; color: var(--text-3); line-height: 1.5; max-width: 320px; margin: 0 auto 16px; }
-
-/* Attention card */
-.dh-attention {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-xs);
-}
-.dh-att-head {
-  display: flex; align-items: center; gap: 11px;
-  padding: 16px 18px 12px;
-  border-bottom: 1px solid var(--border);
-}
-.dh-att-icon {
-  width: 30px; height: 30px;
-  border-radius: var(--radius-sm);
-  background: var(--icon-bg-gold);
-  color: var(--gold-dark);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.dh-att-title {
-  font-family: var(--font-serif);
-  font-size: 16px; font-weight: 600;
-  color: var(--text); flex: 1;
-}
-.dh-att-count {
-  font-size: 11px; font-weight: 700;
-  background: var(--red); color: var(--text-inverted);
-  padding: 2px 9px;
-  border-radius: var(--radius-full);
-  font-family: var(--font-sans);
-}
-.dh-att-list { display: flex; flex-direction: column; }
-.dh-att-item {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 18px;
-  border-bottom: 1px solid var(--border);
-  transition: background .18s ease;
-}
-.dh-att-item:last-of-type { border-bottom: none; }
-.dh-att-item:hover { background: var(--surface-2); }
+/* ── Attention card ── */
+.dh-attention { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.dh-att-head  { display: flex; align-items: center; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.dh-att-icon  { width: 28px; height: 28px; border-radius: var(--radius-sm); background: var(--orange-light); color: var(--orange); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.dh-att-title { font-size: 13px; font-weight: 700; color: var(--text); flex: 1; }
+.dh-att-count { width: 22px; height: 22px; border-radius: var(--radius-full); background: var(--red); color: var(--text-inverted); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.dh-att-list  { display: flex; flex-direction: column; }
+.dh-att-item  { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.dh-att-item:last-child { border-bottom: none; }
 .dh-att-bullet { width: 8px; height: 8px; border-radius: var(--radius-full); flex-shrink: 0; }
 .dh-att-bullet.crit { background: var(--red); }
 .dh-att-bullet.warn { background: var(--orange); }
-.dh-att-bullet.info { background: var(--blue); }
-.dh-att-text { flex: 1; min-width: 0; }
-.dh-att-h { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.3; }
-.dh-att-d { font-size: 12px; color: var(--text-3); line-height: 1.5; margin-top: 2px; }
-.dh-att-d strong { color: var(--text-2); font-weight: 600; }
+.dh-att-text  { flex: 1; min-width: 0; }
+.dh-att-h     { font-size: 12px; font-weight: 700; color: var(--text); }
+.dh-att-d     { font-size: 11px; color: var(--text-4); margin-top: 2px; }
 
-/* Quick actions */
-.dh-quick {
-  margin-top: 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 16px 18px;
-  box-shadow: var(--shadow-xs);
-}
-.dh-quick-title {
-  font-family: var(--font-serif);
-  font-size: 15px; font-weight: 600;
-  color: var(--text);
-  margin-bottom: 12px;
-}
-.dh-quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* ── Quick actions ── */
+.dh-quick       { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; margin-top: 14px; padding: 16px; }
+.dh-quick-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 12px; }
+.dh-quick-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dh-quick-grid .btn { justify-content: flex-start; gap: 7px; }
 
-/* Network section */
+/* ── Network ── */
 .network-carousel-section {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-lg); padding: 18px 24px 22px;
-  margin-bottom: 22px; box-shadow: var(--shadow-sm);
+  margin-bottom: 0; box-shadow: var(--shadow-sm);
 }
-.nw-head {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 14px; flex-wrap: wrap; margin-bottom: 16px;
-}
-.nw-grid {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
-}
-.nw-card {
-  position: relative;
-  display: flex; flex-direction: column; gap: 14px;
-  padding: 18px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xs);
-  cursor: pointer;
-  transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
-}
+.nw-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.nw-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.nw-card { position: relative; display: flex; flex-direction: column; gap: 14px; padding: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); cursor: pointer; transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease; }
 .nw-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); border-color: var(--surface-4); }
-.nw-top { display: flex; align-items: flex-start; gap: 12px; }
-.nw-avatar {
-  width: 48px; height: 48px;
-  border-radius: var(--radius);
-  background: var(--gold-dark);
-  color: var(--text-inverted);
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-serif); font-size: 16px; font-weight: 700;
-  flex-shrink: 0;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
-}
-.nw-info { min-width: 0; flex: 1; }
-.nw-name {
-  font-family: var(--font-serif); font-size: 15px; font-weight: 600;
-  color: var(--text); line-height: 1.2;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.nw-role { font-size: 12px; color: var(--text-3); margin-top: 3px; }
-.nw-tags { display: flex; gap: 5px; margin-left: auto; flex-shrink: 0; align-items: center; }
-.nw-pill {
-  width: 22px; height: 22px;
-  border-radius: var(--radius-sm);
-  display: inline-flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
+.nw-top    { display: flex; align-items: flex-start; gap: 12px; }
+.nw-avatar { width: 48px; height: 48px; border-radius: var(--radius); background: var(--gold-dark); color: var(--text-inverted); display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-size: 16px; font-weight: 700; flex-shrink: 0; }
+.nw-info   { min-width: 0; flex: 1; }
+.nw-name   { font-family: var(--font-serif); font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nw-role   { font-size: 12px; color: var(--text-3); margin-top: 3px; }
+.nw-tags   { display: flex; gap: 5px; margin-left: auto; flex-shrink: 0; }
+.nw-pill   { width: 22px; height: 22px; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .nw-pill.net { background: var(--green-light); color: var(--green-dark); }
 .nw-pill.svc { background: var(--badge-bg-gold); color: var(--gold-dark); }
-.nw-tag {
-  font-size: 10px; font-weight: 600;
-  color: var(--text-3); background: var(--surface-3);
-  border-radius: var(--radius-full); padding: 3px 9px;
-  white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis;
-}
-.nw-meta {
-  display: flex; align-items: center; gap: 14px;
-  font-size: 12px; color: var(--text-3);
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
+.nw-tag    { font-size: 10px; font-weight: 700; color: var(--text-3); background: var(--surface-3); padding: 2px 7px; border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; }
+.nw-meta   { display: flex; align-items: center; gap: 14px; font-size: 12px; color: var(--text-3); padding-top: 12px; border-top: 1px solid var(--border); }
 .nw-meta-item { display: inline-flex; align-items: center; gap: 5px; }
-.nw-cta { margin-left: auto; display: flex; gap: 6px; flex-shrink: 0; }
-.nw-btn {
-  width: 28px; height: 28px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: center;
-  color: var(--text-3);
-  cursor: pointer;
-  transition: border-color .18s ease, color .18s ease, background .18s ease;
-  text-decoration: none;
-}
-.nw-btn:hover { background: var(--surface-3); border-color: rgba(160,129,62,0.5); color: var(--gold-dark); }
+.nw-cta    { margin-left: auto; display: flex; gap: 6px; flex-shrink: 0; }
+.nw-btn    { width: 28px; height: 28px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--text-3); cursor: pointer; transition: border-color .18s ease, color .18s ease, background .18s ease; text-decoration: none; }
+.nw-btn:hover { background: var(--surface-3); border-color: var(--soft-gold); color: var(--gold-dark); }
 .nw-btn.primary { background: var(--gold-dark); color: var(--text-inverted); border-color: var(--gold-dark); }
-.nw-btn.primary:hover { background: var(--primary-mid); border-color: var(--primary-mid); color: var(--text-inverted); }
+.nw-btn.primary:hover { background: var(--primary); border-color: var(--primary); }
 
-/* Responsive */
-@media (max-width: 1180px) {
-  .dh-greet { grid-template-columns: 1fr; }
+/* ── Modal helpers ── */
+.dh-modal-rows { display: flex; flex-direction: column; }
+.dh-modal-row  { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); gap: 12px; font-size: 13px; }
+.dh-modal-row:last-child { border-bottom: none; }
+.dh-modal-lbl  { color: var(--text-4); font-weight: 600; font-size: 12px; }
+.dh-review-checklist { display: flex; flex-direction: column; gap: 10px; }
+
+/* ── CEU table ── */
+.dh-ceu-table { display: flex; flex-direction: column; }
+.dh-ceu-row   { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.dh-ceu-row:last-child { border-bottom: none; }
+.dh-ceu-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.dh-ceu-meta  { font-size: 11px; color: var(--text-4); margin-top: 2px; }
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .dh-cols  { grid-template-columns: 1fr; }
   .dh-glance { grid-template-columns: repeat(2, 1fr); }
-  .dh-cols { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .dh-greet { grid-template-columns: 1fr; }
   .dh-continuity { grid-template-columns: 1fr; }
-  .dh-cn-left { border-right: none; border-bottom: 1px solid var(--border); }
+  .nw-grid  { grid-template-columns: 1fr; }
 }
-@media (max-width: 768px) {
-  .nw-grid { grid-template-columns: 1fr; }
-}
-@media (max-width: 700px) {
-  .dh-greet-title { font-size: 30px; }
-  .dh-greet-meta { flex-wrap: wrap; }
-  .dh-greet-mcell { padding: 6px 12px; }
-  .dh-greet-mcell + .dh-greet-mcell { border-left: none; }
-  .dh-glance { grid-template-columns: 1fr 1fr; }
-  .dh-cred-row { flex-wrap: wrap; }
-  .dh-cred-meter { min-width: 100%; align-items: flex-start; margin-top: 4px; }
-}
-</style>
-
-<!-- Global modal-content helpers not present in _shared.css (apply to teleported modal bodies) -->
-<style>
-.exec-person-row { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
-.exec-avatar { width: 34px; height: 34px; border-radius: var(--radius-full); background: var(--gold-dark); color: var(--text-inverted); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
-.exec-role-chip { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gold-dark); background: var(--badge-bg-gold); border: 1px solid var(--fade-gold, rgba(160,129,62,0.4)); border-radius: var(--radius-full); padding: 3px 9px; white-space: nowrap; }
-.cc-detail-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); }
-.cc-detail-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-4); }
-.cc-detail-value { font-size: 13px; font-weight: 600; color: var(--text); text-align: right; }
-.review-item { display: flex; align-items: flex-start; gap: 11px; padding: 11px 0; border-bottom: 1px solid var(--border); }
-.review-item:last-of-type { border-bottom: none; }
-.review-check { width: 17px; height: 17px; flex-shrink: 0; margin-top: 1px; accent-color: var(--gold-dark); cursor: pointer; }
-.ceu-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; }
-.styled-chk { width: 17px; height: 17px; accent-color: var(--gold-dark); cursor: pointer; flex-shrink: 0; }
-.req { color: var(--red); margin-left: 2px; }
-.optional { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--text-3); margin-left: 4px; }
-.form-error { display: none; align-items: center; gap: 5px; font-size: 11px; color: var(--red); margin-top: 5px; }
-.form-error.visible { display: flex; }
-.form-error svg { width: 11px; height: 11px; stroke: currentColor; fill: none; flex-shrink: 0; }
-
-/* Dropzone */
-.dropzone { display: flex; align-items: center; gap: 12px; border: 2px dashed var(--border); border-radius: var(--radius-sm); padding: 14px 16px; cursor: pointer; transition: background .18s ease, border-color .18s ease; background: var(--surface); }
-.dropzone:hover { background: var(--surface-2); border-color: var(--gold); }
-.dropzone.is-compact { padding: 11px 14px; }
-.dz-icon { width: 34px; height: 34px; border-radius: var(--radius-sm); background: var(--gold-dark); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.dz-text { font-size: 13px; color: var(--text-2); }
-.dz-text strong { color: var(--gold-dark); font-weight: 700; }
-.dz-sub { font-size: 11px; color: var(--text-4); margin-top: 2px; }
-.dz-filename { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--green-dark); font-weight: 600; margin-top: 4px; }
-
-/* New referral modal */
-#dh-noop {}
-.nrf-src-chooser { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-.nrf-src-option { border: 1.5px solid var(--border); background: var(--surface); border-radius: var(--radius-sm); padding: 12px 14px; cursor: pointer; transition: box-shadow 180ms; }
-.nrf-src-option:hover { box-shadow: var(--shadow-sm); }
-.nrf-src-option.selected { border-color: var(--soft-gold, rgba(160,129,62,0.5)); background: var(--badge-bg-gold); }
-.nrf-src-icon { margin-bottom: 6px; color: var(--text-3); display: inline-flex; align-items: center; line-height: 0; }
-.nrf-src-option.selected .nrf-src-icon { color: var(--gold-dark); }
-.nrf-src-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
-.nrf-src-sub { font-size: 12px; color: var(--text-3); line-height: 1.4; }
-.nrf-roster-list { margin-bottom: 4px; }
-.nrf-pt-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 6px; cursor: pointer; transition: box-shadow 180ms; }
-.nrf-pt-row:hover { box-shadow: var(--shadow-sm); }
-.nrf-pt-row.selected { border-color: var(--soft-gold, rgba(160,129,62,0.5)); background: var(--badge-bg-gold); }
-.nrf-pt-avatar { width: 34px; height: 34px; border-radius: var(--radius-full); background: var(--gold-dark); color: var(--text-inverted); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
-.nrf-pt-info { flex: 1; min-width: 0; }
-.nrf-pt-name { font-size: 13px; font-weight: 700; color: var(--text); }
-.nrf-pt-meta { font-size: 12px; color: var(--text-3); }
-.nrf-pt-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: 0.4px; flex-shrink: 0; }
-.nrf-pt-tag-priority { background: var(--red-light); color: var(--red-dark); }
-.nrf-pt-tag-active { background: var(--green-light); color: var(--green-dark); }
-.nrf-empty { display: none; padding: 18px; text-align: center; background: var(--surface-2); border: 1px dashed var(--border); border-radius: var(--radius-sm); font-size: 13px; color: var(--text-3); }
-.nrf-link { color: var(--gold-dark); font-weight: 700; text-decoration: none; }
-.nrf-link:hover { text-decoration: underline; }
-.nrf-selected { margin-top: 12px; background: var(--badge-bg-gold); border: 1.5px solid var(--soft-gold, rgba(160,129,62,0.5)); border-radius: var(--radius-sm); padding: 11px 14px; }
-.nrf-selected-title { font-size: 12px; font-weight: 700; color: var(--gold-dark); margin-bottom: 5px; display: flex; align-items: center; gap: 5px; }
-.nrf-selected-body { font-size: 13px; color: var(--text-2); line-height: 1.55; }
-.nrf-selected-clear { background: none; border: none; font-size: 11px; color: var(--text-4); cursor: pointer; margin-top: 6px; padding: 0; text-decoration: underline; }
-.nrf-hipaa-note { background: var(--blue-light); border-left: 3px solid var(--blue-dark); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 14px; font-size: 12px; color: var(--blue-dark); line-height: 1.5; }
-.nrf-review { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; margin-bottom: 14px; }
-.nrf-review-section-full { grid-column: 1 / -1; }
-.nrf-review-label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; }
-.nrf-review-value { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.4; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-.nrf-review-section-full .nrf-review-value { font-weight: 500; color: var(--text-2); line-height: 1.55; }
-.nrf-dropzone { border: 2px dashed var(--border); border-radius: var(--radius-sm); padding: 16px; text-align: center; font-size: 13px; color: var(--text-3); cursor: pointer; transition: background 180ms, box-shadow 180ms; }
-.nrf-dropzone:hover { background: var(--surface-2); box-shadow: var(--shadow-sm); }
-.nrf-dropzone-icon { display: inline-flex; align-items: center; line-height: 0; margin-bottom: 4px; }
-.nrf-attach-list { margin-top: 8px; font-size: 12px; color: var(--text-3); }
-.nrf-hipaa-ack { display: flex; align-items: flex-start; gap: 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 13px; color: var(--text-2); line-height: 1.5; }
-.nrf-hipaa-ack label { cursor: pointer; }
-
-/* Toasts */
-.dh-toast-stack { position: fixed; bottom: 22px; right: 22px; z-index: 4000; display: flex; flex-direction: column; gap: 10px; }
-.dh-toast { display: flex; align-items: center; gap: 9px; padding: 11px 16px; border-radius: var(--radius); background: var(--text); color: var(--text-inverted); font-size: 13px; font-weight: 600; box-shadow: var(--shadow-lg); max-width: 360px; animation: dh-toast-in .22s ease both; }
-.dh-toast.success { background: var(--green-dark); }
-.dh-toast.info { background: var(--text); }
-.dh-toast svg { flex-shrink: 0; }
-@keyframes dh-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 </style>

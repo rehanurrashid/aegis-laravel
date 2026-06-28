@@ -1,28 +1,30 @@
 <!--
   AegisModal.vue — universal modal overlay.
 
-  Replaces the .modal-overlay > .modal pattern repeated across every PHP
-  portal page. Every modal in Aegis goes through this primitive — no
-  per-page modal implementations.
+  TWO usage patterns:
+  A) Store-driven (preferred): pass modal-id, open via ui.openModal('id')
+       <AegisModal modal-id="myModal" title="My Modal">...</AegisModal>
 
-  RULES (enforced):
-    • Modal title is plain text only. NO icons inside .modal-title.
+  B) v-model (local state):
+       <AegisModal v-model="showModal" title="My Modal">...</AegisModal>
+
+  RULES:
+    • Modal title is plain text only — NO icons inside .modal-title.
     • Body and footer are slots — page composes content freely.
-    • Default body horizontal padding inherited from _shared.css.
-    • Esc closes (when closeable). Overlay click closes (when closeOnOverlay).
-
-  Sizes map to existing CSS classes: modal-sm, modal-md (default), modal-lg, modal-xl.
+    • Esc and overlay-click close by default.
+    • Sizes: sm | md (default) | lg | xl
 -->
 <template>
   <Teleport to="body">
     <Transition name="modal-fade" appear>
       <div
-        v-if="modelValue"
-        class="modal-overlay"
+        v-if="isOpen"
+        class="modal-overlay open"
         @click.self="onOverlayClick"
         @keydown.esc="onEsc"
         tabindex="-1"
-        ref="overlay"
+        ref="overlayRef"
+        style="z-index:10000"
       >
         <div
           class="modal"
@@ -58,10 +60,13 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
+import { useUiStore } from '@/stores/ui'
+import AegisIcon from '@/components/ui/AegisIcon.vue'
 
 const props = defineProps({
-  modelValue:     { type: Boolean, required: true },
+  modalId:        { type: String,  default: '' },     // store-driven pattern
+  modelValue:     { type: Boolean, default: undefined }, // v-model pattern
   title:          { type: String,  default: '' },
   size:           { type: String,  default: 'md', validator: (v) => ['sm','md','lg','xl'].includes(v) },
   closeable:      { type: Boolean, default: true },
@@ -70,10 +75,21 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue', 'close'])
-const overlay = ref(null)
+const overlayRef = ref(null)
+const ui = useUiStore()
+
+// Determine open state from either store or v-model
+const isOpen = computed(() => {
+  if (props.modalId) return ui.activeModal === props.modalId
+  return props.modelValue === true
+})
 
 function close() {
-  emit('update:modelValue', false)
+  if (props.modalId) {
+    ui.closeModal(props.modalId)
+  } else {
+    emit('update:modelValue', false)
+  }
   emit('close')
 }
 
@@ -85,11 +101,11 @@ function onEsc() {
   if (props.closeOnEsc && props.closeable) close()
 }
 
-// Focus the overlay when opened so Esc works without the user clicking inside.
-watch(() => props.modelValue, async (val) => {
+// Focus overlay when opened so Esc works
+watch(isOpen, async (val) => {
   if (val) {
     await nextTick()
-    overlay.value?.focus()
+    overlayRef.value?.focus()
     document.body.style.overflow = 'hidden'
   } else {
     document.body.style.overflow = ''
@@ -99,11 +115,7 @@ watch(() => props.modelValue, async (val) => {
 
 <style scoped>
 .modal-fade-enter-active,
-.modal-fade-leave-active {
-  transition: opacity var(--transition-fast);
-}
+.modal-fade-leave-active { transition: opacity 0.18s ease; }
 .modal-fade-enter-from,
-.modal-fade-leave-to {
-  opacity: 0;
-}
+.modal-fade-leave-to    { opacity: 0; }
 </style>

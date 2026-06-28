@@ -43,19 +43,19 @@
         <form @submit.prevent="submit" novalidate>
           <div class="form-group">
             <label class="form-label" for="rp-email">Email Address</label>
-            <input id="rp-email" v-model="form.email" type="email" class="form-input" :class="{ 'is-error': form.errors.email }" autocomplete="email" placeholder="your@email.com" />
-            <div v-if="form.errors.email" class="form-error">{{ form.errors.email }}</div>
+            <input id="rp-email" v-model="form.email" type="email" class="form-input" :class="{ 'is-error': fieldError('email') }" autocomplete="email" placeholder="your@email.com" @blur="v$.email.$touch()" />
+            <div v-if="fieldError('email')" class="form-error">{{ fieldError('email') }}</div>
           </div>
 
           <div class="form-group">
             <label class="form-label" for="rp-password">New Password</label>
             <div class="rp-input-wrap">
-              <input id="rp-password" v-model="form.password" :type="showPassword ? 'text' : 'password'" class="form-input rp-has-toggle" :class="{ 'is-error': form.errors.password }" autocomplete="new-password" placeholder="Create a strong password" autofocus @input="checkStrength" />
+              <input id="rp-password" v-model="form.password" :type="showPassword ? 'text' : 'password'" class="form-input rp-has-toggle" :class="{ 'is-error': fieldError('password') }" autocomplete="new-password" placeholder="Create a strong password" autofocus @blur="v$.password.$touch()" @input="checkStrength" />
               <button type="button" class="rp-toggle" :data-tooltip="showPassword ? 'Hide password' : 'Show password'" @click="showPassword = !showPassword">
                 <AegisIcon :name="showPassword ? 'eye-off' : 'eye'" :size="15" />
               </button>
             </div>
-            <div v-if="form.errors.password" class="form-error">{{ form.errors.password }}</div>
+            <div v-if="fieldError('password')" class="form-error">{{ fieldError('password') }}</div>
             <div class="rp-reqs">
               <div class="rp-req" :class="{ valid: reqs.length, invalid: form.password && !reqs.length }">
                 <AegisIcon :name="reqs.length ? 'check-circle' : 'circle'" :size="11" /> 8+ characters
@@ -75,21 +75,19 @@
           <div class="form-group">
             <label class="form-label" for="rp-confirm">Confirm New Password</label>
             <div class="rp-input-wrap">
-              <input id="rp-confirm" v-model="form.password_confirmation" :type="showConfirm ? 'text' : 'password'" class="form-input rp-has-toggle" :class="{ 'is-error': passwordMismatch }" autocomplete="new-password" placeholder="Re-enter your password" />
+              <input id="rp-confirm" v-model="form.password_confirmation" :type="showConfirm ? 'text' : 'password'" class="form-input rp-has-toggle" :class="{ 'is-error': fieldError('password_confirmation') }" autocomplete="new-password" placeholder="Re-enter your password" @blur="v$.password_confirmation.$touch()" />
               <button type="button" class="rp-toggle" :data-tooltip="showConfirm ? 'Hide password' : 'Show password'" @click="showConfirm = !showConfirm">
                 <AegisIcon :name="showConfirm ? 'eye-off' : 'eye'" :size="15" />
               </button>
             </div>
-            <div v-if="passwordMismatch" class="form-error">
-              <AegisIcon name="x-circle" :size="11" /> Passwords do not match
-            </div>
+            <div v-if="fieldError('password_confirmation')" class="form-error">{{ fieldError('password_confirmation') }}</div>
           </div>
 
           <div v-if="form.errors.token" class="rp-alert">
             <AegisIcon name="alert-circle" :size="15" /><span>{{ form.errors.token }}</span>
           </div>
 
-          <button type="submit" class="btn btn-primary ob-btn-full" :disabled="form.processing || passwordMismatch || !allReqsMet">
+          <button type="submit" class="btn btn-primary ob-btn-full" :disabled="form.processing">
             {{ form.processing ? 'Saving…' : 'Save New Password' }}
           </button>
         </form>
@@ -103,23 +101,72 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
 import { Head, useForm } from '@inertiajs/vue3'
+import { useVuelidate } from '@vuelidate/core'
+import { required, email, minLength, sameAs, helpers } from '@vuelidate/validators'
+import { useToast } from '@/composables/useToast'
 
-const year = new Date().getFullYear()
+const toast = useToast()
+const year  = new Date().getFullYear()
 const props = defineProps({ token: { type: String, required: true }, email: { type: String, default: '' } })
-const form = useForm({ token: props.token, email: props.email, password: '', password_confirmation: '' })
+const form  = useForm({ token: props.token, email: props.email, password: '', password_confirmation: '' })
+
 const showPassword = ref(false)
 const showConfirm  = ref(false)
+
+// UX strength indicator — mirrors Vuelidate rules visually
 const reqs = reactive({ length: false, uppercase: false, number: false, special: false })
-const allReqsMet   = computed(() => Object.values(reqs).every(Boolean))
-const passwordMismatch = computed(() => form.password_confirmation.length > 0 && form.password !== form.password_confirmation)
+
+// ── Vuelidate ──────────────────────────────────────────────────────────
+const rules = computed(() => ({
+  email: {
+    required: helpers.withMessage('Email is required.', required),
+    email:    helpers.withMessage('Enter a valid email address.', email),
+  },
+  password: {
+    required:  helpers.withMessage('Password is required.', required),
+    min:       helpers.withMessage('Password must be at least 8 characters.', minLength(8)),
+    uppercase: helpers.withMessage('Password must contain an uppercase letter.', helpers.regex(/[A-Z]/)),
+    number:    helpers.withMessage('Password must contain a number.', helpers.regex(/[0-9]/)),
+    special:   helpers.withMessage('Password must contain a special character.', helpers.regex(/[^A-Za-z0-9]/)),
+  },
+  password_confirmation: {
+    required: helpers.withMessage('Please confirm your password.', required),
+    sameAs:   helpers.withMessage('Passwords do not match.', sameAs(computed(() => form.password))),
+  },
+}))
+
+const v$ = useVuelidate(rules, form)
+
+function fieldError(field) {
+  if (v$.value[field]?.$error) return v$.value[field].$errors[0]?.$message
+  if (form.errors[field]) return form.errors[field]
+  return null
+}
+
+const allReqsMet = computed(() => Object.values(reqs).every(Boolean))
 
 function checkStrength() {
   const pw = form.password
-  reqs.length = pw.length >= 8; reqs.uppercase = /[A-Z]/.test(pw)
-  reqs.number = /[0-9]/.test(pw); reqs.special = /[^A-Za-z0-9]/.test(pw)
+  reqs.length    = pw.length >= 8
+  reqs.uppercase = /[A-Z]/.test(pw)
+  reqs.number    = /[0-9]/.test(pw)
+  reqs.special   = /[^A-Za-z0-9]/.test(pw)
 }
-function submit() {
-  form.post(route('password.update'), { onFinish: () => form.reset('password', 'password_confirmation') })
+
+async function submit() {
+  const valid = await v$.value.$validate()
+  if (!valid) {
+    toast.error('Please fix the highlighted fields.')
+    return
+  }
+  form.post(route('password.update'), {
+    onSuccess: () => toast.success('Password updated. Please sign in.'),
+    onError:   () => toast.error('Could not update password. The link may have expired.'),
+    onFinish:  () => {
+      form.reset('password', 'password_confirmation')
+      v$.value.$reset()
+    },
+  })
 }
 </script>
 

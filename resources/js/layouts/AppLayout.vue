@@ -10,7 +10,6 @@
     • Incident banner (when hasEmergency=true)
     • Slot for the page body
     • Global modals (upgrade) + toast stack + floating support widget
-    • Dev-only demo switcher
 
   All pages render through this layout unless explicitly using AuthLayout
   (login/register) or PublicLayout (public profile pages).
@@ -47,9 +46,6 @@
     <!-- Floating feedback / support FAB (skipped on Support page itself). -->
     <SupportWidget v-if="$page.component !== 'shared/Support'" />
 
-    <!-- Dev-only demo user switcher. -->
-    <DemoSwitcher />
-
     <!-- Toast stack — always last so it layers above modals. -->
     <div class="toast-container">
       <AegisToast
@@ -71,7 +67,6 @@ import { useNotificationStore } from '@/stores/notifications'
 
 import AppSidebar from '@/components/chrome/AppSidebar.vue'
 import AppHeader from '@/components/chrome/AppHeader.vue'
-import DemoSwitcher from '@/components/chrome/DemoSwitcher.vue'
 
 import IncidentBanner from '@/components/features/IncidentBanner.vue'
 import SupportWidget from '@/components/features/SupportWidget.vue'

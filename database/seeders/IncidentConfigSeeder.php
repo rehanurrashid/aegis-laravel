@@ -17,7 +17,7 @@ class IncidentConfigSeeder extends Seeder
             [
                 'id'               => 'ic_sarah_short_term',
                 'plan_id'          => 'plan_sarah',
-                'incident_type'    => 'short_term_incapacitation',
+                'incident_type'    => 'incapacitation',
                 'is_active'        => 1,
                 'docs_required'    => json_encode(['doctors_note', 'hospitalization_record']),
                 'authorized_ss_ids'=> json_encode(['ss_linda']),
@@ -28,7 +28,7 @@ class IncidentConfigSeeder extends Seeder
             [
                 'id'               => 'ic_sarah_extended',
                 'plan_id'          => 'plan_sarah',
-                'incident_type'    => 'extended_leave',
+                'incident_type'    => 'extended_absence',
                 'is_active'        => 1,
                 'docs_required'    => json_encode(['doctors_note', 'leave_documentation']),
                 'authorized_ss_ids'=> json_encode(['ss_linda']),
@@ -50,7 +50,7 @@ class IncidentConfigSeeder extends Seeder
             [
                 'id'               => 'ic_sarah_missing',
                 'plan_id'          => 'plan_sarah',
-                'incident_type'    => 'missing_person',
+                'incident_type'    => 'missing',
                 'is_active'        => 1,
                 'docs_required'    => json_encode(['police_report']),
                 'authorized_ss_ids'=> json_encode(['ss_linda']),
@@ -63,7 +63,7 @@ class IncidentConfigSeeder extends Seeder
             [
                 'id'               => 'ic_maria_short_term',
                 'plan_id'          => 'plan_maria',
-                'incident_type'    => 'short_term_incapacitation',
+                'incident_type'    => 'incapacitation',
                 'is_active'        => 1,
                 'docs_required'    => json_encode(['doctors_note']),
                 'authorized_ss_ids'=> json_encode(['ss_james']),

@@ -25,6 +25,8 @@ Break any of these and the component is wrong:
 13. **NEVER use `size="md"` or `size="lg"` on multi-step modals** — `size="xl"` or `size="fullscreen"` only (see Section 13).
 14. **NEVER submit a form without client-side validation** — Vuelidate runs first, server validation is the boundary (see Section 14).
 15. **NEVER place an `<AegisIcon>` next to text inside a plain `<span>` or `<div>`** — the parent must be `inline-flex` (badges, pills) or `flex` (alerts, rows) with `align-items: center` and a `gap` (see Section 11).
+16. **NEVER stack short form fields vertically in a modal** — selects, dates, numbers, and short text fields go side by side in `.form-row`; only long-value fields (textarea, description, notes) get full width (see Section 4 Forms).
+17. **NEVER use a raw `<input type="file">` in any template** — always `<AegisDropzone v-model="form.file" ... />`; always add `forceFormData: true` to the submit call (see Section 15).
 ---
  
 ## SECTION 2 — IMPORT CHEATSHEET
@@ -201,6 +203,59 @@ Every Vue component follows these. `Aegis_Desing_Prompt_Short.md` is the source 
 - Errors: `<div v-if="form.errors.field" class="form-error">{{ form.errors.field }}</div>`
 - Hints: `<div class="form-hint">...</div>`
 - Toggles: `<AegisToggle v-model="form.enabled" label="..." />`
+- **Modal form layout — short fields go side by side.** Fields with short values (select dropdowns, date pickers, number inputs, short text like "Title", status toggles) must be placed in `.form-row` (2-col) or `.form-row.is-3col` (3-col) to keep more content visible above the fold. Only long-value fields (textarea, bio, description, notes) get a full-width `.form-group`. Never stack short fields vertically when they fit side by side.
+
+```vue
+<!-- ✅ Short fields side by side -->
+<div class="form-row">
+    <div class="form-group">
+        <label class="form-label">Zone</label>
+        <select v-model="form.zone" class="form-select">...</select>
+    </div>
+    <div class="form-group">
+        <label class="form-label">Access Level</label>
+        <select v-model="form.access_level" class="form-select">...</select>
+    </div>
+</div>
+<div class="form-row">
+    <div class="form-group">
+        <label class="form-label">Start Date</label>
+        <input v-model="form.starts_at" type="date" class="form-input" />
+    </div>
+    <div class="form-group">
+        <label class="form-label">End Date</label>
+        <input v-model="form.ends_at" type="date" class="form-input" />
+    </div>
+</div>
+
+<!-- ✅ Long-value fields get full width -->
+<div class="form-group">
+    <label class="form-label">Description</label>
+    <textarea v-model="form.description" class="form-textarea" rows="4" />
+</div>
+
+<!-- ❌ WRONG — short fields stacked vertically wastes vertical space -->
+<div class="form-group">
+    <label class="form-label">Zone</label>
+    <select v-model="form.zone" class="form-select">...</select>
+</div>
+<div class="form-group">
+    <label class="form-label">Access Level</label>
+    <select v-model="form.access_level" class="form-select">...</select>
+</div>
+```
+
+**Side-by-side decision table:**
+| Field type | Layout |
+|---|---|
+| `<select>` dropdown | `.form-row` (pair with another short field) |
+| `<input type="date">` | `.form-row` (pair with another date or short field) |
+| `<input type="number">` | `.form-row` |
+| Short text (title, name, code) max ~60 chars | `.form-row` |
+| Status/toggle | `.form-row` |
+| `<textarea>` / description / bio / notes | `.form-group` full width |
+| Long text (narrative, reason, body) | `.form-group` full width |
+| File upload (`AegisDropzone`) | `.form-group` full width |
 ### Buttons
 - Canonical set only: `btn-primary` · `btn-outline` · `btn-danger` · `btn-ghost` · `btn-hero-solid is-on-light` · `btn-hero-ghost is-on-light`
 - Size variants: `btn-sm`
@@ -1090,31 +1145,90 @@ function closeModal() {
 ---
 
 ## SECTION 15 — UPLOAD / DROPZONE PATTERN
- 
-```vue
-<template>
-  <AegisDropzone
-    v-model="form.file"
-    accept=".pdf,.docx,.jpg,.png"
-    hint="PDF, DOCX, JPG, PNG up to 10 MB"
-  />
-  <div v-if="form.errors.file" class="form-error">{{ form.errors.file }}</div>
-</template>
- 
-<script setup>
-const form = useForm({ file: null, zone: '', title: '' })
- 
-function submit() {
-    form.post(route('provider.vault.upload'), {
-        forceFormData: true,    // required for file uploads
-        onSuccess: () => { modals.upload = false; toast.success('Uploaded.') },
-    })
-}
-</script>
+
+**RULE: Every file input in the entire app — in any modal, any form, any page — MUST use `<AegisDropzone>`. Never use a raw `<input type="file">` directly in a template.**
+
+`AegisDropzone` is the single canonical file upload component. It handles drag-and-drop, file selection via click, file name display, clear button, and accept/hint display. Building these inline in page templates duplicates logic and creates inconsistency.
+
+### `AegisDropzone` component props
+
+```js
+defineProps({
+    modelValue: { type: [File, null], default: null },  // v-model
+    accept:     { type: String, default: '' },           // e.g. '.pdf,.jpg,.png'
+    hint:       { type: String, default: '' },           // shown below dropzone
+    multiple:   { type: Boolean, default: false },
+    disabled:   { type: Boolean, default: false },
+    maxSizeMb:  { type: Number, default: null },         // client-side size check
+})
 ```
- 
+
+### Usage — every file upload everywhere
+
+```vue
+<!-- ✅ In any modal form -->
+<div class="form-group">
+    <label class="form-label">Document</label>
+    <AegisDropzone
+        v-model="form.file"
+        accept=".pdf,.docx"
+        hint="PDF or DOCX, max 10 MB"
+        :max-size-mb="10"
+    />
+    <div v-if="form.errors.file" class="form-error">{{ form.errors.file }}</div>
+</div>
+
+<!-- ❌ WRONG — raw file input -->
+<input type="file" @change="form.file = $event.target.files[0]" accept=".pdf" />
+
+<!-- ❌ WRONG — custom dropzone HTML built inline in a page -->
+<div class="drop-area" @drop="onDrop">Click or drag to upload</div>
+```
+
+### Always `forceFormData: true` when the form has a file field
+
+```js
+form.post(route('provider.vault.upload'), {
+    forceFormData: true,   // ← required whenever form.file is present
+    onSuccess: () => { modals.upload = false; toast.success('Uploaded.') },
+    onError:   () => toast.error('Please check the form.'),
+})
+```
+
+### Vuelidate for file fields
+
+```js
+file: {
+    required: helpers.withMessage('Please select a file.', required),
+    maxSize:  helpers.withMessage('File must be under 10 MB.',
+        (v) => !v || v.size <= 10 * 1024 * 1024),
+    mimeType: helpers.withMessage('Only PDF or DOCX allowed.',
+        (v) => !v || ['application/pdf',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        ].includes(v.type)),
+}
+```
+
+### Where `AegisDropzone` must appear (project-wide)
+
+When porting any PHP page, `grep -n "input type=\"file\"" page.php` — every match becomes `<AegisDropzone>` in Vue.
+
+| Page / Modal | Field |
+|---|---|
+| Vault upload modal (Provider + CS) | vault item file |
+| Important Documents — upload/request modal | document file |
+| Incident report modal (SS) | incident documentation |
+| Incident verify modal (CS) | verification documentation |
+| Incident update modal | update attachment |
+| Profile — credential upload | credential scan |
+| Messages — compose modal | message attachment |
+| BP — proposal modal | proposal attachment |
+| BP — milestone submit modal | deliverable file |
+| Support — new ticket modal | ticket attachment |
+| Admin — help article modal | article image/file |
+
 ---
- 
+
 ## SECTION 16 — ANTI-PATTERN HALL OF SHAME
  
 | ❌ Wrong | ✅ Correct |
@@ -1148,6 +1262,10 @@ function submit() {
 | `form.reset()` without `v$.$reset()` | Both must reset together |
 | Showing errors while user is typing | Only after `@blur` or submit (`v$.field.$touch()`) |
 | Server `required_if:role,business_partner` with no client mirror | Pair with `requiredIf(() => form.role === '...')` |
+| Short fields stacked vertically in a modal (zone, date, select) | Pair them in `.form-row` — see Section 4 Forms |
+| `<input type="file">` in any template | `<AegisDropzone v-model="form.file" ... />` |
+| Custom drag-drop HTML built inline in a page | Import and use `AegisDropzone` component |
+| `forceFormData` omitted when form has a file field | Always add `forceFormData: true` when `form.file` is present |
 | `<span><AegisIcon /> Done</span>` — baseline drift | Wrap in `inline-flex; align-items: center; gap: 4px` container |
 | `display: flex` on icon row but no `gap` | Add `gap: 6–8px` to space icon from text |
 | `vertical-align: middle` on `<AegisIcon>` | Parent: `align-items: center` on flex/inline-flex |
@@ -1315,3 +1433,6 @@ Before declaring any component "done":
 - [ ] No `<AegisIcon>` next to text inside a plain `<span>` or `<div>` (baseline drift)
 - [ ] Client validation rules pair with server FormRequest rules (Section 14 pairing table)
 - [ ] `v$.$reset()` is called after `form.reset()` on modal close
+- [ ] Short fields in modals (selects, dates, numbers) are paired in `.form-row` — not stacked vertically
+- [ ] Every file input uses `<AegisDropzone>` — no raw `<input type="file">` in any template
+- [ ] Every form with a file field has `forceFormData: true` in the submit call

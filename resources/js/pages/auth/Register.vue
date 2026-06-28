@@ -110,7 +110,7 @@
           © {{ year }} Aegis Platform. All rights reserved.<br />
           <button type="button" class="ob-footer-link" @click="showWws = true">Who We Serve</button>
           &nbsp;·&nbsp;
-          <a href="/pricing.php#about" class="ob-footer-link">About</a>
+          <a :href="route('home')" class="ob-footer-link">About</a>
         </p>
       </div>
     </div>
@@ -232,10 +232,10 @@
                 @click="form.bp_type = 'agency'"
               >Agency</button>
             </div>
-            <div v-if="form.errors.bp_type" class="form-error">{{ form.errors.bp_type }}</div>
+            <div v-if="fieldError('bp_type')" class="form-error">{{ fieldError('bp_type') }}</div>
           </div>
 
-          <div v-if="form.errors.role" class="form-error">{{ form.errors.role }}</div>
+          <div v-if="fieldError('role')" class="form-error">{{ fieldError('role') }}</div>
 
           <button
             type="button"
@@ -269,12 +269,13 @@
                 v-model="form.display_name"
                 type="text"
                 class="form-input"
-                :class="{ 'is-error': form.errors.display_name }"
+                :class="{ 'is-error': fieldError('display_name') }"
                 autocomplete="name"
                 autofocus
                 placeholder="Enter your full name"
+                @blur="v$.display_name.$touch()"
               />
-              <div v-if="form.errors.display_name" class="form-error">{{ form.errors.display_name }}</div>
+              <div v-if="fieldError('display_name')" class="form-error">{{ fieldError('display_name') }}</div>
             </div>
 
             <div class="form-group">
@@ -284,11 +285,12 @@
                 v-model="form.email"
                 type="email"
                 class="form-input"
-                :class="{ 'is-error': form.errors.email }"
+                :class="{ 'is-error': fieldError('email') }"
                 autocomplete="email"
                 placeholder="your@email.com"
+                @blur="v$.email.$touch()"
               />
-              <div v-if="form.errors.email" class="form-error">{{ form.errors.email }}</div>
+              <div v-if="fieldError('email')" class="form-error">{{ fieldError('email') }}</div>
             </div>
 
             <div class="form-group">
@@ -299,16 +301,17 @@
                   v-model="form.password"
                   :type="showPassword ? 'text' : 'password'"
                   class="form-input"
-                  :class="{ 'is-error': form.errors.password }"
+                  :class="{ 'is-error': fieldError('password') }"
                   autocomplete="new-password"
                   placeholder="Create a strong password"
+                  @blur="v$.password.$touch()"
                   @input="checkPasswordStrength"
                 />
                 <button type="button" class="ob-password-toggle" @click="showPassword = !showPassword">
                   <AegisIcon :name="showPassword ? 'eye-off' : 'eye'" :size="15" />
                 </button>
               </div>
-              <div v-if="form.errors.password" class="form-error">{{ form.errors.password }}</div>
+              <div v-if="fieldError('password')" class="form-error">{{ fieldError('password') }}</div>
               <div class="ob-password-reqs">
                 <div class="ob-req-item" :class="{ valid: reqs.length, invalid: form.password && !reqs.length }">
                   <AegisIcon :name="reqs.length ? 'check-circle' : 'x-circle'" :size="11" />8+ characters
@@ -333,15 +336,16 @@
                   v-model="form.password_confirmation"
                   :type="showConfirm ? 'text' : 'password'"
                   class="form-input"
-                  :class="{ 'is-error': passwordMismatch }"
+                  :class="{ 'is-error': fieldError('password_confirmation') }"
                   autocomplete="new-password"
                   placeholder="Re-enter your password"
+                  @blur="v$.password_confirmation.$touch()"
                 />
                 <button type="button" class="ob-password-toggle" @click="showConfirm = !showConfirm">
                   <AegisIcon :name="showConfirm ? 'eye-off' : 'eye'" :size="15" />
                 </button>
               </div>
-              <div v-if="passwordMismatch" class="form-error">Passwords do not match</div>
+              <div v-if="fieldError('password_confirmation')" class="form-error">{{ fieldError('password_confirmation') }}</div>
             </div>
 
             <label class="auth-remember">
@@ -360,7 +364,7 @@
             <button
               type="submit"
               class="btn btn-primary ob-btn-full"
-              :disabled="form.processing || !agreeTerms || passwordMismatch"
+              :disabled="form.processing || !agreeTerms"
             >{{ form.processing ? 'Creating Account…' : 'Create Account' }}</button>
 
           </form>
@@ -377,6 +381,11 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
 import { Head, useForm, router } from '@inertiajs/vue3'
+import { useVuelidate } from '@vuelidate/core'
+import { required, email, minLength, maxLength, sameAs, requiredIf, helpers } from '@vuelidate/validators'
+import { useToast } from '@/composables/useToast'
+
+const toast = useToast()
 
 const currentStep  = ref(0)
 const showWws      = ref(false)
@@ -386,6 +395,7 @@ const agreeTerms   = ref(false)
 const emailOptIn   = ref(false)
 const year         = new Date().getFullYear()
 
+// UX password strength indicator — visual only, mirrors Vuelidate rules
 const reqs = reactive({ length: false, uppercase: false, number: false, special: false })
 
 const form = useForm({
@@ -397,16 +407,53 @@ const form = useForm({
   bp_type:               null,
 })
 
+// ── Vuelidate rules ───────────────────────────────────────────────────
+const rules = computed(() => ({
+  display_name: {
+    required: helpers.withMessage('Full name is required.', required),
+    max:      helpers.withMessage('Name must be 100 characters or less.', maxLength(100)),
+  },
+  email: {
+    required: helpers.withMessage('Email is required.', required),
+    email:    helpers.withMessage('Enter a valid email address.', email),
+  },
+  password: {
+    required:  helpers.withMessage('Password is required.', required),
+    min:       helpers.withMessage('Password must be at least 8 characters.', minLength(8)),
+    uppercase: helpers.withMessage('Password must contain an uppercase letter.', helpers.regex(/[A-Z]/)),
+    number:    helpers.withMessage('Password must contain a number.', helpers.regex(/[0-9]/)),
+    special:   helpers.withMessage('Password must contain a special character.', helpers.regex(/[^A-Za-z0-9]/)),
+  },
+  password_confirmation: {
+    required: helpers.withMessage('Please confirm your password.', required),
+    sameAs:   helpers.withMessage('Passwords do not match.', sameAs(computed(() => form.password))),
+  },
+  role: {
+    required: helpers.withMessage('Select a role to continue.', required),
+  },
+  bp_type: {
+    requiredIf: helpers.withMessage(
+      'Choose freelancer or agency.',
+      requiredIf(() => form.role === 'business_partner')
+    ),
+  },
+}))
+
+const v$ = useVuelidate(rules, form)
+
+// ── Unified error helper ──────────────────────────────────────────────
+function fieldError(field) {
+  if (v$.value[field]?.$error) return v$.value[field].$errors[0]?.$message
+  if (form.errors[field]) return form.errors[field]
+  return null
+}
+
 const roleSubtitle = computed(() => ({
   practitioner:       'Join as a Practitioner Partner',
   business_partner:   'Join as a Business Partner',
   continuity_steward: 'Join as a Continuity Steward (Business Account)',
   support_steward:    'Join as a Support Steward',
 }[form.role] ?? 'Join the Aegis platform to connect, collaborate, and grow.'))
-
-const passwordMismatch = computed(() =>
-  form.password_confirmation.length > 0 && form.password !== form.password_confirmation
-)
 
 const canAdvance = computed(() => {
   if (!form.role) return false
@@ -417,6 +464,7 @@ const canAdvance = computed(() => {
 function selectRole(value) {
   form.role    = value
   form.bp_type = null
+  v$.value.role.$touch()
 }
 
 function checkPasswordStrength() {
@@ -427,14 +475,25 @@ function checkPasswordStrength() {
   reqs.special   = /[^A-Za-z0-9]/.test(pw)
 }
 
-function submit() {
+async function submit() {
+  const valid = await v$.value.$validate()
+  if (!valid) {
+    toast.error('Please fix the highlighted fields.')
+    return
+  }
+  if (!agreeTerms.value) {
+    toast.error('You must agree to the Terms of Service.')
+    return
+  }
   form.post(route('register.store'), {
     onSuccess: () => {
-      // After registration, always redirect to email verification notice.
-      // User is now logged in but email is unverified (verified = 0).
       router.visit(route('verification.notice'), { replace: true })
     },
-    onFinish: () => form.reset('password', 'password_confirmation'),
+    onError:   () => toast.error('Could not create account. Please check the form.'),
+    onFinish:  () => {
+      form.reset('password', 'password_confirmation')
+      v$.value.$reset()
+    },
   })
 }
 </script>

@@ -1,357 +1,663 @@
 <!--
-  AppSidebar.vue — universal portal sidebar.
-
-  Replaces _shared/sidebar.php. Decides which menu set to render from the
-  auth store's `portal` value (provider, continuity_steward, support_steward,
-  business_partner, admin). Highlights the active item from the Inertia page
-  prop `activePage` set by every controller.
-
-  Tier gating: on Access tier, locked items (referrals, services) render
-  with .is-locked and intercept clicks to open the upgrade modal — NEVER
-  navigating to a fallback URL. Mirrors AegisTier.onLockedClick().
-
-  Active-incident badge: when `incident.hasEmergency` is true, the CS portal's
-  "Continuity Management" item gets a '!' danger badge and the SS portal's
-  "Critical Incident Log" gets a '1' danger badge.
+  AppSidebar.vue — Aegis universal sidebar.
+  Role-aware: renders correct nav for provider / cs / ss / bp / admin.
+  No demo-switcher. No raw <svg>. All icons via AegisIcon.
 -->
 <template>
-  <aside
-    class="sidebar"
-    :class="{ 'sidebar--collapsed': ui.sidebarCollapsed, 'sidebar--mobile-open': ui.mobileOpen }"
-    role="complementary"
-    aria-label="Portal navigation"
-  >
+  <aside class="sidebar" :class="{ collapsed: ui.sidebarCollapsed, 'mobile-open': ui.mobileOpen }" id="sidebar">
+
     <!-- ── Brand ──────────────────────────────────────────────────── -->
     <div class="sidebar-brand">
-      <a :href="brandHref" class="sidebar-brand-link">
-        <img src="/aegis-favicon.svg" alt="" class="sidebar-brand-mark" />
-        <div class="sidebar-brand-text">
+      <div class="sidebar-brand-top">
+        <Link :href="dashboardUrl" class="sidebar-brand-link">
           <span class="sidebar-brand-name">Aegis</span>
-          <span class="sidebar-brand-portal">{{ portalLabel }}</span>
+        </Link>
+        <button
+          class="sidebar-toggle-btn"
+          @click="ui.sidebarCollapsed = !ui.sidebarCollapsed"
+          data-tooltip="Collapse sidebar"
+          data-tooltip-pos="bottom"
+          aria-label="Toggle sidebar"
+          :aria-pressed="ui.sidebarCollapsed"
+        >
+          <div class="sidebar-toggle-icon">
+            <!-- Brand panel-left icon — fill="currentColor", not a Lucide stroke icon -->
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M16.5 4A1.5 1.5 0 0 1 18 5.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 2 14.5v-9A1.5 1.5 0 0 1 3.5 4zM7 15h9.5a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5H7zM3.5 5a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5H6V5z"/>
+            </svg>
+          </div>
+        </button>
+      </div>
+
+      <div class="sidebar-brand-meta">
+        <span v-if="portal === 'business_partner'" class="sidebar-portal-badge">BP Portal</span>
+        <span v-if="portal === 'provider' && servicesMode" class="sidebar-portal-badge sidebar-portal-badge--services">Clinical Services</span>
+        <span class="sidebar-role-badge" :class="{ emergency: hasEmergency }">{{ roleLabel }}</span>
+        <div v-if="portal === 'provider' && isAccessTier" class="sidebar-access-pill">
+          <span>Continuity Access</span>
+          <Link :href="r('provider.settings.index') + '?tab=subscription&upgrade=1'" class="sidebar-access-upgrade">Upgrade ↗</Link>
         </div>
-      </a>
-
-      <button
-        type="button"
-        class="sidebar-collapse-btn"
-        :aria-label="ui.sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-        @click="ui.toggleSidebar"
-      >
-        <AegisIcon :name="ui.sidebarCollapsed ? 'chevron-right' : 'chevron-left'" :size="14" />
-      </button>
-
-      <button
-        type="button"
-        class="sidebar-mobile-close"
-        aria-label="Close menu"
-        @click="ui.setMobileOpen(false)"
-      >
-        <AegisIcon name="x" :size="16" />
-      </button>
+      </div>
     </div>
 
-    <!-- ── Tier badge (Provider portal only) ─────────────────────── -->
-    <div
-      v-if="auth.isPractitioner"
-      class="sidebar-tier-badge"
-      :class="auth.isAccessTier ? 'is-access' : 'is-practice'"
-    >
-      <AegisIcon :name="auth.isAccessTier ? 'shield' : 'shield-check'" :size="13" />
-      <span>{{ auth.isAccessTier ? 'Continuity Access' : 'Continuity Practice' }}</span>
-      <button
-        v-if="auth.isAccessTier"
-        type="button"
-        class="sidebar-tier-upgrade"
-        @click="upgrade.openUpgradeModal"
-      >Upgrade ↗</button>
-    </div>
-
-    <!-- ── Active incident strip (CS / SS portals only) ──────────── -->
-    <div
-      v-if="incident.hasEmergency && (auth.isContinuitySteward || auth.isSupportSteward)"
-      class="sidebar-incident-badge"
-    >
-      <AegisIcon name="alert-triangle" :size="13" />
-      <span>Active Critical Incident</span>
-    </div>
-
-    <!-- ── Nav ────────────────────────────────────────────────────── -->
-    <nav class="sidebar-nav" role="navigation" aria-label="Main navigation">
-      <template v-for="(items, section) in navItems" :key="section">
+    <!-- ── Navigation ─────────────────────────────────────────────── -->
+    <nav class="sidebar-nav" id="sidebarNav" role="navigation" aria-label="Main navigation">
+      <template v-for="(items, section) in navSections" :key="section">
         <div class="nav-section-label">{{ section }}</div>
-        <ul class="nav-section">
-          <li v-for="item in items" :key="item.key">
-            <a
-              :href="item.locked ? '#' : item.href"
-              class="nav-item"
-              :class="{
-                'is-active': isActive(item.key),
-                'is-locked': item.locked,
-              }"
-              @click="onItemClick(item, $event)"
-            >
-              <AegisIcon :name="item.icon" :size="16" />
-              <span class="nav-item-label">{{ item.label }}</span>
-              <span
-                v-if="item.badge"
-                class="nav-badge"
-                :class="badgeClass(item.badge_type)"
-              >{{ item.badge }}</span>
-              <AegisIcon v-if="item.locked" name="lock" :size="11" class="nav-lock" />
-            </a>
-          </li>
-        </ul>
+        <Link
+          v-for="item in items"
+          :key="item.key"
+          class="nav-item"
+          :class="{ active: activePage === item.key, 'is-locked': item.locked }"
+          :href="item.href"
+          :aria-current="activePage === item.key ? 'page' : 'false'"
+          :data-label="item.label"
+        >
+          <span class="nav-icon"><AegisIcon :name="item.icon" :size="14" /></span>
+          <span class="nav-label">{{ item.label }}</span>
+          <span v-if="item.badge" class="nav-badge" :class="item.badgeType">{{ item.badge }}</span>
+          <span v-if="item.locked" class="nav-lock" data-tooltip="Upgrade to unlock">
+            <AegisIcon name="lock" :size="12" />
+          </span>
+        </Link>
       </template>
     </nav>
 
-    <!-- ── Footer ─────────────────────────────────────────────────── -->
-    <div class="sidebar-footer">
-      <div class="sidebar-version">{{ versionLine }}</div>
+    <!-- Scroll indicator — centred chevron -->
+    <div class="sidebar-scroll-indicator" :class="{ visible: showScrollIndicator }" aria-hidden="true">
+      <div class="sidebar-scroll-indicator-inner">
+        <AegisIcon name="chevron-down" :size="14" />
+      </div>
     </div>
+
+    <!-- Footer -->
+    <div class="sidebar-footer">
+      <p class="sidebar-version">Aegis © 2026 · {{ portalVersion }}</p>
+    </div>
+
   </aside>
 
-  <!-- Mobile backdrop -->
-  <div
-    v-if="ui.mobileOpen"
-    class="sidebar-backdrop"
-    @click="ui.setMobileOpen(false)"
-  ></div>
+  <!-- Mobile overlay -->
+  <div class="sidebar-overlay" :class="{ visible: ui.mobileOpen }" @click="ui.mobileOpen = false" aria-hidden="true"></div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { usePage, router } from '@inertiajs/vue3'
-import { useAuthStore } from '@/stores/auth'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { Link, usePage } from '@inertiajs/vue3'
+import AegisIcon from '@/components/ui/AegisIcon.vue'
 import { useUiStore } from '@/stores/ui'
-import { useIncidentStore } from '@/stores/incident'
-import { useUpgrade } from '@/composables/useUpgrade'
 
-const auth     = useAuthStore()
-const ui       = useUiStore()
-const incident = useIncidentStore()
-const upgrade  = useUpgrade()
-const page     = usePage()
+const ui   = useUiStore()
+const page = usePage()
 
-const activePage = computed(() => page.props.activePage ?? '')
-
-// ── Portal label + version + brand href ────────────────────────────
-const PORTAL_META = {
-  provider:           { label: 'Practitioner Portal',     version: 'Aegis © 2026 · Practitioner Portal v2.4.1',  home: 'provider.dashboard' },
-  continuity_steward: { label: 'Continuity Steward Portal', version: 'Aegis © 2026 · Continuity Steward Portal v1.0.0', home: 'cs.dashboard' },
-  support_steward:    { label: 'Support Steward Portal',   version: 'Aegis © 2026 · Support Steward v1.0.0',     home: 'ss.dashboard' },
-  business_partner:   { label: 'Business Partner Portal',  version: 'Aegis © 2026 · BP Portal v1.0.0',           home: 'bp.dashboard' },
-  admin:              { label: 'Admin Portal',             version: 'Aegis © 2026 · Admin Portal v1.0.0',        home: 'admin.dashboard' },
-}
-
-const portalMeta  = computed(() => PORTAL_META[auth.portal] ?? PORTAL_META.provider)
-const portalLabel = computed(() => portalMeta.value.label)
-const versionLine = computed(() => portalMeta.value.version)
-const brandHref   = computed(() => {
-  try { return route(portalMeta.value.home) } catch { return '/' }
+// ── Shared props ──────────────────────────────────────────────────────
+const portal       = computed(() => page.props.auth?.portal   ?? 'provider')
+const user         = computed(() => page.props.auth?.user     ?? null)
+const activePage = computed(() => {
+  const full = page.props.activePage ?? ''
+  if (!full) return ''
+  const parts = full.split('.')
+  // Route names like 'provider.dashboard' → 'dashboard'
+  // Route names like 'provider.plan.index' → 'plan'
+  // Route names like 'provider.referrals.index' → 'referrals'
+  // Strip portal prefix (first segment), then use remaining minus trailing .index/.show/.store
+  const withoutPortal = parts.slice(1) // drop 'provider'/'cs'/'ss'/'bp'/'admin'
+  const last = withoutPortal[withoutPortal.length - 1]
+  // Drop generic suffixes — use the domain segment before them
+  if (['index', 'show', 'store', 'update', 'destroy'].includes(last) && withoutPortal.length > 1) {
+    return withoutPortal[withoutPortal.length - 2]
+  }
+  return last ?? ''
 })
+const hasEmergency = computed(() => page.props.hasEmergency   ?? false)
+const unreadMsgs   = computed(() => page.props.unreadCount    ?? 0)
 
-// ── Nav builders, one per portal ────────────────────────────────────
-const providerNav = computed(() => {
-  const isAccess  = auth.isAccessTier
-  const services  = !isAccess // services mode: Practice tier only
+const isAccessTier = computed(() => page.props.auth?.tier === 'access')
+const servicesMode = computed(() => !!user.value?.services_mode)
+const bpType       = computed(() => user.value?.bp_type ?? 'agency')
 
-  const main = [
-    { key: 'overview',  href: r('provider.overview'),  icon: 'overview',  label: 'Overview — Start Here' },
-    { key: 'dashboard', href: r('provider.dashboard'), icon: 'home',      label: 'Dashboard' },
-    { key: 'profile',   href: r('provider.profile'),   icon: 'user',      label: 'My Profile' },
-  ]
-  if (!isAccess) {
-    main.push({ key: 'job-postings', href: r('provider.job-postings'), icon: 'briefcase', label: 'Support & Services', badge: '12' })
+// ── Role label ─────────────────────────────────────────────────────────
+const roleLabel = computed(() => {
+  if (hasEmergency.value && (portal.value === 'continuity_steward' || portal.value === 'support_steward')) {
+    return 'Active Critical Incident'
   }
-
-  const practice = [
-    { key: 'referrals', href: r('provider.referrals'), icon: 'share-tree', label: 'Referrals', badge: isAccess ? '' : '3', locked: isAccess },
-    { key: 'network',   href: r('provider.network'),   icon: 'network',    label: 'Network' },
-  ]
-  if (services) {
-    practice.push({ key: 'services', href: r('provider.services'), icon: 'briefcase-rx', label: 'My Services', badge: '3' })
-  }
-
   return {
-    'Main': main,
-    'My Practice': practice,
-    'Continuity': [
-      { key: 'continuity-plan',     href: r('provider.plan'),                icon: 'shield-check',  label: 'Continuity Plan' },
-      { key: 'continuity-stewards', href: r('provider.continuity-stewards'), icon: 'users-network', label: 'Continuity Stewards', badge: '1' },
-      { key: 'support-stewards',    href: r('provider.support-stewards'),    icon: 'users-line',    label: 'Support Stewards' },
-      { key: 'important-documents', href: r('provider.documents'),           icon: 'file-text',     label: 'Important Documents' },
-      { key: 'vault',               href: r('provider.vault'),               icon: 'vault',         label: 'Document Vault' },
-      { key: 'finances',            href: r('provider.finances'),            icon: 'dollar',        label: 'Finances', badge: '2' },
-    ],
-    'Communication': [
-      { key: 'messages', href: r('provider.messages'), icon: 'message', label: 'Messages', badge: badgeFromCount(unreadMessages.value) },
-      { key: 'activity', href: r('provider.activity'), icon: 'activity', label: 'Activity Log' },
-    ],
-    'Explore': [
-      { key: 'news',   href: r('provider.news'),   icon: 'megaphone', label: 'News & Resources' },
-      { key: 'events', href: r('provider.events'), icon: 'calendar',  label: 'Events' },
-    ],
-    'Account': [
-      { key: 'settings', href: r('provider.settings'), icon: 'settings',    label: 'Settings' },
-      { key: 'support',  href: r('provider.support'),  icon: 'help-circle', label: 'Support' },
-    ],
+    provider:           'Practitioner',
+    continuity_steward: 'Continuity Steward',
+    support_steward:    'Support Steward',
+    business_partner:   bpType.value === 'freelancer' ? 'Freelancer Account' : 'Agency Account',
+    admin:              'Administrator',
+  }[portal.value] ?? 'User'
+})
+
+const portalVersion = computed(() => ({
+  provider:           'Practitioner Portal v2.4.1',
+  continuity_steward: 'Continuity Steward v1.0.0',
+  support_steward:    'Support Steward v1.0.0',
+  business_partner:   'BP Portal v1.0.0',
+  admin:              'Admin Portal v1.0.0',
+}[portal.value] ?? 'v1.0.0'))
+
+// ── Route helper — try/catch so missing routes show # not crash ────────
+function r(name) {
+  try { return route(name) } catch { return '#' }
+}
+
+// ── Dashboard URL ──────────────────────────────────────────────────────
+const dashboardUrl = computed(() => r({
+  provider:           'provider.dashboard',
+  continuity_steward: 'cs.dashboard',
+  support_steward:    'ss.dashboard',
+  business_partner:   'bp.dashboard',
+  admin:              'admin.dashboard',
+}[portal.value] ?? 'provider.dashboard'))
+
+// ── Badge helper ───────────────────────────────────────────────────────
+const msgs = computed(() => unreadMsgs.value > 0 ? String(unreadMsgs.value) : '')
+
+// ── Nav sections ───────────────────────────────────────────────────────
+const navSections = computed(() => {
+  switch (portal.value) {
+
+    // ── PROVIDER ─────────────────────────────────────────────────────
+    case 'provider': {
+      const main = [
+        { key: 'overview',  href: r('provider.overview'),      icon: 'clock',     label: 'Overview — Start Here' },
+        { key: 'dashboard', href: r('provider.dashboard'),     icon: 'grid',      label: 'Dashboard' },
+        { key: 'profile',   href: r('provider.profile.index'), icon: 'user',      label: 'My Profile' },
+      ]
+      if (!isAccessTier.value) {
+        main.push({ key: 'jobs', href: r('provider.jobs.index'), icon: 'briefcase', label: 'Support & Services', badge: '12' })
+      }
+      const practice = [
+        { key: 'referrals', href: r('provider.referrals.index'), icon: 'share-tree',    label: 'Referrals',   badge: isAccessTier.value ? '' : '3', locked: isAccessTier.value },
+        { key: 'network',   href: r('provider.network.index'),   icon: 'users-network', label: 'Network' },
+      ]
+      if (servicesMode.value) {
+        practice.push({ key: 'services', href: r('provider.services.index'), icon: 'layers-2', label: 'My Services', badge: isAccessTier.value ? '' : '3', locked: isAccessTier.value })
+      }
+      return {
+        'Main': main,
+        'My Practice': practice,
+        'Continuity': [
+          { key: 'plan',     href: r('provider.plan.index'),     icon: 'shield-check',    label: 'Continuity Plan' },
+          { key: 'stewards', href: r('provider.stewards.index'), icon: 'user-check',      label: 'Continuity Stewards', badge: '1' },
+          { key: 'ss',    href: r('provider.ss.index'),       icon: 'users-2',         label: 'Support Stewards' },
+          { key: 'documents', href: r('provider.documents.index'), icon: 'file-pen',       label: 'Important Documents' },
+          { key: 'vault',               href: r('provider.vault.index'),    icon: 'lock-3',          label: 'Document Vault' },
+          { key: 'finances',            href: r('provider.finances.index'), icon: 'credit-card',     label: 'Finances', badge: '2' },
+        ],
+        'Communication': [
+          { key: 'messages', href: r('provider.messages'), icon: 'message',   label: 'Messages',    badge: msgs.value },
+          { key: 'activity', href: r('provider.activity'), icon: 'activity',  label: 'Activity Log' },
+        ],
+        'Explore': [
+          { key: 'news',   href: r('provider.news.index'),   icon: 'megaphone', label: 'News & Resources' },
+          { key: 'events', href: r('provider.news.events'),  icon: 'calendar',  label: 'Events' },
+        ],
+        'Account': [
+          { key: 'settings', href: r('provider.settings.index'), icon: 'settings',    label: 'Settings' },
+          { key: 'support',  href: r('provider.support'),         icon: 'help-circle', label: 'Support' },
+        ],
+      }
+    }
+
+    // ── CONTINUITY STEWARD ────────────────────────────────────────────
+    case 'continuity_steward':
+      return {
+        'Main': [
+          { key: 'overview',  href: r('cs.overview'),      icon: 'clock', label: 'Overview — Start Here' },
+          { key: 'dashboard', href: r('cs.dashboard'),     icon: 'grid',  label: 'Dashboard' },
+          { key: 'profile',   href: r('cs.profile.index'), icon: 'user',  label: 'My Profile' },
+        ],
+        'My Work': [
+          { key: 'tasks',            href: r('cs.tasks.index'),     icon: 'clipboard-check', label: 'My Tasks' },
+          { key: 'providers',           href: r('cs.providers.index'), icon: 'users',           label: 'My Practitioners' },
+          { key: 'documents', href: r('cs.documents.index'), icon: 'file-pen',        label: 'Important Documents' },
+          { key: 'finances',            href: r('cs.finances.index'),  icon: 'credit-card',     label: 'Finances' },
+        ],
+        'Critical Incident': [
+          { key: 'continuity', href: r('cs.continuity.index'), icon: 'alert-triangle', label: 'Continuity Management', badge: hasEmergency.value ? '!' : '', badgeType: hasEmergency.value ? 'danger' : '' },
+          { key: 'vault',                 href: '#',                       icon: 'lock-3',          label: 'Document Vault' },
+        ],
+        'Communication': [
+          { key: 'messages', href: r('cs.messages'), icon: 'message',  label: 'Messages',    badge: msgs.value },
+          { key: 'activity', href: r('cs.activity'), icon: 'activity', label: 'Activity Log' },
+        ],
+        'Account': [
+          { key: 'settings', href: r('cs.settings.index'), icon: 'settings',    label: 'Settings' },
+          { key: 'support',  href: r('cs.support'),         icon: 'help-circle', label: 'Support' },
+        ],
+      }
+
+    // ── SUPPORT STEWARD ───────────────────────────────────────────────
+    case 'support_steward':
+      return {
+        'Main': [
+          { key: 'overview',  href: r('ss.overview'),      icon: 'clock', label: 'Overview — Start Here' },
+          { key: 'dashboard', href: r('ss.dashboard'),     icon: 'grid',  label: 'Dashboard' },
+          { key: 'profile',   href: r('ss.profile.index'), icon: 'user',  label: 'My Profile' },
+        ],
+        'Critical Moment Plans': [
+          { key: 'providers', href: r('ss.providers.index'), icon: 'users', label: 'My Practitioners', badge: '8' },
+        ],
+        'Activation': [
+          { key: 'tasks',              href: r('ss.tasks.index'),     icon: 'clipboard-check', label: 'My Tasks',              badge: '5' },
+          { key: 'documents',   href: r('ss.documents.index'), icon: 'file-pen',        label: 'Important Documents' },
+          { key: 'stewards',   href: r('ss.cs.index'),        icon: 'user-check',      label: 'Continuity Stewards' },
+          { key: 'incidents', href: r('ss.incidents.index'), icon: 'alert-triangle',  label: 'Critical Incident Log', badge: hasEmergency.value ? '1' : '', badgeType: hasEmergency.value ? 'danger' : '' },
+        ],
+        'Communication': [
+          { key: 'messages', href: r('ss.messages'), icon: 'message',  label: 'Messages',    badge: msgs.value },
+          { key: 'activity', href: r('ss.activity'), icon: 'activity', label: 'Activity Log' },
+        ],
+        'Account': [
+          { key: 'settings', href: r('ss.settings.index'), icon: 'settings',    label: 'Settings' },
+          { key: 'support',  href: r('ss.support'),         icon: 'help-circle', label: 'Support' },
+        ],
+      }
+
+    // ── BUSINESS PARTNER ──────────────────────────────────────────────
+    case 'business_partner': {
+      const sections = {
+        'Main': [
+          { key: 'overview',  href: r('bp.overview'),      icon: 'clock', label: 'Overview — Start Here' },
+          { key: 'dashboard', href: r('bp.dashboard'),     icon: 'grid',  label: 'Dashboard' },
+          { key: 'profile',   href: r('bp.profile.index'), icon: 'user',  label: 'My Profile' },
+        ],
+        'Work': [
+          { key: 'jobs',  href: r('bp.jobs.index'),       icon: 'search',         label: 'Find Jobs' },
+          { key: 'contracts',  href: r('bp.contracts.index'),  icon: 'file-text',      label: 'Contracts' },
+          { key: 'proposals',  href: r('bp.proposals.index'),  icon: 'message-square', label: 'Proposals' },
+          { key: 'milestones', href: r('bp.milestones.index'), icon: 'target-2',       label: 'Milestones' },
+        ],
+        'Financial': [
+          { key: 'finances',      href: r('bp.finances.index'), icon: 'dollar',       label: 'Finances' },
+          { key: 'invoices',      href: r('bp.invoices.index'), icon: 'receipt',      label: 'Invoices' },
+          { key: 'payment', href: r('bp.payment.index'), icon: 'credit-card',  label: 'Payment Setup' },
+        ],
+        'Communication': [
+          { key: 'messages', href: r('bp.messages'), icon: 'message',  label: 'Messages',    badge: msgs.value },
+          { key: 'activity', href: r('bp.activity'), icon: 'activity', label: 'Activity Log' },
+        ],
+        'Account': [
+          { key: 'settings', href: r('bp.settings.index'), icon: 'settings',    label: 'Settings' },
+          { key: 'support',  href: r('bp.support'),         icon: 'help-circle', label: 'Support' },
+        ],
+      }
+      if (bpType.value === 'agency') {
+        sections['Team'] = [
+          { key: 'team', href: r('bp.team.index'), icon: 'users-2', label: 'Team Management' },
+        ]
+      }
+      return sections
+    }
+
+    // ── ADMIN ─────────────────────────────────────────────────────────
+    case 'admin':
+      return {
+        'Main': [
+          { key: 'dashboard', href: r('admin.dashboard'), icon: 'grid', label: 'Dashboard' },
+        ],
+        'Management': [
+          { key: 'users',    href: r('admin.users.index'),    icon: 'users',        label: 'Users' },
+          { key: 'roles',    href: r('admin.roles.index'),    icon: 'shield-check', label: 'Roles & Permissions' },
+          { key: 'packages', href: r('admin.packages.index'), icon: 'layers-2',     label: 'Packages & Pricing' },
+        ],
+        'Finance': [
+          { key: 'payouts',  href: r('admin.payouts.index'),  icon: 'dollar',       label: 'Payments & Payouts' },
+        ],
+        'Support': [
+          { key: 'complaints',    href: r('admin.complaints.index'), icon: 'help-circle',    label: 'Complaints & Tickets' },
+          { key: 'help', href: r('admin.help.index'),       icon: 'book-open',      label: 'Help Articles' },
+          { key: 'incidents',     href: r('admin.incidents.index'),  icon: 'alert-triangle', label: 'Incident Oversight' },
+        ],
+      }
+
+    default:
+      return {}
   }
 })
 
-const csNav = computed(() => ({
-  'Main': [
-    { key: 'overview',  href: r('cs.overview'),  icon: 'overview', label: 'Overview — Start Here' },
-    { key: 'dashboard', href: r('cs.dashboard'), icon: 'home',     label: 'Dashboard' },
-    { key: 'profile',   href: r('cs.profile'),   icon: 'user',     label: 'My Profile' },
-  ],
-  'My Work': [
-    { key: 'my-tasks',            href: r('cs.tasks'),     icon: 'tasks',     label: 'My Tasks' },
-    { key: 'providers',           href: r('cs.providers'), icon: 'users',     label: 'My Practitioners' },
-    { key: 'important-documents', href: r('cs.documents'), icon: 'file-text', label: 'Important Documents' },
-    { key: 'finances',            href: r('cs.finances'),  icon: 'dollar',    label: 'Finances' },
-  ],
-  'Critical Incident': [
-    { key: 'continuity-management', href: r('cs.continuity-management'), icon: 'alert-triangle', label: 'Continuity Management', badge: incident.hasEmergency ? '!' : '', badge_type: incident.hasEmergency ? 'danger' : '' },
-    { key: 'vault',                 href: r('cs.vault'),                 icon: 'vault',          label: 'Document Vault' },
-  ],
-  'Communication': [
-    { key: 'messages', href: r('cs.messages'), icon: 'message',  label: 'Messages', badge: badgeFromCount(unreadMessages.value) },
-    { key: 'activity', href: r('cs.activity'), icon: 'activity', label: 'Activity Log' },
-  ],
-  'Account': [
-    { key: 'settings', href: r('cs.settings'), icon: 'settings',    label: 'Settings' },
-    { key: 'support',  href: r('cs.support'),  icon: 'help-circle', label: 'Support' },
-  ],
-}))
+// ── Scroll indicator ───────────────────────────────────────────────────
+const showScrollIndicator = ref(false)
+let navEl = null
 
-const ssNav = computed(() => ({
-  'Main': [
-    { key: 'overview',  href: r('ss.overview'),  icon: 'overview', label: 'Overview — Start Here' },
-    { key: 'dashboard', href: r('ss.dashboard'), icon: 'home',     label: 'Dashboard' },
-    { key: 'profile',   href: r('ss.profile'),   icon: 'user',     label: 'My Profile' },
-  ],
-  'Critical Moment Plans': [
-    { key: 'providers', href: r('ss.providers'), icon: 'users', label: 'My Practitioners', badge: '8' },
-  ],
-  'Activation': [
-    { key: 'my-tasks',                href: r('ss.tasks'),                icon: 'tasks',          label: 'My Tasks', badge: '5' },
-    { key: 'important-documents',     href: r('ss.documents'),            icon: 'file-text',      label: 'Important Documents' },
-    { key: 'continuity-stewards',     href: r('ss.continuity-stewards'),  icon: 'users-network',  label: 'Continuity Stewards' },
-    { key: 'critical-incident-log',   href: r('ss.incident-log'),         icon: 'alert-triangle', label: 'Critical Incident Log', badge: incident.hasEmergency ? '1' : '', badge_type: incident.hasEmergency ? 'danger' : '' },
-  ],
-  'Communication': [
-    { key: 'messages', href: r('ss.messages'), icon: 'message',  label: 'Messages', badge: badgeFromCount(unreadMessages.value) },
-    { key: 'activity', href: r('ss.activity'), icon: 'activity', label: 'Activity Log' },
-  ],
-  'Account': [
-    { key: 'settings', href: r('ss.settings'), icon: 'settings',    label: 'Settings' },
-    { key: 'support',  href: r('ss.support'),  icon: 'help-circle', label: 'Support' },
-  ],
-}))
+function checkScroll() {
+  if (!navEl) return
+  showScrollIndicator.value = navEl.scrollHeight > navEl.clientHeight + navEl.scrollTop + 40
+}
 
-const bpNav = computed(() => {
-  const nav = {
-    'Main': [
-      { key: 'overview',  href: r('bp.overview'),  icon: 'overview', label: 'Overview — Start Here' },
-      { key: 'dashboard', href: r('bp.dashboard'), icon: 'home',     label: 'Dashboard' },
-      { key: 'profile',   href: r('bp.profile'),   icon: 'user',     label: 'My Profile' },
-    ],
-    'Work': [
-      { key: 'find-jobs',  href: r('bp.find-jobs'),  icon: 'search-lg', label: 'Find Jobs',  badge: badgeFromCount(bpBadges.value.new_jobs),          badge_type: 'blue' },
-      { key: 'contracts',  href: r('bp.contracts'),  icon: 'agreement', label: 'Contracts',  badge: badgeFromCount(bpBadges.value.active_contracts), badge_type: 'green' },
-      { key: 'proposals',  href: r('bp.proposals'),  icon: 'file-pen',  label: 'Proposals',  badge: badgeFromCount(bpBadges.value.pending_proposals),badge_type: 'warning' },
-      { key: 'milestones', href: r('bp.milestones'), icon: 'flag-2',    label: 'Milestones', badge: badgeFromCount(bpBadges.value.overdue_milestones), badge_type: 'danger' },
-    ],
-    'Financial': [
-      { key: 'finances',      href: r('bp.finances'),      icon: 'dollar',       label: 'Finances' },
-      { key: 'invoices',      href: r('bp.invoices'),      icon: 'receipt',      label: 'Invoices', badge: badgeFromCount(bpBadges.value.pending_invoices), badge_type: 'warning' },
-      { key: 'payment-setup', href: r('bp.payment-setup'), icon: 'credit-card',  label: 'Payment Setup' },
-    ],
-    'Communication': [
-      { key: 'messages', href: r('bp.messages'), icon: 'message',  label: 'Messages', badge: badgeFromCount(unreadMessages.value) },
-      { key: 'activity', href: r('bp.activity'), icon: 'activity', label: 'Activity Log' },
-    ],
-    'Account': [
-      { key: 'settings', href: r('bp.settings'), icon: 'settings',    label: 'Settings' },
-      { key: 'support',  href: r('bp.support'),  icon: 'help-circle', label: 'Support' },
-    ],
-  }
-  if (auth.isAgency) {
-    nav.Team = [
-      { key: 'team', href: r('bp.team'), icon: 'users-2', label: 'Team Management' },
-    ]
-  }
-  return nav
+onMounted(() => {
+  navEl = document.getElementById('sidebarNav')
+  if (navEl) navEl.addEventListener('scroll', checkScroll)
+  setTimeout(checkScroll, 100)
 })
-
-const adminNav = computed(() => ({
-  'Main': [
-    { key: 'dashboard', href: r('admin.dashboard'), icon: 'home', label: 'Dashboard' },
-  ],
-  'Management': [
-    { key: 'users',    href: r('admin.users'),    icon: 'users',      label: 'Users' },
-    { key: 'roles',    href: r('admin.roles'),    icon: 'shield',     label: 'Roles & Permissions' },
-    { key: 'packages', href: r('admin.packages'), icon: 'briefcase',  label: 'Packages & Pricing' },
-  ],
-  'Finance': [
-    { key: 'payments', href: r('admin.payments'), icon: 'credit-card', label: 'Payments & Payouts' },
-  ],
-  'Support': [
-    { key: 'complaints',    href: r('admin.complaints'),    icon: 'help-circle',    label: 'Complaints & Tickets' },
-    { key: 'help-articles', href: r('admin.help-articles'), icon: 'book',           label: 'Help Articles' },
-    { key: 'incidents',     href: r('admin.incidents'),     icon: 'alert-triangle', label: 'Incident Oversight' },
-  ],
-}))
-
-const navItems = computed(() => {
-  if (auth.isPractitioner)      return providerNav.value
-  if (auth.isContinuitySteward) return csNav.value
-  if (auth.isSupportSteward)    return ssNav.value
-  if (auth.isBusinessPartner)   return bpNav.value
-  if (auth.isAdmin)             return adminNav.value
-  return {}
+onBeforeUnmount(() => {
+  if (navEl) navEl.removeEventListener('scroll', checkScroll)
 })
-
-// ── Badges from shared Inertia props ────────────────────────────────
-const unreadMessages = computed(() => page.props.unreadMessages ?? 0)
-const bpBadges       = computed(() => page.props.bpBadges ?? {
-  new_jobs: 0, active_contracts: 0, pending_proposals: 0,
-  overdue_milestones: 0, pending_invoices: 0,
-})
-
-// ── Helpers ─────────────────────────────────────────────────────────
-function isActive(key) {
-  const norm = activePage.value === 'tasks' ? 'my-tasks' : activePage.value
-  return norm === key
-}
-
-function badgeClass(type) {
-  if (!type) return ''
-  return `nav-badge--${type}`
-}
-
-function badgeFromCount(n) {
-  return n && n > 0 ? String(n) : ''
-}
-
-function r(name, params = {}) {
-  try { return route(name, params) }
-  catch { return '#' }
-}
-
-function onItemClick(item, e) {
-  if (item.locked) {
-    e.preventDefault()
-    upgrade.openUpgradeModal()
-    return
-  }
-  // Inertia handles regular hrefs via @inertiajs/vue3 link interception
-  // when using <Link>, but for plain <a> we route through router.visit
-  // to preserve SPA navigation and keep Pinia state alive.
-  if (item.href && item.href !== '#') {
-    e.preventDefault()
-    router.visit(item.href)
-    ui.setMobileOpen(false)
-  }
-}
 </script>
+
+<style scoped>
+/* ── Sidebar shell ───────────────────────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--surface-2);
+  min-height: 100vh;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  z-index: 200;
+  transition: width var(--transition-slow);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  border-right: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sidebar::-webkit-scrollbar { display: none; }
+
+/* ── Brand ──────────────────────────────────────────────────────────── */
+.sidebar-brand {
+  padding: 22px 22px 18px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-brand-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sidebar-brand-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+.sidebar-brand-name {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.3px;
+}
+
+/* Toggle button — matches PHP .sidebar-toggle-btn exactly */
+.sidebar-toggle-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color .18s ease, background .18s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+.sidebar-toggle-btn:hover { color: var(--text); background: var(--surface-3); }
+.sidebar-toggle-icon {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Brand meta strip ───────────────────────────────────────────────── */
+.sidebar-brand-meta {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sidebar-brand-meta .sidebar-portal-badge,
+.sidebar-brand-meta .sidebar-access-pill,
+.sidebar-brand-meta .sidebar-role-badge {
+  border-radius: var(--radius-sm) !important;
+}
+
+/* Portal badge — e.g. "CLINICAL SERVICES", "BP PORTAL" */
+.sidebar-portal-badge {
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  display: inline-block;
+  width: fit-content;
+  line-height: 1.4;
+  border: 1px solid rgba(0,0,0,0.07);
+  color: var(--gold-dark);
+  background: rgba(196,169,106,0.12);
+}
+.sidebar-portal-badge--services { color: var(--blue-dark); background: rgba(74,144,196,0.12); }
+
+/* Role badge — e.g. "PRACTITIONER", "CONTINUITY STEWARD" */
+.sidebar-role-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px;
+  width: fit-content !important;
+  font-family: var(--font-sans) !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.8px !important;
+  text-transform: uppercase !important;
+  color: var(--gold-dark) !important;
+  background: var(--badge-bg-gold) !important;
+  border: 1px solid var(--badge-border-gold, rgba(196,169,106,0.35)) !important;
+  padding: 3px 7px !important;
+  line-height: 1.4 !important;
+}
+.sidebar-role-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--green);
+  flex-shrink: 0;
+}
+.sidebar-role-badge.emergency::before {
+  background: var(--emergency);
+  animation: dot-pulse 1.5s ease infinite;
+}
+.sidebar-access-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-2);
+  background: var(--surface-3);
+  padding: 4px 9px;
+  border-radius: var(--radius-sm);
+  width: fit-content;
+}
+.sidebar-access-upgrade {
+  color: var(--gold-dark);
+  text-decoration: none;
+  font-weight: 700;
+  border-left: 1px solid var(--border);
+  padding-left: 6px;
+}
+.sidebar-access-upgrade:hover { color: var(--text); }
+
+/* ── Navigation ─────────────────────────────────────────────────────── */
+.sidebar-nav {
+  flex: 1;
+  padding: 8px 12px;
+  overflow-y: auto;
+  overflow-x: visible;
+  scrollbar-width: none;
+}
+.sidebar-nav::-webkit-scrollbar { display: none; }
+
+.nav-section-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-4);
+  padding: 14px 10px 6px;
+}
+
+.sidebar .nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-2);
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  white-space: nowrap;
+  text-decoration: none;
+  position: relative;
+  transition: background .18s ease, color .18s ease;
+}
+.sidebar .nav-item .nav-icon {
+  width: 16px;
+  height: 16px;
+  background: transparent;
+  border-radius: 0;
+  color: var(--text-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color .18s ease;
+}
+.sidebar .nav-item:hover { background: rgba(196,169,106,0.08); color: var(--text); }
+.sidebar .nav-item:hover .nav-icon { color: var(--gold-dark); }
+.sidebar .nav-item.active {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: var(--shadow-xs);
+}
+.sidebar .nav-item.active .nav-icon { color: var(--gold-dark); }
+.sidebar .nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--gold-dark);
+}
+.nav-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.nav-badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  background: var(--surface-3);
+  color: var(--text-3);
+  flex-shrink: 0;
+  line-height: 1.6;
+}
+.nav-badge.danger  { background: var(--red-light);    color: var(--red); }
+.nav-badge.warning { background: var(--orange-light); color: var(--orange-dark); }
+.nav-badge.blue    { background: var(--blue-light);   color: var(--blue-dark); }
+.nav-badge.green   { background: var(--green-light);  color: var(--green-dark); }
+
+/* Locked items */
+.nav-item.is-locked { opacity: 0.55; }
+.nav-item.is-locked:hover { opacity: 0.78; background: var(--surface-2); }
+.nav-lock {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  color: var(--text-4);
+  flex-shrink: 0;
+}
+
+/* ── Scroll indicator — centred ─────────────────────────────────────── */
+.sidebar-scroll-indicator {
+  display: none;
+  flex-shrink: 0;
+  pointer-events: none;
+  padding: 6px 0;
+  width: 100%;
+  text-align: center;
+}
+.sidebar-scroll-indicator.visible {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sidebar-scroll-indicator-inner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin: 0 auto;
+  background: rgba(196,169,106,0.18);
+  border: 1px solid rgba(196,169,106,0.42);
+  border-radius: var(--radius-sm);
+  color: var(--gold-dark);
+  animation: sidebar-bounce 1.8s ease-in-out infinite;
+  box-shadow: 0 1px 3px rgba(160,129,62,0.10);
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+.sidebar-footer {
+  padding: 14px 22px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+}
+.sidebar-version { font-size: 10px; color: var(--text-4); line-height: 1.5; }
+
+/* ── Collapsed state ──────────────────────────────────────────────────── */
+.sidebar.collapsed { width: 60px; }
+.sidebar.collapsed .sidebar-brand-name,
+.sidebar.collapsed .sidebar-brand-meta,
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .nav-badge,
+.sidebar.collapsed .nav-section-label,
+.sidebar.collapsed .nav-lock,
+.sidebar.collapsed .sidebar-footer { display: none; }
+.sidebar.collapsed .sidebar-brand { padding: 18px 12px; }
+.sidebar.collapsed .nav-item { justify-content: center; padding: 8px; }
+.sidebar.collapsed .nav-item .nav-icon { margin: 0; }
+.sidebar.collapsed .sidebar-scroll-indicator { display: none !important; }
+
+/* ── Mobile overlay ───────────────────────────────────────────────────── */
+.sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 199; }
+.sidebar-overlay.visible { display: block; }
+
+@media (max-width: 768px) {
+  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); z-index: 200; }
+  .sidebar.mobile-open { transform: translateX(0); }
+}
+
+/* ── Keyframes ─────────────────────────────────────────────────────────── */
+@keyframes sidebar-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(3px); }
+}
+@keyframes dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.4); }
+  50%       { box-shadow: 0 0 0 4px rgba(220,38,38,0); }
+}
+</style>

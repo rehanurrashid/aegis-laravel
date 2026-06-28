@@ -54,7 +54,7 @@
               <div class="oi-role-action"><AegisIcon name="chevron-right" :size="16" /></div>
             </button>
           </div>
-          <div v-if="form.errors.role" class="form-error">{{ form.errors.role }}</div>
+          <div v-if="fieldError('role')" class="form-error">{{ fieldError('role') }}</div>
           <button type="submit" class="btn btn-primary ob-btn-full" :disabled="!form.role || form.processing">Continue</button>
         </form>
 
@@ -65,17 +65,48 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { Head, useForm } from '@inertiajs/vue3'
+import { useVuelidate } from '@vuelidate/core'
+import { required, helpers } from '@vuelidate/validators'
+import { useToast } from '@/composables/useToast'
 
-const year = new Date().getFullYear()
+const toast = useToast()
+const year  = new Date().getFullYear()
+
 const roles = [
-  { value: 'practitioner', label: 'Practitioner Partner', icon: 'activity', description: 'Doctor, therapist, specialist, and health professionals building and protecting their practice.', badge: 'Subscription required', badgeVariant: '' },
-  { value: 'business_partner', label: 'Business Partner', icon: 'briefcase', description: 'Billing, legal, consultants, and business service providers working with health professionals.', badge: 'Subscription required', badgeVariant: '' },
-  { value: 'continuity_steward', label: 'Continuity Steward', icon: 'shield', description: 'Practice succession specialists and licensed professionals supporting practitioner continuity.', badge: 'Free via invitation', badgeVariant: 'free' },
-  { value: 'support_steward', label: 'Support Steward', icon: 'heart', description: 'Administrative staff, personal representatives, and designated support for practitioners.', badge: 'Invitation only', badgeVariant: 'free' },
+  { value: 'practitioner',       label: 'Practitioner Partner', icon: 'activity',  description: 'Doctor, therapist, specialist, and health professionals building and protecting their practice.',          badge: 'Subscription required', badgeVariant: '' },
+  { value: 'business_partner',   label: 'Business Partner',      icon: 'briefcase', description: 'Billing, legal, consultants, and business service providers working with health professionals.',           badge: 'Subscription required', badgeVariant: '' },
+  { value: 'continuity_steward', label: 'Continuity Steward',    icon: 'shield',    description: 'Practice succession specialists and licensed professionals supporting practitioner continuity.',           badge: 'Free via invitation',   badgeVariant: 'free' },
+  { value: 'support_steward',    label: 'Support Steward',       icon: 'heart',     description: 'Administrative staff, personal representatives, and designated support for practitioners.',                badge: 'Invitation only',       badgeVariant: 'free' },
 ]
+
 const form = useForm({ role: '' })
-function submit() { form.post(route('onboarding.intent.store')) }
+
+// ── Vuelidate ──────────────────────────────────────────────────────────
+const rules = computed(() => ({
+  role: {
+    required: helpers.withMessage('Select a role to continue.', required),
+  },
+}))
+const v$ = useVuelidate(rules, form)
+
+function fieldError(field) {
+  if (v$.value[field]?.$error) return v$.value[field].$errors[0]?.$message
+  if (form.errors[field]) return form.errors[field]
+  return null
+}
+
+async function submit() {
+  const valid = await v$.value.$validate()
+  if (!valid) {
+    toast.error('Please select a role to continue.')
+    return
+  }
+  form.post(route('onboarding.intent.store'), {
+    onError: () => toast.error('Something went wrong. Please try again.'),
+  })
+}
 </script>
 
 <style scoped>

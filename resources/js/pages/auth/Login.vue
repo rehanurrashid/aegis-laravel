@@ -112,13 +112,14 @@
                 v-model="loginForm.email"
                 type="email"
                 class="form-input"
-                :class="{ 'is-error': loginForm.errors.email }"
+                :class="{ 'is-error': loginFieldError('email') }"
                 placeholder="your@email.com"
                 autocomplete="email"
                 autofocus
+                @blur="v$login.email.$touch()"
                 @input="loginForm.clearErrors('email')"
               />
-              <div v-if="loginForm.errors.email" class="form-error">{{ loginForm.errors.email }}</div>
+              <div v-if="loginFieldError('email')" class="form-error">{{ loginFieldError('email') }}</div>
             </div>
 
             <div class="form-group">
@@ -136,9 +137,10 @@
                   v-model="loginForm.password"
                   :type="showPassword ? 'text' : 'password'"
                   class="form-input"
-                  :class="{ 'is-error': loginForm.errors.password }"
+                  :class="{ 'is-error': loginFieldError('password') }"
                   placeholder="Enter your password"
                   autocomplete="current-password"
+                  @blur="v$login.password.$touch()"
                   @input="loginForm.clearErrors('password')"
                 />
                 <button
@@ -150,7 +152,7 @@
                   <AegisIcon :name="showPassword ? 'eye-off' : 'eye'" :size="15" />
                 </button>
               </div>
-              <div v-if="loginForm.errors.password" class="form-error">{{ loginForm.errors.password }}</div>
+              <div v-if="loginFieldError('password')" class="form-error">{{ loginFieldError('password') }}</div>
             </div>
 
             <div class="auth-remember">
@@ -239,7 +241,7 @@
                   placeholder="your@email.com"
                   autocomplete="email"
                 />
-                <div v-if="resetForm.errors.email" class="form-error">{{ resetForm.errors.email }}</div>
+                <div v-if="resetFieldError('email')" class="form-error">{{ resetFieldError('email') }}</div>
               </div>
 
               <button
@@ -282,12 +284,17 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Head, useForm, router, usePage } from '@inertiajs/vue3'
+import { useVuelidate } from '@vuelidate/core'
+import { required, email, minLength, helpers } from '@vuelidate/validators'
+import { useToast } from '@/composables/useToast'
+
+const toast = useToast()
 
 // ── Local state ────────────────────────────────────────────────────────
-const activeView   = ref('signin')   // 'signin' | 'forgot' | 'success'
-const showPassword = ref(false)
+const activeView     = ref('signin')   // 'signin' | 'forgot' | 'success'
+const showPassword   = ref(false)
 const resetEmailSent = ref('')
 
 // ── Forms ──────────────────────────────────────────────────────────────
@@ -301,16 +308,51 @@ const resetForm = useForm({
   email: '',
 })
 
+// ── Client-side validation — login form ───────────────────────────────
+const loginRules = computed(() => ({
+  email: {
+    required: helpers.withMessage('Email is required.', required),
+    email:    helpers.withMessage('Enter a valid email address.', email),
+  },
+  password: {
+    required: helpers.withMessage('Password is required.', required),
+    min:      helpers.withMessage('Password must be at least 8 characters.', minLength(8)),
+  },
+}))
+const v$login = useVuelidate(loginRules, loginForm)
+
+// ── Client-side validation — reset form ──────────────────────────────
+const resetRules = computed(() => ({
+  email: {
+    required: helpers.withMessage('Email is required.', required),
+    email:    helpers.withMessage('Enter a valid email address.', email),
+  },
+}))
+const v$reset = useVuelidate(resetRules, resetForm)
+
+// ── Unified error helper ──────────────────────────────────────────────
+function loginFieldError(field) {
+  if (v$login.value[field]?.$error) return v$login.value[field].$errors[0]?.$message
+  if (loginForm.errors[field]) return loginForm.errors[field]
+  return null
+}
+function resetFieldError(field) {
+  if (v$reset.value[field]?.$error) return v$reset.value[field].$errors[0]?.$message
+  if (resetForm.errors[field]) return resetForm.errors[field]
+  return null
+}
+
 // ── Panel transitions ──────────────────────────────────────────────────
 function showForgot() {
-  // Pre-populate forgot email from whatever the user typed in sign-in
   resetForm.email = loginForm.email
+  v$reset.value.$reset()
   activeView.value = 'forgot'
 }
 
 function showSignin() {
   activeView.value = 'signin'
   resetForm.reset()
+  v$reset.value.$reset()
   resetEmailSent.value = ''
 }
 
@@ -325,35 +367,43 @@ const portalRouteMap = {
   admin:              'admin.dashboard',
 }
 
-function submitSignin() {
+async function submitSignin() {
+  const valid = await v$login.value.$validate()
+  if (!valid) {
+    toast.error('Please fix the highlighted fields.')
+    return
+  }
   loginForm.post(route('login.store'), {
     onSuccess: () => {
-      const user      = loginPage.props.auth?.user
-      const role      = user?.role
-      const verified  = user?.verified
+      const user     = loginPage.props.auth?.user
+      const role     = user?.role
+      const verified = user?.verified
 
-      // If email not verified, send to verification notice
       if (role && !verified) {
         router.visit(route('verification.notice'), { replace: true })
         return
       }
-
       const routeName = portalRouteMap[role]
-      if (routeName) {
-        router.visit(route(routeName), { replace: true })
-      }
+      if (routeName) router.visit(route(routeName), { replace: true })
     },
-    onFinish: () => loginForm.reset('password'),
+    onError:   () => toast.error('Invalid credentials. Please try again.'),
+    onFinish:  () => loginForm.reset('password'),
   })
 }
 
 // ── Submit: reset link ─────────────────────────────────────────────────
-function submitReset() {
+async function submitReset() {
+  const valid = await v$reset.value.$validate()
+  if (!valid) {
+    toast.error('Please enter a valid email address.')
+    return
+  }
   resetForm.post(route('password.email'), {
     onSuccess: () => {
       resetEmailSent.value = resetForm.email
       activeView.value = 'success'
     },
+    onError: () => toast.error('Could not send reset link. Please try again.'),
   })
 }
 </script>

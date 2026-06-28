@@ -72,6 +72,7 @@
 <script setup>
 import { ref, onUnmounted } from 'vue'
 import { Head, useForm, usePage } from '@inertiajs/vue3'
+import { useToast } from '@/composables/useToast'
 
 const props  = defineProps({ email: String })
 const page   = usePage()
@@ -79,13 +80,15 @@ const flash  = page.props.flash ?? {}
 const errors = page.props.errors ?? {}
 const year   = new Date().getFullYear()
 
+const toast      = useToast()
 const resendForm = useForm({})
 const cooldown   = ref(0)
 let timer        = null
 
 function resend() {
   resendForm.post(route('verification.resend'), {
-    onSuccess: () => startCooldown(60),
+    onSuccess: () => { startCooldown(60); toast.success('Verification email sent.') },
+    onError:   () => toast.error('Could not resend. Please try again shortly.'),
   })
 }
 

@@ -51,10 +51,10 @@
           <form @submit.prevent="submit" novalidate>
             <div class="form-group">
               <label class="form-label" for="fp-email">Email Address</label>
-              <input id="fp-email" v-model="form.email" type="email" class="form-input" :class="{ 'is-error': form.errors.email }" autocomplete="email" autofocus placeholder="your@email.com" />
-              <div v-if="form.errors.email" class="form-error">{{ form.errors.email }}</div>
+              <input id="fp-email" v-model="form.email" type="email" class="form-input" :class="{ 'is-error': fieldError('email') }" autocomplete="email" autofocus placeholder="your@email.com" @blur="v$.email.$touch()" />
+              <div v-if="fieldError('email')" class="form-error">{{ fieldError('email') }}</div>
             </div>
-            <button type="submit" class="btn btn-primary ob-btn-full" :disabled="form.processing || !form.email">
+            <button type="submit" class="btn btn-primary ob-btn-full" :disabled="form.processing">
               {{ form.processing ? 'Sending…' : 'Send Reset Link' }}
             </button>
           </form>
@@ -67,18 +67,43 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Head, useForm } from '@inertiajs/vue3'
+import { useVuelidate } from '@vuelidate/core'
+import { required, email, helpers } from '@vuelidate/validators'
+import { useToast } from '@/composables/useToast'
 
-const year = new Date().getFullYear()
-const sent = ref(false)
+const toast = useToast()
+const year  = new Date().getFullYear()
+const sent  = ref(false)
 const submittedEmail = ref('')
-const form = useForm({ email: '' })
+const form  = useForm({ email: '' })
 
-function submit() {
+// ── Vuelidate ──────────────────────────────────────────────────────────
+const rules = computed(() => ({
+  email: {
+    required: helpers.withMessage('Email is required.', required),
+    email:    helpers.withMessage('Enter a valid email address.', email),
+  },
+}))
+const v$ = useVuelidate(rules, form)
+
+function fieldError(field) {
+  if (v$.value[field]?.$error) return v$.value[field].$errors[0]?.$message
+  if (form.errors[field]) return form.errors[field]
+  return null
+}
+
+async function submit() {
+  const valid = await v$.value.$validate()
+  if (!valid) {
+    toast.error('Please enter a valid email address.')
+    return
+  }
   submittedEmail.value = form.email
   form.post(route('password.email'), {
-    onSuccess: () => { sent.value = true },
+    onSuccess: () => { sent.value = true; v$.value.$reset() },
+    onError:   () => toast.error('Could not send reset link. Please try again.'),
   })
 }
 </script>
