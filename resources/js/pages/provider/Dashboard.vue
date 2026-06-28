@@ -769,21 +769,64 @@
 
     <!-- Add License -->
     <AegisModal modal-id="addLicenseModal" title="Add Credential" size="lg">
+      <div class="form-group">
+        <label class="form-label">Credential Type <span class="req">*</span></label>
+        <select v-model="licenseForm.type" class="form-select" @change="licenseForm.custom_type = ''">
+          <option value="">Select a credential...</option>
+          <optgroup label="Medical &amp; Prescribing">
+            <option>MD</option><option>DO</option><option>ND</option><option>NP</option><option>PA</option>
+          </optgroup>
+          <optgroup label="Mental Health">
+            <option>LPC / LPCC</option><option>LCSW / LICSW</option><option>LMFT</option><option>ABPP</option>
+          </optgroup>
+          <optgroup label="Therapy &amp; Specialty">
+            <option>EMDR Certified</option><option>DBT Certified</option><option>CSE</option><option>CSC</option><option>CST</option>
+          </optgroup>
+          <optgroup label="Creative Therapies">
+            <option>ATR</option><option>MT-BC</option><option>RDT</option>
+          </optgroup>
+          <optgroup label="Addiction &amp; Behavioral">
+            <option>CADC / ICADC</option>
+          </optgroup>
+          <optgroup label="Integrative / Alt Medicine">
+            <option>LAc</option>
+          </optgroup>
+          <optgroup label="Nutrition &amp; Health">
+            <option>RD / RDN</option><option>NBC-HWC</option>
+          </optgroup>
+          <optgroup label="Birth &amp; Reproductive">
+            <option>CNM</option>
+          </optgroup>
+          <optgroup label="Specialized">
+            <option>CGC</option><option>CDCES / CDE</option>
+          </optgroup>
+          <optgroup label="Fitness &amp; Physical">
+            <option>CPT (NSCA)</option><option>CPT (NASM)</option><option>CPT (ACE)</option><option>EP-C (ACSM)</option>
+          </optgroup>
+          <optgroup label="Other">
+            <option value="Licensed">Licensed</option>
+            <option value="custom">Other (enter manually)</option>
+          </optgroup>
+        </select>
+      </div>
+      <div v-if="licenseForm.type === 'custom'" class="form-group">
+        <label class="form-label">Custom Credential Name <span class="req">*</span></label>
+        <input v-model="licenseForm.custom_type" class="form-input" type="text" placeholder="Enter credential name" />
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">License Number</label><input v-model="licenseForm.license_number" type="text" class="form-input" placeholder="e.g., NY-MD-12345 (optional)" /></div>
+        <div class="form-group"><label class="form-label">Credential Number</label><input v-model="licenseForm.credential_number" type="text" class="form-input" placeholder="Optional" /></div>
+      </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Credential Type</label>
-          <select v-model="licenseForm.type" class="form-select">
-            <option value="">Select type</option>
-            <option value="license">Medical / Clinical License</option>
-            <option value="dea">DEA Registration</option>
-            <option value="insurance">Professional Liability</option>
-            <option value="business">Business Insurance</option>
-            <option value="other">Other</option>
+          <label class="form-label">Issuing State / Body</label>
+          <select v-model="licenseForm.issuing_state" class="form-select">
+            <option>New York</option><option>California</option><option>Texas</option><option>Florida</option>
+            <option>Federal</option><option>National / No State</option><option>Other</option>
           </select>
         </div>
-        <div class="form-group"><label class="form-label">Expiry Date</label><input v-model="licenseForm.expiry_date" type="date" class="form-input" /></div>
+        <div class="form-group"><label class="form-label">Date of Licensure / Certification / Registration</label><input v-model="licenseForm.issued_date" type="date" class="form-input" /></div>
       </div>
-      <div class="form-group"><label class="form-label">Description / Notes</label><textarea v-model="licenseForm.notes" class="form-textarea" rows="2" placeholder="License number, issuing body, coverage amount…"></textarea></div>
       <div class="form-group"><label class="form-label">Upload Document</label><AegisDropzone accept=".pdf,.jpg,.png" @file-selected="licenseForm.file = $event" /></div>
       <template #footer>
         <button class="btn btn-outline" @click="ui.closeModal('addLicenseModal')">Cancel</button>
@@ -792,30 +835,31 @@
     </AegisModal>
 
     <!-- Renew License -->
-    <AegisModal modal-id="renewLicenseModal" title="Renew License" size="lg">
-      <div class="alert alert-warning" style="margin-bottom:16px;box-shadow:var(--shadow-sm)">
+    <AegisModal modal-id="renewLicenseModal" title="Update Credential" size="lg">
+      <div class="alert alert-warning" style="margin-bottom:16px">
         <div class="alert-icon"><AegisIcon name="megaphone" :size="14" /></div>
         <div class="alert-content">State License CA (CA-MD-67890) expires Feb 28, 2025</div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">New Expiry Date</label><input v-model="renewForm.expiry_date" type="date" class="form-input" /></div>
-        <div class="form-group"><label class="form-label">License Number</label><input v-model="renewForm.license_number" type="text" class="form-input" placeholder="CA-MD-67890" /></div>
+        <div class="form-group"><label class="form-label">New Expiration Date</label><input v-model="renewForm.expiry_date" type="date" class="form-input" /></div>
+        <div class="form-group"><label class="form-label">Confirmation / Reference #</label><input v-model="renewForm.license_number" type="text" class="form-input" placeholder="e.g., RENEW-2025-XXXXX" /></div>
       </div>
       <div class="form-group"><label class="form-label">Upload Updated Document</label><AegisDropzone accept=".pdf,.jpg,.png" @file-selected="renewForm.file = $event" /></div>
       <template #footer>
         <button class="btn btn-outline" @click="ui.closeModal('renewLicenseModal')">Cancel</button>
-        <button class="btn btn-primary" @click="submitRenew">Submit Renewal</button>
+        <button class="btn btn-primary" @click="submitRenew">Save Update</button>
       </template>
     </AegisModal>
 
     <!-- License Detail -->
     <AegisModal modal-id="licenseDetailModal" title="License Details" size="md">
-      <div class="dh-modal-rows">
-        <div class="dh-modal-row"><span class="dh-modal-lbl">Type</span><span>Medical / Clinical License</span></div>
-        <div class="dh-modal-row"><span class="dh-modal-lbl">Credential No.</span><span>NY-PSY-001234</span></div>
-        <div class="dh-modal-row"><span class="dh-modal-lbl">Issuing Body</span><span>New York State</span></div>
-        <div class="dh-modal-row"><span class="dh-modal-lbl">Expiry</span><span>Jun 30, 2026</span></div>
-        <div class="dh-modal-row"><span class="dh-modal-lbl">Status</span><span><span class="badge badge--green">Active</span></span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
+        <div class="cc-detail-row"><span class="cc-detail-label">License Type</span><span class="cc-detail-value">License (MD)</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">License #</span><span class="cc-detail-value">NY-MD-12345</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">State</span><span class="cc-detail-value">New York</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Status</span><span class="cc-detail-value" style="color:var(--green)">● Active</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Issue Date</span><span class="cc-detail-value">July 1, 2022</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Expires</span><span class="cc-detail-value">June 30, 2026</span></div>
       </div>
       <template #footer>
         <button class="btn btn-outline" @click="ui.closeModal('licenseDetailModal')">Close</button>
@@ -824,55 +868,96 @@
     </AegisModal>
 
     <!-- Add Insurance -->
-    <AegisModal modal-id="addInsuranceModal" title="Add Insurance" size="lg">
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Insurance Type</label>
-          <select v-model="insuranceForm.type" class="form-select">
-            <option value="">Select type</option>
-            <option value="liability">Professional Liability</option>
-            <option value="general">General Business</option>
-            <option value="cyber">Cyber Liability</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div class="form-group"><label class="form-label">Expiry Date</label><input v-model="insuranceForm.expiry_date" type="date" class="form-input" /></div>
+    <AegisModal modal-id="addInsuranceModal" title="Add Insurance Policy" size="lg">
+      <div class="form-group">
+        <label class="form-label">Policy Type <span class="req">*</span></label>
+        <select v-model="insuranceForm.type" class="form-select">
+          <option value="">Select type</option>
+          <option>Professional Liability (Malpractice)</option>
+          <option>General Business Insurance</option>
+          <option>Workers Compensation</option>
+          <option>Cyber Liability</option>
+          <option>Life Insurance</option>
+          <option>Other</option>
+        </select>
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Provider / Carrier</label><input v-model="insuranceForm.provider" type="text" class="form-input" placeholder="e.g. Medical Protective" /></div>
-        <div class="form-group"><label class="form-label">Coverage Amount</label><input v-model="insuranceForm.coverage" type="text" class="form-input" placeholder="e.g. $2M / $2M" /></div>
+        <div class="form-group"><label class="form-label">Insurance Provider <span class="req">*</span></label><input v-model="insuranceForm.provider" type="text" class="form-input" placeholder="e.g., Medical Protective" /></div>
+        <div class="form-group"><label class="form-label">Policy Number <span class="req">*</span></label><input v-model="insuranceForm.policy_number" type="text" class="form-input" placeholder="e.g., POL-2024-XXXXX" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Coverage Amount</label><input v-model="insuranceForm.coverage" type="text" class="form-input" placeholder="e.g., $2,000,000" /></div>
+        <div class="form-group"><label class="form-label">Annual Premium</label><input v-model="insuranceForm.premium" type="text" class="form-input" placeholder="e.g., $4,200/year" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Effective Date <span class="req">*</span></label><input v-model="insuranceForm.effective_date" type="date" class="form-input" /></div>
+        <div class="form-group"><label class="form-label">Expiration Date <span class="req">*</span></label><input v-model="insuranceForm.expiry_date" type="date" class="form-input" /></div>
       </div>
       <div class="form-group"><label class="form-label">Upload Policy Document</label><AegisDropzone accept=".pdf,.jpg,.png" @file-selected="insuranceForm.file = $event" /></div>
       <template #footer>
         <button class="btn btn-outline" @click="ui.closeModal('addInsuranceModal')">Cancel</button>
-        <button class="btn btn-primary" @click="submitInsurance">Add Insurance</button>
+        <button class="btn btn-primary" @click="submitInsurance">Add Policy</button>
       </template>
     </AegisModal>
 
     <!-- Renew Insurance -->
-    <AegisModal modal-id="renewInsuranceModal" title="Renew Insurance" size="lg">
-      <div class="alert alert-warning" style="margin-bottom:14px;box-shadow:var(--shadow-sm)">
+    <AegisModal modal-id="renewInsuranceModal" title="Update Insurance Policy" size="lg">
+      <div class="alert alert-warning" style="margin-bottom:14px">
         <div class="alert-icon"><AegisIcon name="megaphone" :size="14" /></div>
         <div class="alert-content">Professional Liability insurance expires March 15, 2025 (30 days)</div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">New Expiry Date</label><input v-model="renewInsuranceForm.expiry_date" type="date" class="form-input" /></div>
-        <div class="form-group"><label class="form-label">Policy Number</label><input v-model="renewInsuranceForm.policy_number" type="text" class="form-input" placeholder="MP-2025-001" /></div>
+        <div class="form-group"><label class="form-label">New Policy Number</label><input v-model="renewInsuranceForm.policy_number" type="text" class="form-input" placeholder="If changed" /></div>
+        <div class="form-group"><label class="form-label">Coverage Amount</label><input v-model="renewInsuranceForm.coverage" type="text" class="form-input" placeholder="e.g., $2M / $4M" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">New Effective Date <span class="req">*</span></label><input v-model="renewInsuranceForm.effective_date" type="date" class="form-input" /></div>
+        <div class="form-group"><label class="form-label">New Expiration Date <span class="req">*</span></label><input v-model="renewInsuranceForm.expiry_date" type="date" class="form-input" /></div>
       </div>
       <div class="form-group"><label class="form-label">Upload Updated Policy</label><AegisDropzone accept=".pdf,.jpg,.png" @file-selected="renewInsuranceForm.file = $event" /></div>
       <template #footer>
         <button class="btn btn-outline" @click="ui.closeModal('renewInsuranceModal')">Cancel</button>
-        <button class="btn btn-primary" @click="submitRenewInsurance">Submit Renewal</button>
+        <button class="btn btn-primary" @click="submitRenewInsurance">Save Update</button>
       </template>
     </AegisModal>
 
     <!-- Insurance Detail -->
-    <AegisModal modal-id="insuranceDetailModal" title="Insurance Details" size="md">
-      <div class="dh-modal-rows">
-        <div class="dh-modal-row"><span class="dh-modal-lbl">Type</span><span>Professional Liability</span></div>
-        <div class="dh-modal-row"><span class="dh-modal-lbl">Carrier</span><span>Medical Protective</span></div>
-        <div class="dh-modal-row"><span class="dh-modal-lbl">Coverage</span><span>$2M / $2M</span></div>
-        <div class="dh-modal-row"><span class="dh-modal-lbl">Expiry</span><span class="crit-text">Mar 15, 2025</span></div>
+    <AegisModal modal-id="insuranceDetailModal" title="Insurance Policy Details" size="md">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
+        <div class="cc-detail-row"><span class="cc-detail-label">Policy Type</span><span class="cc-detail-value">Professional Liability</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Carrier</span><span class="cc-detail-value">NPI Insurance</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Policy #</span><span class="cc-detail-value">NPI-2024-78321</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Status</span><span class="cc-detail-value" style="color:var(--green)">● Active</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Coverage</span><span class="cc-detail-value">$1M / $3M</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Deductible</span><span class="cc-detail-value">$2,500</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Effective Date</span><span class="cc-detail-value">Mar 15, 2024</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Expires</span><span class="cc-detail-value">Mar 15, 2025</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Annual Premium</span><span class="cc-detail-value">$1,840</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Auto-Renew</span><span class="cc-detail-value">Off</span></div>
+      </div>
+      <div style="margin-top:18px">
+        <div class="modal-section-label">Carrier Contact</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-top:8px">
+          <div class="cc-detail-row"><span class="cc-detail-label">Phone</span><span class="cc-detail-value">(800) 247-1500</span></div>
+          <div class="cc-detail-row"><span class="cc-detail-label">Email</span><span class="cc-detail-value">claims@npiins.com</span></div>
+        </div>
+      </div>
+      <div style="margin-top:18px">
+        <div class="modal-section-label">Documents</div>
+        <div class="list-group" style="margin-top:8px">
+          <div class="list-group-item">
+            <span style="display:inline-flex;align-items:center;gap:9px;color:var(--text-2);font-size:13px;font-weight:600">
+              <AegisIcon name="file-text" :size="14" /> Policy Declaration.pdf
+            </span>
+            <button class="btn-icon-sm" data-tooltip="Download"><AegisIcon name="download" :size="12" /></button>
+          </div>
+          <div class="list-group-item">
+            <span style="display:inline-flex;align-items:center;gap:9px;color:var(--text-2);font-size:13px;font-weight:600">
+              <AegisIcon name="file-text" :size="14" /> Certificate of Insurance.pdf
+            </span>
+            <button class="btn-icon-sm" data-tooltip="Download"><AegisIcon name="download" :size="12" /></button>
+          </div>
+        </div>
       </div>
       <template #footer>
         <button class="btn btn-outline" @click="ui.closeModal('insuranceDetailModal')">Close</button>
@@ -1160,15 +1245,15 @@ function submitReferral() {
 }
 
 // ── License forms ──────────────────────────────────────────────────────
-const licenseForm = useForm({ type: '', expiry_date: '', notes: '', file: null })
+const licenseForm = useForm({ type: '', custom_type: '', license_number: '', credential_number: '', issuing_state: 'New York', issued_date: '', file: null })
 function submitLicense() { toast.success('Credential added.'); ui.closeModal('addLicenseModal'); licenseForm.reset() }
 const renewForm = useForm({ expiry_date: '', license_number: '', file: null })
 function submitRenew() { toast.success('License renewal submitted.'); ui.closeModal('renewLicenseModal'); renewForm.reset() }
 
 // ── Insurance forms ────────────────────────────────────────────────────
-const insuranceForm = useForm({ type: '', expiry_date: '', provider: '', coverage: '', file: null })
+const insuranceForm = useForm({ type: '', expiry_date: '', effective_date: '', provider: '', policy_number: '', coverage: '', premium: '', file: null })
 function submitInsurance() { toast.success('Insurance added.'); ui.closeModal('addInsuranceModal'); insuranceForm.reset() }
-const renewInsuranceForm = useForm({ expiry_date: '', policy_number: '', file: null })
+const renewInsuranceForm = useForm({ expiry_date: '', effective_date: '', policy_number: '', coverage: '', file: null })
 function submitRenewInsurance() { toast.success('Insurance renewal submitted.'); ui.closeModal('renewInsuranceModal'); renewInsuranceForm.reset() }
 
 // ── Reminder form ──────────────────────────────────────────────────────
