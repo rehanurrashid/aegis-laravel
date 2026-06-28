@@ -97,10 +97,10 @@
             <p class="signin-form-subtitle">Enter your credentials to access your dashboard.</p>
           </div>
 
-          <!-- Flash / validation error -->
-          <div v-if="$page.props.flash?.error" class="signin-alert-error">
+          <!-- Validation error — only from current form submission, never stale flash -->
+          <div v-if="loginForm.errors.email || loginForm.errors.password" class="signin-alert-error">
             <AegisIcon name="alert-circle" :size="14" />
-            <span>{{ $page.props.flash.error }}</span>
+            <span>{{ loginForm.errors.email || loginForm.errors.password }}</span>
           </div>
 
           <form class="signin-form" @submit.prevent="submitSignin" novalidate>
@@ -285,7 +285,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { Head, useForm, router, usePage } from '@inertiajs/vue3'
+import { Head, useForm } from '@inertiajs/vue3'
 import { useVuelidate } from '@vuelidate/core'
 import { required, email, minLength, helpers } from '@vuelidate/validators'
 import { useToast } from '@/composables/useToast'
@@ -357,15 +357,6 @@ function showSignin() {
 }
 
 // ── Submit: sign in ────────────────────────────────────────────────────
-const loginPage = usePage()
-
-const portalRouteMap = {
-  practitioner:       'provider.dashboard',
-  business_partner:   'bp.dashboard',
-  continuity_steward: 'cs.dashboard',
-  support_steward:    'ss.dashboard',
-  admin:              'admin.dashboard',
-}
 
 async function submitSignin() {
   const valid = await v$login.value.$validate()
@@ -375,16 +366,9 @@ async function submitSignin() {
   }
   loginForm.post(route('login.store'), {
     onSuccess: () => {
-      const user     = loginPage.props.auth?.user
-      const role     = user?.role
-      const verified = user?.verified
-
-      if (role && !verified) {
-        router.visit(route('verification.notice'), { replace: true })
-        return
-      }
-      const routeName = portalRouteMap[role]
-      if (routeName) router.visit(route(routeName), { replace: true })
+      // Inertia::location() on the server side fires a browser-level redirect.
+      // Do NOT call router.visit() here — that races against the redirect
+      // and produces the "error shown then immediate login" glitch.
     },
     onError:   () => toast.error('Invalid credentials. Please try again.'),
     onFinish:  () => loginForm.reset('password'),

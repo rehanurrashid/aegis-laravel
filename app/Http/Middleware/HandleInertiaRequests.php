@@ -102,7 +102,7 @@ class HandleInertiaRequests extends Middleware
             'activePage'   => $request->route()?->getName(),
             'flash'        => [
                 'success' => session('success'),
-                'error'   => session('error'),
+                'error'   => session()->pull('error'),
                 'info'    => session('info'),
                 'warning' => session('warning'),
                 'status'  => session('status'),

@@ -87,6 +87,8 @@ class LoginController extends Controller
             return Inertia::location(route('mfa.challenge'));
         }
 
+        $request->session()->regenerate();
+
         Auth::login($user, $request->boolean('remember'));
 
         $user->forceFill([
