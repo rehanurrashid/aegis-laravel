@@ -252,6 +252,12 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::post('/settings/mfa/verify', [MfaController::class, 'verify'])->name('settings.mfa.verify');
         Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->name('settings.mfa.disable');
+
+        // Shared pages — portal-prefixed URLs
+        Route::get('/overview',  [OverviewController::class,  'index'])->name('overview');
+        Route::get('/messages',  [MessagesController::class,  'index'])->name('messages');
+        Route::get('/activity',  [ActivityController::class,  'index'])->name('activity');
+        Route::get('/support',   [SupportController::class,   'index'])->name('support');
     });
 
 // ── Continuity Steward Portal ─────────────────────────────────────────────────
@@ -308,6 +314,12 @@ Route::middleware(['auth', 'role:continuity_steward', 'check.locked'])
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::post('/settings/mfa/verify', [MfaController::class, 'verify'])->name('settings.mfa.verify');
         Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->name('settings.mfa.disable');
+
+        // Shared pages — portal-prefixed URLs
+        Route::get('/overview',  [OverviewController::class,  'index'])->name('overview');
+        Route::get('/messages',  [MessagesController::class,  'index'])->name('messages');
+        Route::get('/activity',  [ActivityController::class,  'index'])->name('activity');
+        Route::get('/support',   [SupportController::class,   'index'])->name('support');
     });
 
 // ── Support Steward Portal ────────────────────────────────────────────────────
@@ -350,6 +362,12 @@ Route::middleware(['auth', 'role:support_steward', 'check.locked'])
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::post('/settings/mfa/verify', [MfaController::class, 'verify'])->name('settings.mfa.verify');
         Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->name('settings.mfa.disable');
+
+        // Shared pages — portal-prefixed URLs
+        Route::get('/overview',  [OverviewController::class,  'index'])->name('overview');
+        Route::get('/messages',  [MessagesController::class,  'index'])->name('messages');
+        Route::get('/activity',  [ActivityController::class,  'index'])->name('activity');
+        Route::get('/support',   [SupportController::class,   'index'])->name('support');
     });
 
 // ── Business Partner Portal ───────────────────────────────────────────────────
@@ -415,6 +433,12 @@ Route::middleware(['auth', 'role:business_partner', 'check.locked'])
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::post('/settings/mfa/verify', [MfaController::class, 'verify'])->name('settings.mfa.verify');
         Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->name('settings.mfa.disable');
+
+        // Shared pages — portal-prefixed URLs
+        Route::get('/overview',  [OverviewController::class,  'index'])->name('overview');
+        Route::get('/messages',  [MessagesController::class,  'index'])->name('messages');
+        Route::get('/activity',  [ActivityController::class,  'index'])->name('activity');
+        Route::get('/support',   [SupportController::class,   'index'])->name('support');
     });
 
 // ── Admin Portal ──────────────────────────────────────────────────────────────

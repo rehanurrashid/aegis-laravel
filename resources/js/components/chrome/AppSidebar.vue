@@ -99,7 +99,7 @@ const activePage = computed(() => {
   const parts = full.split('.')
   // Route names like 'provider.dashboard' → 'dashboard'
   // Route names like 'provider.plan.index' → 'plan'
-  // Route names like 'provider.referrals.index' → 'referrals'
+  // Route names like 'provider.messages' → 'messages'
   // Strip portal prefix (first segment), then use remaining minus trailing .index/.show/.store
   const withoutPortal = parts.slice(1) // drop 'provider'/'cs'/'ss'/'bp'/'admin'
   const last = withoutPortal[withoutPortal.length - 1]
@@ -197,7 +197,7 @@ const navSections = computed(() => {
         ],
         'Account': [
           { key: 'settings', href: r('provider.settings.index'), icon: 'settings',    label: 'Settings' },
-          { key: 'support',  href: r('provider.support'),         icon: 'help-circle', label: 'Support' },
+          { key: 'support',  href: r('provider.support'),        icon: 'help-circle', label: 'Support' },
         ],
       }
     }
