@@ -9,6 +9,8 @@ use App\Enums\StewardStatus;
 use App\Enums\UserRole;
 use App\Models\ActivityEvent;
 use App\Models\CriticalIncident;
+use App\Models\Message;
+use App\Models\MessageThread;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Middleware;
@@ -45,9 +47,10 @@ class HandleInertiaRequests extends Middleware
             'cookie_session' => $request->cookies->has(config('session.cookie')) ? 'present' : 'missing',
         ]);
 
-        $hasEmergency = false;
-        $unreadCount  = 0;
-        $roleSlugs    = [];
+        $hasEmergency    = false;
+        $unreadCount     = 0;
+        $unreadMessages  = 0;
+        $roleSlugs       = [];
 
         if ($user) {
             $hasEmergency = CriticalIncident::where('status', IncidentStatus::Active->value)
@@ -62,6 +65,26 @@ class HandleInertiaRequests extends Middleware
 
             $unreadCount = ActivityEvent::where('user_id', $user->id)
                 ->whereNull('read_at')
+                ->count();
+
+            // Count threads that have at least one message the user hasn't read
+            // Count only threads the user participates in that have unread messages
+            $userThreadIds = MessageThread::all()
+                ->filter(function ($t) use ($user) {
+                    $ids = json_decode($t->participant_ids ?? '[]', true) ?: [];
+                    return in_array($user->id, $ids, true);
+                })
+                ->pluck('id');
+
+            $unreadMessages = Message::whereIn('thread_id', $userThreadIds)
+                ->where('sender_id', '!=', $user->id)
+                ->get()
+                ->filter(function ($msg) use ($user) {
+                    $readBy = json_decode($msg->read_by ?? '[]', true) ?: [];
+                    return !in_array($user->id, $readBy, true);
+                })
+                ->pluck('thread_id')
+                ->unique()
                 ->count();
 
             $roleSlugs = $user->roleAssignments()
@@ -98,7 +121,8 @@ class HandleInertiaRequests extends Middleware
                 'roles'  => $roleSlugs,
             ],
             'hasEmergency' => $hasEmergency,
-            'unreadCount'  => $unreadCount,
+            'unreadCount'    => $unreadCount,
+            'unreadMessages' => $unreadMessages,
             'activePage'   => $request->route()?->getName(),
             'flash'        => [
                 'success' => session('success'),

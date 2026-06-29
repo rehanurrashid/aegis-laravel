@@ -139,7 +139,7 @@
             <span class="feedback-entry-subject">{{ f.subject }}</span>
             <span class="feedback-entry-meta">{{ activity.timeAgo(f.created_at) }}</span>
           </div>
-          <div class="feedback-entry-body">{{ f.body }}</div>
+          <div class="feedback-entry-body" v-html="f.body"></div>
         </div>
       </div>
     </section>
@@ -181,7 +181,7 @@
               <span class="help-article-title">{{ art.title }}</span>
               <span class="help-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
             </summary>
-            <div class="help-article-body">{{ art.body }}</div>
+            <div class="help-article-body" v-html="art.body"></div>
           </details>
         </div>
         <div v-if="!hasAnyVisibleArticle" class="support-empty">
@@ -283,7 +283,7 @@
           <div class="thread-bubble is-user">
             <div class="thread-avatar is-gold">You</div>
             <div class="thread-content">
-              <div class="thread-body">{{ selectedTicket.body }}</div>
+              <div class="thread-body" v-html="selectedTicket.body"></div>
               <div class="thread-meta">{{ activity.timeAgo(selectedTicket.created_at) }}</div>
             </div>
           </div>
@@ -296,7 +296,7 @@
           >
             <div class="thread-avatar" :class="{ 'is-gold': r.is_user }">{{ r.is_user ? 'You' : 'S' }}</div>
             <div class="thread-content">
-              <div class="thread-body">{{ r.body }}</div>
+              <div class="thread-body" v-html="r.body"></div>
               <div class="thread-meta">{{ activity.timeAgo(r.created_at) }}</div>
             </div>
           </div>

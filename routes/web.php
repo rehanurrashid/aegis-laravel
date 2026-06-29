@@ -57,6 +57,7 @@ use App\Http\Controllers\Admin\RolesController;
 use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Shared\ActivityController;
 use App\Http\Controllers\Shared\MessagesController;
+use App\Http\Controllers\Shared\MessageAttachmentController;
 use App\Http\Controllers\Shared\OverviewController;
 use App\Http\Controllers\Shared\SupportController;
 use App\Http\Controllers\Public\ProfileController as PublicProfileController;
@@ -514,6 +515,7 @@ Route::middleware(['auth', 'check.locked'])->group(function () {
     Route::post('/messages', [MessagesController::class, 'store'])->name('messages.store');
     Route::post('/messages/{thread}/reply', [MessagesController::class, 'reply'])->name('messages.reply');
     Route::post('/messages/{thread}/read', [MessagesController::class, 'markRead'])->name('messages.read');
+    Route::get('/messages/{message}/attachments/{index}', [MessageAttachmentController::class, 'download'])->name('messages.attachment.download')->where('index', '[0-9]+');
 
     // Activity Feed
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');

@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\MessagingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -114,13 +115,14 @@ class MessagesController extends Controller
 
         $activeMessages = $active
             ? $this->messaging->getMessages($active)->map(fn ($m) => [
-                'id'        => $m->id,
-                'thread_id' => $m->thread_id,
-                'sender_id' => $m->sender_id,
-                'body'      => $m->body,
-                'sent_at'   => $m->sent_at,
-                'read_by'   => json_decode($m->read_by ?? '[]', true) ?: [],
-                'is_sent'   => $m->sender_id === $user->id,
+                'id'          => $m->id,
+                'thread_id'   => $m->thread_id,
+                'sender_id'   => $m->sender_id,
+                'body'        => $m->body,
+                'sent_at'     => $m->sent_at,
+                'read_by'     => json_decode($m->read_by ?? '[]', true) ?: [],
+                'is_sent'     => $m->sender_id === $user->id,
+                'attachments' => $this->formatAttachments($m->attachments ?? [], $m->id),
             ])
             : collect();
 
@@ -182,8 +184,37 @@ class MessagesController extends Controller
     public function reply(Request $request, MessageThread $thread): RedirectResponse
     {
         $this->authorize('send', $thread);
-        $body = $request->validate(['body' => 'required|string|min:1|max:5000'])['body'];
-        $this->messaging->sendMessage($thread, $request->user(), $body);
+
+        $data = $request->validate([
+            'body'        => 'nullable|string|max:5000',
+            'attachments' => 'nullable|array|max:5',
+            'attachments.*' => 'file|max:20480', // 20 MB per file
+        ]);
+
+        // Store uploaded files — paths saved first, URLs generated after we have msg->id
+        $fileMeta = [];
+        foreach ($request->file('attachments', []) as $file) {
+            $path = $file->store('messages/attachments', 'public');
+            $fileMeta[] = [
+                'name' => $file->getClientOriginalName(),
+                'size' => $this->humanFileSize($file->getSize()),
+                'mime' => $file->getMimeType(),
+                'path' => $path,
+            ];
+        }
+
+        $msg = $this->messaging->sendMessage($thread, $request->user(), $data['body'] ?? '');
+
+        if (!empty($fileMeta)) {
+            // Now we have $msg->id — build secure download URLs per attachment index
+            $attachmentMeta = array_map(function ($item, $index) use ($msg) {
+                $item['url'] = route('messages.attachment.download', [$msg->id, $index]);
+                return $item;
+            }, $fileMeta, array_keys($fileMeta));
+
+            $msg->update(['attachments' => $attachmentMeta]);
+        }
+
         return back()->with('success', 'Reply sent.');
     }
 
@@ -192,6 +223,38 @@ class MessagesController extends Controller
         $this->authorize('read', $thread);
         $this->messaging->markRead($thread, $request->user());
         return back();
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private function formatAttachments(mixed $raw, string $msgId = ''): array
+    {
+        if (empty($raw)) return [];
+        $items = is_array($raw) ? $raw : (json_decode($raw, true) ?: []);
+        return array_values(array_map(function ($a, $index) use ($msgId) {
+            // Prefer stored URL; fall back to generating from route if available
+            $url = $a['url'] ?? '';
+            if (!$url && $msgId) {
+                try {
+                    $url = route('messages.attachment.download', [$msgId, $index]);
+                } catch (\Throwable) {
+                    $url = '#';
+                }
+            }
+            return [
+                'name' => $a['name'] ?? 'file',
+                'size' => $a['size'] ?? '',
+                'mime' => $a['mime'] ?? 'application/octet-stream',
+                'url'  => $url ?: '#',
+            ];
+        }, $items, array_keys($items)));
+    }
+
+    private function humanFileSize(int $bytes): string
+    {
+        if ($bytes < 1024)       return $bytes . ' B';
+        if ($bytes < 1048576)    return round($bytes / 1024, 1) . ' KB';
+        return round($bytes / 1048576, 1) . ' MB';
     }
 
     private function roleLabel(string $role): string
@@ -208,7 +271,6 @@ class MessagesController extends Controller
 
     /**
      * Bucket definitions per viewer role.
-     * Returns array of {key, label, tip}.
      */
     private function bucketsFor(string $role): array
     {

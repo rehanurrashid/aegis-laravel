@@ -17,11 +17,11 @@
     >
       <template #actions>
         <a :href="route('activity.index')" class="btn-hero-ghost is-on-light">
-          <AegisIcon name="activity" :size="14" />
+          <AegisIcon name="activity" :size="18" />
           Activity
         </a>
         <button type="button" class="btn-hero-solid is-on-light" @click="openCompose">
-          <AegisIcon name="pencil" :size="14" />
+          <AegisIcon name="pencil" :size="18" />
           New message
         </button>
       </template>
@@ -33,47 +33,84 @@
       <!-- LEFT — Contacts pane -->
       <div class="msg-pane is-contacts">
         <div class="msg-contacts-head">
-          <div class="msg-search-row">
-            <div class="msg-search-input-wrap">
-              <AegisIcon name="search" :size="14" />
-              <input
-                v-model="filter"
-                type="text"
-                class="msg-search-input"
-                placeholder="Search messages…"
-              />
-            </div>
+          <div class="msg-contacts-icon-row">
             <button
               type="button"
-              class="btn-icon"
+              class="btn-icon btn-icon-sm"
+              :class="{ 'is-active-icon': searchContactsOpen }"
+              data-tooltip="Search messages"
+              @click="searchContactsOpen = !searchContactsOpen"
+            >
+              <AegisIcon name="search" :size="18" />
+            </button>
+            <button
+              type="button"
+              class="btn-icon btn-icon-sm"
               data-tooltip="New message"
               @click="openCompose"
             >
-              <AegisIcon name="plus" :size="14" />
+              <AegisIcon name="plus" :size="18" />
+            </button>
+            <button
+              type="button"
+              class="btn-icon btn-icon-sm"
+              :data-tooltip="`Status: ${availabilityOptions.find(o => o.value === currentStatus)?.label ?? 'Available'}`"
+              @click="modals.availability = true"
+            >
+              <span class="avail-status-dot" :class="`avail-status-dot--${currentStatus}`"></span>
+            </button>
+            <a :href="route('activity.index')" class="btn-icon btn-icon-sm" data-tooltip="Activity log">
+              <AegisIcon name="activity" :size="18" />
+            </a>
+          </div>
+        </div>
+
+        <!-- Collapsible contacts search bar -->
+        <div v-if="searchContactsOpen" class="msg-contacts-search-bar">
+          <div class="msg-search-input-wrap">
+            <AegisIcon name="search" :size="18" />
+            <input
+              ref="searchInputRef"
+              v-model="filter"
+              type="text"
+              class="msg-search-input"
+              placeholder="Search messages…"
+              @keydown.esc="filter = ''; searchContactsOpen = false"
+            />
+            <button
+              v-if="filter"
+              type="button"
+              class="msg-search-clear"
+              data-tooltip="Clear"
+              @click="filter = ''"
+            >
+              <AegisIcon name="x" :size="13" />
             </button>
           </div>
         </div>
 
-        <!-- Bucket filter tabs -->
+        <!-- Bucket filter dropdown -->
         <div class="msg-filter-row">
-          <button
-            v-for="b in buckets"
-            :key="b.key"
-            type="button"
-            class="tab-pill"
-            :class="{ active: activeBucket === b.key }"
-            :data-tooltip="b.tip"
-            @click="activeBucket = b.key"
-          >
-            {{ b.label }}
-            <span class="badge-pill">{{ bucketCounts[b.key] ?? 0 }}</span>
-          </button>
+          <div class="msg-filter-select-wrap">
+            <AegisIcon name="filter" :size="18" class="msg-filter-icon" />
+            <select v-model="activeBucket" class="msg-filter-select">
+              <option v-for="b in buckets" :key="b.key" :value="b.key">
+                {{ b.label }} ({{ bucketCounts[b.key] ?? 0 }})
+              </option>
+            </select>
+            <AegisIcon name="chevron-down" :size="18" class="msg-filter-chevron" />
+          </div>
         </div>
 
         <!-- Thread list -->
         <div class="msg-contact-list">
           <div v-if="!filteredThreads.length" class="msg-list-empty">
-            No conversations yet. Start one with the New Message button above.
+            <template v-if="filter.trim()">
+              No results for "<strong>{{ filter.trim() }}</strong>"
+            </template>
+            <template v-else>
+              No conversations yet. Start one with the New Message button above.
+            </template>
           </div>
           <div
             v-for="t in filteredThreads"
@@ -82,10 +119,13 @@
             :class="{ 'is-active': t.id === activeThread?.id }"
             @click="selectThread(t)"
           >
-            <div
-              class="msg-avatar"
-              :class="{ 'is-gold': t.is_continuity_contact }"
-            >{{ t.counterpart?.avatar_initials || '·' }}</div>
+            <div class="msg-avatar-wrap">
+              <div
+                class="msg-avatar"
+                :class="{ 'is-gold': t.is_continuity_contact }"
+              >{{ t.counterpart?.avatar_initials || '·' }}</div>
+              <span class="msg-presence-dot msg-presence-dot--available"></span>
+            </div>
             <div class="msg-contact-info">
               <div class="msg-contact-name">{{ t.counterpart?.display_name }}</div>
               <div class="msg-contact-preview" :class="{ 'is-unread': t.last_message_unread }">
@@ -117,7 +157,7 @@
             style="margin-top: 0.875rem;"
             @click="openCompose"
           >
-            <AegisIcon name="plus" :size="12" />
+            <AegisIcon name="plus" :size="18" />
             Start a Conversation
           </button>
         </div>
@@ -125,12 +165,20 @@
         <template v-else>
           <!-- Chat header -->
           <div class="msg-chat-head">
-            <div
-              class="msg-avatar is-sm"
-              :class="{ 'is-gold': activeThread.is_continuity_contact }"
-            >{{ activeThread.counterpart?.avatar_initials || '·' }}</div>
+            <div class="msg-avatar-wrap">
+              <div
+                class="msg-avatar is-sm"
+                :class="{ 'is-gold': activeThread.is_continuity_contact }"
+              >{{ activeThread.counterpart?.avatar_initials || '·' }}</div>
+              <span class="msg-presence-dot msg-presence-dot--available"></span>
+            </div>
             <div class="msg-chat-head-info">
-              <div class="msg-chat-head-name">{{ activeThread.counterpart?.display_name }}</div>
+              <component
+                :is="activeThread.counterpart?.slug ? 'a' : 'div'"
+                class="msg-chat-head-name"
+                :class="{ 'is-link-name': activeThread.counterpart?.slug }"
+                :href="activeThread.counterpart?.slug ? profileUrl(activeThread.counterpart) : undefined"
+              >{{ activeThread.counterpart?.display_name }}</component>
               <div class="msg-chat-head-sub">
                 {{ activeThread.counterpart?.role_label }}
                 <template v-if="activeThread.is_continuity_contact">
@@ -142,13 +190,59 @@
             <div class="msg-chat-head-actions">
               <button
                 type="button"
-                class="btn-icon"
+                class="btn-icon btn-icon-sm"
+                :class="{ 'is-active-icon': searchOpen }"
+                data-tooltip="Search in chat"
+                @click="searchOpen = !searchOpen"
+              >
+                <AegisIcon name="search" :size="18" />
+              </button>
+              <button
+                type="button"
+                class="btn-icon btn-icon-sm"
+                :class="{ 'is-active-icon': showInfo }"
                 data-tooltip="Conversation info"
                 @click="showInfo = !showInfo"
               >
-                <AegisIcon name="more" :size="14" />
+                <AegisIcon name="more" :size="18" />
               </button>
             </div>
+          </div>
+
+          <!-- Encryption note -->
+          <div class="msg-system-note">
+            <AegisIcon name="lock" :size="18" />
+            End-to-end encrypted
+          </div>
+
+          <!-- Inline chat search -->
+          <div class="msg-chat-search" :class="{ 'is-open': searchOpen }">
+            <div class="msg-search-input-wrap" style="flex:1">
+              <AegisIcon name="search" :size="18" />
+              <input
+                ref="chatSearchInputRef"
+                v-model="searchQuery"
+                type="text"
+                class="msg-search-input"
+                placeholder="Search in this conversation…"
+                @keydown.esc="searchOpen = false; searchQuery = ''"
+                @keydown.enter="stepSearchMatch(1)"
+              />
+            </div>
+            <template v-if="searchQuery">
+              <span class="msg-chat-search-counter">
+                {{ searchMatches.length ? `${searchMatchIdx + 1} / ${searchMatches.length}` : '0 results' }}
+              </span>
+              <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Previous" @click="stepSearchMatch(-1)">
+                <AegisIcon name="chevron-up" :size="14" />
+              </button>
+              <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Next" @click="stepSearchMatch(1)">
+                <AegisIcon name="chevron-down" :size="14" />
+              </button>
+            </template>
+            <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Close" @click="searchOpen = false; searchQuery = ''">
+              <AegisIcon name="x" :size="14" />
+            </button>
           </div>
 
           <!-- Messages stream -->
@@ -158,7 +252,14 @@
                 v-if="shouldShowDayChip(m, i)"
                 class="msg-day-chip"
               >{{ formatDay(m.sent_at) }}</div>
-              <div class="msg-row" :class="m.is_sent ? 'is-sent' : 'is-received'">
+              <div
+                :id="`msg-${m.id}`"
+                class="msg-row"
+                :class="[
+                  m.is_sent ? 'is-sent' : 'is-received',
+                  searchQuery && m.body?.toLowerCase().includes(searchQuery.toLowerCase().trim()) ? 'is-search-match' : '',
+                ]"
+              >
                 <div
                   class="msg-avatar is-xs"
                   :class="{
@@ -166,7 +267,27 @@
                   }"
                 >{{ m.is_sent ? currentUserInitials : (activeThread.counterpart?.avatar_initials || '·') }}</div>
                 <div class="msg-bubble-wrap">
-                  <div class="msg-bubble">{{ m.body }}</div>
+                  <div class="msg-bubble">
+                    <span v-if="m.body" v-html="highlightMatch(m.body, searchQuery)"></span>
+                    <div v-if="m.attachments && m.attachments.length" class="msg-bubble-attachments">
+                      <a
+                        v-for="att in m.attachments"
+                        :key="att.url"
+                        :href="att.url"
+                        :download="att.name"
+                        target="_blank"
+                        rel="noopener"
+                        class="msg-bubble-attach-row"
+                      >
+                        <span class="msg-bubble-attach-icon"><AegisIcon :name="attachIcon(att.mime)" :size="13" /></span>
+                        <div class="msg-bubble-attach-body">
+                          <div class="msg-bubble-attach-name">{{ att.name }}</div>
+                          <div v-if="att.size" class="msg-bubble-attach-size">{{ att.size }}</div>
+                        </div>
+                        <AegisIcon name="download" :size="12" />
+                      </a>
+                    </div>
+                  </div>
                   <div class="msg-bubble-time">
                     {{ formatTime(m.sent_at) }}
                     <AegisIcon v-if="m.is_sent" name="check" :size="10" />
@@ -179,49 +300,98 @@
           <!-- Compose -->
           <div class="msg-compose">
             <div class="msg-compose-row">
+              <div class="msg-compose-tools">
+                <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Attach file" @click="$refs.fileInput.click()">
+                  <AegisIcon name="upload" :size="18" />
+                </button>
+                <input
+                  ref="fileInput"
+                  type="file"
+                  class="sr-only"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                  @change="onFileSelected"
+                />
+                <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Use template" @click="modals.templatePicker = true">
+                  <AegisIcon name="file-text" :size="18" />
+                </button>
+              </div>
+              <div v-if="pendingFile" class="msg-attach-chip">
+                <AegisIcon name="file-text" :size="13" />
+                <span class="msg-attach-chip-name">{{ pendingFile.name }}</span>
+                <button type="button" class="msg-attach-chip-remove" data-tooltip="Remove" @click="clearPendingFile">
+                  <AegisIcon name="x" :size="11" />
+                </button>
+              </div>
               <textarea
                 v-model="replyForm.body"
                 class="msg-compose-input"
-                placeholder="Type your message…"
+                :placeholder="pendingFile ? 'Add a message (optional)…' : 'Type your message…'"
                 rows="1"
                 @keydown="onComposeKey"
                 @input="autoResize"
               ></textarea>
               <button
                 type="button"
-                class="btn-icon btn-icon-primary"
+                class="btn-icon btn-icon-sm btn-icon-primary"
                 data-tooltip="Send"
-                :disabled="!replyForm.body.trim() || replyForm.processing"
+                :disabled="(!replyForm.body.trim() && !pendingFile) || replyForm.processing"
                 @click="sendReply"
               >
-                <AegisIcon name="send" :size="14" />
+                <AegisIcon name="send" :size="18" />
               </button>
             </div>
           </div>
         </template>
       </div>
 
-      <!-- RIGHT — Conversation info side panel (drawer on mobile) -->
+      <!-- RIGHT — Conversation info side panel -->
       <transition name="slide">
         <div
           v-if="activeThread && showInfo"
           class="msg-info-panel"
         >
+          <!-- Panel header -->
           <div class="msg-info-head">
             <div class="msg-info-title">Conversation Info</div>
-            <button
-              type="button"
-              class="btn-icon"
-              data-tooltip="Close"
-              @click="showInfo = false"
-            >
+            <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Close" @click="showInfo = false">
               <AegisIcon name="x" :size="14" />
             </button>
           </div>
 
           <div class="msg-info-body">
-            <!-- Identity -->
-            <div class="msg-info-section">
+
+            <!-- ▌ Identity header -->
+            <div class="mip-identity">
+              <div class="msg-avatar mip-avatar" :class="{ 'is-gold': activeThread.is_continuity_contact }">
+                {{ activeThread.counterpart?.avatar_initials || '·' }}
+              </div>
+              <component
+                :is="activeThread.counterpart?.slug ? 'a' : 'div'"
+                class="mip-name"
+                :href="activeThread.counterpart?.slug ? profileUrl(activeThread.counterpart) : undefined"
+              >{{ activeThread.counterpart?.display_name }}</component>
+              <div class="mip-role">
+                {{ activeThread.counterpart?.role_label }}
+                <template v-if="activeThread.is_continuity_contact">
+                  · <span style="color:var(--gold-dark);font-weight:700">Continuity Contact</span>
+                </template>
+              </div>
+              <div v-if="activeThread.counterpart?.organization" class="mip-org">
+                {{ activeThread.counterpart.organization }}
+              </div>
+              <div class="mip-ctas">
+                <a
+                  v-if="activeThread.counterpart?.slug"
+                  :href="profileUrl(activeThread.counterpart)"
+                  class="btn btn-outline btn-sm"
+                >
+                  <AegisIcon name="user" :size="12" /> View Profile
+                </a>
+              </div>
+            </div>
+
+            <!-- ▌ Contact info -->
+            <div class="msg-info-section" v-if="activeThread.counterpart?.email || activeThread.counterpart?.phone || activeThread.counterpart?.location">
               <div class="msg-info-section-label">Contact</div>
               <div class="msg-info-row" v-if="activeThread.counterpart?.email">
                 <span class="msg-info-icon"><AegisIcon name="mail" :size="14" /></span>
@@ -233,25 +403,10 @@
                 <span class="msg-info-label">Phone</span>
                 <span class="msg-info-value">{{ activeThread.counterpart.phone }}</span>
               </div>
-              <div class="msg-info-row" v-if="activeThread.counterpart?.organization">
-                <span class="msg-info-icon"><AegisIcon name="briefcase" :size="14" /></span>
-                <span class="msg-info-label">Org</span>
-                <span class="msg-info-value">{{ activeThread.counterpart.organization }}</span>
-              </div>
               <div class="msg-info-row" v-if="activeThread.counterpart?.location">
                 <span class="msg-info-icon"><AegisIcon name="map-pin" :size="14" /></span>
                 <span class="msg-info-label">Based</span>
                 <span class="msg-info-value">{{ activeThread.counterpart.location }}</span>
-              </div>
-            </div>
-
-            <!-- Stats -->
-            <div class="msg-info-section">
-              <div class="msg-info-section-label">Conversation</div>
-              <div class="msg-info-row">
-                <span class="msg-info-icon"><AegisIcon name="message" :size="14" /></span>
-                <span class="msg-info-label">Messages</span>
-                <span class="msg-info-value">{{ activeMessages.length }}</span>
               </div>
               <div class="msg-info-row">
                 <span class="msg-info-icon"><AegisIcon name="clock" :size="14" /></span>
@@ -259,6 +414,125 @@
                 <span class="msg-info-value">{{ activity.timeAgo(activeThread.last_message_at) }} ago</span>
               </div>
             </div>
+
+            <!-- ▌ Media / Files / Links -->
+            <div class="msg-info-section">
+              <div class="msg-info-section-label">Media, Files &amp; Links</div>
+
+              <!-- Tab strip -->
+              <div class="mip-attach-tabs">
+                <button
+                  v-for="tab in attachTabs"
+                  :key="tab.key"
+                  type="button"
+                  class="tab-pill"
+                  :class="{ active: infoAttachTab === tab.key }"
+                  @click="infoAttachTab = tab.key"
+                >
+                  {{ tab.label }}
+                  <span class="badge-pill">{{ tab.count }}</span>
+                </button>
+              </div>
+
+              <!-- Media panel -->
+              <div v-if="infoAttachTab === 'media'">
+                <div v-if="!attachMedia.length" class="mip-attach-empty">No media shared yet</div>
+                <template v-else>
+                  <div class="mip-media-grid">
+                    <div
+                      v-for="(item, i) in attachMedia.slice(0, 6)"
+                      :key="i"
+                      class="mip-media-thumb"
+                      :data-tooltip="item.name"
+                      @click="openImageViewer(item)"
+                    >
+                      <img
+                        v-if="item.url && /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(item.name || '')"
+                        :src="item.url"
+                        :alt="item.name"
+                        class="mip-media-img"
+                      />
+                      <AegisIcon v-else name="camera" :size="18" />
+                    </div>
+                  </div>
+                  <button type="button" class="mip-attach-viewall" @click="modals.allMedia = true">
+                    <AegisIcon name="grid" :size="12" /> View All Media
+                  </button>
+                </template>
+              </div>
+
+              <!-- Files panel -->
+              <div v-else-if="infoAttachTab === 'files'">
+                <div v-if="!attachFiles.length" class="mip-attach-empty">No files shared yet</div>
+                <template v-else>
+                  <a
+                    v-for="(f, i) in attachFiles.slice(0, 4)"
+                    :key="i"
+                    :href="f.url"
+                    :download="f.name"
+                    target="_blank"
+                    rel="noopener"
+                    class="mip-file-row"
+                  >
+                    <span class="mip-file-icon"><AegisIcon name="file-text" :size="14" /></span>
+                    <div class="mip-file-body">
+                      <div class="mip-file-name">{{ f.name }}</div>
+                      <div class="mip-file-size">{{ f.size }}</div>
+                    </div>
+                    <span class="mip-file-dl"><AegisIcon name="download" :size="14" /></span>
+                  </a>
+                  <button type="button" class="mip-attach-viewall" @click="modals.allMedia = true">
+                    <AegisIcon name="folder" :size="12" /> View All Files
+                  </button>
+                </template>
+              </div>
+
+              <!-- Links panel -->
+              <div v-else-if="infoAttachTab === 'links'">
+                <div v-if="!attachLinks.length" class="mip-attach-empty">No links shared yet</div>
+                <template v-else>
+                  <a
+                    v-for="(l, i) in attachLinks.slice(0, 3)"
+                    :key="i"
+                    :href="l.url"
+                    target="_blank"
+                    rel="noopener"
+                    class="mip-file-row"
+                  >
+                    <span class="mip-file-icon"><AegisIcon name="link" :size="14" /></span>
+                    <div class="mip-file-body">
+                      <div class="mip-file-name">{{ l.title }}</div>
+                      <div class="mip-file-size" style="color:var(--gold-dark)">{{ l.url }}</div>
+                    </div>
+                    <span class="mip-file-dl"><AegisIcon name="external-link" :size="14" /></span>
+                  </a>
+                  <button type="button" class="mip-attach-viewall" @click="modals.allMedia = true">
+                    <AegisIcon name="link" :size="12" /> View All Links
+                  </button>
+                </template>
+              </div>
+            </div>
+
+            <!-- ▌ Quick actions -->
+            <div class="msg-info-section">
+              <div class="msg-info-section-label">Actions</div>
+              <div class="mip-action-row" @click="modals.exportChat = true; showInfo = false">
+                <span class="mip-action-icon"><AegisIcon name="download" :size="14" /></span>
+                <span class="mip-action-label">Export Chat</span>
+                <AegisIcon name="chevron-right" :size="13" />
+              </div>
+              <div class="mip-action-row" @click="modals.muteNotif = true; showInfo = false">
+                <span class="mip-action-icon"><AegisIcon name="bell" :size="14" /></span>
+                <span class="mip-action-label">Mute Notifications</span>
+                <AegisIcon name="chevron-right" :size="13" />
+              </div>
+              <div class="mip-action-row is-danger" @click="blockContact">
+                <span class="mip-action-icon"><AegisIcon name="x-circle" :size="14" /></span>
+                <span class="mip-action-label">Block Contact</span>
+                <AegisIcon name="chevron-right" :size="13" />
+              </div>
+            </div>
+
           </div>
         </div>
       </transition>
@@ -274,7 +548,7 @@
       <div class="form-group">
         <label class="form-label" for="compose-search">To <span class="text-danger">*</span></label>
         <div class="compose-search-wrap">
-          <AegisIcon name="search" :size="14" />
+          <AegisIcon name="search" :size="18" />
           <input
             id="compose-search"
             v-model="recipientFilter"
@@ -335,11 +609,236 @@
           :disabled="composeForm.processing"
           @click="sendNewThread"
         >
-          <AegisIcon name="send" :size="12" />
+          <AegisIcon name="send" :size="18" />
           {{ composeForm.processing ? 'Sending…' : 'Send Message' }}
         </button>
       </template>
     </AegisModal>
+
+    <!-- ── Conversation Info Modal ───────────────────── -->
+    <AegisModal v-model="modals.chatInfo" title="Conversation Info" size="md">
+      <div v-if="activeThread" style="text-align:center;margin-bottom:20px">
+        <div class="msg-avatar" :class="{ 'is-gold': activeThread.is_continuity_contact }" style="width:56px;height:56px;font-size:16px;margin:0 auto">
+          {{ activeThread.counterpart?.avatar_initials || '·' }}
+        </div>
+        <div style="font-family:var(--font-serif);font-size:18px;font-weight:700;margin-top:14px">{{ activeThread.counterpart?.display_name }}</div>
+        <div style="font-size:13px;color:var(--text-3);margin-top:4px">{{ activeThread.counterpart?.role_label }}</div>
+        <div v-if="activeThread.is_continuity_contact" style="margin-top:8px">
+          <span class="badge badge-gold">Continuity Contact</span>
+        </div>
+      </div>
+      <div v-if="activeThread" class="list-group">
+        <div v-if="activeThread.counterpart?.email" class="list-group-item" style="gap:10px">
+          <span style="color:var(--gold-dark);display:inline-flex"><AegisIcon name="mail" :size="18" /></span>
+          <div>
+            <div style="font-size:11px;color:var(--text-4);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Email</div>
+            <a :href="`mailto:${activeThread.counterpart.email}`" style="font-size:13px;font-weight:700;color:var(--gold-dark)">{{ activeThread.counterpart.email }}</a>
+          </div>
+        </div>
+        <div v-if="activeThread.counterpart?.phone" class="list-group-item" style="gap:10px">
+          <span style="color:var(--gold-dark);display:inline-flex"><AegisIcon name="phone" :size="18" /></span>
+          <div>
+            <div style="font-size:11px;color:var(--text-4);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Phone</div>
+            <div style="font-size:13px;font-weight:700">{{ activeThread.counterpart.phone }}</div>
+          </div>
+        </div>
+        <div v-if="activeThread.counterpart?.location" class="list-group-item" style="gap:10px">
+          <span style="color:var(--gold-dark);display:inline-flex"><AegisIcon name="map-pin" :size="18" /></span>
+          <div>
+            <div style="font-size:11px;color:var(--text-4);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Location</div>
+            <div style="font-size:13px;font-weight:700">{{ activeThread.counterpart.location }}</div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="modals.chatInfo = false">Close</button>
+      </template>
+    </AegisModal>
+
+    <!-- ── Export Chat Modal ──────────────────────────── -->
+    <AegisModal v-model="modals.exportChat" title="Export Chat" size="md">
+      <p style="font-size:13px;color:var(--text-3)">Export this conversation as a PDF or plain text for your records.</p>
+      <div class="form-group" style="margin-top:16px">
+        <label class="form-label">Format</label>
+        <select v-model="exportFormat" class="form-select">
+          <option value="pdf">PDF (with header)</option>
+          <option value="txt">Plain Text (.txt)</option>
+          <option value="json">JSON (raw)</option>
+        </select>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="modals.exportChat = false">Cancel</button>
+        <button type="button" class="btn btn-primary" @click="modals.exportChat = false; toast.success('Export started — check your downloads.')">
+          <AegisIcon name="download" :size="18" />
+          Export
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- ── Mute Notifications Modal ───────────────────── -->
+    <AegisModal v-model="modals.muteNotif" title="Mute Notifications" size="sm">
+      <p style="font-size:13px;color:var(--text-3);margin-bottom:16px">Mute this conversation for:</p>
+      <div class="list-group">
+        <div v-for="opt in muteOptions" :key="opt.value" class="list-group-item clickable" style="cursor:pointer" @click="muteThread(opt)">
+          <span style="display:inline-flex"><AegisIcon name="bell-off" :size="18" /></span>
+          <div style="flex:1">{{ opt.label }}</div>
+          <span style="display:inline-flex;color:var(--text-4)"><AegisIcon name="chevron-right" :size="18" /></span>
+        </div>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="modals.muteNotif = false">Cancel</button>
+      </template>
+    </AegisModal>
+
+    <!-- ── Availability Modal ─────────────────────────── -->
+    <AegisModal v-model="modals.availability" title="Set Availability" size="sm">
+      <div class="list-group">
+        <div v-for="s in availabilityOptions" :key="s.value" class="list-group-item clickable avail-row" style="cursor:pointer" @click="setAvailability(s)">
+          <span class="avail-dot" :class="`avail-dot--${s.value}`"></span>
+          <div style="flex:1;font-size:13px;font-weight:500">{{ s.label }}</div>
+          <AegisIcon v-if="currentStatus === s.value" name="check" :size="14" style="color:var(--green-dark)" />
+        </div>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="modals.availability = false">Close</button>
+      </template>
+    </AegisModal>
+
+    <!-- ── All Attachments Modal ──────────────────────── -->
+    <AegisModal v-model="modals.allMedia" title="Media, Files &amp; Links" size="lg">
+      <!-- Tab strip -->
+      <div class="mip-attach-tabs" style="margin-bottom:14px">
+        <button
+          v-for="tab in attachTabs"
+          :key="tab.key"
+          type="button"
+          class="tab-pill"
+          :class="{ active: allMediaTab === tab.key }"
+          @click="allMediaTab = tab.key"
+        >
+          {{ tab.label }}
+          <span class="badge-pill">{{ tab.count }}</span>
+        </button>
+      </div>
+
+      <!-- Media -->
+      <div v-if="allMediaTab === 'media'">
+        <div v-if="!attachMedia.length" class="mcd-attach-empty">No media shared yet</div>
+        <div v-else class="all-media-grid">
+          <div
+            v-for="(item, i) in attachMedia"
+            :key="i"
+            class="mip-media-thumb"
+            :data-tooltip="item.name"
+            @click="openImageViewer(item)"
+          >
+            <img
+              v-if="item.url && /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(item.name || '')"
+              :src="item.url"
+              :alt="item.name"
+              class="mip-media-img"
+            />
+            <AegisIcon v-else name="camera" :size="22" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Files -->
+      <div v-else-if="allMediaTab === 'files'">
+        <div v-if="!attachFiles.length" class="mcd-attach-empty">No files shared yet</div>
+        <div v-else class="all-files-list">
+          <a
+            v-for="(f, i) in attachFiles"
+            :key="i"
+            :href="f.url"
+            :download="f.name"
+            target="_blank"
+            rel="noopener"
+            class="mip-file-row"
+          >
+            <span class="mip-file-icon"><AegisIcon :name="attachIcon(f.mime)" :size="16" /></span>
+            <div class="mip-file-body">
+              <div class="mip-file-name">{{ f.name }}</div>
+              <div v-if="f.size" class="mip-file-size">{{ f.size }}</div>
+            </div>
+            <span class="mip-file-dl"><AegisIcon name="download" :size="14" /></span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Links -->
+      <div v-else-if="allMediaTab === 'links'">
+        <div v-if="!attachLinks.length" class="mcd-attach-empty">No links shared yet</div>
+        <div v-else class="all-files-list">
+          <a
+            v-for="(l, i) in attachLinks"
+            :key="i"
+            :href="l.url"
+            target="_blank"
+            rel="noopener"
+            class="mip-file-row"
+          >
+            <span class="mip-file-icon"><AegisIcon name="link" :size="16" /></span>
+            <div class="mip-file-body">
+              <div class="mip-file-name">{{ l.title }}</div>
+              <div class="mip-file-size" style="color:var(--gold-dark)">{{ l.url }}</div>
+            </div>
+            <span class="mip-file-dl"><AegisIcon name="external-link" :size="14" /></span>
+          </a>
+        </div>
+      </div>
+
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="modals.allMedia = false">Close</button>
+      </template>
+    </AegisModal>
+
+    <!-- ── Image / Media Preview Modal ───────────────── -->
+    <AegisModal v-model="modals.imageViewer" title="Media Preview" size="lg">
+      <div class="image-viewer-area">
+        <img
+          v-if="imageViewerUrl && /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i.test(imageViewerName || '')"
+          :src="imageViewerUrl"
+          :alt="imageViewerName"
+          style="max-width:100%;max-height:380px;border-radius:var(--radius);display:block;margin:0 auto"
+        />
+        <div v-else class="image-viewer-icon"><AegisIcon name="camera" :size="36" /></div>
+        <div class="image-viewer-name" style="margin-top:12px">{{ imageViewerName || '—' }}</div>
+        <div class="image-viewer-meta">{{ imageViewerMeta || '—' }}</div>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="modals.imageViewer = false">Close</button>
+        <a
+          v-if="imageViewerUrl"
+          :href="imageViewerUrl"
+          :download="imageViewerName"
+          target="_blank"
+          rel="noopener"
+          class="btn btn-primary"
+        >
+          <AegisIcon name="download" :size="18" />
+          Download
+        </a>
+      </template>
+    </AegisModal>
+
+    <!-- ── Template Picker Modal ──────────────────────── -->
+    <AegisModal v-model="modals.templatePicker" title="Message Templates" size="md">
+      <div class="list-group">
+        <div v-for="tmpl in messageTemplates" :key="tmpl.title" class="list-group-item clickable" style="cursor:pointer" @click="useTemplate(tmpl.body)">
+          <span style="display:inline-flex"><AegisIcon name="file-text" :size="18" /></span>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:700">{{ tmpl.title }}</div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:2px">{{ tmpl.preview }}</div>
+          </div>
+          <span style="color:var(--gold-dark);display:inline-flex"><AegisIcon name="chevron-right" :size="18" /></span>
+        </div>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="modals.templatePicker = false">Cancel</button>
+      </template>
+    </AegisModal>
+
   </AppLayout>
 </template>
 
@@ -350,6 +849,7 @@ import AppLayout from '@/layouts/AppLayout.vue'
 import AegisHeroBanner from '@/components/ui/AegisHeroBanner.vue'
 import { useToast } from '@/composables/useToast'
 import { useActivity } from '@/composables/useActivity'
+import { useConfirm } from '@/composables/useConfirm'
 import { useVuelidate } from '@vuelidate/core'
 import { required, minLength, helpers } from '@vuelidate/validators'
 
@@ -367,14 +867,36 @@ const props = defineProps({
 
 const toast    = useToast()
 const activity = useActivity()
+const { confirmAction } = useConfirm()
 const filter   = ref('')
 const activeBucket = ref('all')
-const showInfo = ref(false)
+const showInfo            = ref(false)
+const allMediaTab         = ref('media')
+const imageViewerName     = ref('')
+const imageViewerMeta     = ref('')
+const imageViewerUrl      = ref('')
+const searchOpen          = ref(false)
+const searchQuery         = ref('')
+const chatSearchInputRef  = ref(null)
+const searchContactsOpen  = ref(false)
+const fileInput           = ref(null)
+const searchInputRef      = ref(null)
+const searchMatchIdx      = ref(0)
+const infoAttachTab       = ref('media')
 const recipientFilter = ref('')
 const selectedRecipientId = ref('')
 const msgStream = ref(null)
 
-const modals = reactive({ compose: false })
+const modals = reactive({
+  compose:       false,
+  chatInfo:      false,
+  exportChat:    false,
+  muteNotif:     false,
+  allMedia:      false,
+  imageViewer:   false,
+  templatePicker:false,
+  availability:  false,
+})
 
 // ── Thread list filtering ────────────────────────
 const filteredThreads = computed(() => {
@@ -497,7 +1019,11 @@ async function sendNewThread() {
 }
 
 // ── Inline reply ──────────────────────────────────
-const replyForm = useForm({ body: '' })
+const pendingFile = ref(null)           // File object awaiting send
+const replyForm = useForm({
+  body:        '',
+  attachments: [],                      // populated just before submit
+})
 
 function onComposeKey(ev) {
   if (ev.key === 'Enter' && !ev.shiftKey) {
@@ -513,11 +1039,19 @@ function autoResize(ev) {
 }
 
 function sendReply() {
-  if (!replyForm.body.trim() || !props.activeThread) return
+  if (!replyForm.body.trim() && !pendingFile.value) return
+  if (!props.activeThread) return
+  // Pack the pending file into the form right before submit
+  if (pendingFile.value) {
+    replyForm.attachments = [pendingFile.value]
+  }
   replyForm.post(route('messages.reply', props.activeThread.id), {
+    forceFormData:  true,
     preserveScroll: true,
     onSuccess: () => {
       replyForm.reset()
+      replyForm.attachments = []
+      pendingFile.value = null
       nextTick(() => scrollToBottom())
     },
     onError: () => toast.error('Could not send reply.'),
@@ -530,8 +1064,219 @@ function scrollToBottom() {
   }
 }
 
+// Auto-focus search input when contacts search bar opens
+watch(searchContactsOpen, async (open) => {
+  if (open) {
+    await nextTick()
+    searchInputRef.value?.focus()
+  } else {
+    filter.value = ''
+  }
+})
+
 onMounted(() => nextTick(() => scrollToBottom()))
 watch(() => props.activeMessages, () => nextTick(() => scrollToBottom()))
+
+// ── Attachment data (derived from activeMessages) ─────────────────
+// Flatten all attachments from every message in the thread
+const allAttachments = computed(() => {
+  if (!props.activeThread) return []
+  return props.activeMessages.flatMap(msg =>
+    (msg.attachments || []).map(att => ({ ...att, sent_at: msg.sent_at }))
+  )
+})
+
+const IMAGE_RE = /\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff|heic)$/i
+const FILE_RE  = /\.(pdf|doc|docx|xls|xlsx|csv|txt|zip|rar|7z|ppt|pptx|mp4|mov|avi|mp3|wav)$/i
+
+const attachMedia = computed(() =>
+  allAttachments.value
+    .filter(a => IMAGE_RE.test(a.name || '') || (a.mime || '').startsWith('image/'))
+    .slice(0, 6)
+)
+
+const attachFiles = computed(() =>
+  allAttachments.value
+    .filter(a => !IMAGE_RE.test(a.name || '') && !(a.mime || '').startsWith('image/'))
+    .slice(0, 8)
+)
+
+const attachLinks = computed(() => {
+  if (!props.activeThread) return []
+  return props.activeMessages
+    .filter(msg => /^https?:\/\//i.test(msg.body || ''))
+    .map(msg => ({ title: (msg.body || '').slice(0, 40), url: msg.body, sent_at: msg.sent_at }))
+    .slice(0, 3)
+})
+
+const attachTabs = computed(() => [
+  { key: 'media', label: 'Media', count: attachMedia.value.length },
+  { key: 'files', label: 'Files', count: attachFiles.value.length },
+  { key: 'links', label: 'Links', count: attachLinks.value.length },
+])
+
+function openImageViewer(item) {
+  imageViewerName.value = item.name || '—'
+  imageViewerMeta.value = [item.size, item.sent_at ? 'Shared ' + item.sent_at : ''].filter(Boolean).join(' · ')
+  imageViewerUrl.value  = item.url || ''
+  modals.imageViewer = true
+}
+
+function markUnread() {
+  toast.success('Marked as unread.')
+}
+
+async function blockContact() {
+  const name = props.activeThread?.counterpart?.display_name ?? 'this contact'
+  const ok = await confirmAction(
+    `Block ${name}? They won't be able to send you messages.`,
+    { title: 'Block Contact', confirmLabel: 'Block', destructive: true }
+  )
+  if (ok) toast.warning(name + ' blocked.')
+}
+
+// ── In-chat search ───────────────────────────────────
+const searchMatches = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return []
+  return props.activeMessages
+    .filter(msg => msg.body?.toLowerCase().includes(q))
+    .map(msg => msg.id)
+})
+
+watch(searchQuery, () => { searchMatchIdx.value = 0 })
+watch(searchOpen, async (open) => {
+  if (open) {
+    await nextTick()
+    chatSearchInputRef.value?.focus()
+  } else {
+    searchQuery.value = ''
+    searchMatchIdx.value = 0
+  }
+})
+
+function stepSearchMatch(dir) {
+  if (!searchMatches.value.length) return
+  const len = searchMatches.value.length
+  searchMatchIdx.value = ((searchMatchIdx.value + dir) % len + len) % len
+  const id = searchMatches.value[searchMatchIdx.value]
+  const el = document.getElementById(`msg-${id}`)
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  // WhatsApp-style flash: add class, let CSS transition fade it out
+  const bubble = el.querySelector('.msg-bubble')
+  if (bubble) {
+    bubble.classList.remove('msg-bubble-flash')
+    // Force reflow so animation restarts if same bubble hit again
+    void bubble.offsetWidth
+    bubble.classList.add('msg-bubble-flash')
+  }
+}
+
+function highlightMatch(text, query) {
+  if (!query?.trim() || !text) return escapeHtml(text)
+  const q = query.trim()
+  const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
+  return escapeHtml(text).replace(re, '<mark class="msg-search-hl">$1</mark>')
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+// ── Profile URL helper ─────────────────────────────
+function profileUrl(counterpart) {
+  if (!counterpart?.slug) return '#'
+  const roleMap = {
+    practitioner:       'public.provider',
+    continuity_steward: 'public.cs',
+    support_steward:    'public.ss',
+    business_partner:   'public.bp',
+  }
+  const routeName = roleMap[counterpart.role] ?? 'public.provider'
+  try { return route(routeName, counterpart.slug) } catch { return '#' }
+}
+
+// ── File attachment handler ─────────────────────────
+function onFileSelected(ev) {
+  const file = ev.target.files?.[0]
+  if (!file) return
+  pendingFile.value = file
+  // Reset input so the same file can be re-selected if needed
+  ev.target.value = ''
+}
+function clearPendingFile() {
+  pendingFile.value = null
+  replyForm.attachments = []
+}
+
+// ── Attachment icon helper ──────────────────────────
+function attachIcon(mime) {
+  if (!mime) return 'file-text'
+  if (mime.startsWith('image/'))  return 'camera'
+  if (mime.startsWith('video/'))  return 'video'
+  if (mime.startsWith('audio/'))  return 'music'
+  if (mime.includes('pdf'))       return 'file-text'
+  if (mime.includes('sheet') || mime.includes('excel') || mime.includes('csv')) return 'table'
+  return 'file-text'
+}
+
+// ── Export format ──────────────────────────────────
+const exportFormat = ref('pdf')
+
+// ── Mute options ───────────────────────────────────
+const muteOptions = [
+  { value: '8h',         label: '8 hours' },
+  { value: '24h',        label: '24 hours' },
+  { value: '1w',         label: '1 week' },
+  { value: 'indefinite', label: 'Indefinitely' },
+]
+function muteThread(opt) {
+  modals.muteNotif = false
+  toast.success(`Notifications muted for ${opt.label}.`)
+}
+
+// ── Availability options ───────────────────────────
+const availabilityOptions = [
+  { value: 'available', label: 'Available' },
+  { value: 'away',      label: 'Away' },
+  { value: 'busy',      label: 'Busy — Do Not Disturb' },
+]
+const currentStatus = ref('available')
+function setAvailability(s) {
+  currentStatus.value = s.value
+  modals.availability = false
+  toast.success(`Status set to: ${s.label}`)
+}
+
+// ── Message templates ──────────────────────────────
+const messageTemplates = computed(() => [
+  {
+    title:   'Continuity check-in',
+    body:    'Hi — just checking in to confirm your availability and review any updates to the continuity protocol.',
+    preview: 'Hi — just checking in to confirm your availability…',
+  },
+  {
+    title:   'Incident coordination follow-up',
+    body:    'Following up on the incident activation — please confirm your current status and any actions completed.',
+    preview: 'Following up on the incident activation…',
+  },
+  {
+    title:   'Plan review reminder',
+    body:    'The annual plan review is coming up. Please confirm receipt of the updated task list when you have a moment.',
+    preview: 'The annual plan review is coming up…',
+  },
+])
+
+function useTemplate(body) {
+  replyForm.body = body
+  modals.templatePicker = false
+  toast.success('Template inserted.')
+}
 </script>
 
 <style scoped>
@@ -557,8 +1302,20 @@ watch(() => props.activeMessages, () => nextTick(() => scrollToBottom()))
 
 /* ── LEFT contacts pane ────────────────────────── */
 .msg-contacts-head {
-  padding: 0.625rem 0.75rem;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.msg-contacts-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  justify-content: flex-end;
+}
+.msg-contacts-search-bar {
+  padding: 6px 10px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
 }
 .msg-search-row {
   display: flex;
@@ -569,9 +1326,9 @@ watch(() => props.activeMessages, () => nextTick(() => scrollToBottom()))
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.625rem;
-  background: var(--surface-2);
+  gap: 6px;
+  padding: 5px 8px;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-3);
@@ -581,43 +1338,68 @@ watch(() => props.activeMessages, () => nextTick(() => scrollToBottom()))
   border: none;
   outline: none;
   background: transparent;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text);
   font-family: inherit;
 }
 .msg-search-input::placeholder { color: var(--text-4); }
-
-.btn-icon {
+.msg-search-clear {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-3);
+  background: transparent;
+  border: none;
   cursor: pointer;
-  transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+  color: var(--text-4);
+  padding: 0;
 }
-.btn-icon:hover { border-color: var(--gold); color: var(--text); }
-.btn-icon-primary {
-  background: var(--gold-dark);
-  border-color: var(--gold-dark);
-  color: var(--text-inverted);
-}
-.btn-icon-primary:hover { background: var(--gold); border-color: var(--gold); color: var(--text-inverted); }
-.btn-icon-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.msg-search-clear:hover { color: var(--text); }
 
-/* Bucket filter pills */
+/* ── Active-state shim for toggle buttons ─────────── */
+/* Uses global .btn-icon from _shared.css — no re-definition needed */
+.is-active-icon {
+  background: var(--badge-bg-gold) !important;
+  border-color: var(--soft-gold) !important;
+  color: var(--gold-dark) !important;
+}
+
+/* Bucket filter — compact dropdown ───────────────── */
 .msg-filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  padding: 0.625rem 0.75rem;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--border);
   background: var(--surface-2);
 }
+.msg-filter-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+.msg-filter-icon { color: var(--text-4); flex-shrink: 0; }
+.msg-filter-select {
+  flex: 1;
+  appearance: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 28px 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+  transition: border-color var(--transition-fast);
+}
+.msg-filter-select:focus { border-color: var(--gold); }
+.msg-filter-chevron {
+  position: absolute;
+  right: 8px;
+  pointer-events: none;
+  color: var(--text-4);
+}
+
+/* Badge pill (kept for other uses) */
 .badge-pill {
   display: inline-flex;
   align-items: center;
@@ -632,11 +1414,6 @@ watch(() => props.activeMessages, () => nextTick(() => scrollToBottom()))
   font-weight: 700;
   margin-left: 0.35rem;
   border: 1px solid var(--border);
-}
-.tab-pill.active .badge-pill {
-  background: var(--gold-dark);
-  color: var(--text-inverted);
-  border-color: var(--gold-dark);
 }
 
 /* Contact list */
@@ -666,6 +1443,11 @@ watch(() => props.activeMessages, () => nextTick(() => scrollToBottom()))
   border-left: 3px solid var(--gold-dark);
 }
 
+.msg-avatar-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
 .msg-avatar {
   width: 38px;
   height: 38px;
@@ -685,6 +1467,21 @@ watch(() => props.activeMessages, () => nextTick(() => scrollToBottom()))
 }
 .msg-avatar.is-sm { width: 30px; height: 30px; font-size: 11px; }
 .msg-avatar.is-xs { width: 26px; height: 26px; font-size: 10px; }
+
+/* ── Presence dot — top-right of avatar like Facebook ─ */
+.msg-presence-dot {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--surface);
+  flex-shrink: 0;
+}
+.msg-presence-dot--available { background: var(--green, #22c55e); }
+.msg-presence-dot--busy      { background: var(--orange, #f97316); }
+.msg-presence-dot--away      { background: var(--surface-3); }
 
 .msg-contact-info { flex: 1; min-width: 0; }
 .msg-contact-name {
@@ -729,6 +1526,12 @@ watch(() => props.activeMessages, () => nextTick(() => scrollToBottom()))
   background: var(--surface);
 }
 .msg-chat-head-info { flex: 1; min-width: 0; }
+.msg-chat-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
 .msg-chat-head-name {
   font-size: 14px;
   font-weight: 700;
@@ -739,6 +1542,12 @@ watch(() => props.activeMessages, () => nextTick(() => scrollToBottom()))
   font-size: 12px;
   color: var(--text-3);
 }
+.is-link-name {
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+}
+.is-link-name:hover { color: var(--gold-dark); }
 .msg-sub-dot { margin: 0 0.3rem; color: var(--text-4); }
 .msg-continuity-flag {
   color: var(--gold-dark);
@@ -786,7 +1595,7 @@ watch(() => props.activeMessages, () => nextTick(() => scrollToBottom()))
   padding: 1rem 1.125rem;
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
+  gap: 4px;
   background: var(--bg-2);
 }
 .msg-day-chip {
@@ -822,10 +1631,10 @@ watch(() => props.activeMessages, () => nextTick(() => scrollToBottom()))
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 0.55rem 0.8rem;
+  padding: 5px 10px;
   font-size: 13px;
   color: var(--text);
-  line-height: 1.5;
+  line-height: 1.45;
   white-space: pre-line;
   word-break: break-word;
 }
@@ -845,25 +1654,26 @@ watch(() => props.activeMessages, () => nextTick(() => scrollToBottom()))
 
 /* Compose */
 .msg-compose {
-  padding: 0.75rem 1rem;
+  padding: 8px 12px;
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
 .msg-compose-row {
   display: flex;
-  align-items: flex-end;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 6px;
 }
 .msg-compose-input {
   flex: 1;
   resize: none;
-  min-height: 40px;
-  max-height: 160px;
-  padding: 0.55rem 0.75rem;
+  min-height: 26px;
+  max-height: 120px;
+  padding: 3px 10px;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 13px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  line-height: 1.45;
   color: var(--text);
   font-family: inherit;
   outline: none;
@@ -871,9 +1681,9 @@ watch(() => props.activeMessages, () => nextTick(() => scrollToBottom()))
 }
 .msg-compose-input:focus { border-color: var(--gold); }
 
-/* ── RIGHT info panel ──────────────────────────── */
+/* ── RIGHT info panel ────────────────── */
 .msg-info-panel {
-  width: 280px;
+  width: 300px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -886,56 +1696,228 @@ watch(() => props.activeMessages, () => nextTick(() => scrollToBottom()))
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75rem 1rem;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  flex-shrink: 0;
 }
 .msg-info-title {
   font-family: var(--font-serif);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text);
 }
 .msg-info-body {
   flex: 1;
   overflow-y: auto;
-  padding: 0.75rem 1rem;
+  scrollbar-width: thin;
 }
-.msg-info-section { margin-bottom: 1rem; }
+.msg-info-section {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.msg-info-section:last-child { border-bottom: none; }
 .msg-info-section-label {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--text-4);
-  margin-bottom: 0.5rem;
+  margin-bottom: 8px;
 }
 .msg-info-row {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0;
+  gap: 8px;
+  padding: 4px 0;
   font-size: 12px;
-  color: var(--text-2);
 }
 .msg-info-icon {
   display: inline-flex;
   align-items: center;
-  color: var(--text-3);
+  color: var(--gold-dark);
   flex-shrink: 0;
 }
 .msg-info-label {
   color: var(--text-3);
   font-weight: 600;
-  width: 50px;
+  min-width: 44px;
   flex-shrink: 0;
+  font-size: 11px;
 }
 .msg-info-value {
   color: var(--text);
   flex: 1;
-  word-break: break-word;
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .msg-info-value.is-link { color: var(--gold-dark); text-decoration: none; }
 .msg-info-value.is-link:hover { text-decoration: underline; }
+
+/* Identity header */
+.mip-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  padding: 18px 14px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.mip-avatar {
+  width: 52px !important;
+  height: 52px !important;
+  font-size: 16px !important;
+  margin-bottom: 6px;
+}
+.mip-name {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+  cursor: default;
+  line-height: 1.2;
+}
+a.mip-name { cursor: pointer; }
+a.mip-name:hover { color: var(--gold-dark); }
+.mip-role { font-size: 12px; color: var(--text-3); margin-top: 2px; line-height: 1.4; }
+.mip-org  { font-size: 11px; color: var(--text-4); margin-top: 2px; }
+.mip-ctas { display: flex; gap: 6px; justify-content: center; margin-top: 12px; }
+
+/* Attachment tabs */
+.mip-attach-tabs {
+  display: flex;
+  gap: 3px;
+  background: var(--surface-2);
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+}
+.mip-attach-tabs .tab-pill {
+  flex: 1;
+  font-size: 11px;
+  padding: 4px 4px;
+  justify-content: center;
+  text-align: center;
+  border-width: 0.5px;
+}
+/* Thin border on all tab-pills in this page */
+.tab-pill {
+  border-width: 0.5px;
+}
+
+/* Media grid */
+.mip-media-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  margin-bottom: 8px;
+}
+.mip-media-thumb {
+  aspect-ratio: 1;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  cursor: pointer;
+  overflow: hidden;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+.mip-media-thumb:hover {
+  background: var(--badge-bg-gold);
+  border-color: var(--soft-gold);
+  color: var(--gold-dark);
+}
+.mip-media-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* File/link rows */
+.mip-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.mip-file-row:hover { background: var(--surface-2); }
+.mip-file-icon { display: inline-flex; align-items: center; color: var(--gold-dark); flex-shrink: 0; }
+.mip-file-body { flex: 1; min-width: 0; }
+.mip-file-name { font-size: 12px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mip-file-size { font-size: 10px; color: var(--text-4); font-weight: 600; }
+.mip-file-dl { display: inline-flex; align-items: center; color: var(--text-4); flex-shrink: 0; }
+
+/* Attach empty + view-all */
+.mip-attach-empty {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-4);
+  font-weight: 600;
+  padding: 14px 8px;
+  background: var(--surface-2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+.mip-attach-viewall {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gold-dark);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.mip-attach-viewall:hover { background: var(--badge-bg-gold); border-color: var(--soft-gold); }
+
+/* Quick action rows */
+.mip-action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.mip-action-row:hover { background: var(--surface-2); }
+.mip-action-icon { display: inline-flex; align-items: center; color: var(--gold-dark); flex-shrink: 0; }
+.mip-action-label { flex: 1; }
+.mip-action-row.is-danger { color: var(--red-dark); }
+.mip-action-row.is-danger .mip-action-icon { color: var(--red-dark); }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border: 0;
+}
 
 .slide-enter-active, .slide-leave-active { transition: all 0.2s ease; }
 .slide-enter-from, .slide-leave-to {
@@ -1008,6 +1990,86 @@ watch(() => props.activeMessages, () => nextTick(() => scrollToBottom()))
   .msg-layout { grid-template-columns: 260px 1fr auto; }
   .msg-info-panel { width: 240px; }
 }
+/* ── System note (encryption banner) ──────────── */
+.msg-system-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--text-4);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  padding: 5px 14px;
+  flex-shrink: 0;
+}
+.msg-system-note .aegis-icon {
+  color: var(--green-dark, #2e7d52);
+  flex-shrink: 0;
+}
+
+/* ── Inline chat search ──────────────────────── */
+.msg-chat-search {
+  display: none;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.msg-chat-search.is-open { display: flex; }
+
+/* ── Compose tools ───────────────────────────── */
+.msg-compose-tools {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+/* ── Image viewer area ───────────────────────── */
+.image-viewer-area {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 56px 32px;
+  text-align: center;
+}
+.image-viewer-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 16px;
+  border-radius: var(--radius-full);
+  background: var(--badge-bg-gold);
+  color: var(--gold-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.image-viewer-name {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  word-break: break-all;
+}
+.image-viewer-meta { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+
+/* ── Attachment empty ─────────────────────────── */
+.mcd-attach-empty {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-4);
+  padding: 16px 8px;
+  background: var(--surface-2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+
 @media (max-width: 820px) {
   .msg-layout {
     grid-template-columns: 1fr;
@@ -1016,5 +2078,197 @@ watch(() => props.activeMessages, () => nextTick(() => scrollToBottom()))
   }
   .msg-info-panel { display: none; }
   .msg-pane.is-contacts { max-height: 50vh; }
+}
+
+/* ── Availability status dots ─────────────────────── */
+.avail-row { gap: 12px; }
+.avail-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  border: none;
+  flex-shrink: 0;
+  display: inline-block;
+  transition: background var(--transition-fast);
+}
+.avail-status-dot--available { background: var(--green, #22c55e); }
+.avail-status-dot--busy      { background: var(--orange, #f97316); }
+.avail-status-dot--away      {
+  background: transparent;
+  border: 1.5px solid var(--border-dark);
+}
+
+.avail-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  border: none;
+  flex-shrink: 0;
+  display: inline-block;
+}
+.avail-dot--available {
+  background: var(--green, #22c55e);
+}
+.avail-dot--busy {
+  background: var(--orange, #f97316);
+}
+.avail-dot--away {
+  background: transparent;
+  border: 1.5px solid var(--border-dark);
+}
+
+/* ── Pending file chip in compose bar ─────────────── */
+.msg-attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--badge-bg-gold);
+  border: 1px solid var(--soft-gold);
+  border-radius: var(--radius-sm);
+  padding: 3px 6px 3px 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--gold-dark);
+  white-space: nowrap;
+  max-width: 180px;
+  flex-shrink: 0;
+}
+.msg-attach-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.msg-attach-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--gold-dark);
+  padding: 0;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+.msg-attach-chip-remove:hover { opacity: 1; }
+
+/* ── Attachments inside message bubbles ───────────── */
+.msg-bubble-attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 6px;
+}
+.msg-bubble-attach-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  text-decoration: none;
+  color: var(--text);
+  transition: background var(--transition-fast);
+}
+.msg-bubble-attach-row:hover {
+  background: var(--surface-2);
+  border-color: var(--border-dark);
+}
+/* :deep() pierces AegisIcon's child component scope */
+.msg-bubble-attach-row :deep(svg),
+.msg-bubble-attach-row :deep(*) {
+  color: var(--text) !important;
+  stroke: var(--text) !important;
+}
+/* Sent bubble attach row */
+.msg-row.is-sent .msg-bubble-attach-row {
+  background: var(--surface-2);
+  border-color: var(--border-dark);
+  color: var(--text);
+}
+.msg-row.is-sent .msg-bubble-attach-row:hover {
+  background: var(--surface-2);
+  border-color: var(--border-dark);
+}
+.msg-row.is-sent .msg-bubble-attach-row :deep(svg),
+.msg-row.is-sent .msg-bubble-attach-row :deep(*) {
+  color: var(--text) !important;
+  stroke: var(--text) !important;
+}
+.msg-bubble-attach-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.msg-bubble-attach-body { flex: 1; min-width: 0; }
+.msg-bubble-attach-name {
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.msg-bubble-attach-size {
+  font-size: 10px;
+  opacity: 0.7;
+  margin-top: 1px;
+}
+
+/* ── All media modal grid + list ──────────────────── */
+.all-media-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.all-files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ── In-chat search ────────────────────────────────── */
+.msg-chat-search-counter {
+  font-size: 11px;
+  color: var(--text-4);
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 0 4px;
+}
+/* Subtle match outline on all matching bubbles */
+.msg-row.is-search-match .msg-bubble {
+  outline: 1px dashed var(--soft-gold);
+  outline-offset: 2px;
+}
+/* WhatsApp-style flash on the active match */
+@keyframes msg-flash {
+  0%   { background: var(--gold-dark); }
+  40%  { background: var(--badge-bg-gold); }
+  100% { background: inherit; }
+}
+.msg-bubble-flash {
+  animation: msg-flash 1.2s ease-out forwards;
+}
+.msg-row.is-sent .msg-bubble-flash {
+  animation: none;
+  outline: 3px solid rgba(255,255,255,0.7);
+  outline-offset: 2px;
+  animation: msg-flash-sent 1.2s ease-out forwards;
+}
+@keyframes msg-flash-sent {
+  0%   { box-shadow: 0 0 0 4px rgba(255,255,255,0.6); }
+  100% { box-shadow: none; }
+}
+/* Highlighted text inside bubble */
+.msg-search-hl {
+  background: var(--gold-dark);
+  color: #fff;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.msg-row.is-sent .msg-search-hl {
+  background: rgba(255,255,255,0.9);
+  color: var(--gold-dark);
 }
 </style>

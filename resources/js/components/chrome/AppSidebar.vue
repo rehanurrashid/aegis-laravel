@@ -110,7 +110,7 @@ const activePage = computed(() => {
   return last ?? ''
 })
 const hasEmergency = computed(() => page.props.hasEmergency   ?? false)
-const unreadMsgs   = computed(() => page.props.unreadCount    ?? 0)
+const unreadMsgs   = computed(() => page.props.unreadMessages ?? 0)
 
 const isAccessTier = computed(() => page.props.auth?.tier === 'access')
 const servicesMode = computed(() => !!user.value?.services_mode)
