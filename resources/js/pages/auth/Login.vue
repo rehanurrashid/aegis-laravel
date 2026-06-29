@@ -75,9 +75,11 @@
       <div class="signin-panel-left-footer">
         <p>
           © 2025 Aegis Platform. All rights reserved.<br />
-          <a :href="route('home')" class="signin-left-footer-link">About</a>
+          <a :href="route('about')"   class="signin-left-footer-link">About</a>
           &nbsp;·&nbsp;
-          <a href="mailto:support@maatpracticefirm.com" class="signin-left-footer-link">Contact</a>
+          <a :href="route('pricing')" class="signin-left-footer-link">Pricing</a>
+          &nbsp;·&nbsp;
+          <a :href="route('contact')" class="signin-left-footer-link">Contact</a>
         </p>
       </div>
     </div>

@@ -110,7 +110,11 @@
           © {{ year }} Aegis Platform. All rights reserved.<br />
           <button type="button" class="ob-footer-link" @click="showWws = true">Who We Serve</button>
           &nbsp;·&nbsp;
-          <a :href="route('home')" class="ob-footer-link">About</a>
+          <a :href="route('about')"   class="ob-footer-link">About</a>
+          &nbsp;·&nbsp;
+          <a :href="route('pricing')" class="ob-footer-link">Pricing</a>
+          &nbsp;·&nbsp;
+          <a :href="route('contact')" class="ob-footer-link">Contact</a>
         </p>
       </div>
     </div>
@@ -218,17 +222,17 @@
           <!-- Business Partner type -->
           <div v-if="form.role === 'business_partner'" class="ob-bp-type">
             <label class="form-label">Business type</label>
-            <div class="ob-option-chips">
+            <div class="tabs-segmented" style="margin-bottom: 0; margin-top: 6px;">
               <button
                 type="button"
-                class="ob-option-chip"
-                :class="{ selected: form.bp_type === 'freelancer' }"
+                class="tab-pill"
+                :class="{ active: form.bp_type === 'freelancer' }"
                 @click="form.bp_type = 'freelancer'"
               >Freelancer</button>
               <button
                 type="button"
-                class="ob-option-chip"
-                :class="{ selected: form.bp_type === 'agency' }"
+                class="tab-pill"
+                :class="{ active: form.bp_type === 'agency' }"
                 @click="form.bp_type = 'agency'"
               >Agency</button>
             </div>
@@ -847,28 +851,6 @@ async function submit() {
   border-radius: var(--radius-sm);
   margin-bottom: 18px;
 }
-
-.ob-option-chips {
-  display: flex;
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.ob-option-chip {
-  padding: 7px 18px;
-  border: 1.5px solid var(--border-dark);
-  border-radius: var(--radius-full);
-  background: var(--surface);
-  font-family: var(--font-sans);
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--text-2);
-  cursor: pointer;
-  transition: all var(--transition);
-}
-
-.ob-option-chip:hover { border-color: var(--gold); background: rgba(196, 169, 106, 0.06); }
-.ob-option-chip.selected { border-color: var(--gold-dark); background: rgba(196, 169, 106, 0.08); color: var(--gold-dark); }
 
 /* ──────────── FORM ELEMENTS ──────────── */
 

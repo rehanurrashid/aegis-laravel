@@ -11,12 +11,13 @@
   <div class="public-shell">
     <header class="public-header">
       <a :href="route('home')" class="public-brand-link">
-        <img src="/aegis-favicon.svg" alt="" class="public-brand-mark" />
         <span class="public-brand-name">Aegis</span>
       </a>
       <nav class="public-header-nav">
-        <a href="#" class="public-header-link">Pricing</a>
-        <a :href="route('login')" class="public-header-link">Sign in</a>
+        <a :href="route('about')"   class="public-header-link">About</a>
+        <a :href="route('pricing')" class="public-header-link">Pricing</a>
+        <a :href="route('contact')" class="public-header-link">Contact</a>
+        <a :href="route('login')"   class="public-header-link">Sign in</a>
         <a :href="route('register')" class="btn btn-sm btn-primary">Get started</a>
       </nav>
     </header>
@@ -28,13 +29,12 @@
     <footer class="public-footer">
       <div class="public-footer-inner">
         <div class="public-footer-brand">
-          <img src="/aegis-favicon.svg" alt="" />
           <span>Powered by Aegis</span>
         </div>
         <div class="public-footer-links">
-          <a :href="route('home')">About</a>
-          <a href="#">Pricing</a>
-          <a href="#">Support</a>
+          <a :href="route('about')">About</a>
+          <a :href="route('pricing')">Pricing</a>
+          <a :href="route('contact')">Contact</a>
         </div>
       </div>
     </footer>

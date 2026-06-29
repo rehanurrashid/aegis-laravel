@@ -57,6 +57,7 @@ use App\Http\Controllers\Shared\ActivityController;
 use App\Http\Controllers\Shared\MessagesController;
 use App\Http\Controllers\Shared\OverviewController;
 use App\Http\Controllers\Shared\SupportController;
+use App\Http\Controllers\Public\PublicPageController;
 use App\Http\Controllers\Public\ProfileController as PublicProfileController;
 
 // Newly wired controllers (previously built but unrouted) + RosterController import fix
@@ -530,6 +531,12 @@ Route::middleware(['auth', 'check.locked'])->group(function () {
     Route::post('/support/ticket/{ticket}/close', [SupportController::class, 'closeTicket'])->name('support.ticket.close');
     Route::post('/support/feedback', [SupportController::class, 'storeFeedback'])->name('support.feedback');
 });
+
+// ── Public marketing pages (no auth required) ────────────────────────────────
+Route::get('/about',   [PublicPageController::class, 'about'])->name('about');
+Route::get('/pricing', [PublicPageController::class, 'pricing'])->name('pricing');
+Route::get('/contact', [PublicPageController::class, 'contact'])->name('contact');
+Route::post('/contact', [PublicPageController::class, 'sendContact'])->name('contact.send');
 
 // ── Public Profiles (no auth) ─────────────────────────────────────────────────
 Route::prefix('public')->name('public.')->group(function () {
