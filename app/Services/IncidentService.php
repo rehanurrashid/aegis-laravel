@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Events\Incident\IncidentTaskAssigned;
-
 use App\Enums\ActivitySeverity;
 use App\Events\Incident\IncidentActivated;
 use App\Events\Incident\IncidentClosed;
@@ -44,11 +42,10 @@ class IncidentService
             'practitioner_id'   => $plan->practitioner_id,
             'plan_id'           => $plan->id,
             'incident_type'     => $data['incident_type'],
-            'reported_by_ss_id' => $reporter->id,
+            'reported_by_id'    => $reporter->id,
             'reported_at'       => now(),
-            'report_narrative'  => $data['narrative'] ?? null,
-            'contact_attempts'  => isset($data['contact_attempts']) ? json_encode($data['contact_attempts']) : null,
-            'status'            => 'monitoring',
+            'summary'           => $data['narrative'] ?? null,
+            'status'            => 'reported',
         ]);
 
         event(new IncidentReported($incident));
@@ -74,10 +71,8 @@ class IncidentService
         }
 
         $incident->update([
-            'verified_by_cs_id'  => $cs->id,
+            'verified_by_id'     => $cs->id,
             'verified_at'        => now(),
-            'verification_docs'  => isset($data['docs']) ? json_encode($data['docs']) : null,
-            'verification_notes' => $data['notes'] ?? null,
         ]);
 
         event(new IncidentVerified($incident->fresh()));
@@ -145,7 +140,7 @@ class IncidentService
             'description'     => 'A verified critical incident has been activated. Vault access is now available to assigned stewards.',
             'linkable_type'   => 'critical_incident',
             'linkable_id'     => $incident->id,
-            'related_user_id' => $incident->verified_by_cs_id,
+            'related_user_id' => $incident->verified_by_id,
         ]);
 
         IncidentNotificationJob::dispatch($incident->id, 'activated');
@@ -175,8 +170,7 @@ class IncidentService
         $incident->update([
             'status'             => 'closed',
             'closed_at'          => now(),
-            'closed_by_user_id'  => $closer->id,
-            'closure_summary'    => $summary,
+            'summary'            => $summary,
         ]);
 
         event(new IncidentClosed($incident->fresh()));
@@ -214,25 +208,6 @@ class IncidentService
         ]);
 
         return $incident;
-    }
-
-    public function assignTask(CriticalIncident $incident, IncidentTask $task, User $assignee): IncidentTask
-    {
-        $task->update([
-            'assigned_to_id' => $assignee->id,
-            'status'         => 'in_progress',
-        ]);
-
-        $this->activity->log(
-            $assignee->id, $assignee->portal, 'incident', ActivitySeverity::Info,
-            'incident_task_assigned',
-            "Task assigned: {$task->title}",
-            "Incident #{$incident->id}",
-            'incident_task', $task->id, null
-        );
-
-        event(new IncidentTaskAssigned($task->fresh(), $assignee));
-        return $task->fresh();
     }
 
     public function getActive(): Collection

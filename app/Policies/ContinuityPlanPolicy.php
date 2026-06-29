@@ -47,6 +47,11 @@ class ContinuityPlanPolicy
         return $user->id === $plan->practitioner_id;
     }
 
+    public function annualReview(User $user, ContinuityPlan $plan): bool
+    {
+        return $user->id === $plan->practitioner_id;
+    }
+
     public function sign(User $user, ContinuityPlan $plan): bool
     {
         $status = $plan->status instanceof PlanStatus

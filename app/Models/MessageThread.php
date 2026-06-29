@@ -20,12 +20,15 @@ class MessageThread extends Model
 
     protected $fillable = [
         'id', 'subject', 'created_by_id', 'last_message_at', 'is_pinned', 'is_muted',
+        'participant_ids', 'title', 'is_continuity_contact', 'incident_id', 'archived_at',
     ];
 
     protected $casts = [
-        'last_message_at' => 'datetime',
-        'is_pinned'       => 'boolean',
-        'is_muted'        => 'boolean',
+        'last_message_at'       => 'datetime',
+        'archived_at'           => 'datetime',
+        'is_pinned'             => 'boolean',
+        'is_muted'              => 'boolean',
+        'is_continuity_contact' => 'boolean',
     ];
 
     public function creator(): BelongsTo  { return $this->belongsTo(User::class, 'created_by_id'); }

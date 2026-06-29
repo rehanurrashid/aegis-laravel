@@ -17,11 +17,11 @@ class CeuService
             'id'              => 'ceu_' . Str::lower(Str::random(12)),
             'practitioner_id' => $practitioner->id,
             'title'           => $data['title'],
-            'provider_name'   => $data['provider_name'] ?? $data['provider'] ?? null,
-            'credit_hours'    => $data['credit_hours'] ?? $data['credits'] ?? 0,
-            'completed_on'    => $data['completed_on'] ?? $data['completed_at'] ?? now(),
-            'expires_on'      => $data['expires_on'] ?? null,
-            'certificate_ref' => $data['certificate_ref'] ?? $data['cert_url'] ?? null,
+            'provider_name'   => $data['provider_name'] ?? null,
+            'credit_hours'    => $data['credit_hours'] ?? 0,
+            'completed_on'    => $data['completed_on'] ?? now()->toDateString(),
+            'certificate_ref' => $data['certificate_ref'] ?? null,
+            'created_at'      => now(),
         ]);
     }
 
@@ -47,7 +47,6 @@ class CeuService
     public function getProgress(string $practitionerId, ?int $year = null): array
     {
         $year = $year ?? (int) date('Y');
-
         $rows = CeuEntry::where('practitioner_id', $practitionerId)
             ->whereYear('completed_on', $year)
             ->get();
@@ -56,7 +55,7 @@ class CeuService
 
         return [
             'year'  => $year,
-            'total' => round((float) $total, 2),
+            'total' => $total,
             'count' => $rows->count(),
         ];
     }

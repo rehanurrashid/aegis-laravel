@@ -6,26 +6,29 @@ namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
 use App\Models\CriticalIncident;
+use App\Models\NetworkConnection;
 use App\Models\PlanSteward;
 use App\Models\CeuEntry;
+use App\Models\CeuRequirement;
+use App\Models\ProviderCredential;
+use App\Models\Referral;
+use App\Models\User;
+use App\Models\VaultItem;
 use App\Services\ActivityService;
 use App\Services\CeuService;
+use App\Services\IncidentService;
 use App\Services\PlanService;
-use App\Services\NetworkService;
-use App\Services\ReferralService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DashboardController extends Controller
 {
     public function __construct(
-        private PlanService     $plans,
-        private CeuService      $ceus,
+        private PlanService $plans,
+        private IncidentService $incidents,
+        private CeuService $ceus,
         private ActivityService $activity,
-        private NetworkService  $network,
-        private ReferralService $referrals,
     ) {}
 
     public function index(Request $request): Response
@@ -33,7 +36,6 @@ class DashboardController extends Controller
         $user = $request->user();
         $plan = $this->plans->getForPractitioner($user->id);
 
-        // ── Stewards ──────────────────────────────────────────────────────
         $stewards = $plan
             ? PlanSteward::where('plan_id', $plan->id)
                 ->whereIn('status', ['active', 'pending'])
@@ -41,117 +43,148 @@ class DashboardController extends Controller
                 ->get()
             : collect();
 
-        $continuityStewards = $stewards->where('steward_type', 'continuity_steward')->values();
-        $supportStewards    = $stewards->where('steward_type', 'support_steward')->values();
+        $primaryCs = $stewards->where('steward_type', 'continuity_steward')->first();
+        $primarySs = $stewards->where('steward_type', 'support_steward')->first();
 
-        // Primary CS / SS for the continuity hero card
-        $primaryCs = $continuityStewards->first();
-        $primarySs = $supportStewards->first();
-
-        // Active steward count (max 5)
-        $activeStewardCount = min(5, $stewards->where('status', 'active')->count());
-
-        // ── Active incident ───────────────────────────────────────────────
         $activeIncident = CriticalIncident::where('practitioner_id', $user->id)
-            ->where('status', 'active')
+            ->whereIn('status', ['reported', 'verified', 'active'])
+            ->orderByDesc('reported_at')
             ->first();
 
-        // ── CEUs ──────────────────────────────────────────────────────────
-        $progress    = $this->ceus->getProgress($user->id);
-        $upcomingCEUs = CeuEntry::where('practitioner_id', $user->id)
-            ->orderByDesc('completed_on')->limit(5)->get();
+        $progress = $this->ceus->getProgress($user->id);
 
-        // ── Attestation state for the 3 chips ─────────────────────────────
-        $attest = $this->getAttestationState($plan, $continuityStewards, $supportStewards);
+        // Network connections (clinical = practitioner, business = bp)
+        $connections = NetworkConnection::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->with('target')
+            ->get();
+        $netClinical = $connections->filter(fn ($c) => $c->connection_type?->value === 'practitioner')->values();
+        $netBusiness = $connections->filter(fn ($c) => $c->connection_type?->value === 'business_partner')->values();
 
-        // ── Network ───────────────────────────────────────────────────────
-        $connections  = $this->network->getConnections($user->id);
-        $netClinical  = $connections->filter(fn($c) => ($c->target->portal ?? '') === 'provider')
-                            ->take(6)->values();
-        $netBusiness  = $connections->filter(fn($c) => ($c->target->portal ?? '') === 'business_partner')
-                            ->take(4)->values();
+        // Incoming referrals pending response
+        $incomingReferrals = Referral::where('recipient_id', $user->id)
+            ->where('status', 'sent')
+            ->with('sender')
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get();
 
-        // ── Referrals ─────────────────────────────────────────────────────
-        $pendingRefs  = $this->referrals->inbox($user, 'pending')->count();
-        $totalRefs    = $this->referrals->sent($user)->count() + $pendingRefs;
+        // ── ReferralModal data: roster (vault clients) + clinical network ─────
+        $referralRoster = VaultItem::where('practitioner_id', $user->id)
+            ->where('zone', 'roster')
+            ->whereNotNull('client_name')
+            ->get()
+            ->map(function ($v) {
+                return [
+                    'id'              => $v->id,
+                    'client_name'     => $v->client_name,
+                    'client_service'  => $v->category,
+                    'client_location' => null,
+                    'client_notes'    => $v->sub_label,
+                    'client_status'   => $v->status?->value ?? $v->status,
+                ];
+            })
+            ->sortBy(fn ($r) => $r['client_status'] === 'priority' ? 0 : 1)
+            ->values()
+            ->toArray();
 
-        // Avg response time (hours) — simple heuristic from accepted referrals
-        $avgResponseH = 0;
+        $referralNetwork = NetworkConnection::where('user_id', $user->id)
+            ->where('connection_type', 'practitioner')
+            ->where('status', 'active')
+            ->with('target')
+            ->get()
+            ->filter(fn ($c) => $c->target && $c->target->slug)
+            ->map(function ($c) {
+                $t = $c->target;
+                $initials = $t->avatar_initials ?: strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $t->display_name ?? ''), 0, 2));
+                return [
+                    'id'           => $t->id,
+                    'display_name' => $t->display_name,
+                    'credentials'  => $t->credentials,
+                    'specialty'    => $t->specialty,
+                    'location'     => $t->location,
+                    'slug'         => $t->slug,
+                    'accepting'    => true,
+                    'initials'     => $initials,
+                ];
+            })
+            ->values()
+            ->toArray();
 
-        // ── MAAT add-on flag ──────────────────────────────────────────────
-        $maatActive = (bool) ($user->maat_addon ?? false);
+        // Credentials — pull from provider_credentials table, compute days_remaining
+        $credentials = ProviderCredential::where('user_id', $user->id)
+            ->orderBy('sort_order')
+            ->get()
+            ->map(function ($c) {
+                return [
+                    'id'             => $c->id,
+                    'cred_type'      => $c->cred_type,
+                    'icon'           => $c->icon,
+                    'name'           => $c->name,
+                    'subtitle'       => $c->subtitle,
+                    'issuer'         => $c->issuer,
+                    'number'         => $c->number,
+                    'issued_on'      => $c->issued_on?->toDateString(),
+                    'expires_on'     => $c->expires_on?->toDateString(),
+                    'days_remaining' => $c->days_remaining,
+                    'is_insurance'   => $c->is_insurance,
+                ];
+            })
+            ->toArray();
 
-        // ── Review days remaining ─────────────────────────────────────────
-        $reviewDays = 0;
-        if ($plan?->annual_review_date) {
-            $reviewDays = (int) ceil(
-                ($plan->annual_review_date->timestamp - now()->timestamp) / 86400
-            );
-        }
+        // Attest summary for plan status chips
+        $attest = [
+            'plan_active'       => $plan && in_array($plan->status, ['active', 'annual_review_due']),
+            'plan_signed_at'    => $plan?->signed_at,
+            'ss_certified'      => $primarySs?->status === 'active',
+            'ss_certified_count'=> $stewards->where('steward_type', 'support_steward')->where('status', 'active')->count(),
+            'ss_total'          => $stewards->where('steward_type', 'support_steward')->count(),
+            'ss_latest'         => $primarySs?->updated_at,
+            'cs_certified'      => $primaryCs?->status === 'active',
+            'cs_certified_count'=> $stewards->where('steward_type', 'continuity_steward')->where('status', 'active')->count(),
+            'cs_total'          => $stewards->where('steward_type', 'continuity_steward')->count(),
+            'cs_latest'         => $primaryCs?->updated_at,
+        ];
+
+        $reviewDue = $plan?->annual_review_date;
+        $reviewDays = $reviewDue ? (int) now()->diffInDays($reviewDue, false) : 0;
 
         return Inertia::render('Provider/Dashboard', [
             'user'               => $user,
-            'planStatus'         => $plan?->status?->value ?? 'none',
+            'planStatus'         => $plan?->status ?? 'none',
             'plan'               => $plan,
             'attest'             => $attest,
+            'activeStewardCount' => $stewards->where('status', 'active')->count(),
+            'maatActive'         => (bool) ($user->meta['maat_cs_active'] ?? false),
+            'reviewDays'         => $reviewDays,
             'stats'              => [
-                'active_plans'     => $plan && in_array($plan->status?->value, ['active', 'annual_review_due']) ? 1 : 0,
+                'active_plans'     => $attest['plan_active'] ? 1 : 0,
                 'ceus_total'       => $progress['total'],
                 'ceus_count'       => $progress['count'],
                 'active_incidents' => $activeIncident ? 1 : 0,
-                'pending_refs'     => $pendingRefs,
-                'total_refs'       => $totalRefs,
-                'avg_response_h'   => $avgResponseH,
+                'pending_refs'     => $incomingReferrals->count(),
+                'total_refs'       => Referral::where('recipient_id', $user->id)->count(),
+                'avg_response_h'   => 0,
                 'net_clinical'     => $netClinical->count(),
                 'net_business'     => $netBusiness->count(),
             ],
-            'activeStewardCount' => $activeStewardCount,
-            'maatActive'         => $maatActive,
-            'reviewDays'         => $reviewDays,
             'activeIncident'     => $activeIncident,
-            'continuityStewards' => $continuityStewards,
-            'supportStewards'    => $supportStewards,
+            'continuityStewards' => $stewards->where('steward_type', 'continuity_steward')->values(),
+            'supportStewards'    => $stewards->where('steward_type', 'support_steward')->values(),
             'primaryCs'          => $primaryCs,
             'primarySs'          => $primarySs,
             'netClinical'        => $netClinical,
             'netBusiness'        => $netBusiness,
+            'incomingReferrals'  => $incomingReferrals,
+            'referralRoster'     => $referralRoster,
+            'referralNetwork'    => $referralNetwork,
+            'credentials'        => $credentials,
             'recentActivity'     => $this->activity->getForUser($user->id, [], 10),
-            'upcomingCEUs'       => $upcomingCEUs,
+            'upcomingCEUs'       => CeuEntry::where('practitioner_id', $user->id)
+                                        ->orderByDesc('completed_on')->limit(5)->get(),
+            'ceuRequirements'    => CeuRequirement::where('user_id', $user->id)
+                                        ->orderBy('due_date')
+                                        ->get(),
         ]);
-    }
-
-    // ── Attestation helpers ───────────────────────────────────────────────
-    private function getAttestationState($plan, $continuityStewards, $supportStewards): array
-    {
-        if (!$plan) {
-            return [
-                'plan_active'       => false,
-                'plan_signed_at'    => null,
-                'ss_certified'      => false,
-                'ss_certified_count'=> 0,
-                'ss_total'          => 0,
-                'ss_latest'         => null,
-                'cs_certified'      => false,
-                'cs_certified_count'=> 0,
-                'cs_total'          => 0,
-                'cs_latest'         => null,
-            ];
-        }
-
-        $ssSigned = $supportStewards->where('signed_at', '!=', null);
-        $csSigned = $continuityStewards->where('signed_at', '!=', null);
-
-        return [
-            'plan_active'        => $plan->signed_at !== null,
-            'plan_signed_at'     => $plan->signed_at?->toDateTimeString(),
-            'ss_certified'       => $ssSigned->isNotEmpty(),
-            'ss_certified_count' => $ssSigned->count(),
-            'ss_total'           => max(1, $supportStewards->count()),
-            'ss_latest'          => $ssSigned->max('signed_at'),
-            'cs_certified'       => $csSigned->isNotEmpty(),
-            'cs_certified_count' => $csSigned->count(),
-            'cs_total'           => max(1, $continuityStewards->count()),
-            'cs_latest'          => $csSigned->max('signed_at'),
-        ];
     }
 }

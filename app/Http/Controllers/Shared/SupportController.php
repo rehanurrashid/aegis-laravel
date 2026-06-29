@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Support\CreateTicketRequest;
 use App\Http\Requests\Support\SubmitFeedbackRequest;
 use App\Models\Complaint;
+use App\Models\ComplaintReply;
+use App\Models\HelpArticle;
 use App\Services\SupportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,9 +22,65 @@ class SupportController extends Controller
 
     public function index(Request $request): Response
     {
+        $user = $request->user();
+
+        $allComplaints = $this->support->getForUser($user->id);
+
+        // Tickets = anything NOT categorized as feedback
+        $tickets = $allComplaints
+            ->where('category', '!=', 'feedback')
+            ->values()
+            ->map(fn ($t) => $this->formatTicket($t));
+
+        // Feedback history = the user's previous feedback submissions
+        $feedbackHistory = $allComplaints
+            ->where('category', 'feedback')
+            ->values()
+            ->map(fn ($f) => [
+                'id'         => $f->id,
+                'subject'    => $f->subject,
+                'body'       => $f->body,
+                'category'   => $f->category,
+                'created_at' => $f->created_at,
+            ]);
+
+        // Help articles grouped by category
+        $helpArticles = $this->support->getHelpArticles();
+        $helpByCategory = $helpArticles
+            ->groupBy(fn ($a) => $a->category ?? 'General')
+            ->map(fn ($items, $cat) => [
+                'category' => $cat,
+                'articles' => $items->map(fn ($a) => [
+                    'id'    => $a->id,
+                    'title' => $a->title,
+                    'body'  => $a->body,
+                ])->values(),
+            ])
+            ->values();
+
+        // Replies, keyed by complaint id, only non-internal
+        $ticketIds = $tickets->pluck('id')->all();
+        $repliesGrouped = ComplaintReply::whereIn('complaint_id', $ticketIds)
+            ->where('is_internal', 0)
+            ->orderBy('created_at')
+            ->get()
+            ->groupBy('complaint_id')
+            ->map(fn ($items) => $items->map(fn ($r) => [
+                'id'         => $r->id,
+                'author_id'  => $r->author_id,
+                'body'       => $r->body,
+                'created_at' => $r->created_at,
+                'is_user'    => $r->author_id === $user->id,
+            ])->values());
+
         return Inertia::render('Shared/Support', [
-            'tickets'        => $this->support->getForUser($request->user()->id),
-            'helpArticles'   => $this->support->getHelpArticles(),
+            'tickets'          => $tickets,
+            'feedbackHistory'  => $feedbackHistory,
+            'helpByCategory'   => $helpByCategory,
+            'ticketReplies'    => (object) $repliesGrouped->toArray(),
+            'openCount'        => $tickets->whereIn('status', ['open', 'in_progress'])->count(),
+            'resolvedCount'    => $tickets->whereIn('status', ['resolved', 'closed'])->count(),
+            'currentUserId'    => $user->id,
         ]);
     }
 
@@ -48,7 +106,27 @@ class SupportController extends Controller
 
     public function storeFeedback(SubmitFeedbackRequest $request): RedirectResponse
     {
-        $this->support->submitFeedback($request->user(), $request->validated()['body'], $request->validated()['channel'] ?? 'in_app');
+        $data = $request->validated();
+        $this->support->submitFeedback(
+            $request->user(),
+            $data['body'],
+            $data['channel'] ?? 'in_app'
+        );
         return back()->with('success', 'Thanks for your feedback.');
+    }
+
+    private function formatTicket(Complaint $t): array
+    {
+        return [
+            'id'              => $t->id,
+            'subject'         => $t->subject,
+            'body'            => $t->body,
+            'category'        => $t->category,
+            'priority'        => $t->priority,
+            'status'          => $t->status,
+            'created_at'      => $t->created_at,
+            'resolved_at'     => $t->resolved_at,
+            'module'          => $t->category,
+        ];
     }
 }

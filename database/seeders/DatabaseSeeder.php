@@ -13,7 +13,6 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             UserSeeder::class,
             UserMetaSeeder::class,
-            MfaTokenSeeder::class,
 
             // Layer 2 — plans + stewards
             PlanSeeder::class,
@@ -40,6 +39,8 @@ class DatabaseSeeder extends Seeder
             // Layer 8 — services
             ServiceSeeder::class,
             CeuSeeder::class,
+            ProviderCredentialSeeder::class,
+            CeuRequirementSeeder::class,
 
             // Layer 9 — BP ecosystem
             BpSeeder::class,

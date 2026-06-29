@@ -19,13 +19,14 @@ class Message extends Model
 
     protected $fillable = [
         'id', 'thread_id', 'sender_id', 'recipient_id', 'body',
-        'attachments', 'reactions', 'read_at',
+        'attachments', 'reactions', 'read_at', 'sent_at', 'read_by',
     ];
 
     protected $casts = [
         'attachments' => 'array',
         'reactions'   => 'array',
         'read_at'     => 'datetime',
+        'sent_at'     => 'datetime',
     ];
 
     public function thread(): BelongsTo    { return $this->belongsTo(MessageThread::class, 'thread_id'); }

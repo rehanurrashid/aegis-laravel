@@ -14,6 +14,8 @@ use App\Http\Controllers\Provider\IncidentController as ProviderIncidentControll
 use App\Http\Controllers\Provider\JobPostingsController as ProviderJobPostingsController;
 use App\Http\Controllers\Provider\NetworkController;
 use App\Http\Controllers\Provider\ProfileController as ProviderProfileController;
+use App\Http\Controllers\Provider\ProviderCredentialController;
+use App\Http\Controllers\Provider\CeuRequirementController;
 use App\Http\Controllers\Provider\ReferralsController;
 use App\Http\Controllers\Provider\ServicesController;
 use App\Http\Controllers\Provider\SettingsController as ProviderSettingsController;
@@ -57,7 +59,6 @@ use App\Http\Controllers\Shared\ActivityController;
 use App\Http\Controllers\Shared\MessagesController;
 use App\Http\Controllers\Shared\OverviewController;
 use App\Http\Controllers\Shared\SupportController;
-use App\Http\Controllers\Public\PublicPageController;
 use App\Http\Controllers\Public\ProfileController as PublicProfileController;
 
 // Newly wired controllers (previously built but unrouted) + RosterController import fix
@@ -123,10 +124,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/email/verification-notification', [VerifyEmailController::class, 'resend'])
         ->middleware('throttle:6,1')->name('verification.resend');
 });
-
-// ── Email unsubscribe (no auth; signed link from email footer) ────────────────
-Route::get('/email/unsubscribe', \App\Http\Controllers\Email\UnsubscribeController::class)
-    ->middleware('signed')->name('email.unsubscribe');
 
 // ── MFA challenge (session-gated, no auth middleware yet) ─────────────────────
 Route::get('/mfa/challenge', [MfaController::class, 'showChallenge'])->name('mfa.challenge');
@@ -212,6 +209,16 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
         Route::put('/ceus/{ceu}', [RosterController::class, "upsert"])->name('ceus.update');
         Route::delete('/ceus/{ceu}', [RosterController::class, "deleteCeu"])->name('ceus.destroy');
 
+        // CEU Requirements (jurisdictional CEU obligations)
+        Route::post('/ceu-requirements', [CeuRequirementController::class, 'store'])->name('ceu_requirements.store');
+        Route::put('/ceu-requirements/{requirement}', [CeuRequirementController::class, 'update'])->name('ceu_requirements.update');
+        Route::delete('/ceu-requirements/{requirement}', [CeuRequirementController::class, 'destroy'])->name('ceu_requirements.destroy');
+
+        // Provider Credentials (licenses, certifications, insurance)
+        Route::post('/credentials', [ProviderCredentialController::class, 'store'])->name('credentials.store');
+        Route::put('/credentials/{credential}', [ProviderCredentialController::class, 'update'])->name('credentials.update');
+        Route::delete('/credentials/{credential}', [ProviderCredentialController::class, 'destroy'])->name('credentials.destroy');
+
         // News & Events
         Route::get('/news', [NewsController::class, 'index'])->name('news.index');
         Route::get('/news/library', [NewsController::class, 'library'])->name('news.library');
@@ -245,13 +252,6 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::post('/settings/mfa/verify', [MfaController::class, 'verify'])->name('settings.mfa.verify');
         Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->name('settings.mfa.disable');
-
-        // Shared pages (portal-prefixed aliases → Shared controllers)
-        Route::get('/overview',  [\App\Http\Controllers\Shared\OverviewController::class,  'index'])->name('overview');
-        Route::get('/messages',  [\App\Http\Controllers\Shared\MessagesController::class,  'index'])->name('messages');
-        Route::get('/activity',  [\App\Http\Controllers\Shared\ActivityController::class,  'index'])->name('activity');
-        Route::get('/support',   [\App\Http\Controllers\Shared\SupportController::class,   'index'])->name('support');
-        Route::get('/help-center', fn() => \Inertia\Inertia::render('provider/HelpCenter', ['articles' => \App\Models\HelpArticle::where('published', 1)->where(fn($q) => $q->where('role_visibility', 'all')->orWhere('role_visibility', 'provider'))->orderBy('sort_order')->get()]))->name('help-center');
     });
 
 // ── Continuity Steward Portal ─────────────────────────────────────────────────
@@ -308,13 +308,6 @@ Route::middleware(['auth', 'role:continuity_steward', 'check.locked'])
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::post('/settings/mfa/verify', [MfaController::class, 'verify'])->name('settings.mfa.verify');
         Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->name('settings.mfa.disable');
-
-        // Shared pages (portal-prefixed aliases → Shared controllers)
-        Route::get('/overview',  [\App\Http\Controllers\Shared\OverviewController::class,  'index'])->name('overview');
-        Route::get('/messages',  [\App\Http\Controllers\Shared\MessagesController::class,  'index'])->name('messages');
-        Route::get('/activity',  [\App\Http\Controllers\Shared\ActivityController::class,  'index'])->name('activity');
-        Route::get('/support',   [\App\Http\Controllers\Shared\SupportController::class,   'index'])->name('support');
-        Route::get('/help-center', [\App\Http\Controllers\ContinuitySteward\SupportController::class, 'help'])->name('help-center');
     });
 
 // ── Support Steward Portal ────────────────────────────────────────────────────
@@ -357,13 +350,6 @@ Route::middleware(['auth', 'role:support_steward', 'check.locked'])
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::post('/settings/mfa/verify', [MfaController::class, 'verify'])->name('settings.mfa.verify');
         Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->name('settings.mfa.disable');
-
-        // Shared pages (portal-prefixed aliases → Shared controllers)
-        Route::get('/overview',  [\App\Http\Controllers\Shared\OverviewController::class,  'index'])->name('overview');
-        Route::get('/messages',  [\App\Http\Controllers\Shared\MessagesController::class,  'index'])->name('messages');
-        Route::get('/activity',  [\App\Http\Controllers\Shared\ActivityController::class,  'index'])->name('activity');
-        Route::get('/support',   [\App\Http\Controllers\Shared\SupportController::class,   'index'])->name('support');
-        Route::get('/help-center', [\App\Http\Controllers\SupportSteward\SupportController::class, 'help'])->name('help-center');
     });
 
 // ── Business Partner Portal ───────────────────────────────────────────────────
@@ -429,13 +415,6 @@ Route::middleware(['auth', 'role:business_partner', 'check.locked'])
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::post('/settings/mfa/verify', [MfaController::class, 'verify'])->name('settings.mfa.verify');
         Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->name('settings.mfa.disable');
-
-        // Shared pages (portal-prefixed aliases → Shared controllers)
-        Route::get('/overview',  [\App\Http\Controllers\Shared\OverviewController::class,  'index'])->name('overview');
-        Route::get('/messages',  [\App\Http\Controllers\Shared\MessagesController::class,  'index'])->name('messages');
-        Route::get('/activity',  [\App\Http\Controllers\Shared\ActivityController::class,  'index'])->name('activity');
-        Route::get('/support',   [\App\Http\Controllers\Shared\SupportController::class,   'index'])->name('support');
-        Route::get('/help-center', [\App\Http\Controllers\BusinessPartner\SupportController::class, 'help'])->name('help-center');
     });
 
 // ── Admin Portal ──────────────────────────────────────────────────────────────
@@ -500,13 +479,6 @@ Route::middleware(['auth', 'admin'])
         Route::put('/help-articles/{article}', [HelpArticlesController::class, 'update'])->name('help.update');
         Route::post('/help-articles/{article}/publish', [HelpArticlesController::class, 'publish'])->name('help.publish');
         Route::delete('/help-articles/{article}', [HelpArticlesController::class, 'destroy'])->name('help.destroy');
-
-        // Shared pages (portal-prefixed aliases → Shared controllers)
-        Route::get('/overview',  [\App\Http\Controllers\Shared\OverviewController::class,  'index'])->name('overview');
-        Route::get('/messages',  [\App\Http\Controllers\Shared\MessagesController::class,  'index'])->name('messages');
-        Route::get('/activity',  [\App\Http\Controllers\Shared\ActivityController::class,  'index'])->name('activity');
-        Route::get('/support',   [\App\Http\Controllers\Shared\SupportController::class,   'index'])->name('support');
-        Route::get('/help-center', fn() => \Inertia\Inertia::render('admin/HelpCenter', ['articles' => \App\Models\HelpArticle::where('published', 1)->orderBy('sort_order')->get()]))->name('help-center');
     });
 
 // ── Shared routes (any authenticated role) ────────────────────────────────────
@@ -522,7 +494,6 @@ Route::middleware(['auth', 'check.locked'])->group(function () {
     // Activity Feed
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
     Route::post('/activity/{event}/read', [ActivityController::class, 'markRead'])->name('activity.read');
-    Route::post('/activity/read-all', [ActivityController::class, 'markAllRead'])->name('activity.mark-all-read');
 
     // Support / Help Desk
     Route::get('/support', [SupportController::class, 'index'])->name('support.index');
@@ -531,12 +502,6 @@ Route::middleware(['auth', 'check.locked'])->group(function () {
     Route::post('/support/ticket/{ticket}/close', [SupportController::class, 'closeTicket'])->name('support.ticket.close');
     Route::post('/support/feedback', [SupportController::class, 'storeFeedback'])->name('support.feedback');
 });
-
-// ── Public marketing pages (no auth required) ────────────────────────────────
-Route::get('/about',   [PublicPageController::class, 'about'])->name('about');
-Route::get('/pricing', [PublicPageController::class, 'pricing'])->name('pricing');
-Route::get('/contact', [PublicPageController::class, 'contact'])->name('contact');
-Route::post('/contact', [PublicPageController::class, 'sendContact'])->name('contact.send');
 
 // ── Public Profiles (no auth) ─────────────────────────────────────────────────
 Route::prefix('public')->name('public.')->group(function () {

@@ -27,7 +27,7 @@ class ContinuityManagementController extends Controller
 
         return Inertia::render('ContinuitySteward/ContinuityManagement', [
             'activeIncidents' => CriticalIncident::whereIn('plan_id', $planIds)
-                ->whereIn('status', ['monitoring', 'active'])->get(),
+                ->whereIn('status', ['reported', 'verified', 'active'])->get(),
             'closedIncidents' => CriticalIncident::whereIn('plan_id', $planIds)
                 ->where('status', 'closed')->orderByDesc('closed_at')->limit(20)->get(),
         ]);

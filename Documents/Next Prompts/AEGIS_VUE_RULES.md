@@ -1,8 +1,8 @@
 # AEGIS_VUE_RULES.md
  
-**Vue component rules for the Aegis Laravel migration.** Companion to `Aegis_Desing_Prompt_Short.md` (design rules) and `AEGIS-PROJECT-CONTEXT.md` (domain rules).
+**The single source of truth for Vue components in the Aegis Laravel migration.** This file replaces every prior design and conversion reference. Everything Claude needs to convert a PHP page to a Vue component lives here.
  
-`Aegis_Desing_Prompt_Short.md` wins on design conflicts. This file wins on Vue/Inertia/state/wiring conflicts.
+If a rule in this file conflicts with anything else in your context — this file wins.
  
 ---
  
@@ -26,7 +26,10 @@ Break any of these and the component is wrong:
 14. **NEVER submit a form without client-side validation** — Vuelidate runs first, server validation is the boundary (see Section 14).
 15. **NEVER place an `<AegisIcon>` next to text inside a plain `<span>` or `<div>`** — the parent must be `inline-flex` (badges, pills) or `flex` (alerts, rows) with `align-items: center` and a `gap` (see Section 11).
 16. **NEVER stack short form fields vertically in a modal** — selects, dates, numbers, and short text fields go side by side in `.form-row`; only long-value fields (textarea, description, notes) get full width (see Section 4 Forms).
-17. **NEVER use a raw `<input type="file">` in any template** — always `<AegisDropzone v-model="form.file" ... />`; always add `forceFormData: true` to the submit call (see Section 15).
+17. **NEVER use a raw `<input type="file">` in any template** — always `<AegisDropzone>` with `@files="form.x = $event[0]"`; always add `forceFormData: true` to the submit call (see Section 15).
+18. **NEVER use hardcoded / static data in a template** — every list, table, card, detail modal binds to controller props. If the data doesn't exist in the DB, build the migration + seeder, don't fake it (see Section 20).
+19. **NEVER write a form without verifying the FormRequest, route verb, and migration columns first** — field names match FormRequest, HTTP verb matches route, column names match migration (see Section 21).
+20. **NEVER use `ui.openModal()`, `ui.closeModal()`, `modal-id=`, or `@file-selected`** — these patterns are banned. Modals use `v-model="modals.xxx"` on `AegisModal`; AegisDropzone emits `@files` (an array), not `@file-selected`.
 ---
  
 ## SECTION 2 — IMPORT CHEATSHEET
@@ -181,9 +184,9 @@ async function remove(item) {
  
 ---
  
-## SECTION 4 — DESIGN RULES (FROM Aegis_Desing_Prompt_Short.md)
+## SECTION 4 — DESIGN RULES
  
-Every Vue component follows these. `Aegis_Desing_Prompt_Short.md` is the source of truth — this is the quick-reference checklist.
+Every Vue component follows these. There is no other design source — these are complete.
  
 ### Hero
 - Always `<AegisHeroBanner ... quiet>` — never custom hero divs
@@ -499,7 +502,7 @@ location.assign('/dashboard')         // ❌
  
 ## SECTION 8 — CENTRALIZATION RULES
  
-Adapted from `CENTRALIZED-SYSTEM.md` — every Vue component obeys these.
+Every Vue component obeys these centralization rules.
  
 ### Activity events
 - Created **only** by the backend `ActivityService::log()`
@@ -1148,41 +1151,89 @@ function closeModal() {
 
 **RULE: Every file input in the entire app — in any modal, any form, any page — MUST use `<AegisDropzone>`. Never use a raw `<input type="file">` directly in a template.**
 
-`AegisDropzone` is the single canonical file upload component. It handles drag-and-drop, file selection via click, file name display, clear button, and accept/hint display. Building these inline in page templates duplicates logic and creates inconsistency.
+`AegisDropzone` is the single canonical file upload component. It handles drag-and-drop, file selection via click, file name display, clear button, and accept/hint display.
+
+### ⚠️ AegisDropzone is NOT globally registered
+
+You MUST import it locally in every page that uses it:
+
+```vue
+<script setup>
+import AegisDropzone from '@/components/ui/AegisDropzone.vue'
+</script>
+```
+
+Missing the import = page crashes with `Failed to resolve component: AegisDropzone`. Check `app.js` if you're unsure what is globally registered — `AegisIcon`, `AegisModal`, `AegisToast`, `AegisHeroBanner`, `AegisStatChip`, `AegisBadge`, `AegisToggle`, `AegisCard`, `AegisEmptyState`, `AegisPagination`, `AegisConfirm`, `AegisUpgradeModal` are global; everything else needs a local import.
+
+### ⚠️ The emit is `@files`, NOT `@file-selected`
+
+```vue
+<!-- ✅ CORRECT — @files emits an array, take the first file -->
+<AegisDropzone
+    accept=".pdf,.docx"
+    hint="PDF or DOCX, max 10 MB"
+    @files="form.file = $event[0]"
+/>
+
+<!-- ❌ WRONG — @file-selected does not exist on AegisDropzone -->
+<AegisDropzone @file-selected="form.file = $event" />
+```
+
+If `multiple` is true: `@files="form.attachments = $event"` (keep the array).
+
+### Confirm `.aegis-dropzone` CSS exists in `_shared.css` before shipping
+
+Phantom class references render unstyled:
+
+```bash
+grep -c "\.aegis-dropzone" public/css/_shared.css   # must be > 0
+```
+
+If 0 — add the class to `_shared.css` before declaring the component done.
 
 ### `AegisDropzone` component props
 
 ```js
 defineProps({
-    modelValue: { type: [File, null], default: null },  // v-model
-    accept:     { type: String, default: '' },           // e.g. '.pdf,.jpg,.png'
-    hint:       { type: String, default: '' },           // shown below dropzone
+    modelValue: { type: [File, null], default: null },  // v-model OR use @files
+    accept:     { type: String, default: '' },          // e.g. '.pdf,.jpg,.png'
+    hint:       { type: String, default: '' },          // shown below dropzone
     multiple:   { type: Boolean, default: false },
     disabled:   { type: Boolean, default: false },
-    maxSizeMb:  { type: Number, default: null },         // client-side size check
+    maxSizeMb:  { type: Number, default: null },        // client-side size check
 })
+defineEmits(['update:modelValue', 'files'])
 ```
 
 ### Usage — every file upload everywhere
 
 ```vue
-<!-- ✅ In any modal form -->
-<div class="form-group">
-    <label class="form-label">Document</label>
-    <AegisDropzone
-        v-model="form.file"
-        accept=".pdf,.docx"
-        hint="PDF or DOCX, max 10 MB"
-        :max-size-mb="10"
-    />
-    <div v-if="form.errors.file" class="form-error">{{ form.errors.file }}</div>
-</div>
+<!-- ✅ In any modal form, with @files (preferred pattern) -->
+<script setup>
+import AegisDropzone from '@/components/ui/AegisDropzone.vue'
+</script>
+
+<template>
+    <div class="form-group">
+        <label class="form-label">Document</label>
+        <AegisDropzone
+            accept=".pdf,.docx"
+            hint="PDF or DOCX, max 10 MB"
+            :max-size-mb="10"
+            @files="form.file = $event[0]"
+        />
+        <div v-if="form.errors.file" class="form-error">{{ form.errors.file }}</div>
+    </div>
+</template>
 
 <!-- ❌ WRONG — raw file input -->
 <input type="file" @change="form.file = $event.target.files[0]" accept=".pdf" />
 
 <!-- ❌ WRONG — custom dropzone HTML built inline in a page -->
 <div class="drop-area" @drop="onDrop">Click or drag to upload</div>
+
+<!-- ❌ WRONG — @file-selected does not exist -->
+<AegisDropzone @file-selected="form.file = $event" />
 ```
 
 ### Always `forceFormData: true` when the form has a file field
@@ -1266,6 +1317,20 @@ When porting any PHP page, `grep -n "input type=\"file\"" page.php` — every ma
 | `<input type="file">` in any template | `<AegisDropzone v-model="form.file" ... />` |
 | Custom drag-drop HTML built inline in a page | Import and use `AegisDropzone` component |
 | `forceFormData` omitted when form has a file field | Always add `forceFormData: true` when `form.file` is present |
+| `<AegisDropzone @file-selected="..." />` | `<AegisDropzone @files="form.x = $event[0]" />` |
+| Using `AegisDropzone` without importing it locally | `import AegisDropzone from '@/components/ui/AegisDropzone.vue'` |
+| Referencing `.aegis-dropzone` CSS class that doesn't exist in `_shared.css` | Confirm class exists with `grep "\.aegis-dropzone" public/css/_shared.css` |
+| `ui.openModal('xxx')` / `ui.closeModal('xxx')` | `modals.xxx = true` / `modals.xxx = false` on a `reactive()` modals object |
+| `modal-id="xxx"` prop on AegisModal | `v-model="modals.xxx"` on AegisModal |
+| Hardcoded names ("Robert Miller"), IDs ("NPI-2024"), amounts ($12,450) | Bind to controller props; build migration if data missing |
+| Detail modal body hardcoded | `activeX` ref set on row click; modal reads `activeX.field` |
+| `<option selected>` (PHP habit) | Set the default value on the v-model ref instead |
+| Field name in `useForm()` doesn't match FormRequest | Read FormRequest first, match field names exactly |
+| `.post()` when route is `Route::put()` | Verify route verb; use `.put()` / `.patch()` / `.delete()` to match |
+| Service uses wrong column names (`completed_at` vs `completed_on`) | Read migration first; fix the service if it's wrong |
+| Treating VARCHAR column as JSON array | Check `->string()` vs `->json()` in the migration |
+| Tooltip handler calls `e.target.closest()` without guard | Guard with `if (!(e.target instanceof Element)) return` |
+| `</script>` removed during a large edit, breaking the SFC | Verify section boundaries after any large edit |
 | `<span><AegisIcon /> Done</span>` — baseline drift | Wrap in `inline-flex; align-items: center; gap: 4px` container |
 | `display: flex` on icon row but no `gap` | Add `gap: 6–8px` to space icon from text |
 | `vertical-align: middle` on `<AegisIcon>` | Parent: `align-items: center` on flex/inline-flex |
@@ -1404,7 +1469,206 @@ resources/js/
   - `continuity-steward-portal/my-tasks.php` → `pages/continuity-steward/MyTasks.vue`
 ---
  
-## SECTION 20 — VERIFICATION CHECKLIST
+## SECTION 20 — NO HARDCODED / STATIC DATA
+
+**Every list, table, card grid, and detail panel must read from controller props. Never hardcode demo data into the template.**
+
+Hardcoded data is the most common reason a page looks correct in dev and breaks in staging — the controller doesn't return the prop, the page silently falls back to placeholder content, and nobody notices for weeks.
+
+### Banned in any Vue template
+
+```vue
+<!-- ❌ Names, IDs, dates, dollar amounts hardcoded -->
+<tr>
+    <td>Robert Miller, LMFT</td>
+    <td>CA-LMFT-12345</td>
+    <td>Expires Mar 2026</td>
+</tr>
+
+<!-- ❌ Demo numbers in finance/dashboard cards -->
+<div class="stat-chip-value">$12,450</div>
+
+<!-- ❌ Status copy hardcoded next to dynamic data -->
+<div>Plan signed by John D. on October 3</div>
+```
+
+### Required pattern
+
+```vue
+<!-- ✅ Every row from props -->
+<tr v-for="cred in credentials" :key="cred.id">
+    <td>{{ cred.provider_name }}</td>
+    <td>{{ cred.number }}</td>
+    <td>Expires {{ activity.formatDate(cred.expires_at) }}</td>
+</tr>
+
+<!-- ✅ Empty state when data is missing -->
+<AegisEmptyState
+    v-if="!credentials.length"
+    icon="shield"
+    title="No credentials on file."
+    subtitle="Add your first credential to begin."
+/>
+```
+
+### If the data doesn't exist in the database yet
+
+Build the migration + seeder + model + controller method. **Do not** fake it with static markup.
+
+```bash
+# Verify the column exists before writing the v-for
+grep -rn "credentials" $LARAVEL_ROOT/database/migrations/ | head -5
+```
+
+### Detail modals — never hardcoded copy
+
+When a user clicks a row to open a detail modal, the modal body must read from a reactive ref set when the row was clicked. Not from hardcoded strings.
+
+```vue
+<!-- ✅ Click sets activeCredential -->
+<tr v-for="c in credentials" @click="activeCredential = c">
+
+<!-- Modal body reads from the ref -->
+<AegisModal v-model="modals.detail" title="Credential Details">
+    <div v-if="activeCredential">
+        <p>{{ activeCredential.provider_name }}</p>
+        <p>{{ activeCredential.number }}</p>
+    </div>
+</AegisModal>
+```
+
+### Forbidden placeholder values (banned everywhere)
+
+| Banned | Why |
+|---|---|
+| `Robert Miller, LMFT` | Fake practitioner name from prototype |
+| `John D.`, `Sarah M.` | Initials placeholders |
+| `NPI-2024-0001`, `CA-MD-67890` | Fake credential IDs |
+| `$12,450`, `$8,900` | Demo dollar amounts |
+| `Last updated 3 days ago` (static text) | Stale relative dates |
+| `Lorem ipsum...` | Placeholder copy |
+| `example.com`, `test@test.com` | Placeholder URLs/emails |
+
+If you find any of these in a Vue template — replace with the corresponding prop binding. If the prop doesn't exist, add it to the controller.
+
+---
+
+## SECTION 21 — BACKEND CONTRACT VERIFICATION
+
+**Before writing any form, verify the contract with the backend. Three things must match exactly.**
+
+### 21A — Field names must match the FormRequest exactly
+
+```bash
+# Read the FormRequest before writing form fields
+cat $LARAVEL_ROOT/app/Http/Requests/Provider/StoreCredentialRequest.php
+```
+
+If the FormRequest validates `cred_type` and your `useForm()` sends `type` — validation passes Vuelidate but fails server-side with no clear error. Field names match exactly:
+
+```vue
+<!-- FormRequest expects: cred_type, number, expires_at, provider_name -->
+const form = useForm({
+    cred_type:     '',   // ✅ matches FormRequest
+    number:        '',
+    expires_at:    '',
+    provider_name: '',
+})
+
+<!-- ❌ WRONG — field name mismatch -->
+const form = useForm({
+    type:    '',         // ❌ FormRequest expects cred_type
+    license: '',         // ❌ FormRequest expects number
+})
+```
+
+### 21B — HTTP verb must match the route
+
+```bash
+# Verify the verb before form.post / form.put / form.delete
+grep "credentials" $LARAVEL_ROOT/routes/web.php
+# Route::post('/credentials',  ...) → form.post()
+# Route::put('/credentials/{id}', ...) → form.put()
+# Route::delete('/credentials/{id}', ...) → form.delete()
+```
+
+Wrong verb = 405 Method Not Allowed. Verify every form's HTTP method:
+
+```js
+// ✅ Create — POST
+form.post(route('provider.credentials.store'))
+
+// ✅ Update — PUT (or PATCH if the route uses PATCH)
+form.put(route('provider.credentials.update', cred.id))
+
+// ✅ Delete — DELETE
+form.delete(route('provider.credentials.destroy', cred.id))
+```
+
+### 21C — Column names must match the migration
+
+```bash
+# Read the migration BEFORE writing service or seeder logic
+cat $LARAVEL_ROOT/database/migrations/*credentials*
+```
+
+**Patterns that caused real bugs in this project:**
+
+| Wrong | Right | Where |
+|---|---|---|
+| `completed_at` | `completed_on` | `provider_ceus` migration |
+| `credits` | `credit_hours` | `provider_ceus` migration |
+| `category` | (none — does not exist) | `provider_ceus` migration |
+| `users.credentials` as JSON array | `users.credentials` is VARCHAR (single string) | `users` table |
+
+**Always check the column type before assuming shape:**
+
+```bash
+grep -A 2 "credentials" $LARAVEL_ROOT/database/migrations/*create_users*
+# If output shows ->string('credentials') — it's VARCHAR, NOT a JSON array
+# If output shows ->json('credentials')   — it's a JSON column
+# If no match — there is no credentials column on users, look elsewhere
+```
+
+Treating a VARCHAR column as a JSON array → empty dashboard, no error.
+
+### 21D — Controller must pass every prop the Vue page declares
+
+```js
+// If Vue declares:
+defineProps({
+    plan:        Object,
+    stewards:    Array,
+    credentials: Array,
+    insurance:   Array,
+})
+
+// Then controller MUST return ALL four:
+return Inertia::render('Provider/Dashboard', [
+    'plan'        => $plan,
+    'stewards'    => $stewards,
+    'credentials' => $credentials,
+    'insurance'   => $insurance,
+]);
+```
+
+Missing props arrive as `undefined` in Vue. Accessing `.length` on `undefined` crashes the page silently in some browsers, blank-screens in others.
+
+### 21E — Read services + controllers BEFORE writing form logic
+
+```bash
+# Required reads for any page conversion:
+cat $LARAVEL_ROOT/app/Http/Controllers/[Portal]/[PageController].php
+cat $LARAVEL_ROOT/app/Http/Requests/[Portal]/[FormRequest].php
+cat $LARAVEL_ROOT/app/Services/[Service].php
+cat $LARAVEL_ROOT/database/migrations/*[relevant_table]*
+```
+
+If the service uses wrong column names (e.g. `completed_at` when migration uses `completed_on`), **fix the service** — never accommodate the bug in the Vue layer.
+
+---
+
+## SECTION 22 — VERIFICATION CHECKLIST
  
 Before declaring any component "done":
  
@@ -1436,3 +1700,67 @@ Before declaring any component "done":
 - [ ] Short fields in modals (selects, dates, numbers) are paired in `.form-row` — not stacked vertically
 - [ ] Every file input uses `<AegisDropzone>` — no raw `<input type="file">` in any template
 - [ ] Every form with a file field has `forceFormData: true` in the submit call
+- [ ] `AegisDropzone` is imported locally in every page that uses it
+- [ ] AegisDropzone uses `@files="form.x = $event[0]"` — never `@file-selected`
+- [ ] `.aegis-dropzone` CSS class confirmed to exist in `_shared.css`
+- [ ] No hardcoded names, IDs, amounts, dates, or copy in the template
+- [ ] Every detail modal reads from an `activeX` ref set on row click — not hardcoded
+- [ ] FormRequest read and field names match exactly
+- [ ] Route verb verified before `.post` / `.put` / `.delete`
+- [ ] Migration column names verified before service / form code
+- [ ] All controller props match what `defineProps` declares
+- [ ] `</script>` closing tag present before `<style>` after any large edit
+- [ ] No `<option selected>` — defaults set via v-model ref initial value
+- [ ] Tooltip event handlers guard `e.target instanceof Element` before `.closest()`
+
+## SECTION 23 — PRE-FLIGHT GATES (grep-based)
+
+Run these before declaring any Vue page done. Every gate must return 0 hits (except where noted).
+
+```bash
+PAGE=resources/js/pages/[portal]/[Page].vue
+
+# Modal system
+grep -c "modal-id=" $PAGE                       # → 0
+grep -c "ui.openModal\|ui.closeModal" $PAGE     # → 0
+grep -c "openModal\s*(" $PAGE                   # → 0 (no global function calls)
+
+# AegisDropzone
+grep -c "@file-selected" $PAGE                  # → 0
+grep -c "<input type=\"file\"" $PAGE            # → 0
+grep -c "type=\"file\"" $PAGE                   # → 0
+# If page has AegisDropzone, confirm import:
+if grep -q "<AegisDropzone" $PAGE; then
+    grep -c "import AegisDropzone" $PAGE        # → must be > 0
+fi
+
+# Icons
+grep -c "<svg" $PAGE                            # → 0 (no raw SVG)
+grep -E "name=\"(square-pen|x-circle|gear|time|magnifier|person|event)\"" $PAGE  # → no output
+
+# Tooltips
+grep -c 'title="' $PAGE                         # → 0 (use data-tooltip)
+
+# Hardcoded data sniff
+grep -E "Robert Miller|John D\.|Sarah M\.|NPI-2024|CA-MD-67890|Lorem ipsum" $PAGE  # → no output
+grep -E "\\\$12,450|\\\$8,900" $PAGE             # → no output (demo dollar amounts)
+
+# Tailwind sniff
+grep -E "class=\"[^\"]*\b(flex|grid|p-[0-9]|m-[0-9]|text-sm|text-lg|bg-[a-z])" $PAGE  # → no output
+
+# Hex colors (allow brand SVGs only)
+grep -E "#[0-9a-fA-F]{3,6}" $PAGE | grep -v "brand\|comment"  # → no output
+
+# SFC structure
+grep -c "<script setup>" $PAGE                  # → 1
+grep -c "</script>" $PAGE                       # → 1
+grep -c "<template>" $PAGE                      # → 1
+grep -c "</template>" $PAGE                     # → 1
+
+# AegisModal v-model presence — every <AegisModal> needs a matching v-model
+MODAL_COUNT=$(grep -c "<AegisModal" $PAGE)
+VMODEL_COUNT=$(grep -c "v-model=\"modals\\." $PAGE)
+test $MODAL_COUNT -eq $VMODEL_COUNT && echo "✅ modals = v-models" || echo "❌ mismatch: $MODAL_COUNT modals, $VMODEL_COUNT v-models"
+```
+
+Run the suite. If anything fails — fix it before delivering.

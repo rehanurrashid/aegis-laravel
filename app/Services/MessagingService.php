@@ -18,9 +18,11 @@ class MessagingService
 
     public function createThread(array $participantIds, ?string $title = null, ?string $incidentId = null): MessageThread
     {
+        $participantIds = array_values(array_unique($participantIds));
         return MessageThread::create([
             'id'                    => 'mt_' . Str::lower(Str::random(12)),
-            'participant_ids'       => json_encode(array_values(array_unique($participantIds))),
+            'created_by_id'         => $participantIds[0] ?? null,
+            'participant_ids'       => json_encode($participantIds),
             'title'                 => $title,
             'is_continuity_contact' => $incidentId ? 1 : 0,
             'incident_id'           => $incidentId,
@@ -50,7 +52,7 @@ class MessagingService
 
                 $this->activity->log(
                     $recipient->id,
-                    $this->portalFor($recipient->role),
+                    $this->portalFor($recipient->role?->value ?? ''),
                     'message',
                     ActivitySeverity::Info,
                     'message_received',

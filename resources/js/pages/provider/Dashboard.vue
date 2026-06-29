@@ -12,10 +12,19 @@
       <div v-if="activeIncident" class="alert alert-emergency" style="margin-bottom:18px">
         <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
         <div class="alert-content">
-          <div class="alert-title">Continuity Plan Active — {{ activeIncident.incident_type_label ?? activeIncident.incident_type }}</div>
-          <div>A critical incident is currently being managed by your stewards{{ activeIncident.reported_at ? ' · reported ' + formatDate(activeIncident.reported_at) : '' }}.</div>
+          <div class="alert-title">
+            <template v-if="activeIncident.status === 'active'">Continuity Plan Active</template>
+            <template v-else-if="activeIncident.status === 'verified'">Incident Verified — Awaiting Activation</template>
+            <template v-else>Incident Reported — Awaiting Steward Verification</template>
+            — {{ activeIncident.incident_type_label ?? activeIncident.incident_type }}
+          </div>
+          <div>
+            <template v-if="activeIncident.status === 'active'">A critical incident is currently being managed by your stewards</template>
+            <template v-else-if="activeIncident.status === 'verified'">Your Continuity Steward has verified this incident</template>
+            <template v-else>Your stewards have been notified and will verify shortly</template>{{ activeIncident.reported_at ? ' · reported ' + formatDate(activeIncident.reported_at) : '' }}.
+          </div>
           <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-            <Link :href="route('provider.activity')" class="btn btn-primary btn-sm">
+            <Link :href="route('activity.index')" class="btn btn-primary btn-sm">
               <AegisIcon name="activity" :size="14" /> View Incident Activity
             </Link>
             <Link :href="route('provider.plan.index')" class="btn btn-outline btn-sm">
@@ -58,7 +67,7 @@
           <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px">Overview — Start Here</div>
           <div style="font-size:13px;color:var(--text-3);line-height:1.5">Key terms, your role on Aegis, and FAQs.</div>
         </div>
-        <Link :href="route('provider.overview')" class="btn btn-outline btn-sm" style="flex-shrink:0;white-space:nowrap">
+        <Link :href="route('overview')" class="btn btn-outline btn-sm" style="flex-shrink:0;white-space:nowrap">
           View Overview <AegisIcon name="chevron-right" :size="12" />
         </Link>
       </div>
@@ -185,13 +194,13 @@
           </div>
 
           <div class="dh-cn-actions">
-            <button class="btn btn-primary btn-sm" @click="ui.openModal('executorPanelModal')">
+            <button class="btn btn-primary btn-sm" @click="modals.executorPanel = true">
               <AegisIcon name="eye" :size="13" /> View Plan Details
             </button>
             <Link :href="route('provider.stewards.index')" class="btn btn-outline btn-sm">
               <AegisIcon name="pencil" :size="13" /> Edit Stewards
             </Link>
-            <button class="btn btn-danger btn-sm" data-tooltip="Use only during a genuine critical moment" @click="ui.openModal('activateSuccessionModal')">
+            <button v-if="!activeIncident" class="btn btn-danger btn-sm" data-tooltip="Use only during a genuine critical moment" @click="modals.activateSuccession = true">
               <AegisIcon name="alert-triangle" :size="13" />
             </button>
           </div>
@@ -222,11 +231,11 @@
           <div class="dh-cn-todos">
             <div class="dh-cn-todo done"><AegisIcon name="check-circle" :size="13" /> Steward contact info verified</div>
             <div class="dh-cn-todo done"><AegisIcon name="check-circle" :size="13" /> Practice information current</div>
-            <div class="dh-cn-todo"><AegisIcon name="circle" :size="13" /> Confirm Support Steward task list</div>
-            <div class="dh-cn-todo"><AegisIcon name="circle" :size="13" /> Attest Continuity Plan accuracy</div>
+            <div class="dh-cn-todo"><AegisIcon name="clock" :size="13" /> Confirm Support Steward task list</div>
+            <div class="dh-cn-todo"><AegisIcon name="clock" :size="13" /> Attest Continuity Plan accuracy</div>
           </div>
 
-          <button class="btn btn-outline btn-sm" style="align-self:flex-start;margin-top:8px" @click="ui.openModal('annualReviewModal')">
+          <button class="btn btn-outline btn-sm" style="align-self:flex-start;margin-top:8px" @click="modals.annualReview = true">
             <AegisIcon name="clipboard-check" :size="13" /> Begin Annual Review
           </button>
         </div>
@@ -238,7 +247,7 @@
           <div class="dh-sh-eyebrow">This month</div>
           <div class="dh-sh-title">Practice at a glance</div>
         </div>
-        <Link :href="route('provider.activity')" class="dh-sh-link">
+        <Link :href="route('activity.index')" class="dh-sh-link">
           View activity <AegisIcon name="arrow-right-line" :size="12" />
         </Link>
       </div>
@@ -272,7 +281,7 @@
           <div class="dh-sh-eyebrow">Compliance</div>
           <div class="dh-sh-title">Credentials &amp; coverage</div>
         </div>
-        <button class="dh-sh-link" @click="ui.openModal('addLicenseModal')">
+        <button class="dh-sh-link" @click="modals.addLicense = true">
           Manage all <AegisIcon name="arrow-right-line" :size="12" />
         </button>
       </div>
@@ -280,74 +289,73 @@
       <div class="dh-cols">
         <!-- LEFT: Credentials -->
         <div class="dh-cred-card">
-          <div class="dh-cred-row">
-            <div class="dh-cred-icon ok"><AegisIcon name="credit-card" :size="16" /></div>
-            <div class="dh-cred-info"><div class="dh-cred-title">Medical / Clinical License</div><div class="dh-cred-sub">Psychiatrist, MD · New York</div></div>
-            <div class="dh-cred-meter">
-              <div class="dh-cred-date">Jun 30, 2026</div>
-              <div class="dh-cred-bar"><div class="dh-cred-bar-fill ok"></div></div>
-              <div class="dh-cred-days ok">230 days remaining</div>
+          <template v-if="credentials.length">
+            <div
+              v-for="cred in credentials"
+              :key="cred.id"
+              class="dh-cred-row"
+            >
+              <div :class="['dh-cred-icon', credIsCritical(cred) ? 'crit' : 'ok']">
+                <AegisIcon :name="cred.icon || 'credit-card'" :size="16" />
+              </div>
+              <div class="dh-cred-info">
+                <div class="dh-cred-title">{{ cred.name || cred.cred_type }}</div>
+                <div class="dh-cred-sub">{{ cred.subtitle || (cred.issuer + (cred.number ? ' · ' + cred.number : '')) }}</div>
+              </div>
+              <div class="dh-cred-meter">
+                <div :class="['dh-cred-date', credIsCritical(cred) ? 'crit' : '']">
+                  {{ cred.expires_on ? formatDate(cred.expires_on) : 'No expiry' }}
+                </div>
+                <div class="dh-cred-bar">
+                  <div :class="['dh-cred-bar-fill', credIsCritical(cred) ? 'crit' : 'ok']"
+                       :style="'width:' + credBarWidth(cred) + '%'"></div>
+                </div>
+                <div :class="['dh-cred-days', credIsCritical(cred) ? 'crit' : 'ok']">
+                  {{ credDaysLabel(cred) }}
+                </div>
+              </div>
+              <div class="dh-cred-act">
+                <button
+                  v-if="credIsCritical(cred)"
+                  class="btn-icon-sm btn-icon-danger"
+                  data-tooltip="Update"
+                  @click="cred.is_insurance ? openRenewInsurance(cred) : openRenewLicense(cred)"
+                >
+                  <AegisIcon name="refresh" :size="12" />
+                </button>
+                <button
+                  class="btn-icon-sm"
+                  :data-tooltip="cred.is_insurance ? 'View policy' : 'View details'"
+                  @click="cred.is_insurance ? openInsuranceDetail(cred) : openLicenseDetail(cred)"
+                >
+                  <AegisIcon name="eye" :size="12" />
+                </button>
+                <button
+                  v-if="!credIsCritical(cred)"
+                  class="btn-icon-sm"
+                  data-tooltip="Set reminder"
+                  @click="modals.setReminder = true"
+                >
+                  <AegisIcon name="bell" :size="12" />
+                </button>
+              </div>
             </div>
-            <div class="dh-cred-act">
-              <button class="btn-icon-sm" data-tooltip="View details" @click="ui.openModal('licenseDetailModal')"><AegisIcon name="eye" :size="12" /></button>
-              <button class="btn-icon-sm" data-tooltip="Set reminder" @click="ui.openModal('setReminderModal')"><AegisIcon name="bell" :size="12" /></button>
-            </div>
-          </div>
-          <div class="dh-cred-row">
-            <div class="dh-cred-icon crit"><AegisIcon name="credit-card" :size="16" /></div>
-            <div class="dh-cred-info"><div class="dh-cred-title">State License (CA)</div><div class="dh-cred-sub">Psychiatrist, MD · California</div></div>
-            <div class="dh-cred-meter">
-              <div class="dh-cred-date crit">Feb 28, 2025</div>
-              <div class="dh-cred-bar"><div class="dh-cred-bar-fill crit"></div></div>
-              <div class="dh-cred-days crit">20 days · update now</div>
-            </div>
-            <div class="dh-cred-act">
-              <button class="btn-icon-sm btn-icon-danger" data-tooltip="Update" @click="ui.openModal('renewLicenseModal')"><AegisIcon name="refresh" :size="12" /></button>
-              <button class="btn-icon-sm" data-tooltip="View details" @click="ui.openModal('licenseDetailModal')"><AegisIcon name="eye" :size="12" /></button>
-            </div>
-          </div>
-          <div class="dh-cred-row">
-            <div class="dh-cred-icon ok"><AegisIcon name="clipboard" :size="16" /></div>
-            <div class="dh-cred-info"><div class="dh-cred-title">DEA Registration</div><div class="dh-cred-sub">Schedule II–IV</div></div>
-            <div class="dh-cred-meter">
-              <div class="dh-cred-date">Dec 31, 2026</div>
-              <div class="dh-cred-bar"><div class="dh-cred-bar-fill ok" style="width:40%"></div></div>
-              <div class="dh-cred-days ok">108 days remaining</div>
-            </div>
-            <div class="dh-cred-act">
-              <button class="btn-icon-sm" data-tooltip="View details" @click="ui.openModal('licenseDetailModal')"><AegisIcon name="eye" :size="12" /></button>
-              <button class="btn-icon-sm" data-tooltip="Set reminder" @click="ui.openModal('setReminderModal')"><AegisIcon name="bell" :size="12" /></button>
-            </div>
-          </div>
-          <div class="dh-cred-row">
-            <div class="dh-cred-icon crit"><AegisIcon name="shield" :size="16" /></div>
-            <div class="dh-cred-info"><div class="dh-cred-title">Professional Liability</div><div class="dh-cred-sub">Medical Protective · $2M / $2M</div></div>
-            <div class="dh-cred-meter">
-              <div class="dh-cred-date crit">Mar 15, 2025</div>
-              <div class="dh-cred-bar"><div class="dh-cred-bar-fill crit"></div></div>
-              <div class="dh-cred-days crit">20 days · update now</div>
-            </div>
-            <div class="dh-cred-act">
-              <button class="btn-icon-sm btn-icon-danger" data-tooltip="Update" @click="ui.openModal('renewInsuranceModal')"><AegisIcon name="refresh" :size="12" /></button>
-              <button class="btn-icon-sm" data-tooltip="View policy" @click="ui.openModal('insuranceDetailModal')"><AegisIcon name="eye" :size="12" /></button>
-            </div>
-          </div>
-          <div class="dh-cred-row">
-            <div class="dh-cred-icon ok"><AegisIcon name="briefcase" :size="16" /></div>
-            <div class="dh-cred-info"><div class="dh-cred-title">General Business Insurance</div><div class="dh-cred-sub">HISCOX · $1M General Liability</div></div>
-            <div class="dh-cred-meter">
-              <div class="dh-cred-date">Feb 28, 2026</div>
-              <div class="dh-cred-bar"><div class="dh-cred-bar-fill ok"></div></div>
-              <div class="dh-cred-days ok">230 days remaining</div>
-            </div>
-            <div class="dh-cred-act">
-              <button class="btn-icon-sm" data-tooltip="View policy" @click="ui.openModal('insuranceDetailModal')"><AegisIcon name="eye" :size="12" /></button>
-              <button class="btn-icon-sm" data-tooltip="Set reminder" @click="ui.openModal('setReminderModal')"><AegisIcon name="bell" :size="12" /></button>
-            </div>
-          </div>
+          </template>
+          <AegisEmptyState
+            v-else
+            icon="credit-card"
+            title="No credentials on file"
+            description="Add your licenses, DEA registration, and insurance policies."
+          />
           <div class="dh-cred-foot">
-            <span><strong>5 of 5</strong> credentials tracked · <span class="crit-text">2 need attention</span></span>
-            <button class="btn btn-outline btn-sm" @click="ui.openModal('addLicenseModal')">
+            <span>
+              <strong>{{ credentials.length }}</strong>
+              credential{{ credentials.length === 1 ? '' : 's' }} tracked
+              <template v-if="credCriticalCount > 0">
+                · <span class="crit-text">{{ credCriticalCount }} need attention</span>
+              </template>
+            </span>
+            <button class="btn btn-outline btn-sm" @click="modals.addLicense = true">
               <AegisIcon name="plus" :size="12" /> Add credential
             </button>
           </div>
@@ -368,7 +376,7 @@
                   <div class="dh-att-h">Professional Liability update</div>
                   <div class="dh-att-d">Expires <strong>Mar 15</strong> · 20 days left</div>
                 </div>
-                <button class="btn btn-primary btn-sm" @click="ui.openModal('renewInsuranceModal')">Update Now</button>
+                <button class="btn btn-primary btn-sm" @click="modals.renewInsurance = true">Update Now</button>
               </div>
               <div class="dh-att-item">
                 <div class="dh-att-bullet warn"></div>
@@ -376,7 +384,7 @@
                   <div class="dh-att-h">Annual Continuity Plan review</div>
                   <div class="dh-att-d">Due <strong>Jun 15</strong> · attest 8 items</div>
                 </div>
-                <button class="btn btn-outline btn-sm" @click="ui.openModal('annualReviewModal')">Review</button>
+                <button class="btn btn-outline btn-sm" @click="modals.annualReview = true">Review</button>
               </div>
               <div class="dh-att-item">
                 <div class="dh-att-bullet warn"></div>
@@ -384,7 +392,7 @@
                   <div class="dh-att-h">12 CEU hours required</div>
                   <div class="dh-att-d">Ethics credits by <strong>Dec 31</strong></div>
                 </div>
-                <button class="btn btn-outline btn-sm" @click="ui.openModal('ceuModal')">Add CEU</button>
+                <button class="btn btn-outline btn-sm" @click="modals.ceu = true">Add CEU</button>
               </div>
             </div>
           </div>
@@ -392,7 +400,7 @@
           <div class="dh-quick">
             <div class="dh-quick-title">Quick actions</div>
             <div class="dh-quick-grid">
-              <button class="btn btn-outline btn-sm" @click="ui.openModal('newReferralModal')">
+              <button class="btn btn-outline btn-sm" @click="modals.newReferral = true">
                 <AegisIcon name="refresh" :size="13" /> New referral
               </button>
               <Link :href="route('provider.vault.index')" class="btn btn-outline btn-sm">
@@ -401,7 +409,7 @@
               <Link :href="route('provider.stewards.index')" class="btn btn-outline btn-sm">
                 <AegisIcon name="calendar" :size="13" /> Schedule
               </Link>
-              <Link :href="route('provider.messages')" class="btn btn-outline btn-sm">
+              <Link :href="route('messages.index')" class="btn btn-outline btn-sm">
                 <AegisIcon name="message-square" :size="13" /> Message
               </Link>
             </div>
@@ -448,18 +456,23 @@
                   <span class="nw-meta-item"><AegisIcon name="map-pin" :size="11" />{{ nc.target?.location ?? '' }}</span>
                   <span class="nw-meta-item"><AegisIcon name="clock" :size="11" />Replies in {{ nc.target?.response_time_hours ? nc.target.response_time_hours + 'h' : '—' }}</span>
                   <div class="nw-cta" @click.stop>
-                    <Link :href="route('provider.messages')" class="nw-btn" data-tooltip="Send message"><AegisIcon name="message-square" :size="12" /></Link>
+                    <Link :href="route('messages.index')" class="nw-btn" data-tooltip="Send message"><AegisIcon name="message-square" :size="12" /></Link>
                     <a :href="'/public/provider/' + (nc.target?.slug ?? '')" class="nw-btn primary" data-tooltip="View profile"><AegisIcon name="arrow-right-line" :size="12" /></a>
                   </div>
                 </div>
               </div>
             </template>
-            <div v-else class="empty-state" style="grid-column:1/-1;padding:32px 0">
-              <div class="empty-state-icon"><AegisIcon name="users" :size="24" /></div>
-              <div class="empty-state-title">No network connections yet</div>
-              <div class="empty-state-sub">Visit the Network to connect with practitioners.</div>
-              <Link :href="route('provider.network.index')" class="btn btn-primary btn-sm" style="margin-top:12px">Browse Network</Link>
-            </div>
+            <AegisEmptyState
+              v-else
+              icon="users"
+              title="No network connections yet"
+              description="Visit the Network to connect with practitioners."
+              style="grid-column:1/-1"
+            >
+              <template #action>
+                <Link :href="route('provider.network.index')" class="btn btn-primary btn-sm">Browse Network</Link>
+              </template>
+            </AegisEmptyState>
           </template>
 
           <!-- Business tab -->
@@ -480,17 +493,19 @@
                   <span class="nw-meta-item"><AegisIcon name="map-pin" :size="11" />{{ nc.target?.location ?? '' }}</span>
                   <span class="nw-meta-item"><AegisIcon name="clock" :size="11" />Replies in {{ nc.target?.response_time_hours ? nc.target.response_time_hours + 'h' : '—' }}</span>
                   <div class="nw-cta" @click.stop>
-                    <Link :href="route('provider.messages')" class="nw-btn" data-tooltip="Send message"><AegisIcon name="message-square" :size="12" /></Link>
+                    <Link :href="route('messages.index')" class="nw-btn" data-tooltip="Send message"><AegisIcon name="message-square" :size="12" /></Link>
                     <a :href="'/public/business/' + (nc.target?.slug ?? '')" class="nw-btn primary" data-tooltip="View profile"><AegisIcon name="arrow-right-line" :size="12" /></a>
                   </div>
                 </div>
               </div>
             </template>
-            <div v-else class="empty-state" style="grid-column:1/-1;padding:32px 0">
-              <div class="empty-state-icon"><AegisIcon name="briefcase" :size="24" /></div>
-              <div class="empty-state-title">No business partners yet</div>
-              <div class="empty-state-sub">Connect with business partners through your network.</div>
-            </div>
+            <AegisEmptyState
+              v-else
+              icon="briefcase"
+              title="No business partners yet"
+              description="Connect with business partners through your network."
+              style="grid-column:1/-1"
+            />
           </template>
         </div>
       </div>
@@ -502,7 +517,7 @@
     <!-- ══════════════════════ MODALS ═════════════════════════════════ -->
 
     <!-- Executor Panel -->
-    <AegisModal modal-id="executorPanelModal" title="Continuity Plan — Details" size="lg">
+    <AegisModal v-model="modals.executorPanel" title="Continuity Plan — Details" size="lg">
       <div class="alert alert-success" style="margin-bottom:14px">
         <div class="alert-icon"><AegisIcon name="shield-check" :size="16" /></div>
         <div class="alert-content">Continuity Plan is active and up to date</div>
@@ -537,20 +552,20 @@
       </div>
 
       <div class="section-label" style="margin-bottom:8px">Continuity Plan Details</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:0">
+      <div style="display:flex;flex-direction:column">
         <div class="cc-detail-row"><span class="cc-detail-label">Signed</span><span class="cc-detail-value">{{ planSignedAt }}</span></div>
         <div class="cc-detail-row"><span class="cc-detail-label">Annual Review</span><span class="cc-detail-value" style="color:var(--orange-dark)">Due {{ planReviewDue }}</span></div>
         <div class="cc-detail-row"><span class="cc-detail-label">Activation Trigger</span><span class="cc-detail-value">48-hr Absence</span></div>
-        <div class="form-group" style="margin-bottom:0;display:flex;align-items:center;gap:10px">
-          <label class="form-label" style="margin-bottom:0;flex-shrink:0;white-space:nowrap">Security Doc</label>
-          <select class="form-select" style="flex:1;min-width:0">
+        <div class="cc-detail-row">
+          <span class="cc-detail-label">Security Doc</span>
+          <select class="form-select" style="max-width:220px">
             <option>None</option><option>Police Report</option><option>Doctor's Note</option><option>Death Certificate</option>
           </select>
         </div>
       </div>
       <template #footer>
-        <button class="btn btn-outline" style="margin-right:auto" @click="ui.openModal('annualReviewModal'); ui.closeModal('executorPanelModal')">Annual Review</button>
-        <button class="btn btn-danger" @click="ui.openModal('activateSuccessionModal'); ui.closeModal('executorPanelModal')">
+        <button class="btn btn-outline" style="margin-right:auto" @click="modals.annualReview = true; modals.executorPanel = false">Annual Review</button>
+        <button v-if="!activeIncident" class="btn btn-danger" @click="modals.activateSuccession = true; modals.executorPanel = false">
           <AegisIcon name="alert-triangle" :size="13" /> Activate Continuity Support
         </button>
         <Link :href="route('provider.stewards.index')" class="btn btn-primary">
@@ -561,8 +576,7 @@
 
     <!-- Activate Succession -->
     <!-- Activate Succession — exact PHP parity -->
-    <AegisModal modal-id="activateSuccessionModal" title="Activate Continuity Support" size="lg">
-      <template #header-style>background:var(--red-light);border-bottom:1px solid var(--red-light)</template>
+    <AegisModal v-model="modals.activateSuccession" title="Activate Continuity Support" size="lg">
 
       <div style="background:var(--red-light);border:1.5px solid var(--border-dark);border-radius:var(--radius-lg);padding:11px 14px;margin-bottom:14px;font-size:13px;color:var(--text-2);line-height:1.55">
         <strong style="color:var(--red)">This notifies your Continuity &amp; Support Stewards</strong>
@@ -605,7 +619,7 @@
       </div>
 
       <template #footer>
-        <button class="btn btn-outline" @click="ui.closeModal('activateSuccessionModal')">Cancel</button>
+        <button class="btn btn-outline" @click="modals.activateSuccession = false">Cancel</button>
         <button
           class="btn btn-danger"
           :disabled="!successionForm.incident_type || successionForm.processing"
@@ -617,33 +631,35 @@
     </AegisModal>
 
     <!-- Annual Review -->
-    <AegisModal modal-id="annualReviewModal" title="Annual Review" size="lg">
-      <div class="alert alert-warning" style="margin-bottom:18px;box-shadow:var(--shadow-sm)">
+    <AegisModal v-model="modals.annualReview" title="Annual Review" size="lg">
+      <div class="alert alert-warning" style="margin-bottom:18px">
         <div class="alert-icon"><AegisIcon name="megaphone" :size="14" /></div>
         <div class="alert-content">Annual review due {{ planReviewDue }}. Please verify all items and attest.</div>
       </div>
       <div class="dh-review-checklist">
-        <label class="form-check"><input v-model="reviewForm.cs_contact_verified" type="checkbox" class="form-check-input" /><span class="form-check-label">Continuity Steward identity and contact information is current</span></label>
-        <label class="form-check"><input v-model="reviewForm.ss_contact_verified" type="checkbox" class="form-check-input" /><span class="form-check-label">Support Steward identity and contact information is current</span></label>
-        <label class="form-check"><input v-model="reviewForm.ss_tasks_complete" type="checkbox" class="form-check-input" /><span class="form-check-label">Support Steward tasks are complete and accurate</span></label>
-        <label class="form-check"><input v-model="reviewForm.cs_tasks_complete" type="checkbox" class="form-check-input" /><span class="form-check-label">Assigned Continuity Steward tasks are complete and accurate</span></label>
-        <label class="form-check"><input v-model="reviewForm.plan_attested" type="checkbox" class="form-check-input" /><span class="form-check-label">Continuity Plan is accurate</span></label>
-        <label class="form-check"><input v-model="reviewForm.practice_current" type="checkbox" class="form-check-input" /><span class="form-check-label">Practice information is accurate</span></label>
-        <label class="form-check"><input v-model="reviewForm.support_docs_complete" type="checkbox" class="form-check-input" /><span class="form-check-label">Support documentation is complete and accurate</span></label>
-        <label class="form-check"><input v-model="reviewForm.vault_complete" type="checkbox" class="form-check-input" /><span class="form-check-label">Vault documentation is complete and accurate</span></label>
+        <label class="form-check"><input v-model="annualReviewForm.checklist.stewards" type="checkbox" class="form-check-input" /><span class="form-check-label">Continuity Steward identity and contact information is current</span></label>
+        <label class="form-check"><input v-model="annualReviewForm.checklist.contacts" type="checkbox" class="form-check-input" /><span class="form-check-label">Support Steward identity and contact information is current</span></label>
+        <label class="form-check"><input v-model="annualReviewForm.checklist.tasks" type="checkbox" class="form-check-input" /><span class="form-check-label">Support Steward tasks are complete and accurate</span></label>
+        <label class="form-check"><input v-model="annualReviewForm.checklist.incidents" type="checkbox" class="form-check-input" /><span class="form-check-label">Assigned Continuity Steward tasks are complete and accurate</span></label>
+        <label class="form-check"><input v-model="annualReviewForm.checklist.preferences" type="checkbox" class="form-check-input" /><span class="form-check-label">Continuity Plan is accurate</span></label>
+        <label class="form-check"><input v-model="annualReviewForm.checklist.fees" type="checkbox" class="form-check-input" /><span class="form-check-label">Practice information is accurate</span></label>
+        <label class="form-check"><input v-model="annualReviewForm.checklist.documents" type="checkbox" class="form-check-input" /><span class="form-check-label">Support documentation is complete and accurate</span></label>
+        <label class="form-check"><input v-model="annualReviewForm.checklist.vault" type="checkbox" class="form-check-input" /><span class="form-check-label">Vault documentation is complete and accurate</span></label>
       </div>
       <div style="margin-top:18px">
         <label class="form-label">Additional Notes</label>
-        <textarea v-model="reviewForm.notes" class="form-textarea" placeholder="Any changes or notes for this review period..."></textarea>
+        <textarea v-model="annualReviewForm.notes" class="form-textarea" placeholder="Any changes or notes for this review period..."></textarea>
       </div>
       <template #footer>
-        <button class="btn btn-outline" @click="ui.closeModal('annualReviewModal')">Cancel</button>
-        <button class="btn btn-primary" :disabled="!allReviewChecked" @click="submitAnnualReview">Submit Annual Review</button>
+        <button class="btn btn-outline" @click="modals.annualReview = false">Cancel</button>
+        <button class="btn btn-primary" :disabled="!allReviewChecked || annualReviewForm.processing" @click="submitAnnualReview">
+          {{ annualReviewForm.processing ? 'Submitting…' : 'Submit Annual Review' }}
+        </button>
       </template>
     </AegisModal>
 
     <!-- CEU Modal -->
-    <AegisModal modal-id="ceuModal" title="Continuing Education (CEU)" size="lg">
+    <AegisModal v-model="modals.ceu" title="Continuing Education (CEU)" size="lg">
       <!-- Progress bar -->
       <div style="background:var(--surface-2);border-radius:var(--radius);padding:14px;margin-bottom:16px">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px">
@@ -659,40 +675,84 @@
         <div style="font-size:13px;font-weight:700">CEU Requirements</div>
       </div>
       <div style="font-size:11px;color:var(--text-3);margin-bottom:12px">Define the requirements you track against — jurisdiction, hours, cycle, and required types.</div>
-      <div style="border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:12px">
-        <div>
-          <div style="font-size:13px;font-weight:700">California — BBS (LMFT)</div>
-          <div style="font-size:11px;color:var(--text-3);margin-top:2px">36 hours · Biannual · Due Dec 31, {{ new Date().getFullYear() }}</div>
-          <div style="font-size:11px;color:var(--text-3);margin-top:2px">Required: Ethics (6), Law &amp; Ethics, Suicide Risk Assessment</div>
+
+      <!-- Existing requirements list -->
+      <template v-if="ceuRequirements.length">
+        <div
+          v-for="req in ceuRequirements"
+          :key="req.id"
+          style="border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:12px"
+        >
+          <div>
+            <div style="font-size:13px;font-weight:700">{{ req.jurisdiction }}</div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:2px">
+              {{ req.total_hours }} hours · {{ req.cycle === 'biannual' ? 'Biannual' : 'Annual' }}
+              <span v-if="req.due_date"> · Due {{ formatDate(req.due_date) }}</span>
+            </div>
+            <div v-if="req.required_types" style="font-size:11px;color:var(--text-3);margin-top:2px">
+              Required: {{ req.required_types }}
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="btn-icon" data-tooltip="Edit requirement" @click="editCeuRequirement(req)">
+              <AegisIcon name="pencil" :size="14" />
+            </button>
+            <button class="btn-icon btn-icon-danger" data-tooltip="Remove" @click="removeCeuRequirement(req)">
+              <AegisIcon name="trash" :size="14" />
+            </button>
+          </div>
         </div>
-        <div style="display:flex;gap:6px;flex-shrink:0">
-          <button class="btn-icon" data-tooltip="Edit requirement" @click="toast.info('Edit requirement')"><AegisIcon name="pencil" :size="14" /></button>
-          <button class="btn-icon btn-icon-danger" data-tooltip="Remove" @click="confirmAction('Remove this CEU requirement?', () => toast.info('Requirement removed'))"><AegisIcon name="trash" :size="14" /></button>
-        </div>
-      </div>
-      <!-- Add requirement -->
+      </template>
+      <AegisEmptyState
+        v-else
+        icon="clipboard-check"
+        title="No CEU requirements tracked"
+        description="Add the jurisdictions and cycle you're accountable to below."
+      />
+
+      <!-- Add / Edit requirement -->
       <div style="border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:22px">
-        <div style="font-size:12px;font-weight:700;color:var(--text-2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.3px">Add a Requirement</div>
+        <div style="font-size:12px;font-weight:700;color:var(--text-2);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.3px">
+          {{ ceuRequirementForm.id ? 'Edit Requirement' : 'Add a Requirement' }}
+        </div>
         <div class="form-row">
-          <div class="form-group"><label class="form-label">State / Jurisdiction</label><input v-model="ceuReqForm.jurisdiction" class="form-input" type="text" placeholder="e.g., California — BBS" /></div>
-          <div class="form-group"><label class="form-label">Total Hours Required</label><input v-model="ceuReqForm.total_hours" class="form-input" type="number" min="1" max="100" placeholder="e.g., 36" /></div>
+          <div class="form-group">
+            <label class="form-label">State / Jurisdiction <span class="req">*</span></label>
+            <input v-model="ceuRequirementForm.jurisdiction" class="form-input" type="text" placeholder="e.g., California — BBS" />
+            <div v-if="ceuRequirementForm.errors.jurisdiction" class="form-error">{{ ceuRequirementForm.errors.jurisdiction }}</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Total Hours Required <span class="req">*</span></label>
+            <input v-model="ceuRequirementForm.total_hours" class="form-input" type="number" min="1" max="200" placeholder="e.g., 36" />
+            <div v-if="ceuRequirementForm.errors.total_hours" class="form-error">{{ ceuRequirementForm.errors.total_hours }}</div>
+          </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Renewal Cycle</label>
             <div style="display:flex;gap:16px;padding-top:6px">
-              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px"><input type="radio" v-model="ceuReqForm.cycle" value="annual" style="-webkit-appearance:auto;accent-color:var(--gold-dark)" /> Annual</label>
-              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px"><input type="radio" v-model="ceuReqForm.cycle" value="biannual" style="-webkit-appearance:auto;accent-color:var(--gold-dark)" /> Biannual</label>
+              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px"><input type="radio" v-model="ceuRequirementForm.cycle" value="annual" style="-webkit-appearance:auto;accent-color:var(--gold-dark)" /> Annual</label>
+              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px"><input type="radio" v-model="ceuRequirementForm.cycle" value="biannual" style="-webkit-appearance:auto;accent-color:var(--gold-dark)" /> Biannual</label>
             </div>
           </div>
-          <div class="form-group"><label class="form-label">Renewal Due Date</label><input v-model="ceuReqForm.due_date" class="form-input" type="date" /></div>
+          <div class="form-group"><label class="form-label">Renewal Due Date</label><input v-model="ceuRequirementForm.due_date" class="form-input" type="date" /></div>
         </div>
         <div class="form-group">
-          <label class="form-label">Required CEU Types <span style="color:var(--text-4)">(optional)</span></label>
-          <input v-model="ceuReqForm.required_types" class="form-input" type="text" placeholder="e.g., Ethics (6 hrs), Suicide, Cultural Competency" />
+          <label class="form-label">Required CEU Types <span style="color:var(--text-4);font-weight:500">(optional)</span></label>
+          <input v-model="ceuRequirementForm.required_types" class="form-input" type="text" placeholder="e.g., Ethics (6 hrs), Suicide, Cultural Competency" />
           <div class="form-hint">List any mandated subject areas and their minimum hours.</div>
         </div>
-        <button class="btn btn-outline btn-sm" @click="toast.success('CEU requirement saved')"><AegisIcon name="plus" :size="13" /> Save Requirement</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm" :disabled="ceuRequirementForm.processing" @click="saveCeuRequirement">
+            <AegisIcon :name="ceuRequirementForm.id ? 'check' : 'plus'" :size="13" />
+            {{ ceuRequirementForm.processing
+                ? 'Saving…'
+                : ceuRequirementForm.id ? 'Update Requirement' : 'Save Requirement' }}
+          </button>
+          <button v-if="ceuRequirementForm.id" class="btn btn-ghost btn-sm" @click="ceuRequirementForm.reset()">
+            Cancel edit
+          </button>
+        </div>
       </div>
 
       <!-- Completed CEUs -->
@@ -701,7 +761,7 @@
         <div v-for="ceu in upcomingCEUs" :key="ceu.id" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
           <div>
             <div style="font-size:13px;font-weight:600">{{ ceu.title }}</div>
-            <div style="font-size:11px;color:var(--text-3)">{{ formatDate(ceu.completed_at) }} · {{ ceu.credits }} hours</div>
+            <div style="font-size:11px;color:var(--text-3)">{{ formatDate(ceu.completed_on) }} · {{ ceu.credit_hours }} hours</div>
           </div>
           <span class="badge badge--green"><AegisIcon name="check" :size="11" /> Verified</span>
         </div>
@@ -711,20 +771,22 @@
       <!-- Add CEU Credits -->
       <div style="margin-top:22px">
         <div style="font-size:13px;font-weight:700;margin-bottom:14px">Add CEU Credits</div>
-        <div class="form-group"><label class="form-label">Course Name <span class="req">*</span></label><input v-model="ceuForm.title" type="text" class="form-input" placeholder="e.g., Ethics in Telehealth 2025" /></div>
-        <div class="form-group">
-          <label class="form-label">CEU Category <span class="req">*</span></label>
-          <select v-model="ceuForm.category" class="form-select">
-            <option value="">Select a category...</option>
-            <option>Ethics</option><option>Supervision</option><option>Telehealth</option>
-            <option>Safety</option><option>Quality</option><option>HIV</option>
-            <option>Child Abuse Assessment and Reporting</option>
-            <option>Intimate Partner Violence / Domestic Violence</option>
-            <option>Assessment and Diagnosis</option><option>Referral and Interventions</option>
-            <option>Alcohol and Substance Use Dependency</option><option>Publications</option>
-            <option>Teaching, Education and Training</option><option>General CEUs</option>
-            <option>Cultural Competency</option><option>Suicide</option><option>Other</option>
-          </select>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Course Name <span class="req">*</span></label><input v-model="ceuForm.title" type="text" class="form-input" placeholder="e.g., Ethics in Telehealth 2025" /></div>
+          <div class="form-group">
+            <label class="form-label">CEU Category <span class="req">*</span></label>
+            <select v-model="ceuForm.category" class="form-select">
+              <option value="">Select a category...</option>
+              <option>Ethics</option><option>Supervision</option><option>Telehealth</option>
+              <option>Safety</option><option>Quality</option><option>HIV</option>
+              <option>Child Abuse Assessment and Reporting</option>
+              <option>Intimate Partner Violence / Domestic Violence</option>
+              <option>Assessment and Diagnosis</option><option>Referral and Interventions</option>
+              <option>Alcohol and Substance Use Dependency</option><option>Publications</option>
+              <option>Teaching, Education and Training</option><option>General CEUs</option>
+              <option>Cultural Competency</option><option>Suicide</option><option>Other</option>
+            </select>
+          </div>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -738,235 +800,246 @@
             <label class="form-label">Requirement Cycle</label>
             <div style="display:flex;gap:16px;padding-top:6px">
               <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px"><input type="radio" v-model="ceuForm.cycle" value="annual" style="-webkit-appearance:auto;accent-color:var(--gold-dark)" /> Annual</label>
-              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px"><input type="radio" v-model="ceuForm.delivery" value="biannual" style="-webkit-appearance:auto;accent-color:var(--gold-dark)" /> Biannual</label>
+              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px"><input type="radio" v-model="ceuForm.cycle" value="biannual" style="-webkit-appearance:auto;accent-color:var(--gold-dark)" /> Biannual</label>
             </div>
           </div>
         </div>
-        <div class="form-row">
+        <div class="form-row is-3col">
           <div class="form-group"><label class="form-label">Date Completed</label><input v-model="ceuForm.completed_on" type="date" class="form-input" /></div>
           <div class="form-group"><label class="form-label">Credit Hours <span class="req">*</span></label><input v-model="ceuForm.credit_hours" type="number" min="0.5" step="0.5" class="form-input" placeholder="e.g., 3" /></div>
+          <div class="form-group"><label class="form-label">Provider / Org</label><input v-model="ceuForm.provider_name" type="text" class="form-input" placeholder="e.g., APA" /></div>
         </div>
         <div class="form-group">
-          <label class="form-label">Provider / Organization</label>
-          <input v-model="ceuForm.provider_name" type="text" class="form-input" placeholder="e.g., APA" />
+          <label class="form-label">Upload Certificate</label>
+          <AegisDropzone accept=".pdf,.jpg,.png" hint="PDF, JPG or PNG up to 10 MB" @files="ceuForm.certificate = $event[0]" />
         </div>
-      </div>
+      </div><!-- /Add CEU Credits -->
       <template #footer>
-        <button class="btn btn-outline" @click="ui.closeModal('ceuModal')">Close</button>
-        <button class="btn btn-primary" @click="submitCeu">Add CEU Credits</button>
+        <button class="btn btn-outline" @click="modals.ceu = false">Close</button>
+        <button class="btn btn-primary" :disabled="ceuForm.processing" @click="submitCeu">
+          {{ ceuForm.processing ? 'Saving…' : 'Add CEU Credits' }}
+        </button>
       </template>
     </AegisModal>
 
-    <!-- New Referral Modal -->
-    <AegisModal modal-id="newReferralModal" title="New Referral" size="lg">
-      <div class="form-group"><label class="form-label">Recipient</label><input v-model="referralForm.recipient" type="text" class="form-input" placeholder="Search practitioner name…" /></div>
-      <div class="form-group"><label class="form-label">Clinical Notes</label><textarea v-model="referralForm.notes" class="form-textarea" rows="3" placeholder="Reason for referral, urgency, background…"></textarea></div>
-      <template #footer>
-        <button class="btn btn-outline" @click="ui.closeModal('newReferralModal')">Cancel</button>
-        <button class="btn btn-primary" @click="submitReferral"><AegisIcon name="send" :size="13" /> Send Referral</button>
-      </template>
-    </AegisModal>
+    <!-- New Referral Modal — shared 4-step component -->
+    <ReferralModal
+      v-model="modals.newReferral"
+      :roster="referralRoster"
+      :network="referralNetwork"
+    />
 
     <!-- Add License -->
-    <AegisModal modal-id="addLicenseModal" title="Add Credential" size="lg">
-      <div class="form-group">
-        <label class="form-label">Credential Type <span class="req">*</span></label>
-        <select v-model="licenseForm.type" class="form-select" @change="licenseForm.custom_type = ''">
-          <option value="">Select a credential...</option>
-          <optgroup label="Medical &amp; Prescribing">
-            <option>MD</option><option>DO</option><option>ND</option><option>NP</option><option>PA</option>
-          </optgroup>
-          <optgroup label="Mental Health">
-            <option>LPC / LPCC</option><option>LCSW / LICSW</option><option>LMFT</option><option>ABPP</option>
-          </optgroup>
-          <optgroup label="Therapy &amp; Specialty">
-            <option>EMDR Certified</option><option>DBT Certified</option><option>CSE</option><option>CSC</option><option>CST</option>
-          </optgroup>
-          <optgroup label="Creative Therapies">
-            <option>ATR</option><option>MT-BC</option><option>RDT</option>
-          </optgroup>
-          <optgroup label="Addiction &amp; Behavioral">
-            <option>CADC / ICADC</option>
-          </optgroup>
-          <optgroup label="Integrative / Alt Medicine">
-            <option>LAc</option>
-          </optgroup>
-          <optgroup label="Nutrition &amp; Health">
-            <option>RD / RDN</option><option>NBC-HWC</option>
-          </optgroup>
-          <optgroup label="Birth &amp; Reproductive">
-            <option>CNM</option>
-          </optgroup>
-          <optgroup label="Specialized">
-            <option>CGC</option><option>CDCES / CDE</option>
-          </optgroup>
-          <optgroup label="Fitness &amp; Physical">
-            <option>CPT (NSCA)</option><option>CPT (NASM)</option><option>CPT (ACE)</option><option>EP-C (ACSM)</option>
-          </optgroup>
-          <optgroup label="Other">
-            <option value="Licensed">Licensed</option>
-            <option value="custom">Other (enter manually)</option>
-          </optgroup>
-        </select>
-      </div>
-      <div v-if="licenseForm.type === 'custom'" class="form-group">
-        <label class="form-label">Custom Credential Name <span class="req">*</span></label>
-        <input v-model="licenseForm.custom_type" class="form-input" type="text" placeholder="Enter credential name" />
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">License Number</label><input v-model="licenseForm.license_number" type="text" class="form-input" placeholder="e.g., NY-MD-12345 (optional)" /></div>
-        <div class="form-group"><label class="form-label">Credential Number</label><input v-model="licenseForm.credential_number" type="text" class="form-input" placeholder="Optional" /></div>
-      </div>
+    <AegisModal v-model="modals.addLicense" title="Add Credential" size="lg">
       <div class="form-row">
         <div class="form-group">
+          <label class="form-label">Credential Type <span class="req">*</span></label>
+          <select v-model="licenseForm.cred_type" class="form-select" @change="licenseForm.custom_type = ''">
+            <option value="">Select a credential...</option>
+            <optgroup label="Medical &amp; Prescribing">
+              <option>MD</option><option>DO</option><option>ND</option><option>NP</option><option>PA</option>
+            </optgroup>
+            <optgroup label="Mental Health">
+              <option>LPC / LPCC</option><option>LCSW / LICSW</option><option>LMFT</option><option>ABPP</option>
+            </optgroup>
+            <optgroup label="Therapy &amp; Specialty">
+              <option>EMDR Certified</option><option>DBT Certified</option><option>CSE</option><option>CSC</option><option>CST</option>
+            </optgroup>
+            <optgroup label="Creative Therapies">
+              <option>ATR</option><option>MT-BC</option><option>RDT</option>
+            </optgroup>
+            <optgroup label="Addiction &amp; Behavioral">
+              <option>CADC / ICADC</option>
+            </optgroup>
+            <optgroup label="Integrative / Alt Medicine">
+              <option>LAc</option>
+            </optgroup>
+            <optgroup label="Nutrition &amp; Health">
+              <option>RD / RDN</option><option>NBC-HWC</option>
+            </optgroup>
+            <optgroup label="Birth &amp; Reproductive">
+              <option>CNM</option>
+            </optgroup>
+            <optgroup label="Specialized">
+              <option>CGC</option><option>CDCES / CDE</option>
+            </optgroup>
+            <optgroup label="Fitness &amp; Physical">
+              <option>CPT (NSCA)</option><option>CPT (NASM)</option><option>CPT (ACE)</option><option>EP-C (ACSM)</option>
+            </optgroup>
+            <optgroup label="Other">
+              <option value="Licensed">Licensed</option>
+              <option value="custom">Other (enter manually)</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="form-group">
           <label class="form-label">Issuing State / Body</label>
-          <select v-model="licenseForm.issuing_state" class="form-select">
+          <select v-model="licenseForm.issuer" class="form-select">
+            <option value="">Select…</option>
             <option>New York</option><option>California</option><option>Texas</option><option>Florida</option>
             <option>Federal</option><option>National / No State</option><option>Other</option>
           </select>
         </div>
-        <div class="form-group"><label class="form-label">Date of Licensure / Certification / Registration</label><input v-model="licenseForm.issued_date" type="date" class="form-input" /></div>
       </div>
-      <div class="form-group"><label class="form-label">Upload Document</label><AegisDropzone accept=".pdf,.jpg,.png" @file-selected="licenseForm.file = $event" /></div>
+      <div v-if="licenseForm.cred_type === 'custom'" class="form-group">
+        <label class="form-label">Custom Credential Name <span class="req">*</span></label>
+        <input v-model="licenseForm.custom_type" class="form-input" type="text" placeholder="Enter credential name" />
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">License / Credential Number</label><input v-model="licenseForm.number" type="text" class="form-input" placeholder="e.g., NY-MD-12345 (optional)" /></div>
+        <div class="form-group"><label class="form-label">Display Name</label><input v-model="licenseForm.name" type="text" class="form-input" placeholder="e.g., NY Medical License (optional)" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Date of Issue</label><input v-model="licenseForm.issued_on" type="date" class="form-input" /></div>
+        <div class="form-group"><label class="form-label">Expiration Date</label><input v-model="licenseForm.expires_on" type="date" class="form-input" /></div>
+      </div>
+      <div class="form-group"><label class="form-label">Upload Document</label><AegisDropzone accept=".pdf,.jpg,.png" hint="PDF, JPG or PNG up to 10 MB" @files="licenseForm.document = $event[0]" /></div>
+      <div v-if="licenseForm.errors.document" class="form-error">{{ licenseForm.errors.document }}</div>
       <template #footer>
-        <button class="btn btn-outline" @click="ui.closeModal('addLicenseModal')">Cancel</button>
-        <button class="btn btn-primary" @click="submitLicense">Add Credential</button>
+        <button class="btn btn-outline" @click="modals.addLicense = false">Cancel</button>
+        <button class="btn btn-primary" :disabled="licenseForm.processing" @click="submitLicense">
+          {{ licenseForm.processing ? 'Saving…' : 'Add Credential' }}
+        </button>
       </template>
     </AegisModal>
 
     <!-- Renew License -->
-    <AegisModal modal-id="renewLicenseModal" title="Update Credential" size="lg">
+    <AegisModal v-model="modals.renewLicense" title="Update Credential" size="lg">
       <div class="alert alert-warning" style="margin-bottom:16px">
         <div class="alert-icon"><AegisIcon name="megaphone" :size="14" /></div>
-        <div class="alert-content">State License CA (CA-MD-67890) expires Feb 28, 2025</div>
+        <div class="alert-content">
+          {{ activeCredential?.cred_type ?? 'Credential' }}
+          {{ activeCredential?.expires_on ? 'expires ' + formatDate(activeCredential.expires_on) : 'needs updating' }}
+        </div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">New Expiration Date</label><input v-model="renewForm.expiry_date" type="date" class="form-input" /></div>
-        <div class="form-group"><label class="form-label">Confirmation / Reference #</label><input v-model="renewForm.license_number" type="text" class="form-input" placeholder="e.g., RENEW-2025-XXXXX" /></div>
+        <div class="form-group"><label class="form-label">New Expiration Date</label><input v-model="renewForm.expires_on" type="date" class="form-input" /></div>
+        <div class="form-group"><label class="form-label">Confirmation / Reference #</label><input v-model="renewForm.number" type="text" class="form-input" placeholder="e.g., RENEW-2025-XXXXX" /></div>
       </div>
-      <div class="form-group"><label class="form-label">Upload Updated Document</label><AegisDropzone accept=".pdf,.jpg,.png" @file-selected="renewForm.file = $event" /></div>
+      <div class="form-group"><label class="form-label">Upload Updated Document</label><AegisDropzone accept=".pdf,.jpg,.png" hint="PDF, JPG or PNG up to 10 MB" @files="renewForm.document = $event[0]" /></div>
+      <div v-if="renewForm.errors.document" class="form-error">{{ renewForm.errors.document }}</div>
       <template #footer>
-        <button class="btn btn-outline" @click="ui.closeModal('renewLicenseModal')">Cancel</button>
-        <button class="btn btn-primary" @click="submitRenew">Save Update</button>
+        <button class="btn btn-outline" @click="modals.renewLicense = false">Cancel</button>
+        <button class="btn btn-primary" :disabled="renewForm.processing" @click="submitRenew">
+          {{ renewForm.processing ? 'Saving…' : 'Save Update' }}
+        </button>
       </template>
     </AegisModal>
 
     <!-- License Detail -->
-    <AegisModal modal-id="licenseDetailModal" title="License Details" size="md">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
-        <div class="cc-detail-row"><span class="cc-detail-label">License Type</span><span class="cc-detail-value">License (MD)</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">License #</span><span class="cc-detail-value">NY-MD-12345</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">State</span><span class="cc-detail-value">New York</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Status</span><span class="cc-detail-value" style="color:var(--green)">● Active</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Issue Date</span><span class="cc-detail-value">July 1, 2022</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Expires</span><span class="cc-detail-value">June 30, 2026</span></div>
+    <AegisModal v-model="modals.licenseDetail" title="License Details" size="md">
+      <div style="display:flex;flex-direction:column">
+        <div class="cc-detail-row"><span class="cc-detail-label">Credential Type</span><span class="cc-detail-value">{{ activeCredential?.cred_type ?? '—' }}</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">License #</span><span class="cc-detail-value">{{ activeCredential?.number ?? '—' }}</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Issuing Body</span><span class="cc-detail-value">{{ activeCredential?.issuer ?? '—' }}</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Status</span>
+          <span class="cc-detail-value" :style="activeCredential?.days_remaining !== undefined && activeCredential.days_remaining < 30 ? 'color:var(--red)' : 'color:var(--green)'">
+            ● {{ activeCredential?.days_remaining !== undefined && activeCredential.days_remaining < 1 ? 'Expired' : 'Active' }}
+          </span>
+        </div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Issue Date</span><span class="cc-detail-value">{{ activeCredential?.issued_on ? formatDate(activeCredential.issued_on) : '—' }}</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Expires</span><span class="cc-detail-value">{{ activeCredential?.expires_on ? formatDate(activeCredential.expires_on) : 'No expiry' }}</span></div>
       </div>
       <template #footer>
-        <button class="btn btn-outline" @click="ui.closeModal('licenseDetailModal')">Close</button>
-        <button class="btn btn-primary" @click="ui.openModal('renewLicenseModal'); ui.closeModal('licenseDetailModal')">Update Credential</button>
+        <button class="btn btn-outline" @click="modals.licenseDetail = false">Close</button>
+        <button class="btn btn-primary" @click="openRenewLicense(activeCredential); modals.licenseDetail = false">Update Credential</button>
       </template>
     </AegisModal>
 
     <!-- Add Insurance -->
-    <AegisModal modal-id="addInsuranceModal" title="Add Insurance Policy" size="lg">
-      <div class="form-group">
-        <label class="form-label">Policy Type <span class="req">*</span></label>
-        <select v-model="insuranceForm.type" class="form-select">
-          <option value="">Select type</option>
-          <option>Professional Liability (Malpractice)</option>
-          <option>General Business Insurance</option>
-          <option>Workers Compensation</option>
-          <option>Cyber Liability</option>
-          <option>Life Insurance</option>
-          <option>Other</option>
-        </select>
+    <AegisModal v-model="modals.addInsurance" title="Add Insurance Policy" size="lg">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Policy Type <span class="req">*</span></label>
+          <select v-model="insuranceForm.cred_type" class="form-select">
+            <option value="">Select type</option>
+            <option>Professional Liability (Malpractice)</option>
+            <option>General Business Insurance</option>
+            <option>Workers Compensation</option>
+            <option>Cyber Liability</option>
+            <option>Life Insurance</option>
+            <option>Other</option>
+          </select>
+          <div v-if="insuranceForm.errors.cred_type" class="form-error">{{ insuranceForm.errors.cred_type }}</div>
+        </div>
+        <div class="form-group"><label class="form-label">Insurance Provider <span class="req">*</span></label><input v-model="insuranceForm.issuer" type="text" class="form-input" placeholder="e.g., Medical Protective" /></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Insurance Provider <span class="req">*</span></label><input v-model="insuranceForm.provider" type="text" class="form-input" placeholder="e.g., Medical Protective" /></div>
-        <div class="form-group"><label class="form-label">Policy Number <span class="req">*</span></label><input v-model="insuranceForm.policy_number" type="text" class="form-input" placeholder="e.g., POL-2024-XXXXX" /></div>
+        <div class="form-group"><label class="form-label">Policy Number <span class="req">*</span></label><input v-model="insuranceForm.number" type="text" class="form-input" placeholder="e.g., POL-2024-XXXXX" /></div>
+        <div class="form-group"><label class="form-label">Display Name / Coverage</label><input v-model="insuranceForm.name" type="text" class="form-input" placeholder="e.g., $2M / $4M Liability" /></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Coverage Amount</label><input v-model="insuranceForm.coverage" type="text" class="form-input" placeholder="e.g., $2,000,000" /></div>
-        <div class="form-group"><label class="form-label">Annual Premium</label><input v-model="insuranceForm.premium" type="text" class="form-input" placeholder="e.g., $4,200/year" /></div>
+        <div class="form-group"><label class="form-label">Effective Date <span class="req">*</span></label><input v-model="insuranceForm.issued_on" type="date" class="form-input" /></div>
+        <div class="form-group"><label class="form-label">Expiration Date <span class="req">*</span></label><input v-model="insuranceForm.expires_on" type="date" class="form-input" /></div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">Effective Date <span class="req">*</span></label><input v-model="insuranceForm.effective_date" type="date" class="form-input" /></div>
-        <div class="form-group"><label class="form-label">Expiration Date <span class="req">*</span></label><input v-model="insuranceForm.expiry_date" type="date" class="form-input" /></div>
-      </div>
-      <div class="form-group"><label class="form-label">Upload Policy Document</label><AegisDropzone accept=".pdf,.jpg,.png" @file-selected="insuranceForm.file = $event" /></div>
+      <div class="form-group"><label class="form-label">Upload Policy Document</label><AegisDropzone accept=".pdf,.jpg,.png" hint="PDF, JPG or PNG up to 10 MB" @files="insuranceForm.document = $event[0]" /></div>
+      <div v-if="insuranceForm.errors.document" class="form-error">{{ insuranceForm.errors.document }}</div>
       <template #footer>
-        <button class="btn btn-outline" @click="ui.closeModal('addInsuranceModal')">Cancel</button>
-        <button class="btn btn-primary" @click="submitInsurance">Add Policy</button>
+        <button class="btn btn-outline" @click="modals.addInsurance = false">Cancel</button>
+        <button class="btn btn-primary" :disabled="insuranceForm.processing" @click="submitInsurance">
+          {{ insuranceForm.processing ? 'Saving…' : 'Add Policy' }}
+        </button>
       </template>
     </AegisModal>
 
     <!-- Renew Insurance -->
-    <AegisModal modal-id="renewInsuranceModal" title="Update Insurance Policy" size="lg">
+    <AegisModal v-model="modals.renewInsurance" title="Update Insurance Policy" size="lg">
       <div class="alert alert-warning" style="margin-bottom:14px">
         <div class="alert-icon"><AegisIcon name="megaphone" :size="14" /></div>
-        <div class="alert-content">Professional Liability insurance expires March 15, 2025 (30 days)</div>
+        <div class="alert-content">
+          {{ activeInsurance?.cred_type ?? 'Insurance policy' }}
+          {{ activeInsurance?.expires_on ? 'expires ' + formatDate(activeInsurance.expires_on) : 'needs updating' }}
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">New Policy Number</label>
+        <input v-model="renewInsuranceForm.number" type="text" class="form-input" placeholder="If changed" />
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">New Policy Number</label><input v-model="renewInsuranceForm.policy_number" type="text" class="form-input" placeholder="If changed" /></div>
-        <div class="form-group"><label class="form-label">Coverage Amount</label><input v-model="renewInsuranceForm.coverage" type="text" class="form-input" placeholder="e.g., $2M / $4M" /></div>
+        <div class="form-group">
+          <label class="form-label">New Effective Date <span class="req">*</span></label>
+          <input v-model="renewInsuranceForm.issued_on" type="date" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">New Expiration Date <span class="req">*</span></label>
+          <input v-model="renewInsuranceForm.expires_on" type="date" class="form-input" />
+          <div v-if="renewInsuranceForm.errors.expires_on" class="form-error">{{ renewInsuranceForm.errors.expires_on }}</div>
+        </div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">New Effective Date <span class="req">*</span></label><input v-model="renewInsuranceForm.effective_date" type="date" class="form-input" /></div>
-        <div class="form-group"><label class="form-label">New Expiration Date <span class="req">*</span></label><input v-model="renewInsuranceForm.expiry_date" type="date" class="form-input" /></div>
-      </div>
-      <div class="form-group"><label class="form-label">Upload Updated Policy</label><AegisDropzone accept=".pdf,.jpg,.png" @file-selected="renewInsuranceForm.file = $event" /></div>
+      <div class="form-group"><label class="form-label">Upload Updated Policy</label><AegisDropzone accept=".pdf,.jpg,.png" hint="PDF, JPG or PNG up to 10 MB" @files="renewInsuranceForm.document = $event[0]" /></div>
+      <div v-if="renewInsuranceForm.errors.document" class="form-error">{{ renewInsuranceForm.errors.document }}</div>
       <template #footer>
-        <button class="btn btn-outline" @click="ui.closeModal('renewInsuranceModal')">Cancel</button>
-        <button class="btn btn-primary" @click="submitRenewInsurance">Save Update</button>
+        <button class="btn btn-outline" @click="modals.renewInsurance = false">Cancel</button>
+        <button class="btn btn-primary" :disabled="renewInsuranceForm.processing" @click="submitRenewInsurance">
+          {{ renewInsuranceForm.processing ? 'Saving…' : 'Save Update' }}
+        </button>
       </template>
     </AegisModal>
 
     <!-- Insurance Detail -->
-    <AegisModal modal-id="insuranceDetailModal" title="Insurance Policy Details" size="md">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
-        <div class="cc-detail-row"><span class="cc-detail-label">Policy Type</span><span class="cc-detail-value">Professional Liability</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Carrier</span><span class="cc-detail-value">NPI Insurance</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Policy #</span><span class="cc-detail-value">NPI-2024-78321</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Status</span><span class="cc-detail-value" style="color:var(--green)">● Active</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Coverage</span><span class="cc-detail-value">$1M / $3M</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Deductible</span><span class="cc-detail-value">$2,500</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Effective Date</span><span class="cc-detail-value">Mar 15, 2024</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Expires</span><span class="cc-detail-value">Mar 15, 2025</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Annual Premium</span><span class="cc-detail-value">$1,840</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Auto-Renew</span><span class="cc-detail-value">Off</span></div>
-      </div>
-      <div style="margin-top:18px">
-        <div class="modal-section-label">Carrier Contact</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-top:8px">
-          <div class="cc-detail-row"><span class="cc-detail-label">Phone</span><span class="cc-detail-value">(800) 247-1500</span></div>
-          <div class="cc-detail-row"><span class="cc-detail-label">Email</span><span class="cc-detail-value">claims@npiins.com</span></div>
+    <AegisModal v-model="modals.insuranceDetail" title="Insurance Policy Details" size="md">
+      <div style="display:flex;flex-direction:column">
+        <div class="cc-detail-row"><span class="cc-detail-label">Policy Type</span><span class="cc-detail-value">{{ activeInsurance?.cred_type ?? '—' }}</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Carrier</span><span class="cc-detail-value">{{ activeInsurance?.issuer ?? '—' }}</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Policy #</span><span class="cc-detail-value">{{ activeInsurance?.number ?? '—' }}</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Status</span>
+          <span class="cc-detail-value" :style="activeInsurance?.days_remaining !== undefined && activeInsurance.days_remaining < 30 ? 'color:var(--red)' : 'color:var(--green)'">
+            ● {{ activeInsurance?.days_remaining !== undefined && activeInsurance.days_remaining < 1 ? 'Expired' : 'Active' }}
+          </span>
         </div>
-      </div>
-      <div style="margin-top:18px">
-        <div class="modal-section-label">Documents</div>
-        <div class="list-group" style="margin-top:8px">
-          <div class="list-group-item">
-            <span style="display:inline-flex;align-items:center;gap:9px;color:var(--text-2);font-size:13px;font-weight:600">
-              <AegisIcon name="file-text" :size="14" /> Policy Declaration.pdf
-            </span>
-            <button class="btn-icon-sm" data-tooltip="Download"><AegisIcon name="download" :size="12" /></button>
-          </div>
-          <div class="list-group-item">
-            <span style="display:inline-flex;align-items:center;gap:9px;color:var(--text-2);font-size:13px;font-weight:600">
-              <AegisIcon name="file-text" :size="14" /> Certificate of Insurance.pdf
-            </span>
-            <button class="btn-icon-sm" data-tooltip="Download"><AegisIcon name="download" :size="12" /></button>
-          </div>
-        </div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Coverage</span><span class="cc-detail-value">{{ activeInsurance?.coverage ?? '—' }}</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Annual Premium</span><span class="cc-detail-value">{{ activeInsurance?.premium ?? '—' }}</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Effective Date</span><span class="cc-detail-value">{{ activeInsurance?.issued_on ? formatDate(activeInsurance.issued_on) : '—' }}</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Expires</span><span class="cc-detail-value">{{ activeInsurance?.expires_on ? formatDate(activeInsurance.expires_on) : '—' }}</span></div>
       </div>
       <template #footer>
-        <button class="btn btn-outline" @click="ui.closeModal('insuranceDetailModal')">Close</button>
-        <button class="btn btn-primary" @click="ui.openModal('renewInsuranceModal'); ui.closeModal('insuranceDetailModal')">Update Policy</button>
+        <button class="btn btn-outline" @click="modals.insuranceDetail = false">Close</button>
+        <button class="btn btn-primary" @click="openRenewInsurance(activeInsurance); modals.insuranceDetail = false">Update Policy</button>
       </template>
     </AegisModal>
 
     <!-- Set Reminder -->
-    <AegisModal modal-id="setReminderModal" title="Set Reminder" size="sm">
+    <AegisModal v-model="modals.setReminder" title="Set Reminder" size="sm">
       <div class="form-group">
         <label class="form-label">Item</label>
         <select v-model="reminderForm.item" class="form-select">
@@ -983,7 +1056,7 @@
           <select v-model="reminderForm.days_before" class="form-select">
             <option>30 days before</option>
             <option>60 days before</option>
-            <option selected>90 days before</option>
+            <option>90 days before</option>
             <option>120 days before</option>
             <option>180 days before</option>
           </select>
@@ -1006,72 +1079,82 @@
         </div>
       </div>
       <template #footer>
-        <button class="btn btn-outline" @click="ui.closeModal('setReminderModal')">Cancel</button>
+        <button class="btn btn-outline" @click="modals.setReminder = false">Cancel</button>
         <button class="btn btn-primary" @click="submitReminder">Set Reminder</button>
       </template>
     </AegisModal>
 
     <!-- Logout -->
-    <AegisModal modal-id="logoutModal" title="Sign Out" size="sm">
+    <AegisModal v-model="modals.logout" title="Sign Out" size="sm">
       <p style="font-size:13.5px;color:var(--text-2);line-height:1.6">Are you sure you want to sign out of Aegis?</p>
       <template #footer>
-        <button class="btn btn-outline" @click="ui.closeModal('logoutModal')">Cancel</button>
+        <button class="btn btn-outline" @click="modals.logout = false">Cancel</button>
         <button class="btn btn-danger" @click="handleLogout">Sign Out</button>
       </template>
     </AegisModal>
 
     <!-- Notifications -->
-    <AegisModal modal-id="notifModal" title="Notifications" size="sm">
+    <AegisModal v-model="modals.notif" title="Notifications" size="sm">
       <div style="padding:0">
         <div class="list-group" style="border:none;border-radius:0">
-          <div class="list-group-item clickable" @click="router.visit(route('provider.referrals.index'))">
-            <div style="width:36px;height:36px;border-radius:var(--radius-sm);background:var(--blue-light);color:var(--blue-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-              <AegisIcon name="arrow-right-arrow-left" :size="18" />
+          <template v-if="incomingReferrals.length">
+            <div
+              v-for="ref_ in incomingReferrals.slice(0,5)"
+              :key="ref_.id"
+              class="list-group-item clickable"
+              @click="openReferralDetail(ref_); modals.notif = false"
+            >
+              <div style="width:36px;height:36px;border-radius:var(--radius-sm);background:var(--blue-light);color:var(--blue-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                <AegisIcon name="arrow-right-arrow-left" :size="18" />
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:700;color:var(--text)">Referral from {{ ref_.sender?.display_name ?? 'a practitioner' }}</div>
+                <div style="font-size:12px;color:var(--text-3);margin-top:2px;line-height:1.5">{{ ref_.subject ?? '' }} · {{ ref_.created_at ? formatDate(ref_.created_at) : '' }}</div>
+              </div>
             </div>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:700;color:var(--text)">New referral from Dr. Robert Miller</div>
-              <div style="font-size:12px;color:var(--text-3);margin-top:2px;line-height:1.5">Client John D. · Anxiety follow-up · 2 hours ago</div>
-            </div>
-          </div>
-          <div class="list-group-item clickable" @click="ui.openModal('addLicenseModal'); ui.closeModal('notifModal')">
-            <div style="width:36px;height:36px;border-radius:var(--radius-sm);background:var(--orange-light);color:var(--orange-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-              <AegisIcon name="credit-card" :size="18" />
-            </div>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:700;color:var(--text)">License update reminder</div>
-              <div style="font-size:12px;color:var(--text-3);margin-top:2px;line-height:1.5">CA License expires in 8 days · 1 hour ago</div>
-            </div>
-          </div>
+          </template>
+          <AegisEmptyState
+            v-else
+            icon="bell"
+            title="No new notifications"
+          />
         </div>
       </div>
       <template #footer>
-        <button class="btn btn-ghost btn-sm" @click="toast.success('All marked as read'); ui.closeModal('notifModal')">Mark all read</button>
-        <button class="btn btn-outline btn-sm" @click="ui.closeModal('notifModal')">View All</button>
+        <button class="btn btn-ghost btn-sm" @click="toast.success('All marked as read'); modals.notif = false">Mark all read</button>
+        <Link :href="route('provider.referrals.index')" class="btn btn-outline btn-sm" @click="modals.notif = false">View All</Link>
       </template>
     </AegisModal>
 
     <!-- Referral Detail -->
-    <AegisModal modal-id="referralDetailModal" title="Referral Details" size="lg">
-      <div class="alert alert-info" style="margin-bottom:14px">Received from Dr. Robert Miller · 2 hours ago</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:14px;margin-top:14px">
-        <div class="cc-detail-row"><span class="cc-detail-label">Client</span><span class="cc-detail-value">John D. (DOB: Mar 15, 1989)</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Diagnosis</span><span class="cc-detail-value">Anxiety Disorder (GAD)</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Insurance</span><span class="cc-detail-value">Blue Cross Blue Shield</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Urgency</span><span class="cc-detail-value" style="color:var(--orange)">Soon (within 2 weeks)</span></div>
+    <AegisModal v-model="modals.referralDetail" title="Referral Details" size="lg">
+      <div class="alert alert-info" style="margin-bottom:14px">
+        <div class="alert-icon"><AegisIcon name="arrow-right-arrow-left" :size="14" /></div>
+        <div class="alert-content">Received from {{ activeReferral?.sender?.display_name ?? 'a practitioner' }} · {{ activeReferral?.created_at ? formatDate(activeReferral.created_at) : '' }}</div>
       </div>
-      <div class="form-label" style="margin-bottom:6px">Clinical Notes</div>
-      <div style="background:var(--surface-2);border-radius:var(--radius);padding:14px;font-size:13px;color:var(--text-2);line-height:1.6">
-        Client has been experiencing moderate generalized anxiety symptoms for 6 months. Therapy-first approach preferred. No current medications.
+      <div style="display:flex;flex-direction:column;margin-bottom:14px;margin-top:14px">
+        <div class="cc-detail-row"><span class="cc-detail-label">Subject</span><span class="cc-detail-value">{{ activeReferral?.subject ?? '—' }}</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Client</span><span class="cc-detail-value">{{ activeReferral?.client_initials ?? '—' }}{{ activeReferral?.client_age_band ? ' · ' + activeReferral.client_age_band : '' }}</span></div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Urgency</span>
+          <span class="cc-detail-value" :style="activeReferral?.urgency === 'urgent' ? 'color:var(--red)' : activeReferral?.urgency === 'high' ? 'color:var(--orange)' : ''">
+            {{ { low: 'Low — routine', normal: 'Normal', high: 'High — within 2 weeks', urgent: 'Urgent — ASAP' }[activeReferral?.urgency] ?? '—' }}
+          </span>
+        </div>
+        <div class="cc-detail-row"><span class="cc-detail-label">Status</span><span class="cc-detail-value">{{ activeReferral?.status ?? '—' }}</span></div>
+      </div>
+      <div v-if="activeReferral?.notes" class="form-label" style="margin-bottom:6px">Clinical Notes</div>
+      <div v-if="activeReferral?.notes" style="background:var(--surface-2);border-radius:var(--radius);padding:14px;font-size:13px;color:var(--text-2);line-height:1.6">
+        {{ activeReferral.notes }}
       </div>
       <template #footer>
-        <button class="btn btn-outline" @click="ui.closeModal('referralDetailModal')">Close</button>
-        <button class="btn btn-danger btn-sm" @click="toast.error('Referral declined'); ui.closeModal('referralDetailModal')">Decline</button>
-        <button class="btn btn-primary" @click="toast.success('Referral accepted!'); ui.closeModal('referralDetailModal')">Accept Referral</button>
+        <button class="btn btn-outline" @click="modals.referralDetail = false">Close</button>
+        <button class="btn btn-danger btn-sm" @click="declineReferral">Decline</button>
+        <button class="btn btn-primary" @click="acceptReferral">Accept Referral</button>
       </template>
     </AegisModal>
 
     <!-- Service Request -->
-    <AegisModal modal-id="serviceRequestModal" title="Request a Service" size="md">
+    <AegisModal v-model="modals.serviceRequest" title="Request a Service" size="md">
       <div style="background:var(--badge-bg-gold);border:1px solid var(--gold-dark);border-radius:var(--radius-sm);padding:11px 13px;margin-bottom:18px;display:flex;gap:10px;align-items:flex-start">
         <span style="flex-shrink:0;margin-top:1px;display:inline-flex;align-items:center"><AegisIcon name="alert-triangle" :size="16" /></span>
         <div style="font-size:12px;color:var(--text-2);line-height:1.55">Service requests are sent securely through Aegis. You'll receive a confirmation once the provider responds.</div>
@@ -1080,7 +1163,7 @@
         <div class="form-group"><label class="form-label">Service</label><input type="text" class="form-input" v-model="serviceRequestForm.service_name" readonly /></div>
         <div class="form-group"><label class="form-label">From Provider</label><input type="text" class="form-input" v-model="serviceRequestForm.provider_name" readonly /></div>
       </div>
-      <div class="form-row">
+      <div class="form-row is-3col">
         <div class="form-group"><label class="form-label">Preferred Date <span class="req">*</span></label><input type="date" class="form-input" v-model="serviceRequestForm.preferred_date" /></div>
         <div class="form-group">
           <label class="form-label">Preferred Time</label>
@@ -1089,19 +1172,19 @@
             <option>Evening (5–8pm)</option><option>Flexible</option>
           </select>
         </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Format</label>
-        <select class="form-select" v-model="serviceRequestForm.format">
-          <option>Telehealth</option><option>In-Person</option><option>No preference</option>
-        </select>
+        <div class="form-group">
+          <label class="form-label">Format</label>
+          <select class="form-select" v-model="serviceRequestForm.format">
+            <option>Telehealth</option><option>In-Person</option><option>No preference</option>
+          </select>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Notes for Provider <span style="color:var(--text-4);font-weight:500">(optional)</span></label>
         <textarea class="form-textarea" v-model="serviceRequestForm.notes" rows="3" placeholder="Briefly describe what you'd like to discuss…"></textarea>
       </div>
       <template #footer>
-        <button class="btn btn-outline" @click="ui.closeModal('serviceRequestModal')">Cancel</button>
+        <button class="btn btn-outline" @click="modals.serviceRequest = false">Cancel</button>
         <button class="btn btn-primary" @click="submitServiceRequest">
           <AegisIcon name="send" :size="13" /> Send Request
         </button>
@@ -1112,13 +1195,11 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout   from '@/layouts/AppLayout.vue'
-import AegisModal  from '@/components/ui/AegisModal.vue'
-import AegisIcon   from '@/components/ui/AegisIcon.vue'
 import AegisDropzone from '@/components/ui/AegisDropzone.vue'
-import { useUiStore }   from '@/stores/ui'
+import ReferralModal from '@/components/modals/ReferralModal.vue'
 import { useToast }     from '@/composables/useToast'
 import { useConfirm }   from '@/composables/useConfirm'
 
@@ -1141,12 +1222,68 @@ const props = defineProps({
   netBusiness:        { type: Array,   default: () => [] },
   recentActivity:     { type: Array,   default: () => [] },
   upcomingCEUs:       { type: Array,   default: () => [] },
+  credentials:        { type: Array,   default: () => [] },
+  insurancePolicies:  { type: Array,   default: () => [] },
+  incomingReferrals:  { type: Array,   default: () => [] },
+  referralRoster:     { type: Array,   default: () => [] },
+  referralNetwork:    { type: Array,   default: () => [] },
+  ceuRequirements:    { type: Array,   default: () => [] },
 })
 
-// ── Stores & composables ───────────────────────────────────────────────
-const ui               = useUiStore()
+// ── Composables ───────────────────────────────────────────────────────
 const toast            = useToast()
 const { confirmAction } = useConfirm()
+
+// ── Modal state — one key per modal ───────────────────────────────────
+const modals = reactive({
+  executorPanel:      false,
+  activateSuccession: false,
+  annualReview:       false,
+  ceu:                false,
+  newReferral:        false,
+  addLicense:         false,
+  renewLicense:       false,
+  licenseDetail:      false,
+  addInsurance:       false,
+  renewInsurance:     false,
+  insuranceDetail:    false,
+  setReminder:        false,
+  logout:             false,
+  notif:              false,
+  referralDetail:     false,
+  serviceRequest:     false,
+})
+
+// Active credential/insurance/referral for detail modals
+const activeCredential  = ref(null)
+const activeInsurance   = ref(null)
+const activeReferral    = ref(null)
+
+function openLicenseDetail(cred)    { activeCredential.value = cred; modals.licenseDetail = true }
+function openInsuranceDetail(ins)   { activeInsurance.value  = ins;  modals.insuranceDetail = true }
+function openReferralDetail(ref_)   { activeReferral.value   = ref_; modals.referralDetail = true }
+function openRenewLicense(cred)     { activeCredential.value = cred; modals.renewLicense = true }
+function openRenewInsurance(ins)    { activeInsurance.value  = ins;  modals.renewInsurance = true }
+
+// ── Credential helpers ─────────────────────────────────────────────────
+function credIsCritical (c) {
+  return c?.days_remaining !== null && c?.days_remaining !== undefined && c.days_remaining < 30
+}
+function credBarWidth (c) {
+  if (c?.days_remaining === null || c?.days_remaining === undefined) return 50
+  if (c.days_remaining < 1)   return 4
+  if (c.days_remaining < 30)  return 8
+  if (c.days_remaining < 60)  return 25
+  if (c.days_remaining < 180) return 50
+  return 78
+}
+function credDaysLabel (c) {
+  if (c?.days_remaining === null || c?.days_remaining === undefined) return '—'
+  if (c.days_remaining < 1)  return 'Expired'
+  if (c.days_remaining < 30) return c.days_remaining + ' days · update now'
+  return c.days_remaining + ' days remaining'
+}
+const credCriticalCount = computed(() => props.credentials.filter(credIsCritical).length)
 
 // ── Network tab ────────────────────────────────────────────────────────
 const nwTab = ref('clinical')
@@ -1208,83 +1345,192 @@ const ssInitials = computed(() => {
   return p.length >= 2 ? (p[0][0]+p[p.length-1][0]).toUpperCase() : p[0].substring(0,2).toUpperCase()
 })
 
-// ── Annual review form ─────────────────────────────────────────────────
-const reviewForm = reactive({
-  cs_contact_verified: false, ss_contact_verified: false,
-  ss_tasks_complete: false, cs_tasks_complete: false,
-  plan_attested: false, practice_current: false,
-  support_docs_complete: false, vault_complete: false,
+// ── Annual review — wired to provider.plan.review.complete ────────────
+const annualReviewForm = useForm({
+  checklist: {
+    stewards:    false,
+    incidents:   false,
+    documents:   false,
+    vault:       false,
+    tasks:       false,
+    fees:        false,
+    contacts:    false,
+    preferences: false,
+  },
   notes: '',
 })
-const allReviewChecked = computed(() =>
-  ['cs_contact_verified','ss_contact_verified','ss_tasks_complete','cs_tasks_complete',
-   'plan_attested','practice_current','support_docs_complete','vault_complete'].every(k => reviewForm[k])
-)
+const allReviewChecked = computed(() => Object.values(annualReviewForm.checklist).every(Boolean))
 function submitAnnualReview() {
-  toast.success('Annual review submitted.')
-  ui.closeModal('annualReviewModal')
-  Object.keys(reviewForm).forEach(k => { reviewForm[k] = typeof reviewForm[k] === 'boolean' ? false : '' })
+  annualReviewForm.post(route('provider.plan.review.complete'), {
+    onSuccess: () => { modals.annualReview = false; toast.success('Annual review submitted.') },
+    onError:   () => toast.error('Please complete all checklist items.'),
+  })
 }
 
-// ── CEU form ───────────────────────────────────────────────────────────
-const ceuReqForm = reactive({ jurisdiction: '', total_hours: '', cycle: 'annual', due_date: '', required_types: '' })
-const ceuForm = useForm({ title: '', category: '', delivery: 'synchronous', cycle: 'annual', credit_hours: '', provider_name: '', completed_on: '' })
+// ── CEU form — wired to provider.ceus.store ────────────────────────────
+// ── CEU Add form — wired to provider.ceus.store ────────────────────────
+const ceuForm = useForm({ type: 'ceu', title: '', category: '', delivery: 'synchronous', cycle: 'annual', credit_hours: '', provider_name: '', completed_on: '', certificate: null })
 function submitCeu() {
   ceuForm.post(route('provider.ceus.store'), {
-    onSuccess: () => { ui.closeModal('ceuModal'); toast.success('CEU credits added!'); ceuForm.reset() },
+    forceFormData: true,
+    onSuccess: () => { modals.ceu = false; toast.success('CEU credits added!'); ceuForm.reset() },
     onError:   () => toast.error('Could not save CEU entry.'),
   })
 }
 
-// ── Referral form ──────────────────────────────────────────────────────
-const referralForm = useForm({ recipient: '', notes: '' })
-function submitReferral() {
-  toast.success('Referral sent.')
-  ui.closeModal('newReferralModal')
-  referralForm.reset()
+// ── Referral submission is handled inside the shared ReferralModal component ──
+// (See /resources/js/components/modals/ReferralModal.vue)
+
+// ── Accept / Decline incoming referral ────────────────────────────────
+function acceptReferral() {
+  if (!activeReferral.value?.id) return
+  router.post(route('provider.referrals.accept', activeReferral.value.id), {}, {
+    onSuccess: () => { modals.referralDetail = false; toast.success('Referral accepted.') },
+    onError:   () => toast.error('Could not accept referral.'),
+  })
+}
+function declineReferral() {
+  if (!activeReferral.value?.id) return
+  router.post(route('provider.referrals.decline', activeReferral.value.id), {}, {
+    onSuccess: () => { modals.referralDetail = false; toast.info('Referral declined.') },
+    onError:   () => toast.error('Could not decline referral.'),
+  })
 }
 
-// ── License forms ──────────────────────────────────────────────────────
-const licenseForm = useForm({ type: '', custom_type: '', license_number: '', credential_number: '', issuing_state: 'New York', issued_date: '', file: null })
-function submitLicense() { toast.success('Credential added.'); ui.closeModal('addLicenseModal'); licenseForm.reset() }
-const renewForm = useForm({ expiry_date: '', license_number: '', file: null })
-function submitRenew() { toast.success('License renewal submitted.'); ui.closeModal('renewLicenseModal'); renewForm.reset() }
-
-// ── Insurance forms ────────────────────────────────────────────────────
-const insuranceForm = useForm({ type: '', expiry_date: '', effective_date: '', provider: '', policy_number: '', coverage: '', premium: '', file: null })
-function submitInsurance() { toast.success('Insurance added.'); ui.closeModal('addInsuranceModal'); insuranceForm.reset() }
-const renewInsuranceForm = useForm({ expiry_date: '', effective_date: '', policy_number: '', coverage: '', file: null })
-function submitRenewInsurance() { toast.success('Insurance renewal submitted.'); ui.closeModal('renewInsuranceModal'); renewInsuranceForm.reset() }
-
-// ── Reminder form ──────────────────────────────────────────────────────
-const reminderForm = useForm({ item: '', days_before: '90 days before', repeat: 'One-time', email: true, in_app: true, sms: false })
-function submitReminder() { toast.success('Reminder set!'); ui.closeModal('setReminderModal'); reminderForm.reset() }
-
-// ── Succession + Logout ────────────────────────────────────────────────
-// ── Succession form ──────────────────────────────────────────────────
-const successionForm = useForm({
-  plan_id:           props.plan?.id ?? '',
-  incident_type:     '',
-  report_narrative:  '',
-  documentation_type: 'none', // sent as extra context, not validated server-side
+// ── License / Credential forms — wired to provider.credentials.* ──────
+const licenseForm = useForm({
+  cred_type:  '',
+  custom_type:'',
+  name:        '',
+  number:      '',
+  issuer:      '',
+  issued_on:   '',
+  expires_on:  '',
+  document:    null,
 })
+function submitLicense() {
+  licenseForm.post(route('provider.credentials.store'), {
+    forceFormData: true,
+    preserveScroll: true,
+    onSuccess: () => { modals.addLicense = false; toast.success('Credential added.'); licenseForm.reset() },
+    onError:   () => toast.error('Please check the credential form.'),
+  })
+}
 
+const renewForm = useForm({ cred_type: '', expires_on: '', number: '', document: null })
+function submitRenew() {
+  if (!activeCredential.value?.id) { toast.error('No credential selected.'); return }
+  renewForm.post(route('provider.credentials.update', activeCredential.value.id), {
+    forceFormData: true,
+    preserveScroll: true,
+    headers: { 'X-HTTP-Method-Override': 'PUT' },
+    onSuccess: () => { modals.renewLicense = false; toast.success('Credential updated.'); renewForm.reset() },
+    onError:   () => toast.error('Could not save update.'),
+  })
+}
+
+// ── Insurance forms — share provider.credentials.* endpoints ──────────
+const insuranceForm = useForm({
+  cred_type:  '',
+  issuer:     '',
+  number:     '',
+  name:       '',
+  issued_on:  '',
+  expires_on: '',
+  document:   null,
+})
+function submitInsurance() {
+  insuranceForm.post(route('provider.credentials.store'), {
+    forceFormData: true,
+    preserveScroll: true,
+    onSuccess: () => { modals.addInsurance = false; toast.success('Insurance policy added.'); insuranceForm.reset() },
+    onError:   () => toast.error('Please check the form.'),
+  })
+}
+const renewInsuranceForm = useForm({ cred_type: '', expires_on: '', issued_on: '', number: '', document: null })
+function submitRenewInsurance() {
+  if (!activeInsurance.value?.id) { toast.error('No policy selected.'); return }
+  renewInsuranceForm.post(route('provider.credentials.update', activeInsurance.value.id), {
+    forceFormData: true,
+    preserveScroll: true,
+    headers: { 'X-HTTP-Method-Override': 'PUT' },
+    onSuccess: () => { modals.renewInsurance = false; toast.success('Insurance policy updated.'); renewInsuranceForm.reset() },
+    onError:   () => toast.error('Could not save update.'),
+  })
+}
+
+// ── CEU Requirements — wired to provider.ceu_requirements.* ───────────
+const ceuRequirementForm = useForm({
+  id:             null,
+  jurisdiction:   '',
+  total_hours:    '',
+  cycle:          'annual',
+  due_date:       '',
+  required_types: '',
+})
+function saveCeuRequirement() {
+  const isEdit = !!ceuRequirementForm.id
+  const url = isEdit
+    ? route('provider.ceu_requirements.update', ceuRequirementForm.id)
+    : route('provider.ceu_requirements.store')
+  const method = isEdit ? 'put' : 'post'
+  ceuRequirementForm[method](url, {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success(isEdit ? 'CEU requirement updated.' : 'CEU requirement saved.')
+      ceuRequirementForm.reset()
+    },
+    onError: () => toast.error('Please check the requirement fields.'),
+  })
+}
+function editCeuRequirement(req) {
+  ceuRequirementForm.id             = req.id
+  ceuRequirementForm.jurisdiction   = req.jurisdiction
+  ceuRequirementForm.total_hours    = req.total_hours
+  ceuRequirementForm.cycle          = req.cycle
+  ceuRequirementForm.due_date       = req.due_date
+  ceuRequirementForm.required_types = req.required_types ?? ''
+}
+function removeCeuRequirement(req) {
+  confirmAction(
+    `Remove "${req.jurisdiction}" requirement?`,
+    () => router.delete(route('provider.ceu_requirements.destroy', req.id), {
+      preserveScroll: true,
+      onSuccess: () => toast.success('CEU requirement removed.'),
+      onError:   () => toast.error('Could not remove requirement.'),
+    })
+  )
+}
+
+// ── Reminder form (UI-only — no backend reminder route exists yet) ─────
+const reminderForm = useForm({ item: '', days_before: '90 days before', repeat: 'One-time', email: true, in_app: true, sms: false })
+function submitReminder() { toast.success('Reminder set.'); modals.setReminder = false; reminderForm.reset() }
+
+// ── Succession — wired to provider.incident.activate ─────────────────
+const successionForm = useForm({
+  plan_id:          props.plan?.id ?? '',
+  incident_type:    '',
+  report_narrative: '',
+  documentation_type: 'none',
+})
 function activateSuccession() {
   if (!successionForm.incident_type) return
   successionForm.post(route('provider.incident.activate'), {
     onSuccess: () => {
-      ui.closeModal('activateSuccessionModal')
+      modals.activateSuccession = false
       successionForm.reset()
       toast.success('Continuity Plan activated. Your stewards have been notified.')
     },
-    onError: () => toast.error('Could not activate succession. Please try again.'),
+    onError: () => toast.error('Could not activate. Please try again.'),
   })
 }
-function handleLogout()       { ui.closeModal('logoutModal'); router.post(route('logout')) }
 
-// ── Service Request form ───────────────────────────────────────────────
-const serviceRequestForm = reactive({ service_name: 'Individual Supervision', provider_name: '', preferred_date: '', preferred_time: 'Flexible', format: 'Telehealth', notes: '' })
-function submitServiceRequest() { ui.closeModal('serviceRequestModal'); toast.success('Service request sent') }
+// ── Logout ────────────────────────────────────────────────────────────
+function handleLogout() { modals.logout = false; router.post(route('logout')) }
+
+// ── Service request (UI-only — no route yet) ──────────────────────────
+const serviceRequestForm = reactive({ service_name: '', provider_name: '', preferred_date: '', preferred_time: 'Flexible', format: 'Telehealth', notes: '' })
+function submitServiceRequest() { modals.serviceRequest = false; toast.success('Service request sent.') }
 </script>
 
 <style scoped>
@@ -1343,7 +1589,7 @@ function submitServiceRequest() { ui.closeModal('serviceRequestModal'); toast.su
   border: 1px solid var(--border);
   border-left: 3px solid var(--gold-dark);
   border-radius: var(--radius-lg); padding: 16px 20px;
-  display: flex; align-items: center; gap: 16px; box-shadow: var(--shadow-sm);
+  display: flex; align-items: center; gap: 16px; 
 }
 .dh-overview-icon {
   width: 40px; height: 40px; border-radius: var(--radius-sm);
@@ -1373,7 +1619,7 @@ function submitServiceRequest() { ui.closeModal('serviceRequestModal'); toast.su
 .dh-continuity {
   display: grid; grid-template-columns: 1.4fr 1fr;
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-lg); overflow: hidden; 
   margin-bottom: 0;
 }
 .dh-cn-left {
@@ -1416,7 +1662,7 @@ function submitServiceRequest() { ui.closeModal('serviceRequestModal'); toast.su
 .dh-cn-due small { display: block; font-family: var(--font-sans); font-size: 11px; font-weight: 400; color: var(--text-4); margin-top: 3px; }
 .dh-cn-bar    { position: relative; height: 6px; background: var(--surface-3); border-radius: var(--radius-full); margin: 4px 0; }
 .dh-cn-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 70%; background: var(--gold-dark); border-radius: var(--radius-full); }
-.dh-cn-bar-marker { position: absolute; right: 30%; top: 50%; transform: translate(50%,-50%); width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--primary); border: 2px solid var(--surface); box-shadow: var(--shadow-sm); }
+.dh-cn-bar-marker { position: absolute; right: 30%; top: 50%; transform: translate(50%,-50%); width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--primary); border: 2px solid var(--surface);  }
 .dh-cn-bar-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-4); font-weight: 600; }
 .dh-cn-todos  { display: flex; flex-direction: column; gap: 7px; }
 .dh-cn-todo   { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-3); }
@@ -1426,7 +1672,7 @@ function submitServiceRequest() { ui.closeModal('serviceRequestModal'); toast.su
 .dh-glance { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 0; }
 .dh-gl-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-  padding: 16px 18px; box-shadow: var(--shadow-sm);
+  padding: 16px 18px; 
   transition: transform var(--transition), box-shadow var(--transition);
 }
 .dh-gl-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
@@ -1442,7 +1688,7 @@ function submitServiceRequest() { ui.closeModal('serviceRequestModal'); toast.su
 .dh-cols { display: grid; grid-template-columns: 1fr 340px; gap: 20px; margin-bottom: 0; }
 
 /* ── Credentials ── */
-.dh-cred-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.dh-cred-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);  }
 .dh-cred-row  { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--border); transition: background .14s ease; position: relative; }
 .dh-cred-row:last-of-type { border-bottom: none; }
 .dh-cred-row:hover { background: var(--surface-2); }
@@ -1467,7 +1713,7 @@ function submitServiceRequest() { ui.closeModal('serviceRequestModal'); toast.su
 .crit-text { color: var(--red); font-weight: 600; }
 
 /* ── Attention card ── */
-.dh-attention { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.dh-attention { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);  }
 .dh-att-head  { display: flex; align-items: center; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
 .dh-att-icon  { width: 28px; height: 28px; border-radius: var(--radius-sm); background: var(--orange-light); color: var(--orange); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .dh-att-title { font-size: 13px; font-weight: 700; color: var(--text); flex: 1; }
@@ -1483,7 +1729,7 @@ function submitServiceRequest() { ui.closeModal('serviceRequestModal'); toast.su
 .dh-att-d     { font-size: 11px; color: var(--text-4); margin-top: 2px; }
 
 /* ── Quick actions ── */
-.dh-quick       { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; margin-top: 14px; padding: 16px; }
+.dh-quick       { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);  overflow: hidden; margin-top: 14px; padding: 16px; }
 .dh-quick-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 12px; }
 .dh-quick-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .dh-quick-grid .btn { justify-content: flex-start; gap: 7px; }
@@ -1492,12 +1738,12 @@ function submitServiceRequest() { ui.closeModal('serviceRequestModal'); toast.su
 .network-carousel-section {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-lg); padding: 18px 24px 22px;
-  margin-bottom: 0; box-shadow: var(--shadow-sm);
+  margin-bottom: 0; 
 }
 .nw-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
 .nw-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .nw-card { position: relative; display: flex; flex-direction: column; gap: 14px; padding: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-xs); cursor: pointer; transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease; }
-.nw-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); border-color: var(--surface-4); }
+.nw-card:hover { transform: translateY(-2px);  border-color: var(--surface-4); }
 .nw-top    { display: flex; align-items: flex-start; gap: 12px; }
 .nw-avatar { width: 48px; height: 48px; border-radius: var(--radius); background: var(--gold-dark); color: var(--text-inverted); display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-size: 16px; font-weight: 700; flex-shrink: 0; }
 .nw-info   { min-width: 0; flex: 1; }

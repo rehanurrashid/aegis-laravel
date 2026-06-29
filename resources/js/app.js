@@ -5,6 +5,7 @@ import { createInertiaApp } from '@inertiajs/vue3'
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'
 import { createPinia } from 'pinia'
 import { ZiggyVue } from 'ziggy-js'
+import { TooltipPlugin } from '@/plugins/tooltip'
 
 import AegisIcon from '@/components/ui/AegisIcon.vue'
 import AegisModal from '@/components/ui/AegisModal.vue'
@@ -54,6 +55,7 @@ createInertiaApp({
             .use(plugin)
             .use(pinia)
             .use(ZiggyVue)
+            .use(TooltipPlugin)
             // Globally available primitives — no per-page imports needed.
             .component('AegisIcon', AegisIcon)
             .component('AegisModal', AegisModal)

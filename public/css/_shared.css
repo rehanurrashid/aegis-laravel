@@ -3510,16 +3510,18 @@ html.sidebar-collapsed .save-bar { left: var(--sidebar-collapsed-width); }
 .save-dot.draft    { background: var(--blue); }
 
 /* ═══════════════════════════════════════════════════════════════
-   TOOLTIPS
+   TOOLTIPS  —  JS-portal implementation
+   All [data-tooltip] triggers are handled by resources/js/plugins/tooltip.js
+   which appends a single #aegis-tooltip div to <body>, bypassing every
+   stacking context, overflow:hidden ancestor, and modal backdrop.
+   The ::after pseudo-element approach is intentionally removed — it cannot
+   escape ancestor overflow or stacking contexts regardless of z-index.
    ═══════════════════════════════════════════════════════════════ */
-[data-tooltip] { position: relative; }
 
-[data-tooltip]::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
+/* The singleton tooltip bubble, positioned by JS via fixed coords */
+#aegis-tooltip {
+  position: fixed;
+  z-index: 2147483647;
   background: var(--primary);
   color: var(--text-inverted);
   font-family: var(--font-sans);
@@ -3528,36 +3530,158 @@ html.sidebar-collapsed .save-bar { left: var(--sidebar-collapsed-width); }
   padding: 4px 9px;
   border-radius: var(--radius-sm);
   white-space: nowrap;
-  opacity: 0;
   pointer-events: none;
-  transition: opacity var(--transition);
-  z-index: 2147483647;
   box-shadow: 0 2px 8px rgba(30,28,26,0.18);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  /* Prevent tooltip from itself triggering mouseenter/leave flicker */
+  user-select: none;
+}
+#aegis-tooltip.is-visible { opacity: 1; }
+
+/* ═══════════════════════════════════════════════════════════════
+   AEGIS DROPZONE  —  used by resources/js/components/ui/AegisDropzone.vue
+   File-upload drop area used in every modal that accepts a file
+   (license/insurance/CEU certificate/document upload).
+   ═══════════════════════════════════════════════════════════════ */
+.aegis-dropzone {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 110px;
+  padding: 18px 16px;
+  border: 1.5px dashed var(--border-dark, var(--border));
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-3);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
+  text-align: center;
+  outline: none;
+}
+.aegis-dropzone:hover,
+.aegis-dropzone:focus-visible {
+  border-color: var(--gold-dark);
+  background: var(--surface);
+  color: var(--text-2);
+}
+.aegis-dropzone.is-dragging {
+  border-color: var(--gold-dark);
+  background: var(--badge-bg-gold);
+  color: var(--gold-dark);
+}
+.aegis-dropzone.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.aegis-dropzone-input {
+  /* Hidden but focusable native input — clicks on the dropzone delegate to it */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.aegis-dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.aegis-dropzone-content .aegis-icon {
+  color: var(--gold-dark);
+  margin-bottom: 2px;
+}
+.aegis-dropzone-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  line-height: 1.4;
+}
+.aegis-dropzone-pick {
+  color: var(--gold-dark);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.aegis-dropzone-hint {
+  font-size: 11px;
+  color: var(--text-4);
+  font-weight: 500;
+}
+.aegis-dropzone.is-compact {
+  min-height: 78px;
+  padding: 12px 14px;
 }
 
-/* Variant: tooltip positioned BELOW the trigger (for elements at viewport top) */
-[data-tooltip][data-tooltip-pos="bottom"]::after {
-  bottom: auto;
-  top: calc(100% + 6px);
+/* ═══════════════════════════════════════════════════════════════
+   MODAL DETAIL ROWS — used in all detail / executor / continuity-plan
+   modals (License Details, Insurance Policy Details, Referral Details,
+   Executor Panel "Continuity Plan Details", etc.)
+   ═══════════════════════════════════════════════════════════════ */
+.cc-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+.cc-detail-row:last-child { border-bottom: none; }
+.cc-detail-label {
+  color: var(--text-4);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.cc-detail-value {
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+  word-break: break-word;
 }
 
-/* Variant: positioned to the right (for sidebar items in expanded mode if needed) */
-[data-tooltip][data-tooltip-pos="right"]::after {
-  bottom: auto; top: 50%; left: calc(100% + 6px);
-  transform: translateY(-50%);
+/* Section labels above grouped detail rows */
+.section-label {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-4);
+  margin-bottom: 8px;
 }
 
-/* Topbar icon tooltips need to outrank the open profile dropdown
-   (.ep-profile-drop.open at z-index 9999) when the dropdown overlaps
-   the icon area on hover. */
-.topbar [data-tooltip]::after { z-index: 2147483647; }
+/* Executor / steward avatar tile inside Continuity Plan Details modal */
+.exec-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: var(--gold-dark);
+  color: var(--text-inverted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.exec-role-chip {
+  background: var(--badge-bg-gold);
+  color: var(--gold-dark);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
 
-/* Suppress the CSS-only tooltip on the sidebar toggle — it uses the
-   JS-driven .sidebar-floating-tooltip instead so it can escape the
-   sidebar's overflow + stacking context. */
-.sidebar-toggle-btn[data-tooltip]::after { display: none; }
-
-[data-tooltip]:hover::after { opacity: 1; }
+/* Inline required-field asterisk used across every form modal */
+.req { color: var(--red); font-weight: 700; margin-left: 2px; }
 
 /* ═══════════════════════════════════════════════════════════════
    LOADING STATES

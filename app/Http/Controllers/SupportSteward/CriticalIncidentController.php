@@ -27,7 +27,7 @@ class CriticalIncidentController extends Controller
 
         return Inertia::render('SupportSteward/CriticalIncidentLog', [
             'activeIncidents' => CriticalIncident::whereIn('plan_id', $planIds)
-                ->whereIn('status', ['monitoring', 'active'])->get(),
+                ->whereIn('status', ['reported', 'verified', 'active'])->get(),
             'closedIncidents' => CriticalIncident::whereIn('plan_id', $planIds)
                 ->where('status', 'closed')->orderByDesc('closed_at')->limit(20)->get(),
         ]);
