@@ -60,7 +60,7 @@
         </div>
       </div>
 
-      <!-- ══ 2. OVERVIEW BANNER ════════════════════════════════════ -->
+      <!-- ══ 1.5 OVERVIEW BANNER ═══════════════════════════════════ -->
       <div class="dh-overview-banner">
         <div class="dh-overview-icon"><AegisIcon name="book-open" :size="20" /></div>
         <div style="flex:1;min-width:0">
@@ -71,6 +71,14 @@
           View Overview <AegisIcon name="chevron-right" :size="12" />
         </Link>
       </div>
+
+      <!-- ══ 2. PROFILE COMPLETION STRIP ═══════════════════════════
+           Hides automatically when pct >= 100. Same component used
+           across all portals (Provider / CS / SS / BP / Admin). -->
+      <ProfileCompletionStrip
+        :pct="auth.user?.profile_completion ?? 78"
+        :edit-href="route('provider.profile.index')"
+      />
 
       <!-- ══ 3. PLAN STATUS CHIPS ══════════════════════════════════ -->
       <div class="card" style="margin-bottom:22px;padding:18px 20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
@@ -281,9 +289,6 @@
           <div class="dh-sh-eyebrow">Compliance</div>
           <div class="dh-sh-title">Credentials &amp; coverage</div>
         </div>
-        <button class="dh-sh-link" @click="modals.addLicense = true">
-          Manage all <AegisIcon name="arrow-right-line" :size="12" />
-        </button>
       </div>
 
       <div class="dh-cols">
@@ -1199,6 +1204,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout   from '@/layouts/AppLayout.vue'
 import AegisDropzone from '@/components/ui/AegisDropzone.vue'
+import ProfileCompletionStrip from '@/components/features/ProfileCompletionStrip.vue'
 import ReferralModal from '@/components/modals/ReferralModal.vue'
 import { useToast }     from '@/composables/useToast'
 import { useConfirm }   from '@/composables/useConfirm'
@@ -1233,6 +1239,7 @@ const props = defineProps({
 // ── Composables ───────────────────────────────────────────────────────
 const toast            = useToast()
 const { confirmAction } = useConfirm()
+const auth             = computed(() => usePage().props.auth ?? {})
 
 // ── Modal state — one key per modal ───────────────────────────────────
 const modals = reactive({

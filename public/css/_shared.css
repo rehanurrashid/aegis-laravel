@@ -3619,6 +3619,36 @@ html.sidebar-collapsed .save-bar { left: var(--sidebar-collapsed-width); }
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   DATE INPUTS — clicking anywhere in the field opens the picker
+   (browser default only triggers on the calendar icon).
+   This stretches the native indicator across the entire input so
+   the whole control becomes the click target.
+   ═══════════════════════════════════════════════════════════════ */
+input[type="date"].form-input,
+input[type="datetime-local"].form-input,
+input[type="time"].form-input,
+input[type="month"].form-input,
+input[type="week"].form-input {
+  cursor: pointer;
+  position: relative;
+}
+input[type="date"].form-input::-webkit-calendar-picker-indicator,
+input[type="datetime-local"].form-input::-webkit-calendar-picker-indicator,
+input[type="time"].form-input::-webkit-calendar-picker-indicator,
+input[type="month"].form-input::-webkit-calendar-picker-indicator,
+input[type="week"].form-input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
    MODAL DETAIL ROWS — used in all detail / executor / continuity-plan
    modals (License Details, Insurance Policy Details, Referral Details,
    Executor Panel "Continuity Plan Details", etc.)
