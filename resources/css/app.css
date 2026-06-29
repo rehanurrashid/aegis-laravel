@@ -444,3 +444,138 @@ body {
   .public-hero { padding: 60px 20px 48px; }
   .public-section { padding: 52px 20px; }
 }
+
+/* ════════════════════════════════════════════════════════
+   PUBLIC PROFILE — pp-* design system
+   Used by ProviderProfile, ContinuityStewardProfile,
+   SupportStewardProfile, BusinessProfile
+   ════════════════════════════════════════════════════════ */
+
+/* ── Wrapper ── */
+.public-profile-wrap { max-width: 960px; margin: 0 auto; padding: var(--space-6) var(--space-4); }
+
+/* ── Stat row ── */
+.pp-stat-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin: 18px 0 24px; }
+.pp-stat-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 12px; text-align: center; }
+.pp-stat-val { font-family: var(--font-serif); font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.1; display: inline-flex; align-items: center; justify-content: center; gap: 3px; }
+.pp-stat-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-4); margin-top: 4px; }
+
+/* ── Two-column grid ── */
+.pp-grid { display: grid; grid-template-columns: 3fr 2fr; gap: 24px; align-items: start; margin-top: 24px; }
+
+/* ── Section card ── */
+.pp-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; margin-bottom: 16px; }
+.pp-section-title { display: flex; align-items: center; gap: 8px; font-family: var(--font-serif); font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 16px; line-height: 1.3; }
+.pp-section-eyebrow { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-4); margin-bottom: 8px; }
+
+/* ── Info rows ── */
+.pp-info-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.pp-info-row:last-of-type { border-bottom: none; }
+.pp-info-label { font-size: 12px; font-weight: 600; color: var(--text-3); white-space: nowrap; flex-shrink: 0; padding-top: 1px; }
+.pp-info-val { font-size: 13px; color: var(--text); text-align: right; line-height: 1.45; }
+
+/* ── Action row (inside section, below content) ── */
+.pp-action-row { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+
+/* ── Availability grid ── */
+.pp-avail-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 14px; }
+.pp-avail-day { background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px 4px; text-align: center; font-size: 11px; font-weight: 700; color: var(--text-4); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.pp-avail-day.open { background: var(--green-light); color: var(--green-dark); }
+.pp-avail-day.closed { background: var(--surface-3); color: var(--text-4); }
+.pp-avail-time { font-size: 10px; font-weight: 600; color: inherit; opacity: 0.8; }
+
+/* ── Tip / info box ── */
+.pp-tip-box { background: var(--badge-bg-gold); border: 1px solid var(--fade-gold); border-radius: var(--radius-sm); padding: 12px 14px; margin-top: 16px; }
+.pp-tip-title { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gold-dark); margin-bottom: 6px; }
+.pp-tip-body { font-size: 12.5px; color: var(--text-2); line-height: 1.6; }
+
+/* ── Note boxes (owner-only) ── */
+.pp-note-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 10px; font-size: 13px; color: var(--text-2); line-height: 1.6; }
+.pp-note-meta { font-size: 11px; color: var(--text-4); font-weight: 600; margin-top: 6px; }
+.pp-note-edit { width: 100%; min-height: 72px; resize: vertical; font-size: 13px; color: var(--text); background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; font-family: var(--font-sans); line-height: 1.55; transition: border-color var(--transition); box-sizing: border-box; }
+.pp-note-edit:focus { outline: none; border-color: var(--gold); }
+
+/* ── External links ── */
+.pp-ext-link { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--text-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 10px; text-decoration: none; transition: color var(--transition), border-color var(--transition); }
+.pp-ext-link:hover { color: var(--gold-dark); border-color: var(--fade-gold); }
+
+/* ── Services section ── */
+.pp-svc-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 24px; }
+.pp-svc-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.pp-svc-header-title { display: flex; align-items: center; gap: 8px; font-family: var(--font-serif); font-size: 16px; font-weight: 700; color: var(--text); }
+.pp-svc-header-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--gold-dark); background: var(--badge-bg-gold); border: 1px solid var(--fade-gold); border-radius: var(--radius-full); padding: 3px 10px; }
+.pp-svc-body { padding: 20px 22px; }
+.pp-svc-intro { font-size: 13px; color: var(--text-2); line-height: 1.65; margin-bottom: 20px; }
+.pp-svc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.pp-svc-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.pp-svc-card-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.pp-svc-card-name { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.3; }
+.pp-svc-card-price { font-size: 16px; font-weight: 700; color: var(--gold-dark); white-space: nowrap; }
+.pp-svc-card-price span { font-size: 11px; font-weight: 600; color: var(--text-3); }
+.pp-svc-card-desc { font-size: 12px; color: var(--text-2); line-height: 1.55; flex: 1; }
+.pp-svc-card-meta { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-3); }
+.pp-svc-card-meta span { display: flex; align-items: center; gap: 5px; }
+.pp-svc-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border); margin-top: auto; }
+.pp-svc-card-avail { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; }
+.pp-svc-card-avail.open { color: var(--green-dark); }
+.pp-svc-card-avail.limited { color: var(--gold-dark); }
+
+/* ── Capacity card (CS profiles) ── */
+.pp-capacity-card { display: flex; align-items: center; gap: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 22px; margin-bottom: 24px; }
+.pp-capacity-info { flex: 1; min-width: 0; }
+.pp-capacity-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.pp-capacity-sub { font-size: 12px; color: var(--text-3); margin-bottom: 8px; }
+.pp-capacity-bar { height: 6px; background: var(--surface-3); border-radius: var(--radius-full); overflow: hidden; margin-bottom: 5px; }
+.pp-capacity-fill { height: 100%; background: var(--gold-dark); border-radius: var(--radius-full); transition: width 0.4s ease; }
+.pp-capacity-stat { font-size: 12px; color: var(--text-3); }
+
+/* ── Metric tiles ── */
+.pp-metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.pp-metric-tile { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; text-align: center; }
+.pp-metric-tile.green { border-color: rgba(76, 175, 125, 0.25); }
+.pp-metric-tile.blue  { border-color: rgba(74, 144, 196, 0.25); }
+.pp-metric-tile.gold  { border-color: var(--fade-gold); }
+.pp-metric-tile-val { font-family: var(--font-serif); font-size: 22px; font-weight: 700; color: var(--text); }
+.pp-metric-tile.green .pp-metric-tile-val { color: var(--green-dark); }
+.pp-metric-tile.blue  .pp-metric-tile-val { color: var(--blue-dark); }
+.pp-metric-tile.gold  .pp-metric-tile-val { color: var(--gold-dark); }
+.pp-metric-tile-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-4); margin-top: 3px; }
+
+/* ── Step rows (How It Works — BP) ── */
+.pp-step-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.pp-step-num { width: 22px; height: 22px; border-radius: var(--radius-full); background: var(--gold-dark); color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+
+/* ── State pills (state coverage — CS) ── */
+.pp-state-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.pp-state-pill { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 10px; font-size: 11px; font-weight: 700; color: var(--text-2); }
+
+/* ── Tag chips and network tags ── */
+.tag-chip { display: inline-flex; align-items: center; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 10px; font-size: 12px; font-weight: 600; color: var(--text-2); }
+.pn-tag { display: inline-flex; align-items: center; background: rgba(196,169,106,0.08); border: 1px solid var(--fade-gold); border-radius: var(--radius-sm); padding: 4px 10px; font-size: 12px; font-weight: 600; color: var(--gold-dark); }
+
+/* ── Rating stars (endorse modal) ── */
+.rating-stars { display: inline-flex; gap: 4px; }
+.rating-star { background: transparent; border: none; padding: 4px; color: var(--text-4); cursor: pointer; line-height: 0; transition: color 0.15s ease, transform 0.15s ease; }
+.rating-star:hover { transform: scale(1.08); }
+.rating-star.is-on { color: var(--gold-dark); }
+
+/* ── Hero badges overrides (compact, sentence-case) ── */
+.hero-banner.is-quiet .page-hero-left.has-icon { gap: 20px; }
+.hero-banner.is-quiet .page-hero-actions { gap: 8px; }
+.hero-banner.is-quiet .hero-badges { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; gap: 6px; margin-top: 10px; }
+.hero-banner.is-quiet .hero-badges::-webkit-scrollbar { display: none; }
+.hero-banner.is-quiet .hero-badges .badge { font-size: 10px; padding: 3px 8px; letter-spacing: 0.1px; text-transform: none; font-weight: 600; border-radius: var(--radius-full); }
+.hero-banner.is-quiet .badge-blue { background: var(--blue-light); border: 1px solid var(--fade-blue); color: var(--blue-dark); }
+.hero-banner.is-quiet > .hero-meta { flex-wrap: nowrap; gap: 10px 14px; }
+.hero-banner.is-quiet .hero-meta-item { white-space: nowrap; font-size: 11.5px; }
+.btn-hero-ghost.is-icon-only, .btn-hero-solid.is-icon-only { padding: 8px; width: 34px; height: 34px; justify-content: center; gap: 0; flex-shrink: 0; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .pp-grid { grid-template-columns: 1fr; }
+  .pp-stat-row { grid-template-columns: repeat(3, 1fr); }
+  .pp-svc-grid { grid-template-columns: 1fr; }
+  .pp-metric-grid { grid-template-columns: 1fr; }
+  .hero-banner.is-quiet .hero-badges,
+  .hero-banner.is-quiet > .hero-meta { flex-wrap: wrap; overflow-x: visible; }
+}

@@ -25,13 +25,13 @@
           </div>
           <div class="page-hero-actions">
             <template v-if="isOwner">
-              <a :href="route('business.profile.index')" class="btn-hero-solid is-on-light"><AegisIcon name="pencil" :size="14" /> Edit</a>
+              <a :href="route('bp.profile.index')" class="btn-hero-solid is-on-light"><AegisIcon name="pencil" :size="14" /> Edit</a>
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Copy link" aria-label="Copy link"><AegisIcon name="link" :size="14" /></button>
             </template>
             <template v-else-if="isLoggedIn">
               <button type="button" class="btn-hero-solid is-on-light" @click="openHireModal"><AegisIcon name="check" :size="14" /> Hire</button>
               <button type="button" class="btn-hero-ghost is-on-light" @click="openRequestQuoteModal"><AegisIcon name="clipboard" :size="14" /> Quote</button>
-              <a :href="route('provider.messages.index') + '?to=' + user.id" class="btn-hero-ghost is-on-light is-icon-only" data-tooltip="Message" aria-label="Message"><AegisIcon name="message" :size="14" /></a>
+              <a :href="route('messages.index') + '?to=' + user.id" class="btn-hero-ghost is-on-light is-icon-only" data-tooltip="Message" aria-label="Message"><AegisIcon name="message" :size="14" /></a>
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="toast.success('Saved to favorites')" data-tooltip="Save" aria-label="Save"><AegisIcon name="star" :size="14" /></button>
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Share" aria-label="Share"><AegisIcon name="link" :size="14" /></button>
             </template>
@@ -127,7 +127,7 @@
           <div v-if="isOwner" class="pp-section">
             <div class="pp-section-title"><AegisIcon name="pencil" :size="13" class="aegis-icon-gold-dark" /> Profile Visibility</div>
             <p style="font-size:12px;color:var(--text-3);line-height:1.6;margin:0 0 10px">This is your public listing. Practitioners use this page to evaluate you before engagement. Your active client list, contracts, shared documents, and earnings are <strong style="color:var(--green-dark)">never shown</strong> publicly.</p>
-            <a :href="route('business.profile.index')" class="btn btn-outline btn-sm">Edit profile</a>
+            <a :href="route('bp.profile.index')" class="btn btn-outline btn-sm">Edit profile</a>
           </div>
 
           <div v-if="isLoggedIn && !isOwner" class="pp-section">
@@ -442,6 +442,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { usePage } from '@inertiajs/vue3'
 import PublicLayout from '@/layouts/PublicLayout.vue'
 import AegisModal from '@/components/ui/AegisModal.vue'
 import AegisIcon from '@/components/ui/AegisIcon.vue'
@@ -449,14 +450,17 @@ import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 
 const props = defineProps({
-  user:       { type: Object,  required: true },
-  viewerRole: { type: String,  default: null },
-  isOwner:    { type: Boolean, default: false },
-  isLoggedIn: { type: Boolean, default: false },
+  user:       { type: Object,  required: true }
 })
 
+const page = usePage()
 const toast = useToast()
 const { confirmAction } = useConfirm()
+
+// Derive auth state from Inertia shared props — zero dependency on controller passing them
+const authUser   = computed(() => page.props.auth?.user ?? null)
+const isLoggedIn = computed(() => !!authUser.value)
+const isOwner    = computed(() => isLoggedIn.value && authUser.value?.id === props.user?.id)
 
 const pm        = computed(() => props.user.profile_meta ?? {})
 const pmStats   = computed(() => pm.value.stats ?? {})

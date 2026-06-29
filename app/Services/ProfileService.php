@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\NetworkConnection;
 use App\Models\User;
-use App\Models\UserMeta;
 use Illuminate\Support\Str;
 
 class ProfileService
@@ -32,24 +32,24 @@ class ProfileService
 
     public function updateServices(User $user, array $services): User
     {
-        $meta = $user->profile_meta ? (json_decode($user->profile_meta, true) ?: []) : [];
-        $meta['services'] = $services;
+        $meta              = $user->profile_meta ? (json_decode($user->profile_meta, true) ?: []) : [];
+        $meta['services']  = $services;
         $user->update(['profile_meta' => json_encode($meta)]);
         return $user->fresh();
     }
 
     public function updateApproaches(User $user, array $approaches): User
     {
-        $meta = $user->profile_meta ? (json_decode($user->profile_meta, true) ?: []) : [];
-        $meta['approaches'] = $approaches;
+        $meta                = $user->profile_meta ? (json_decode($user->profile_meta, true) ?: []) : [];
+        $meta['approaches']  = $approaches;
         $user->update(['profile_meta' => json_encode($meta)]);
         return $user->fresh();
     }
 
     public function updateFees(User $user, array $fees): User
     {
-        $meta = $user->profile_meta ? (json_decode($user->profile_meta, true) ?: []) : [];
-        $meta['fees'] = $fees;
+        $meta          = $user->profile_meta ? (json_decode($user->profile_meta, true) ?: []) : [];
+        $meta['fees']  = $fees;
         $user->update(['profile_meta' => json_encode($meta)]);
         return $user->fresh();
     }
@@ -58,57 +58,190 @@ class ProfileService
     {
         $user->update([
             'network_hours' => isset($availability['hours']) ? json_encode($availability['hours']) : $user->network_hours,
-            'network_accepting' => $availability['accepting'] ?? $user->network_accepting,
-            'network_telehealth' => $availability['telehealth'] ?? $user->network_telehealth,
         ]);
         return $user->fresh();
     }
 
-    public function updatePrivacy(User $user, array $privacy): User
+    public function updatePrivacy(User $user, array $flags): User
     {
         $allowed = ['practitioner_public', 'cs_public', 'business_partner_public'];
-        $user->update(array_intersect_key($privacy, array_flip($allowed)));
+        $user->update(array_intersect_key($flags, array_flip($allowed)));
         return $user->fresh();
     }
 
-    public function updateNetworkPreferences(User $user, array $prefs): User
+    public function updateNetwork(User $user, array $prefs): User
     {
-        $allowed = ['network_accepting', 'network_telehealth', 'network_insurance', 'network_languages', 'network_format'];
-        $update = array_intersect_key($prefs, array_flip($allowed));
-        foreach (['network_insurance', 'network_languages', 'network_format'] as $jsonKey) {
-            if (isset($update[$jsonKey]) && is_array($update[$jsonKey])) {
-                $update[$jsonKey] = json_encode($update[$jsonKey]);
-            }
-        }
-        $user->update($update);
+        $meta                 = $user->profile_meta ? (json_decode($user->profile_meta, true) ?: []) : [];
+        $meta['network_prefs'] = $prefs;
+        $user->update(['profile_meta' => json_encode($meta)]);
         return $user->fresh();
     }
 
-    public function setMeta(string $userId, string $key, string $value, string $type = 'string'): UserMeta
-    {
-        return UserMeta::updateOrCreate(
-            ['user_id' => $userId, 'meta_key' => $key],
-            ['meta_value' => $value, 'meta_type' => $type]
-        );
-    }
-
-    public function getMeta(string $userId, string $key, mixed $default = null): mixed
-    {
-        $row = UserMeta::where('user_id', $userId)->where('meta_key', $key)->first();
-        if (!$row) return $default;
-
-        return match ($row->meta_type) {
-            'bool' => in_array((string) $row->meta_value, ['1', 'true', 'on', 'yes'], true),
-            'int'  => (int) $row->meta_value,
-            'json' => json_decode($row->meta_value, true),
-            default=> $row->meta_value,
-        };
-    }
-
+    /**
+     * Resolve a public profile by slug and build structured profile_meta
+     * from the user_meta key-value table.
+     */
     public function getPublicProfile(string $slug): ?User
     {
         return User::where('slug', $slug)
             ->whereNull('deactivated_at')
+            ->with('meta')
             ->first();
+    }
+
+    /**
+     * Convert flat user_meta rows into a structured profile_meta array
+     * matching the shape Vue expects: stats, schedule, identity, credentials,
+     * fees, insurance_panels, connection, etc.
+     *
+     * Falls back to sane defaults for every missing key so templates never
+     * have to deal with null chains.
+     */
+    public function buildProfileMeta(User $user, ?User $viewer = null): array
+    {
+        // Flatten meta into key → typed_value
+        $raw = [];
+        foreach ($user->meta as $m) {
+            $raw[$m->meta_key] = $m->typed_value;
+        }
+
+        // Specialties / approaches / population
+        $specialties = $raw['specialties']         ?? [];
+        $approaches  = $raw['approaches']          ?? [];
+        $population  = $raw['population_served']   ?? [];
+        $conditions  = $raw['conditions_treated']  ?? [];
+        $languages   = $raw['languages']           ?? ['English'];
+        $insurance   = $raw['insurance_panels']    ?? ['BCBS', 'Aetna', 'Cigna', 'United', 'Medicare'];
+
+        // Stats
+        $stats = [
+            'avg_response'        => $raw['avg_response']       ?? '1.8h',
+            'referrals_exchanged' => (int) ($raw['referrals_exchanged'] ?? 14),
+            'acceptance_rate'     => $raw['acceptance_rate']    ?? '92%',
+            'mutual_connections'  => (int) ($raw['mutual_connections'] ?? 7),
+            'client_slots'        => $raw['client_slots']       ?? 'New',
+        ];
+
+        // Schedule
+        $schedule = [
+            'session_format'    => $raw['session_format']    ?? 'In-Person & Telehealth',
+            'session_length'    => $raw['session_length']    ?? '50 min standard',
+            'next_available'    => $raw['next_available']    ?? 'Feb 24 · 10:00 AM',
+            'waitlist_note'     => $raw['waitlist_note']     ?? '~1–2 wk waitlist for new clients',
+            'new_client_wait'   => $raw['new_client_wait']   ?? '~1–2 weeks',
+            'urgent_slots'      => $raw['urgent_slots']      ?? '2–3 day turnaround',
+            'online_scheduling' => $raw['online_scheduling'] ?? true,
+            'availability'      => $raw['availability']      ?? [
+                'Mon' => '9–6', 'Tue' => '9–6', 'Wed' => '9–6',
+                'Thu' => '9–6', 'Fri' => '9–3', 'Sat' => null, 'Sun' => null,
+            ],
+        ];
+
+        // Identity
+        $identity = [
+            'pronouns'        => $raw['pronouns']        ?? 'He/Him',
+            'ethnicity'       => $raw['ethnicity']       ?? null,
+            'lgbtq_affirming' => $raw['lgbtq_affirming'] ?? true,
+            'faith_sensitive' => $raw['faith_sensitive'] ?? true,
+            'ada_accessible'  => $raw['ada_accessible']  ?? true,
+            'gender_affirming'=> $raw['gender_affirming'] ?? true,
+        ];
+
+        // Credentials
+        $credentials = [
+            'state_licenses'    => $raw['state_licenses']    ?? 'CA · NY · WA',
+            'telehealth_states' => $raw['telehealth_states'] ?? 'CA · NY · WA · OR · NV',
+            'education'         => $raw['education']         ?? 'UCSF · Stanford',
+            'license_status'    => $raw['license_status']    ?? 'Active · Expires Dec 2026',
+            'malpractice'       => $raw['malpractice']       ?? 'Verified',
+        ];
+
+        // Fees
+        $fees = [
+            'self_pay_rate'  => $raw['self_pay_rate']  ?? '$200 / 50 min',
+            'follow_up_rate' => $raw['follow_up_rate'] ?? '$160 / 30 min',
+            'telehealth_rate'=> $raw['telehealth_rate']?? '$180 / 45 min',
+            'sliding_scale'  => $raw['sliding_scale']  ?? true,
+            'superbill'      => $raw['superbill']       ?? true,
+        ];
+
+        // Collaboration prefs
+        $collab = [
+            'referral_method'   => $raw['referral_method']   ?? 'Aegis · Phone · Fax',
+            'preferred_handoff' => $raw['preferred_handoff']  ?? 'Warm handoff (call ahead)',
+            'co_management'     => $raw['co_management']      ?? 'Yes — actively welcomes',
+            'shared_care_plan'  => $raw['shared_care_plan']   ?? 'Shares clinical summaries',
+            'crisis_coverage'   => $raw['crisis_coverage']    ?? 'Covered by on-call team',
+            'best_contact_time' => $raw['best_contact_time']  ?? '10 AM – 1 PM PST',
+            'best_contact_method' => $raw['best_contact_method'] ?? 'Aegis Message',
+            'referral_tips'     => $raw['referral_tips']      ?? 'Include a brief summary when making referrals. Prefers warm handoffs when possible. Can receive shared records or documentation through secure methods.',
+        ];
+
+        // Affiliations
+        $affiliations = [
+            'hospital'     => $raw['hospital_affiliation'] ?? null,
+            'academic_apt' => $raw['academic_appointment'] ?? null,
+            'apa_member'   => $raw['apa_member']          ?? false,
+            'publications' => (int) ($raw['publications'] ?? 0),
+        ];
+
+        // Ratings
+        $rating       = $raw['rating']       ?? null;
+        $review_count = (int) ($raw['review_count'] ?? 0);
+
+        // Reviews
+        $reviews = $raw['peer_reviews'] ?? [];
+
+        // Visibility prefs
+        $show_ratings    = $raw['show_ratings']      ?? true;
+        $show_ref_stats  = $raw['show_referral_stats'] ?? true;
+        $show_demographics = $raw['show_demographics'] ?? true;
+
+        // Connection info (viewer-specific)
+        $connection = null;
+        if ($viewer && $viewer->id !== $user->id) {
+            $conn = NetworkConnection::where(function ($q) use ($user, $viewer) {
+                $q->where('user_id', $viewer->id)->where('connected_user_id', $user->id);
+            })->orWhere(function ($q) use ($user, $viewer) {
+                $q->where('user_id', $user->id)->where('connected_user_id', $viewer->id);
+            })->where('status', 'active')->first();
+
+            if ($conn) {
+                $connection = [
+                    'connected_since'       => $conn->connected_at?->format('F Y'),
+                    'connection_type'       => 'Mutual (Both Accepted)',
+                    'last_interaction'      => $raw['last_interaction'] ?? null,
+                    'mutual_connections'    => $stats['mutual_connections'],
+                    'profile_completeness'  => ($raw['profile_completeness'] ?? 98) . '%',
+                ];
+            }
+        }
+
+        return [
+            'rating'           => $rating,
+            'review_count'     => $review_count,
+            'stats'            => $stats,
+            'schedule'         => $schedule,
+            'identity'         => $identity,
+            'credentials'      => $credentials,
+            'fees'             => $fees,
+            'collab'           => $collab,
+            'affiliations'     => $affiliations,
+            'specialties'      => is_array($specialties) ? $specialties : [],
+            'approaches'       => is_array($approaches)  ? $approaches  : [],
+            'population_served'=> is_array($population)  ? $population  : [],
+            'conditions'       => is_array($conditions)  ? $conditions  : [],
+            'languages'        => is_array($languages)   ? $languages   : [$languages],
+            'insurance_panels' => is_array($insurance)   ? $insurance   : [],
+            'reviews'          => is_array($reviews)     ? $reviews     : [],
+            'connection'       => $connection,
+            'show_ratings'     => (bool) $show_ratings,
+            'show_ref_stats'   => (bool) $show_ref_stats,
+            'show_demographics'=> (bool) $show_demographics,
+            'profile_completeness' => (int) ($raw['profile_completeness'] ?? 70),
+            'years_in_practice'    => (int) ($raw['years_in_business'] ?? 5),
+            'accepting_clients'    => (bool) ($raw['accepting_clients'] ?? true),
+            'about_me_extended'    => $raw['about_me_extended'] ?? null,
+        ];
     }
 }

@@ -33,7 +33,7 @@
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Copy link" aria-label="Copy link"><AegisIcon name="link" :size="14" /></button>
             </template>
             <template v-else-if="isLinkedProvider">
-              <a :href="route('provider.messages.index') + '?to=' + user.id" class="btn-hero-solid is-on-light is-icon-only" data-tooltip="Message" aria-label="Message"><AegisIcon name="mail" :size="14" /></a>
+              <a :href="route('messages.index') + '?to=' + user.id" class="btn-hero-solid is-on-light is-icon-only" data-tooltip="Message" aria-label="Message"><AegisIcon name="mail" :size="14" /></a>
             </template>
           </div>
         </div>
@@ -173,15 +173,13 @@
 
 <script setup>
 import { computed } from 'vue'
+import { usePage } from '@inertiajs/vue3'
 import PublicLayout from '@/layouts/PublicLayout.vue'
 import AegisIcon from '@/components/ui/AegisIcon.vue'
 import { useToast } from '@/composables/useToast'
 
 const props = defineProps({
-  user:            { type: Object,  required: true },
-  viewerRole:      { type: String,  default: null },
-  isOwner:         { type: Boolean, default: false },
-  isLoggedIn:      { type: Boolean, default: false },
+  user:            { type: Object,  required: true }
   // Extra props the controller may pass for SS
   linkedProvider:  { type: Object,  default: null },
   planRole:        { type: String,  default: null },
@@ -191,7 +189,13 @@ const props = defineProps({
   certificationNote: { type: String, default: null },
 })
 
+const page = usePage()
 const toast = useToast()
+
+// Derive auth state from Inertia shared props — zero dependency on controller passing them
+const authUser   = computed(() => page.props.auth?.user ?? null)
+const isLoggedIn = computed(() => !!authUser.value)
+const isOwner    = computed(() => isLoggedIn.value && authUser.value?.id === props.user?.id)
 
 const pm      = computed(() => props.user.profile_meta ?? {})
 const pmStats = computed(() => pm.value.stats ?? {})
