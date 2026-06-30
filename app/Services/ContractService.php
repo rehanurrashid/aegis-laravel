@@ -23,14 +23,14 @@ class ContractService
     public function create(string $jobId, string $proposalId, string $practitionerId, string $bpId, int $totalCents): BpContract
     {
         return BpContract::create([
-            'id'              => 'bc_' . Str::lower(Str::random(12)),
-            'job_id'          => $jobId,
-            'proposal_id'     => $proposalId,
-            'practitioner_id' => $practitionerId,
-            'bp_id'           => $bpId,
-            'total_cents'     => $totalCents,
-            'status'          => 'active',
-            'created_at'      => now(),
+            'id'                => 'bc_' . Str::lower(Str::random(12)),
+            'job_id'            => $jobId,
+            'proposal_id'       => $proposalId,
+            'practitioner_id'   => $practitionerId,
+            'bp_id'             => $bpId,
+            'title'             => 'Contract',
+            'total_value_cents' => $totalCents,
+            'status'            => 'active',
         ]);
     }
 
