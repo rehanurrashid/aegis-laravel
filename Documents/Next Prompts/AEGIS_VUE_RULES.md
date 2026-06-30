@@ -1764,3 +1764,68 @@ test $MODAL_COUNT -eq $VMODEL_COUNT && echo "✅ modals = v-models" || echo "❌
 ```
 
 Run the suite. If anything fails — fix it before delivering.
+---
+
+## SECTION 24 — MODULE-SCOPED ACTIVITY LINKS
+
+### Rule
+Every page that has a link to the Activity Log **must** pass a `?module=<slug>` query param so the Activity page pre-filters to logs relevant to the current page. The Activity controller already accepts `module` as a filter (`ActivityController` line 31: `$allQuery->where('module', $filters['module'])`).
+
+### Pattern
+
+```vue
+<!-- ✅ CORRECT — scopes log to this module -->
+<a
+  :href="route('activity.index', {}, false) + '?module=messages'"
+  class="btn-icon btn-icon-sm"
+  data-tooltip="Message activity log"
+>
+  <AegisIcon name="activity" :size="16" />
+</a>
+
+<!-- ❌ WRONG — opens full unfiltered log -->
+<a :href="route('activity.index')" ...>
+```
+
+### Module slug registry
+
+Use exact lowercase slugs that match the `module` column in the `activity_events` table:
+
+| Page / Feature          | `?module=` slug         |
+|-------------------------|-------------------------|
+| Messages                | `messages`              |
+| Continuity Plan         | `continuity_plan`       |
+| Critical Incidents      | `incidents`             |
+| Vault                   | `vault`                 |
+| Referrals               | `referrals`             |
+| Job Postings            | `job_postings`          |
+| Support / Tickets       | `support`               |
+| Billing / Payments      | `billing`               |
+| Settings                | `settings`              |
+| Business Partners       | `business_partners`     |
+| Continuity Stewards     | `continuity_stewards`   |
+| Support Stewards        | `support_stewards`      |
+| Admin — Users           | `admin_users`           |
+| Admin — Help Articles   | `help_articles`         |
+
+### Checklist item (add to Section 22)
+- [ ] Every "Activity" link appends `?module=<slug>` matching the current page's domain — never bare `route('activity.index')`
+
+### Activity page (Vue) — receiving the filter
+The Activity Vue page reads the `filters` prop passed by `ActivityController` and pre-populates the module dropdown:
+
+```vue
+// In Activity.vue <script setup>
+const props = defineProps({ filters: Object, ... })
+const activeModule = ref(props.filters?.module ?? '')
+// Pass activeModule into the filter select v-model
+// so the UI reflects the pre-applied filter on load
+```
+
+### Pre-flight gate
+
+```bash
+# Every activity link in the page must carry a module param
+grep -E "route\('activity\.index'\)" $PAGE   # → 0 (bare link is a violation)
+grep -E "\?module=" $PAGE                    # → must have ≥ 1 hit per activity link
+```

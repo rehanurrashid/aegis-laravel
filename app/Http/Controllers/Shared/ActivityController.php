@@ -157,20 +157,23 @@ class ActivityController extends Controller
 
         // Audit the export itself
         try {
-            $this->activity->log(
-                userId:      $user->id,
-                portal:      $this->portalFor($user->role?->value ?? ''),
-                module:      'compliance',
-                severity:    \App\Enums\ActivitySeverity::Info,
-                action:      'audit_log_exported',
-                title:       'Audit log exported',
-                description: sprintf(
+            ActivityEvent::create([
+                'id'          => 'ae_' . \Illuminate\Support\Str::random(10),
+                'user_id'     => $user->id,
+                'portal'      => $this->portalFor($user->role?->value ?? ''),
+                'module'      => 'compliance',
+                'severity'    => 'info',
+                'event_type'  => 'export',
+                'action'      => 'audit_log_exported',
+                'title'       => 'Audit log exported',
+                'description' => sprintf(
                     'Exported %d events as %s. Reason: %s.',
                     $events->count(),
                     strtoupper($format),
                     $reason
-                )
-            );
+                ),
+                'created_at'  => now(),
+            ]);
         } catch (\Throwable $e) {
             // Don't fail the export if audit logging glitches
         }

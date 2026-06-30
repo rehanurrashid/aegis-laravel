@@ -13,7 +13,7 @@
       subtitle="Open a ticket, send feedback, or browse the help center."
     >
       <template #actions>
-        <a :href="route('activity.index')" class="btn-hero-ghost is-on-light">
+        <a :href="supportActivityUrl" class="btn-hero-ghost is-on-light">
           <AegisIcon name="activity" :size="14" />
           Activity
         </a>
@@ -343,7 +343,7 @@
 
 <script setup>
 import { ref, reactive, computed } from 'vue'
-import { router, useForm } from '@inertiajs/vue3'
+import { router, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AegisHeroBanner from '@/components/ui/AegisHeroBanner.vue'
 import AegisStatChip from '@/components/ui/AegisStatChip.vue'
@@ -480,6 +480,21 @@ function isTicketClosed(t) {
 }
 
 // ── Feedback form ───────────────────────────────────
+// ── Portal-aware activity URL ──────────────────────────────
+const page = usePage()
+const supportActivityUrl = computed(() => {
+  const portal = page.props.auth?.portal ?? 'provider'
+  const map = {
+    provider: 'provider.activity',
+    cs:       'cs.activity',
+    ss:       'ss.activity',
+    bp:       'bp.activity',
+    admin:    'admin.activity',
+  }
+  try { return route(map[portal] ?? 'provider.activity') + '?event_type=message' }
+  catch { return '/activity?event_type=message' }
+})
+
 const feedbackCategories = [
   { value: 'feedback',         label: 'General' },
   { value: 'feature_request',  label: 'Feature Request' },

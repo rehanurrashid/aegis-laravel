@@ -516,9 +516,14 @@ Route::middleware(['auth', 'check.locked'])->group(function () {
     Route::post('/messages/{thread}/reply', [MessagesController::class, 'reply'])->name('messages.reply');
     Route::post('/messages/{thread}/read', [MessagesController::class, 'markRead'])->name('messages.read');
     Route::get('/messages/{message}/attachments/{index}', [MessageAttachmentController::class, 'download'])->name('messages.attachment.download')->where('index', '[0-9]+');
+    Route::post('/messages/{thread}/mute',   [MessagesController::class, 'mute'])->name('messages.mute');
+    Route::post('/messages/{thread}/unmute', [MessagesController::class, 'unmute'])->name('messages.unmute');
+    Route::post('/messages/{thread}/export', [MessagesController::class, 'export'])->name('messages.export');
 
     // Activity Feed
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
+    Route::post('/activity/mark-all-read', [ActivityController::class, 'markAllRead'])->name('activity.mark-all-read');
+    Route::get('/activity/export', [ActivityController::class, 'export'])->name('activity.export');
     Route::post('/activity/{event}/read', [ActivityController::class, 'markRead'])->name('activity.read');
 
     // Support / Help Desk

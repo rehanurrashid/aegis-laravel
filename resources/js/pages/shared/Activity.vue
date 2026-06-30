@@ -52,22 +52,8 @@
       />
     </div>
 
-    <!-- ── Quick filter pills + search ─────────────────── -->
+    <!-- ── Search bar ───────────────────────────────────── -->
     <div class="activity-toolbar">
-      <nav class="tabs-segmented" role="tablist">
-        <button
-          v-for="q in quickFilters"
-          :key="q.key"
-          type="button"
-          role="tab"
-          class="tab-pill"
-          :class="{ active: activeQuick === q.key }"
-          @click="applyQuickFilter(q)"
-        >
-          <AegisIcon :name="q.icon" :size="12" />
-          <span>{{ q.label }}</span>
-        </button>
-      </nav>
       <div class="activity-search">
         <AegisIcon name="search" :size="14" />
         <input
@@ -76,6 +62,14 @@
           class="activity-search-input"
           placeholder="Search events…"
         />
+      </div>
+      <div v-if="localFilters.module" class="activity-module-badge">
+        <AegisIcon name="filter" :size="11" />
+        <span>{{ localFilters.module }}</span>
+        <button type="button" class="activity-module-clear" data-tooltip="Clear module filter"
+          @click="localFilters.module = ''; pushQuery({})">
+          <AegisIcon name="x" :size="11" />
+        </button>
       </div>
     </div>
 
@@ -256,7 +250,7 @@
 
 <script setup>
 import { reactive, computed, ref } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AegisHeroBanner from '@/components/ui/AegisHeroBanner.vue'
 import AegisStatChip from '@/components/ui/AegisStatChip.vue'
@@ -285,6 +279,32 @@ const modals = reactive({
   export: false,
 })
 const detailEvent = ref(null)
+
+const page = usePage()
+
+// Portal-aware route names — resolves correct prefixed route for all portals
+const portalRoutePrefix = computed(() => {
+  const portal = page.props.auth?.portal ?? 'provider'
+  return {
+    provider: 'provider',
+    cs:       'cs',
+    ss:       'ss',
+    bp:       'bp',
+    admin:    'admin',
+  }[portal] ?? 'provider'
+})
+
+function activityRoute(name) {
+  // Shared routes (mark-all-read, export, read) live in the shared group
+  // Index route is portal-prefixed
+  const shared = ['activity.mark-all-read', 'activity.export', 'activity.read']
+  if (shared.includes(name) || name.includes('.read') || name.includes('mark-all')) {
+    return route(name)
+  }
+  // 'activity.index' → use portal-prefixed 'provider.activity' etc.
+  const portalName = portalRoutePrefix.value + '.activity'
+  try { return route(portalName) } catch { return route('activity.index') }
+}
 
 const localFilters = reactive({
   module:     props.filters?.module     ?? '',
@@ -339,19 +359,21 @@ function pushQuery(extra = {}) {
   for (const [k, v] of Object.entries({ ...localFilters, ...extra })) {
     if (v !== '' && v !== null && v !== undefined) query[k] = v
   }
-  router.get(route('activity.index'), query, {
+  // Always carry module filter from URL so it survives navigation
+  if (localFilters.module && !query.module) query.module = localFilters.module
+  router.get(activityRoute('activity.index'), query, {
     preserveScroll: true,
     preserveState:  true,
     replace:        true,
   })
 }
 
-function goPage(page) {
-  const query = { page }
+function goPage(pg) {
+  const query = { page: pg }
   for (const [k, v] of Object.entries(localFilters)) {
     if (v) query[k] = v
   }
-  router.get(route('activity.index'), query, {
+  router.get(activityRoute('activity.index'), query, {
     preserveScroll: true,
     preserveState:  true,
   })
@@ -361,7 +383,7 @@ function openDetail(event) {
   detailEvent.value = event
   modals.detail = true
   if (!event.read_at) {
-    router.post(route('activity.read', event.id), {}, {
+    router.post(route('activity.read', { event: event.id }), {}, {
       preserveScroll: true,
       preserveState:  true,
     })
@@ -372,11 +394,15 @@ function markAllRead() {
   markingAll.value = true
   router.post(route('activity.mark-all-read'), {}, {
     preserveScroll: true,
+    preserveState:  false,   // must be false — need fresh unreadCount + read_at from server
     onSuccess: () => {
       toast.success('All events marked as read.')
       markingAll.value = false
     },
-    onError: () => { markingAll.value = false },
+    onError: () => {
+      toast.error('Could not mark all read.')
+      markingAll.value = false
+    },
   })
 }
 
@@ -674,4 +700,30 @@ function submitExport() {
   .activity-shell { grid-template-columns: 1fr; }
   .activity-categories { position: static; }
 }
+
+/* ── Module filter badge ───────────────────────────── */
+.activity-module-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 7px;
+  background: var(--badge-bg-gold);
+  border: 1px solid var(--soft-gold);
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gold-dark);
+  white-space: nowrap;
+}
+.activity-module-clear {
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--gold-dark);
+  padding: 0;
+  opacity: 0.7;
+}
+.activity-module-clear:hover { opacity: 1; }
 </style>

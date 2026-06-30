@@ -218,6 +218,55 @@ class MessagesController extends Controller
         return back()->with('success', 'Reply sent.');
     }
 
+    public function mute(Request $request, MessageThread $thread): RedirectResponse
+    {
+        $this->authorize('read', $thread);
+        $hours = (int) $request->input('hours', 8);
+        $until = $hours === 0 ? null : now()->addHours($hours);
+        $thread->update(['is_muted' => true, 'muted_until' => $until]);
+        ActivityService::log(
+            userId:     $request->user()->id,
+            eventType:  'messages.muted',
+            module:     'messages',
+            detail:     "Thread muted for {$hours}h",
+            portal:     $request->user()->role?->portal() ?? '',
+        );
+        return back()->with('success', 'Conversation muted.');
+    }
+
+    public function unmute(Request $request, MessageThread $thread): RedirectResponse
+    {
+        $this->authorize('read', $thread);
+        $thread->update(['is_muted' => false, 'muted_until' => null]);
+        return back()->with('success', 'Notifications unmuted.');
+    }
+
+    public function export(Request $request, MessageThread $thread): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $this->authorize('read', $thread);
+        $format   = $request->input('format', 'txt');
+        $messages = $this->messaging->getMessages($thread);
+        $filename = 'chat-export-' . $thread->id . '.' . ($format === 'json' ? 'json' : 'txt');
+
+        return response()->streamDownload(function () use ($messages, $format, $thread) {
+            if ($format === 'json') {
+                echo json_encode($messages->map(fn ($m) => [
+                    'sent_at' => $m->sent_at,
+                    'sender'  => $m->sender_id,
+                    'body'    => $m->body,
+                ])->toArray(), JSON_PRETTY_PRINT);
+            } else {
+                echo "Aegis Chat Export — Thread: {$thread->title}\n";
+                echo str_repeat('-', 60) . "\n\n";
+                foreach ($messages as $msg) {
+                    echo "[{$msg->sent_at}] {$msg->sender_id}:\n{$msg->body}\n\n";
+                }
+            }
+        }, $filename, [
+            'Content-Type' => $format === 'json' ? 'application/json' : 'text/plain',
+        ]);
+    }
+
     public function markRead(Request $request, MessageThread $thread): RedirectResponse
     {
         $this->authorize('read', $thread);

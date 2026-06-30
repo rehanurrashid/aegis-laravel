@@ -13,12 +13,6 @@
       :title="`Hello, ${firstName}.`"
       :subtitle="heroSub"
     >
-      <template #actions>
-        <a :href="route('activity.index')" class="btn-hero-ghost is-on-light">
-          <AegisIcon name="activity" :size="14" />
-          Activity
-        </a>
-      </template>
     </AegisHeroBanner>
 
     <!-- Setup checklist strip — only when there are items -->

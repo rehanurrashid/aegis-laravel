@@ -8,6 +8,9 @@ namespace App\Enums;
 enum SubmissionChannel: string
 {
     case Ticket                  = 'ticket';
+    case InApp                   = 'in_app';
+    case Email                   = 'email';
+    case Fab                     = 'fab';
     case FeedbackButton          = 'feedback_button';
     case ContextualQuestionnaire = 'contextual_questionnaire';
     case FreeForm                = 'free_form';
@@ -16,6 +19,9 @@ enum SubmissionChannel: string
     {
         return match ($this) {
             self::Ticket                  => 'Help Ticket',
+            self::InApp                   => 'In-App',
+            self::Email                   => 'Email',
+            self::Fab                     => 'FAB Button',
             self::FeedbackButton          => 'Feedback Button',
             self::ContextualQuestionnaire => 'Contextual Questionnaire',
             self::FreeForm                => 'Free-form Submission',

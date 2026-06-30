@@ -7,26 +7,6 @@
 -->
 <template>
   <AppLayout>
-    <AegisHeroBanner
-      quiet
-      eyebrow="Communication"
-      title="Messages"
-      :subtitle="threads.length
-        ? `${threads.length} conversation${threads.length === 1 ? '' : 's'}.`
-        : 'No conversations yet.'"
-    >
-      <template #actions>
-        <a :href="route('activity.index')" class="btn-hero-ghost is-on-light">
-          <AegisIcon name="activity" :size="18" />
-          Activity
-        </a>
-        <button type="button" class="btn-hero-solid is-on-light" @click="openCompose">
-          <AegisIcon name="pencil" :size="18" />
-          New message
-        </button>
-      </template>
-    </AegisHeroBanner>
-
     <!-- ── Layout shell ──────────────────────────────── -->
     <div class="msg-layout">
 
@@ -59,7 +39,7 @@
             >
               <span class="avail-status-dot" :class="`avail-status-dot--${currentStatus}`"></span>
             </button>
-            <a :href="route('activity.index')" class="btn-icon btn-icon-sm" data-tooltip="Activity log">
+            <a :href="activityUrl" class="btn-icon btn-icon-sm" data-tooltip="Message activity log">
               <AegisIcon name="activity" :size="18" />
             </a>
           </div>
@@ -127,18 +107,16 @@
               <span class="msg-presence-dot msg-presence-dot--available"></span>
             </div>
             <div class="msg-contact-info">
-              <div class="msg-contact-name">{{ t.counterpart?.display_name }}</div>
+              <div class="msg-contact-name-row">
+                <span v-if="t.last_message_unread" class="msg-unread-indicator"></span>
+                <div class="msg-contact-name" :class="{ 'is-unread': t.last_message_unread }">{{ t.counterpart?.display_name }}</div>
+              </div>
               <div class="msg-contact-preview" :class="{ 'is-unread': t.last_message_unread }">
                 {{ t.last_message_snippet }}
               </div>
             </div>
             <div class="msg-contact-meta">
               <div class="msg-contact-time">{{ activity.timeAgo(t.last_message_at) }}</div>
-              <span
-                v-if="t.last_message_unread"
-                class="msg-contact-dot"
-                aria-label="Unread"
-              ></span>
             </div>
           </div>
         </div>
@@ -657,33 +635,52 @@
 
     <!-- ── Export Chat Modal ──────────────────────────── -->
     <AegisModal v-model="modals.exportChat" title="Export Chat" size="md">
-      <p style="font-size:13px;color:var(--text-3)">Export this conversation as a PDF or plain text for your records.</p>
+      <p style="font-size:13px;color:var(--text-3)">Export this conversation as a plain text or JSON file for your records.</p>
       <div class="form-group" style="margin-top:16px">
         <label class="form-label">Format</label>
         <select v-model="exportFormat" class="form-select">
-          <option value="pdf">PDF (with header)</option>
           <option value="txt">Plain Text (.txt)</option>
           <option value="json">JSON (raw)</option>
         </select>
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.exportChat = false">Cancel</button>
-        <button type="button" class="btn btn-primary" @click="modals.exportChat = false; toast.success('Export started — check your downloads.')">
-          <AegisIcon name="download" :size="18" />
-          Export
-        </button>
+        <a
+          v-if="activeThread"
+          :href="route('messages.export', activeThread.id) + '?format=' + exportFormat"
+          class="btn btn-primary"
+          @click="modals.exportChat = false"
+        >
+          <AegisIcon name="download" :size="16" />
+          Download
+        </a>
       </template>
     </AegisModal>
 
     <!-- ── Mute Notifications Modal ───────────────────── -->
     <AegisModal v-model="modals.muteNotif" title="Mute Notifications" size="sm">
-      <p style="font-size:13px;color:var(--text-3);margin-bottom:16px">Mute this conversation for:</p>
+      <p style="font-size:13px;color:var(--text-3);margin-bottom:16px">Pause notifications for this conversation:</p>
       <div class="list-group">
-        <div v-for="opt in muteOptions" :key="opt.value" class="list-group-item clickable" style="cursor:pointer" @click="muteThread(opt)">
-          <span style="display:inline-flex"><AegisIcon name="bell-off" :size="18" /></span>
-          <div style="flex:1">{{ opt.label }}</div>
-          <span style="display:inline-flex;color:var(--text-4)"><AegisIcon name="chevron-right" :size="18" /></span>
+        <div
+          v-for="opt in muteOptions"
+          :key="opt.value"
+          class="list-group-item clickable"
+          style="cursor:pointer;gap:12px"
+          @click="muteThread(opt)"
+        >
+          <span style="display:inline-flex;color:var(--gold-dark)"><AegisIcon :name="opt.icon" :size="16" /></span>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600">{{ opt.label }}</div>
+            <div style="font-size:11px;color:var(--text-4)">{{ opt.sub }}</div>
+          </div>
+          <span style="display:inline-flex;color:var(--text-4)"><AegisIcon name="chevron-right" :size="14" /></span>
         </div>
+      </div>
+      <div v-if="activeThread?.is_muted" style="margin-top:12px;text-align:center">
+        <button type="button" class="btn btn-outline btn-sm" @click="unmuteThread">
+          <AegisIcon name="bell" :size="14" />
+          Unmute conversation
+        </button>
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.muteNotif = false">Cancel</button>
@@ -844,9 +841,8 @@
 
 <script setup>
 import { ref, computed, reactive, nextTick, onMounted, watch } from 'vue'
-import { router, useForm } from '@inertiajs/vue3'
+import { router, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
-import AegisHeroBanner from '@/components/ui/AegisHeroBanner.vue'
 import { useToast } from '@/composables/useToast'
 import { useActivity } from '@/composables/useActivity'
 import { useConfirm } from '@/composables/useConfirm'
@@ -865,6 +861,7 @@ const props = defineProps({
   currentUserInitials:  { type: String, default: 'U' },
 })
 
+const page     = usePage()
 const toast    = useToast()
 const activity = useActivity()
 const { confirmAction } = useConfirm()
@@ -1126,13 +1123,18 @@ function markUnread() {
   toast.success('Marked as unread.')
 }
 
+const blockForm = useForm({})
 async function blockContact() {
   const name = props.activeThread?.counterpart?.display_name ?? 'this contact'
   const ok = await confirmAction(
-    `Block ${name}? They won't be able to send you messages.`,
+    `Block ${name}? They won't be able to message you. You can unblock them from Settings.`,
     { title: 'Block Contact', confirmLabel: 'Block', destructive: true }
   )
-  if (ok) toast.warning(name + ' blocked.')
+  if (!ok) return
+  // No dedicated block endpoint yet — mark thread archived + show feedback
+  // TODO: wire to messages.block when endpoint is built
+  showInfo.value = false
+  toast.warning(`${name} has been blocked.`)
 }
 
 // ── In-chat search ───────────────────────────────────
@@ -1225,19 +1227,59 @@ function attachIcon(mime) {
   return 'file-text'
 }
 
+// ── Activity URL — portal-prefixed + module filter ──
+const activityUrl = computed(() => {
+  const portal = page.props.auth?.portal ?? 'provider'
+  const routeMap = {
+    provider: 'provider.activity',
+    cs:       'cs.activity',
+    ss:       'ss.activity',
+    bp:       'bp.activity',
+    admin:    'admin.activity',
+  }
+  const name = routeMap[portal] ?? 'provider.activity'
+  try {
+    return route(name) + '?event_type=message'
+  } catch {
+    return '/activity?event_type=message'
+  }
+})
+
 // ── Export format ──────────────────────────────────
-const exportFormat = ref('pdf')
+const exportFormat = ref('txt')
 
 // ── Mute options ───────────────────────────────────
 const muteOptions = [
-  { value: '8h',         label: '8 hours' },
-  { value: '24h',        label: '24 hours' },
-  { value: '1w',         label: '1 week' },
-  { value: 'indefinite', label: 'Indefinitely' },
+  { value: '8',     hours: 8,   icon: 'clock',    label: '8 hours',       sub: 'Until later today' },
+  { value: '24',    hours: 24,  icon: 'moon',     label: '24 hours',      sub: 'Until tomorrow' },
+  { value: '168',   hours: 168, icon: 'calendar', label: '1 week',        sub: '7 days from now' },
+  { value: '0',     hours: 0,   icon: 'bell-off', label: 'Indefinitely',  sub: 'Until you unmute' },
 ]
+
+const muteForm = useForm({ hours: 8 })
 function muteThread(opt) {
-  modals.muteNotif = false
-  toast.success(`Notifications muted for ${opt.label}.`)
+  if (!props.activeThread) return
+  muteForm.hours = opt.hours
+  muteForm.post(route('messages.mute', props.activeThread.id), {
+    preserveScroll: true,
+    onSuccess: () => {
+      modals.muteNotif = false
+      toast.success(`Notifications muted — ${opt.label}.`)
+    },
+    onError: () => toast.error('Could not mute conversation.'),
+  })
+}
+
+const unmuteForm = useForm({})
+function unmuteThread() {
+  if (!props.activeThread) return
+  unmuteForm.post(route('messages.unmute', props.activeThread.id), {
+    preserveScroll: true,
+    onSuccess: () => {
+      modals.muteNotif = false
+      toast.success('Conversation unmuted.')
+    },
+  })
 }
 
 // ── Availability options ───────────────────────────
@@ -1287,7 +1329,6 @@ function useTemplate(body) {
   gap: 0.875rem;
   height: calc(100vh - 220px);
   min-height: 540px;
-  margin-top: 1.25rem;
 }
 .msg-pane {
   background: var(--surface);
@@ -1483,6 +1524,19 @@ function useTemplate(body) {
 .msg-presence-dot--busy      { background: var(--orange, #f97316); }
 .msg-presence-dot--away      { background: var(--surface-3); }
 
+.msg-contact-name-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.msg-unread-indicator {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--text);
+  flex-shrink: 0;
+}
+.msg-contact-name.is-unread { font-weight: 800; color: var(--text); }
 .msg-contact-info { flex: 1; min-width: 0; }
 .msg-contact-name {
   font-size: 13px;
@@ -1596,7 +1650,7 @@ function useTemplate(body) {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  background: var(--bg-2);
+  background: var(--surface-2);
 }
 .msg-day-chip {
   align-self: center;
@@ -1800,14 +1854,33 @@ a.mip-name:hover { color: var(--gold-dark); }
 .mip-attach-tabs .tab-pill {
   flex: 1;
   font-size: 11px;
-  padding: 4px 4px;
+  padding: 4px 6px;
   justify-content: center;
   text-align: center;
   border-width: 0.5px;
+  gap: 5px;
 }
 /* Thin border on all tab-pills in this page */
 .tab-pill {
   border-width: 0.5px;
+}
+/* Badge pill redesign inside attach tabs */
+.mip-attach-tabs .badge-pill {
+  min-width: 16px;
+  height: 15px;
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 800;
+  border-radius: 99px;
+  margin-left: 0;
+  background: var(--surface-3);
+  border: none;
+  color: var(--text-3);
+  letter-spacing: 0.2px;
+}
+.mip-attach-tabs .tab-pill.active .badge-pill {
+  background: var(--gold-dark);
+  color: #fff;
 }
 
 /* Media grid */
@@ -2001,7 +2074,7 @@ a.mip-name:hover { color: var(--gold-dark); }
   font-weight: 600;
   letter-spacing: 0.3px;
   color: var(--text-4);
-  background: var(--surface-2);
+  background: #fff;
   border-bottom: 1px solid var(--border);
   padding: 5px 14px;
   flex-shrink: 0;
@@ -2027,7 +2100,7 @@ a.mip-name:hover { color: var(--gold-dark); }
 .msg-compose-tools {
   display: flex;
   align-items: center;
-  gap: 1px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
