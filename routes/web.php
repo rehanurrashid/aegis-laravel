@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\MfaController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Public\PublicPageController;
 use App\Http\Controllers\Provider\ContinuityPlanController;
 use App\Http\Controllers\Provider\DocumentsController;
 use App\Http\Controllers\Provider\DashboardController as ProviderDashboardController;
@@ -94,6 +95,12 @@ Route::get('/', function () {
         default                                => redirect()->route('login'),
     };
 })->name('home');
+
+// ── Marketing pages (no auth) ───────────────────────────────────────────────────
+Route::get('/about', [PublicPageController::class, 'about'])->name('about');
+Route::get('/pricing', [PublicPageController::class, 'pricing'])->name('pricing');
+Route::get('/contact', [PublicPageController::class, 'contact'])->name('contact');
+Route::post('/contact', [PublicPageController::class, 'sendContact'])->name('contact.send');
 
 // ── Auth (guest only) ─────────────────────────────────────────────────────────
 Route::middleware('guest')->group(function () {

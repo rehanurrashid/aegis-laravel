@@ -32,6 +32,12 @@ class ProfileController extends Controller
         $isLoggedIn = (bool) $viewer;
         $profileMeta = $this->profiles->buildProfileMeta($user, $viewer);
 
+        $services = \App\Models\Service::where('practitioner_id', $user->id)
+            ->active()
+            ->public()
+            ->orderBy('title')
+            ->get();
+
         // Strip sensitive contact info for anonymous viewers
         if (! $isLoggedIn) {
             $user->makeHidden(['email', 'phone']);
@@ -40,6 +46,7 @@ class ProfileController extends Controller
         return Inertia::render('public/ProviderProfile', [
             'user'        => $user,
             'profileMeta' => $profileMeta,
+            'services'    => $services,
             'viewerRole'  => $viewer?->role?->value ?? null,
             'isOwner'     => $isOwner,
             'isLoggedIn'  => $isLoggedIn,

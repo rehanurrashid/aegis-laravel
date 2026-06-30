@@ -33,7 +33,12 @@ class ServiceService
             'description'     => $data['description'] ?? null,
             'category'        => $data['category'] ?? null,
             'price_cents'     => $data['price_cents'] ?? 0,
-            
+            'price_type'      => $data['price_type'] ?? 'inquiry',
+            'duration_min'    => $data['duration_min'] ?? null,
+            'format'          => $data['format'] ?? null,
+            'availability'       => $data['availability'] ?? 'open',
+            'availability_label' => $data['availability_label'] ?? null,
+            'is_public'       => $data['is_public'] ?? true,
             'status'          => 'active',
             'created_at'      => now(),
         ]);
@@ -41,7 +46,7 @@ class ServiceService
 
     public function update(Service $service, array $data): Service
     {
-        $allowed = ['title', 'description', 'category', 'price_cents', 'price_type', 'status'];
+        $allowed = ['title', 'description', 'category', 'price_cents', 'price_type', 'duration_min', 'format', 'availability', 'availability_label', 'status', 'is_public'];
         $service->update(array_intersect_key($data, array_flip($allowed)));
         return $service->fresh();
     }

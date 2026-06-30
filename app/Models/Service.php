@@ -22,7 +22,8 @@ class Service extends Model
 
     protected $fillable = [
         'id', 'practitioner_id', 'title', 'description', 'category',
-        'price_cents', 'price_type', 'status', 'is_public',
+        'price_cents', 'price_type', 'duration_min', 'format',
+        'availability', 'availability_label', 'status', 'is_public',
     ];
 
     protected $casts = [

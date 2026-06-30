@@ -33,8 +33,13 @@ class ServicesController extends Controller
             'title'        => 'required|string|max:200',
             'description'  => 'nullable|string|max:5000',
             'category'     => 'nullable|string|max:100',
-            'price_cents'  => 'required|integer|min:0',
-            'duration_min' => 'nullable|integer|min:15|max:480',
+            'price_cents'  => 'nullable|integer|min:0',
+            'price_type'   => 'nullable|string|in:fixed,hourly,session,inquiry',
+            'duration_min' => 'nullable|integer|min:5|max:480',
+            'format'       => 'nullable|string|in:telehealth,in_person,both',
+            'availability' => 'nullable|string|in:open,limited',
+            'availability_label' => 'nullable|string|max:60',
+            'is_public'    => 'nullable|boolean',
         ]);
         $this->services->create($request->user(), $data);
         return back()->with('success', 'Service created.');
@@ -46,8 +51,14 @@ class ServicesController extends Controller
         $data = $request->validate([
             'title'        => 'nullable|string|max:200',
             'description'  => 'nullable|string|max:5000',
+            'category'     => 'nullable|string|max:100',
             'price_cents'  => 'nullable|integer|min:0',
-            'duration_min' => 'nullable|integer|min:15|max:480',
+            'price_type'   => 'nullable|string|in:fixed,hourly,session,inquiry',
+            'duration_min' => 'nullable|integer|min:5|max:480',
+            'format'       => 'nullable|string|in:telehealth,in_person,both',
+            'availability' => 'nullable|string|in:open,limited',
+            'availability_label' => 'nullable|string|max:60',
+            'is_public'    => 'nullable|boolean',
         ]);
         $this->services->update($service, $data);
         return back()->with('success', 'Service updated.');

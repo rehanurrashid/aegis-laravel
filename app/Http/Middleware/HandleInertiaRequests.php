@@ -108,6 +108,7 @@ class HandleInertiaRequests extends Middleware
                     'slug'            => $user->slug ?? null,
                     'avatar_initials' => $user->avatar_initials ?? null,
                     'avatar_url'      => $user->avatar_url ?? null,
+                    'services_mode'   => (bool) ($user->services_mode ?? false),
                     'two_factor'      => (bool) ($user->two_factor_enabled ?? false),
                     'verified'        => (bool) ($user->verified ?? false),
                 ] : null,

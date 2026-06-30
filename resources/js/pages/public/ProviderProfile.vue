@@ -122,7 +122,7 @@
       </div>
 
       <!-- ═══ SERVICES PANEL (services_mode only) ═══ -->
-      <div v-if="user.services_mode" class="pp-svc-section">
+      <div v-if="user.services_mode && services.length" class="pp-svc-section">
         <div class="pp-svc-header">
           <div class="pp-svc-header-title">
             <AegisIcon name="briefcase" :size="16" class="aegis-icon-gold-dark" />Services
@@ -135,23 +135,23 @@
             consultation, and training. Provider-to-provider engagements, not client-facing services.
           </div>
           <div class="pp-svc-grid">
-            <div v-for="svc in providerServices" :key="svc.name" class="pp-svc-card">
+            <div v-for="svc in servicesWithLabels" :key="svc.id" class="pp-svc-card">
               <div class="pp-svc-card-top">
-                <div class="pp-svc-card-name">{{ svc.name }}</div>
-                <div class="pp-svc-card-price">{{ svc.price }}<span>{{ svc.unit }}</span></div>
+                <div class="pp-svc-card-name">{{ svc.title }}</div>
+                <div class="pp-svc-card-price">{{ svc.rateAmount }}<span v-if="svc.rateUnit">{{ svc.rateUnit }}</span></div>
               </div>
-              <div class="pp-svc-card-desc">{{ svc.desc }}</div>
+              <div class="pp-svc-card-desc">{{ svc.description }}</div>
               <div class="pp-svc-card-meta">
-                <span><AegisIcon name="clock" :size="11" />{{ svc.duration }}</span>
-                <span><AegisIcon name="monitor" :size="11" />{{ svc.format }}</span>
+                <span v-if="svc.duration_min"><AegisIcon name="clock" :size="11" />{{ svc.duration_min }} min</span>
+                <span v-if="svc.format"><AegisIcon name="monitor" :size="11" />{{ formatLabel(svc.format) }}</span>
               </div>
               <div class="pp-svc-card-footer">
-                <span :class="['pp-svc-card-avail', svc.avail]">
-                  <AegisIcon name="circle-dot" :size="9" class="aegis-icon-filled" />{{ svc.availLabel }}
+                <span class="pp-svc-card-avail" :class="svc.availability ?? 'open'">
+                  <AegisIcon name="circle-dot" :size="9" class="aegis-icon-filled" />{{ svc.availability_label || ((svc.availability ?? 'open') === 'limited' ? 'Limited Spots' : 'Slots Available') }}
                 </span>
                 <template v-if="!isOwner">
                   <button v-if="isLoggedIn" class="btn btn-outline btn-sm"
-                          @click="openServiceRequest(svc.name)">Request</button>
+                          @click="openServiceRequest(svc.title)">Request</button>
                   <a v-else :href="route('login')" class="btn btn-outline btn-sm">Sign in to Request</a>
                 </template>
               </div>
@@ -661,15 +661,18 @@ import PublicLayout from '@/layouts/PublicLayout.vue'
 import ReferralModal from '@/components/modals/ReferralModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
+import { usePricingStore } from '@/stores/pricing'
 
 const props = defineProps({
   user:        { type: Object, required: true },
   profileMeta: { type: Object, default: () => ({}) },
+  services:    { type: Array,  default: () => [] },
 })
 
 const page = usePage()
 const toast = useToast()
 const { confirmAction } = useConfirm()
+const pricing = usePricingStore()
 
 // Derive auth state from Inertia shared props — zero dependency on controller passing them
 const authUser   = computed(() => page.props.auth?.user ?? null)
@@ -704,12 +707,20 @@ const staticReviews = [
   { name: 'Dr. Priya Nair, PhD',  stars: 4, quote: 'Very responsive via Aegis. Occasionally hard to reach by phone, but messages always get a same-day response.', meta: 'Neuropsychologist · Connected since Oct 2024' },
 ]
 
-const providerServices = [
-  { name: 'Individual Supervision', price: '$150', unit: '/hr',      desc: 'One-on-one clinical supervision for licensed or pre-licensed therapists. Case consultation, skill development, and licensure support.', duration: '60 min', format: 'Telehealth or In-Person', avail: 'open',    availLabel: 'Slots Available' },
-  { name: 'Peer Consultation',      price: '$120', unit: '/hr',      desc: 'Professional peer consultation on complex or challenging clinical cases. Collaborative, non-evaluative.',                                   duration: '60 min', format: 'Telehealth',          avail: 'open',    availLabel: 'Slots Available' },
-  { name: 'Group Supervision',      price: '$65',  unit: '/person',  desc: 'Small-group format (3–6 providers). Weekly cohorts available. Ideal for group practices or training programs.',                       duration: '90 min', format: 'Telehealth',          avail: 'limited', availLabel: 'Limited Spots'  },
-  { name: 'Training Workshop',      price: '$200', unit: '/session', desc: 'Structured psychoeducation or skills training for provider teams. Topics include trauma-informed care and co-management frameworks.', duration: '2 hr',   format: 'In-Person or Virtual', avail: 'limited', availLabel: 'By Request'     },
-]
+const servicesWithLabels = computed(() => props.services.map((svc) => {
+  let rateAmount = 'Contact for pricing'
+  let rateUnit = ''
+  if (svc.price_type !== 'inquiry' && svc.price_cents) {
+    const dollars = svc.price_cents / 100
+    rateAmount = Number.isInteger(dollars) ? `$${dollars}` : pricing.formatCents(svc.price_cents)
+    rateUnit = { fixed: '', hourly: '/hr', session: '/session' }[svc.price_type] ?? ''
+  }
+  return { ...svc, rateAmount, rateUnit }
+}))
+
+function formatLabel(format) {
+  return { telehealth: 'Telehealth', in_person: 'In-Person', both: 'Telehealth or In-Person' }[format] ?? format
+}
 
 // ── Modal state ────────────────────────────────────────────────────────
 const showReferralModal       = ref(false)

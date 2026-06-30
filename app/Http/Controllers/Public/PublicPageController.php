@@ -15,17 +15,17 @@ class PublicPageController extends Controller
 {
     public function about(): Response
     {
-        return Inertia::render('Public/About');
+        return Inertia::render('public/About');
     }
 
     public function pricing(): Response
     {
-        return Inertia::render('Public/Pricing');
+        return Inertia::render('public/Pricing');
     }
 
     public function contact(): Response
     {
-        return Inertia::render('Public/Contact');
+        return Inertia::render('public/Contact');
     }
 
     public function sendContact(Request $request): RedirectResponse
