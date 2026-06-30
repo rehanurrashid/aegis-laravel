@@ -170,7 +170,9 @@
           aria-haspopup="true"
           :aria-expanded="activeDrop === 'profile'"
         >
-          <div class="ep-profile-avatar" aria-hidden="true">{{ initials }}</div>
+          <div class="ep-profile-avatar" aria-hidden="true" :style="user?.avatar_url ? { backgroundImage: `url(${user.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+            <template v-if="!user?.avatar_url">{{ initials }}</template>
+          </div>
           <div class="ep-profile-info">
             <div class="ep-profile-name">{{ cleanName }}</div>
             <div class="ep-profile-role">

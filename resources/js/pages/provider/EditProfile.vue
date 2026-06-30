@@ -1,166 +1,1599 @@
 <!--
   pages/provider/EditProfile.vue — practitioner profile editor.
+  Replicates edit-profile.php's 8-section in-page nav exactly:
+    1. Basic Info   2. Professional   3. Specialties   4. Insurance & Fees
+    5. Network      6. Licensing      7. Demographics  8. Availability
 
-  Replaces provider-portal/edit-profile.php. Six form sections:
-    1. Identity (name, headline, credentials)
-    2. Practice (specialty, modalities, languages)
-    3. Location (city, state, in-person availability)
-    4. Visibility (public profile toggle, network discoverability)
-    5. Contact (email, phone, website)
-    6. About (longform bio)
+  Backend contract (verified against controllers/services/migrations):
+    Section              | Route                              | Verb            | Backend
+    ----------------------|-------------------------------------|-----------------|---------------------------------
+    Identity/Contact     | provider.profile.basic              | PUT             | ProfileService::updateBasic (users table)
+    Languages/Website    | provider.profile.languages           | PUT             | ProfileService::updateLanguagesAndWebsite (user_meta)
+    Specialties          | provider.profile.specialties         | PUT             | ProfileService::updateSpecialties (user_meta)
+    Services             | provider.profile.services            | PUT             | ProfileService::updateServices (user_meta)
+    Approaches           | provider.profile.approaches          | PUT             | ProfileService::updateApproaches (user_meta)
+    Licenses & Insurance | provider.credentials.store/update/destroy | POST/PUT/DELETE | ProviderCredentialController (provider_credentials table — real CRUD model)
+    Fees & insurance     | provider.profile.fees                | PUT             | ProfileService::updateFees (user_meta)
+    Licensed states      | provider.profile.licensed-states     | PUT             | ProfileService::updateLicensedStates (user_meta)
+    Education            | provider.profile.education           | PUT             | ProfileService::updateEducation (user_meta)
+    Network partners     | provider.profile.network-partners    | PUT             | ProfileService::updateNetworkPartners (user_meta)
+    AI/Shadow settings   | provider.profile.ai-settings         | PUT             | ProfileService::updateAiSettings (user_meta)
+    Demographics         | provider.profile.demographics        | PUT             | ProfileService::updateDemographics (user_meta)
+    Availability         | provider.profile.availability        | PUT             | ProfileService::updateAvailability (user_meta)
+    Visibility            | provider.profile.privacy             | PUT             | ProfileService::updatePrivacy (users table)
+
+  License document upload uses <AegisDropzone> + forceFormData, posting
+  directly to provider.credentials.store / .update (multipart, real file
+  storage) — not a fake client-side base64 preview like the PHP prototype.
 -->
 <template>
   <AppLayout>
-    <AegisHeroBanner
-      eyebrow="My Practice"
-      title="Edit Profile"
-      subtitle="Your public profile reflects how the network sees you."
-    >
-      <template #actions>
-        <a :href="route('public.provider', { slug: form.slug })" class="btn btn-outline">
-          <AegisIcon name="external-link" :size="13" />
-          <span>View public profile</span>
-        </a>
-      </template>
-    </AegisHeroBanner>
 
-    <form @submit.prevent="submit">
-      <AegisCard title="Identity">
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Display name <span class="req">*</span></label>
-            <input v-model="form.display_name" type="text" class="form-input" />
+    <!-- ══════════════ HERO ══════════════ -->
+    <div class="hero-banner is-quiet">
+      <div class="page-hero-inner">
+        <div class="page-hero-left">
+          <div class="page-hero-eyebrow">Practitioner Profile</div>
+          <div class="page-hero-title">Edit Profile</div>
+          <div class="page-hero-sub">
+            {{ user.display_name }}<template v-if="user.credentials">, {{ user.credentials }}</template>
+            &nbsp;·&nbsp; {{ user.organization }}
           </div>
-          <div class="form-group">
-            <label class="form-label">Credentials</label>
-            <input v-model="form.credentials" type="text" class="form-input" placeholder="e.g. PsyD, LMFT" />
+          <div class="hero-meta">
+            <span v-if="user.updated_at" class="hero-meta-item">
+              <AegisIcon name="check" :size="14" />
+              Saved {{ lastSavedLabel }}
+            </span>
           </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Headline</label>
-          <input
-            v-model="form.headline"
-            type="text"
-            class="form-input"
-            placeholder="e.g. Trauma-informed therapist for adults"
-          />
+        <div class="page-hero-actions">
+          <a v-if="user.slug" :href="route('public.provider', { slug: user.slug })" class="btn-hero-ghost is-on-light">
+            <AegisIcon name="eye" :size="14" />
+            Preview
+          </a>
         </div>
-      </AegisCard>
-
-      <AegisCard title="Practice">
-        <div class="form-group">
-          <label class="form-label">Specialty</label>
-          <input v-model="form.specialty" type="text" class="form-input" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Modalities</label>
-          <input
-            v-model="form.modalities"
-            type="text"
-            class="form-input"
-            placeholder="EMDR, IFS, CBT — comma-separated"
-          />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Languages</label>
-          <input
-            v-model="form.languages"
-            type="text"
-            class="form-input"
-            placeholder="English, Spanish — comma-separated"
-          />
-        </div>
-      </AegisCard>
-
-      <AegisCard title="Location">
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">City</label>
-            <input v-model="form.city" type="text" class="form-input" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">State</label>
-            <input v-model="form.state" type="text" class="form-input" />
-          </div>
-        </div>
-        <AegisToggle
-          v-model="form.in_person"
-          label="Available for in-person sessions"
-          description="Shows your city on the public profile."
-        />
-        <AegisToggle
-          v-model="form.telehealth"
-          label="Available via telehealth"
-        />
-      </AegisCard>
-
-      <AegisCard title="Visibility">
-        <AegisToggle
-          v-model="form.public_profile"
-          label="Public profile is published"
-          description="When off, your profile is only visible to your stewards."
-        />
-        <AegisToggle
-          v-model="form.network_accepting"
-          label="Accepting new referrals"
-        />
-      </AegisCard>
-
-      <AegisCard title="Contact">
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Email</label>
-            <input v-model="form.contact_email" type="email" class="form-input" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Phone</label>
-            <input v-model="form.contact_phone" type="tel" class="form-input" />
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Website</label>
-          <input v-model="form.website" type="url" class="form-input" placeholder="https://" />
-        </div>
-      </AegisCard>
-
-      <AegisCard title="About">
-        <div class="form-group">
-          <textarea
-            v-model="form.bio"
-            class="form-input"
-            rows="8"
-            placeholder="A short, plain-language description of your practice."
-          ></textarea>
-        </div>
-      </AegisCard>
-
-      <div class="form-actions-bar">
-        <button type="submit" class="btn btn-primary" :disabled="form.processing">
-          {{ form.processing ? 'Saving…' : 'Save changes' }}
-        </button>
       </div>
-    </form>
+    </div>
+
+    <!-- ══════════════ PROFILE COMPLETION STRIP ══════════════ -->
+    <div class="profile-strip">
+      <div class="profile-strip-icon"><AegisIcon name="user" :size="16" /></div>
+      <div class="profile-strip-text">
+        <div class="profile-strip-title">Finish your profile</div>
+        <div class="profile-strip-sub">{{ completionItemsRemaining }} items remaining — add a profile photo and liability insurance</div>
+      </div>
+      <div class="profile-strip-bar"><div class="profile-strip-bar-fill" :style="{ width: completionPct + '%' }"></div></div>
+      <div class="profile-strip-pct">{{ completionPct }}%</div>
+      <button type="button" class="btn btn-primary btn-sm" style="flex-shrink:0;white-space:nowrap" @click="activeSection = 'professional'">
+        Complete
+        <AegisIcon name="arrow-right-line" :size="12" />
+      </button>
+    </div>
+
+    <!-- ══════════════ TWO-COLUMN LAYOUT ══════════════ -->
+    <div class="ep-layout">
+
+      <!-- ─── LEFT NAV ─── -->
+      <div class="ep-nav">
+        <div class="ep-nav-section-label">Profile</div>
+
+        <a v-for="item in mainNavItems" :key="item.key"
+           class="ep-nav-item" :class="{ active: activeSection === item.key }"
+           href="#" @click.prevent="activeSection = item.key">
+          <div class="ep-nav-icon"><AegisIcon :name="item.icon" :size="16" /></div>
+          <span class="ep-nav-label">{{ item.label }}</span>
+          <div class="ep-nav-check"><AegisIcon name="check-badge" :size="16" class="aegis-icon-filled" /></div>
+        </a>
+
+        <div class="ep-nav-divider"></div>
+        <div class="ep-nav-section-label">Settings</div>
+
+        <a class="ep-nav-item" :class="{ active: activeSection === 'availability' }"
+           href="#" @click.prevent="activeSection = 'availability'">
+          <div class="ep-nav-icon"><AegisIcon name="clock" :size="16" /></div>
+          <span class="ep-nav-label">Availability</span>
+          <div class="ep-nav-check"><AegisIcon name="check-badge" :size="16" class="aegis-icon-filled" /></div>
+        </a>
+      </div><!-- /.ep-nav -->
+
+      <!-- ─── RIGHT CONTENT ─── -->
+      <div>
+
+        <!-- ══════════════ 1. BASIC INFO ══════════════ -->
+        <div v-show="activeSection === 'basic-info'" class="ep-section active">
+
+          <div class="alert alert-info" style="margin-bottom:20px">
+            <div class="alert-icon"><AegisIcon name="users" :size="16" /></div>
+            <div class="alert-content">
+              <strong>Unified across all portals</strong> — Your photo, display name, email, and phone apply to every portal you have access to (Practitioner, Continuity Steward, Support Steward). Changes here update your identity platform-wide.
+            </div>
+          </div>
+
+          <!-- Photo -->
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="camera" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">Profile Photo</div>
+                  <div class="ep-card-sub">Shown to network partners and on your public profile</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="ep-avatar-row">
+                <div class="ep-avatar-preview" :style="user.avatar_url ? { backgroundImage: `url(${user.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+                  <template v-if="!user.avatar_url">{{ user.avatar_initials || initialsFromName }}</template>
+                </div>
+                <div class="ep-avatar-info">
+                  <h4>{{ user.display_name }}<span v-if="user.credentials" style="font-family:var(--font-sans);font-size:13px;font-weight:600;color:var(--text-3)">, {{ user.credentials }}</span></h4>
+                  <p>{{ user.avatar_url ? 'Photo uploaded' : 'No photo uploaded — initials shown as placeholder' }}</p>
+                  <p style="font-size:11px;color:var(--text-4);margin-top:2px">JPG, PNG or WebP · Max 5 MB · Recommended 400×400 px</p>
+                  <div class="ep-avatar-btns">
+                    <button type="button" class="btn btn-primary btn-sm" @click="modals.photoUpload = true">
+                      <AegisIcon name="upload" :size="12" /> Upload Photo
+                    </button>
+                    <button v-if="user.avatar_url" type="button" class="btn btn-outline btn-sm" @click="modals.removePhoto = true">Remove</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Basic Info -->
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="user" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">Basic Information</div>
+                  <div class="ep-card-sub">Appears on your Aegis public profile</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="form-row form-row-2">
+                <div class="form-group">
+                  <label class="form-label">First Name <span class="ep-label-req">*</span></label>
+                  <input v-model="firstName" type="text" class="form-input" placeholder="First name">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Last Name <span class="ep-label-req">*</span></label>
+                  <input v-model="lastName" type="text" class="form-input" placeholder="Last name">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Credentials / Suffix</label>
+                <input v-model="basicForm.credentials" type="text" class="form-input" placeholder="e.g. MD, PhD, LCSW, LMFT">
+                <div class="form-help">Appears after your name: {{ user.display_name }}, <strong>{{ basicForm.credentials || 'MD' }}</strong></div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Professional Title <span class="ep-label-req">*</span></label>
+                <input v-model="basicForm.title" type="text" class="form-input" placeholder="e.g. Board-Certified Psychiatrist">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Practice / Affiliation</label>
+                <input v-model="basicForm.organization" type="text" class="form-input">
+              </div>
+
+              <div class="form-group form-group-last">
+                <label class="form-label">Professional Bio <span class="ep-label-req">*</span></label>
+                <textarea v-model="basicForm.bio" class="form-textarea" rows="5" maxlength="500"></textarea>
+                <div class="form-char">{{ basicForm.bio.length }} / 500</div>
+                <div class="form-help">Write a 2–4 sentence bio. Be specific about your approach and client population.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Contact -->
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="map-pin" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">Contact &amp; Location</div>
+                  <div class="ep-card-sub">Primary practice location shown to network partners</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label class="form-label">Location <span class="ep-label-req">*</span></label>
+                <input v-model="basicForm.location" type="text" class="form-input" placeholder="City, State">
+              </div>
+              <div class="form-row form-row-2">
+                <div class="form-group">
+                  <label class="form-label">Phone <span class="ep-label-req">*</span></label>
+                  <input v-model="basicForm.phone" type="tel" class="form-input">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Avatar initials</label>
+                  <input v-model="basicForm.avatar_initials" type="text" class="form-input" maxlength="4">
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email</label>
+                <input :value="user.email" type="email" class="form-input" disabled data-tooltip="Email is managed in Settings → Account">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Website <span class="ep-label-opt">(Optional)</span></label>
+                <div class="ep-input-prefix">
+                  <span class="ep-input-prefix-label">https://</span>
+                  <input v-model="websiteForm.website" type="text" class="form-input" placeholder="yoursite.com">
+                </div>
+              </div>
+              <div class="form-group form-group-last">
+                <label class="form-label">Languages Spoken</label>
+                <div class="ep-tags">
+                  <div v-for="lang in languageOptions" :key="lang"
+                       class="ep-tag" :class="{ active: websiteForm.languages.includes(lang) }"
+                       @click="toggleInArray(websiteForm.languages, lang)">{{ lang }}</div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+                  <input v-model="customLanguageInput" type="text" class="form-input" placeholder="Add other language…" style="flex:1;font-size:13px" @keydown.enter.prevent="addCustomLanguage">
+                  <button type="button" class="btn btn-outline btn-sm" style="white-space:nowrap;flex-shrink:0" @click="addCustomLanguage">+ Add</button>
+                </div>
+              </div>
+              <div class="form-actions-bar">
+                <button type="button" class="btn btn-primary" :disabled="websiteForm.processing" @click="submitLanguages">
+                  {{ websiteForm.processing ? 'Saving…' : 'Save contact details' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Accepting Status -->
+          <!-- NOTE: no backend fields exist yet for these 5 selects (no migration
+               columns, no FormRequest). Rendered per design; saving routes through
+               provider.profile.basic as free-text additions would corrupt that
+               contract, so these are left as local-only state pending a future
+               schema addition (flagged, not fabricated). -->
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="check-circle" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">Accepting Status</div>
+                  <div class="ep-card-sub">Manage your visibility and contact preferences on Aegis to ensure appropriate connections.</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="form-row form-row-2">
+                <div class="form-group">
+                  <label class="form-label">Accepting New Clients?</label>
+                  <select v-model="acceptingStatus.new_clients" class="form-select">
+                    <option>Yes — Accepting New Clients</option>
+                    <option>No — Waitlist Only</option>
+                    <option>Not Currently Accepting</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Accepting New Referrals?</label>
+                  <select v-model="acceptingStatus.new_referrals" class="form-select">
+                    <option>Yes — Open to Referrals</option>
+                    <option>Selective Referrals Only</option>
+                    <option>Not Currently</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Accepting Supervisees?</label>
+                  <select v-model="acceptingStatus.supervisees" class="form-select">
+                    <option>Yes — Accepting Supervisees</option>
+                    <option>Not Currently</option>
+                    <option>N/A — Not a Supervisor</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Accepting Provider Continuity Clients?</label>
+                  <select v-model="acceptingStatus.continuity_clients" class="form-select">
+                    <option>Yes — Accepting Provider Continuity Clients</option>
+                    <option>Not Currently</option>
+                    <option>N/A</option>
+                  </select>
+                  <div class="form-help">Continuity support when another provider becomes unavailable</div>
+                </div>
+                <div class="form-group form-group-last">
+                  <label class="form-label">Service Format</label>
+                  <select v-model="acceptingStatus.service_format" class="form-select">
+                    <option>In-Person Only</option>
+                    <option>Telehealth Only</option>
+                    <option>Both In-Person &amp; Telehealth</option>
+                    <option>Hybrid (Case-by-Case)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-actions-bar" style="margin-bottom:18px">
+            <button type="button" class="btn btn-primary" :disabled="basicForm.processing" @click="submitBasic">
+              {{ basicForm.processing ? 'Saving…' : 'Save basic info' }}
+            </button>
+          </div>
+
+        </div><!-- /basic-info -->
+
+        <!-- ══════════════ 2. PROFESSIONAL ══════════════ -->
+        <div v-show="activeSection === 'professional'" class="ep-section">
+
+          <!-- Licenses (real CRUD against provider_credentials) -->
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="file-text" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">License</div>
+                  <div class="ep-card-sub">Add all active state licenses. Primary license appears first.</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+
+              <AegisEmptyState v-if="!licenseCredentials.length" icon="file-text" title="No licenses on file" description="Add your state license to strengthen your public profile." />
+
+              <div v-for="(cred, idx) in licenseCredentials" :key="cred.id" class="ep-cred" :class="{ primary: idx === 0, 'is-archived': cred.archived }">
+                <div class="ep-cred-top">
+                  <div class="ep-cred-title">
+                    <AegisIcon name="flask" :size="14" />
+                    {{ cred.name || 'License' }}
+                    <span class="ep-cred-badge">{{ cred.subtitle || cred.issuer || '—' }}</span>
+                  </div>
+                  <div style="display:flex;gap:8px;flex-shrink:0;align-items:center">
+                    <button type="button" class="btn btn-outline btn-sm" @click="toggleArchiveCredential(cred)">
+                      <AegisIcon :name="cred.archived ? 'refresh' : 'archive'" :size="11" /> {{ cred.archived ? 'Restore' : 'Archive' }}
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm" @click="confirmRemoveCredential(cred)">
+                      <AegisIcon name="x" :size="11" /> Remove
+                    </button>
+                  </div>
+                </div>
+                <div class="form-row form-row-2">
+                  <div class="form-group">
+                    <label class="form-label">License Number</label>
+                    <input v-model="cred.number" type="text" class="form-input" @change="saveCredentialField(cred)">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Issuer / State <span class="ep-label-req">*</span></label>
+                    <input v-model="cred.issuer" type="text" class="form-input" @change="saveCredentialField(cred)">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Issue Date</label>
+                    <input v-model="cred.issued_on" type="date" class="form-input" @change="saveCredentialField(cred)">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Expiration Date <span class="ep-label-req">*</span></label>
+                    <input v-model="cred.expires_on" type="date" class="form-input" @change="saveCredentialField(cred)">
+                  </div>
+                </div>
+                <div class="form-group form-group-last">
+                  <label class="form-label">License Document</label>
+                  <div v-if="cred.document_path" class="ep-file-row">
+                    <div class="ep-file-info">
+                      <div class="ep-file-icon"><AegisIcon name="file-text" :size="16" /></div>
+                      <div>
+                        <div class="ep-file-name">{{ documentName(cred.document_path) }}</div>
+                        <div class="ep-file-meta">Uploaded · on file</div>
+                      </div>
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm" @click="confirmRemoveCredential(cred)">Remove</button>
+                  </div>
+                  <AegisDropzone v-else accept=".pdf,.jpg,.jpeg,.png" hint="PDF, JPG, PNG · Max 10 MB"
+                    @files="(files) => uploadCredentialDocument(cred, files[0])" />
+                </div>
+              </div>
+
+              <button type="button" class="btn btn-outline" @click="addLicense">
+                <AegisIcon name="plus" :size="13" /> Add State License
+              </button>
+
+              <div class="alert alert-info" style="margin-top:16px">
+                <div class="alert-icon"><AegisIcon name="info" :size="14" /></div>
+                <div>
+                  <strong>CEU Requirements:</strong> Set per-state CEU requirements (hours, types, renewal cycle) and log completed credits on your
+                  <a :href="route('provider.dashboard')" style="color:var(--gold-dark);font-weight:600;text-decoration:none">Continuity Dashboard</a> → CEU Tracker.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Credentials & Certifications (tag picker → user_meta approaches-style; saved alongside specialties) -->
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="award" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">Credentials &amp; Certifications</div>
+                  <div class="ep-card-sub">Primary credential type and board certifications</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div v-for="group in credentialTagGroups" :key="group.label" class="form-group">
+                <div class="ep-cat" style="margin-bottom:6px;font-size:11px">{{ group.label }}</div>
+                <div class="ep-tags" style="margin-bottom:10px">
+                  <div v-for="opt in group.options" :key="opt"
+                       class="ep-tag" :class="{ active: specialtiesForm.specialties.includes(opt) }"
+                       @click="toggleInArray(specialtiesForm.specialties, opt)">{{ opt }}</div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Other Certifications <span class="ep-label-opt">(Optional)</span></label>
+                <input v-model="customCertInput" type="text" class="form-input" placeholder="e.g. EMDR Level II, Gottman Level 3, CIMHP…" @keydown.enter.prevent="addCustomCert">
+                <div class="form-help">Enter any certifications not listed above</div>
+              </div>
+
+              <div class="form-actions-bar">
+                <button type="button" class="btn btn-primary" :disabled="specialtiesForm.processing" @click="submitSpecialties">
+                  {{ specialtiesForm.processing ? 'Saving…' : 'Save credentials' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Liability Insurance (real CRUD against provider_credentials) -->
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="shield" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">Liability Insurance</div>
+                  <div class="ep-card-sub">Malpractice certificate — boosts profile trust score</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div v-if="!insuranceCredential" class="alert alert-warning">
+                <AegisIcon name="alert-triangle" :size="15" />
+                No certificate on file. Adding one increases your profile strength by <strong>12%</strong>.
+              </div>
+              <div class="form-row form-row-2">
+                <div class="form-group">
+                  <label class="form-label">Insurance Provider</label>
+                  <input v-model="insuranceForm.issuer" type="text" class="form-input" placeholder="e.g. Medical Protective">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Policy Number</label>
+                  <input v-model="insuranceForm.number" type="text" class="form-input" placeholder="Policy number">
+                </div>
+              </div>
+              <div class="form-row form-row-2">
+                <div class="form-group">
+                  <label class="form-label">Coverage Amount</label>
+                  <div class="ep-money">
+                    <span class="ep-money-prefix">$</span>
+                    <input v-model="insuranceForm.subtitle" type="text" class="form-input" placeholder="e.g. 2,000,000">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Policy Expiration</label>
+                  <input v-model="insuranceForm.expires_on" type="date" class="form-input">
+                </div>
+              </div>
+              <div class="form-group form-group-last">
+                <label class="form-label">Certificate of Insurance</label>
+                <div v-if="insuranceCredential && insuranceCredential.document_path" class="ep-file-row">
+                  <div class="ep-file-info">
+                    <div class="ep-file-icon"><AegisIcon name="file-text" :size="16" /></div>
+                    <div>
+                      <div class="ep-file-name">{{ documentName(insuranceCredential.document_path) }}</div>
+                      <div class="ep-file-meta">Uploaded · on file</div>
+                    </div>
+                  </div>
+                  <button type="button" class="btn btn-danger btn-sm" @click="confirmRemoveCredential(insuranceCredential)">Remove</button>
+                </div>
+                <AegisDropzone v-else accept=".pdf,.jpg,.jpeg,.png" hint="PDF, JPG or PNG · Max 10 MB"
+                  @files="(files) => insuranceForm.document = files[0]" />
+              </div>
+              <div class="form-actions-bar">
+                <button type="button" class="btn btn-primary" :disabled="insuranceForm.processing" @click="submitInsurance">
+                  {{ insuranceForm.processing ? 'Saving…' : 'Save insurance' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Education -->
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="graduation-cap" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">Education &amp; Training</div>
+                  <div class="ep-card-sub">Academic degrees, residencies, fellowships and continuing education</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div v-for="(entry, idx) in educationForm.education" :key="idx" class="form-row form-row-2" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)">
+                <div class="form-group">
+                  <label class="form-label">Degree / Credential</label>
+                  <input v-model="entry.degree" type="text" class="form-input" placeholder="e.g. MD, PhD, MSW, BS">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Field of Study</label>
+                  <input v-model="entry.field" type="text" class="form-input" placeholder="e.g. Clinical Psychology">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Institution</label>
+                  <input v-model="entry.institution" type="text" class="form-input" placeholder="School or program name">
+                </div>
+                <div class="form-group" style="display:flex;gap:8px;align-items:flex-end">
+                  <div style="flex:1">
+                    <label class="form-label">Duration</label>
+                    <input v-model="entry.duration" type="text" class="form-input" placeholder="e.g. 4 years">
+                  </div>
+                  <button type="button" class="btn-icon btn-icon-danger" data-tooltip="Remove entry" @click="educationForm.education.splice(idx, 1)">
+                    <AegisIcon name="trash" :size="14" />
+                  </button>
+                </div>
+              </div>
+              <button type="button" class="btn btn-outline" @click="educationForm.education.push({ degree: '', field: '', institution: '', duration: '' })">
+                <AegisIcon name="plus" :size="13" /> Add Education / Training
+              </button>
+              <div class="form-actions-bar">
+                <button type="button" class="btn btn-primary" :disabled="educationForm.processing" @click="submitEducation">
+                  {{ educationForm.processing ? 'Saving…' : 'Save education' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /professional -->
+
+        <!-- ══════════════ 3. SPECIALTIES ══════════════ -->
+        <div v-show="activeSection === 'specialties'" class="ep-section">
+
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="star" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">Services &amp; Specialties</div>
+                  <div class="ep-card-sub">Select all that apply — tap section headers to expand. You may also add custom entries.</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+
+              <details open style="margin-bottom:14px">
+                <summary style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);cursor:pointer;padding:6px 0;user-select:none">Services</summary>
+                <div style="margin-top:10px">
+                  <div v-for="group in serviceTagGroups" :key="group.label">
+                    <div class="ep-cat">{{ group.label }}</div>
+                    <div class="ep-tags">
+                      <div v-for="opt in group.options" :key="opt"
+                           class="ep-tag" :class="{ active: servicesForm.services.includes(opt) }"
+                           @click="toggleInArray(servicesForm.services, opt)">{{ opt }}</div>
+                    </div>
+                  </div>
+                  <div class="ep-cat" style="margin-top:14px">Add Custom Service</div>
+                  <div style="display:flex;gap:8px;align-items:center">
+                    <input v-model="customServiceInput" type="text" class="form-input" placeholder="Enter a service not listed…" style="flex:1;font-size:13px" @keydown.enter.prevent="addCustomService">
+                    <button type="button" class="btn btn-outline btn-sm" style="white-space:nowrap;flex-shrink:0" @click="addCustomService">+ Add</button>
+                  </div>
+                </div>
+              </details>
+
+              <details open style="margin-bottom:14px">
+                <summary style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);cursor:pointer;padding:6px 0;user-select:none">Specialties</summary>
+                <div style="margin-top:10px">
+                  <div v-for="group in specialtyTagGroups" :key="group.label">
+                    <div class="ep-cat">{{ group.label }}</div>
+                    <div class="ep-tags">
+                      <div v-for="opt in group.options" :key="opt"
+                           class="ep-tag" :class="{ active: specialtiesForm.specialties.includes(opt) }"
+                           @click="toggleInArray(specialtiesForm.specialties, opt)">{{ opt }}</div>
+                    </div>
+                  </div>
+                  <div class="ep-cat" style="margin-top:14px">Add Custom Specialty</div>
+                  <div style="display:flex;gap:8px;align-items:center">
+                    <input v-model="customSpecialtyInput" type="text" class="form-input" placeholder="Enter a specialty not listed…" style="flex:1;font-size:13px" @keydown.enter.prevent="addCustomSpecialty">
+                    <button type="button" class="btn btn-outline btn-sm" style="white-space:nowrap;flex-shrink:0" @click="addCustomSpecialty">+ Add</button>
+                  </div>
+                </div>
+              </details>
+
+              <div class="form-actions-bar">
+                <button type="button" class="btn btn-primary" :disabled="servicesForm.processing" @click="submitServices">
+                  {{ servicesForm.processing ? 'Saving…' : 'Save services' }}
+                </button>
+                <button type="button" class="btn btn-primary" :disabled="specialtiesForm.processing" @click="submitSpecialties">
+                  {{ specialtiesForm.processing ? 'Saving…' : 'Save specialties' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="flask" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">Approaches &amp; Frameworks</div>
+                  <div class="ep-card-sub">Methods and frameworks you use — tap headers to expand sections</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <details v-for="(group, idx) in approachTagGroups" :key="group.label" :open="idx === 0" style="margin-bottom:14px">
+                <summary style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);cursor:pointer;padding:6px 0;user-select:none">{{ group.label }}</summary>
+                <div class="ep-tags" style="margin-top:8px">
+                  <div v-for="opt in group.options" :key="opt"
+                       class="ep-tag" :class="{ active: approachesForm.approaches.includes(opt) }"
+                       @click="toggleInArray(approachesForm.approaches, opt)">{{ opt }}</div>
+                </div>
+              </details>
+
+              <div class="form-group" style="margin-bottom:0;margin-top:4px">
+                <label class="form-label">Add Custom Approach</label>
+                <div style="display:flex;gap:8px;align-items:center">
+                  <input v-model="customApproachInput" type="text" class="form-input" placeholder="Enter approach or framework not listed…" style="flex:1;font-size:13px" @keydown.enter.prevent="addCustomApproach">
+                  <button type="button" class="btn btn-outline btn-sm" style="white-space:nowrap;flex-shrink:0" @click="addCustomApproach">+ Add</button>
+                </div>
+              </div>
+
+              <div class="form-actions-bar">
+                <button type="button" class="btn btn-primary" :disabled="approachesForm.processing" @click="submitApproaches">
+                  {{ approachesForm.processing ? 'Saving…' : 'Save approaches' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /specialties -->
+
+        <!-- ══════════════ 4. INSURANCE & FEES ══════════════ -->
+        <div v-show="activeSection === 'insurance'" class="ep-section">
+
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="credit-card" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">Insurance Accepted</div>
+                  <div class="ep-card-sub">Select all plans you are in-network for</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div v-for="group in insuranceGroups" :key="group.label">
+                <div class="ep-cat">{{ group.label }}</div>
+                <div class="ep-ins-grid">
+                  <div v-for="opt in group.options" :key="opt"
+                       class="ep-ins-item" :class="{ checked: feesForm.insurance_types.includes(opt) }"
+                       @click="toggleInArray(feesForm.insurance_types, opt)">
+                    <div class="ep-ins-dot"></div>{{ opt }}
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+                <input v-model="customInsuranceInput" type="text" class="form-input" placeholder="Add insurance not listed…" style="flex:1;font-size:13px" @keydown.enter.prevent="addCustomInsurance">
+                <button type="button" class="btn btn-outline btn-sm" style="white-space:nowrap;flex-shrink:0" @click="addCustomInsurance">+ Add</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="dollar" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">Out-of-Pocket Fees</div>
+                  <div class="ep-card-sub">Fees and insurance information are shared with Continuity Stewards and other providers to facilitate referrals and care coordination.</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="form-row form-row-2">
+                <div class="form-group">
+                  <label class="form-label">Session Length (minutes) <span class="ep-label-req">*</span></label>
+                  <select v-model.number="feesForm.session_length_mins" class="form-select">
+                    <option :value="30">30 min</option>
+                    <option :value="45">45 min</option>
+                    <option :value="50">50 min</option>
+                    <option :value="60">60 min</option>
+                    <option :value="90">90 min</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Session Rate <span class="ep-label-req">*</span></label>
+                  <div class="ep-money"><span class="ep-money-prefix">$</span><input v-model.number="sessionRateDollars" type="number" min="0" class="form-input"></div>
+                </div>
+              </div>
+              <div class="ep-divider"></div>
+              <AegisToggle v-model="feesForm.accepts_insurance" label="Accepts insurance" />
+              <AegisToggle v-model="feesForm.accepts_cash" label="Accepts self-pay / cash" />
+              <div class="ep-divider"></div>
+              <div class="form-group">
+                <label class="form-label">Package / Bundle Available?</label>
+                <div style="display:flex;gap:16px;margin-top:8px">
+                  <label class="ep-radio-item"><input type="radio" :checked="feesForm.package_available" @change="feesForm.package_available = true"> Yes</label>
+                  <label class="ep-radio-item"><input type="radio" :checked="!feesForm.package_available" @change="feesForm.package_available = false"> No</label>
+                </div>
+              </div>
+              <div v-if="feesForm.package_available" class="form-row form-row-2">
+                <div class="form-group">
+                  <label class="form-label">Package Description</label>
+                  <input v-model="feesForm.package_description" type="text" class="form-input" placeholder="e.g. 4-session bundle, 8-week program">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Package Rate</label>
+                  <div class="ep-money"><span class="ep-money-prefix">$</span><input v-model.number="packageRateDollars" type="number" min="0" class="form-input"></div>
+                </div>
+              </div>
+              <div class="form-actions-bar">
+                <button type="button" class="btn btn-primary" :disabled="feesForm.processing" @click="submitFees">
+                  {{ feesForm.processing ? 'Saving…' : 'Save fees' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /insurance -->
+
+        <!-- ══════════════ 5. NETWORK PREFERENCES ══════════════ -->
+        <div v-show="activeSection === 'network'" class="ep-section">
+
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="globe" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">Interdisciplinary Network</div>
+                  <div class="ep-card-sub">Establish a care network with professionals from various fields for quick referrals and coordinated, holistic support. Form partnerships ahead of time to address future needs.</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="ep-tags">
+                <div v-for="opt in interdisciplinaryOptions" :key="opt"
+                     class="ep-tag" :class="{ active: networkPartnersForm.partners.includes(opt) }"
+                     @click="toggleInArray(networkPartnersForm.partners, opt)">{{ opt }}</div>
+              </div>
+              <div class="form-actions-bar">
+                <button type="button" class="btn btn-primary" :disabled="networkPartnersForm.processing" @click="submitNetworkPartners">
+                  {{ networkPartnersForm.processing ? 'Saving…' : 'Save network preferences' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Licensing — additional states -->
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="map" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">Additional Licensed States</div>
+                  <div class="ep-card-sub">States where you hold active licenses beyond your primary state</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="ep-states">
+                <div v-for="abbr in usStateAbbrs" :key="abbr"
+                     class="ep-state" :class="{ selected: licensedStatesForm.states.includes(abbr) }"
+                     @click="toggleInArray(licensedStatesForm.states, abbr)">{{ abbr }}</div>
+              </div>
+              <div class="form-actions-bar">
+                <button type="button" class="btn btn-primary" :disabled="licensedStatesForm.processing" @click="submitLicensedStates">
+                  {{ licensedStatesForm.processing ? 'Saving…' : 'Save licensed states' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI & Shadow Network -->
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="settings" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">AI &amp; Shadow Network Settings</div>
+                  <div class="ep-card-sub">Set permissions for AI to identify Shadow Partners, enabling you or your Continuity Steward to refer clients when needed.</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="form-row form-row-2">
+                <div class="form-group">
+                  <label class="form-label">AI Shadow Suggestions</label>
+                  <select v-model="aiForm.suggestions_mode" class="form-select">
+                    <option value="on">On — Show AI Suggestions</option>
+                    <option value="paused">Paused</option>
+                    <option value="off">Off</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Max Distance</label>
+                  <select v-model="aiForm.max_distance" class="form-select">
+                    <option value="5">5 miles</option>
+                    <option value="10">10 miles</option>
+                    <option value="25">25 miles</option>
+                    <option value="50">50 miles</option>
+                    <option value="none">No limit</option>
+                  </select>
+                </div>
+              </div>
+              <div class="ep-check-grid">
+                <label class="ep-check-item"><input v-model="aiForm.allow_referral_patterns" type="checkbox"> Allow AI to suggest connections based on referral patterns</label>
+                <label class="ep-check-item"><input v-model="aiForm.allow_demographics" type="checkbox"> Allow AI to suggest based on client demographics</label>
+                <label class="ep-check-item"><input v-model="aiForm.allow_specialties" type="checkbox"> Allow AI to suggest based on my demographics, specialties and treatment populations</label>
+                <label class="ep-check-item"><input v-model="aiForm.appear_in_suggestions" type="checkbox"> Appear in AI suggestions for other providers</label>
+                <label class="ep-check-item"><input v-model="aiForm.show_in_directory" type="checkbox"> Show my profile in Aegis provider directory</label>
+              </div>
+              <div class="form-actions-bar">
+                <button type="button" class="btn btn-primary" :disabled="aiForm.processing" @click="submitAiSettings">
+                  {{ aiForm.processing ? 'Saving…' : 'Save AI settings' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /network -->
+
+        <!-- ══════════════ DEMOGRAPHICS ══════════════ -->
+        <div v-show="activeSection === 'demographics'" class="ep-section">
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="user" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">Provider Identity &amp; Demographics</div>
+                  <div class="ep-card-sub">Optional — helps clients find culturally aligned practitioners</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="alert alert-info">
+                <AegisIcon name="alert-circle" :size="15" />
+                This information is entirely optional and private by default. You control what appears publicly.
+              </div>
+
+              <div v-for="field in demographicFields" :key="field.key" class="form-group" :class="{ 'form-group-last': field.key === demographicFields[demographicFields.length - 1].key }">
+                <label class="form-label">{{ field.label }}</label>
+                <div class="ep-tags">
+                  <div v-for="opt in field.options" :key="opt"
+                       class="ep-tag" :class="{ active: demographicsForm[field.key].includes(opt) }"
+                       @click="toggleInArray(demographicsForm[field.key], opt)">{{ opt }}</div>
+                </div>
+              </div>
+
+              <div class="form-actions-bar">
+                <button type="button" class="btn btn-primary" :disabled="demographicsForm.processing" @click="submitDemographics">
+                  {{ demographicsForm.processing ? 'Saving…' : 'Save demographics' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div><!-- /demographics -->
+
+        <!-- ══════════════ AVAILABILITY ══════════════ -->
+        <div v-show="activeSection === 'availability'" class="ep-section">
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="clock" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">Operating Hours</div>
+                  <div class="ep-card-sub">When are you available to see clients and accept referrals?</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label class="form-label">Available Days <span class="ep-label-req">*</span></label>
+                <div class="ep-days">
+                  <button v-for="day in weekDays" :key="day" type="button"
+                          class="ep-day" :class="{ selected: availabilityForm.hours.days.includes(day) }"
+                          @click="toggleInArray(availabilityForm.hours.days, day)">{{ day }}</button>
+                </div>
+              </div>
+              <div class="form-row form-row-2">
+                <div class="form-group">
+                  <label class="form-label">Start Time <span class="ep-label-req">*</span></label>
+                  <input v-model="availabilityForm.hours.start" type="time" class="form-input">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">End Time <span class="ep-label-req">*</span></label>
+                  <input v-model="availabilityForm.hours.end" type="time" class="form-input">
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Timezone <span class="ep-label-req">*</span></label>
+                <select v-model="availabilityForm.hours.timezone" class="form-select">
+                  <option>Eastern Time (EST)</option><option>Central Time (CST)</option><option>Mountain Time (MST)</option><option>Pacific Time (PST)</option>
+                </select>
+              </div>
+              <div class="form-group form-group-last">
+                <label class="form-label">Typical Response Time</label>
+                <select v-model="availabilityForm.hours.response_time" class="form-select">
+                  <option>Within 1 hour</option><option>Within 2 hours</option><option>Within 4 hours</option><option>Same day</option><option>Within 24 hours</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="monitor" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">Telehealth Settings</div>
+                  <div class="ep-card-sub">Configure your telehealth availability and platform</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <AegisToggle v-model="availabilityForm.telehealth" label="Available via telehealth" />
+              <AegisToggle v-model="availabilityForm.accepting" label="Accepting new referrals" />
+              <div class="form-actions-bar">
+                <button type="button" class="btn btn-primary" :disabled="availabilityForm.processing" @click="submitAvailability">
+                  {{ availabilityForm.processing ? 'Saving…' : 'Save availability' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div><!-- /availability -->
+
+        <!-- Notifications and Privacy & Visibility are managed in Settings, per PHP design (lines: "→ managed in Settings"). -->
+
+      </div><!-- /right content -->
+    </div><!-- /.ep-layout -->
+    <!-- ══════════════ PHOTO UPLOAD MODAL ══════════════ -->
+    <AegisModal v-model="modals.photoUpload" title="Upload Profile Photo" size="md">
+      <AegisDropzone accept="image/*" hint="JPG, PNG or WebP · Max 5 MB · Recommended 400×400px" @files="(files) => handleAvatarUpload(files[0])" />
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="modals.photoUpload = false">Cancel</button>
+      </template>
+    </AegisModal>
+
+    <!-- ══════════════ REMOVE PHOTO MODAL ══════════════ -->
+    <AegisModal v-model="modals.removePhoto" title="Remove Profile Photo" size="sm">
+      <p style="font-size:13px;color:var(--text-2);line-height:1.6">Your profile photo will be removed and your initials will be shown instead. This cannot be undone.</p>
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="modals.removePhoto = false">Cancel</button>
+        <button type="button" class="btn btn-danger btn-sm" @click="confirmRemovePhoto">Yes, Remove</button>
+      </template>
+    </AegisModal>
+
   </AppLayout>
 </template>
 
 <script setup>
-import { useForm } from '@inertiajs/vue3'
+import { ref, reactive, computed } from 'vue'
+import { useForm, router } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
-import AegisCard from '@/components/ui/AegisCard.vue'
+import AegisDropzone from '@/components/ui/AegisDropzone.vue'
 import AegisToggle from '@/components/ui/AegisToggle.vue'
+import AegisEmptyState from '@/components/ui/AegisEmptyState.vue'
 import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 
 const props = defineProps({
-  profile: { type: Object, required: true },
+  user:        { type: Object, required: true },
+  credentials: { type: Array,  default: () => [] },
+  meta:        { type: Object, default: () => ({}) },
 })
 
 const toast = useToast()
-const form = useForm({ ...props.profile })
+const { confirmAction } = useConfirm()
 
-function submit() {
-  form.put(route('provider.profile.update'), {
+// ── Section nav ───────────────────────────────────────────────────────
+const activeSection = ref('basic-info')
+const mainNavItems = [
+  { key: 'basic-info',   icon: 'user',            label: 'Basic Info' },
+  { key: 'professional', icon: 'graduation-cap',  label: 'Professional' },
+  { key: 'specialties',  icon: 'star',            label: 'Specialties' },
+  { key: 'insurance',    icon: 'credit-card',     label: 'Fees & Insurance' },
+  { key: 'network',      icon: 'globe',           label: 'Network Preferences' },
+  { key: 'demographics', icon: 'users',           label: 'Demographics' },
+]
+
+// ── Modals ────────────────────────────────────────────────────────────
+const modals = reactive({ photoUpload: false, removePhoto: false })
+
+// ── Identity / basic info ────────────────────────────────────────────
+const nameParts = (props.user.display_name ?? '').replace(/^(Dr\.|Prof\.|Mr\.|Ms\.|Mrs\.)\s*/i, '').trim().split(' ')
+const firstName = ref(nameParts[0] ?? '')
+const lastName  = ref(nameParts.slice(1).join(' '))
+
+const basicForm = useForm({
+  display_name:    props.user.display_name ?? '',
+  credentials:     props.user.credentials ?? '',
+  title:           props.user.title ?? '',
+  organization:    props.user.organization ?? '',
+  location:        props.user.location ?? '',
+  phone:           props.user.phone ?? '',
+  avatar_initials: props.user.avatar_initials ?? '',
+  bio:             props.user.bio ?? '',
+  about_me:        props.user.about_me ?? '',
+})
+
+const initialsFromName = computed(() => {
+  const f = firstName.value?.[0] ?? ''
+  const l = lastName.value?.[0] ?? ''
+  return (f + l).toUpperCase() || '—'
+})
+
+function submitBasic() {
+  basicForm.display_name = `${firstName.value} ${lastName.value}`.trim()
+  basicForm.put(route('provider.profile.basic'), {
     preserveScroll: true,
-    onSuccess: () => toast.success('Profile saved.'),
+    onSuccess: () => toast.success('Basic info saved.'),
   })
 }
+
+// ── Accepting status (UI-only — no backend fields exist yet) ──────────
+const acceptingStatus = reactive({
+  new_clients:        'Yes — Accepting New Clients',
+  new_referrals:       'Yes — Open to Referrals',
+  supervisees:         'Not Currently',
+  continuity_clients:  'Not Currently',
+  service_format:      'Both In-Person & Telehealth',
+})
+
+// ── Languages / website ──────────────────────────────────────────────
+const languageOptions = ['English','Spanish','Mandarin Chinese','French','Arabic','Hindi','Portuguese','Russian','Korean','Japanese','Vietnamese','Tagalog','Italian','German','Polish']
+const customLanguageInput = ref('')
+const websiteForm = useForm({
+  languages: Array.isArray(props.meta.languages) ? [...props.meta.languages] : ['English'],
+  website:   props.meta.website ?? '',
+})
+function addCustomLanguage() {
+  const v = customLanguageInput.value.trim()
+  if (!v) return
+  if (!websiteForm.languages.includes(v)) websiteForm.languages.push(v)
+  customLanguageInput.value = ''
+}
+function submitLanguages() {
+  websiteForm.put(route('provider.profile.languages'), {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Contact details saved.'),
+  })
+}
+
+// ── Generic tag toggle helper ─────────────────────────────────────────
+function toggleInArray(arr, value) {
+  const i = arr.indexOf(value)
+  if (i === -1) arr.push(value)
+  else arr.splice(i, 1)
+}
+
+// ── Credentials (provider_credentials CRUD) ──────────────────────────
+const credentialList = ref(props.credentials.map((c) => ({ ...c, archived: false })))
+const licenseCredentials = computed(() => credentialList.value.filter((c) => !c.is_insurance))
+const insuranceCredential = computed(() => credentialList.value.find((c) => c.is_insurance) ?? null)
+
+function documentName(path) {
+  if (!path) return ''
+  return path.split('/').pop()
+}
+
+function addLicense() {
+  router.post(route('provider.credentials.store'), {
+    cred_type: 'License',
+    name:      'New State License',
+  }, {
+    preserveScroll: true,
+    onSuccess: () => { toast.success('License added.'); router.reload({ only: ['credentials'] }) },
+  })
+}
+
+function saveCredentialField(cred) {
+  router.put(route('provider.credentials.update', cred.id), {
+    issuer:     cred.issuer,
+    number:     cred.number,
+    issued_on:  cred.issued_on,
+    expires_on: cred.expires_on,
+  }, { preserveScroll: true, onSuccess: () => toast.success('License updated.') })
+}
+
+function uploadCredentialDocument(cred, file) {
+  router.post(route('provider.credentials.update', cred.id), {
+    _method:  'put',
+    document: file,
+  }, {
+    forceFormData: true,
+    preserveScroll: true,
+    onSuccess: () => { toast.success('Document uploaded.'); router.reload({ only: ['credentials'] }) },
+  })
+}
+
+function toggleArchiveCredential(cred) {
+  cred.archived = !cred.archived
+  toast.info(cred.archived ? 'Credential archived — kept for your records' : 'Credential restored')
+}
+
+function confirmRemoveCredential(cred) {
+  confirmAction(
+    'Remove this credential? This cannot be undone.',
+    () => router.delete(route('provider.credentials.destroy', cred.id), {
+      preserveScroll: true,
+      onSuccess: () => { toast.success('Credential removed.'); router.reload({ only: ['credentials'] }) },
+    }),
+    { title: 'Remove Credential', btnLabel: 'Remove', type: 'danger' }
+  )
+}
+
+const insuranceForm = useForm({
+  issuer:      insuranceCredential.value?.issuer ?? '',
+  number:      insuranceCredential.value?.number ?? '',
+  subtitle:    insuranceCredential.value?.subtitle ?? '',
+  expires_on:  insuranceCredential.value?.expires_on ?? '',
+  document:    null,
+})
+function submitInsurance() {
+  const isUpdate = !!insuranceCredential.value
+  const target = isUpdate
+    ? route('provider.credentials.update', insuranceCredential.value.id)
+    : route('provider.credentials.store')
+
+  insuranceForm.transform((data) => ({
+    ...data,
+    cred_type: 'Liability Insurance',
+    name: 'Liability Insurance',
+    ...(isUpdate ? { _method: 'put' } : {}),
+  })).post(target, {
+    forceFormData: true,
+    preserveScroll: true,
+    onSuccess: () => { toast.success('Insurance saved.'); router.reload({ only: ['credentials'] }) },
+    onFinish: () => insuranceForm.transform((data) => data),
+  })
+}
+
+// ── Credential / specialty / service / approach tag taxonomies ───────
+const credentialTagGroups = [
+  { label: 'Medical & Prescribing', options: ['MD — Medical Doctor', 'DO — Osteopathic Medicine', 'ND — Naturopathic Doctor', 'NP — Nurse Practitioner', 'PA — Physician Assistant'] },
+  { label: 'Licensed Mental Health', options: ['LPC / LPCC', 'LCSW / LICSW', 'LMFT', 'PhD — Psychology', 'PsyD — Psychology', 'DMFT', 'ABPP — Board Certified Psychologist', 'PMHNP-BC'] },
+  { label: 'Therapy & Specialized', options: ['EMDR Certified', 'DBT Certified', 'CSE — Certified Sex Educator', 'CSC — Certified Sex Counselor', 'CST — Certified Sex Therapist', 'ATR — Art Therapist', 'MT-BC — Music Therapist', 'RDT — Drama Therapist'] },
+  { label: 'Addiction, Nutrition & Health', options: ['CADC / ICADC', 'LAc — Licensed Acupuncturist', 'RD / RDN — Registered Dietitian', 'NBC-HWC — Health & Wellness Coach', 'CNM — Certified Nurse-Midwife', 'CGC — Certified Genetic Counselor', 'CDCES / CDE — Diabetes Specialist'] },
+  { label: 'Fitness & Physical Health', options: ['CPT (NSCA)', 'CPT (NASM)', 'CPT (ACE)', 'EP-C (ACSM) — Exercise Physiologist'] },
+  { label: 'Coaching', options: ['ICF — Life / Executive Coach', 'CPCC — Certified Professional Co-Active Coach', 'ACC / PCC / MCC (ICF)'] },
+]
+const customCertInput = ref('')
+function addCustomCert() {
+  const v = customCertInput.value.trim()
+  if (!v) return
+  if (!specialtiesForm.specialties.includes(v)) specialtiesForm.specialties.push(v)
+  customCertInput.value = ''
+}
+
+const serviceTagGroups = [
+  { label: 'Personal Wellness & Therapy', options: ['Psychotherapy (individual, couples, family)', 'Stress reduction & relaxation', 'Holistic lifestyle guidance', 'Nutritional & lifestyle recommendations', 'Wellness assessments', 'Sustainable wellness habit coaching'] },
+  { label: 'Consultations, Supervision & Advisory', options: ['Health & wellness consultations (individuals)', 'Health & wellness consultations (organizations)', 'Workplace wellbeing consulting', 'DEI consultations', 'Cultural responsiveness consulting', 'Case consultation / professional guidance', 'Clinical supervision', 'General advisory & strategy sessions'] },
+  { label: 'Movement & Physical Health', options: ['Movement & fitness support', 'Strength & mobility coaching', 'Personalized training programs'] },
+  { label: 'Birth, Postpartum & Sleep', options: ['Prenatal education', 'Birth planning', 'Postpartum support', 'Infant feeding support', 'Sleep assessments & evaluations', 'Sleep training', 'Sleep hygiene & circadian rhythm education'] },
+  { label: 'Integrative & Natural Approaches', options: ['Herbal consultations', 'Homeopathic remedies', 'Energy work (Reiki, chakra balancing)', 'Genetic risk assessment', 'Medication evaluation'] },
+  { label: 'Practice Continuity Services', options: ['Practice Continuity (Continuity Steward) Services'] },
+]
+const customServiceInput = ref('')
+function addCustomService() {
+  const v = customServiceInput.value.trim()
+  if (!v) return
+  if (!servicesForm.services.includes(v)) servicesForm.services.push(v)
+  customServiceInput.value = ''
+}
+
+const specialtyTagGroups = [
+  { label: 'Everyday Wellbeing & Life Support', options: ['Stress & burnout', 'Self-esteem & identity', 'Life transitions', 'Career & work support', 'Relationship challenges', 'Lifestyle & healthy habits', 'Wellness & health coaching', 'Integrated health & business coaching'] },
+  { label: 'Relationships, Family & Connection', options: ['Individual support', 'Couples & partnership support', 'Family support', 'Parenting & children', 'Children & adolescent support', 'Intimacy & sex therapy', 'LGBTQIA+ affirming care'] },
+  { label: 'Emotional & Mental Health', options: ['Anxiety & worry', 'Mood challenges (depression & bipolar)', 'Trauma & PTSD', 'Grief & loss', 'Addiction & substance use', 'Eating concerns & body relationship', 'Sleep challenges', 'Focus & attention (ADHD)', 'Autism support', 'Psychosis-related experiences'] },
+  { label: 'Identity, Culture & Life Experience', options: ["Women's health & experiences", "Men's health & experiences", 'Older adult support & aging', 'Veteran support', 'Immigration & cultural stress', 'BIPOC support', 'Spirituality & personal beliefs'] },
+  { label: 'Health Conditions & Medical Support', options: ['Medication support & management', 'Chronic illness & ongoing conditions', 'Cancer support', 'Diabetes & blood sugar', 'Heart & cardiovascular health', 'Hormonal health', 'Weight & metabolic health', 'Pain & physical conditions'] },
+  { label: 'Nutrition & Physical Health', options: ['Nutrition & dietary support', 'Functional & integrative nutrition', 'Gut & digestive health', 'Hormonal & metabolic nutrition', 'Prenatal & postpartum nutrition', 'Sports & performance nutrition'] },
+  { label: 'Integrative, Holistic & Preventive', options: ['Preventive care & longevity', 'Root-cause & whole-person approaches', 'Mind–body practices', 'Energy & spiritual care', 'Herbal support & education'] },
+  { label: 'Reproductive, Birth & Family Building', options: ['Prenatal education & planning', 'Birth support', 'Postpartum support', 'Reproductive & perinatal mental health'] },
+  { label: 'Creative, Expressive & Community', options: ['Art, music, play & dance-based support', 'Animal-assisted support', 'Trauma-informed approaches', 'Diversity, equity & inclusion', 'Corporate & workplace wellbeing'] },
+]
+const customSpecialtyInput = ref('')
+function addCustomSpecialty() {
+  const v = customSpecialtyInput.value.trim()
+  if (!v) return
+  if (!specialtiesForm.specialties.includes(v)) specialtiesForm.specialties.push(v)
+  customSpecialtyInput.value = ''
+}
+
+const approachTagGroups = [
+  { label: 'Clinical', options: ['Cognitive Behavioral Therapy (CBT)', 'Narrative Therapy', 'Collaborative Language Therapy', 'Structural Family Therapy', 'Gestalt Therapy', 'Jungian Therapy', 'Adlerian Therapy', 'Behavioral Therapy', 'Dialectical Behavioral Therapy (DBT)', 'Acceptance and Commitment Therapy (ACT)', 'Experiential Therapy', 'Existential Therapy', 'Eclectic', 'Psychoanalytic', 'Somatic Therapy', 'Trauma-Focused Therapy', 'EMDR', 'Mindfulness-Based Therapy', 'Solution-Focused Brief Therapy', 'Internal Family Systems (IFS)', 'Family Systems Therapy', 'Psychodynamic Therapy', 'Motivational Interviewing'] },
+  { label: 'Nutrition & Dietetics', options: ['Medical Nutrition Therapy (MNT)', 'Personalized Nutrition Planning', 'Behavior Change Counseling', 'Intuitive Eating', 'Functional Nutrition', 'Anti-Inflammatory Nutrition', 'Therapeutic Diets (low-FODMAP, DASH, Mediterranean)', 'Elimination Diets', 'Nutritional Education & Coaching', 'Weight-Neutral Nutrition', 'Meal Planning & Dietary Structuring'] },
+  { label: 'Functional Medicine', options: ['Root-Cause Analysis', 'Systems Biology Approach', 'Personalized Medicine', 'Lifestyle Medicine', 'Hormone Optimization', 'Gut Restoration Protocols', 'Anti-Inflammatory Interventions', 'Detoxification Protocols', 'Nutraceutical & Supplement Therapy', 'Stress & HPA Axis Regulation', 'Mind-Body Medicine', 'Preventive & Longevity Medicine', 'Environmental Medicine'] },
+  { label: 'Psychiatry', options: ['Psychopharmacology', 'Medication Management', 'Combined Therapy & Medication', 'Evidence-Based Prescribing', 'Treatment-Resistant Protocols', 'Long-Acting Injectable Therapy', 'Somatic Therapies (ECT, TMS, Ketamine)', 'Collaborative Care Models', 'Psychiatric Assessment & Care Planning'] },
+]
+const customApproachInput = ref('')
+function addCustomApproach() {
+  const v = customApproachInput.value.trim()
+  if (!v) return
+  if (!approachesForm.approaches.includes(v)) approachesForm.approaches.push(v)
+  customApproachInput.value = ''
+}
+
+const specialtiesForm = useForm({ specialties: Array.isArray(props.meta.specialties) ? [...props.meta.specialties] : [] })
+function submitSpecialties() {
+  specialtiesForm.put(route('provider.profile.specialties'), {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Specialties saved.'),
+  })
+}
+
+const servicesForm = useForm({ services: Array.isArray(props.meta.services) ? [...props.meta.services] : [] })
+function submitServices() {
+  servicesForm.put(route('provider.profile.services'), {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Services saved.'),
+  })
+}
+
+const approachesForm = useForm({ approaches: Array.isArray(props.meta.approaches) ? [...props.meta.approaches] : [] })
+function submitApproaches() {
+  approachesForm.put(route('provider.profile.approaches'), {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Approaches saved.'),
+  })
+}
+
+// ── Insurance grid + fees ─────────────────────────────────────────────
+const insuranceGroups = [
+  { label: 'Commercial Health Plans', options: ['Aetna', 'Cigna / Evernorth', 'UnitedHealthcare', 'Humana', 'Kaiser Permanente', 'Oscar Health', 'Molina Healthcare', 'WellCare', 'Centene'] },
+  { label: 'Blue Cross Blue Shield', options: ['Anthem BCBS', 'BCBS (State / Regional)', 'Blue Shield of California', 'Premera Blue Cross', 'Regence BlueCross'] },
+  { label: 'Government Programs', options: ['Medicare', 'Medicaid', 'TRICARE', 'VA Community Care', 'CHIP'] },
+  { label: 'Marketplace / Specialty', options: ['EAP', 'Optum / Optum Health', 'Magellan Health', 'ValueOptions / Beacon', 'Multiplan / PHCS', 'Out-of-Network (OON)'] },
+]
+const customInsuranceInput = ref('')
+function addCustomInsurance() {
+  const v = customInsuranceInput.value.trim()
+  if (!v) return
+  if (!feesForm.insurance_types.includes(v)) feesForm.insurance_types.push(v)
+  customInsuranceInput.value = ''
+}
+
+const fees = props.meta.fees ?? {}
+const feesForm = useForm({
+  session_rate_cents:   fees.session_rate_cents ?? 25000,
+  session_length_mins:  fees.session_length_mins ?? 50,
+  accepts_insurance:    fees.accepts_insurance ?? true,
+  accepts_cash:         fees.accepts_cash ?? true,
+  insurance_types:      Array.isArray(props.meta.insurance_panels) ? [...props.meta.insurance_panels] : [],
+  package_available:    fees.package_available ?? false,
+  package_description:  fees.package_description ?? '',
+  package_rate_cents:   fees.package_rate_cents ?? null,
+})
+const sessionRateDollars = computed({
+  get: () => feesForm.session_rate_cents != null ? feesForm.session_rate_cents / 100 : null,
+  set: (v) => { feesForm.session_rate_cents = v ? Math.round(v * 100) : null },
+})
+const packageRateDollars = computed({
+  get: () => feesForm.package_rate_cents != null ? feesForm.package_rate_cents / 100 : null,
+  set: (v) => { feesForm.package_rate_cents = v ? Math.round(v * 100) : null },
+})
+function submitFees() {
+  feesForm.put(route('provider.profile.fees'), {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Fees saved.'),
+  })
+}
+
+// ── Network partners (interdisciplinary tags) ─────────────────────────
+const interdisciplinaryOptions = ['Psychotherapist & Psychologist', 'Psychiatrist', 'Movement / Dance Specialist', 'Coach (lifestyle, career)', 'Behavioral Therapist', 'Massage Therapist', 'Acupuncturist', 'Functional Medicine Practitioner', 'Holistic Nutrition Practitioner', 'Certified Diabetes Educator (CDE)', 'Hypnotherapist', 'Energy Healing Practitioner', 'Homeopath', 'Herbalist', 'Somatic Practitioner', 'Ayurveda Practitioner', 'Certified Nurse-Midwife (CNM)', 'Doula', 'Sleep Specialist', 'Genetic Counselor', 'Personal Trainer']
+const networkPartnersForm = useForm({ partners: Array.isArray(props.meta.network_partners) ? [...props.meta.network_partners] : [] })
+function submitNetworkPartners() {
+  networkPartnersForm.put(route('provider.profile.network-partners'), {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Network preferences saved.'),
+  })
+}
+
+// ── Licensed states ────────────────────────────────────────────────────
+const usStateAbbrs = ['NY','NJ','CT','PA','MA','VT','NH','RI','ME','DE','MD','VA','WV','NC','SC','GA','FL','AL','TN','KY','OH','IN','IL','MI','WI','MN','MO','IA','KS','NE','ND','SD','OK','TX','AR','LA','MS','AZ','NM','CO','UT','WY','MT','ID','NV','OR','WA','CA','AK','HI','DC','PR']
+const licensedStatesForm = useForm({ states: Array.isArray(props.meta.licensed_states) ? [...props.meta.licensed_states] : [] })
+function submitLicensedStates() {
+  licensedStatesForm.put(route('provider.profile.licensed-states'), {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Licensed states saved.'),
+  })
+}
+
+// ── AI / Shadow Network settings ───────────────────────────────────────
+const ai = props.meta.ai_settings ?? {}
+const aiForm = useForm({
+  suggestions_mode:        ai.suggestions_mode ?? 'on',
+  max_distance:            ai.max_distance ?? '25',
+  allow_referral_patterns: ai.allow_referral_patterns ?? true,
+  allow_demographics:      ai.allow_demographics ?? true,
+  allow_specialties:       ai.allow_specialties ?? true,
+  appear_in_suggestions:   ai.appear_in_suggestions ?? false,
+  show_in_directory:       ai.show_in_directory ?? true,
+})
+function submitAiSettings() {
+  aiForm.put(route('provider.profile.ai-settings'), {
+    preserveScroll: true,
+    onSuccess: () => toast.success('AI & Shadow Network settings saved.'),
+  })
+}
+
+// ── Education ──────────────────────────────────────────────────────────
+const educationForm = useForm({
+  education: Array.isArray(props.meta.education) && props.meta.education.length
+    ? props.meta.education.map((e) => ({ ...e }))
+    : [{ degree: '', field: '', institution: '', duration: '' }],
+})
+function submitEducation() {
+  educationForm.put(route('provider.profile.education'), {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Education saved.'),
+  })
+}
+
+// ── Demographics ────────────────────────────────────────────────────────
+const demographicFields = [
+  { key: 'pronouns', label: 'Pronouns', options: ['She / Her', 'He / Him', 'They / Them', 'Ze / Zir', 'Any Pronouns', 'Prefer Not to Disclose'] },
+  { key: 'ethnicity', label: 'Race / Ethnicity', options: ['American Indian or Alaska Native', 'Asian', 'Black or African American', 'Hispanic or Latino/a/x', 'Middle Eastern or North African', 'White or Caucasian', 'Multiracial or Biracial', 'Prefer Not to Say'] },
+  { key: 'lgbtq_identity', label: 'LGBTQ+ Identity', options: ['LGBTQ+ Identifying Provider', 'LGBTQ+ Affirming (Ally)', 'Not Disclosed'] },
+  { key: 'parenting_status', label: 'Parenting Status', options: ['Parent', 'Not a Parent', 'Prefer Not to Disclose'] },
+  { key: 'religious_orientation', label: 'Religious / Spiritual Orientation', options: ['Christian', 'Jewish', 'Muslim', 'Buddhist', 'Hindu', 'Spiritual (Non-Religious)', 'Secular / Non-Religious', 'Prefer Not to Disclose'] },
+  { key: 'veteran_status', label: 'Veteran Status', options: ['Military Veteran', 'Active Duty Military', 'Veteran-Affirming (Non-Veteran)', 'Not Applicable'] },
+  { key: 'supervision_status', label: 'Clinical Supervision Status', options: ['Yes — I Provide Clinical Supervision', 'No — I Do Not Provide Supervision', 'Approved Supervisor (Licensed)', 'Accepting Supervisees', 'Not Accepting Supervisees'] },
+]
+const demo = props.meta.demographics ?? {}
+const demographicsForm = useForm({
+  pronouns:              Array.isArray(demo.pronouns) ? [...demo.pronouns] : [],
+  ethnicity:             Array.isArray(demo.ethnicity) ? [...demo.ethnicity] : [],
+  lgbtq_identity:        Array.isArray(demo.lgbtq_identity) ? [...demo.lgbtq_identity] : [],
+  parenting_status:      Array.isArray(demo.parenting_status) ? [...demo.parenting_status] : [],
+  religious_orientation: Array.isArray(demo.religious_orientation) ? [...demo.religious_orientation] : [],
+  veteran_status:        Array.isArray(demo.veteran_status) ? [...demo.veteran_status] : [],
+  supervision_status:    Array.isArray(demo.supervision_status) ? [...demo.supervision_status] : [],
+})
+function submitDemographics() {
+  demographicsForm.put(route('provider.profile.demographics'), {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Demographics saved.'),
+  })
+}
+
+// ── Availability ─────────────────────────────────────────────────────
+const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const availability = props.meta.availability ?? {}
+const hoursDefault = { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], start: '09:00', end: '17:00', timezone: 'Eastern Time (EST)', response_time: 'Within 2 hours' }
+const availabilityForm = useForm({
+  hours:      availability.hours && typeof availability.hours === 'object' ? { ...hoursDefault, ...availability.hours } : { ...hoursDefault },
+  accepting:  availability.accepting ?? true,
+  telehealth: availability.telehealth ?? true,
+})
+function submitAvailability() {
+  availabilityForm.put(route('provider.profile.availability'), {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Availability saved.'),
+  })
+}
+
+// ── Photo upload / removal — real multipart upload to provider.profile.avatar.* ──
+const avatarForm = useForm({ avatar: null })
+function handleAvatarUpload(file) {
+  avatarForm.avatar = file
+  avatarForm.post(route('provider.profile.avatar.update'), {
+    forceFormData: true,
+    preserveScroll: true,
+    onSuccess: () => {
+      modals.photoUpload = false
+      toast.success('Photo uploaded.')
+    },
+    onError: () => toast.error('Could not upload photo — check file size and format.'),
+  })
+}
+function confirmRemovePhoto() {
+  router.delete(route('provider.profile.avatar.destroy'), {
+    preserveScroll: true,
+    onSuccess: () => {
+      modals.removePhoto = false
+      toast.success('Profile photo removed.')
+    },
+  })
+}
+
+// ── Completion strip (computed from filled fields — no backend % exists) ──
+const completionPct = computed(() => {
+  const checks = [
+    !!basicForm.display_name, !!basicForm.title, !!basicForm.bio,
+    !!basicForm.location, !!basicForm.phone,
+    specialtiesForm.specialties.length > 0,
+    servicesForm.services.length > 0,
+    licenseCredentials.value.length > 0,
+    !!insuranceCredential.value,
+  ]
+  const filled = checks.filter(Boolean).length
+  return Math.round((filled / checks.length) * 100)
+})
+const completionItemsRemaining = computed(() => {
+  const total = 9
+  return Math.max(0, total - Math.round((completionPct.value / 100) * total))
+})
+
+const lastSavedLabel = computed(() => {
+  if (!props.user.updated_at) return 'recently'
+  try {
+    const diffMs = Date.now() - new Date(props.user.updated_at).getTime()
+    const hours = Math.floor(diffMs / 3600000)
+    if (hours < 1) return 'just now'
+    if (hours < 24) return `${hours}h ago`
+    return `${Math.floor(hours / 24)}d ago`
+  } catch { return 'recently' }
+})
 </script>
+
+<style scoped>
+/* ─── Form actions bar (per-card save buttons) ─── */
+.form-actions-bar {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+/* ─── Two-column layout ─── */
+.ep-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+/* ─── Left nav ─── */
+.ep-nav {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 10px 8px;
+  box-shadow: var(--shadow-xs);
+  position: sticky;
+  top: 84px;
+}
+.ep-nav-section-label {
+  font-family: var(--font-sans);
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1px;
+  color: var(--text-4);
+  padding: 14px 12px 8px;
+}
+.ep-nav-section-label:first-child { padding-top: 6px; }
+.ep-nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: var(--radius-sm);
+  font-family: var(--font-sans); font-size: 13px; font-weight: 500;
+  color: var(--text-2); cursor: pointer; text-decoration: none;
+  transition: background var(--transition), color var(--transition), box-shadow var(--transition);
+}
+.ep-nav-item:hover { background: var(--surface-2); color: var(--text); }
+.ep-nav-item:hover .ep-nav-icon { color: var(--gold-dark); }
+.ep-nav-item.active { background: var(--badge-bg-gold); color: var(--gold-dark); font-weight: 600; }
+.ep-nav-item.active .ep-nav-icon { color: var(--gold-dark); }
+.ep-nav-icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--text-3); transition: color var(--transition); }
+.ep-nav-label { flex: 1; line-height: 1.3; }
+.ep-nav-check { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--gold-dark); opacity: 0.7; transition: opacity var(--transition); }
+.ep-nav-item:hover .ep-nav-check, .ep-nav-item.active .ep-nav-check { opacity: 1; }
+.ep-nav-divider { height: 1px; background: var(--border); margin: 10px 12px; }
+
+/* ─── Sections ─── */
+.ep-section { animation: epSectionIn 0.22s ease; }
+@keyframes epSectionIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ─── Cards ─── */
+.ep-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+.ep-card-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.ep-card-header-left { display: flex; align-items: center; gap: 10px; }
+.ep-card-icon { width: 32px; height: 32px; border-radius: var(--radius-sm); background: var(--badge-bg-gold); color: var(--gold-dark); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ep-card-title { font-family: var(--font-serif); font-size: 17px; font-weight: 700; color: var(--text); }
+.ep-card-sub { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+
+/* ─── Labels ─── */
+.ep-label-req { color: var(--red); }
+.ep-label-opt { font-size: 10px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text-4); }
+
+/* ─── Money / prefix inputs ─── */
+.ep-money { position: relative; }
+.ep-money-prefix { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: 600; color: var(--text-3); pointer-events: none; }
+.ep-money .form-input { padding-left: 24px; }
+.ep-input-prefix { display: flex; align-items: stretch; border: 1.5px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: border-color var(--transition), box-shadow var(--transition); }
+.ep-input-prefix:focus-within { border-color: var(--gold-dark); box-shadow: 0 0 0 3px var(--badge-bg-gold); }
+.ep-input-prefix-label { padding: 9px 12px; background: var(--surface-2); border-right: 1.5px solid var(--border); font-size: 12px; color: var(--text-3); white-space: nowrap; display: flex; align-items: center; }
+.ep-input-prefix .form-input { border: none; border-radius: 0; flex: 1; }
+.ep-input-prefix .form-input:focus { box-shadow: none; }
+.ep-divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+/* ─── Avatar row ─── */
+.ep-avatar-row { display: flex; align-items: center; gap: 20px; padding: 18px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.ep-avatar-preview {
+  width: 80px; height: 80px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--gold-dark) 0%, var(--gold) 100%);
+  color: var(--text-inverted);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-serif); font-size: 28px; font-weight: 700;
+  flex-shrink: 0; box-shadow: var(--shadow);
+}
+.ep-avatar-info h4 { font-family: var(--font-serif); font-size: 16px; font-weight: 700; color: var(--text); margin: 0 0 3px; }
+.ep-avatar-info p { font-size: 12px; color: var(--text-3); line-height: 1.5; margin: 0; }
+.ep-avatar-btns { display: flex; gap: 8px; margin-top: 10px; }
+
+/* ─── Credential cards (licenses) ─── */
+.ep-cred { background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px; transition: border-color var(--transition); }
+.ep-cred.primary { border-color: var(--gold-dark); background: var(--badge-bg-gold); }
+.ep-cred.is-archived { opacity: 0.55; border-color: var(--border); background: var(--surface-3); }
+.ep-cred-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+.ep-cred-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--text); }
+.ep-cred-badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: var(--radius-full); background: var(--badge-bg-gold); color: var(--gold-dark); border: 1px solid var(--badge-border-gold); }
+.ep-cred.is-archived .ep-cred-badge { background: var(--surface-4); color: var(--text-4); border-color: var(--border-dark); }
+
+/* ─── File row ─── */
+.ep-file-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); }
+.ep-file-info { display: flex; align-items: center; gap: 12px; }
+.ep-file-icon { width: 36px; height: 36px; border-radius: var(--radius-sm); background: var(--badge-bg-gold); color: var(--gold-dark); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ep-file-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.ep-file-meta { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+
+/* ─── Category header ─── */
+.ep-cat { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-4); margin: 24px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 7px; }
+.card-body > .ep-cat:first-child,
+.card-body > div:first-child > .ep-cat,
+details > div > div:first-child > .ep-cat { margin-top: 0; }
+
+/* ─── Insurance checklist grid ─── */
+.ep-ins-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
+.ep-ins-item { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all var(--transition); font-size: 13px; font-weight: 600; color: var(--text); background: var(--surface); }
+.ep-ins-item:hover { border-color: var(--gold-dark); background: var(--badge-bg-gold); }
+.ep-ins-item.checked { border-color: var(--gold-dark); background: var(--badge-bg-gold); color: var(--gold-dark); font-weight: 700; }
+.ep-ins-dot { width: 14px; height: 14px; border-radius: var(--radius-full); flex-shrink: 0; border: 1.5px solid var(--border-dark); background: var(--surface); display: flex; align-items: center; justify-content: center; transition: all var(--transition); position: relative; }
+.ep-ins-dot::after { content: ''; width: 6px; height: 6px; border-radius: var(--radius-full); background: transparent; transition: background var(--transition), transform var(--transition); transform: scale(0); }
+.ep-ins-item.checked .ep-ins-dot { border-color: var(--gold-dark); background: var(--surface); }
+.ep-ins-item.checked .ep-ins-dot::after { background: var(--gold-dark); transform: scale(1); }
+
+/* ─── State grid ─── */
+.ep-states { display: grid; grid-template-columns: repeat(9, 1fr); gap: 5px; }
+.ep-state { height: 34px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--text-3); cursor: pointer; transition: all var(--transition); background: var(--surface); }
+.ep-state:hover { border-color: var(--gold-dark); color: var(--gold-dark); }
+.ep-state.selected { background: var(--gold-dark); color: var(--text-inverted); border-color: var(--primary); }
+
+/* ─── Day buttons ─── */
+.ep-days { display: flex; gap: 8px; flex-wrap: wrap; }
+.ep-day {
+  width: 46px; height: 46px; border-radius: var(--radius);
+  border: 1.5px solid var(--border); background: var(--surface);
+  font-size: 11px; font-weight: 700; color: var(--text-3);
+  cursor: pointer; transition: all var(--transition);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-sans);
+}
+.ep-day:hover { border-color: var(--gold-dark); color: var(--gold-dark); }
+.ep-day.selected { background: var(--badge-bg-gold); color: var(--gold-dark); border-color: var(--soft-gold); }
+
+/* ─── Radio item ─── */
+.ep-radio-item { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--text-2); cursor: pointer; padding: 6px 10px; border-radius: var(--radius-sm); transition: background var(--transition); }
+.ep-radio-item:hover { background: var(--surface-2); }
+.ep-radio-item input { width: 15px; height: 15px; cursor: pointer; accent-color: var(--gold-dark); flex-shrink: 0; }
+
+/* ─── Responsive ─── */
+@media (max-width: 960px) {
+  .ep-layout { grid-template-columns: 1fr; }
+  .ep-nav { position: static; display: flex; flex-wrap: wrap; gap: 4px; padding: 10px; }
+  .ep-nav-section-label { display: none; }
+  .ep-nav-divider { display: none; }
+}
+@media (max-width: 680px) {
+  .ep-ins-grid { grid-template-columns: 1fr 1fr; }
+  .ep-states { grid-template-columns: repeat(6, 1fr); }
+}
+</style>
+

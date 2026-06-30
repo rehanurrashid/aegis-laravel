@@ -27,7 +27,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'id', 'role', 'display_name', 'credentials', 'email', 'phone', 'location',
-        'organization', 'avatar_initials', 'title', 'specialty', 'bio',
+        'organization', 'avatar_initials', 'avatar_path', 'title', 'specialty', 'bio',
         'slug', 'slug_locked_at',
         'practitioner_public', 'cs_public', 'business_partner_public',
         'tier', 'services_mode', 'maat_addon', 'payment_model',
@@ -43,7 +43,7 @@ class User extends Authenticatable
 
     protected $hidden = ['password', 'remember_token'];
 
-    protected $appends = ['portal'];
+    protected $appends = ['portal', 'avatar_url'];
 
     protected $casts = [
         'role'                    => UserRole::class,
@@ -72,6 +72,11 @@ class User extends Authenticatable
     public function getPortalAttribute(): string
     {
         return $this->role?->portal() ?? 'provider';
+    }
+
+    public function getAvatarUrlAttribute(): ?string
+    {
+        return $this->avatar_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->avatar_path) : null;
     }
 
     // ── Self-referential ───────────────────────────────────────────────

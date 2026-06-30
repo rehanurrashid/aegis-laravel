@@ -85,6 +85,7 @@ class MessagesController extends Controller
                     'id'             => $cp->id,
                     'display_name'   => $cp->display_name,
                     'avatar_initials'=> $cp->avatar_initials ?? Str::upper(Str::substr($cp->display_name ?? 'U', 0, 2)),
+                    'avatar_url'     => $cp->avatar_url ?? null,
                     'role'           => $cpRole,
                     'role_label'     => $this->roleLabel($cpRole),
                     'organization'   => $cp->organization ?? null,
@@ -138,7 +139,7 @@ class MessagesController extends Controller
         $recipients = User::where('id', '!=', $user->id)
             ->orderBy('display_name')
             ->limit(200)
-            ->get(['id', 'display_name', 'role', 'organization', 'avatar_initials'])
+            ->get(['id', 'display_name', 'role', 'organization', 'avatar_initials', 'avatar_path'])
             ->map(fn ($u) => [
                 'id'              => $u->id,
                 'display_name'    => $u->display_name,
@@ -146,6 +147,7 @@ class MessagesController extends Controller
                 'role_label'      => $this->roleLabel($u->role?->value ?? ''),
                 'organization'    => $u->organization ?? null,
                 'avatar_initials' => $u->avatar_initials ?? Str::upper(Str::substr($u->display_name ?? 'U', 0, 2)),
+                'avatar_url'      => $u->avatar_url ?? null,
             ]);
 
         // Auto-mark active thread as read for the viewer
@@ -164,6 +166,7 @@ class MessagesController extends Controller
             'currentUserId'  => $user->id,
             'currentUserInitials' => $user->avatar_initials
                 ?? Str::upper(Str::substr($user->display_name ?? 'U', 0, 2)),
+            'currentUserAvatarUrl' => $user->avatar_url,
         ]);
     }
 

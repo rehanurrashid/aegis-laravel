@@ -23,6 +23,8 @@ class ProviderCredential extends Model
         'document_path', 'sort_order',
     ];
 
+    protected $appends = ['is_insurance', 'days_remaining'];
+
     protected $casts = [
         'issued_on'  => 'date',
         'expires_on' => 'date',

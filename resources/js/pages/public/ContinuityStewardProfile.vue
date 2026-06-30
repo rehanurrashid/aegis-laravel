@@ -11,7 +11,10 @@
       <div class="hero-banner is-quiet">
         <div class="page-hero-inner">
           <div class="page-hero-left has-icon">
-            <div class="page-hero-icon is-avatar" aria-hidden="true">{{ avatarInitials }}</div>
+            <div class="page-hero-icon is-avatar" aria-hidden="true"
+                 :style="user.avatar_url ? { backgroundImage: `url(${user.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+              <template v-if="!user.avatar_url">{{ avatarInitials }}</template>
+            </div>
             <div class="page-hero-text">
               <div class="page-hero-eyebrow">Continuity Steward</div>
               <h1 class="page-hero-title">{{ user.display_name }}{{ user.credentials ? ', ' + user.credentials : '' }}</h1>
@@ -69,16 +72,13 @@
         </template>
       </div>
 
-      <!-- ═══ STAT ROW (5) ═══ -->
-      <div class="pp-stat-row">
-        <div class="pp-stat-box"><div class="pp-stat-val">{{ pmStats.practitioners_served ?? 18 }}</div><div class="pp-stat-lbl">Practitioners Served</div></div>
-        <div class="pp-stat-box"><div class="pp-stat-val" style="color:var(--green-dark)">{{ pmStats.incidents_supported ?? 12 }}</div><div class="pp-stat-lbl">Incidents Supported</div></div>
-        <div class="pp-stat-box">
-          <div class="pp-stat-val">{{ pm.rating ?? '4.9' }}<span style="display:inline-flex;vertical-align:middle;line-height:0;margin-left:2px"><AegisIcon name="star" :size="12" class="aegis-icon-filled aegis-icon-gold-dark" /></span></div>
-          <div class="pp-stat-lbl">Steward Rating</div>
-        </div>
-        <div class="pp-stat-box"><div class="pp-stat-val" style="color:var(--blue-dark)">{{ pmStats.years_experience ?? 14 }}</div><div class="pp-stat-lbl">Years Experience</div></div>
-        <div class="pp-stat-box"><div class="pp-stat-val" style="color:var(--gold-dark)">{{ pmFees.annual_hours ?? '480 hr/yr' }}</div><div class="pp-stat-lbl">Annual Capacity</div></div>
+      <!-- ═══ STAT CHIPS ═══ -->
+      <div class="stat-chips-row">
+        <AegisStatChip icon="users" :value="pmStats.practitioners_served ?? 18" label="Practitioners Served" />
+        <AegisStatChip icon="check" :value="pmStats.incidents_supported ?? 12" label="Incidents Supported" />
+        <AegisStatChip icon="star" :value="pm.rating ?? '4.9'" label="Steward Rating" />
+        <AegisStatChip icon="clock" :value="pmStats.years_experience ?? 14" label="Years Experience" />
+        <AegisStatChip icon="briefcase" :value="pmFees.annual_hours ?? '480 hr/yr'" label="Annual Capacity" />
       </div>
 
       <!-- ═══ TWO-COLUMN GRID ═══ -->
@@ -174,9 +174,9 @@
             <div class="pp-section-title"><AegisIcon name="map-pin" :size="13" class="aegis-icon-gold-dark" /> Contact &amp; Office</div>
             <div class="pp-info-row"><span class="pp-info-label">Organization</span><span class="pp-info-val">{{ organization }}</span></div>
             <div v-if="user.location" class="pp-info-row"><span class="pp-info-label">Location</span><span class="pp-info-val">{{ user.location }}</span></div>
-            <div v-if="isLoggedIn && user.email" class="pp-info-row"><span class="pp-info-label">Email</span><span class="pp-info-val" style="font-size:11px"><a :href="'mailto:'+user.email">{{ user.email }}</a></span></div>
+            <div v-if="isLoggedIn && user.email" class="pp-info-row"><span class="pp-info-label">Email</span><span class="pp-info-val"><a :href="'mailto:'+user.email">{{ user.email }}</a></span></div>
             <div v-if="isLoggedIn && user.phone" class="pp-info-row"><span class="pp-info-label">24/7 Phone</span><span class="pp-info-val">{{ user.phone }}</span></div>
-            <div v-if="!isLoggedIn" class="pp-info-row"><span class="pp-info-label">Contact Details</span><span class="pp-info-val" style="font-size:11px;font-weight:600;color:var(--text-3)"><a :href="route('login')" class="pp-ext-link" style="padding:3px 8px">Sign in to view</a></span></div>
+            <div v-if="!isLoggedIn" class="pp-info-row"><span class="pp-info-label">Contact Details</span><span class="pp-info-val" style="font-weight:600;color:var(--text-3)"><a :href="route('login')" class="pp-ext-link" style="padding:3px 8px">Sign in to view</a></span></div>
             <div class="pp-info-row"><span class="pp-info-label">Best Channel</span><span class="pp-info-val">{{ pmContact.best_channel ?? 'Aegis Message' }}</span></div>
             <div class="pp-info-row" style="border-bottom:none"><span class="pp-info-label">Response SLA</span><span class="pp-info-val" style="color:var(--green-dark)">{{ pmContact.response_sla ?? 'Within 4 business hours' }}</span></div>
           </div>
@@ -262,7 +262,7 @@
           <div class="pp-tip-body">An inquiry lets you confirm capacity and SLA fit before formally designating. Response within 4 business hours.</div>
         </div>
         <div class="form-group"><label class="form-label">Continuity Steward</label><input type="text" class="form-input" :value="user.display_name + (user.credentials ? ', ' + user.credentials : '')" readonly></div>
-        <div class="grid-2" style="gap:12px">
+        <div class="form-row form-row-2">
           <div class="form-group">
             <label class="form-label">Practice Type <span class="req">*</span></label>
             <select class="form-select" v-model="inquireForm.practiceType">
@@ -300,7 +300,7 @@
           <div class="pp-tip-body">Designating a Continuity Steward authorizes them to execute on your Continuity Plan in the event of a verified critical incident. The Steward must accept and a digital authorization is countersigned via Aegis.</div>
         </div>
         <div class="form-group"><label class="form-label">Continuity Steward</label><input type="text" class="form-input" :value="user.display_name + (user.credentials ? ', ' + user.credentials : '')" readonly></div>
-        <div class="grid-2" style="gap:12px">
+        <div class="form-row form-row-2">
           <div class="form-group">
             <label class="form-label">Plan Type <span class="req">*</span></label>
             <select class="form-select" v-model="designateForm.planType">
@@ -330,7 +330,7 @@
           <div class="pp-tip-body">Reserving a slot holds capacity for up to 14 days while you finalize your designation. Subject to Steward acceptance.</div>
         </div>
         <div class="form-group"><label class="form-label">Continuity Steward</label><input type="text" class="form-input" :value="user.display_name + (user.credentials ? ', ' + user.credentials : '')" readonly></div>
-        <div class="grid-2" style="gap:12px">
+        <div class="form-row form-row-2">
           <div class="form-group"><label class="form-label">Hold Until <span class="req">*</span></label><input type="date" class="form-input" v-model="reserveForm.holdUntil"></div>
           <div class="form-group">
             <label class="form-label">Practice Size</label>
@@ -459,13 +459,12 @@ function copyShareLink() {
   }
 }
 function confirmRemoveDesignation() {
-  confirmAction('Remove this Steward designation? This cannot be undone.', () => toast.error('Designation removed'), { title: 'Remove Designation', btnLabel: 'Remove', type: 'danger' })
+  confirmAction('Remove this Steward designation? This cannot be undone.', () => toast.success('Designation removed'), { title: 'Remove Designation', btnLabel: 'Remove', type: 'danger' })
 }
 </script>
 
 <style scoped>
 .public-profile-wrap { max-width: 960px; margin: 0 auto; padding: var(--space-6) var(--space-4); }
-.pp-stat-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 18px 0; }
 .pp-capacity-bar { height: 8px; background: var(--surface-3); border-radius: var(--radius-full); overflow: hidden; margin: 8px 0 6px; }
 .pp-capacity-fill { height: 100%; background: var(--gold-dark); border-radius: var(--radius-full); transition: width 0.4s ease; }
 .hero-banner.is-quiet .page-hero-left.has-icon { gap: 20px; }
@@ -483,7 +482,6 @@ function confirmRemoveDesignation() {
 .rating-star:hover { transform: scale(1.08); }
 .rating-star.is-on { color: var(--gold-dark); }
 @media (max-width: 720px) {
-  .pp-stat-row { grid-template-columns: repeat(3, 1fr); }
   .hero-banner.is-quiet .hero-badges,
   .hero-banner.is-quiet > .hero-meta { flex-wrap: wrap; overflow-x: visible; }
 }

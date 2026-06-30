@@ -15,7 +15,10 @@
       <div class="hero-banner is-quiet">
         <div class="page-hero-inner">
           <div class="page-hero-left has-icon">
-            <div class="page-hero-icon is-avatar" aria-hidden="true">{{ avatarInitials }}</div>
+            <div class="page-hero-icon is-avatar" aria-hidden="true"
+                 :style="user.avatar_url ? { backgroundImage: `url(${user.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+              <template v-if="!user.avatar_url">{{ avatarInitials }}</template>
+            </div>
             <div class="page-hero-text">
               <div class="page-hero-eyebrow">Practitioner Profile</div>
               <h1 class="page-hero-title">{{ user.display_name }}{{ user.credentials ? ', ' + user.credentials : '' }}</h1>
@@ -106,39 +109,16 @@
         </div>
       </div>
 
-      <!-- ═══ STAT ROW (6) ═══ -->
-      <div class="pp-stat-row">
+      <!-- ═══ STAT CHIPS ═══ -->
+      <div class="stat-chips-row">
         <template v-if="pm.show_ref_stats">
-          <div class="pp-stat-box">
-            <div class="pp-stat-val">{{ pm.stats.referrals_exchanged }}</div>
-            <div class="pp-stat-lbl">Referrals Exchanged</div>
-          </div>
-          <div class="pp-stat-box">
-            <div class="pp-stat-val" style="color:var(--green-dark)">{{ pm.stats.acceptance_rate }}</div>
-            <div class="pp-stat-lbl">Acceptance Rate</div>
-          </div>
-          <div class="pp-stat-box">
-            <div class="pp-stat-val">{{ pm.stats.avg_response }}</div>
-            <div class="pp-stat-lbl">Avg Response</div>
-          </div>
+          <AegisStatChip icon="share-tree" :value="pm.stats.referrals_exchanged" label="Referrals Exchanged" />
+          <AegisStatChip icon="check" :value="pm.stats.acceptance_rate" label="Acceptance Rate" />
+          <AegisStatChip icon="clock" :value="pm.stats.avg_response" label="Avg Response" />
         </template>
-        <div v-if="pm.show_ratings && pm.rating" class="pp-stat-box">
-          <div class="pp-stat-val">
-            {{ pm.rating }}
-            <span style="display:inline-flex;vertical-align:middle;line-height:0;margin-left:2px">
-              <AegisIcon name="star" :size="12" class="aegis-icon-filled aegis-icon-gold-dark" />
-            </span>
-          </div>
-          <div class="pp-stat-lbl">Overall Rating</div>
-        </div>
-        <div class="pp-stat-box">
-          <div class="pp-stat-val" style="color:var(--blue-dark)">{{ pm.stats.mutual_connections }}</div>
-          <div class="pp-stat-lbl">Mutual Connections</div>
-        </div>
-        <div class="pp-stat-box">
-          <div class="pp-stat-val" style="color:var(--gold-dark)">{{ pm.stats.client_slots }}</div>
-          <div class="pp-stat-lbl">Client Slots</div>
-        </div>
+        <AegisStatChip v-if="pm.show_ratings && pm.rating" icon="star" :value="pm.rating" label="Overall Rating" />
+        <AegisStatChip icon="users-network" :value="pm.stats.mutual_connections" label="Mutual Connections" />
+        <AegisStatChip icon="user-check" :value="pm.stats.client_slots" label="Client Slots" />
       </div>
 
       <!-- ═══ SERVICES PANEL (services_mode only) ═══ -->
@@ -383,7 +363,7 @@
               <span class="pp-info-label">Location</span>
               <span class="pp-info-val">
                 <a :href="'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(user.location)"
-                   target="_blank" rel="noopener" style="color:var(--gold-dark);text-decoration:none"
+                   target="_blank" rel="noopener" style="color:var(--gold-dark);text-decoration:none;display:inline-flex;align-items:center;gap:4px;white-space:nowrap"
                    data-tooltip="View on a map">
                   {{ user.location }} <AegisIcon name="external-link" :size="11" />
                 </a>
@@ -393,7 +373,7 @@
             <template v-if="isLoggedIn">
               <div v-if="user.email" class="pp-info-row">
                 <span class="pp-info-label">Email</span>
-                <span class="pp-info-val" style="font-size:11px"><a :href="'mailto:' + user.email">{{ user.email }}</a></span>
+                <span class="pp-info-val"><a :href="'mailto:' + user.email">{{ user.email }}</a></span>
               </div>
               <div v-if="user.phone" class="pp-info-row">
                 <span class="pp-info-label">Phone</span>
@@ -403,7 +383,7 @@
             <template v-else>
               <div class="pp-info-row">
                 <span class="pp-info-label">Contact Details</span>
-                <span class="pp-info-val" style="font-size:11px;font-weight:600;color:var(--text-3)">
+                <span class="pp-info-val" style="font-weight:600;color:var(--text-3)">
                   <a :href="route('login')" class="pp-ext-link" style="padding:3px 8px">Sign in to view</a>
                 </span>
               </div>
@@ -588,7 +568,7 @@
           <label class="form-label">From Provider</label>
           <input type="text" class="form-input" :value="user.display_name + (user.credentials ? ', ' + user.credentials : '')" readonly>
         </div>
-        <div class="grid-2" style="gap:12px">
+        <div class="form-row form-row-2">
           <div class="form-group">
             <label class="form-label">Preferred Date <span class="req">*</span></label>
             <input type="date" class="form-input" v-model="svcRequestForm.date">
@@ -789,7 +769,7 @@ function copyShareLink() {
 function confirmRemove() {
   confirmAction(
     'Remove this practitioner from your network? Active referrals will remain accessible.',
-    () => toast.error('Removed from network'),
+    () => toast.success('Removed from network'),
     { title: 'Remove from Network', btnLabel: 'Remove', type: 'danger' }
   )
 }

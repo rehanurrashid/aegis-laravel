@@ -103,7 +103,8 @@
               <div
                 class="msg-avatar"
                 :class="{ 'is-gold': t.is_continuity_contact }"
-              >{{ t.counterpart?.avatar_initials || '·' }}</div>
+                :style="t.counterpart?.avatar_url ? { backgroundImage: `url(${t.counterpart.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}"
+              ><template v-if="!t.counterpart?.avatar_url">{{ t.counterpart?.avatar_initials || '·' }}</template></div>
               <span class="msg-presence-dot msg-presence-dot--available"></span>
             </div>
             <div class="msg-contact-info">
@@ -147,7 +148,8 @@
               <div
                 class="msg-avatar is-sm"
                 :class="{ 'is-gold': activeThread.is_continuity_contact }"
-              >{{ activeThread.counterpart?.avatar_initials || '·' }}</div>
+                :style="activeThread.counterpart?.avatar_url ? { backgroundImage: `url(${activeThread.counterpart.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}"
+              ><template v-if="!activeThread.counterpart?.avatar_url">{{ activeThread.counterpart?.avatar_initials || '·' }}</template></div>
               <span class="msg-presence-dot msg-presence-dot--available"></span>
             </div>
             <div class="msg-chat-head-info">
@@ -243,7 +245,8 @@
                   :class="{
                     'is-gold': m.is_sent || activeThread.is_continuity_contact,
                   }"
-                >{{ m.is_sent ? currentUserInitials : (activeThread.counterpart?.avatar_initials || '·') }}</div>
+                  :style="m.is_sent && currentUserAvatarUrl ? { backgroundImage: `url(${currentUserAvatarUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}"
+                ><template v-if="!(m.is_sent && currentUserAvatarUrl)">{{ m.is_sent ? currentUserInitials : (activeThread.counterpart?.avatar_initials || '·') }}</template></div>
                 <div class="msg-bubble-wrap">
                   <div class="msg-bubble">
                     <span v-if="m.body" v-html="highlightMatch(m.body, searchQuery)"></span>
@@ -340,8 +343,9 @@
 
             <!-- ▌ Identity header -->
             <div class="mip-identity">
-              <div class="msg-avatar mip-avatar" :class="{ 'is-gold': activeThread.is_continuity_contact }">
-                {{ activeThread.counterpart?.avatar_initials || '·' }}
+              <div class="msg-avatar mip-avatar" :class="{ 'is-gold': activeThread.is_continuity_contact }"
+                   :style="activeThread.counterpart?.avatar_url ? { backgroundImage: `url(${activeThread.counterpart.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+                <template v-if="!activeThread.counterpart?.avatar_url">{{ activeThread.counterpart?.avatar_initials || '·' }}</template>
               </div>
               <component
                 :is="activeThread.counterpart?.slug ? 'a' : 'div'"
@@ -544,7 +548,9 @@
             :class="{ active: selectedRecipientId === r.id }"
             @click="selectedRecipientId = r.id"
           >
-            <div class="msg-avatar is-sm">{{ r.avatar_initials }}</div>
+            <div class="msg-avatar is-sm" :style="r.avatar_url ? { backgroundImage: `url(${r.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+              <template v-if="!r.avatar_url">{{ r.avatar_initials }}</template>
+            </div>
             <div class="compose-recipient-body">
               <div class="compose-recipient-name">{{ r.display_name }}</div>
               <div class="compose-recipient-role">{{ r.role_label }}{{ r.organization ? ' · ' + r.organization : '' }}</div>
@@ -596,8 +602,11 @@
     <!-- ── Conversation Info Modal ───────────────────── -->
     <AegisModal v-model="modals.chatInfo" title="Conversation Info" size="md">
       <div v-if="activeThread" style="text-align:center;margin-bottom:20px">
-        <div class="msg-avatar" :class="{ 'is-gold': activeThread.is_continuity_contact }" style="width:56px;height:56px;font-size:16px;margin:0 auto">
-          {{ activeThread.counterpart?.avatar_initials || '·' }}
+        <div class="msg-avatar" :class="{ 'is-gold': activeThread.is_continuity_contact }"
+             :style="activeThread.counterpart?.avatar_url
+               ? { width: '56px', height: '56px', margin: '0 auto', backgroundImage: `url(${activeThread.counterpart.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+               : { width: '56px', height: '56px', fontSize: '16px', margin: '0 auto' }">
+          <template v-if="!activeThread.counterpart?.avatar_url">{{ activeThread.counterpart?.avatar_initials || '·' }}</template>
         </div>
         <div style="font-family:var(--font-serif);font-size:18px;font-weight:700;margin-top:14px">{{ activeThread.counterpart?.display_name }}</div>
         <div style="font-size:13px;color:var(--text-3);margin-top:4px">{{ activeThread.counterpart?.role_label }}</div>
@@ -859,6 +868,7 @@ const props = defineProps({
   bucketCounts:         { type: Object, default: () => ({}) },
   currentUserId:        { type: String, default: '' },
   currentUserInitials:  { type: String, default: 'U' },
+  currentUserAvatarUrl: { type: String, default: null },
 })
 
 const page     = usePage()

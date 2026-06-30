@@ -48,9 +48,9 @@
           v-for="item in items"
           :key="item.key"
           class="nav-item"
-          :class="{ active: activePage === item.key, 'is-locked': item.locked }"
+          :class="{ active: activePage === item.key || (item.key === 'profile' && isOnOwnProfile), 'is-locked': item.locked }"
           :href="item.href"
-          :aria-current="activePage === item.key ? 'page' : 'false'"
+          :aria-current="(activePage === item.key || (item.key === 'profile' && isOnOwnProfile)) ? 'page' : 'false'"
           :data-label="item.label"
         >
           <span class="nav-icon"><AegisIcon :name="item.icon" :size="14" /></span>
@@ -110,11 +110,30 @@ const activePage = computed(() => {
   return last ?? ''
 })
 const hasEmergency = computed(() => page.props.hasEmergency   ?? false)
+// True when the current URL is the user's own public profile page
+const isOnOwnProfile = computed(() => {
+  const slug = user.value?.slug
+  if (!slug) return false
+  return page.url.startsWith('/public/') && page.url.includes(`/${slug}`)
+})
 const unreadMsgs   = computed(() => page.props.unreadMessages ?? 0)
 
 const isAccessTier = computed(() => page.props.auth?.tier === 'access')
 const servicesMode = computed(() => !!user.value?.services_mode)
 const bpType       = computed(() => user.value?.bp_type ?? 'agency')
+
+// ── Public profile URL — routes to the user's own public-facing profile ──
+const publicProfileUrl = computed(() => {
+  const slug = user.value?.slug
+  if (!slug) return '#'
+  const map = {
+    practitioner:       route('public.provider', { slug }),
+    continuity_steward: route('public.cs',       { slug }),
+    support_steward:    route('public.ss',        { slug }),
+    business_partner:   route('public.bp',        { slug }),
+  }
+  return map[user.value?.role] ?? '#'
+})
 
 // ── Role label ─────────────────────────────────────────────────────────
 const roleLabel = computed(() => {
@@ -164,7 +183,7 @@ const navSections = computed(() => {
       const main = [
         { key: 'overview',  href: r('provider.overview'),      icon: 'clock',     label: 'Overview — Start Here' },
         { key: 'dashboard', href: r('provider.dashboard'),     icon: 'grid',      label: 'Dashboard' },
-        { key: 'profile',   href: r('provider.profile.index'), icon: 'user',      label: 'My Profile' },
+        { key: 'profile',   href: publicProfileUrl.value,       icon: 'user',      label: 'My Profile' },
       ]
       if (!isAccessTier.value) {
         main.push({ key: 'jobs', href: r('provider.jobs.index'), icon: 'briefcase', label: 'Support & Services', badge: '12' })
@@ -208,7 +227,7 @@ const navSections = computed(() => {
         'Main': [
           { key: 'overview',  href: r('cs.overview'),      icon: 'clock', label: 'Overview — Start Here' },
           { key: 'dashboard', href: r('cs.dashboard'),     icon: 'grid',  label: 'Dashboard' },
-          { key: 'profile',   href: r('cs.profile.index'), icon: 'user',  label: 'My Profile' },
+          { key: 'profile',   href: publicProfileUrl.value,       icon: 'user',  label: 'My Profile' },
         ],
         'My Work': [
           { key: 'tasks',            href: r('cs.tasks.index'),     icon: 'clipboard-check', label: 'My Tasks' },
@@ -236,7 +255,7 @@ const navSections = computed(() => {
         'Main': [
           { key: 'overview',  href: r('ss.overview'),      icon: 'clock', label: 'Overview — Start Here' },
           { key: 'dashboard', href: r('ss.dashboard'),     icon: 'grid',  label: 'Dashboard' },
-          { key: 'profile',   href: r('ss.profile.index'), icon: 'user',  label: 'My Profile' },
+          { key: 'profile',   href: publicProfileUrl.value,       icon: 'user',  label: 'My Profile' },
         ],
         'Critical Moment Plans': [
           { key: 'providers', href: r('ss.providers.index'), icon: 'users', label: 'My Practitioners', badge: '8' },
@@ -263,7 +282,7 @@ const navSections = computed(() => {
         'Main': [
           { key: 'overview',  href: r('bp.overview'),      icon: 'clock', label: 'Overview — Start Here' },
           { key: 'dashboard', href: r('bp.dashboard'),     icon: 'grid',  label: 'Dashboard' },
-          { key: 'profile',   href: r('bp.profile.index'), icon: 'user',  label: 'My Profile' },
+          { key: 'profile',   href: publicProfileUrl.value,       icon: 'user',  label: 'My Profile' },
         ],
         'Work': [
           { key: 'jobs',  href: r('bp.jobs.index'),       icon: 'search',         label: 'Find Jobs' },

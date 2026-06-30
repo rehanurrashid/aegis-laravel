@@ -17,48 +17,75 @@ class ProfileService
         return $user->fresh();
     }
 
-    public function updateCredentials(User $user, array $data): User
+    public function updateAvatar(User $user, \Illuminate\Http\UploadedFile $file): User
     {
-        $allowed = ['credentials', 'verified'];
-        $user->update(array_intersect_key($data, array_flip($allowed)));
+        if ($user->avatar_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($user->avatar_path);
+        }
+        $path = $file->store('avatars/' . $user->id, 'public');
+        $user->update(['avatar_path' => $path]);
+        return $user->fresh();
+    }
+
+    public function removeAvatar(User $user): User
+    {
+        if ($user->avatar_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($user->avatar_path);
+        }
+        $user->update(['avatar_path' => null]);
         return $user->fresh();
     }
 
     public function updateSpecialties(User $user, array $specialties): User
     {
-        $user->update(['specialty' => is_array($specialties) ? json_encode($specialties) : $specialties]);
+        $this->setMeta($user, 'specialties', $specialties);
         return $user->fresh();
+    }
+
+    /**
+     * Upsert a single user_meta row, typing the value correctly.
+     */
+    private function setMeta(User $user, string $key, mixed $value, string $type = 'json'): void
+    {
+        $user->meta()->updateOrCreate(
+            ['meta_key' => $key],
+            [
+                'id'         => (string) Str::uuid(),
+                'meta_value' => $type === 'json' ? json_encode($value) : (string) $value,
+                'meta_type'  => $type,
+            ]
+        );
     }
 
     public function updateServices(User $user, array $services): User
     {
-        $meta              = $user->profile_meta ? (json_decode($user->profile_meta, true) ?: []) : [];
-        $meta['services']  = $services;
-        $user->update(['profile_meta' => json_encode($meta)]);
+        $this->setMeta($user, 'services', $services);
         return $user->fresh();
     }
 
     public function updateApproaches(User $user, array $approaches): User
     {
-        $meta                = $user->profile_meta ? (json_decode($user->profile_meta, true) ?: []) : [];
-        $meta['approaches']  = $approaches;
-        $user->update(['profile_meta' => json_encode($meta)]);
+        $this->setMeta($user, 'approaches', $approaches);
         return $user->fresh();
     }
 
     public function updateFees(User $user, array $fees): User
     {
-        $meta          = $user->profile_meta ? (json_decode($user->profile_meta, true) ?: []) : [];
-        $meta['fees']  = $fees;
-        $user->update(['profile_meta' => json_encode($meta)]);
+        $this->setMeta($user, 'fees', $fees);
         return $user->fresh();
     }
 
     public function updateAvailability(User $user, array $availability): User
     {
-        $user->update([
-            'network_hours' => isset($availability['hours']) ? json_encode($availability['hours']) : $user->network_hours,
-        ]);
+        if (isset($availability['hours'])) {
+            $this->setMeta($user, 'availability', $availability['hours']);
+        }
+        if (array_key_exists('accepting', $availability)) {
+            $this->setMeta($user, 'network_accepting', (bool) $availability['accepting'], 'boolean');
+        }
+        if (array_key_exists('telehealth', $availability)) {
+            $this->setMeta($user, 'network_telehealth', (bool) $availability['telehealth'], 'boolean');
+        }
         return $user->fresh();
     }
 
@@ -71,9 +98,46 @@ class ProfileService
 
     public function updateNetwork(User $user, array $prefs): User
     {
-        $meta                 = $user->profile_meta ? (json_decode($user->profile_meta, true) ?: []) : [];
-        $meta['network_prefs'] = $prefs;
-        $user->update(['profile_meta' => json_encode($meta)]);
+        $this->setMeta($user, 'network_prefs', $prefs);
+        return $user->fresh();
+    }
+
+    public function updateLanguagesAndWebsite(User $user, array $languages, ?string $website): User
+    {
+        $this->setMeta($user, 'languages', $languages);
+        if ($website !== null) {
+            $this->setMeta($user, 'website', $website, 'string');
+        }
+        return $user->fresh();
+    }
+
+    public function updateLicensedStates(User $user, array $states): User
+    {
+        $this->setMeta($user, 'licensed_states', $states);
+        return $user->fresh();
+    }
+
+    public function updateEducation(User $user, array $education): User
+    {
+        $this->setMeta($user, 'education', $education);
+        return $user->fresh();
+    }
+
+    public function updateNetworkPartners(User $user, array $partners): User
+    {
+        $this->setMeta($user, 'network_partners', $partners);
+        return $user->fresh();
+    }
+
+    public function updateAiSettings(User $user, array $settings): User
+    {
+        $this->setMeta($user, 'ai_shadow_settings', $settings);
+        return $user->fresh();
+    }
+
+    public function updateDemographics(User $user, array $demographics): User
+    {
+        $this->setMeta($user, 'demographics', $demographics);
         return $user->fresh();
     }
 

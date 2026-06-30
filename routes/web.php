@@ -233,13 +233,21 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
         // Profile
         Route::get('/profile', [ProviderProfileController::class, 'index'])->name('profile.index');
         Route::put('/profile/basic', [ProviderProfileController::class, 'updateBasic'])->name('profile.basic');
-        Route::put('/profile/credentials', [ProviderProfileController::class, 'updateCredentials'])->name('profile.credentials');
+        Route::post('/profile/avatar', [ProviderProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
+        Route::delete('/profile/avatar', [ProviderProfileController::class, 'removeAvatar'])->name('profile.avatar.destroy');
         Route::put('/profile/specialties', [ProviderProfileController::class, 'updateSpecialties'])->name('profile.specialties');
         Route::put('/profile/services', [ProviderProfileController::class, 'updateServices'])->name('profile.services');
+        Route::put('/profile/approaches', [ProviderProfileController::class, 'updateApproaches'])->name('profile.approaches');
         Route::put('/profile/fees', [ProviderProfileController::class, 'updateFees'])->name('profile.fees');
         Route::put('/profile/availability', [ProviderProfileController::class, 'updateAvailability'])->name('profile.availability');
         Route::put('/profile/privacy', [ProviderProfileController::class, 'updatePrivacy'])->name('profile.privacy');
         Route::put('/profile/network-preferences', [ProviderProfileController::class, 'updateNetwork'])->name('profile.network');
+        Route::put('/profile/languages', [ProviderProfileController::class, 'updateLanguages'])->name('profile.languages');
+        Route::put('/profile/licensed-states', [ProviderProfileController::class, 'updateLicensedStates'])->name('profile.licensed-states');
+        Route::put('/profile/education', [ProviderProfileController::class, 'updateEducation'])->name('profile.education');
+        Route::put('/profile/network-partners', [ProviderProfileController::class, 'updateNetworkPartners'])->name('profile.network-partners');
+        Route::put('/profile/ai-settings', [ProviderProfileController::class, 'updateAiSettings'])->name('profile.ai-settings');
+        Route::put('/profile/demographics', [ProviderProfileController::class, 'updateDemographics'])->name('profile.demographics');
 
         // Finances
         Route::get('/finances', [ProviderFinancesController::class, 'index'])->name('finances.index');

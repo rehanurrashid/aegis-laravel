@@ -11,7 +11,10 @@
       <div class="hero-banner is-quiet">
         <div class="page-hero-inner">
           <div class="page-hero-left has-icon">
-            <div class="page-hero-icon is-avatar" aria-hidden="true">{{ avatarInitials }}</div>
+            <div class="page-hero-icon is-avatar" aria-hidden="true"
+                 :style="user.avatar_url ? { backgroundImage: `url(${user.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+              <template v-if="!user.avatar_url">{{ avatarInitials }}</template>
+            </div>
             <div class="page-hero-text">
               <div class="page-hero-eyebrow">Business Partner</div>
               <h1 class="page-hero-title">{{ businessName }}</h1>
@@ -51,16 +54,13 @@
         </div>
       </div>
 
-      <!-- STAT ROW (5) -->
-      <div class="pp-stat-row">
-        <div class="pp-stat-box"><div class="pp-stat-val">{{ pmStats.jobs_completed ?? 42 }}</div><div class="pp-stat-lbl">Projects Done</div></div>
-        <div class="pp-stat-box">
-          <div class="pp-stat-val">{{ pm.rating ?? '4.6' }}<span style="display:inline-flex;vertical-align:middle;line-height:0;margin-left:2px"><AegisIcon name="star" :size="12" class="aegis-icon-filled aegis-icon-gold-dark" /></span></div>
-          <div class="pp-stat-lbl">Client Rating</div>
-        </div>
-        <div class="pp-stat-box"><div class="pp-stat-val" style="color:var(--green-dark)">~{{ pmStats.response_time ?? '24h' }}</div><div class="pp-stat-lbl">Response Time</div></div>
-        <div class="pp-stat-box"><div class="pp-stat-val" style="color:var(--blue-dark)">96%</div><div class="pp-stat-lbl">On-Time Delivery</div></div>
-        <div class="pp-stat-box"><div class="pp-stat-val" style="color:var(--gold-dark)">{{ hourlyRate }}<span style="font-size:13px;font-weight:600;color:var(--text-3)">/hr</span></div><div class="pp-stat-lbl">Hourly Rate</div></div>
+      <!-- ═══ STAT CHIPS ═══ -->
+      <div class="stat-chips-row">
+        <AegisStatChip icon="briefcase" :value="pmStats.jobs_completed ?? 42" label="Projects Done" />
+        <AegisStatChip icon="star" :value="pm.rating ?? '4.6'" label="Client Rating" />
+        <AegisStatChip icon="clock" :value="'~' + (pmStats.response_time ?? '24h')" label="Response Time" />
+        <AegisStatChip icon="check" value="96%" label="On-Time Delivery" />
+        <AegisStatChip icon="dollar" :value="hourlyRate + '/hr'" label="Hourly Rate" />
       </div>
 
       <!-- ENGAGEMENT ACTIONS PANEL (non-owner) -->
@@ -175,9 +175,9 @@
             <div class="pp-section-title"><AegisIcon name="map-pin" :size="13" class="aegis-icon-gold-dark" /> Contact &amp; Office</div>
             <div class="pp-info-row"><span class="pp-info-label">Business</span><span class="pp-info-val">{{ businessName }}</span></div>
             <div v-if="user.location" class="pp-info-row"><span class="pp-info-label">Location</span><span class="pp-info-val">{{ user.location }}</span></div>
-            <div v-if="isLoggedIn && user.email" class="pp-info-row"><span class="pp-info-label">Email</span><span class="pp-info-val" style="font-size:11px"><a :href="'mailto:'+user.email">{{ user.email }}</a></span></div>
+            <div v-if="isLoggedIn && user.email" class="pp-info-row"><span class="pp-info-label">Email</span><span class="pp-info-val"><a :href="'mailto:'+user.email">{{ user.email }}</a></span></div>
             <div v-if="isLoggedIn && user.phone" class="pp-info-row"><span class="pp-info-label">Phone</span><span class="pp-info-val">{{ user.phone }}</span></div>
-            <div v-if="!isLoggedIn" class="pp-info-row"><span class="pp-info-label">Contact Details</span><span class="pp-info-val" style="font-size:11px;font-weight:600;color:var(--text-3)"><a :href="route('login')" class="pp-ext-link" style="padding:3px 8px">Sign in to view</a></span></div>
+            <div v-if="!isLoggedIn" class="pp-info-row"><span class="pp-info-label">Contact Details</span><span class="pp-info-val" style="font-weight:600;color:var(--text-3)"><a :href="route('login')" class="pp-ext-link" style="padding:3px 8px">Sign in to view</a></span></div>
             <div class="pp-info-row"><span class="pp-info-label">Service Hours</span><span class="pp-info-val">{{ pmContact.service_hours ?? 'Mon-Fri 9 AM - 5 PM EST' }}</span></div>
             <div class="pp-info-row"><span class="pp-info-label">Response SLA</span><span class="pp-info-val" style="color:var(--green-dark)">{{ pmContact.response_sla ?? ('Within ' + (pmStats.response_time ?? '24h')) }}</span></div>
             <div class="pp-info-row" style="border-bottom:none"><span class="pp-info-label">Preferred Channel</span><span class="pp-info-val">{{ pmContact.best_channel ?? 'Aegis Message' }}</span></div>
@@ -275,7 +275,7 @@
             <div><div>{{ opt.label }}</div><div class="bpe-option-sub">{{ opt.sub }}</div></div>
           </div>
         </div>
-        <div class="grid-2" style="gap:12px">
+        <div class="form-row form-row-2">
           <div class="form-group"><label class="form-label">Start Date <span class="req">*</span></label><input type="date" class="form-input" v-model="hireForm.startDate"></div>
           <div class="form-group"><label class="form-label">Duration</label><input type="text" class="form-input" placeholder="e.g. 3 months / Ongoing" v-model="hireForm.duration"></div>
           <div class="form-group"><label class="form-label">Budget / Rate</label><input type="text" class="form-input" placeholder="e.g. $95/hr or $2,000 fixed" v-model="hireForm.budget"></div>
@@ -301,7 +301,7 @@
       <!-- Propose Contract Modal -->
       <AegisModal v-model="showContractModal" title="Propose a Contract" subtitle="Draft a custom service contract with scope, terms, and payment schedule" size="lg">
         <div class="form-group"><label class="form-label">Partner</label><input type="text" class="form-input" :value="businessName" readonly></div>
-        <div class="grid-2" style="gap:12px">
+        <div class="form-row form-row-2">
           <div class="form-group"><label class="form-label">Contract Title <span class="req">*</span></label><input type="text" class="form-input" placeholder="e.g. Annual Tax & Accounting Services 2025" v-model="contractForm.title"></div>
           <div class="form-group">
             <label class="form-label">Contract Type</label>
@@ -351,7 +351,7 @@
             <option>Solo Practitioner</option><option>2-5 Providers</option><option>6-15 Providers</option><option>16+ Providers / Group Practice</option>
           </select>
         </div>
-        <div class="grid-2" style="gap:12px">
+        <div class="form-row form-row-2">
           <div class="form-group"><label class="form-label">Estimated Budget</label><input type="text" class="form-input" placeholder="e.g. $1,500-$3,000 fixed" v-model="quoteForm.budget"></div>
           <div class="form-group"><label class="form-label">Timeline</label><input type="text" class="form-input" placeholder="e.g. Start by March 2025" v-model="quoteForm.timeline"></div>
         </div>
@@ -373,7 +373,7 @@
             <div>{{ mt.label }}</div>
           </div>
         </div>
-        <div class="grid-2" style="gap:12px">
+        <div class="form-row form-row-2">
           <div class="form-group"><label class="form-label">Preferred Date <span class="req">*</span></label><input type="date" class="form-input" v-model="scheduleForm.date"></div>
           <div class="form-group">
             <label class="form-label">Preferred Time</label>
@@ -416,7 +416,7 @@
           <textarea class="form-textarea" rows="4" placeholder="What was the engagement like? Strengths, areas to improve, who is this partner best suited for?" maxlength="600" v-model="reviewForm.body"></textarea>
           <div class="form-hint">Visible to other clinicians on this profile - 600 chars max</div>
         </div>
-        <div class="grid-2" style="gap:12px">
+        <div class="form-row form-row-2">
           <div class="form-group">
             <label class="form-label">Engagement Type</label>
             <select class="form-select" v-model="reviewForm.engType">
@@ -549,13 +549,12 @@ function copyShareLink() {
   }
 }
 function confirmRemovePartner() {
-  confirmAction('Remove this business partner? Active contracts will remain accessible in your history.', () => toast.error('Partner removed'), { title: 'Remove Partner', btnLabel: 'Remove', type: 'danger' })
+  confirmAction('Remove this business partner? Active contracts will remain accessible in your history.', () => toast.success('Partner removed'), { title: 'Remove Partner', btnLabel: 'Remove', type: 'danger' })
 }
 </script>
 
 <style scoped>
 .public-profile-wrap { max-width: 960px; margin: 0 auto; padding: var(--space-6) var(--space-4); }
-.pp-stat-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 18px 0; }
 .bpe-summary { display: flex; gap: 12px; align-items: center; padding: 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 18px; }
 .bpe-summary-avatar { width: 48px; height: 48px; border-radius: var(--radius-sm); background: var(--gold-dark); color: var(--text-inverted); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; flex-shrink: 0; }
 .bpe-summary-name { font-size: 14px; font-weight: 700; color: var(--text); }
@@ -587,7 +586,6 @@ function confirmRemovePartner() {
 .btn-hero-ghost.is-icon-only,
 .btn-hero-solid.is-icon-only { padding: 8px; width: 34px; height: 34px; justify-content: center; gap: 0; flex-shrink: 0; }
 @media (max-width: 720px) {
-  .pp-stat-row { grid-template-columns: repeat(3, 1fr); }
   .bpe-option-row { grid-template-columns: 1fr; }
   .hero-banner.is-quiet .hero-badges,
   .hero-banner.is-quiet > .hero-meta { flex-wrap: wrap; overflow-x: visible; }

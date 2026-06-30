@@ -77,7 +77,7 @@
            across all portals (Provider / CS / SS / BP / Admin). -->
       <ProfileCompletionStrip
         :pct="auth.user?.profile_completion ?? 78"
-        :edit-href="route('provider.profile.index')"
+        :edit-href="publicProfileUrl"
       />
 
       <!-- ══ 3. PLAN STATUS CHIPS ══════════════════════════════════ -->
@@ -184,7 +184,9 @@
 
           <div class="dh-cn-stewards">
             <div class="dh-cn-stew">
-              <div class="dh-cn-savatar">{{ csInitials }}</div>
+              <div class="dh-cn-savatar" :style="csAvatarUrl ? { backgroundImage: `url(${csAvatarUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+                <template v-if="!csAvatarUrl">{{ csInitials }}</template>
+              </div>
               <div class="dh-cn-stew-info">
                 <div class="dh-cn-srole">Continuity Steward</div>
                 <div class="dh-cn-sname">{{ csName }}</div>
@@ -192,7 +194,9 @@
               <div class="dh-cn-stat">{{ primaryCs?.status === 'active' ? 'Active' : 'Pending' }}</div>
             </div>
             <div class="dh-cn-stew">
-              <div class="dh-cn-savatar support">{{ ssInitials }}</div>
+              <div class="dh-cn-savatar support" :style="ssAvatarUrl ? { backgroundImage: `url(${ssAvatarUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+                <template v-if="!ssAvatarUrl">{{ ssInitials }}</template>
+              </div>
               <div class="dh-cn-stew-info">
                 <div class="dh-cn-srole">Support Steward</div>
                 <div class="dh-cn-sname">{{ ssName }}</div>
@@ -447,7 +451,9 @@
             <template v-if="netClinical.length">
               <div v-for="nc in netClinical" :key="nc.id" class="nw-card" @click="router.visit('/public/provider/' + (nc.target?.slug ?? ''))">
                 <div class="nw-top">
-                  <div class="nw-avatar">{{ nc.target?.avatar_initials ?? '??' }}</div>
+                  <div class="nw-avatar" :style="nc.target?.avatar_url ? { backgroundImage: `url(${nc.target.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+                    <template v-if="!nc.target?.avatar_url">{{ nc.target?.avatar_initials ?? '??' }}</template>
+                  </div>
                   <div class="nw-info">
                     <div class="nw-name">{{ nc.target?.display_name ?? '—' }}</div>
                     <div class="nw-role">{{ nc.target?.title ?? nc.target?.credentials ?? '' }}</div>
@@ -485,7 +491,9 @@
             <template v-if="netBusiness.length">
               <div v-for="nc in netBusiness" :key="nc.id" class="nw-card" @click="router.visit('/public/business/' + (nc.target?.slug ?? ''))">
                 <div class="nw-top">
-                  <div class="nw-avatar">{{ nc.target?.avatar_initials ?? '??' }}</div>
+                  <div class="nw-avatar" :style="nc.target?.avatar_url ? { backgroundImage: `url(${nc.target.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+                    <template v-if="!nc.target?.avatar_url">{{ nc.target?.avatar_initials ?? '??' }}</template>
+                  </div>
                   <div class="nw-info">
                     <div class="nw-name">{{ nc.target?.display_name ?? '—' }}</div>
                     <div class="nw-role">{{ nc.target?.bp_type ? nc.target.bp_type.charAt(0).toUpperCase() + nc.target.bp_type.slice(1) : 'Partner' }}</div>
@@ -532,7 +540,9 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
         <div v-if="primaryCs" style="display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:14px 0;border-bottom:1px solid var(--border)">
           <div style="display:flex;align-items:center;gap:10px;width:100%;flex-wrap:wrap">
-            <div class="exec-avatar">{{ csInitials }}</div>
+            <div class="exec-avatar" :style="csAvatarUrl ? { backgroundImage: `url(${csAvatarUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+              <template v-if="!csAvatarUrl">{{ csInitials }}</template>
+            </div>
             <div style="flex:1;min-width:0">
               <div style="font-weight:700;font-size:13px">{{ csName }}</div>
               <div style="font-size:11px;color:var(--text-3)">{{ primaryCs?.steward?.title ?? '' }}</div>
@@ -544,7 +554,9 @@
         </div>
         <div v-if="primarySs" style="display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:14px 0;border-bottom:1px solid var(--border)">
           <div style="display:flex;align-items:center;gap:10px;width:100%;flex-wrap:wrap">
-            <div class="exec-avatar">{{ ssInitials }}</div>
+            <div class="exec-avatar" :style="ssAvatarUrl ? { backgroundImage: `url(${ssAvatarUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+              <template v-if="!ssAvatarUrl">{{ ssInitials }}</template>
+            </div>
             <div style="flex:1;min-width:0">
               <div style="font-weight:700;font-size:13px">{{ ssName }}</div>
               <div style="font-size:11px;color:var(--text-3)">{{ primarySs?.steward?.title ?? '' }}</div>
@@ -1240,6 +1252,10 @@ const props = defineProps({
 const toast            = useToast()
 const { confirmAction } = useConfirm()
 const auth             = computed(() => usePage().props.auth ?? {})
+const publicProfileUrl = computed(() => {
+  const slug = auth.value.user?.slug
+  return slug ? route('public.provider', { slug }) : '#'
+})
 
 // ── Modal state — one key per modal ───────────────────────────────────
 const modals = reactive({
@@ -1341,6 +1357,8 @@ const planStatusLabel = computed(() => ({
 // ── Steward display ────────────────────────────────────────────────────
 const csName     = computed(() => props.primaryCs?.steward?.display_name ?? 'Not assigned')
 const ssName     = computed(() => props.primarySs?.steward?.display_name ?? 'Not assigned')
+const csAvatarUrl = computed(() => props.primaryCs?.steward?.avatar_url ?? null)
+const ssAvatarUrl = computed(() => props.primarySs?.steward?.avatar_url ?? null)
 const csInitials = computed(() => {
   const n = csName.value; if (n === 'Not assigned') return 'CS'
   const p = n.replace(/^(Dr\.|Prof\.)\s*/i,'').split(' ')

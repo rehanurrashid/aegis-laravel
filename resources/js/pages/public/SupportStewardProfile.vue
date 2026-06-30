@@ -11,7 +11,10 @@
       <div class="hero-banner is-quiet">
         <div class="page-hero-inner">
           <div class="page-hero-left has-icon">
-            <div class="page-hero-icon is-avatar" aria-hidden="true">{{ avatarInitials }}</div>
+            <div class="page-hero-icon is-avatar" aria-hidden="true"
+                 :style="user.avatar_url ? { backgroundImage: `url(${user.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+              <template v-if="!user.avatar_url">{{ avatarInitials }}</template>
+            </div>
             <div class="page-hero-text">
               <div class="page-hero-eyebrow">Support Steward</div>
               <h1 class="page-hero-title">{{ user.display_name }}</h1>
@@ -47,22 +50,10 @@
 
       <!-- ═══ STAT CHIPS (active only) ═══ -->
       <div v-if="isActive" class="stat-chips-row" style="margin-top:18px">
-        <div class="stat-chip">
-          <div class="stat-chip-icon" style="background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="alert-triangle" :size="18" /></div>
-          <div><div class="stat-chip-value">{{ activations }}</div><div class="stat-chip-label">Activations</div></div>
-        </div>
-        <div class="stat-chip">
-          <div class="stat-chip-icon" style="background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="check" :size="18" /></div>
-          <div><div class="stat-chip-value">{{ onTimeRate }}</div><div class="stat-chip-label">On-Time Rate</div></div>
-        </div>
-        <div class="stat-chip">
-          <div class="stat-chip-icon" style="background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="activity" :size="18" /></div>
-          <div><div class="stat-chip-value">{{ tasksCompleted }}</div><div class="stat-chip-label">Tasks Done</div></div>
-        </div>
-        <div class="stat-chip">
-          <div class="stat-chip-icon" style="background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="clock" :size="18" /></div>
-          <div><div class="stat-chip-value">{{ pmStats.missed_slas ?? 0 }}</div><div class="stat-chip-label">Missed SLAs</div></div>
-        </div>
+        <AegisStatChip icon="alert-triangle" :value="activations" label="Activations" />
+        <AegisStatChip icon="check" :value="onTimeRate" label="On-Time Rate" />
+        <AegisStatChip icon="activity" :value="tasksCompleted" label="Tasks Done" />
+        <AegisStatChip icon="clock" :value="pmStats.missed_slas ?? 0" label="Missed SLAs" />
       </div>
 
       <!-- ═══ PRIVACY NOTICE ═══ -->
@@ -145,7 +136,7 @@
           <div class="pp-section">
             <div class="pp-section-title"><AegisIcon name="map-pin" :size="13" class="aegis-icon-gold-dark" /> Contact</div>
             <div v-if="user.location" class="pp-info-row"><span class="pp-info-label">Location</span><span class="pp-info-val">{{ user.location }}</span></div>
-            <div v-if="user.email" class="pp-info-row"><span class="pp-info-label">Email</span><span class="pp-info-val" style="font-size:11px"><a :href="'mailto:'+user.email">{{ user.email }}</a></span></div>
+            <div v-if="user.email" class="pp-info-row"><span class="pp-info-label">Email</span><span class="pp-info-val"><a :href="'mailto:'+user.email">{{ user.email }}</a></span></div>
             <div v-if="user.phone" class="pp-info-row" style="border-bottom:none"><span class="pp-info-label">Phone</span><span class="pp-info-val">{{ user.phone }}</span></div>
             <div v-if="!user.location && !user.email && !user.phone" class="pp-info-row" style="border-bottom:none"><span class="pp-info-label">Contact</span><span class="pp-info-val" style="color:var(--text-4)">Not provided</span></div>
           </div>
