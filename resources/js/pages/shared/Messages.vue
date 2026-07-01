@@ -282,8 +282,8 @@
           <div class="msg-compose">
             <div class="msg-compose-row">
               <div class="msg-compose-tools">
-                <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Attach file" @click="$refs.fileInput.click()">
-                  <AegisIcon name="upload" :size="18" />
+                <button type="button" class="btn-icon" data-tooltip="Attach file" @click="$refs.fileInput.click()">
+                  <AegisIcon name="upload" :size="16" />
                 </button>
                 <input
                   ref="fileInput"
@@ -292,8 +292,8 @@
                   accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
                   @change="onFileSelected"
                 />
-                <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Use template" @click="modals.templatePicker = true">
-                  <AegisIcon name="file-text" :size="18" />
+                <button type="button" class="btn-icon" data-tooltip="Use template" @click="modals.templatePicker = true">
+                  <AegisIcon name="file-text" :size="16" />
                 </button>
               </div>
               <div v-if="pendingFile" class="msg-attach-chip">
@@ -313,12 +313,12 @@
               ></textarea>
               <button
                 type="button"
-                class="btn-icon btn-icon-sm btn-icon-primary"
+                class="btn-icon btn-icon-primary"
                 data-tooltip="Send"
                 :disabled="(!replyForm.body.trim() && !pendingFile) || replyForm.processing"
                 @click="sendReply"
               >
-                <AegisIcon name="send" :size="18" />
+                <AegisIcon name="send" :size="16" />
               </button>
             </div>
           </div>
@@ -1041,7 +1041,7 @@ function onComposeKey(ev) {
 
 function autoResize(ev) {
   const ta = ev.target
-  ta.style.height = 'auto'
+  ta.style.height = '32px'
   ta.style.height = Math.min(ta.scrollHeight, 160) + 'px'
 }
 
@@ -1734,19 +1734,21 @@ function useTemplate(body) {
 .msg-compose-input {
   flex: 1;
   resize: none;
-  min-height: 26px;
+  min-height: 32px;
   max-height: 120px;
-  padding: 2px 10px;
+  height: 32px;
+  padding: 0 10px;
   box-sizing: border-box;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 30px;
   color: var(--text);
   font-family: inherit;
   outline: none;
   transition: border-color var(--transition-fast);
+  overflow: hidden;
 }
 .msg-compose-input:focus { border-color: var(--gold); }
 
