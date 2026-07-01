@@ -5,107 +5,145 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Referrals\CreateReferralRequest;
 use App\Models\Referral;
-use App\Models\ReferralMeta;
-use App\Models\User;
+use App\Services\ReferralService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ReferralsController extends Controller
 {
+    public function __construct(private ReferralService $referralService) {}
+
     public function index(Request $request): Response
     {
         $user = $request->user();
 
-        $sent     = Referral::where('sender_id',    $user->id)->with('recipient')->get();
-        $received = Referral::where('recipient_id', $user->id)->with('sender')->get();
+        // Eager-load sender/recipient with avatar_url + slug for public profile links
+        $allForUser = Referral::with([
+                'sender:id,display_name,credentials,slug,avatar_path',
+                'recipient:id,display_name,credentials,slug,avatar_path',
+                'meta',
+            ])
+            ->where(function ($q) use ($user) {
+                $q->where('sender_id', $user->id)->orWhere('recipient_id', $user->id);
+            })
+            ->orderByDesc('created_at')
+            ->get();
 
-        return Inertia::render('Provider/Referrals', [
-            'sent'     => $sent,
-            'received' => $received,
-            'stats'    => [
-                'sent'     => $sent->where('status', 'sent')->count() + $received->where('status', 'sent')->count(),
-                'accepted' => $sent->where('status', 'accepted')->count() + $received->where('status', 'accepted')->count(),
-                'closed'   => $sent->where('status', 'closed')->count() + $received->where('status', 'closed')->count(),
+        $serialize = fn(Referral $r) => [
+            'id'              => $r->id,
+            'status'          => $r->status instanceof \BackedEnum ? $r->status->value : (string) $r->status,
+            'direction'       => $r->sender_id === $user->id ? 'sent' : 'received',
+            'subject'         => $r->subject,
+            'responded_at'    => $r->responded_at?->toISOString(),
+            'closed_at'       => $r->closed_at?->toISOString(),
+            'created_at'      => $r->created_at?->toISOString(),
+            // counterpart = the other party
+            'counterpart_name'   => $r->sender_id === $user->id
+                ? ($r->recipient?->display_name ?? '—')
+                : ($r->sender?->display_name ?? '—'),
+            'counterpart_credentials' => $r->sender_id === $user->id
+                ? $r->recipient?->credentials
+                : $r->sender?->credentials,
+            'counterpart_slug'   => $r->sender_id === $user->id
+                ? $r->recipient?->slug
+                : $r->sender?->slug,
+            'counterpart_avatar' => $r->sender_id === $user->id
+                ? $r->recipient?->avatar_path
+                : $r->sender?->avatar_path,
+            // meta keys
+            'client_initials' => $r->meta->firstWhere('meta_key', 'client_initials')?->meta_value,
+            'client_age_band' => $r->meta->firstWhere('meta_key', 'client_age_band')?->meta_value,
+            'reason'          => $r->meta->firstWhere('meta_key', 'reason')?->meta_value ?? $r->subject,
+            'urgency'         => $r->meta->firstWhere('meta_key', 'urgency')?->meta_value ?? 'routine',
+            'notes'           => $r->meta->firstWhere('meta_key', 'notes')?->meta_value,
+            'decline_reason'  => $r->meta->firstWhere('meta_key', 'decline_reason')?->meta_value,
+        ];
+
+        // Pending = received referrals in 'sent' status (awaiting my response)
+        $pending   = $allForUser->filter(fn($r) => $r->recipient_id === $user->id && in_array(
+                $r->status instanceof \BackedEnum ? $r->status->value : (string)$r->status,
+                ['sent']
+            ))->values()->map($serialize);
+
+        // Sent active = sent by me, not closed/declined/cancelled
+        $sentActive = $allForUser->filter(fn($r) => $r->sender_id === $user->id && !in_array(
+                $r->status instanceof \BackedEnum ? $r->status->value : (string)$r->status,
+                ['closed', 'cancelled']
+            ))->values()->map($serialize);
+
+        // Completed = closed by either side this month
+        $completedThisMonth = $allForUser->filter(function ($r) {
+            $status = $r->status instanceof \BackedEnum ? $r->status->value : (string)$r->status;
+            return $status === 'closed' && $r->closed_at && $r->closed_at->isCurrentMonth();
+        })->values()->map($serialize);
+
+        // All = everything
+        $all = $allForUser->map($serialize)->values();
+
+        // Archive = closed/cancelled/declined older than active
+        $archived = $allForUser->filter(function ($r) {
+            $status = $r->status instanceof \BackedEnum ? $r->status->value : (string)$r->status;
+            return in_array($status, ['closed', 'cancelled', 'declined']);
+        })->values()->map($serialize);
+
+        $acceptRate = $allForUser->count()
+            ? (int) round(
+                $allForUser->filter(fn($r) => in_array(
+                    $r->status instanceof \BackedEnum ? $r->status->value : (string)$r->status,
+                    ['accepted', 'closed']
+                ))->count() / $allForUser->count() * 100
+            )
+            : 0;
+
+        return Inertia::render('provider/Referrals', [
+            'pendingReferrals'    => $pending,
+            'sentReferrals'       => $sentActive,
+            'completedReferrals'  => $completedThisMonth,
+            'allReferrals'        => $all,
+            'archivedReferrals'   => $archived,
+            'refStats'            => [
+                'pending'         => $pending->count(),
+                'sent_active'     => $sentActive->count(),
+                'completed_month' => $completedThisMonth->count(),
+                'accept_rate'     => $acceptRate,
             ],
+            'archivedCounts'      => [
+                'expired'   => $archived->filter(fn($r) => !$r['responded_at'] && $r['status'] !== 'declined')->count(),
+                'completed' => $archived->filter(fn($r) => $r['status'] === 'closed')->count(),
+                'declined'  => $archived->filter(fn($r) => $r['status'] === 'declined')->count(),
+            ],
+            'roster'   => [],  // populated via VaultController when needed
+            'network'  => [],  // populated via NetworkController when needed
         ]);
     }
 
-    /**
-     * Store a referral from the shared 4-step ReferralModal.
-     *
-     * Core columns go on `referrals`; the rich step-1/2/3 details
-     * (client_name, diagnosis, specialty, coverage, reason, urgency,
-     * notes, attachments) are persisted as `referral_meta` rows so
-     * we don't pollute the lean referrals table.
-     */
-    public function store(CreateReferralRequest $request): RedirectResponse
+    public function store(Request $request): RedirectResponse
     {
-        $data = $request->validated();
+        $data = $request->validate([
+            'provider_id'     => 'required|string|exists:users,id',
+            'client_name'     => 'required|string|max:191',
+            'diagnosis'       => 'nullable|string|max:500',
+            'urgency'         => 'nullable|string|in:routine,soon,urgent',
+            'note'            => 'nullable|string|max:2000',
+            'service_format'  => 'nullable|string|in:in_person,online,any',
+            'accepts_cash'    => 'nullable|boolean',
+            'client_consents' => 'nullable|boolean',
+            'roster_item_id'  => 'nullable|string',
+        ]);
+
         $user = $request->user();
+        $recipient = \App\Models\User::findOrFail($data['provider_id']);
 
-        // Resolve recipient: prefer provider_id, else look up by slug, else fall back to off-platform name
-        $recipientId = $data['provider_id'] ?? null;
-        if (!$recipientId && !empty($data['provider_slug'])) {
-            $recipientId = User::where('slug', $data['provider_slug'])->value('id');
-        }
-
-        $referralId = (string) Str::uuid();
-        $subject    = trim($data['client_name'] . ($data['diagnosis'] ? ' — ' . $data['diagnosis'] : ''));
-
-        DB::transaction(function () use ($data, $user, $recipientId, $referralId, $subject, $request) {
-            Referral::create([
-                'id'           => $referralId,
-                'sender_id'    => $user->id,
-                'recipient_id' => $recipientId ?: $user->id,   // self-link for off-platform — meta carries the real name
-                'status'       => 'sent',
-                'subject'      => mb_substr($subject, 0, 191),
-            ]);
-
-            $meta = [
-                'roster_item_id'       => $data['roster_item_id'] ?? null,
-                'client_name'          => $data['client_name'],
-                'diagnosis'            => $data['diagnosis'] ?? null,
-                'provider_slug'        => $data['provider_slug'] ?? null,
-                'provider_name_manual' => $data['provider_name_manual'] ?? null,
-                'specialty'            => $data['specialty'] ?? null,
-                'coverage'             => $data['coverage'] ?? null,
-                'reason'                => $data['reason'],
-                'urgency'              => $data['urgency'] ?? 'routine',
-                'notes'                => $data['notes'] ?? null,
-                'off_platform'         => $recipientId ? '0' : '1',
-            ];
-
-            foreach ($meta as $k => $v) {
-                if ($v === null || $v === '') continue;
-                ReferralMeta::create([
-                    'id'          => (string) Str::uuid(),
-                    'referral_id' => $referralId,
-                    'meta_key'    => $k,
-                    'meta_value'  => is_scalar($v) ? (string) $v : json_encode($v),
-                    'meta_type'   => 'string',
-                ]);
-            }
-
-            // Persist any uploaded attachments under storage/referrals/{referralId}/
-            if ($request->hasFile('attachments')) {
-                foreach ($request->file('attachments') as $idx => $file) {
-                    $path = $file->store('referrals/' . $referralId, 'public');
-                    ReferralMeta::create([
-                        'id'          => (string) Str::uuid(),
-                        'referral_id' => $referralId,
-                        'meta_key'    => 'attachment_' . $idx,
-                        'meta_value'  => $path,
-                        'meta_type'   => 'string',
-                    ]);
-                }
-            }
-        });
+        $this->referralService->send($user, $recipient, [
+            'client_initials' => $data['client_name'],
+            'reason'          => $data['diagnosis'] ?? null,
+            'urgency'         => $data['urgency'] ?? 'routine',
+            'notes'           => $data['note'] ?? null,
+            'subject'         => $data['diagnosis'] ?? $data['client_name'],
+        ]);
 
         return back()->with('success', 'Referral sent.');
     }
@@ -113,14 +151,39 @@ class ReferralsController extends Controller
     public function accept(Request $request, Referral $referral): RedirectResponse
     {
         $this->authorize('respond', $referral);
-        $referral->update(['status' => 'accepted', 'responded_at' => now()]);
-        return back()->with('success', 'Referral accepted.');
+
+        $this->referralService->accept($referral);
+
+        return back()->with('success', 'Referral accepted — referring provider notified.');
     }
 
     public function decline(Request $request, Referral $referral): RedirectResponse
     {
         $this->authorize('respond', $referral);
-        $referral->update(['status' => 'declined', 'responded_at' => now()]);
-        return back()->with('success', 'Referral declined.');
+
+        $this->referralService->decline($referral, $request->input('reason'));
+
+        return back()->with('success', 'Referral declined — referring provider notified.');
+    }
+
+    public function cancel(Request $request, Referral $referral): RedirectResponse
+    {
+        abort_unless($referral->sender_id === $request->user()->id, 403);
+
+        $this->referralService->close($referral);
+
+        return back()->with('success', 'Referral cancelled — moved to archive.');
+    }
+
+    public function complete(Request $request, Referral $referral): RedirectResponse
+    {
+        abort_unless(
+            $referral->sender_id === $request->user()->id || $referral->recipient_id === $request->user()->id,
+            403
+        );
+
+        $this->referralService->close($referral);
+
+        return back()->with('success', 'Referral marked complete.');
     }
 }

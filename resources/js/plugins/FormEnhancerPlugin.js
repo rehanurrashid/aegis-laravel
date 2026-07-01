@@ -116,12 +116,25 @@ function enhanceSelect(el) {
       onInitialize() {
         this.control.style.setProperty('--ts-pr-caret', '0px')
         this.control.style.setProperty('--ts-pr-clear-button', '0px')
+        // Use setProperty with 'important' to beat the !important shorthand in form-enhancements.css §2.2
+        this.control.style.setProperty('border-radius', 'var(--radius)', 'important')
         if (el.classList.contains('form-select-sm')) {
           this.wrapper.classList.add('ts-sm')
         }
         patchSelect(el)
         const currentValue = _selectValueProp.get.call(el)
         if (currentValue) this.setValue(currentValue, true)
+      },
+      onDropdownOpen() {
+        const ctrl = this.control
+        ctrl.style.setProperty('border-top-left-radius',     'var(--radius)', 'important')
+        ctrl.style.setProperty('border-top-right-radius',    'var(--radius)', 'important')
+        ctrl.style.setProperty('border-bottom-left-radius',  '0',             'important')
+        ctrl.style.setProperty('border-bottom-right-radius', '0',             'important')
+      },
+      onDropdownClose() {
+        const ctrl = this.control
+        ctrl.style.setProperty('border-radius', 'var(--radius)', 'important')
       },
     })
   } catch (_) { /* already initialised */ }

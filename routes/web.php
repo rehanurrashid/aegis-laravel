@@ -186,6 +186,8 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
         Route::post('/referrals', [ReferralsController::class, 'store'])->name('referrals.store');
         Route::post('/referrals/{referral}/accept', [ReferralsController::class, 'accept'])->name('referrals.accept');
         Route::post('/referrals/{referral}/decline', [ReferralsController::class, 'decline'])->name('referrals.decline');
+        Route::post('/referrals/{referral}/cancel', [ReferralsController::class, 'cancel'])->name('referrals.cancel');
+        Route::post('/referrals/{referral}/complete', [ReferralsController::class, 'complete'])->name('referrals.complete');
 
         // Services (requires Practice tier + services mode)
         Route::middleware('services.mode')->group(function () {

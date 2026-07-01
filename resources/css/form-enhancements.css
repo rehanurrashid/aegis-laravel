@@ -448,6 +448,29 @@ span.flatpickr-weekday {
   z-index: 9999 !important;
   overflow: hidden !important;
   margin-top: 0 !important;
+  /* Fade only — no transform/scale so overflow:hidden never causes a scrollbar flash */
+  animation: ts-drop-in 0.15s ease-out both !important;
+}
+
+@keyframes ts-drop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Option rows stagger-fade */
+.ts-wrapper .ts-dropdown .option {
+  animation: ts-option-fade 0.15s ease-out both;
+}
+.ts-wrapper .ts-dropdown .option:nth-child(1) { animation-delay: 0.03s; }
+.ts-wrapper .ts-dropdown .option:nth-child(2) { animation-delay: 0.06s; }
+.ts-wrapper .ts-dropdown .option:nth-child(3) { animation-delay: 0.09s; }
+.ts-wrapper .ts-dropdown .option:nth-child(4) { animation-delay: 0.12s; }
+.ts-wrapper .ts-dropdown .option:nth-child(5) { animation-delay: 0.15s; }
+.ts-wrapper .ts-dropdown .option:nth-child(n+6) { animation-delay: 0.17s; }
+
+@keyframes ts-option-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .ts-wrapper .ts-dropdown .ts-dropdown-content {
