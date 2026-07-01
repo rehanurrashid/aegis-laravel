@@ -1156,35 +1156,50 @@ function markUnread() {
 }
 
 const blockForm = useForm({})
-async function blockContact() {
+function blockContact() {
   const name = props.activeThread?.counterpart?.display_name ?? 'this contact'
-  const ok = await confirmAction(
-    `Block ${name}? They won't be able to message you. You can unblock from the conversation panel.`,
-    { title: 'Block Contact', confirmLabel: 'Block', destructive: true }
-  )
-  if (!ok) return
-  blockForm.post(route('messages.block', props.activeThread.id), {
-    preserveScroll: true,
-    preserveState:  true,
-    only: ['threads', 'activeThread'],
-    onSuccess: () => {
-      showInfo.value = false
-      toast.warning(`${name} has been blocked.`)
+  confirmAction(
+    {
+      title:        'Block Contact',
+      message:      `Block ${name}? They won't be able to message you. You can unblock from the conversation panel.`,
+      confirmLabel: 'Block',
+      destructive:  true,
     },
-    onError: () => toast.error('Could not block contact.'),
-  })
+    () => {
+      blockForm.post(route('messages.block', props.activeThread.id), {
+        preserveScroll: true,
+        preserveState:  true,
+        only: ['threads', 'activeThread'],
+        onSuccess: () => {
+          showInfo.value = false
+          toast.warning(`${name} has been blocked.`)
+        },
+        onError: () => toast.error('Could not block contact.'),
+      })
+    }
+  )
 }
 
 const unblockForm = useForm({})
 function unblockContact() {
   const name = props.activeThread?.counterpart?.display_name ?? 'this contact'
-  unblockForm.post(route('messages.unblock', props.activeThread.id), {
-    preserveScroll: true,
-    preserveState:  true,
-    only: ['threads', 'activeThread'],
-    onSuccess: () => toast.success(`${name} has been unblocked.`),
-    onError:   () => toast.error('Could not unblock contact.'),
-  })
+  confirmAction(
+    {
+      title:        'Unblock Contact',
+      message:      `Unblock ${name}? They will be able to message you again.`,
+      confirmLabel: 'Unblock',
+      destructive:  false,
+    },
+    () => {
+      unblockForm.post(route('messages.unblock', props.activeThread.id), {
+        preserveScroll: true,
+        preserveState:  true,
+        only: ['threads', 'activeThread'],
+        onSuccess: () => toast.success(`${name} has been unblocked.`),
+        onError:   () => toast.error('Could not unblock contact.'),
+      })
+    }
+  )
 }
 
 // ── In-chat search ───────────────────────────────────
