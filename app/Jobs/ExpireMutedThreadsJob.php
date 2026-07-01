@@ -32,6 +32,7 @@ class ExpireMutedThreadsJob implements ShouldQueue
             ->update([
                 'is_muted'    => 0,
                 'muted_until' => null,
+                'muted_hours' => null,
             ]);
 
         if ($count > 0) {

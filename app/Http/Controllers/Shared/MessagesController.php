@@ -214,6 +214,15 @@ class MessagesController extends Controller
     {
         $this->authorize('send', $thread);
 
+        // Reject if either party has blocked the other on this thread
+        $userId = $request->user()->id;
+        $isBlocked = MessageThreadBlock::where('thread_id', $thread->id)
+            ->where(fn ($q) => $q->where('blocker_id', $userId)->orWhere('blocked_id', $userId))
+            ->exists();
+        if ($isBlocked) {
+            return back()->withErrors(['body' => 'Messaging is unavailable for this conversation.']);
+        }
+
         $data = $request->validate([
             'body'        => 'nullable|string|max:5000',
             'attachments' => 'nullable|array|max:5',
@@ -397,13 +406,24 @@ class MessagesController extends Controller
 
     public function setAvailability(Request $request): RedirectResponse
     {
-        $data   = $request->validate(['status' => 'required|in:available,away,busy']);
-        $user   = $request->user();
+        $data = $request->validate(['status' => 'required|in:available,away,busy']);
+        $user = $request->user();
 
-        UserMeta::updateOrCreate(
-            ['user_id' => $user->id, 'meta_key' => 'messaging_status'],
-            ['meta_value' => $data['status']]
-        );
+        $existing = UserMeta::where('user_id', $user->id)
+            ->where('meta_key', 'messaging_status')
+            ->first();
+
+        if ($existing) {
+            $existing->update(['meta_value' => $data['status']]);
+        } else {
+            UserMeta::create([
+                'id'         => 'um_' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(12)),
+                'user_id'    => $user->id,
+                'meta_key'   => 'messaging_status',
+                'meta_value' => $data['status'],
+                'meta_type'  => 'string',
+            ]);
+        }
 
         return back()->with('success', 'Status updated.');
     }
