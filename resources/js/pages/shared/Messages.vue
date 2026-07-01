@@ -16,31 +16,31 @@
           <div class="msg-contacts-icon-row">
             <button
               type="button"
-              class="btn-icon btn-icon-sm"
+              class="btn-icon"
               :class="{ 'is-active-icon': searchContactsOpen }"
               data-tooltip="Search messages"
               @click="searchContactsOpen = !searchContactsOpen"
             >
-              <AegisIcon name="search" :size="18" />
+              <AegisIcon name="search" :size="16" />
             </button>
             <button
               type="button"
-              class="btn-icon btn-icon-sm"
+              class="btn-icon"
               data-tooltip="New message"
               @click="openCompose"
             >
-              <AegisIcon name="plus" :size="18" />
+              <AegisIcon name="plus" :size="16" />
             </button>
             <button
               type="button"
-              class="btn-icon btn-icon-sm"
+              class="btn-icon"
               :data-tooltip="`Status: ${availabilityOptions.find(o => o.value === currentStatus)?.label ?? 'Available'}`"
               @click="modals.availability = true"
             >
               <span class="avail-status-dot" :class="`avail-status-dot--${currentStatus}`"></span>
             </button>
-            <a :href="activityUrl" class="btn-icon btn-icon-sm" data-tooltip="Message activity log">
-              <AegisIcon name="activity" :size="18" />
+            <a :href="activityUrl" class="btn-icon" data-tooltip="Message activity log">
+              <AegisIcon name="activity" :size="16" />
             </a>
           </div>
         </div>
@@ -170,21 +170,21 @@
             <div class="msg-chat-head-actions">
               <button
                 type="button"
-                class="btn-icon btn-icon-sm"
+                class="btn-icon"
                 :class="{ 'is-active-icon': searchOpen }"
                 data-tooltip="Search in chat"
                 @click="searchOpen = !searchOpen"
               >
-                <AegisIcon name="search" :size="18" />
+                <AegisIcon name="search" :size="16" />
               </button>
               <button
                 type="button"
-                class="btn-icon btn-icon-sm"
+                class="btn-icon"
                 :class="{ 'is-active-icon': showInfo }"
                 data-tooltip="Conversation info"
                 @click="showInfo = !showInfo"
               >
-                <AegisIcon name="more" :size="18" />
+                <AegisIcon name="more" :size="16" />
               </button>
             </div>
           </div>
@@ -334,7 +334,7 @@
           <!-- Panel header -->
           <div class="msg-info-head">
             <div class="msg-info-title">Conversation Info</div>
-            <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Close" @click="showInfo = false">
+            <button type="button" class="btn-icon" data-tooltip="Close" @click="showInfo = false">
               <AegisIcon name="x" :size="14" />
             </button>
           </div>
@@ -1735,8 +1735,8 @@ function useTemplate(body) {
   flex: 1;
   resize: none;
   min-height: 32px;
-  max-height: 120px;
   height: 32px;
+  max-height: 120px;
   padding: 0 10px;
   box-sizing: border-box;
   background: var(--surface-2);
@@ -1747,8 +1747,8 @@ function useTemplate(body) {
   color: var(--text);
   font-family: inherit;
   outline: none;
-  transition: border-color var(--transition-fast);
   overflow: hidden;
+  transition: border-color var(--transition-fast);
 }
 .msg-compose-input:focus { border-color: var(--gold); }
 
