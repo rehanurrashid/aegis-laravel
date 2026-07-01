@@ -9,7 +9,7 @@
       quiet
       eyebrow="Communication"
       title="Activity Log"
-      :subtitle="`${pagination?.total ?? events.length} event${(pagination?.total ?? events.length) === 1 ? '' : 's'} across your portal.`"
+      :subtitle="`${totalCount} event${totalCount === 1 ? '' : 's'} across your portal.`"
     >
       <template #actions>
         <button
@@ -37,7 +37,7 @@
     <div class="stat-chips-row">
       <AegisStatChip
         icon="activity"
-        :value="pagination?.total ?? events.length"
+        :value="totalCount"
         label="Total events"
       />
       <AegisStatChip
@@ -50,6 +50,45 @@
         :value="criticalCount"
         label="Critical"
       />
+    </div>
+
+    <!-- ── Entry-type toggle (All / My Activity / Notifications) ── -->
+    <div class="tabs-segmented" role="tablist" aria-label="Filter by entry type">
+      <button
+        type="button"
+        class="tab-pill"
+        role="tab"
+        :class="{ active: !localFilters.entry_type }"
+        :aria-selected="!localFilters.entry_type"
+        @click="setEntryType('')"
+      >
+        <AegisIcon name="activity" :size="12" />
+        All
+      </button>
+      <button
+        type="button"
+        class="tab-pill"
+        role="tab"
+        :class="{ active: localFilters.entry_type === 'log' }"
+        :aria-selected="localFilters.entry_type === 'log'"
+        @click="setEntryType('log')"
+      >
+        <AegisIcon name="user" :size="12" />
+        My Activity
+        <span v-if="logCount > 0" class="badge-pill">{{ logCount }}</span>
+      </button>
+      <button
+        type="button"
+        class="tab-pill"
+        role="tab"
+        :class="{ active: localFilters.entry_type === 'notification' }"
+        :aria-selected="localFilters.entry_type === 'notification'"
+        @click="setEntryType('notification')"
+      >
+        <AegisIcon name="bell" :size="12" />
+        Notifications
+        <span v-if="notificationCount > 0" class="badge-pill">{{ notificationCount }}</span>
+      </button>
     </div>
 
     <!-- ── Search bar ───────────────────────────────────── -->
@@ -114,9 +153,11 @@
               :key="event.id"
               class="activity-item"
               :class="{
-                'is-important': event.important,
-                'is-critical':  event.event_type === 'incident',
-                'is-unread':    !event.read_at,
+                'is-important':    event.important,
+                'is-critical':     event.event_type === 'incident',
+                'is-unread':       !event.read_at,
+                'is-notification': event.entry_type === 'notification',
+                'is-log':          event.entry_type === 'log',
               }"
               @click="openDetail(event)"
             >
@@ -124,9 +165,25 @@
                 <AegisIcon :name="event.icon" :size="16" />
               </div>
               <div class="activity-body">
-                <div class="activity-title">{{ event.title }}</div>
+                <div class="activity-title">
+                  <span v-if="event.entry_type === 'notification' && event.actor" class="activity-actor">
+                    <strong>{{ event.actor.display_name }}</strong>
+                    <span class="activity-actor-sep">·</span>
+                  </span>
+                  {{ event.title }}
+                </div>
                 <div v-if="event.description" class="activity-desc">{{ event.description }}</div>
                 <div class="activity-meta">
+                  <span
+                    v-if="event.entry_type === 'notification'"
+                    class="activity-badge notification-pill"
+                    data-tooltip="A party other than you triggered this event"
+                  >Notification</span>
+                  <span
+                    v-else-if="event.entry_type === 'log'"
+                    class="activity-badge log-pill"
+                    data-tooltip="Your own action, recorded to your log"
+                  >My Log</span>
                   <span class="activity-badge" :class="event.badge_class">{{ event.badge_label }}</span>
                   <span v-if="event.severity === 'critical'" class="activity-badge critical-incident">Critical</span>
                   <span v-else-if="event.severity === 'warning'" class="activity-badge financial">Warning</span>
@@ -170,6 +227,16 @@
           <span class="activity-detail-val">{{ detailEvent.badge_label }}</span>
         </div>
         <div class="activity-detail-row">
+          <span class="activity-detail-label">Entry</span>
+          <span class="activity-detail-val">
+            {{ detailEvent.entry_type === 'notification' ? 'Notification (from another party)' : 'My activity log' }}
+          </span>
+        </div>
+        <div v-if="detailEvent.actor" class="activity-detail-row">
+          <span class="activity-detail-label">Triggered by</span>
+          <span class="activity-detail-val">{{ detailEvent.actor.display_name }}</span>
+        </div>
+        <div class="activity-detail-row">
           <span class="activity-detail-label">Module</span>
           <span class="activity-detail-val">{{ detailEvent.module || '—' }}</span>
         </div>
@@ -211,25 +278,27 @@
           <input v-model="exportForm.to" type="date" class="form-input" />
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Format</label>
-        <select v-model="exportForm.format" class="form-input">
-          <option value="pdf">PDF — Full formatted report</option>
-          <option value="csv">CSV — Spreadsheet data</option>
-          <option value="json">JSON — Machine-readable</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Reason for export <span class="text-danger">*</span></label>
-        <select v-model="exportForm.reason" class="form-input">
-          <option value="">Select reason…</option>
-          <option value="annual_review">Annual compliance review</option>
-          <option value="legal">Legal / attorney request</option>
-          <option value="regulatory">Regulatory audit</option>
-          <option value="internal">Internal review</option>
-          <option value="incident">Critical incident documentation</option>
-          <option value="other">Other</option>
-        </select>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Format</label>
+          <select v-model="exportForm.format" class="form-select">
+            <option value="pdf">PDF — Full formatted report</option>
+            <option value="csv">CSV — Spreadsheet data</option>
+            <option value="json">JSON — Machine-readable</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Reason for export <span class="text-danger">*</span></label>
+          <select v-model="exportForm.reason" class="form-select">
+            <option value="">Select reason…</option>
+            <option value="annual_review">Annual compliance review</option>
+            <option value="legal">Legal / attorney request</option>
+            <option value="regulatory">Regulatory audit</option>
+            <option value="internal">Internal review</option>
+            <option value="incident">Critical incident documentation</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
       </div>
       <p class="form-hint">The export action itself will be logged as an audit event.</p>
       <template #footer>
@@ -259,13 +328,16 @@ import { useToast } from '@/composables/useToast'
 import { useActivity } from '@/composables/useActivity'
 
 const props = defineProps({
-  events:         { type: Array,  default: () => [] },
-  grouped:        { type: Object, default: () => ({ today: [], week: [], month: [] }) },
-  pagination:     { type: Object, default: null },
-  filters:        { type: Object, default: () => ({ module: '', severity: '', unread: '', event_type: '' }) },
-  unreadCount:    { type: Number, default: 0 },
-  criticalCount:  { type: Number, default: 0 },
-  categoryCounts: { type: Array,  default: () => [] },
+  events:            { type: Array,  default: () => [] },
+  grouped:           { type: Object, default: () => ({ today: [], week: [], month: [] }) },
+  pagination:        { type: Object, default: null },
+  totalCount:        { type: Number, default: 0 },
+  filters:           { type: Object, default: () => ({ module: '', severity: '', unread: '', event_type: '', entry_type: '' }) },
+  unreadCount:       { type: Number, default: 0 },
+  notificationCount: { type: Number, default: 0 },
+  logCount:          { type: Number, default: 0 },
+  criticalCount:     { type: Number, default: 0 },
+  categoryCounts:    { type: Array,  default: () => [] },
 })
 
 const toast      = useToast()
@@ -311,6 +383,7 @@ const localFilters = reactive({
   severity:   props.filters?.severity   ?? '',
   unread:     props.filters?.unread     ?? '',
   event_type: props.filters?.event_type ?? '',
+  entry_type: props.filters?.entry_type ?? '',
 })
 
 const quickFilters = [
@@ -352,6 +425,12 @@ function setEventType(et) {
   localFilters.event_type = et
   activeQuick.value = 'all'
   pushQuery({ event_type: et })
+}
+
+function setEntryType(et) {
+  localFilters.entry_type = et
+  activeQuick.value = 'all'
+  pushQuery({ entry_type: et })
 }
 
 function pushQuery(extra = {}) {
@@ -450,6 +529,26 @@ function submitExport() {
 </script>
 
 <style scoped>
+/* ── Notification vs Log visual distinction ─────── */
+/* Global .tabs-segmented + .tab-pill do the tab styling. These
+   scoped rules only handle the per-item accent in the feed. */
+.activity-item.is-notification { border-left: 3px solid var(--gold-dark); }
+.activity-item.is-log          { border-left: 3px solid var(--border); }
+.activity-actor      { color: var(--text-2); }
+.activity-actor strong { color: var(--text); font-weight: 700; }
+.activity-actor-sep  { margin: 0 6px; color: var(--text-4); }
+.activity-badge.notification-pill {
+  color: var(--gold-dark);
+  background: var(--badge-bg-gold);
+}
+.activity-badge.log-pill {
+  color: var(--text-3);
+  background: var(--surface-2);
+}
+
+/* Nudge the segmented tab row into the toolbar rhythm */
+.tabs-segmented { margin-top: 20px; margin-bottom: 8px; }
+
 /* ── Toolbar (quick filter pills + search) ───────── */
 .activity-toolbar {
   display: flex;

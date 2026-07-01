@@ -34,13 +34,25 @@ class ActivityService
         string $description,
         ?string $linkableType = null,
         ?string $linkableId = null,
-        ?string $relatedUserId = null
+        ?string $relatedUserId = null,
+        ?string $actorId = null,
+        ?string $entryType = null
     ): ActivityEvent {
+        // Auto-derive entry_type when not explicitly set:
+        //   • actor == recipient        → 'log'          (user's own action, self-recorded)
+        //   • actor set, differs        → 'notification' (another party's action affecting user)
+        //   • actor unknown             → 'notification' (safe default — matches historical fan-out semantics)
+        if ($entryType === null) {
+            $entryType = ($actorId !== null && $actorId === $userId) ? 'log' : 'notification';
+        }
+
         return ActivityEvent::create([
             'id'                  => 'ae_' . Str::lower(Str::random(12)),
             'user_id'             => $userId,
             'portal'              => $portal,
             'event_type'          => $this->mapModuleToEventType($module),
+            'entry_type'          => $entryType,
+            'actor_id'            => $actorId,
             'severity'            => $severity->value,
             'module'              => $module,
             'action'              => $action,
@@ -103,6 +115,8 @@ class ActivityService
                 $payload['linkable_type'] ?? null,
                 $payload['linkable_id']   ?? null,
                 $payload['related_user_id'] ?? null,
+                $payload['actor_id']  ?? null,
+                $payload['entry_type'] ?? null,
             );
         }
     }
@@ -148,19 +162,22 @@ class ActivityService
         $query = ActivityEvent::where('user_id', $userId)
             ->orderBy('created_at', 'desc');
 
-        if (!empty($filters['module']))   $query->where('module', $filters['module']);
-        if (!empty($filters['severity'])) $query->where('severity', $filters['severity']);
-        if (!empty($filters['portal']))   $query->where('portal', $filters['portal']);
-        if (!empty($filters['unread']))   $query->whereNull('read_at');
+        if (!empty($filters['module']))     $query->where('module', $filters['module']);
+        if (!empty($filters['severity']))   $query->where('severity', $filters['severity']);
+        if (!empty($filters['portal']))     $query->where('portal', $filters['portal']);
+        if (!empty($filters['entry_type'])) $query->where('entry_type', $filters['entry_type']);
+        if (!empty($filters['unread']))     $query->whereNull('read_at');
 
         return $query->limit($limit)->get();
     }
 
-    public function getUnreadCount(string $userId): int
+    public function getUnreadCount(string $userId, ?string $entryType = null): int
     {
-        return ActivityEvent::where('user_id', $userId)
-            ->whereNull('read_at')
-            ->count();
+        $q = ActivityEvent::where('user_id', $userId)->whereNull('read_at');
+        if ($entryType !== null) {
+            $q->where('entry_type', $entryType);
+        }
+        return $q->count();
     }
 
     /**

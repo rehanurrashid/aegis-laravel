@@ -23,8 +23,8 @@ class ActivityEvent extends Model
     public    $timestamps   = false;
 
     protected $fillable = [
-        'id', 'user_id', 'portal', 'event_type', 'severity',
-        'module', 'action', 'title', 'description',
+        'id', 'user_id', 'portal', 'event_type', 'entry_type', 'actor_id',
+        'severity', 'module', 'action', 'title', 'description',
         'linkable_type', 'linkable_id', 'scoped_provider_id',
         'read_at', 'created_at',
     ];
@@ -40,6 +40,11 @@ class ActivityEvent extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function actor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'actor_id');
     }
 
     public function scopedProvider(): BelongsTo
@@ -61,4 +66,7 @@ class ActivityEvent extends Model
     public function scopeForPortal($q, ActivityPortal $p) { return $q->where('portal', $p->value); }
     public function scopeOfModule($q, string $module)     { return $q->where('module', $module); }
     public function scopeOfType($q, ActivityEventType $t) { return $q->where('event_type', $t->value); }
+    public function scopeLogs($q)          { return $q->where('entry_type', 'log'); }
+    public function scopeNotifications($q) { return $q->where('entry_type', 'notification'); }
+    public function scopeOfEntryType($q, string $entryType) { return $q->where('entry_type', $entryType); }
 }

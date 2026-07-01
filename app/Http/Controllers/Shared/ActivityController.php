@@ -22,24 +22,32 @@ class ActivityController extends Controller
     public function index(Request $request): Response
     {
         $user      = $request->user();
-        $filters   = $request->only(['module', 'severity', 'unread', 'portal', 'event_type']);
+        $filters   = $request->only(['module', 'severity', 'unread', 'portal', 'event_type', 'entry_type']);
         $page      = max(1, (int) $request->query('page', 1));
         $perPage   = 20;
 
-        // Pull a generous slice for accurate counts; paginate client-visible portion.
-        $allQuery = ActivityEvent::where('user_id', $user->id)->orderByDesc('created_at');
-        if (!empty($filters['module']))     $allQuery->where('module', $filters['module']);
-        if (!empty($filters['severity']))   $allQuery->where('severity', $filters['severity']);
-        if (!empty($filters['event_type'])) $allQuery->where('event_type', $filters['event_type']);
-        if (!empty($filters['portal']))     $allQuery->where('portal', $filters['portal']);
-        if (!empty($filters['unread']))     $allQuery->whereNull('read_at');
+        // ── Base query (user only, no filters) — used for sidebar counts + unread totals.
+        // These must never be filtered by event_type / entry_type so they reflect
+        // the full picture regardless of what the user has clicked in the sidebar.
+        $baseQuery = ActivityEvent::where('user_id', $user->id);
 
-        $total      = min($allQuery->count(), 500);
+        // ── Filtered query — used for the event list, pagination total, and grouping.
+        $filteredQuery = ActivityEvent::where('user_id', $user->id)
+            ->with('actor:id,display_name,role')
+            ->orderByDesc('created_at');
+        if (!empty($filters['module']))     $filteredQuery->where('module', $filters['module']);
+        if (!empty($filters['severity']))   $filteredQuery->where('severity', $filters['severity']);
+        if (!empty($filters['event_type'])) $filteredQuery->where('event_type', $filters['event_type']);
+        if (!empty($filters['entry_type'])) $filteredQuery->where('entry_type', $filters['entry_type']);
+        if (!empty($filters['portal']))     $filteredQuery->where('portal', $filters['portal']);
+        if (!empty($filters['unread']))     $filteredQuery->whereNull('read_at');
+
+        $total      = min($filteredQuery->count(), 500);
         $lastPage   = max(1, (int) ceil($total / $perPage));
         $page       = min($page, $lastPage);
         $offset     = ($page - 1) * $perPage;
 
-        $events = $allQuery->offset($offset)->limit($perPage)->get();
+        $events = $filteredQuery->offset($offset)->limit($perPage)->get();
 
         // Group events into today / week / month buckets
         $today      = now()->startOfDay();
@@ -63,10 +71,9 @@ class ActivityController extends Controller
             }
         }
 
-        // Category counts across the *full* (unpaginated) set, for the sidebar.
-        // Bypass model casts by going through raw connection to avoid enum-keyed array.
-        $catCountsRows = (clone $allQuery)
-            ->getQuery()
+        // Category counts — always from the filter-free base query so sidebar totals
+        // never collapse to 0 when event_type or entry_type is active.
+        $catCountsRows = (clone $baseQuery)
             ->selectRaw('event_type, COUNT(*) as c')
             ->groupBy('event_type')
             ->get();
@@ -90,9 +97,21 @@ class ActivityController extends Controller
             ['key' => 'referral',     'label' => 'Referrals',     'icon' => 'refresh-cw'],
         ];
 
-        $categoryCounts = array_map(function ($cat) use ($catCountsRaw, $total) {
+        $baseTotal = min((clone $baseQuery)->count(), 500);
+
+        // Entry-type totals for tab pill badges — always from base query, not filtered.
+        $entryTypeCounts = (clone $baseQuery)
+            ->selectRaw('entry_type, COUNT(*) as c')
+            ->groupBy('entry_type')
+            ->get()
+            ->pluck('c', 'entry_type')
+            ->toArray();
+        $notificationCount = (int) ($entryTypeCounts['notification'] ?? 0);
+        $logCount          = (int) ($entryTypeCounts['log']          ?? 0);
+
+        $categoryCounts = array_map(function ($cat) use ($catCountsRaw, $baseTotal) {
             $cat['count'] = $cat['key'] === ''
-                ? $total
+                ? $baseTotal
                 : (int) ($catCountsRaw[$cat['key']] ?? 0);
             return $cat;
         }, $categories);
@@ -100,6 +119,7 @@ class ActivityController extends Controller
         return Inertia::render('Shared/Activity', [
             'events'         => $events->map(fn ($e) => $this->formatEvent($e)),
             'grouped'        => $grouped,
+            'totalCount'     => $baseTotal,
             'pagination'     => [
                 'current_page' => $page,
                 'last_page'    => $lastPage,
@@ -109,7 +129,9 @@ class ActivityController extends Controller
                 'to'           => min($offset + $perPage, $total),
             ],
             'filters'        => $filters,
-            'unreadCount'    => $this->activity->getUnreadCount($user->id),
+            'unreadCount'      => $this->activity->getUnreadCount($user->id),
+            'notificationCount'=> $notificationCount,
+            'logCount'         => $logCount,
             'criticalCount'  => ActivityEvent::where('user_id', $user->id)
                                     ->where('severity', 'critical')
                                     ->whereNull('read_at')
@@ -321,10 +343,22 @@ HTML;
         $eventType = is_object($e->event_type) ? ($e->event_type->value ?? 'system') : (string) ($e->event_type ?? 'system');
         $severity  = is_object($e->severity)   ? ($e->severity->value   ?? 'info')   : (string) ($e->severity   ?? 'info');
         $module    = (string) ($e->module ?? '');
+        $entryType = (string) ($e->entry_type ?? 'notification');
+
+        $actor = null;
+        if ($e->relationLoaded('actor') && $e->actor) {
+            $actor = [
+                'id'           => $e->actor->id,
+                'display_name' => $e->actor->display_name,
+                'role'         => is_object($e->actor->role) ? ($e->actor->role->value ?? null) : $e->actor->role,
+            ];
+        }
 
         return [
             'id'          => $e->id,
             'event_type'  => $eventType,
+            'entry_type'  => $entryType,
+            'actor'       => $actor,
             'module'      => $e->module,
             'action'      => $e->action,
             'severity'    => $severity,
