@@ -424,7 +424,7 @@ p {
   height: 52px;
   border-radius: var(--radius);
   background: rgba(255,255,255,0.18);
-  border: 1.5px solid rgba(255,255,255,0.28);
+  border: 1px solid rgba(255,255,255,0.28);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -932,7 +932,7 @@ p {
   height: 7px;
   background: var(--red);
   border-radius: 50%;
-  border: 1.5px solid var(--surface-2);
+  border: 1px solid var(--surface-2);
 }
 
 .notif-dot.emergency {
@@ -947,7 +947,7 @@ p {
   gap: 9px;
   padding: 5px 14px 5px 6px;
   border-radius: var(--radius-full);
-  border: 1.5px solid var(--gold);
+  border: 1px solid var(--gold);
   cursor: pointer;
   transition: background var(--transition), border-color var(--transition), color var(--transition);
   text-decoration: none;
@@ -1737,7 +1737,7 @@ p {
   gap: 12px;
   padding: 13px 16px;
   background: var(--surface-2);
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   margin-bottom: 10px;
   transition: border-color var(--transition);
@@ -1767,7 +1767,7 @@ p {
 
 .ep-tag {
   padding: 6px 13px;
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-full);
   font-family: var(--font-sans);
   font-size: 12px;
@@ -1791,7 +1791,7 @@ p {
   align-items: center;
   gap: 6px;
   padding: 5px 8px 5px 12px;
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-full);
   font-family: var(--font-sans);
   font-size: 12px;
@@ -1972,11 +1972,11 @@ p {
 .btn-gold:hover { background: #7a6230; border-color: #7a6230; box-shadow: var(--shadow-gold); transform: translateY(-1px); }
 
 /* Gold outline */
-.btn-gold-outline { background: transparent; color: var(--gold-dark); border: 1.5px solid var(--gold-dark); }
+.btn-gold-outline { background: transparent; color: var(--gold-dark); border: 1px solid var(--gold-dark); }
 .btn-gold-outline:hover { background: rgba(196,169,106,0.08); border-color: var(--gold-dark); }
 
 /* Outline */
-.btn-outline { background: transparent; color: var(--text-2); border: 1.5px solid var(--border-dark); }
+.btn-outline { background: transparent; color: var(--text-2); border: 1px solid var(--border-dark); }
 .btn-outline:hover { color: var(--gold-dark); background: var(--surface-2); }
 
 /* Ghost */
@@ -2280,7 +2280,7 @@ p {
   gap: 8px;
   padding: 8px 16px;
   border-radius: var(--radius-full);
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   font-family: var(--font-sans);
   font-size: 12.5px;
   font-weight: 600;
@@ -2377,8 +2377,8 @@ p {
 }
 
 .form-label .required { color: var(--red); margin-left: 3px; }
-.form-hint  { font-family: var(--font-sans); font-size: 11px; color: var(--text-3); margin-top: 4px; line-height: 1.5; }
-.form-error { font-family: var(--font-sans); font-size: 11px; color: var(--red); margin-top: 4px; }
+.form-hint  { font-family: var(--font-sans); font-size: 11px; color: var(--text-3); margin-top: 4px; line-height: 1.5; display: block; }
+.form-error { font-family: var(--font-sans); font-size: 11px; color: var(--red); margin-top: 2px; display: block; }
 
 /* Input / Textarea / Select */
 .form-input,
@@ -2387,7 +2387,7 @@ p {
 .form-textarea {
   width: 100%;
   padding: 9px 13px;
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   font-family: var(--font-sans);
   font-size: 13px;
@@ -2421,7 +2421,11 @@ p {
 .form-input.is-invalid,
 .form-control.is-invalid,
 .form-select.is-invalid,
-.form-textarea.is-invalid { border-color: var(--red); box-shadow: var(--focus-ring-red); }
+.form-textarea.is-invalid,
+.form-input.is-error,
+.form-control.is-error,
+.form-select.is-error,
+.form-textarea.is-error { border-color: var(--red); box-shadow: var(--focus-ring-red); }
 
 /* Select custom chevron */
 .form-select {
@@ -2456,6 +2460,27 @@ p {
 .input-group { position: relative; }
 .input-group .form-input,
 .input-group .form-control { padding-left: 38px; }
+
+/* Number input with a trailing unit label ( /hr  /mo  total )
+   The wrapper is self-sizing so it never conflicts with adjacent TomSelect wrappers. */
+.input-suffix-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+}
+.input-suffix-wrap .form-input {
+  width: 130px;
+  min-width: 80px;
+  flex: 0 0 auto;
+}
+.input-suffix {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 
 .input-group-icon {
   position: absolute;
@@ -2562,7 +2587,7 @@ input[type="radio"] {
   min-width: 16px;
   flex-shrink: 0;
   cursor: pointer;
-  border: 1.5px solid var(--border-dark, #cec8be);
+  border: 1px solid var(--border-dark, #cec8be);
   border-radius: 4px;
   transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
   vertical-align: middle;
@@ -2625,7 +2650,7 @@ input[type="radio"]:focus { outline: none; box-shadow: var(--focus-ring-checkbox
   height: 16px;
   flex-shrink: 0;
   cursor: pointer;
-  border: 1.5px solid var(--border-dark, #cec8be);
+  border: 1px solid var(--border-dark, #cec8be);
   border-radius: 4px;
   transition: background 0.15s, border-color 0.15s;
   position: relative;
@@ -2685,7 +2710,7 @@ border-color: var(--gold-dark);
   height: 16px;
   flex-shrink: 0;
   cursor: pointer;
-  border: 1.5px solid var(--border-dark, #cec8be);
+  border: 1px solid var(--border-dark, #cec8be);
   border-radius: 4px;
   transition: background 0.15s, border-color 0.15s;
   position: relative;
@@ -2841,7 +2866,7 @@ label.toggle input:checked ~ .toggle-thumb { transform: translate(18px, -50%); }
 /* ─── Upload Zone ────────────────────────────────────────────── */
 /* RULE: icon = white SVG on var(--gold-dark) background */
 .upload-zone {
-  border: 2px dashed var(--border-dark);
+  border: 1px dashed var(--border-dark);
   border-radius: var(--radius-lg);
   padding: 32px 24px;
   display: flex;
@@ -2944,7 +2969,7 @@ label.toggle input:checked ~ .toggle-thumb { transform: translate(18px, -50%); }
 .filter-tag {
   padding: 5px 12px;
   border-radius: var(--radius-full);
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 600;
@@ -3356,7 +3381,7 @@ body.modal-open {
 .avatar-red  { background: var(--red-dark);  color: var(--text-inverted); }
 
 .avatar-stack { display: flex; }
-.avatar-stack .avatar { border: 2px solid var(--surface); margin-left: -8px; }
+.avatar-stack .avatar { border: 1px solid var(--surface); margin-left: -8px; }
 .avatar-stack .avatar:first-child { margin-left: 0; }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -3401,7 +3426,7 @@ body.modal-open {
   width: 10px; height: 10px;
   border-radius: 50%;
   background: var(--gold);
-  border: 2px solid var(--surface-2);
+  border: 1px solid var(--surface-2);
 }
 
 .timeline-dot.green     { background: var(--green); }
@@ -3422,7 +3447,7 @@ body.modal-open {
 .page-btn {
   width: 34px; height: 34px;
   border-radius: var(--radius-sm);
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-2);
   font-family: var(--font-sans);
@@ -3551,7 +3576,7 @@ html.sidebar-collapsed .save-bar { left: var(--sidebar-collapsed-width); }
   justify-content: center;
   min-height: 110px;
   padding: 18px 16px;
-  border: 1.5px dashed var(--border-dark, var(--border));
+  border: 1px dashed var(--border-dark, var(--border));
   border-radius: var(--radius);
   background: var(--surface-2);
   color: var(--text-3);
@@ -3724,7 +3749,7 @@ input[type="week"].form-input::-webkit-calendar-picker-indicator {
 }
 
 .spinner { width: 20px; height: 20px; border: 2.5px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.65s linear infinite; flex-shrink: 0; }
-.spinner-sm { width: 16px; height: 16px; border-width: 2px; }
+.spinner-sm { width: 16px; height: 16px; border-width: 1px; }
 .spinner-lg { width: 28px; height: 28px; border-width: 3px; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -3805,6 +3830,7 @@ input[type="week"].form-input::-webkit-calendar-picker-indicator {
   .toast-container { right: 16px; bottom: 16px; left: 16px; }
   .toast { max-width: 100%; min-width: unset; }
   .page-hero-inner { flex-direction: column; }
+  .page-hero-actions { margin-top: 14px; }
   .stat-chips-row { flex-direction: column; }
   .stat-chip { min-width: unset; }
 }

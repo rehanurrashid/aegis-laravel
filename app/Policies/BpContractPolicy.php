@@ -17,7 +17,11 @@ class BpContractPolicy
 
     public function sign(User $user, BpContract $contract): bool
     {
-        if ((string) $contract->status !== 'active') {
+        $status = $contract->status instanceof \BackedEnum
+            ? $contract->status->value
+            : (string) $contract->status;
+
+        if ($status !== 'active') {
             return false;
         }
 
@@ -27,7 +31,11 @@ class BpContractPolicy
 
     public function cancel(User $user, BpContract $contract): bool
     {
-        if (!in_array((string) $contract->status, ['active', 'paused'], true)) {
+        $status = $contract->status instanceof \BackedEnum
+            ? $contract->status->value
+            : (string) $contract->status;
+
+        if (!in_array($status, ['active', 'paused'], true)) {
             return false;
         }
 

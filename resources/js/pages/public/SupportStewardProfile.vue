@@ -170,7 +170,7 @@ import AegisIcon from '@/components/ui/AegisIcon.vue'
 import { useToast } from '@/composables/useToast'
 
 const props = defineProps({
-  user:            { type: Object,  required: true }
+  user:            { type: Object,  required: true },
   // Extra props the controller may pass for SS
   linkedProvider:  { type: Object,  default: null },
   planRole:        { type: String,  default: null },

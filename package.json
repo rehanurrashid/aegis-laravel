@@ -10,9 +10,11 @@
         "@vuelidate/core": "^2.0.3",
         "@vuelidate/validators": "^2.0.4",
         "axios": "^1.6",
+        "flatpickr": "^4.6.13",
         "laravel-echo": "^1.19.0",
         "pinia": "^2.3.1",
         "pusher-js": "^8.5.0",
+        "tom-select": "^2.6.1",
         "vue": "^3.4",
         "ziggy-js": "^2.6.3"
     },

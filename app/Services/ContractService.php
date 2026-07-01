@@ -85,7 +85,7 @@ class ContractService
         $this->activity->log(
             $otherId,
             $otherUser?->role === 'business_partner' ? 'business_partner' : 'provider',
-            'payment',
+            'job_postings',
             ActivitySeverity::Warning,
             'contract_cancelled',
             "{$actor->display_name} cancelled the contract",

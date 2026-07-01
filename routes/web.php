@@ -200,9 +200,14 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
         // Support Requests (Job Postings)
         Route::get('/support-services', [ProviderJobPostingsController::class, 'index'])->name('jobs.index');
         Route::post('/support-services', [ProviderJobPostingsController::class, 'store'])->name('jobs.store');
+        Route::put('/support-services/{job}', [ProviderJobPostingsController::class, 'update'])->name('jobs.update');
+        Route::post('/support-services/{job}/status', [ProviderJobPostingsController::class, 'setStatus'])->name('jobs.status');
         Route::delete('/support-services/{job}', [ProviderJobPostingsController::class, 'destroy'])->name('jobs.destroy');
         Route::post('/support-services/{job}/proposals/{proposal}/accept', [ProviderJobPostingsController::class, 'acceptProposal'])->name('jobs.proposal.accept');
         Route::post('/support-services/{job}/proposals/{proposal}/decline', [ProviderJobPostingsController::class, 'declineProposal'])->name('jobs.proposal.decline');
+        Route::post('/support-services/{job}/proposals/{proposal}/stage', [ProviderJobPostingsController::class, 'setProposalStage'])->name('jobs.proposal.stage');
+        Route::post('/support-services/{job}/proposals/{proposal}/notes', [ProviderJobPostingsController::class, 'setProposalNotes'])->name('jobs.proposal.notes');
+        Route::post('/support-services/contracts/{contract}/cancel', [ProviderJobPostingsController::class, 'cancelContract'])->name('jobs.contract.cancel');
 
         // Continuity Documents
         Route::get('/important-documents', [DocumentsController::class, 'index'])->name('documents.index');

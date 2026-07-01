@@ -22,7 +22,7 @@ class BpContract extends Model
     protected $fillable = [
         'id', 'job_id', 'proposal_id', 'practitioner_id', 'bp_id', 'title',
         'status', 'total_value_cents',
-        'signed_at', 'cancelled_at', 'started_at', 'completed_at',
+        'signed_at', 'cancelled_at', 'cancel_reason', 'started_at', 'completed_at',
     ];
 
     protected $casts = [

@@ -28,7 +28,7 @@
     <div class="form-row form-row-2">
       <div class="form-group">
         <label class="form-label" for="siDuration">Duration</label>
-        <select id="siDuration" v-model="duration" class="form-select">
+        <select id="siDuration" v-model="duration" class="form-select" data-no-enhance>
           <option value="15">15 minutes</option>
           <option value="30">30 minutes</option>
           <option value="45">45 minutes</option>
@@ -129,7 +129,7 @@ function reset() {
 <style scoped>
 .jp-chip-group { display: flex; flex-wrap: wrap; gap: 5px; }
 .jp-chip {
-  padding: 4px 10px; border: 1.5px solid var(--border);
+  padding: 4px 10px; border: 1px solid var(--border);
   border-radius: var(--radius-full); font-size: 11px; font-weight: 600;
   color: var(--text-2); cursor: pointer; transition: all var(--transition); white-space: nowrap;
 }

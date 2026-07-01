@@ -1,4 +1,9 @@
 
+/* ── Third-party form enhancements (flatpickr + TomSelect) ──────────────────── */
+@import 'flatpickr/dist/flatpickr.min.css';
+@import 'tom-select/dist/css/tom-select.css';
+@import './form-enhancements.css';
+
 /* ── AegisIcon inline alignment — GLOBAL RULE ─────────────────────────────────
    Problem: <AegisIcon> renders as <svg> which is display:inline by default but
    does not vertically align to text baseline, causing icon+text to misalign.
@@ -240,7 +245,7 @@ body {
 .auth-checkbox {
     width: 16px;
     height: 16px;
-    border: 1.5px solid var(--border-dark);
+    border: 1px solid var(--border-dark);
     border-radius: 4px;
     background: var(--surface);
     -webkit-appearance: none;
@@ -295,7 +300,7 @@ body {
     width: 24px;
     height: 24px;
     border-radius: var(--radius-full);
-    border: 2px solid var(--border-dark);
+    border: 1px solid var(--border-dark);
     background: var(--surface);
     display: flex;
     align-items: center;
@@ -324,7 +329,7 @@ body {
 .auth-option-chip {
     flex: 1;
     padding: 0.5rem 1rem;
-    border: 1.5px solid var(--border);
+    border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--text-2);
@@ -345,7 +350,7 @@ body {
     align-items: flex-start;
     gap: 0.9rem;
     padding: 0.85rem 1rem;
-    border: 1.5px solid var(--border);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
     background: var(--surface);
     cursor: pointer;
@@ -492,7 +497,7 @@ body {
 /* ── Note boxes (owner-only) ── */
 .pp-note-box { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 10px; font-size: 13px; color: var(--text-2); line-height: 1.6; }
 .pp-note-meta { font-size: 11px; color: var(--text-4); font-weight: 600; margin-top: 6px; }
-.pp-note-edit { width: 100%; min-height: 72px; resize: vertical; font-size: 13px; color: var(--text); background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; font-family: var(--font-sans); line-height: 1.55; transition: border-color var(--transition); box-sizing: border-box; }
+.pp-note-edit { width: 100%; min-height: 72px; resize: vertical; font-size: 13px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; font-family: var(--font-sans); line-height: 1.55; transition: border-color var(--transition); box-sizing: border-box; }
 .pp-note-edit:focus { outline: none; border-color: var(--gold); }
 
 /* ── External links ── */

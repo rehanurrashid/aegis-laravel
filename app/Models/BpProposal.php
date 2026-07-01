@@ -23,7 +23,8 @@ class BpProposal extends Model
     protected $fillable = [
         'id', 'job_id', 'bp_id', 'cover_letter',
         'proposed_rate_cents', 'proposed_rate_type', 'status',
-        'submitted_at', 'responded_at',
+        'submitted_at', 'responded_at', 'pipeline_stage', 'decline_reason',
+        'internal_notes', 'interview_type', 'interview_at',
     ];
 
     protected $casts = [
@@ -32,6 +33,7 @@ class BpProposal extends Model
         'proposed_rate_cents' => 'integer',
         'submitted_at'        => 'datetime',
         'responded_at'        => 'datetime',
+        'interview_at'        => 'datetime',
     ];
 
     public function job(): BelongsTo { return $this->belongsTo(BpJob::class, 'job_id'); }

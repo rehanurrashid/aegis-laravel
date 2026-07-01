@@ -27,7 +27,7 @@ class BpJobPolicy
             return false;
         }
 
-        if ((string) $job->status !== 'open') {
+        if (($job->status instanceof \BackedEnum ? $job->status->value : (string) $job->status) !== 'open') {
             return false;
         }
 

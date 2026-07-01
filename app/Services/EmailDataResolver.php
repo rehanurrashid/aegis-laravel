@@ -6,6 +6,8 @@ namespace App\Services;
 
 use App\Models\BpMilestone;
 use App\Models\BpProposal;
+use App\Models\BpInvoice;
+use App\Models\BpPayout;
 use App\Models\ContinuityDocument;
 use App\Models\ContinuityPlan;
 use App\Models\IncidentTask;
@@ -82,10 +84,59 @@ class EmailDataResolver
             $p = BpProposal::find($d['proposal_id']);
             if ($p) {
                 $d += [
-                    'proposal_title' => $p->job?->title ?? 'Proposal #' . $p->id,
-                    'proposal_url'   => $base . '/provider/jobs/' . ($p->job_id ?? ''),
-                    'bp_name'        => User::find($p->bp_id)?->display_name ?? '',
-                    'submitted_at'   => $p->submitted_at?->toFormattedDateString() ?? '',
+                    'proposal_title'    => $p->job?->title ?? 'Proposal #' . $p->id,
+                    'proposal_url'      => $base . '/provider/jobs/' . ($p->job_id ?? ''),
+                    'bp_name'           => User::find($p->bp_id)?->display_name ?? '',
+                    'practitioner_name' => User::find($p->job?->practitioner_id)?->display_name ?? '',
+                    'submitted_at'      => $p->submitted_at?->toFormattedDateString() ?? '',
+                ];
+                // If contract_id is also supplied (for proposal-accepted email), enrich it too
+                if (! empty($d['contract_id'])) {
+                    $c = \App\Models\BpContract::find($d['contract_id']);
+                    $d += [
+                        'contract_title'    => $c?->title ?? '',
+                        'contract_url'      => $base . '/bp/contracts/' . ($d['contract_id'] ?? ''),
+                        'accepted_at'       => $d['accepted_at'] ?? now()->toFormattedDateString(),
+                    ];
+                }
+            }
+        }
+        if (! empty($d['contract_id']) && empty($d['proposal_id'])) {
+            // Contract-only enrichment (bp/35-contract-created, gaps/66-contract-signed)
+            $c = \App\Models\BpContract::find($d['contract_id']);
+            if ($c) {
+                $d += [
+                    'contract_title'    => $c->title,
+                    'contract_url'      => $base . '/bp/contracts/' . $c->id,
+                    'bp_name'           => User::find($c->bp_id)?->display_name ?? '',
+                    'practitioner_name' => User::find($c->practitioner_id)?->display_name ?? '',
+                    'created_at'        => $c->created_at?->toFormattedDateString() ?? '',
+                ];
+            }
+        }
+        if (! empty($d['invoice_id'])) {
+            // Invoice enrichment (bp/38-invoice-received, bp/39-invoice-paid)
+            $inv = \App\Models\BpInvoice::find($d['invoice_id']);
+            if ($inv) {
+                $d += [
+                    'invoice_title'     => $inv->invoice_number ?? 'Invoice #' . $inv->id,
+                    'invoice_url'       => $base . '/provider/finances',
+                    'bp_name'           => User::find($inv->bp_id)?->display_name ?? '',
+                    'practitioner_name' => User::find($inv->practitioner_id)?->display_name ?? '',
+                    'amount'            => '$' . number_format(($inv->amount_cents ?? 0) / 100, 2),
+                    'due_date'          => $inv->due_at?->toFormattedDateString() ?? '',
+                    'paid_at'           => $d['paid_at'] ?? ($inv->paid_at?->toFormattedDateString() ?? ''),
+                ];
+            }
+        }
+        if (! empty($d['payout_id'])) {
+            // Payout enrichment (bp/40-payout-released)
+            $payout = \App\Models\BpPayout::find($d['payout_id']);
+            if ($payout) {
+                $d += [
+                    'amount'      => '$' . number_format(($payout->amount_cents ?? 0) / 100, 2),
+                    'payout_url'  => $base . '/bp/finances',
+                    'released_at' => $d['released_at'] ?? ($payout->paid_at?->toFormattedDateString() ?? now()->toFormattedDateString()),
                 ];
             }
         }
@@ -108,6 +159,23 @@ class EmailDataResolver
                     'practitioner_name' => $doc->practitioner?->display_name ?? '',
                     'steward_name'      => $steward?->steward?->display_name ?? '',
                     'new_expiry_date'   => $doc->expires_at?->toFormattedDateString() ?? '',
+                ];
+            }
+        }
+        if (! empty($d['contract_id'])) {
+            // gaps/66-contract-signed, gaps/67-contract-cancelled
+            $c = \App\Models\BpContract::find($d['contract_id']);
+            if ($c) {
+                $recipientId = $d['user_id'] ?? null;
+                $counterpartyId = $recipientId === $c->practitioner_id ? $c->bp_id : $c->practitioner_id;
+                $d += [
+                    'contract_title'    => $c->title,
+                    'contract_url'      => $base . '/provider/support-services',
+                    'counterparty_name' => User::find($counterpartyId)?->display_name ?? '',
+                    'bp_name'           => User::find($c->bp_id)?->display_name ?? '',
+                    'practitioner_name' => User::find($c->practitioner_id)?->display_name ?? '',
+                    'signed_at'         => $d['signed_at'] ?? ($c->fully_executed_at?->toFormattedDateString() ?? ''),
+                    'cancel_reason'     => $d['reason'] ?? '',
                 ];
             }
         }

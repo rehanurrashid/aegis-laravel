@@ -276,55 +276,112 @@ class SendEmailNotificationListener
 
     private function proposalAccepted(ProposalAccepted $e): array
     {
-        return [['user_id' => $e->proposal->bp_id, 'gate_key' => 'notify_payment',
-                 'template' => 'emails.business.40-proposal-accepted',
-                 'data' => ['proposal_id' => $e->proposal->id, 'contract_id' => $e->contract->id]]];
+        // business/40 → BP (the "you were hired" confirmation, legacy template)
+        // bp/33      → BP (the dedicated "your proposal has been accepted" template)
+        // Both send to BP; bp/33 is the canonical new template.
+        return [
+            ['user_id' => $e->proposal->bp_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.business.40-proposal-accepted',
+             'data'     => ['proposal_id' => $e->proposal->id, 'contract_id' => $e->contract->id]],
+            ['user_id' => $e->proposal->bp_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.bp.33-proposal-accepted',
+             'data'     => ['proposal_id' => $e->proposal->id, 'contract_id' => $e->contract->id,
+                            'accepted_at' => now()->toFormattedDateString(),
+                            'practitioner_name' => \App\Models\User::find($e->contract->practitioner_id)?->display_name]],
+        ];
     }
 
     private function contractCreated(ContractCreated $e): array
     {
+        // business/41 → provider (legacy "contract created" template)
+        // bp/35       → both parties ("a service agreement is ready" — the dedicated BP-domain template)
         return [
             ['user_id' => $e->contract->practitioner_id, 'gate_key' => 'notify_payment',
              'template' => 'emails.business.41-contract-created',
-             'data' => ['contract_id' => $e->contract->id]],
+             'data'     => ['contract_id' => $e->contract->id]],
             ['user_id' => $e->contract->bp_id, 'gate_key' => 'notify_payment',
-             'template' => 'emails.business.41-contract-created',
-             'data' => ['contract_id' => $e->contract->id]],
+             'template' => 'emails.bp.35-contract-created',
+             'data'     => ['contract_id' => $e->contract->id,
+                            'counterparty_name' => \App\Models\User::find($e->contract->practitioner_id)?->display_name,
+                            'created_at'        => now()->toFormattedDateString()]],
         ];
     }
 
     private function contractSigned(ContractSigned $e): array
     {
+        // business/42 → legacy "contract fully executed" template
+        // gaps/66     → dedicated "your agreement is fully signed" template (both parties)
+        $data = fn (string $recipientId) => [
+            'contract_id'       => $e->contract->id,
+            'contract_title'    => $e->contract->title,
+            'counterparty_name' => \App\Models\User::find(
+                $recipientId === $e->contract->practitioner_id
+                    ? $e->contract->bp_id
+                    : $e->contract->practitioner_id
+            )?->display_name,
+            'signed_at' => now()->toFormattedDateString(),
+        ];
         return [
             ['user_id' => $e->contract->practitioner_id, 'gate_key' => 'notify_payment',
              'template' => 'emails.business.42-contract-fully-executed',
-             'data' => ['contract_id' => $e->contract->id]],
+             'data'     => ['contract_id' => $e->contract->id]],
             ['user_id' => $e->contract->bp_id, 'gate_key' => 'notify_payment',
              'template' => 'emails.business.42-contract-fully-executed',
-             'data' => ['contract_id' => $e->contract->id]],
+             'data'     => ['contract_id' => $e->contract->id]],
+            ['user_id' => $e->contract->practitioner_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.gaps.66-contract-signed',
+             'data'     => $data($e->contract->practitioner_id)],
+            ['user_id' => $e->contract->bp_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.gaps.66-contract-signed',
+             'data'     => $data($e->contract->bp_id)],
         ];
     }
 
     private function invoiceSent(InvoiceSent $e): array
     {
-        return [['user_id' => $e->invoice->practitioner_id, 'gate_key' => 'notify_payment',
-                 'template' => 'emails.business.45-invoice-sent',
-                 'data' => ['invoice_id' => $e->invoice->id]]];
+        // business/45 → provider (legacy "invoice sent" template)
+        // bp/38       → provider ("you have received an invoice" — dedicated BP-domain template)
+        return [
+            ['user_id' => $e->invoice->practitioner_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.business.45-invoice-sent',
+             'data'     => ['invoice_id' => $e->invoice->id]],
+            ['user_id' => $e->invoice->practitioner_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.bp.38-invoice-received',
+             'data'     => ['invoice_id'  => $e->invoice->id,
+                            'bp_name'     => \App\Models\User::find($e->invoice->bp_id)?->display_name]],
+        ];
     }
 
     private function invoicePaid(InvoicePaid $e): array
     {
-        return [['user_id' => $e->invoice->bp_id, 'gate_key' => 'notify_payment',
-                 'template' => 'emails.business.46-invoice-paid',
-                 'data' => ['invoice_id' => $e->invoice->id]]];
+        // business/46 → BP (legacy template)
+        // bp/39       → BP ("your invoice has been paid" — dedicated BP-domain template)
+        return [
+            ['user_id' => $e->invoice->bp_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.business.46-invoice-paid',
+             'data'     => ['invoice_id' => $e->invoice->id]],
+            ['user_id' => $e->invoice->bp_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.bp.39-invoice-paid',
+             'data'     => ['invoice_id'        => $e->invoice->id,
+                            'practitioner_name' => \App\Models\User::find($e->invoice->practitioner_id)?->display_name,
+                            'paid_at'           => now()->toFormattedDateString()]],
+        ];
     }
 
     private function payoutReleased(PayoutReleased $e): array
     {
         $recipientId = $e->payout instanceof BpPayout ? $e->payout->bp_id : $e->payout->cs_id;
-        return [['user_id' => $recipientId, 'gate_key' => 'notify_payment',
-                 'template' => 'emails.business.48-payout-released',
-                 'data' => ['payout_id' => $e->payout->id]]];
+        // business/48 → BP (legacy payout template)
+        // bp/40       → BP ("payout released" dedicated BP-domain template)
+        return [
+            ['user_id' => $recipientId, 'gate_key' => 'notify_payment',
+             'template' => 'emails.business.48-payout-released',
+             'data'     => ['payout_id' => $e->payout->id]],
+            ['user_id' => $recipientId, 'gate_key' => 'notify_payment',
+             'template' => 'emails.bp.40-payout-released',
+             'data'     => ['payout_id'   => $e->payout->id,
+                            'released_at' => now()->toFormattedDateString()]],
+        ];
     }
 
     private function ticketCreated(TicketCreated $e): array
@@ -602,9 +659,13 @@ class SendEmailNotificationListener
 
     private function proposalSubmitted(ProposalSubmitted $e): array
     {
-        return [['user_id' => $e->proposal->practitioner_id, 'gate_key' => 'notify_payment',
+        // BpProposal has no practitioner_id column — resolve through the job relationship.
+        $practitionerId = $e->proposal->job?->practitioner_id
+            ?? \App\Models\BpJob::find($e->proposal->job_id)?->practitioner_id;
+        if (! $practitionerId) return [];
+        return [['user_id' => $practitionerId, 'gate_key' => 'notify_payment',
                  'template' => 'emails.bp.32-support-request-received',
-                 'data' => ['proposal_id' => $e->proposal->id]]];
+                 'data'     => ['proposal_id' => $e->proposal->id]]];
     }
 
     private function maatAddonChanged(MaatAddonChanged $e): array

@@ -81,7 +81,7 @@ Output this table before touching the Vue file. No code yet.
 
 ### Sections (in document order)
 | # | Section | Wrapper class | What it shows | Conditional? |
-|---|---------|--------------|--------------|--------------|
+|---|---------|--------------|--------------|--------------| 
 
 ### Modals
 | ID | Title | Trigger | Fields | Submit route + verb | FormRequest |
@@ -236,6 +236,49 @@ echo "aegis_icon → $(grep -c '<AegisIcon' $PAGE)"
 echo "tooltips   → $(grep -c 'data-tooltip' $PAGE)"
 echo "modals     → $MODALS"
 echo "useForm    → $(grep -c 'useForm(' $PAGE)"
+
+# New gates (applied to every page)
+grep -c "border:\s*1\.5px\|border:\s*2px\|border-width:\s*1\.5px\|border-width:\s*2px" $PAGE  # → 0 (1px borders only)
+grep -c "new Date\|\.toLocaleDateString\|DatePicker\|v-date" $PAGE                            # → 0 (no manual date formatting)
+grep -c "VueSelect\|vue-select\|AegisSelect\|<v-select\|<VSelect" $PAGE                       # → 0 (no custom select components)
+
+# Hero banner must be quiet
+HERO_COUNT=$(grep -c "<AegisHeroBanner" $PAGE || echo 0)
+QUIET_COUNT=$(grep -c "<AegisHeroBanner quiet\|<AegisHeroBanner[^>]* quiet" $PAGE || echo 0)
+[ "$HERO_COUNT" = "0" ] || [ "$HERO_COUNT" = "$QUIET_COUNT" ] && echo "✅ hero is quiet" || echo "❌ hero banner missing quiet prop"
+
+# Multi-step modal plumbing
+if grep -q "step\b" $PAGE; then
+  STEP_HELPER=$(grep -c "firstInvalidStep\|jumpToFieldStep" $PAGE)
+  [ "$STEP_HELPER" -gt 0 ] && echo "✅ step-jump helpers present" || echo "❌ missing firstInvalidStep/jumpToFieldStep"
+fi
+
+# Enum unwrapping — val() helper must exist whenever model fields are compared
+if grep -qE "\.status\s*===|\.role\s*===|\.type\s*===" $PAGE; then
+  grep -c "const val\s*=" $PAGE && echo "✅ val() helper present" || echo "❌ missing val() enum unwrapper"
+fi
+
+# Validation messages — no bare validators without withMessage
+grep -E ":\s*\{\s*required\s*\}|,\s*required\s*[,}]" $PAGE | grep -v "withMessage" && echo "❌ bare required" || echo "✅ no bare required"
+
+# Status-change actions must go through confirmAction — no direct router writes on @click
+grep -c "@click=\"router\.post\|@click=\"router\.delete\|@click=\"router\.put\|@click=\"setStatus" $PAGE  # → 0
+
+# Clickable cards must have cursor:pointer
+if grep -qE "jp-card|jp-kanban-card|jp-my-row|jp-app-row|clickable" $PAGE; then
+  grep -c "cursor: pointer" $PAGE && echo "✅ cursor:pointer present" || echo "❌ missing cursor:pointer on clickable cards"
+fi
+
+# Pagination — AegisPagination must be locally imported
+if grep -q "AegisPagination" $PAGE; then
+  grep -c "import AegisPagination" $PAGE && echo "✅ AegisPagination imported" || echo "❌ AegisPagination not imported locally"
+fi
+
+# No coloured icon backgrounds
+grep -E "blue-light|purple-light|orange-light|green-light|red-light" $PAGE && echo "❌ coloured icon backgrounds found" || echo "✅ no coloured icon backgrounds"
+
+# ID-only refs — active selection patterns should not store full objects
+grep -E "activeProposal\s*=\s*ref\([\{]|activeContract\s*=\s*ref\([\{]|activeItem\s*=\s*ref\([\{]" $PAGE && echo "❌ full object stored in ref — use ID + computed" || echo "✅ no full-object refs detected"
 ```
 
 Every gate passes → done.
@@ -299,8 +342,128 @@ These come from `AEGIS_VUE_RULES.md`. Apply them throughout. Highlights:
 - **Every form uses `useForm()` + Vuelidate + `:disabled="form.processing"`**
 - **Every list/table has an empty state** (`<AegisEmptyState>` when `!items.length`)
 - **Every `<AegisIcon>` next to text** sits inside a flex/inline-flex parent with `align-items: center` + `gap`
+- **Every write action that changes data must trigger the correct email** — check `resources/views/emails/` for the matching template, verify the Service dispatches the event, verify the Listener sends the email via `SendEmailJob`. No silent saves.
+- **Every write action must log to `ActivityService::log()`** — with `entry_type: 'log'` for the actor's own record and `entry_type: 'notification'` for every other affected party. Notifications appear in the recipient's `Activity.vue` under the Notifications tab. If a write action affects more than one other user, dispatch `ActivityFanoutJob` instead of looping.
+- **Hero banners are always quiet** — every `<AegisHeroBanner>` gets the `quiet` prop. Never use the loud/default hero.
+- **Multi-step modals validate-then-jump** — on any validation failure (client or server), jump to the *specific step* containing the first invalid field. Build `stepFields` map + `firstInvalidStep()` + `jumpToFieldStep()`. Apply to every multi-step modal.
+- **All borders are `1px`** — never `1.5px` or `2px` anywhere (shared CSS, app.css, or scoped styles).
+- **Real avatars, not just initials** — any element representing a specific person/company must render their real photo when available, fallback to initials. Canonical pattern:
+  ```vue
+  <div class="avatar" :style="user?.avatar_url ? { backgroundImage: `url(${user.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+    <template v-if="!user?.avatar_url">{{ initials }}</template>
+  </div>
+  ```
+  Controller must eager-load `avatar_path` (not just `avatar_initials`) on any relation whose avatar is rendered.
+- **Person/company names link to their public profile** — any primary name display for a specific user/company must be a real `<Link>` to their public profile route (`public.provider` / `public.cs` / `public.ss` / `public.bp`, keyed by `slug`), opened `target="_blank"`. Controller must eager-load `slug`. Unlinked plain text for a named person/company is a violation.
+- **Activity links use the sidebar's exact route** — never link to a bare/duplicate route (e.g. `activity.index`) when the portal sidebar uses a different prefixed name (e.g. `provider.activity`). Check `AppSidebar.vue`'s nav config before wiring any link to Activity/Messages. Always append `?event_type=<slug>` (not `?module=`) to pre-filter the Activity page.
+- **One contract per accept — verify idempotency** — any action that creates a durable record from a reviewable item must: (1) check for an existing record first at the service layer, (2) have a DB-level unique constraint as a backstop. Never rely on UI guards alone.
+- **Enum fields — always unwrap with `val()`** — backed enums from Inertia may arrive as `{value:'x'}` objects or plain strings. Define `const val = (v) => (v && typeof v === 'object' && 'value' in v) ? v.value : (v ?? '')` and use it for every model field comparison. Never write `item.status === 'open'` directly.
+- **Store only IDs in refs, never full objects** — when a ref holds a "currently selected" record that can be mutated by a server reload, store only the ID (`const _activeId = ref(null)`) and derive the live object via `computed(() => list.value.find(x => x.id === _activeId.value))`. Prevents stale data showing in modals after Inertia reloads.
+- **Backend `groupBy()` → chain `.map(fn => group.values())`** — Laravel Collection `groupBy()` returns nested Collections. Inertia serialises these as objects with numeric keys in some versions. Always force plain arrays: `->groupBy('key')->map(fn($g) => $g->values())`.
+- **Grouped/nullable Inertia props → safe defaults + optional chaining** — props like `milestonesByContract`, `proposalsByJob` must have `default: () => ({})` in `defineProps` and be accessed as `prop?.[key] ?? []` in the template.
+- **All status-change actions require `confirmAction()`** — never fire a state mutation directly from `@click`. Destructive actions (pause, delete, cancel, reject, end) → `destructive: true` (red button). Positive actions (publish, resume, reopen, approve) → `destructive: false` (green button).
+- **Closed/filled/cancelled records render read-only, not edit forms** — compute `isClosed = ['filled','closed','cancelled'].includes(val(status))` and branch the entire modal template. Show a status alert, a summary of key fields, and a Reopen button where appropriate.
+- **Terminal modal states hide all action buttons** — hired/completed/declined records show only a status badge in the footer. No action buttons, no stage-advance controls.
+- **Pagination thresholds** — primary tables (postings, records): 5 per page. Secondary tables (applications, lists): 8 per page. Use `AegisPagination` (local import). Client-side only — slice the already-loaded Inertia prop. Reset page to 1 via `watch` on every filter change.
+- **Validation messages must be field-specific** — wrap every vuelidate rule with `helpers.withMessage('Field name is required.', validator)`. Never ship bare `required`, `minLength`, `maxLength`. Messages must name the field: `"Request title is required."` not `"Value is required."`.
+- **Error above hint** — when a field has both a `div.form-error` and a `div.form-hint` (e.g. character counter), the error renders first (above), hint second (below). Both must be `display: block` explicitly.
+- **Verify Ziggy route names before use** — always `grep -n "->name"` in `routes/web.php` before writing `route('portal.name')` in Vue. Never guess from the URL pattern. Common trap: `provider.finances` → actual name is `provider.finances.index`.
+- **Clickable cards require `cursor: pointer`** — every card element that responds to click (kanban card, table row, list item, contract card, profile card) must have `cursor: pointer` in its CSS rule.
+- **Kanban column headers: no icons, minimal** — column label is plain text at 10px uppercase. Counter is a gold-background white-text pill (`.jp-kanban-count { background: var(--gold-dark); color: #fff; font-size: 10px; }`). No `<AegisIcon>` in the header.
+- **Icon backgrounds are brand gold only** — use `var(--badge-bg-gold)` + `var(--gold-dark)` for every icon container. No per-item colour assignments (`blue-light`, `purple-light`, `orange-light`, etc.).
 
-Full list with examples: `AEGIS_VUE_RULES.md` Sections 1–23.
+---
+
+## Date inputs — `flatpickr` (global, auto-applied)
+
+The project uses **flatpickr** initialized globally via `FormEnhancerPlugin.js`. A `MutationObserver` auto-upgrades every `input[type="date"].form-input` that appears in the DOM — on page load, Inertia navigation, modal open, and tab switch.
+
+### Rule
+**Never use a third-party date-picker component, `v-date` directive, or manual `new Date()` formatting in Vue files.** Write the field exactly as a standard native input:
+
+```vue
+<!-- ✅ CORRECT — flatpickr auto-applies, shows "Jun 15, 2026" display, sends YYYY-MM-DD to server -->
+<input id="myDate" v-model="form.start_date" type="date" class="form-input" />
+
+<!-- ❌ WRONG — importing a component, applying a directive, or doing any date formatting manually -->
+<DatePicker v-model="form.start_date" />
+<input v-date v-model="form.start_date" />
+```
+
+### How it works
+- flatpickr is loaded in `resources/js/plugins/FormEnhancerPlugin.js` and registered in `app.js`
+- It creates an `altInput` that shows `M j, Y` format (e.g. "Jun 15, 2026") to the user
+- The original hidden input retains `YYYY-MM-DD` format for backend compatibility
+- A calendar icon appears automatically in the field
+- Focus ring matches Aegis gold brand spec
+- `appendTo: document.body` prevents clipping inside modals
+
+### Date value normalisation
+Laravel's `date` cast serialises as full ISO (`2026-07-15T00:00:00.000000Z`). Always slice to `YYYY-MM-DD` before writing to a date form field:
+```js
+watch(() => props.record, (r) => {
+  if (!r) return
+  const date = (v) => v ? String(v).slice(0, 10) : ''
+  form.start_date = date(r.start_date)
+  form.deadline   = date(r.deadline)
+})
+```
+`el.value` on `<input type="date">` silently rejects anything that isn't `YYYY-MM-DD`, causing flatpickr to show empty even when the value is set.
+
+### Pre-flight gate
+grep -c "DatePicker\|v-date\|flatpickr(" $PAGE  # → 0 (never import/call manually in Vue)
+```
+
+---
+
+## Select dropdowns — `TomSelect` (global, auto-applied)
+
+The project uses **TomSelect** initialized globally via `FormEnhancerPlugin.js`. The same `MutationObserver` auto-upgrades every `select.form-select` that appears in the DOM.
+
+### Rule
+**Never use a Vue select component (`v-select`, `vue-select`, `AegisSelect`, etc.) or any custom dropdown component.** Write the field exactly as a standard native `<select>`:
+
+```vue
+<!-- ✅ CORRECT — TomSelect auto-applies gold styling, custom arrow, smooth dropdown -->
+<select id="myField" v-model="form.category" class="form-select">
+  <option value="">Select category...</option>
+  <option value="billing">Medical Billing</option>
+  <option value="it">IT Support</option>
+</select>
+
+<!-- ❌ WRONG — importing any custom select component -->
+<VueSelect v-model="form.category" :options="categories" />
+<AegisSelect v-model="form.category" />
+```
+
+### How it works
+- TomSelect replaces the native `<select>` in the DOM with a styled wrapper (`.ts-wrapper > .ts-control`)
+- The original `<select>` is hidden but kept for form value tracking — `v-model` continues to work
+- One custom chevron is drawn via CSS `background-image` on `.ts-control` — the library's own caret is suppressed via `--ts-pr-caret: 0px`
+- Open state rotates the chevron to gold
+- Selected option highlights in `var(--badge-bg-gold)` / `var(--gold-dark)`
+- `data-no-enhance="true"` on any `<select>` opts it out (e.g. for a native select inside a third-party widget)
+
+### `v-model` compatibility
+TomSelect intercepts the native `change` event so Vue's `v-model` picks up selections automatically. No special handling needed.
+
+### Pre-flight gate
+```bash
+grep -c "VueSelect\|vue-select\|AegisSelect\|<v-select\|<VSelect" $PAGE  # → 0
+grep -c "import.*[Ss]elect" $PAGE | grep -v "AegisDropzone\|useForm"      # → 0
+# Native <select class="form-select"> is correct and expected
+```
+
+### Opt-out (rare)
+If a specific `<select>` must stay native (e.g. wizard with validation, ≤6 static options, `v-show` pane filter), add `data-no-enhance`:
+```vue
+<select v-model="form.x" class="form-select" data-no-enhance>...</select>
+```
+No value required — `hasAttribute('data-no-enhance')` is the check. Applies to: multi-step wizard selects with validation triggers, short static lists (≤6 options), filter dropdowns inside `v-show` panes.
+
+---
+
+## Full list with examples: `AEGIS_VUE_RULES.md` Sections 1–23.
 
 ---
 

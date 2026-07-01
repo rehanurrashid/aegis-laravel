@@ -36,7 +36,7 @@ class ServicePolicy
             return false;
         }
 
-        return (string) $service->status === 'active';
+        return ($service->status instanceof \BackedEnum ? $service->status->value : (string) $service->status) === 'active';
     }
 
     /** Only the owner manages a service */

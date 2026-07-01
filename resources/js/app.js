@@ -1,4 +1,6 @@
 import './bootstrap'
+import 'flatpickr/dist/flatpickr.min.css'
+import 'tom-select/dist/css/tom-select.css'
 
 import { createApp, h } from 'vue'
 import { createInertiaApp } from '@inertiajs/vue3'
@@ -6,6 +8,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'
 import { createPinia } from 'pinia'
 import { ZiggyVue } from 'ziggy-js'
 import { TooltipPlugin } from '@/plugins/tooltip'
+import { FormEnhancerPlugin } from '@/plugins/FormEnhancerPlugin'
 
 import AegisIcon from '@/components/ui/AegisIcon.vue'
 import AegisModal from '@/components/ui/AegisModal.vue'
@@ -56,6 +59,7 @@ createInertiaApp({
             .use(pinia)
             .use(ZiggyVue)
             .use(TooltipPlugin)
+            .use(FormEnhancerPlugin)
             // Globally available primitives — no per-page imports needed.
             .component('AegisIcon', AegisIcon)
             .component('AegisModal', AegisModal)

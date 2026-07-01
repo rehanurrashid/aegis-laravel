@@ -30,6 +30,8 @@ Break any of these and the component is wrong:
 18. **NEVER use hardcoded / static data in a template** — every list, table, card, detail modal binds to controller props. If the data doesn't exist in the DB, build the migration + seeder, don't fake it (see Section 20).
 19. **NEVER write a form without verifying the FormRequest, route verb, and migration columns first** — field names match FormRequest, HTTP verb matches route, column names match migration (see Section 21).
 20. **NEVER use `ui.openModal()`, `ui.closeModal()`, `modal-id=`, or `@file-selected`** — these patterns are banned. Modals use `v-model="modals.xxx"` on `AegisModal`; AegisDropzone emits `@files` (an array), not `@file-selected`.
+21. **NEVER complete a write action without triggering the correct email** — every save, submit, sign, activate, assign, or status change has a matching template in `resources/views/emails/`. Find it, verify the Service dispatches the event, verify the Listener sends via `SendEmailJob`. Silent saves with no email are incomplete (see Section 25).
+22. **NEVER complete a write action without logging to `ActivityService::log()`** — the actor gets `entry_type: 'log'`; every other affected party gets `entry_type: 'notification'`. More than one other recipient → dispatch `ActivityFanoutJob` instead of looping. Missing logs and notifications are incomplete deliverables (see Section 26).
 ---
  
 ## SECTION 2 — IMPORT CHEATSHEET
@@ -1829,3 +1831,274 @@ const activeModule = ref(props.filters?.module ?? '')
 grep -E "route\('activity\.index'\)" $PAGE   # → 0 (bare link is a violation)
 grep -E "\?module=" $PAGE                    # → must have ≥ 1 hit per activity link
 ```
+
+
+---
+
+## SECTION 25 — EMAIL TRIGGER RULE
+
+**Every write action that changes meaningful state MUST dispatch an email to every affected party.** A form that saves without sending any email is an incomplete deliverable.
+
+### The wiring chain (Service → Event → Listener → Job)
+
+```
+Controller → Service::method()
+               ├── DB write
+               ├── ActivityService::log()        ← Section 26
+               ├── event(new XxxHappened($model))
+               └── Listener → dispatch(new SendEmailJob(...))
+```
+
+Events fire from **Services**, never from Controllers or FormRequests.
+
+### How to find the right template
+
+```bash
+# List all email templates grouped by domain
+find resources/views/emails -name "*.blade.php" | sort
+
+# Match template to the action being performed:
+# emails/auth/        → registration, password reset, MFA, new device
+# emails/plan/        → plan created, signed, updated, expiring, expired
+# emails/steward/     → CS/SS designated, removed, unresponsive, replaced
+# emails/incident/    → reported, verified, activated, task assigned, closed
+# emails/bp/          → proposal sent, accepted, rejected, contract signed,
+#                       milestone submitted/approved, invoice sent/paid
+# emails/network/     → connection request, accepted, referral sent/received
+# emails/support/     → ticket created, replied, resolved, contact form
+# emails/admin/       → user flagged, package changed, payout processed
+# emails/digest/      → weekly/monthly summary
+```
+
+### Who receives each email
+
+| Action | Actor email | Other recipient(s) |
+|--------|------------|-------------------|
+| Plan signed | Provider — "Your plan is active" | CS — "Plan signed, review required" |
+| CS designated | Provider — "CS assigned" | CS — "You have been designated" |
+| Incident activated | Provider — "Incident activated" | CS — "Action required", SS — "FYI" |
+| Incident task assigned | CS (assigning) | SS — "Task assigned to you" |
+| Proposal accepted | BP — "Proposal accepted" | Provider — "You accepted a proposal" |
+| Milestone submitted | BP | Provider — "Milestone needs review" |
+| Invoice sent | BP | Provider — "Invoice received" |
+| Message received | Sender | Recipient — "New message" |
+| Support ticket | User | Admin — "New support ticket" |
+
+Always send to **all** parties affected by the action.
+
+### Dispatch pattern in the Service
+
+```php
+// After the DB write succeeds:
+
+// 1. Dispatch event (Listener handles email sending)
+event(new PlanSigned($plan));
+
+// app/Listeners/SendPlanSignedEmail.php
+public function handle(PlanSigned $event): void
+{
+    $plan = $event->plan;
+
+    // Email to provider
+    dispatch(new SendEmailJob(
+        recipientId: $plan->provider_id,
+        template:    'emails.plan.plan-signed',
+        subject:     'Your continuity plan is now active',
+        data:        EmailDataResolver::for($plan),
+    ));
+
+    // Email to CS
+    if ($plan->continuity_steward_id) {
+        dispatch(new SendEmailJob(
+            recipientId: $plan->continuity_steward_id,
+            template:    'emails.plan.plan-signed-cs',
+            subject:     'Continuity plan signed — review required',
+            data:        EmailDataResolver::for($plan),
+        ));
+    }
+}
+```
+
+### Wire in EventServiceProvider
+
+```php
+// app/Providers/EventServiceProvider.php
+protected $listen = [
+    PlanSigned::class => [SendPlanSignedEmail::class],
+    IncidentActivated::class => [SendIncidentActivatedEmail::class],
+    StewardDesignated::class => [SendStewardDesignatedEmail::class],
+    // ... one entry per event
+];
+```
+
+### Pre-flight gate
+
+```bash
+# Every service method that mutates state must dispatch an event
+# Check for any save/update without a matching event() call:
+grep -n "->save()\|->update(\|->create(" app/Services/[Service].php | head -30
+grep -n "event(new" app/Services/[Service].php | head -30
+# Every save should have a paired event(new ...) after it
+
+# Every email template has a matching dispatch somewhere
+for tmpl in $(find resources/views/emails -name "*.blade.php" |     sed "s|resources/views/||;s|.blade.php||;s|/|.|g"); do
+    count=$(grep -rn "'$tmpl'" app/ 2>/dev/null | grep -c "SendEmailJob\|dispatch")
+    echo "$count $tmpl"
+done
+# Every line must show count > 0
+```
+
+---
+
+## SECTION 26 — ACTIVITY LOG + NOTIFICATION RULE
+
+**Every write action that changes meaningful state MUST:**
+1. Log `entry_type: 'log'` for the actor (their own history)
+2. Log `entry_type: 'notification'` for every other affected party (appears in their Notifications tab)
+
+Missing log or notification entries = incomplete deliverable.
+
+### The two entry types
+
+| `entry_type` | Who sees it | What it means | Tab in Activity.vue |
+|---|---|---|---|
+| `log` | The actor | "I did this" — self-history | My Activity |
+| `notification` | Other affected parties | "Someone did something that involves you" | Notifications |
+
+### `ActivityService::log()` signature
+
+```php
+ActivityService::log(
+    actor:       User,         // who performed the action
+    event:       string,       // e.g. 'plan.signed', 'incident.activated'
+    subject:     Model,        // the primary model being acted on
+    module:      string,       // slug: 'plan'|'incident'|'vault'|'steward'|'network'|'bp'|'messages'|'support'|'finances'|'settings'
+    severity:    string,       // 'info'|'warning'|'error'|'critical' (default: 'info')
+    entryType:   string,       // 'log'|'notification'
+    recipientId: ?int,         // null = actor receives it; int = other party receives it
+);
+```
+
+### Full pattern in the Service
+
+```php
+// app/Services/PlanService.php
+public function sign(Plan $plan): void
+{
+    $plan->update(['status' => PlanStatus::Active, 'signed_at' => now()]);
+
+    // 1. Actor's own log
+    ActivityService::log(
+        actor:      auth()->user(),
+        event:      'plan.signed',
+        subject:    $plan,
+        module:     'plan',
+        severity:   'info',
+        entryType:  'log',
+    );
+
+    // 2. Notification to CS
+    if ($plan->continuity_steward_id) {
+        ActivityService::log(
+            actor:       auth()->user(),
+            event:       'plan.signed',
+            subject:     $plan,
+            module:      'plan',
+            severity:    'info',
+            entryType:   'notification',
+            recipientId: $plan->continuity_steward_id,
+        );
+    }
+
+    // 3. Email
+    event(new PlanSigned($plan));   // ← Section 25
+}
+```
+
+### When to use `ActivityFanoutJob` (> 3 recipients)
+
+When an action affects more than 3 other users (e.g. broadcast to all network connections), use the job:
+
+```php
+// Do NOT loop ActivityService::log() for large fan-outs
+dispatch(new ActivityFanoutJob(
+    subject:     $incident,
+    event:       'incident.activated',
+    module:      'incident',
+    severity:    'critical',
+    entryType:   'notification',
+    recipientIds: $incident->allStakeholderIds(),  // array of user IDs
+));
+```
+
+### Module slug registry
+
+Every log entry must include the correct module slug so the Activity.vue filter works:
+
+| Domain | Module slug |
+|---|---|
+| Continuity Plan | `plan` |
+| Critical Incident | `incident` |
+| Vault | `vault` |
+| Continuity Stewards | `steward` |
+| Support Stewards | `steward` |
+| Network / Referrals | `network` |
+| Business Partners / Jobs | `bp` |
+| Important Documents | `documents` |
+| Messages | `messages` |
+| Support Tickets | `support` |
+| Finances / Invoices | `finances` |
+| Settings / Profile | `settings` |
+| Auth / Account | `auth` |
+
+### Events that must always be logged (minimum required set)
+
+| Event | Actor log | Notification recipient(s) |
+|---|---|---|
+| User registered | `auth.registered` — actor | Admin |
+| Plan created | `plan.created` — provider | CS (if designated) |
+| Plan signed | `plan.signed` — provider | CS |
+| Plan updated | `plan.updated` — provider | CS |
+| CS designated | `steward.cs-designated` — provider | CS |
+| CS removed | `steward.cs-removed` — provider | CS |
+| SS designated | `steward.ss-designated` — provider | SS |
+| Incident reported | `incident.reported` — SS | Provider, CS |
+| Incident activated | `incident.activated` — CS | Provider, SS, all network |
+| Incident task assigned | `incident.task-assigned` — CS | SS |
+| Incident closed | `incident.closed` — CS | Provider, SS |
+| Vault item uploaded | `vault.uploaded` — provider | CS |
+| Document shared | `documents.shared` — provider | Recipient |
+| Network connection sent | `network.connection-sent` — provider | Target provider |
+| Network connection accepted | `network.connection-accepted` | Initiator |
+| Referral sent | `network.referral-sent` — provider | Recipient |
+| BP proposal sent | `bp.proposal-sent` — BP | Provider |
+| BP proposal accepted | `bp.proposal-accepted` — provider | BP |
+| Milestone submitted | `bp.milestone-submitted` — BP | Provider |
+| Invoice sent | `bp.invoice-sent` — BP | Provider |
+| Message sent | `messages.sent` — sender | Recipient |
+| Support ticket created | `support.ticket-created` — user | Admin |
+
+### Pre-flight gate
+
+```bash
+# Every service method that mutates state calls ActivityService::log()
+grep -n "->save()\|->update(\|->create(" app/Services/[Service].php
+grep -n "ActivityService::log"            app/Services/[Service].php
+# Counts should align — every mutation has a log call
+
+# Verify notification entries are created for other parties
+grep -n "entryType.*notification\|entry_type.*notification"     app/Services/[Service].php
+# Must have ≥ 1 hit for every action that affects another user
+
+# Verify module slugs match the registry above
+grep -oE "module:\s+'[a-z]+'" app/Services/*.php | sort -u
+```
+
+### Checklist additions
+
+- [ ] Every service method that mutates state calls `ActivityService::log()` at least once
+- [ ] Every call has `entryType: 'log'` for the actor
+- [ ] Every other affected party has a matching `entryType: 'notification'` call or `ActivityFanoutJob`
+- [ ] Module slug matches the registry in Section 26
+- [ ] Email trigger (`event(new XxxHappened())`) is present in the same service method (Section 25)
+- [ ] For fan-outs > 3 recipients, `ActivityFanoutJob` is dispatched instead of looping `ActivityService::log()`

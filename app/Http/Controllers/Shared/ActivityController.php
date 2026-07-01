@@ -81,6 +81,7 @@ class ActivityController extends Controller
             ['key' => 'incident',     'label' => 'Incidents',     'icon' => 'alert-triangle'],
             ['key' => 'message',      'label' => 'Messages',      'icon' => 'message-square'],
             ['key' => 'task',         'label' => 'Tasks',         'icon' => 'check-circle'],
+            ['key' => 'job_postings', 'label' => 'Job Postings',  'icon' => 'briefcase'],
             ['key' => 'document',     'label' => 'Documents',     'icon' => 'file-text'],
             ['key' => 'vault',        'label' => 'Vault',         'icon' => 'lock'],
             ['key' => 'compliance',   'label' => 'Compliance',    'icon' => 'shield'],
@@ -319,6 +320,7 @@ HTML;
     {
         $eventType = is_object($e->event_type) ? ($e->event_type->value ?? 'system') : (string) ($e->event_type ?? 'system');
         $severity  = is_object($e->severity)   ? ($e->severity->value   ?? 'info')   : (string) ($e->severity   ?? 'info');
+        $module    = (string) ($e->module ?? '');
 
         return [
             'id'          => $e->id,
@@ -330,15 +332,16 @@ HTML;
             'description' => $e->description,
             'created_at'  => $e->created_at,
             'read_at'     => $e->read_at,
-            'icon'        => $this->iconFor($eventType),
-            'badge_label' => $this->badgeLabel($eventType),
-            'badge_class' => $this->badgeClass($eventType),
+            'icon'        => $this->iconFor($eventType, $module),
+            'badge_label' => $this->badgeLabel($eventType, $module),
+            'badge_class' => $this->badgeClass($eventType, $module),
             'important'   => in_array($severity, ['error', 'critical', 'warning'], true),
         ];
     }
 
-    private function iconFor(string $type): string
+    private function iconFor(string $type, string $module = ''): string
     {
+        if ($module === 'job_postings' || $type === 'job_postings') return 'briefcase';
         return match ($type) {
             'incident'    => 'alert-triangle',
             'vault'       => 'lock',
@@ -356,8 +359,9 @@ HTML;
         };
     }
 
-    private function badgeLabel(string $type): string
+    private function badgeLabel(string $type, string $module = ''): string
     {
+        if ($module === 'job_postings' || $type === 'job_postings') return 'Job Posting';
         return match ($type) {
             'incident'    => 'Critical Incident',
             'vault'       => 'Vault Access',
@@ -375,8 +379,9 @@ HTML;
         };
     }
 
-    private function badgeClass(string $type): string
+    private function badgeClass(string $type, string $module = ''): string
     {
+        if ($module === 'job_postings' || $type === 'job_postings') return 'job-postings';
         return match ($type) {
             'incident'    => 'critical-incident',
             'vault'       => 'vault',

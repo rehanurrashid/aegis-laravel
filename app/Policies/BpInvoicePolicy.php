@@ -23,6 +23,6 @@ class BpInvoicePolicy
     public function void(User $user, BpInvoice $invoice): bool
     {
         return $user->id === $invoice->bp_id
-            && in_array((string) $invoice->status, ['draft', 'sent'], true);
+            && in_array($invoice->status instanceof \BackedEnum ? $invoice->status->value : (string) $invoice->status, ['draft', 'sent'], true);
     }
 }

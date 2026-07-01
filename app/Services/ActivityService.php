@@ -62,11 +62,12 @@ class ActivityService
         return match ($module) {
             'message'                => 'message',
             'task'                   => 'task',
+            'job_postings'           => 'job_postings',
             'document'               => 'document',
             'incident'               => 'incident',
             'vault'                  => 'vault',
             'attestation'            => 'attestation',
-            'payment'                => 'payment',
+            'payment', 'billing'     => 'payment',
             'account', 'steward'     => 'account',
             'system', 'support'      => 'system',
             'referral'               => 'referral',

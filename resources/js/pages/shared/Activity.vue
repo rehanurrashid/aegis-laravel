@@ -660,6 +660,7 @@ function submitExport() {
 .activity-badge.document          { background: var(--badge-bg-gold); color: var(--gold-dark); border-color: var(--badge-bg-gold); }
 .activity-badge.news              { background: var(--blue-light); color: var(--blue-dark); border-color: var(--blue-light); }
 .activity-badge.event             { background: var(--green-light); color: var(--green-dark); border-color: var(--green-light); }
+.activity-badge.job-postings      { background: var(--badge-bg-gold); color: var(--gold-dark); border-color: var(--badge-bg-gold); }
 
 .activity-time {
   font-size: 11px;

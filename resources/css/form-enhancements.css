@@ -1,0 +1,515 @@
+/**
+ * form-enhancements.css — Aegis Design System
+ *
+ * Global overrides for flatpickr (date picker) and TomSelect (select dropdown).
+ * Imported AFTER the library CSS in app.css so cascade order wins.
+ * Zero per-page changes required — FormEnhancerPlugin.js auto-applies both libs.
+ *
+ * Tokens used:
+ *   var(--border)        var(--radius)        var(--radius-sm)     var(--radius-lg)
+ *   var(--radius-full)   var(--surface)       var(--surface-2)     var(--surface-3)
+ *   var(--text)          var(--text-2)        var(--text-3)        var(--text-4)
+ *   var(--text-inverted) var(--gold)          var(--gold-dark)     var(--badge-bg-gold)
+ *   var(--red)           var(--focus-ring-red) var(--font-sans)    var(--transition)
+ */
+
+
+/* ════════════════════════════════════════════════════════════════════
+   §1  FLATPICKR  —  date / datetime-local / time inputs
+   ════════════════════════════════════════════════════════════════════ */
+
+/* §1.1  Hide flatpickr's raw ISO input — only the altInput is visible */
+.flatpickr-input:not(.flatpickr-alt-field):not([type="hidden"]) {
+  display: none !important;
+}
+
+/* §1.2  The visible alt-input (already has .form-input from our JS).
+         Adds the calendar icon and right-padding. */
+.flatpickr-alt-field {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a7d52' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  padding-right: 38px !important;
+  cursor: pointer !important;
+}
+.flatpickr-alt-field:focus {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px var(--badge-bg-gold) !important;
+}
+
+/* §1.3  Calendar popup container */
+.flatpickr-calendar {
+  font-family: var(--font-sans) !important;
+  font-size: 13px !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow:
+    0 4px 6px -1px rgba(30,28,26,0.08),
+    0 10px 28px -4px rgba(30,28,26,0.12),
+    0 0 0 1px rgba(160,129,62,0.06) !important;
+  padding: 12px !important;
+  /* 307.875px (dayContainer set by flatpickr JS) + 12px padding each side = 332px */
+  width: 332px !important;
+  max-width: 332px !important;
+  box-sizing: border-box !important;
+}
+
+/* Remove the triangular pointer arrow — doesn't fit flat card design */
+.flatpickr-calendar.arrowTop::before,
+.flatpickr-calendar.arrowTop::after,
+.flatpickr-calendar.arrowBottom::before,
+.flatpickr-calendar.arrowBottom::after {
+  display: none !important;
+}
+
+/* Gap between the field and the calendar popup */
+.flatpickr-calendar.arrowTop  { margin-top: 6px !important; }
+.flatpickr-calendar.arrowBottom { margin-bottom: 6px !important; }
+
+/* §1.4  Month/year header row */
+.flatpickr-months {
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 2px 8px 2px !important;
+  border-bottom: 1px solid var(--border) !important;
+  margin-bottom: 8px !important;
+  position: relative !important;
+  min-height: 36px !important;
+}
+
+.flatpickr-months .flatpickr-month {
+  background: transparent !important;
+  color: var(--text) !important;
+  fill: var(--text) !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  flex: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  /* Leave room for the absolute-positioned prev/next arrows */
+  padding: 0 36px !important;
+}
+
+/* §1.5  Prev / Next month nav arrows — stay absolute, just resized nicely */
+.flatpickr-months .flatpickr-prev-month,
+.flatpickr-months .flatpickr-next-month {
+  position: absolute !important;
+  top: 0 !important;
+  height: 36px !important;
+  width: 32px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--text-3) !important;
+  fill: var(--text-3) !important;
+  transition: background var(--transition), color var(--transition) !important;
+  cursor: pointer !important;
+}
+
+/* Explicit left/right positioning */
+.flatpickr-months .flatpickr-prev-month.flatpickr-prev-month {
+  left: 0 !important;
+}
+.flatpickr-months .flatpickr-next-month.flatpickr-next-month {
+  right: 0 !important;
+}
+
+.flatpickr-months .flatpickr-prev-month:hover,
+.flatpickr-months .flatpickr-next-month:hover {
+  background: var(--surface-2) !important;
+  color: var(--gold-dark) !important;
+  fill: var(--gold-dark) !important;
+}
+
+.flatpickr-months .flatpickr-prev-month:hover svg,
+.flatpickr-months .flatpickr-next-month:hover svg,
+.flatpickr-months .flatpickr-prev-month:hover svg path,
+.flatpickr-months .flatpickr-next-month:hover svg path {
+  fill: var(--gold-dark) !important;
+}
+
+.flatpickr-months .flatpickr-prev-month svg,
+.flatpickr-months .flatpickr-next-month svg {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+.flatpickr-months .flatpickr-prev-month svg path,
+.flatpickr-months .flatpickr-next-month svg path {
+  fill: inherit !important;
+  stroke: none !important;
+}
+
+/* §1.6  Month / year text inside the header */
+.flatpickr-current-month {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: var(--text) !important;
+  padding: 0 !important;
+  height: 36px !important;
+  /* Let the lib keep its absolute/left/width positioning — we just control the content */
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months {
+  font-family: var(--font-sans) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: var(--text) !important;
+  background: transparent !important;
+  border: none !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  cursor: pointer !important;
+  padding: 2px 4px !important;
+  border-radius: var(--radius-sm) !important;
+  transition: background var(--transition) !important;
+}
+.flatpickr-current-month .flatpickr-monthDropdown-months:hover {
+  background: var(--surface-2) !important;
+}
+
+.flatpickr-current-month .numInputWrapper {
+  display: inline-flex !important;
+  align-items: center !important;
+}
+.flatpickr-current-month input.cur-year {
+  font-family: var(--font-sans) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: var(--text) !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 2px 4px !important;
+  border-radius: var(--radius-sm) !important;
+  width: 52px !important;
+  cursor: pointer !important;
+}
+.flatpickr-current-month input.cur-year:focus {
+  outline: none !important;
+  background: var(--surface-2) !important;
+}
+/* Hide the up/down spinners on the year input */
+.flatpickr-current-month .numInputWrapper span {
+  display: none !important;
+}
+
+/* §1.7  Day-of-week labels */
+.flatpickr-weekdays {
+  background: transparent !important;
+  margin-bottom: 4px !important;
+}
+
+.flatpickr-weekdaycontainer {
+  display: flex !important;
+  justify-content: space-around !important;
+}
+
+span.flatpickr-weekday {
+  font-family: var(--font-sans) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: var(--text-4) !important;
+  background: transparent !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.07em !important;
+  text-align: center !important;
+  flex: 1 !important;
+  line-height: 28px !important;
+}
+
+/* §1.8  Day cells grid — let flatpickr control the widths (set via JS inline styles) */
+.flatpickr-days {
+  border: none !important;
+}
+
+.dayContainer {
+  padding: 2px 0 !important;
+  /* Do NOT override width/min-width/max-width — flatpickr sets these via JS inline styles.
+     Overriding them causes the full-screen layout bug. */
+}
+
+.flatpickr-day {
+  font-family: var(--font-sans) !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  color: var(--text) !important;
+  background: transparent !important;
+  /* Use library's 39px height — 7 × 39px = 273px fits inside 307.875px dayContainer */
+  border-radius: var(--radius-sm) !important;
+  border: 1px solid transparent !important;
+  height: 39px !important;
+  line-height: 37px !important;
+  max-width: 39px !important;
+  margin: 0 !important;
+  transition: background var(--transition), color var(--transition), border-color var(--transition) !important;
+}
+
+.flatpickr-day:hover:not(.flatpickr-disabled):not(.selected) {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+/* Today */
+.flatpickr-day.today {
+  border-color: var(--gold) !important;
+  color: var(--gold-dark) !important;
+  font-weight: 700 !important;
+}
+.flatpickr-day.today:hover {
+  background: var(--badge-bg-gold) !important;
+  border-color: var(--gold-dark) !important;
+}
+
+/* Selected date */
+.flatpickr-day.selected,
+.flatpickr-day.selected:hover,
+.flatpickr-day.selected:focus,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange {
+  background: var(--gold-dark) !important;
+  border-color: var(--gold-dark) !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+}
+
+/* Disabled / out-of-month days */
+.flatpickr-day.flatpickr-disabled,
+.flatpickr-day.flatpickr-disabled:hover,
+.flatpickr-day.prevMonthDay,
+.flatpickr-day.nextMonthDay {
+  color: var(--text-4) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  opacity: 0.45 !important;
+  cursor: default !important;
+}
+
+
+/* ════════════════════════════════════════════════════════════════════
+   §2  TOM-SELECT  —  <select class="form-select">
+   Reset ALL library defaults first, then apply Aegis tokens.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* §2.1  Outer wrapper — layout shell only, no border */
+.ts-wrapper {
+  width: 100% !important;
+  position: relative !important;
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* §2.2  Visible control box — single source of border */
+.ts-control,
+.ts-wrapper .ts-control {
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: none !important;
+  background-color: var(--surface) !important;
+  /* Custom chevron — our only arrow, no library caret */
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%237a746c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 13px center !important;
+  padding: 9px 36px 9px 13px !important;
+  font-family: var(--font-sans) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--text) !important;
+  min-height: 38px !important;
+  width: 100% !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+  gap: 4px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  outline: none !important;
+  transition: border-color var(--transition), box-shadow var(--transition) !important;
+}
+
+/* Nuke every pseudo-element the library might render */
+.ts-control::before,
+.ts-control::after,
+.ts-wrapper::before,
+.ts-wrapper::after {
+  display: none !important;
+  content: none !important;
+}
+
+/* Override the css-variable padding the library reserves for its own caret */
+.ts-control:not(.rtl) {
+  padding-right: 36px !important;
+}
+
+/* §2.3  Focus */
+.ts-wrapper.focus .ts-control,
+.ts-wrapper .ts-control:focus-within {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px var(--badge-bg-gold) !important;
+}
+
+/* §2.4  Open state — rotate arrow to gold */
+.ts-wrapper.open .ts-control {
+  border-color: var(--gold) !important;
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 6.5L6 1.5L1 6.5' stroke='%23a0813e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 13px center !important;
+}
+
+/* §2.5  Disabled */
+.ts-wrapper.disabled .ts-control {
+  background-color: var(--surface-3) !important;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23ccc' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 13px center !important;
+  color: var(--text-3) !important;
+  cursor: not-allowed !important;
+  opacity: 1 !important;
+}
+
+/* §2.6  Hidden original <select> */
+.ts-hidden-accessible {
+  border: 0 !important;
+  clip: rect(0 0 0 0) !important;
+  height: 1px !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  position: absolute !important;
+  width: 1px !important;
+  white-space: nowrap !important;
+}
+
+/* §2.7  Selected value text */
+.ts-wrapper .ts-control .item {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--text) !important;
+  line-height: 1 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  max-width: calc(100% - 28px) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* §2.8  The collapsed search input (we set controlInput:null but lib still renders it) */
+.ts-wrapper .ts-control > input {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  color: var(--text-4) !important;
+  font-family: var(--font-sans) !important;
+  font-size: 13px !important;
+}
+.ts-wrapper .ts-control > input::placeholder {
+  color: var(--text-4) !important;
+}
+
+/* §2.9  Dropdown panel */
+.ts-wrapper .ts-dropdown {
+  font-family: var(--font-sans) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--text) !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--gold) !important;
+  border-top: none !important;
+  border-bottom-left-radius: var(--radius) !important;
+  border-bottom-right-radius: var(--radius) !important;
+  box-shadow: 0 8px 24px rgba(30, 28, 26, 0.10) !important;
+  padding: 4px !important;
+  z-index: 9999 !important;
+  overflow: hidden !important;
+  margin-top: 0 !important;
+}
+
+.ts-wrapper .ts-dropdown .ts-dropdown-content {
+  padding: 0 !important;
+  max-height: 240px !important;
+  overflow-y: auto !important;
+  scrollbar-width: thin !important;
+}
+
+/* §2.10  Option rows */
+.ts-wrapper .ts-dropdown .option {
+  padding: 8px 12px !important;
+  border-radius: calc(var(--radius-sm) - 1px) !important;
+  cursor: pointer !important;
+  transition: background var(--transition), color var(--transition) !important;
+  color: var(--text) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+}
+
+.ts-wrapper .ts-dropdown .option:hover,
+.ts-wrapper .ts-dropdown .option.active {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+}
+
+/* Selected option */
+.ts-wrapper .ts-dropdown .option.selected {
+  background: var(--badge-bg-gold) !important;
+  color: var(--gold-dark) !important;
+  font-weight: 700 !important;
+}
+.ts-wrapper .ts-dropdown .option.selected:hover,
+.ts-wrapper .ts-dropdown .option.selected.active {
+  background: var(--badge-bg-gold) !important;
+  color: var(--gold-dark) !important;
+}
+
+/* Placeholder / empty value row */
+.ts-wrapper .ts-dropdown .option[data-value=""] {
+  color: var(--text-4) !important;
+  font-style: italic !important;
+}
+
+/* No results */
+.ts-wrapper .ts-dropdown .no-results {
+  padding: 10px 12px !important;
+  color: var(--text-3) !important;
+  font-size: 12px !important;
+  text-align: center !important;
+}
+
+/* §2.11  Small variant (.form-select-sm) */
+.ts-wrapper.ts-sm .ts-control {
+  min-height: 32px !important;
+  padding: 0 30px 0 12px !important;
+  font-size: 12px !important;
+}
+.ts-wrapper.ts-sm .ts-dropdown .option {
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+}
+
+/* §2.12  Validation error */
+.is-error .ts-wrapper .ts-control {
+  border-color: var(--red) !important;
+  box-shadow: var(--focus-ring-red) !important;
+}

@@ -29,13 +29,13 @@ class ContinuityDocumentPolicy
     public function sign(User $user, ContinuityDocument $doc): bool
     {
         return $user->id === $doc->practitioner_id
-            && (string) $doc->status === 'pending_sign';
+            && ($doc->status instanceof \BackedEnum ? $doc->status->value : (string) $doc->status) === 'pending_sign';
     }
 
     /** Active CS-category steward countersigns */
     public function countersign(User $user, ContinuityDocument $doc): bool
     {
-        if ((string) $doc->status !== 'countersign_pending') {
+        if (($doc->status instanceof \BackedEnum ? $doc->status->value : (string) $doc->status) !== 'countersign_pending') {
             return false;
         }
 
