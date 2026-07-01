@@ -33,19 +33,39 @@ class MessagingService
         $creator = User::find($participantIds[0] ?? null);
         if ($creator) {
             $this->activity->log(
-                $creator->id,                                          // 1  userId (recipient = actor)
-                $this->portalFor($creator->role?->value ?? ''),        // 2  portal
-                'message',                                             // 3  module
-                ActivitySeverity::Info,                                // 4  severity
-                'thread_created',                                      // 5  action
-                'New conversation started',                            // 6  title
-                $title ?? 'Direct message',                            // 7  description
-                'message_thread',                                      // 8  linkableType
-                $thread->id,                                           // 9  linkableId
-                null,                                                  // 10 relatedUserId
-                'log',                                                 // 11 entryType ← correct order
-                $creator->id                                           // 12 actorId
+                $creator->id,
+                $this->portalFor($creator->role?->value ?? ''),
+                'message',
+                ActivitySeverity::Info,
+                'thread_created',
+                'New conversation started',
+                $title ?? 'Direct message',
+                'message_thread',
+                $thread->id,
+                null,
+                'log',
+                $creator->id
             );
+
+            // Notify every other participant that a conversation was started with them
+            foreach (array_slice($participantIds, 1) as $pid) {
+                $other = User::find($pid);
+                if (!$other) continue;
+                $this->activity->log(
+                    $other->id,
+                    $this->portalFor($other->role?->value ?? ''),
+                    'message',
+                    ActivitySeverity::Info,
+                    'thread_received',
+                    "{$creator->display_name} started a conversation with you",
+                    $title ?? 'Direct message',
+                    'message_thread',
+                    $thread->id,
+                    $creator->id,
+                    'notification',
+                    $creator->id
+                );
+            }
         }
 
         return $thread;

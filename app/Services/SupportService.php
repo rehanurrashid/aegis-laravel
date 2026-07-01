@@ -42,6 +42,17 @@ class SupportService
             null, 'log', $submitter->id
         );
 
+        // Notify all admins a new ticket has arrived
+        User::where('role', 'admin')->each(function ($admin) use ($ticket, $submitter) {
+            $this->activity->log(
+                $admin->id, 'admin', 'support',
+                ActivitySeverity::Info, 'ticket_received',
+                "New support ticket from {$submitter->display_name}",
+                Str::limit($ticket->subject, 140), 'complaint', $ticket->id,
+                $submitter->id, 'notification', $submitter->id
+            );
+        });
+
         event(new TicketCreated($ticket));
         return $ticket;
     }
@@ -87,20 +98,48 @@ class SupportService
         ]);
 
         if (!$isInternal && $author->id !== $ticket->submitter_id) {
+            // Admin/staff replied — notify the submitter
             $this->activity->log(
-                $ticket->submitter_id,                          // 1  userId
-                $this->portalFor($ticket->submitter),           // 2  portal
-                'support',                                      // 3  module
-                ActivitySeverity::Info,                         // 4  severity
-                'support_reply',                                // 5  action
-                'Support replied to your ticket',              // 6  title
-                Str::limit($body, 140),                         // 7  description
-                'complaint',                                    // 8  linkableType
-                $ticket->id,                                    // 9  linkableId
-                $author->id,                                    // 10 relatedUserId
-                'notification',                                 // 11 entryType ← correct order
-                $author->id                                     // 12 actorId
+                $ticket->submitter_id,
+                $this->portalFor($ticket->submitter),
+                'support',
+                ActivitySeverity::Info,
+                'support_reply',
+                'Support replied to your ticket',
+                Str::limit($body, 140),
+                'complaint',
+                $ticket->id,
+                $author->id,
+                'notification',
+                $author->id
             );
+            // Author's own log
+            $this->activity->log(
+                $author->id, $this->portalFor($author), 'support',
+                ActivitySeverity::Info, 'ticket_reply_sent',
+                'Replied to support ticket',
+                Str::limit($body, 140), 'complaint', $ticket->id,
+                $ticket->submitter_id, 'log', $author->id
+            );
+            event(new TicketReplied($ticket, $reply));
+        } elseif (!$isInternal && $author->id === $ticket->submitter_id) {
+            // Submitter replied — notify all admins
+            $this->activity->log(
+                $author->id, $this->portalFor($author), 'support',
+                ActivitySeverity::Info, 'ticket_reply_sent',
+                'You replied to your support ticket',
+                Str::limit($body, 140), 'complaint', $ticket->id,
+                null, 'log', $author->id
+            );
+            User::where('role', 'admin')->each(function ($admin) use ($ticket, $author, $body) {
+                $this->activity->log(
+                    $admin->id, 'admin', 'support',
+                    ActivitySeverity::Info, 'ticket_reply_received',
+                    "{$author->display_name} replied to their ticket",
+                    Str::limit($body, 140), 'complaint', $ticket->id,
+                    $author->id, 'notification', $author->id
+                );
+            });
             event(new TicketReplied($ticket, $reply));
         }
 
@@ -124,6 +163,17 @@ class SupportService
             Str::limit($ticket->subject, 140), 'complaint', $ticket->id,
             null, 'log', $actor->id
         );
+
+        // Notify admins the submitter self-closed
+        User::where('role', 'admin')->each(function ($admin) use ($ticket, $actor) {
+            $this->activity->log(
+                $admin->id, 'admin', 'support',
+                ActivitySeverity::Info, 'ticket_self_closed',
+                "{$actor->display_name} marked their ticket as resolved",
+                Str::limit($ticket->subject, 140), 'complaint', $ticket->id,
+                $actor->id, 'notification', $actor->id
+            );
+        });
 
         event(new TicketResolved($ticket->fresh()));
 
