@@ -56,14 +56,30 @@ class ContractService
             event(new ContractSigned($fresh));
         }
 
-        $otherId = $isPractitioner ? $contract->bp_id : $contract->practitioner_id;
+        $otherId     = $isPractitioner ? $contract->bp_id : $contract->practitioner_id;
         $otherPortal = $isPractitioner ? 'business_partner' : 'provider';
+        $fullyExecuted = (bool) $fresh->fully_executed_at;
+
+        // Actor log — signer's own history ("I signed the contract")
         $this->activity->log(
-            $otherId, $otherPortal, 'payment', ActivitySeverity::Info,
+            $signer->id,
+            $isPractitioner ? 'provider' : 'business_partner',
+            'job_postings', ActivitySeverity::Info,
+            'contract_signed',
+            'You signed the contract: ' . $contract->title,
+            $fullyExecuted ? 'Contract is now fully executed.' : 'Awaiting the other party\'s signature.',
+            'bp_contract', $contract->id, null,
+            'log', $signer->id
+        );
+
+        // Notification → other party ("Party X signed the contract")
+        $this->activity->log(
+            $otherId, $otherPortal, 'job_postings', ActivitySeverity::Info,
             'contract_signed',
             "{$signer->display_name} signed the contract",
-            $fresh->fully_executed_at ? 'Contract is now fully executed.' : 'Awaiting your signature.',
-            'bp_contract', $contract->id, $signer->id
+            $fullyExecuted ? 'Contract is now fully executed.' : 'Awaiting your signature.',
+            'bp_contract', $contract->id, $signer->id,
+            'notification', $signer->id
         );
 
         return $fresh;
@@ -77,20 +93,31 @@ class ContractService
             'cancel_reason'=> $reason,
         ]);
 
-        $otherId = $contract->practitioner_id === $actor->id
+        $otherId  = $contract->practitioner_id === $actor->id
             ? $contract->bp_id
             : $contract->practitioner_id;
-        $otherUser = User::find($otherId);
+        $otherUser   = User::find($otherId);
+        $otherPortal = $otherUser?->role === 'business_partner' ? 'business_partner' : 'provider';
+        $actorPortal = $actor->id === $contract->practitioner_id ? 'provider' : 'business_partner';
 
+        // Actor log — who cancelled ("I ended this contract")
         $this->activity->log(
-            $otherId,
-            $otherUser?->role === 'business_partner' ? 'business_partner' : 'provider',
-            'job_postings',
-            ActivitySeverity::Warning,
+            $actor->id, $actorPortal, 'job_postings', ActivitySeverity::Warning,
+            'contract_cancelled',
+            'You cancelled the contract: ' . $contract->title,
+            $reason ?? 'No reason recorded.',
+            'bp_contract', $contract->id, null,
+            'log', $actor->id
+        );
+
+        // Notification → other party ("Party X cancelled the contract")
+        $this->activity->log(
+            $otherId, $otherPortal, 'job_postings', ActivitySeverity::Warning,
             'contract_cancelled',
             "{$actor->display_name} cancelled the contract",
             $reason ?? 'No reason given.',
-            'bp_contract', $contract->id, $actor->id
+            'bp_contract', $contract->id, $actor->id,
+            'notification', $actor->id
         );
 
         event(new ContractCancelled($contract->fresh(), $actor, $reason));
@@ -125,12 +152,24 @@ class ContractService
 
         $contract = $milestone->contract;
 
+        // Actor log — BP's own history ("I submitted milestone X")
         $this->activity->log(
-            $contract->practitioner_id, 'provider', 'payment', ActivitySeverity::Info,
+            $submitter->id, 'business_partner', 'job_postings', ActivitySeverity::Info,
+            'milestone_submitted',
+            "Milestone submitted: {$milestone->title}",
+            'Awaiting provider review and approval.',
+            'bp_milestone', $milestone->id, null,
+            'log', $submitter->id
+        );
+
+        // Notification → provider ("Milestone submitted — review needed")
+        $this->activity->log(
+            $contract->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
             'milestone_submitted',
             "{$submitter->display_name} submitted milestone: {$milestone->title}",
             'Review and approve to release payment.',
-            'bp_milestone', $milestone->id, $submitter->id
+            'bp_milestone', $milestone->id, $submitter->id,
+            'notification', $submitter->id
         );
 
         event(new MilestoneSubmitted($milestone->fresh()));
@@ -146,12 +185,24 @@ class ContractService
 
         $contract = $milestone->contract;
 
+        // Actor log — provider's own history ("I approved milestone X")
         $this->activity->log(
-            $contract->bp_id, 'business_partner', 'payment', ActivitySeverity::Info,
+            $approver->id, 'provider', 'job_postings', ActivitySeverity::Info,
+            'milestone_approved',
+            "Milestone approved: {$milestone->title}",
+            'Payout will be processed within 3 business days.',
+            'bp_milestone', $milestone->id, null,
+            'log', $approver->id
+        );
+
+        // Notification → BP ("Milestone approved — payout coming")
+        $this->activity->log(
+            $contract->bp_id, 'business_partner', 'job_postings', ActivitySeverity::Info,
             'milestone_approved',
             "{$approver->display_name} approved milestone: {$milestone->title}",
             'Payout will be processed shortly.',
-            'bp_milestone', $milestone->id, $approver->id
+            'bp_milestone', $milestone->id, $approver->id,
+            'notification', $approver->id
         );
 
         event(new MilestoneApproved($milestone->fresh()));

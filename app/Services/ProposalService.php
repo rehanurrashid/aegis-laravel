@@ -47,12 +47,24 @@ class ProposalService
             'submitted_at'        => now(),
         ]);
 
+        // Actor log — BP's own history ("I submitted a proposal")
+        $this->activity->log(
+            $bp->id, 'business_partner', 'job_postings', ActivitySeverity::Info,
+            'proposal_submitted',
+            "Proposal submitted: {$job->title}",
+            'Your proposal is under review. You\'ll be notified when the provider responds.',
+            'bp_proposal', $proposal->id, null,
+            'log', $bp->id
+        );
+
+        // Notification → provider ("New application received")
         $this->activity->log(
             $job->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
             'proposal_received',
             "{$bp->display_name} submitted a proposal for: {$job->title}",
             'Bid: $' . number_format($proposal->proposed_rate_cents / 100, 2),
-            'bp_proposal', $proposal->id, $bp->id
+            'bp_proposal', $proposal->id, $bp->id,
+            'notification', $bp->id
         );
 
         event(new ProposalSubmitted($proposal));
@@ -110,23 +122,37 @@ class ProposalService
             event(new ProposalAccepted($proposal->fresh(), $contract));
             event(new ContractCreated($contract));
 
-            $bp = User::find($proposal->bp_id);
+            $bp           = User::find($proposal->bp_id);
             $practitioner = User::find($job->practitioner_id);
 
+            // Actor log — provider's own history ("I hired Acme Health Services")
+            $this->activity->log(
+                $practitioner->id, 'provider', 'job_postings', ActivitySeverity::Info,
+                'proposal_accepted',
+                "You hired {$bp->display_name} for: {$job->title}",
+                'Contract created. Work can begin immediately.',
+                'bp_contract', $contract->id, $bp->id,
+                'log', $practitioner->id
+            );
+
+            // Notification → BP ("Your proposal was accepted")
             $this->activity->log(
                 $bp->id, 'business_partner', 'job_postings', ActivitySeverity::Info,
                 'proposal_accepted',
                 "Your proposal was accepted: {$job->title}",
                 'A contract has been created. Review and sign to begin work.',
-                'bp_contract', $contract->id, $practitioner->id
+                'bp_contract', $contract->id, $practitioner->id,
+                'notification', $practitioner->id
             );
 
+            // Actor log — provider's contract history ("Contract created with Acme")
             $this->activity->log(
                 $practitioner->id, 'provider', 'job_postings', ActivitySeverity::Info,
                 'contract_created',
                 "Contract created with {$bp->display_name}",
-                "Total: $" . number_format($contract->total_value_cents / 100, 2),
-                'bp_contract', $contract->id, $bp->id
+                'Total: $' . number_format($contract->total_value_cents / 100, 2),
+                'bp_contract', $contract->id, $bp->id,
+                'log', $practitioner->id
             );
 
             return $contract;
@@ -142,12 +168,26 @@ class ProposalService
             'decline_reason' => $reason,
         ]);
 
+        $job = BpJob::find($proposal->job_id);
+
+        // Actor log — provider's own history ("I declined Jamal Torres")
+        $this->activity->log(
+            $job->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
+            'proposal_declined',
+            'Application declined: ' . ($job->title ?? 'Job posting'),
+            $reason ?? 'No reason recorded.',
+            'bp_proposal', $proposal->id, $proposal->bp_id,
+            'log', $job->practitioner_id
+        );
+
+        // Notification → BP ("Your proposal was not selected")
         $this->activity->log(
             $proposal->bp_id, 'business_partner', 'job_postings', ActivitySeverity::Info,
             'proposal_declined',
-            'Your proposal was declined',
+            'Your proposal was not selected',
             $reason ?? 'No reason given.',
-            'bp_proposal', $proposal->id
+            'bp_proposal', $proposal->id, $job->practitioner_id,
+            'notification', $job->practitioner_id
         );
 
         event(new ProposalDeclined($proposal->fresh(), $reason));
@@ -159,11 +199,6 @@ class ProposalService
     {
         $update = ['pipeline_stage' => $stage];
 
-        // Only update status when transitioning to terminal states.
-        // 'under_review' is not a valid ProposalStatus — leave status as 'pending'
-        // for all intermediate pipeline stages (reviewed, shortlisted, interview).
-        // accepted/declined/withdrawn are set by accept()/decline()/withdraw().
-
         if ($note) {
             $existing = $proposal->internal_notes ? $proposal->internal_notes . "\n" : '';
             $update['internal_notes'] = trim($existing . $note);
@@ -173,6 +208,25 @@ class ProposalService
             $update['interview_at']   = $interviewAt;
         }
         $proposal->update($update);
+
+        $job        = BpJob::find($proposal->job_id);
+        $stageLabel = match ($stage) {
+            'reviewed'    => 'Marked as Reviewed',
+            'shortlisted' => 'Shortlisted',
+            'interview'   => 'Scheduled for Interview',
+            default       => ucfirst($stage),
+        };
+
+        // Actor log — provider's pipeline management history
+        $this->activity->log(
+            $job->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
+            'applicant_stage_changed',
+            "Applicant moved to {$stageLabel}: " . ($proposal->bp?->display_name ?? 'Applicant'),
+            $note ?? '',
+            'bp_proposal', $proposal->id, $proposal->bp_id,
+            'log', $job->practitioner_id
+        );
+
         return $proposal->fresh();
     }
 

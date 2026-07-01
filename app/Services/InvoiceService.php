@@ -82,12 +82,24 @@ class InvoiceService
 
         event(new InvoiceSent($invoice->fresh()));
 
+        // Actor log — BP's own history ("I sent invoice INV-001")
         $this->activity->log(
-            $invoice->practitioner_id, 'provider', 'payment', ActivitySeverity::Info,
+            $invoice->bp_id, 'business_partner', 'job_postings', ActivitySeverity::Info,
+            'invoice_sent',
+            "Invoice sent: {$invoice->invoice_number}",
+            'Total: $' . number_format($invoice->total_cents / 100, 2) . '. Awaiting provider payment.',
+            'bp_invoice', $invoice->id, null,
+            'log', $invoice->bp_id
+        );
+
+        // Notification → provider ("New invoice received")
+        $this->activity->log(
+            $invoice->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
             'invoice_received',
             "New invoice {$invoice->invoice_number}",
             'Total: $' . number_format($invoice->total_cents / 100, 2),
-            'bp_invoice', $invoice->id, $invoice->bp_id
+            'bp_invoice', $invoice->id, $invoice->bp_id,
+            'notification', $invoice->bp_id
         );
 
         return $invoice->fresh();
@@ -112,12 +124,24 @@ class InvoiceService
                 $invoice->update(['status' => 'paid', 'paid_at' => now()]);
                 event(new InvoicePaid($invoice->fresh()));
 
+                // Actor log — provider's own history ("I paid invoice INV-001")
                 $this->activity->log(
-                    $invoice->bp_id, 'business_partner', 'payment', ActivitySeverity::Info,
+                    $invoice->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
+                    'invoice_paid',
+                    "Invoice paid: {$invoice->invoice_number}",
+                    '$' . number_format($invoice->total_cents / 100, 2) . ' payment processed.',
+                    'bp_invoice', $invoice->id, null,
+                    'log', $invoice->practitioner_id
+                );
+
+                // Notification → BP ("Invoice INV-001 has been paid")
+                $this->activity->log(
+                    $invoice->bp_id, 'business_partner', 'job_postings', ActivitySeverity::Info,
                     'invoice_paid',
                     "Invoice {$invoice->invoice_number} paid",
                     'Funds will appear in your next payout.',
-                    'bp_invoice', $invoice->id, $invoice->practitioner_id
+                    'bp_invoice', $invoice->id, $invoice->practitioner_id,
+                    'notification', $invoice->practitioner_id
                 );
             } else {
                 $invoice->update(['status' => 'partial']);

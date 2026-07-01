@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\ActivitySeverity;
 use App\Models\BpJob;
 use App\Models\BpSavedJob;
 use App\Models\User;
@@ -12,9 +13,11 @@ use Illuminate\Support\Str;
 
 class BpJobService
 {
+    public function __construct(private ActivityService $activity) {}
+
     public function create(User $practitioner, array $data): BpJob
     {
-        return BpJob::create([
+        $job = BpJob::create([
             'id'                    => 'bj_' . Str::lower(Str::random(12)),
             'practitioner_id'       => $practitioner->id,
             'title'                 => $data['title'],
@@ -44,6 +47,20 @@ class BpJobService
             'posted_at'             => now(),
             'closes_at'             => $data['application_deadline'] ?? null,
         ]);
+
+        // Actor log — provider's history ("I posted a new job")
+        if (($data['status'] ?? 'open') === 'open') {
+            $this->activity->log(
+                $practitioner->id, 'provider', 'job_postings', ActivitySeverity::Info,
+                'job_posted',
+                "Job posted: {$job->title}",
+                'Your posting is now live to Business Partners on Aegis.',
+                'bp_job', $job->id, null,
+                'log', $practitioner->id
+            );
+        }
+
+        return $job;
     }
 
     public function update(BpJob $job, array $data): BpJob
@@ -79,13 +96,44 @@ class BpJobService
 
     public function setStatus(BpJob $job, string $status): BpJob
     {
+        $previous = $job->status instanceof \BackedEnum ? $job->status->value : (string) $job->status;
         $job->update(['status' => $status]);
+
+        $labelMap = [
+            'open'      => 'Published (live to Business Partners)',
+            'paused'    => 'Paused (hidden from marketplace)',
+            'closed'    => 'Closed',
+            'cancelled' => 'Cancelled',
+            'filled'    => 'Filled',
+        ];
+
+        // Actor log — provider's status change history
+        $this->activity->log(
+            $job->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
+            'job_status_changed',
+            "Posting status updated: {$job->title}",
+            ($labelMap[$previous] ?? ucfirst($previous)) . ' → ' . ($labelMap[$status] ?? ucfirst($status)),
+            'bp_job', $job->id, null,
+            'log', $job->practitioner_id
+        );
+
         return $job->fresh();
     }
 
     public function close(BpJob $job): BpJob
     {
         $job->update(['status' => 'closed']);
+
+        // Actor log — provider's history ("I closed this posting")
+        $this->activity->log(
+            $job->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
+            'job_closed',
+            "Posting closed: {$job->title}",
+            'This posting is no longer visible to Business Partners.',
+            'bp_job', $job->id, null,
+            'log', $job->practitioner_id
+        );
+
         return $job->fresh();
     }
 

@@ -20,9 +20,11 @@ class ActivityService
     /**
      * Write one activity_events row for a single recipient.
      *
-     * $module is the broad category (plan/vault/incident/steward/payment/message/support/account/document/referral).
-     * $action is the granular event name (e.g. plan_signed, vault_attested, incident_activated).
-     * The schema's enum `event_type` column is derived from $module via mapModuleToEventType().
+     * entry_type:  'log'          = actor's own history (My Activity tab)
+     *              'notification' = another party's feed (Notifications tab)
+     * actor_id:    ID of the user who triggered the action. Set on notifications
+     *              so the recipient knows who acted ("Dr Johnson accepted your proposal").
+     *              Defaults to $userId when entry_type='log' (actor is recipient).
      */
     public function log(
         string $userId,
@@ -35,26 +37,18 @@ class ActivityService
         ?string $linkableType = null,
         ?string $linkableId = null,
         ?string $relatedUserId = null,
-        ?string $actorId = null,
-        ?string $entryType = null
+        string $entryType = 'log',
+        ?string $actorId = null
     ): ActivityEvent {
-        // Auto-derive entry_type when not explicitly set:
-        //   • actor == recipient        → 'log'          (user's own action, self-recorded)
-        //   • actor set, differs        → 'notification' (another party's action affecting user)
-        //   • actor unknown             → 'notification' (safe default — matches historical fan-out semantics)
-        if ($entryType === null) {
-            $entryType = ($actorId !== null && $actorId === $userId) ? 'log' : 'notification';
-        }
-
         return ActivityEvent::create([
             'id'                  => 'ae_' . Str::lower(Str::random(12)),
             'user_id'             => $userId,
             'portal'              => $portal,
             'event_type'          => $this->mapModuleToEventType($module),
-            'entry_type'          => $entryType,
-            'actor_id'            => $actorId,
             'severity'            => $severity->value,
             'module'              => $module,
+            'entry_type'          => $entryType,
+            'actor_id'            => $actorId ?? ($entryType === 'log' ? $userId : $relatedUserId),
             'action'              => $action,
             'title'               => $title,
             'description'         => $description,
@@ -115,8 +109,6 @@ class ActivityService
                 $payload['linkable_type'] ?? null,
                 $payload['linkable_id']   ?? null,
                 $payload['related_user_id'] ?? null,
-                $payload['actor_id']  ?? null,
-                $payload['entry_type'] ?? null,
             );
         }
     }
@@ -162,22 +154,19 @@ class ActivityService
         $query = ActivityEvent::where('user_id', $userId)
             ->orderBy('created_at', 'desc');
 
-        if (!empty($filters['module']))     $query->where('module', $filters['module']);
-        if (!empty($filters['severity']))   $query->where('severity', $filters['severity']);
-        if (!empty($filters['portal']))     $query->where('portal', $filters['portal']);
-        if (!empty($filters['entry_type'])) $query->where('entry_type', $filters['entry_type']);
-        if (!empty($filters['unread']))     $query->whereNull('read_at');
+        if (!empty($filters['module']))   $query->where('module', $filters['module']);
+        if (!empty($filters['severity'])) $query->where('severity', $filters['severity']);
+        if (!empty($filters['portal']))   $query->where('portal', $filters['portal']);
+        if (!empty($filters['unread']))   $query->whereNull('read_at');
 
         return $query->limit($limit)->get();
     }
 
-    public function getUnreadCount(string $userId, ?string $entryType = null): int
+    public function getUnreadCount(string $userId): int
     {
-        $q = ActivityEvent::where('user_id', $userId)->whereNull('read_at');
-        if ($entryType !== null) {
-            $q->where('entry_type', $entryType);
-        }
-        return $q->count();
+        return ActivityEvent::where('user_id', $userId)
+            ->whereNull('read_at')
+            ->count();
     }
 
     /**
