@@ -491,8 +491,8 @@ const supportActivityUrl = computed(() => {
     bp:       'bp.activity',
     admin:    'admin.activity',
   }
-  try { return route(map[portal] ?? 'provider.activity') + '?event_type=message' }
-  catch { return '/activity?event_type=message' }
+  try { return route(map[portal] ?? 'provider.activity') + '?event_type=support' }
+  catch { return '/activity?event_type=support' }
 })
 
 const feedbackCategories = [

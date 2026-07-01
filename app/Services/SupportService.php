@@ -207,8 +207,9 @@ class SupportService
 
     private function portalFor($user): string
     {
-        $role = $user?->role ?? 'practitioner';
-        return match ($role) {
+        $role = $user?->role;
+        $roleStr = $role instanceof \BackedEnum ? $role->value : (string) ($role ?? 'practitioner');
+        return match ($roleStr) {
             'practitioner'       => 'provider',
             'continuity_steward' => 'continuity_steward',
             'support_steward'    => 'support_steward',

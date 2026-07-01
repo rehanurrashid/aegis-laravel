@@ -27,10 +27,12 @@ class SupportController extends Controller
         $allComplaints = $this->support->getForUser($user->id);
 
         // Tickets = anything NOT categorized as feedback
-        $tickets = $allComplaints
-            ->where('category', '!=', 'feedback')
-            ->values()
-            ->map(fn ($t) => $this->formatTicket($t));
+        $rawTickets = $allComplaints->where('category', '!=', 'feedback')->values();
+        $tickets = $rawTickets->map(fn ($t) => $this->formatTicket($t));
+
+        // Counts from raw models (status is cast to ComplaintStatus enum — compare via ->value)
+        $openCount     = $rawTickets->filter(fn ($t) => in_array($t->status?->value ?? $t->status, ['open', 'in_progress']))->count();
+        $resolvedCount = $rawTickets->filter(fn ($t) => in_array($t->status?->value ?? $t->status, ['resolved', 'closed']))->count();
 
         // Feedback history = the user's previous feedback submissions
         $feedbackHistory = $allComplaints
@@ -78,8 +80,8 @@ class SupportController extends Controller
             'feedbackHistory'  => $feedbackHistory,
             'helpByCategory'   => $helpByCategory,
             'ticketReplies'    => (object) $repliesGrouped->toArray(),
-            'openCount'        => $tickets->whereIn('status', ['open', 'in_progress'])->count(),
-            'resolvedCount'    => $tickets->whereIn('status', ['resolved', 'closed'])->count(),
+            'openCount'        => $openCount,
+            'resolvedCount'    => $resolvedCount,
             'currentUserId'    => $user->id,
         ]);
     }
@@ -117,16 +119,17 @@ class SupportController extends Controller
 
     private function formatTicket(Complaint $t): array
     {
+        $status = $t->status instanceof \BackedEnum ? $t->status->value : (string) $t->status;
         return [
             'id'              => $t->id,
             'subject'         => $t->subject,
             'body'            => $t->body,
-            'category'        => $t->category,
-            'priority'        => $t->priority,
-            'status'          => $t->status,
+            'category'        => $t->category instanceof \BackedEnum ? $t->category->value : (string) $t->category,
+            'priority'        => $t->priority instanceof \BackedEnum ? $t->priority->value : (string) $t->priority,
+            'status'          => $status,
             'created_at'      => $t->created_at,
             'resolved_at'     => $t->resolved_at,
-            'module'          => $t->category,
+            'module'          => $t->category instanceof \BackedEnum ? $t->category->value : (string) $t->category,
         ];
     }
 }
