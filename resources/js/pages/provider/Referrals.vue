@@ -17,14 +17,14 @@
       <template #actions>
         <a
           class="btn-hero-ghost is-on-light"
-          :href="route('activity.index') + '?event_type=referral'"
+          :href="route('provider.activity') + '?event_type=referral'"
           data-tooltip="Activity log"
           style="display:inline-flex;align-items:center;gap:6px"
         >
           <AegisIcon name="activity" :size="14" />
           Activity
         </a>
-        <button type="button" class="btn-hero-solid is-on-light" @click="openModal('newReferralModal')" style="display:inline-flex;align-items:center;gap:6px">
+        <button type="button" class="btn-hero-solid is-on-light" @click="openModal('referralModal')" style="display:inline-flex;align-items:center;gap:6px">
           <AegisIcon name="plus" :size="14" />
           New Referral
         </button>
@@ -271,7 +271,7 @@
             </template>
             <template v-else-if="val(r.status)==='declined'">
               <button class="rfc-act" type="button" data-tooltip="View details" aria-label="View details" style="display:inline-flex;align-items:center;justify-content:center" @click="openDetail(r)"><AegisIcon name="search" :size="14" /></button>
-              <button class="rfc-cta" type="button" style="display:inline-flex;align-items:center;gap:4px" @click="openModal('newReferralModal')"><AegisIcon name="refresh-cw" :size="12" /> Re-refer</button>
+              <button class="rfc-cta" type="button" style="display:inline-flex;align-items:center;gap:4px" @click="openModal('referralModal')"><AegisIcon name="refresh-cw" :size="12" /> Re-refer</button>
             </template>
             <template v-else>
               <a class="rfc-act" :href="route('messages.index')" data-tooltip="Follow up" aria-label="Follow up" style="display:inline-flex;align-items:center;justify-content:center"><AegisIcon name="message" :size="14" /></a>
@@ -370,11 +370,11 @@
         <table class="table">
           <thead>
             <tr>
-              <th class="sortable" @click="sortAll('direction')">Type <AegisIcon name="chevrons-up-down" :size="11" /></th>
-              <th class="sortable" @click="sortAll('client_initials')">Client <AegisIcon name="chevrons-up-down" :size="11" /></th>
+              <th class="sortable" @click="sortAll('direction')">Type ↕</th>
+              <th class="sortable" @click="sortAll('client_initials')">Client ↕</th>
               <th>Provider</th>
-              <th class="sortable" @click="sortAll('urgency')">Urgency <AegisIcon name="chevrons-up-down" :size="11" /></th>
-              <th class="sortable" @click="sortAll('created_at')">Date <AegisIcon name="chevrons-up-down" :size="11" /></th>
+              <th class="sortable" @click="sortAll('urgency')">Urgency ↕</th>
+              <th class="sortable" @click="sortAll('created_at')">Date ↕</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -429,10 +429,10 @@
       </div>
 
       <!-- Archive Filters -->
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
-        <div style="position:relative;flex:1;min-width:200px">
-          <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-4);pointer-events:none;display:flex"><AegisIcon name="search" :size="14" /></span>
-          <input v-model="filterArchiveSearch" class="form-input" type="text" placeholder="Search archived referrals..." style="padding-left:34px;height:36px" />
+      <div class="filter-bar">
+        <div class="filter-search">
+          <span class="filter-search-icon"><AegisIcon name="search" :size="14" /></span>
+          <input v-model="filterArchiveSearch" class="form-input" type="text" placeholder="Search archived referrals..." />
         </div>
         <select v-model="filterArchiveType" class="form-select" style="height:36px;font-size:12px;width:130px">
           <option value="">All Types</option>
@@ -504,7 +504,7 @@
               <td style="white-space:nowrap">
                 <div style="display:flex;gap:4px">
                   <button class="btn-icon btn-icon-sm" data-tooltip="View" style="display:inline-flex;align-items:center;justify-content:center" @click="openArchiveDetail(r)"><AegisIcon name="eye" :size="14" /></button>
-                  <button v-if="!r.responded_at || val(r.status)==='declined'" class="btn-icon btn-icon-sm" data-tooltip="Re-refer" style="display:inline-flex;align-items:center;justify-content:center" @click="openModal('newReferralModal')"><AegisIcon name="refresh-cw" :size="12" /></button>
+                  <button v-if="!r.responded_at || val(r.status)==='declined'" class="btn-icon btn-icon-sm" data-tooltip="Re-refer" style="display:inline-flex;align-items:center;justify-content:center" @click="openModal('referralModal')"><AegisIcon name="refresh-cw" :size="12" /></button>
                 </div>
               </td>
             </tr>
@@ -523,7 +523,11 @@
 
     <!-- ══════════════ MODALS ══════════════ -->
 
-    <!-- NEW REFERRAL -->
+    <!--
+      ReferralModal listens to ui.activeModal via its own isOpen() composable.
+      Calling openModal('referralModal') here sets ui.activeModal which the
+      child reads reactively. No extra wiring needed.
+    -->
     <ReferralModal :roster="roster" :network="network" />
 
     <!-- REFERRAL DETAIL -->
@@ -751,7 +755,7 @@
 
       <template #footer>
         <button class="btn btn-outline" @click="modals.archiveDetail=false">Close</button>
-        <button v-if="activeArchive && (val(activeArchive.status)==='declined' || !activeArchive.responded_at)" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:5px" @click="modals.archiveDetail=false;openModal('newReferralModal')">
+        <button v-if="activeArchive && (val(activeArchive.status)==='declined' || !activeArchive.responded_at)" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:5px" @click="modals.archiveDetail=false;openModal('referralModal')">
           <AegisIcon name="refresh-cw" :size="12" />Re-refer
         </button>
       </template>
@@ -783,7 +787,7 @@ const props = defineProps({
 })
 
 // ── Composables ────────────────────────────────────────────────────────
-const { openModal } = useModal()
+const { openModal, closeModal, isOpen } = useModal()
 const toast = useToast()
 
 // ── Enum unwrapper ─────────────────────────────────────────────────────

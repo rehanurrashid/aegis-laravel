@@ -48,10 +48,10 @@
     0 4px 6px -1px rgba(30,28,26,0.08),
     0 10px 28px -4px rgba(30,28,26,0.12),
     0 0 0 1px rgba(160,129,62,0.06) !important;
-  padding: 12px !important;
-  /* 307.875px (dayContainer set by flatpickr JS) + 12px padding each side = 332px */
-  width: 332px !important;
-  max-width: 332px !important;
+  padding: 9px !important;
+  /* 31px cells × 7 = 217px dayContainer + 9px padding × 2 = 235px */
+  width: 235px !important;
+  max-width: 235px !important;
   box-sizing: border-box !important;
 }
 
@@ -71,25 +71,25 @@
 .flatpickr-months {
   display: flex !important;
   align-items: center !important;
-  padding: 0 2px 8px 2px !important;
+  padding: 0 2px 6px 2px !important;
   border-bottom: 1px solid var(--border) !important;
-  margin-bottom: 8px !important;
+  margin-bottom: 6px !important;
   position: relative !important;
-  min-height: 36px !important;
+  min-height: 29px !important;
 }
 
 .flatpickr-months .flatpickr-month {
   background: transparent !important;
   color: var(--text) !important;
   fill: var(--text) !important;
-  height: 36px !important;
-  line-height: 36px !important;
+  height: 29px !important;
+  line-height: 29px !important;
   flex: 1 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   /* Leave room for the absolute-positioned prev/next arrows */
-  padding: 0 36px !important;
+  padding: 0 29px !important;
 }
 
 /* §1.5  Prev / Next month nav arrows — stay absolute, just resized nicely */
@@ -97,8 +97,8 @@
 .flatpickr-months .flatpickr-next-month {
   position: absolute !important;
   top: 0 !important;
-  height: 36px !important;
-  width: 32px !important;
+  height: 29px !important;
+  width: 26px !important;
   padding: 0 !important;
   display: flex !important;
   align-items: center !important;
@@ -134,8 +134,8 @@
 
 .flatpickr-months .flatpickr-prev-month svg,
 .flatpickr-months .flatpickr-next-month svg {
-  width: 14px !important;
-  height: 14px !important;
+  width: 11px !important;
+  height: 11px !important;
 }
 
 .flatpickr-months .flatpickr-prev-month svg path,
@@ -150,17 +150,17 @@
   align-items: center !important;
   justify-content: center !important;
   gap: 4px !important;
-  font-size: 13px !important;
+  font-size: 11px !important;
   font-weight: 700 !important;
   color: var(--text) !important;
   padding: 0 !important;
-  height: 36px !important;
+  height: 29px !important;
   /* Let the lib keep its absolute/left/width positioning — we just control the content */
 }
 
 .flatpickr-current-month .flatpickr-monthDropdown-months {
   font-family: var(--font-sans) !important;
-  font-size: 13px !important;
+  font-size: 11px !important;
   font-weight: 700 !important;
   color: var(--text) !important;
   background: transparent !important;
@@ -168,7 +168,7 @@
   -webkit-appearance: none !important;
   appearance: none !important;
   cursor: pointer !important;
-  padding: 2px 4px !important;
+  padding: 1px 3px !important;
   border-radius: var(--radius-sm) !important;
   transition: background var(--transition) !important;
 }
@@ -182,14 +182,14 @@
 }
 .flatpickr-current-month input.cur-year {
   font-family: var(--font-sans) !important;
-  font-size: 13px !important;
+  font-size: 11px !important;
   font-weight: 700 !important;
   color: var(--text) !important;
   background: transparent !important;
   border: none !important;
-  padding: 2px 4px !important;
+  padding: 1px 3px !important;
   border-radius: var(--radius-sm) !important;
-  width: 52px !important;
+  width: 42px !important;
   cursor: pointer !important;
 }
 .flatpickr-current-month input.cur-year:focus {
@@ -204,7 +204,7 @@
 /* §1.7  Day-of-week labels */
 .flatpickr-weekdays {
   background: transparent !important;
-  margin-bottom: 4px !important;
+  margin-bottom: 2px !important;
 }
 
 .flatpickr-weekdaycontainer {
@@ -214,7 +214,7 @@
 
 span.flatpickr-weekday {
   font-family: var(--font-sans) !important;
-  font-size: 10px !important;
+  font-size: 9px !important;
   font-weight: 700 !important;
   color: var(--text-4) !important;
   background: transparent !important;
@@ -222,7 +222,7 @@ span.flatpickr-weekday {
   letter-spacing: 0.07em !important;
   text-align: center !important;
   flex: 1 !important;
-  line-height: 28px !important;
+  line-height: 22px !important;
 }
 
 /* §1.8  Day cells grid — let flatpickr control the widths (set via JS inline styles) */
@@ -238,16 +238,16 @@ span.flatpickr-weekday {
 
 .flatpickr-day {
   font-family: var(--font-sans) !important;
-  font-size: 12.5px !important;
+  font-size: 10.5px !important;
   font-weight: 500 !important;
   color: var(--text) !important;
   background: transparent !important;
-  /* Use library's 39px height — 7 × 39px = 273px fits inside 307.875px dayContainer */
+  /* 80% of 39px = ~31px; 7 × 31px = 217px fits inside scaled dayContainer */
   border-radius: var(--radius-sm) !important;
   border: 1px solid transparent !important;
-  height: 39px !important;
-  line-height: 37px !important;
-  max-width: 39px !important;
+  height: 31px !important;
+  line-height: 29px !important;
+  max-width: 31px !important;
   margin: 0 !important;
   transition: background var(--transition), color var(--transition), border-color var(--transition) !important;
 }

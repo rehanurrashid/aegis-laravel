@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
+use App\Models\NetworkConnection;
 use App\Models\Referral;
+use App\Models\VaultItem;
 use App\Services\ReferralService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,7 +22,7 @@ class ReferralsController extends Controller
     {
         $user = $request->user();
 
-        // Eager-load sender/recipient with avatar_url + slug for public profile links
+        // ── All referrals for this user ──────────────────────────────
         $allForUser = Referral::with([
                 'sender:id,display_name,credentials,slug,avatar_path',
                 'recipient:id,display_name,credentials,slug,avatar_path',
@@ -32,58 +34,57 @@ class ReferralsController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
-        $serialize = fn(Referral $r) => [
-            'id'              => $r->id,
-            'status'          => $r->status instanceof \BackedEnum ? $r->status->value : (string) $r->status,
-            'direction'       => $r->sender_id === $user->id ? 'sent' : 'received',
-            'subject'         => $r->subject,
-            'responded_at'    => $r->responded_at?->toISOString(),
-            'closed_at'       => $r->closed_at?->toISOString(),
-            'created_at'      => $r->created_at?->toISOString(),
-            // counterpart = the other party
-            'counterpart_name'   => $r->sender_id === $user->id
-                ? ($r->recipient?->display_name ?? '—')
-                : ($r->sender?->display_name ?? '—'),
-            'counterpart_credentials' => $r->sender_id === $user->id
-                ? $r->recipient?->credentials
-                : $r->sender?->credentials,
-            'counterpart_slug'   => $r->sender_id === $user->id
-                ? $r->recipient?->slug
-                : $r->sender?->slug,
-            'counterpart_avatar' => $r->sender_id === $user->id
-                ? $r->recipient?->avatar_path
-                : $r->sender?->avatar_path,
-            // meta keys
-            'client_initials' => $r->meta->firstWhere('meta_key', 'client_initials')?->meta_value,
-            'client_age_band' => $r->meta->firstWhere('meta_key', 'client_age_band')?->meta_value,
-            'reason'          => $r->meta->firstWhere('meta_key', 'reason')?->meta_value ?? $r->subject,
-            'urgency'         => $r->meta->firstWhere('meta_key', 'urgency')?->meta_value ?? 'routine',
-            'notes'           => $r->meta->firstWhere('meta_key', 'notes')?->meta_value,
-            'decline_reason'  => $r->meta->firstWhere('meta_key', 'decline_reason')?->meta_value,
-        ];
+        $serialize = function (Referral $r) use ($user) {
+            $status = $r->status instanceof \BackedEnum ? $r->status->value : (string) $r->status;
+            $isSender = $r->sender_id === $user->id;
+            return [
+                'id'                      => $r->id,
+                'status'                  => $status,
+                'direction'               => $isSender ? 'sent' : 'received',
+                'subject'                 => $r->subject,
+                'responded_at'            => $r->responded_at?->toISOString(),
+                'closed_at'               => $r->closed_at?->toISOString(),
+                'created_at'              => $r->created_at?->toISOString(),
+                'counterpart_name'        => $isSender
+                    ? ($r->recipient?->display_name ?? '—')
+                    : ($r->sender?->display_name ?? '—'),
+                'counterpart_credentials' => $isSender
+                    ? $r->recipient?->credentials
+                    : $r->sender?->credentials,
+                'counterpart_slug'        => $isSender
+                    ? $r->recipient?->slug
+                    : $r->sender?->slug,
+                'counterpart_avatar'      => $isSender
+                    ? $r->recipient?->avatar_path
+                    : $r->sender?->avatar_path,
+                'client_initials'         => $r->meta->firstWhere('meta_key', 'client_initials')?->meta_value,
+                'client_age_band'         => $r->meta->firstWhere('meta_key', 'client_age_range')?->meta_value
+                                         ?? $r->meta->firstWhere('meta_key', 'client_age_band')?->meta_value,
+                'reason'                  => $r->meta->firstWhere('meta_key', 'presenting_issue')?->meta_value
+                                         ?? $r->meta->firstWhere('meta_key', 'reason')?->meta_value
+                                         ?? $r->subject,
+                'urgency'                 => $r->meta->firstWhere('meta_key', 'urgency')?->meta_value ?? 'routine',
+                'notes'                   => $r->meta->firstWhere('meta_key', 'notes')?->meta_value,
+                'decline_reason'          => $r->meta->firstWhere('meta_key', 'decline_reason')?->meta_value,
+            ];
+        };
 
-        // Pending = received referrals in 'sent' status (awaiting my response)
         $pending   = $allForUser->filter(fn($r) => $r->recipient_id === $user->id && in_array(
-                $r->status instanceof \BackedEnum ? $r->status->value : (string)$r->status,
-                ['sent']
+                $r->status instanceof \BackedEnum ? $r->status->value : (string)$r->status, ['sent']
             ))->values()->map($serialize);
 
-        // Sent active = sent by me, not closed/declined/cancelled
         $sentActive = $allForUser->filter(fn($r) => $r->sender_id === $user->id && !in_array(
                 $r->status instanceof \BackedEnum ? $r->status->value : (string)$r->status,
                 ['closed', 'cancelled']
             ))->values()->map($serialize);
 
-        // Completed = closed by either side this month
         $completedThisMonth = $allForUser->filter(function ($r) {
             $status = $r->status instanceof \BackedEnum ? $r->status->value : (string)$r->status;
             return $status === 'closed' && $r->closed_at && $r->closed_at->isCurrentMonth();
         })->values()->map($serialize);
 
-        // All = everything
         $all = $allForUser->map($serialize)->values();
 
-        // Archive = closed/cancelled/declined older than active
         $archived = $allForUser->filter(function ($r) {
             $status = $r->status instanceof \BackedEnum ? $r->status->value : (string)$r->status;
             return in_array($status, ['closed', 'cancelled', 'declined']);
@@ -98,25 +99,63 @@ class ReferralsController extends Controller
             )
             : 0;
 
+        // ── Roster items for ReferralModal (vault zone=roster) ───────
+        $roster = VaultItem::where('practitioner_id', $user->id)
+            ->where('zone', 'roster')
+            ->whereNotNull('client_name')
+            ->orderBy('client_priority')
+            ->get()
+            ->map(fn($v) => [
+                'id'          => $v->id,
+                'title'       => $v->title,
+                'client_name' => $v->client_name,
+                'category'    => $v->category,
+                'sub_label'   => $v->sub_label,
+                'status'      => $v->status instanceof \BackedEnum ? $v->status->value : (string)$v->status,
+            ]);
+
+        // ── Clinical network for ReferralModal (practitioner connections only) ──
+        $networkConnections = NetworkConnection::where('user_id', $user->id)
+            ->where('connection_type', 'practitioner')
+            ->where('status', 'active')
+            ->with('target:id,display_name,credentials,slug,specialty,location,avatar_initials,avatar_path,practitioner_public')
+            ->get();
+
+        $network = $networkConnections->map(function ($nc) {
+            $u = $nc->target;
+            if (!$u) return null;
+            return [
+                'id'           => $u->id,
+                'display_name' => $u->display_name,
+                'credentials'  => $u->credentials,
+                'slug'         => $u->slug,
+                'specialty'    => $u->specialty,
+                'location'     => $u->location,
+                'initials'     => $u->avatar_initials ?? strtoupper(substr($u->display_name ?? '', 0, 2)),
+                'avatar_url'   => $u->avatar_path,
+                'accepting'    => (bool) $u->practitioner_public,
+            ];
+        })->filter()->values();
+
         return Inertia::render('provider/Referrals', [
-            'pendingReferrals'    => $pending,
-            'sentReferrals'       => $sentActive,
-            'completedReferrals'  => $completedThisMonth,
-            'allReferrals'        => $all,
-            'archivedReferrals'   => $archived,
-            'refStats'            => [
+            'pendingReferrals'   => $pending,
+            'sentReferrals'      => $sentActive,
+            'completedReferrals' => $completedThisMonth,
+            'allReferrals'       => $all,
+            'archivedReferrals'  => $archived,
+            'refStats'           => [
                 'pending'         => $pending->count(),
                 'sent_active'     => $sentActive->count(),
                 'completed_month' => $completedThisMonth->count(),
                 'accept_rate'     => $acceptRate,
             ],
-            'archivedCounts'      => [
+            'archivedCounts'     => [
                 'expired'   => $archived->filter(fn($r) => !$r['responded_at'] && $r['status'] !== 'declined')->count(),
                 'completed' => $archived->filter(fn($r) => $r['status'] === 'closed')->count(),
                 'declined'  => $archived->filter(fn($r) => $r['status'] === 'declined')->count(),
             ],
-            'roster'   => [],  // populated via VaultController when needed
-            'network'  => [],  // populated via NetworkController when needed
+            'roster'  => $roster,
+            'network' => $network,
         ]);
     }
 
@@ -134,10 +173,9 @@ class ReferralsController extends Controller
             'roster_item_id'  => 'nullable|string',
         ]);
 
-        $user = $request->user();
         $recipient = \App\Models\User::findOrFail($data['provider_id']);
 
-        $this->referralService->send($user, $recipient, [
+        $this->referralService->send($request->user(), $recipient, [
             'client_initials' => $data['client_name'],
             'reason'          => $data['diagnosis'] ?? null,
             'urgency'         => $data['urgency'] ?? 'routine',
@@ -151,27 +189,21 @@ class ReferralsController extends Controller
     public function accept(Request $request, Referral $referral): RedirectResponse
     {
         $this->authorize('respond', $referral);
-
         $this->referralService->accept($referral);
-
         return back()->with('success', 'Referral accepted — referring provider notified.');
     }
 
     public function decline(Request $request, Referral $referral): RedirectResponse
     {
         $this->authorize('respond', $referral);
-
         $this->referralService->decline($referral, $request->input('reason'));
-
         return back()->with('success', 'Referral declined — referring provider notified.');
     }
 
     public function cancel(Request $request, Referral $referral): RedirectResponse
     {
         abort_unless($referral->sender_id === $request->user()->id, 403);
-
-        $this->referralService->close($referral);
-
+        $this->referralService->cancel($referral, $request->user());
         return back()->with('success', 'Referral cancelled — moved to archive.');
     }
 
@@ -181,9 +213,7 @@ class ReferralsController extends Controller
             $referral->sender_id === $request->user()->id || $referral->recipient_id === $request->user()->id,
             403
         );
-
-        $this->referralService->close($referral);
-
+        $this->referralService->close($referral, $request->user());
         return back()->with('success', 'Referral marked complete.');
     }
 }
