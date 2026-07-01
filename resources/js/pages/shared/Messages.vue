@@ -1736,12 +1736,13 @@ function useTemplate(body) {
   resize: none;
   min-height: 26px;
   max-height: 120px;
-  padding: 3px 10px;
+  padding: 2px 10px;
+  box-sizing: border-box;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 12.5px;
-  line-height: 1.45;
+  font-size: 13px;
+  line-height: 1.5;
   color: var(--text);
   font-family: inherit;
   outline: none;

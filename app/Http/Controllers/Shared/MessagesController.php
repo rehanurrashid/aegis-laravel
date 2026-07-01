@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\User;
+use App\Enums\ActivitySeverity;
+use App\Services\ActivityService;
 use App\Services\MessagingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -229,13 +231,24 @@ class MessagesController extends Controller
         $hours = (int) $request->input('hours', 8);
         $until = $hours === 0 ? null : now()->addHours($hours);
         $thread->update(['is_muted' => true, 'muted_until' => $until]);
-        ActivityService::log(
-            userId:     $request->user()->id,
-            eventType:  'messages.muted',
-            module:     'messages',
-            detail:     "Thread muted for {$hours}h",
-            portal:     $request->user()->role?->portal() ?? '',
+
+        $user  = $request->user();
+        $label = $hours === 0 ? 'indefinitely' : "for {$hours}h";
+        app(ActivityService::class)->log(
+            $user->id,
+            $user->role?->portal() ?? 'provider',
+            'message',
+            ActivitySeverity::Info,
+            'messages_muted',
+            'Conversation muted',
+            "Thread {$thread->id} muted {$label}.",
+            'message_thread',
+            $thread->id,
+            null,
+            'log',
+            $user->id
         );
+
         return back()->with('success', 'Conversation muted.');
     }
 
@@ -243,6 +256,23 @@ class MessagesController extends Controller
     {
         $this->authorize('read', $thread);
         $thread->update(['is_muted' => false, 'muted_until' => null]);
+
+        $user = $request->user();
+        app(ActivityService::class)->log(
+            $user->id,
+            $user->role?->portal() ?? 'provider',
+            'message',
+            ActivitySeverity::Info,
+            'messages_unmuted',
+            'Conversation unmuted',
+            "Notifications restored for thread {$thread->id}.",
+            'message_thread',
+            $thread->id,
+            null,
+            'log',
+            $user->id
+        );
+
         return back()->with('success', 'Notifications unmuted.');
     }
 
