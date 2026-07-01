@@ -301,6 +301,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
+import { syncFormEnhancements } from '@/plugins/FormEnhancerPlugin'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AegisPagination from '@/components/ui/AegisPagination.vue'
 import PostJobModal from '@/components/modals/PostJobModal.vue'
@@ -332,6 +333,7 @@ const toast = useToast()
 const { confirmAction } = useConfirm()
 
 const tab = ref('my-postings')
+watch(tab, () => syncFormEnhancements())
 const postingFilter = ref('all')
 const applicationsJobFilter = ref('')
 const pipelineJobFilter = ref('')

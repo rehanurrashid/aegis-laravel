@@ -66,14 +66,14 @@
       <div class="form-row form-row-2">
         <div class="form-group">
           <label class="form-label" for="ejCategory">Service Category *</label>
-          <select id="ejCategory" v-model="form.category" class="form-select" data-no-enhance :class="{ 'is-error': fieldError('category') }" @blur="v$.category.$touch()">
+          <select id="ejCategory" v-model="form.category" class="form-select" :class="{ 'is-error': fieldError('category') }" @blur="v$.category.$touch()">
             <option v-for="c in categories" :key="c.value" :value="c.value">{{ c.label }}</option>
           </select>
           <div v-if="fieldError('category')" class="form-error">{{ fieldError('category') }}</div>
         </div>
         <div class="form-group">
           <label class="form-label" for="ejType">Job Type</label>
-          <select id="ejType" v-model="form.job_type" class="form-select" data-no-enhance>
+          <select id="ejType" v-model="form.job_type" class="form-select">
             <option value="">Select type...</option>
             <option value="one_time">One-Time Project</option>
             <option value="ongoing">Ongoing / Retainer</option>
@@ -86,7 +86,7 @@
       <div class="form-row form-row-2">
         <div class="form-group">
           <label class="form-label" for="ejLocation">Work Location</label>
-          <select id="ejLocation" v-model="form.location_pref" class="form-select" data-no-enhance>
+          <select id="ejLocation" v-model="form.location_pref" class="form-select">
             <option value="remote">Fully Remote</option>
             <option value="onsite">On-Site</option>
             <option value="hybrid">Hybrid</option>
@@ -114,7 +114,7 @@
       <div class="form-row form-row-2">
         <div class="form-group">
           <label class="form-label" for="ejExp">Experience Level</label>
-          <select id="ejExp" v-model="form.experience_level" class="form-select" data-no-enhance>
+          <select id="ejExp" v-model="form.experience_level" class="form-select">
             <option value="">Any level</option>
             <option value="entry">Entry Level (1–3 years)</option>
             <option value="mid">Intermediate (3–7 years)</option>
@@ -124,7 +124,7 @@
         </div>
         <div class="form-group">
           <label class="form-label" for="ejPartnerType">Partner Type Preference</label>
-          <select id="ejPartnerType" v-model="form.partner_type_pref" class="form-select" data-no-enhance>
+          <select id="ejPartnerType" v-model="form.partner_type_pref" class="form-select">
             <option value="">Any type</option>
             <option value="freelancer">Freelancer</option>
             <option value="agency">Agency</option>
@@ -160,7 +160,7 @@
         </div>
         <div class="form-group">
           <label class="form-label" for="ejMaxApps">Max Applicants to Accept</label>
-          <select id="ejMaxApps" v-model.number="form.max_applicants" class="form-select" data-no-enhance>
+          <select id="ejMaxApps" v-model.number="form.max_applicants" class="form-select">
             <option :value="0">No limit</option>
             <option :value="10">10 applicants</option>
             <option :value="25">25 applicants</option>
@@ -176,7 +176,7 @@
       <div class="form-row form-row-2">
         <div class="form-group">
           <label class="form-label" for="ejBudgetType">Budget Type</label>
-          <select id="ejBudgetType" v-model="form.budget_type" class="form-select" data-no-enhance>
+          <select id="ejBudgetType" v-model="form.budget_type" class="form-select">
             <option value="hourly">Hourly Rate</option>
             <option value="retainer">Monthly Retainer</option>
             <option value="fixed">Fixed Price (Project)</option>
@@ -193,7 +193,7 @@
       <div class="form-row form-row-2">
         <div class="form-group">
           <label class="form-label" for="ejPayment">Payment Method</label>
-          <select id="ejPayment" v-model="form.payment_method" class="form-select" data-no-enhance>
+          <select id="ejPayment" v-model="form.payment_method" class="form-select">
             <option>Direct Bank Transfer</option>
             <option>Check</option>
             <option>Zelle / Venmo Business</option>
@@ -202,7 +202,7 @@
         </div>
         <div class="form-group">
           <label class="form-label" for="ejBilling">Billing Frequency</label>
-          <select id="ejBilling" v-model="form.billing_frequency" class="form-select" data-no-enhance>
+          <select id="ejBilling" v-model="form.billing_frequency" class="form-select">
             <option>Upon completion</option>
             <option>Weekly</option>
             <option>Bi-weekly</option>
@@ -218,7 +218,7 @@
       <div class="section-divider" style="margin-top:14px">Status</div>
       <div class="form-group">
         <label class="form-label" for="ejStatus">Posting Status</label>
-        <select id="ejStatus" v-model="form.status" class="form-select" data-no-enhance>
+        <select id="ejStatus" v-model="form.status" class="form-select">
           <option value="open">Active</option>
           <option value="paused">Paused</option>
           <option value="draft">Draft</option>
@@ -295,7 +295,7 @@ import { required, minLength, maxLength, helpers } from '@vuelidate/validators'
 import AegisIcon from '@/components/ui/AegisIcon.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
-import { syncFormEnhancements } from '@/plugins/FormEnhancerPlugin'
+import { syncFormEnhancements, scanAndEnhance } from '@/plugins/FormEnhancerPlugin'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -404,13 +404,15 @@ watch(() => props.job, (j) => {
 
 // Also sync when the modal becomes visible — selects are in DOM via v-show
 // so TomSelect initialises with blank defaults before the job data arrives
-watch(() => props.modelValue, (open) => {
+watch(() => props.modelValue, async (open) => {
   if (open) {
-    // Double rAF: first frame initialises TomSelect/flatpickr (deferred by plugin),
-    // second frame syncs them with the form values Vue has already written.
-    requestAnimationFrame(() => requestAnimationFrame(() => syncEnhancedFields()))
+    await nextTick()
+    scanAndEnhance()
+    requestAnimationFrame(() => syncFormEnhancements())
   }
 })
+
+watch(step, async () => { await nextTick(); scanAndEnhance(); syncFormEnhancements() })
 
 watch(budgetDisplay, (v) => {
   form.budget_amount_cents = v != null && v !== '' ? Math.round(Number(v) * 100) : null

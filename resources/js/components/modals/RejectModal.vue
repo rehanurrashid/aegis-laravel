@@ -10,7 +10,7 @@
     </div>
     <div class="form-group">
       <label class="form-label" for="rjReason">Reason for Rejection <span class="required">*</span></label>
-      <select id="rjReason" v-model="reason" class="form-select" data-no-enhance :class="{ 'is-error': touched && !reason }" @blur="touched = true">
+      <select id="rjReason" v-model="reason" class="form-select" :class="{ 'is-error': touched && !reason }" @blur="touched = true">
         <option value="">Select a reason...</option>
         <option v-for="r in reasons" :key="r" :value="r">{{ r }}</option>
       </select>

@@ -390,10 +390,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useForm } from '@inertiajs/vue3'
 import { useToast } from '@/composables/useToast'
 import AegisDropzone from '@/components/ui/AegisDropzone.vue'
+import { scanAndEnhance, syncFormEnhancements } from '@/plugins/FormEnhancerPlugin'
 
 const props = defineProps({
   modelValue: { type: Boolean, required: true },
@@ -407,6 +408,7 @@ const toast = useToast()
 
 const stepLabels = ['Client', 'Practitioner', 'Notes', 'Review']
 const step          = ref(1)
+watch(step, async () => { await nextTick(); scanAndEnhance(); syncFormEnhancements() })
 const source        = ref(props.roster.length ? 'roster' : 'manual')
 const rosterFilter  = ref('')
 const networkFilter = ref('')

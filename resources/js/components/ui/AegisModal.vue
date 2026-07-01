@@ -61,6 +61,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
+import { syncFormEnhancements } from '@/plugins/FormEnhancerPlugin'
 import { useUiStore } from '@/stores/ui'
 import AegisIcon from '@/components/ui/AegisIcon.vue'
 
@@ -107,6 +108,7 @@ watch(isOpen, async (val) => {
     await nextTick()
     overlayRef.value?.focus()
     document.body.style.overflow = 'hidden'
+    syncFormEnhancements()
   } else {
     document.body.style.overflow = ''
   }

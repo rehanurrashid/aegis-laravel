@@ -316,7 +316,7 @@ span.flatpickr-weekday {
   border-radius: var(--radius) !important;
   box-shadow: none !important;
   background-color: var(--surface) !important;
-  /* Custom chevron — our only arrow, no library caret */
+  /* Chevron — resting state, --text-3 stroke (#7a746c ≈ var(--text-3)) */
   background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%237a746c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important;
   background-position: right 13px center !important;
@@ -352,18 +352,21 @@ span.flatpickr-weekday {
   padding-right: 36px !important;
 }
 
-/* §2.3  Focus */
+/* §2.3  Focus (closed) */
 .ts-wrapper.focus .ts-control,
 .ts-wrapper .ts-control:focus-within {
-  border-color: var(--gold) !important;
+  border-color: var(--gold-dark) !important;
   box-shadow: 0 0 0 3px var(--badge-bg-gold) !important;
 }
 
-/* §2.4  Open state — rotate arrow to gold */
+/* §2.4  Open state — bottom corners square off to merge with panel;
+         chevron flips and turns gold-dark; border goes gold-dark */
 .ts-wrapper.open .ts-control {
-  border-color: var(--gold) !important;
+  border-color: var(--gold-dark) !important;
   border-bottom-left-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
+  box-shadow: none !important;
+  /* Chevron flipped, gold-dark stroke (#a0813e) */
   background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 6.5L6 1.5L1 6.5' stroke='%23a0813e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
   background-repeat: no-repeat !important;
   background-position: right 13px center !important;
@@ -407,7 +410,7 @@ span.flatpickr-weekday {
   margin: 0 !important;
 }
 
-/* §2.8  The collapsed search input (we set controlInput:null but lib still renders it) */
+/* §2.8  The collapsed search input (controlInput:null but lib still renders it) */
 .ts-wrapper .ts-control > input {
   border: none !important;
   background: transparent !important;
@@ -425,18 +428,22 @@ span.flatpickr-weekday {
   color: var(--text-4) !important;
 }
 
-/* §2.9  Dropdown panel */
+/* §2.9  Dropdown panel
+   Border matches open control (gold-dark) so control + panel read as one unit.
+   Bottom corners rounded to var(--radius) — mirror of control top corners.
+   shadow-sm adds depth without being heavy.
+   z-index 9999 beats modal-overlay (1000). */
 .ts-wrapper .ts-dropdown {
   font-family: var(--font-sans) !important;
   font-size: 13px !important;
   font-weight: 500 !important;
   color: var(--text) !important;
   background: var(--surface) !important;
-  border: 1px solid var(--gold) !important;
+  border: 1px solid var(--gold-dark) !important;
   border-top: none !important;
   border-bottom-left-radius: var(--radius) !important;
   border-bottom-right-radius: var(--radius) !important;
-  box-shadow: 0 8px 24px rgba(30, 28, 26, 0.10) !important;
+  box-shadow: var(--shadow-sm) !important;
   padding: 4px !important;
   z-index: 9999 !important;
   overflow: hidden !important;
@@ -465,21 +472,22 @@ span.flatpickr-weekday {
   line-height: 1.4 !important;
 }
 
+/* Hover — warm cream, never cold blue-white */
 .ts-wrapper .ts-dropdown .option:hover,
 .ts-wrapper .ts-dropdown .option.active {
-  background: var(--surface-2) !important;
+  background: var(--surface-3) !important;
   color: var(--text) !important;
 }
 
-/* Selected option */
+/* Selected — gold tint bg, gold-dark text */
 .ts-wrapper .ts-dropdown .option.selected {
   background: var(--badge-bg-gold) !important;
   color: var(--gold-dark) !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
 }
 .ts-wrapper .ts-dropdown .option.selected:hover,
 .ts-wrapper .ts-dropdown .option.selected.active {
-  background: var(--badge-bg-gold) !important;
+  background: var(--icon-bg-gold) !important;
   color: var(--gold-dark) !important;
 }
 
@@ -512,4 +520,39 @@ span.flatpickr-weekday {
 .is-error .ts-wrapper .ts-control {
   border-color: var(--red) !important;
   box-shadow: var(--focus-ring-red) !important;
+}
+
+/* §2.13  Overflow escape — any ancestor with overflow:hidden clips .ts-dropdown
+   regardless of z-index. This includes .card, .ep-card, .accordion-item,
+   .modal-overlay and every page-scoped container across all portals.
+   Unbounded :has(.ts-wrapper) catches the clipping ancestor at any depth
+   without enumerating class names. Only elements that actually contain a
+   TomSelect are affected — all other containers keep their overflow untouched.
+   overflow-y:auto preserved on .modal-overlay so it keeps its scroll.
+   Supported: Chrome 105+, Firefox 121+, Safari 15.4+ */
+*:has(.ts-wrapper) {
+  overflow: visible !important;
+}
+.modal-overlay:has(.ts-wrapper) {
+  overflow-y: auto !important;
+}
+
+/* §2.14  Hide the original <select> once TomSelect has enhanced it.
+   TomSelect adds .ts-hidden-accessible but Vue's vdom re-render can
+   strip classes from the original element on reactive updates.
+   The data-ae-enhanced attribute is set by FormEnhancerPlugin BEFORE
+   TomSelect wraps the element — it survives vdom patching because Vue
+   only patches attributes it owns (v-bind / :attr). This rule is the
+   permanent safety net that prevents the native select from re-appearing. */
+select.form-select[data-ae-enhanced] {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  pointer-events: none !important;
 }

@@ -25,7 +25,7 @@
       <div class="form-row form-row-2">
         <div class="form-group">
           <label class="form-label" for="pjCategory">Service Category *</label>
-          <select id="pjCategory" v-model="form.category" class="form-select" data-no-enhance :class="{ 'is-error': fieldError('category') }" @blur="v$.category.$touch()">
+          <select id="pjCategory" v-model="form.category" class="form-select" :class="{ 'is-error': fieldError('category') }" @blur="v$.category.$touch()">
             <option value="">Select category...</option>
             <option v-for="c in categories" :key="c.value" :value="c.value">{{ c.label }}</option>
           </select>
@@ -33,7 +33,7 @@
         </div>
         <div class="form-group">
           <label class="form-label" for="pjType">Job Type</label>
-          <select id="pjType" v-model="form.job_type" class="form-select" data-no-enhance>
+          <select id="pjType" v-model="form.job_type" class="form-select">
             <option value="">Select type...</option>
             <option value="one_time">One-Time Project</option>
             <option value="ongoing">Ongoing / Retainer</option>
@@ -46,7 +46,7 @@
       <div class="form-row form-row-2">
         <div class="form-group">
           <label class="form-label" for="pjLocation">Work Location</label>
-          <select id="pjLocation" v-model="form.location_pref" class="form-select" data-no-enhance>
+          <select id="pjLocation" v-model="form.location_pref" class="form-select">
             <option value="remote">Fully Remote</option>
             <option value="onsite">On-Site</option>
             <option value="hybrid">Hybrid</option>
@@ -75,7 +75,7 @@
       <div class="form-row form-row-2">
         <div class="form-group">
           <label class="form-label" for="pjExp">Experience Level</label>
-          <select id="pjExp" v-model="form.experience_level" class="form-select" data-no-enhance>
+          <select id="pjExp" v-model="form.experience_level" class="form-select">
             <option value="">Any level</option>
             <option value="entry">Entry Level (1–3 years)</option>
             <option value="mid">Intermediate (3–7 years)</option>
@@ -85,7 +85,7 @@
         </div>
         <div class="form-group">
           <label class="form-label" for="pjPartnerType">Partner Type Preference</label>
-          <select id="pjPartnerType" v-model="form.partner_type_pref" class="form-select" data-no-enhance>
+          <select id="pjPartnerType" v-model="form.partner_type_pref" class="form-select">
             <option value="">Any type</option>
             <option value="freelancer">Freelancer</option>
             <option value="agency">Agency</option>
@@ -125,7 +125,7 @@
         </div>
         <div class="form-group">
           <label class="form-label" for="pjMaxApps">Max Applicants to Accept</label>
-          <select id="pjMaxApps" v-model.number="form.max_applicants" class="form-select" data-no-enhance>
+          <select id="pjMaxApps" v-model.number="form.max_applicants" class="form-select">
             <option :value="0">No limit</option>
             <option :value="10">10 applicants</option>
             <option :value="25">25 applicants</option>
@@ -141,7 +141,7 @@
       <div class="form-row form-row-2">
         <div class="form-group">
           <label class="form-label" for="pjBudgetType">Budget Type</label>
-          <select id="pjBudgetType" v-model="form.budget_type" class="form-select" data-no-enhance>
+          <select id="pjBudgetType" v-model="form.budget_type" class="form-select">
             <option value="hourly">Hourly Rate</option>
             <option value="retainer">Monthly Retainer</option>
             <option value="fixed">Fixed Price (Project)</option>
@@ -159,7 +159,7 @@
       <div class="form-row form-row-2">
         <div class="form-group">
           <label class="form-label" for="pjPayment">Payment Method</label>
-          <select id="pjPayment" v-model="form.payment_method" class="form-select" data-no-enhance>
+          <select id="pjPayment" v-model="form.payment_method" class="form-select">
             <option>Direct Bank Transfer</option>
             <option>Check</option>
             <option>Zelle / Venmo Business</option>
@@ -168,7 +168,7 @@
         </div>
         <div class="form-group">
           <label class="form-label" for="pjBilling">Billing Frequency</label>
-          <select id="pjBilling" v-model="form.billing_frequency" class="form-select" data-no-enhance>
+          <select id="pjBilling" v-model="form.billing_frequency" class="form-select">
             <option>Upon completion</option>
             <option>Weekly</option>
             <option>Bi-weekly</option>
@@ -258,13 +258,14 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useForm, usePage } from '@inertiajs/vue3'
 import useVuelidate from '@vuelidate/core'
 import { required, minLength, maxLength, integer, minValue, helpers } from '@vuelidate/validators'
 import AegisIcon from '@/components/ui/AegisIcon.vue'
 import { useModal } from '@/composables/useModal'
 import { useToast } from '@/composables/useToast'
+import { scanAndEnhance, syncFormEnhancements } from '@/plugins/FormEnhancerPlugin'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -274,6 +275,15 @@ const emit = defineEmits(['update:modelValue'])
 
 const toast = useToast()
 const step = ref(0)
+
+const isOpen = computed(() => props.modelValue)
+function onUpdateOpen(v) { emit('update:modelValue', v) }
+
+// On open: scan to init step-0 selects; on step change: scan to init newly visible selects
+watch(isOpen, async (val) => {
+  if (val) { await nextTick(); scanAndEnhance() }
+})
+watch(step, async () => { await nextTick(); scanAndEnhance(); syncFormEnhancements() })
 const boost = ref('standard')
 const tagsInput = ref('')
 const budgetDisplay = ref(null)
@@ -304,9 +314,6 @@ function blankForm() {
 }
 
 const form = useForm(blankForm())
-
-const isOpen = computed(() => props.modelValue)
-function onUpdateOpen(v) { emit('update:modelValue', v) }
 
 watch(() => props.prefill, (p) => {
   if (!p) return

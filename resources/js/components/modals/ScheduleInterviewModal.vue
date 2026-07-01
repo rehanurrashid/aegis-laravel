@@ -28,7 +28,7 @@
     <div class="form-row form-row-2">
       <div class="form-group">
         <label class="form-label" for="siDuration">Duration</label>
-        <select id="siDuration" v-model="duration" class="form-select" data-no-enhance>
+        <select id="siDuration" v-model="duration" class="form-select">
           <option value="15">15 minutes</option>
           <option value="30">30 minutes</option>
           <option value="45">45 minutes</option>

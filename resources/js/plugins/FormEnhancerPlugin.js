@@ -135,7 +135,7 @@ function _resumeObserver() {
 }
 
 // ─── Scan ─────────────────────────────────────────────────────────────────────
-function scanAndEnhance(root = document) {
+export function scanAndEnhance(root = document) {
   root.querySelectorAll(`input[type="date"].form-input:not([${MARK}]):not([data-no-enhance])`)
       .forEach(enhanceDateInput)
   root.querySelectorAll(`select.form-select:not([${MARK}]):not(.ts-hidden-accessible):not([data-no-enhance])`)
