@@ -21,6 +21,7 @@ enum ActivityEventType: string
     case Event                            = 'event';
     case PractitionerUnresponsiveFlagged  = 'practitioner_unresponsive_flagged';
     case JobPostings                      = 'job_postings';
+    case Support                          = 'support';
 
     public function label(): string
     {
@@ -40,6 +41,7 @@ enum ActivityEventType: string
             self::Event                           => 'Event',
             self::PractitionerUnresponsiveFlagged => 'Practitioner Flagged Unresponsive',
             self::JobPostings                     => 'Job Posting',
+            self::Support                         => 'Support',
         };
     }
 }
