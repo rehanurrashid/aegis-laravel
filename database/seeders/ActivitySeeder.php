@@ -127,7 +127,7 @@ class ActivitySeeder extends Seeder
         );
 
         // Support ticket reply
-        $act('p_sarah', 'provider', 'message',
+        $act('p_sarah', 'provider', 'support',
             'Support ticket update — reply from Aegis Team',
             'info',
             'Your support ticket (#COMP-0002) has received a new reply from the Aegis support team.',
@@ -192,7 +192,7 @@ class ActivitySeeder extends Seeder
         );
 
         // Support ticket opened acknowledgement
-        $act('p_david', 'provider', 'message',
+        $act('p_david', 'provider', 'support',
             'Support ticket submitted — #COMP-0001',
             'info',
             'Your support ticket has been received. Our team will respond within 24 hours.',
@@ -423,7 +423,7 @@ class ActivitySeeder extends Seeder
         );
 
         // CS complaint closed
-        $act('cs_priya', 'continuity_steward', 'message',
+        $act('cs_priya', 'continuity_steward', 'support',
             'Support ticket closed — #COMP-0004',
             'info',
             'Your submitted support ticket has been closed by the Aegis team.',
@@ -724,7 +724,7 @@ class ActivitySeeder extends Seeder
         );
 
         // Support ticket resolved
-        $act('bp_jamal', 'business_partner', 'message',
+        $act('bp_jamal', 'business_partner', 'support',
             'Support ticket resolved — #COMP-0003',
             'info',
             'Your support ticket has been resolved. Review the resolution and close if satisfied.',
@@ -777,7 +777,7 @@ class ActivitySeeder extends Seeder
         );
 
         // Complaint assigned
-        $act('admin_root', 'admin', 'message',
+        $act('admin_root', 'admin', 'support',
             'Support ticket assigned to you — #COMP-0002',
             'info',
             'Support ticket #COMP-0002 from Sarah Johnson has been assigned to you.',
@@ -789,7 +789,7 @@ class ActivitySeeder extends Seeder
         );
 
         // Complaint resolved
-        $act('admin_root', 'admin', 'message',
+        $act('admin_root', 'admin', 'support',
             'Support ticket resolved — #COMP-0003',
             'info',
             'You have resolved support ticket #COMP-0003 submitted by Jamal Torres.',

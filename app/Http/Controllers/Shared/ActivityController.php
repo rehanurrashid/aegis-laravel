@@ -87,6 +87,7 @@ class ActivityController extends Controller
             ['key' => '',             'label' => 'All',           'icon' => 'inbox'],
             ['key' => 'incident',     'label' => 'Incidents',     'icon' => 'alert-triangle'],
             ['key' => 'message',      'label' => 'Messages',      'icon' => 'message-square'],
+            ['key' => 'support',      'label' => 'Support',       'icon' => 'life-buoy'],
             ['key' => 'task',         'label' => 'Tasks',         'icon' => 'check-circle'],
             ['key' => 'job_postings', 'label' => 'Job Postings',  'icon' => 'briefcase'],
             ['key' => 'document',     'label' => 'Documents',     'icon' => 'file-text'],
