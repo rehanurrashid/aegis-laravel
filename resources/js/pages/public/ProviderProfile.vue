@@ -293,16 +293,19 @@
             <p style="font-size:11px;color:var(--text-4);font-style:italic;margin:0 0 10px">
               Visible only to you.
             </p>
-            <div class="pp-note-box">
-              Quarterly reminder: review insurance panel acceptance — Aetna re-credentialing window opens in March.
-              <div class="pp-note-meta">Added Jan 12, 2025</div>
+            <div v-for="(note, idx) in privateNotes" :key="idx" class="pp-note-box">
+              {{ note.body }}
+              <div class="pp-note-meta">Added {{ formatNoteDate(note.created_at) }}</div>
             </div>
-            <div class="pp-note-box">
-              Update headshot before May. Current photo is from 2022.
-              <div class="pp-note-meta">Added Nov 3, 2024</div>
-            </div>
-            <textarea class="pp-note-edit" placeholder="Add a private note to yourself..." v-model="privateNote"></textarea>
-            <button class="btn btn-primary btn-sm" style="margin-top:8px" @click="saveNote">Save Note</button>
+            <p v-if="!privateNotes.length" style="font-size:12px;color:var(--text-4);font-style:italic;margin:0 0 10px">
+              No notes yet. Add your first note below.
+            </p>
+            <textarea class="pp-note-edit" placeholder="Add a private note to yourself..." v-model="noteForm.body"></textarea>
+            <button class="btn btn-primary btn-sm" style="margin-top:8px"
+                    :disabled="noteForm.processing || !noteForm.body.trim()"
+                    @click="saveNote">
+              {{ noteForm.processing ? 'Saving…' : 'Save Note' }}
+            </button>
           </div>
 
           <!-- Peer Reviews & Endorsements -->
@@ -656,7 +659,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { usePage } from '@inertiajs/vue3'
+import { usePage, useForm } from '@inertiajs/vue3'
 import PublicLayout from '@/layouts/PublicLayout.vue'
 import ReferralModal from '@/components/modals/ReferralModal.vue'
 import { useToast } from '@/composables/useToast'
@@ -729,7 +732,15 @@ const showEndorseModal        = ref(false)
 
 const svcRequestForm = ref({ service: '', date: '', time: 'Flexible', format: 'Telehealth', notes: '' })
 const endorseForm    = ref({ rating: 0, headline: '', body: '', context: 'Referral exchange' })
-const privateNote    = ref('')
+const noteForm       = useForm({ body: '' })
+
+const privateNotes = computed(() => pm.value.private_notes ?? [])
+
+function formatNoteDate(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
 
 // ── Actions ───────────────────────────────────────────────────────────
 function openReferral() { showReferralModal.value = true }
@@ -764,7 +775,15 @@ function submitEndorse() {
 }
 
 function saveNote() {
-  toast.success('Note saved')
+  if (!noteForm.body.trim()) return
+  noteForm.post(route('provider.profile.private-note'), {
+    preserveScroll: true,
+    onSuccess: () => {
+      noteForm.reset('body')
+      toast.success('Note saved')
+    },
+    onError: () => toast.error('Failed to save note.'),
+  })
 }
 
 function copyShareLink() {

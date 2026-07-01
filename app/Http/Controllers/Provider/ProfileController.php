@@ -184,6 +184,17 @@ class ProfileController extends Controller
         return back()->with('success', 'Demographics updated.');
     }
 
+    public function savePrivateNote(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'body' => 'required|string|max:2000',
+        ]);
+
+        $this->profiles->savePrivateNote($request->user(), trim($data['body']));
+
+        return back()->with('success', 'Note saved.');
+    }
+
     private function rawMeta($user, string $key, mixed $default = null): mixed
     {
         $row = $user->meta->firstWhere('meta_key', $key);

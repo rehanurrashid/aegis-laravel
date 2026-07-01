@@ -43,6 +43,10 @@ class ProfileController extends Controller
             $user->makeHidden(['email', 'phone']);
         }
 
+        if ($isOwner) {
+            $profileMeta['private_notes'] = $this->profiles->getPrivateNotes($user);
+        }
+
         return Inertia::render('public/ProviderProfile', [
             'user'        => $user,
             'profileMeta' => $profileMeta,

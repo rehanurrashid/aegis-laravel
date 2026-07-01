@@ -306,6 +306,38 @@ class ProfileService
             'years_in_practice'    => (int) ($raw['years_in_business'] ?? 5),
             'accepting_clients'    => (bool) ($raw['accepting_clients'] ?? true),
             'about_me_extended'    => $raw['about_me_extended'] ?? null,
+            'private_notes'        => [],   // populated owner-side only — see ProfileController
         ];
+    }
+
+    /**
+     * Append a private note to the owner's user_meta 'private_notes' JSON array.
+     * Notes are stored newest-first; the list is capped at 50 entries.
+     */
+    public function savePrivateNote(User $user, string $body): void
+    {
+        $existing = [];
+        $row = $user->meta()->where('meta_key', 'private_notes')->first();
+        if ($row) {
+            $existing = json_decode((string) $row->meta_value, true) ?? [];
+        }
+
+        array_unshift($existing, [
+            'body'       => $body,
+            'created_at' => now()->toDateTimeString(),
+        ]);
+
+        $existing = array_slice($existing, 0, 50);
+
+        $this->setMeta($user, 'private_notes', $existing);
+    }
+
+    /**
+     * Load private notes for the profile owner only.
+     */
+    public function getPrivateNotes(User $user): array
+    {
+        $row = $user->meta()->where('meta_key', 'private_notes')->first();
+        return $row ? (json_decode((string) $row->meta_value, true) ?? []) : [];
     }
 }
