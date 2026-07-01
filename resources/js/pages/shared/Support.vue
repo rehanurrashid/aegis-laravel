@@ -108,7 +108,7 @@
             <textarea
               id="fb-body"
               v-model="feedbackForm.body"
-              class="form-input"
+              class="form-textarea"
               :class="{ 'is-error': feedbackFieldError('body') }"
               rows="5"
               placeholder="Tell us what's on your mind…"
@@ -219,7 +219,7 @@
           <select
             id="tk-category"
             v-model="ticketForm.category"
-            class="form-input"
+            class="form-select"
           >
             <option value="support_ticket">General Support</option>
             <option value="bug">Bug Report</option>
@@ -230,7 +230,7 @@
         </div>
         <div class="form-group">
           <label class="form-label" for="tk-priority">Priority</label>
-          <select id="tk-priority" v-model="ticketForm.priority" class="form-input">
+          <select id="tk-priority" v-model="ticketForm.priority" class="form-select">
             <option value="low">Low</option>
             <option value="normal">Normal</option>
             <option value="high">High</option>
@@ -242,7 +242,7 @@
         <textarea
           id="tk-body"
           v-model="ticketForm.body"
-          class="form-input"
+          class="form-textarea"
           :class="{ 'is-error': ticketFieldError('body') }"
           rows="5"
           placeholder="Describe your issue in detail. Include steps to reproduce if reporting a bug."
@@ -250,7 +250,7 @@
         ></textarea>
         <div v-if="ticketFieldError('body')" class="form-error">{{ ticketFieldError('body') }}</div>
       </div>
-      <p class="form-hint">Our team typically responds within 24 hours on business days.</p>
+      <div class="form-hint">Our team typically responds within 24 hours on business days.</div>
       <template #footer>
         <button type="button" class="btn btn-ghost" @click="modals.newTicket = false">Cancel</button>
         <button
@@ -308,7 +308,7 @@
             <textarea
               id="tk-reply"
               v-model="replyForm.body"
-              class="form-input"
+              class="form-textarea"
               :class="{ 'is-error': replyFieldError('body') }"
               rows="3"
               placeholder="Add a reply…"

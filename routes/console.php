@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Jobs\AnnualReviewReminderJob;
 use App\Jobs\DigestEmailJob;
+use App\Jobs\ExpireMutedThreadsJob;
 use App\Jobs\StaleIncidentAlertJob;
 use App\Jobs\StewardResponsivenessCheckJob;
 use App\Jobs\StripeWebhookProcessorJob;
@@ -37,6 +38,9 @@ Schedule::job(new DigestEmailJob('monthly'))->monthlyOn(1, '08:00')->name('aegis
 
 // Every 5 minutes — sweep any unprocessed Stripe webhook rows.
 Schedule::job(new StripeWebhookProcessorJob)->everyFiveMinutes()->name('aegis.stripe_webhook_sweep');
+
+// Every minute — auto-unmute message threads whose muted_until has passed.
+Schedule::job(new ExpireMutedThreadsJob)->everyMinute()->name('aegis.expire_muted_threads')->withoutOverlapping();
 
 // Daily 10:00 UTC — flag Continuity Stewards who have been inactive for 14+ days.
 Schedule::job(new StewardResponsivenessCheckJob)->dailyAt('10:00')->name('aegis.steward_responsiveness_check');

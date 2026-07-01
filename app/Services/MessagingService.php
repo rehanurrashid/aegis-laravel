@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\ActivitySeverity;
+use App\Events\Messages\MessageSent;
 use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\User;
@@ -19,7 +20,7 @@ class MessagingService
     public function createThread(array $participantIds, ?string $title = null, ?string $incidentId = null): MessageThread
     {
         $participantIds = array_values(array_unique($participantIds));
-        return MessageThread::create([
+        $thread = MessageThread::create([
             'id'                    => 'mt_' . Str::lower(Str::random(12)),
             'created_by_id'         => $participantIds[0] ?? null,
             'participant_ids'       => json_encode($participantIds),
@@ -28,6 +29,26 @@ class MessagingService
             'incident_id'           => $incidentId,
             'last_message_at'       => now(),
         ]);
+
+        $creator = User::find($participantIds[0] ?? null);
+        if ($creator) {
+            $this->activity->log(
+                $creator->id,                                          // 1  userId (recipient = actor)
+                $this->portalFor($creator->role?->value ?? ''),        // 2  portal
+                'message',                                             // 3  module
+                ActivitySeverity::Info,                                // 4  severity
+                'thread_created',                                      // 5  action
+                'New conversation started',                            // 6  title
+                $title ?? 'Direct message',                            // 7  description
+                'message_thread',                                      // 8  linkableType
+                $thread->id,                                           // 9  linkableId
+                null,                                                  // 10 relatedUserId
+                'log',                                                 // 11 entryType ← correct order
+                $creator->id                                           // 12 actorId
+            );
+        }
+
+        return $thread;
     }
 
     public function sendMessage(MessageThread $thread, User $sender, string $body): Message
@@ -50,19 +71,40 @@ class MessagingService
                 $recipient = User::find($pid);
                 if (!$recipient) continue;
 
+                // Notification entry for the recipient
                 $this->activity->log(
-                    $recipient->id,
-                    $this->portalFor($recipient->role?->value ?? ''),
-                    'message',
-                    ActivitySeverity::Info,
-                    'message_received',
-                    "New message from {$sender->display_name}",
-                    Str::limit($body, 140),
-                    'message_thread',
-                    $thread->id,
-                    $sender->id
+                    $recipient->id,                                        // 1  userId
+                    $this->portalFor($recipient->role?->value ?? ''),      // 2  portal
+                    'message',                                             // 3  module
+                    ActivitySeverity::Info,                                // 4  severity
+                    'message_received',                                    // 5  action
+                    "New message from {$sender->display_name}",            // 6  title
+                    Str::limit($body, 140),                                // 7  description
+                    'message_thread',                                      // 8  linkableType
+                    $thread->id,                                           // 9  linkableId
+                    $sender->id,                                           // 10 relatedUserId
+                    'notification',                                        // 11 entryType ← correct
+                    $sender->id                                            // 12 actorId
                 );
             }
+
+            // Log entry for the sender's own history
+            $this->activity->log(
+                $sender->id,                                           // 1  userId
+                $this->portalFor($sender->role?->value ?? ''),         // 2  portal
+                'message',                                             // 3  module
+                ActivitySeverity::Info,                                // 4  severity
+                'message_sent',                                        // 5  action
+                'Message sent',                                        // 6  title
+                Str::limit($body, 140),                                // 7  description
+                'message_thread',                                      // 8  linkableType
+                $thread->id,                                           // 9  linkableId
+                null,                                                  // 10 relatedUserId
+                'log',                                                 // 11 entryType ← correct
+                $sender->id                                            // 12 actorId
+            );
+
+            event(new MessageSent($thread, $msg, $sender));
 
             return $msg;
         });

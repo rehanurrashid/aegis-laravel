@@ -2377,8 +2377,8 @@ p {
 }
 
 .form-label .required { color: var(--red); margin-left: 3px; }
-.form-hint  { font-family: var(--font-sans); font-size: 11px; color: var(--text-3); margin-top: 4px; line-height: 1.5; display: block; }
-.form-error { font-family: var(--font-sans); font-size: 11px; color: var(--red); margin-top: 2px; display: block; }
+.form-hint  { font-family: var(--font-sans); font-size: 11px; color: var(--text-3); margin-top: 4px; line-height: 1.5; display: block; width: 100%; flex-basis: 100%; }
+.form-error { font-family: var(--font-sans); font-size: 11px; color: var(--red); margin-top: 2px; display: block; width: 100%; flex-basis: 100%; }
 
 /* Input / Textarea / Select */
 .form-input,

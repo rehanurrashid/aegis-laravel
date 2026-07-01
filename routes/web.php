@@ -538,7 +538,7 @@ Route::middleware(['auth', 'check.locked'])->group(function () {
     Route::get('/messages/{message}/attachments/{index}', [MessageAttachmentController::class, 'download'])->name('messages.attachment.download')->where('index', '[0-9]+');
     Route::post('/messages/{thread}/mute',   [MessagesController::class, 'mute'])->name('messages.mute');
     Route::post('/messages/{thread}/unmute', [MessagesController::class, 'unmute'])->name('messages.unmute');
-    Route::post('/messages/{thread}/export', [MessagesController::class, 'export'])->name('messages.export');
+    Route::get('/messages/{thread}/export', [MessagesController::class, 'export'])->name('messages.export');
 
     // Activity Feed
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');

@@ -46,6 +46,7 @@ use App\Events\Network\ReferralReceived;
 use App\Events\Network\ReferralResponded;
 use App\Events\Support\FeedbackReceived;
 use App\Events\Support\TicketResolved;
+use App\Events\Messages\MessageSent;
 use App\Events\Account\AccountClosed;
 use App\Events\Auth\NewDeviceLogin;
 use App\Events\Business\MaatAddonChanged;
@@ -135,6 +136,7 @@ class SendEmailNotificationListener
             $event instanceof ReferralResponded       => $this->referralResponded($event),
             $event instanceof FeedbackReceived        => $this->feedbackReceived($event),
             $event instanceof TicketResolved          => $this->ticketResolved($event),
+            $event instanceof MessageSent             => $this->messageSent($event),
             $event instanceof AccountClosed           => $this->accountClosed($event),
             $event instanceof MilestoneSubmitted      => $this->milestoneSubmitted($event),
             $event instanceof MilestoneApproved       => $this->milestoneApproved($event),
@@ -707,6 +709,28 @@ class SendEmailNotificationListener
                             'renewal_date' => $e->renewalDate,
                             'plan_label'   => $e->planLabel,
                             'billing_url'  => rtrim(config('app.url'), '/') . '/settings/billing']]];
+    }
+
+    private function messageSent(MessageSent $e): array
+    {
+        $rows = [];
+        $participants = json_decode($e->thread->participant_ids ?? '[]', true) ?: [];
+        foreach ($participants as $pid) {
+            if ($pid === $e->sender->id) continue;
+            $rows[] = [
+                'user_id'  => $pid,
+                'gate_key' => 'notify_message',
+                'template' => 'emails.messages.new-message',
+                'data'     => [
+                    'thread_id'       => $e->thread->id,
+                    'message_id'      => $e->message->id,
+                    'sender_name'     => $e->sender->display_name,
+                    'message_preview' => \Illuminate\Support\Str::limit($e->message->body ?? '', 300),
+                    'thread_title'    => $e->thread->title ?? null,
+                ],
+            ];
+        }
+        return $rows;
     }
 
     private function stewardRecipients(string $planId): array

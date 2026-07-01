@@ -1272,6 +1272,8 @@ function muteThread(opt) {
   muteForm.hours = opt.hours
   muteForm.post(route('messages.mute', props.activeThread.id), {
     preserveScroll: true,
+    preserveState:  true,
+    only: ['threads', 'activeThread'],
     onSuccess: () => {
       modals.muteNotif = false
       toast.success(`Notifications muted — ${opt.label}.`)
@@ -1285,6 +1287,8 @@ function unmuteThread() {
   if (!props.activeThread) return
   unmuteForm.post(route('messages.unmute', props.activeThread.id), {
     preserveScroll: true,
+    preserveState:  true,
+    only: ['threads', 'activeThread'],
     onSuccess: () => {
       modals.muteNotif = false
       toast.success('Conversation unmuted.')

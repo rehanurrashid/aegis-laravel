@@ -70,6 +70,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Business\PayoutReleased::class,       Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Support\TicketCreated::class,         Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Support\TicketReplied::class,         Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Messages\MessageSent::class,          Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Admin\UserLocked::class,              Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Auth\EmailVerified::class,            Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\News\NewsPostPublished::class,        Listeners\SendEmailNotificationListener::class);

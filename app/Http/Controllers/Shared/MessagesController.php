@@ -76,6 +76,8 @@ class MessagesController extends Controller
                 'title'                 => $t->title,
                 'is_archived'           => !empty($t->archived_at),
                 'is_continuity_contact' => (bool) ($t->is_continuity_contact ?? false),
+                'is_muted'              => (bool) ($t->is_muted ?? false),
+                'muted_until'           => $t->muted_until,
                 'bucket'                => $bucket,
                 'last_message_at'       => $t->last_message_at,
                 'last_message_snippet'  => $preview ?: 'No messages yet',

@@ -56,6 +56,10 @@ class EmailDataResolver
             $data = $this->enrichIncident($data, $base);
         } elseif ($domain === 'plan') {
             $data = $this->enrichPlan($data, $base);
+        } elseif ($domain === 'support') {
+            $data = $this->enrichSupport($data, $base);
+        } elseif ($domain === 'messages') {
+            $data = $this->enrichMessages($data, $base);
         }
 
         return $data;
@@ -259,6 +263,77 @@ class EmailDataResolver
                 ];
             }
         }
+        return $d;
+    }
+
+    private function enrichSupport(array $d, string $base): array
+    {
+        if (!empty($d['complaint_id'])) {
+            $ticket = \App\Models\Complaint::find($d['complaint_id']);
+            if ($ticket) {
+                $submitter = User::find($ticket->submitter_id);
+                $portal    = $submitter?->role?->portal() ?? 'provider';
+                $d += [
+                    'ticket_id'       => $ticket->id,
+                    'ticket_subject'  => $ticket->subject,
+                    'ticket_body'     => $ticket->body,
+                    'ticket_status'   => $ticket->status,
+                    'ticket_priority' => $ticket->priority,
+                    'ticket_category' => $ticket->category,
+                    'ticket_url'      => $base . '/' . $portal . '/support',
+                    'submitted_at'    => $ticket->created_at?->toFormattedDateString() ?? '',
+                    'resolved_at'     => $ticket->resolved_at?->toFormattedDateString() ?? '',
+                    'feedback_type'   => match ($ticket->category) {
+                        'bug'             => 'Bug Report',
+                        'feature_request' => 'Feature Request',
+                        'feedback'        => 'General Feedback',
+                        default           => 'Support Ticket',
+                    },
+                ];
+            }
+        }
+
+        if (!empty($d['reply_id'])) {
+            $reply = \App\Models\ComplaintReply::with('author')->find($d['reply_id']);
+            if ($reply) {
+                $d += [
+                    'reply_body'    => $reply->body,
+                    'replier_name'  => $reply->author?->display_name ?? 'Support',
+                    'reply_preview' => \Illuminate\Support\Str::limit($reply->body, 200),
+                    'replied_at'    => $reply->created_at?->toFormattedDateString() ?? '',
+                ];
+            }
+        }
+
+        return $d;
+    }
+
+    private function enrichMessages(array $d, string $base): array
+    {
+        if (!empty($d['thread_id'])) {
+            $thread = \App\Models\MessageThread::find($d['thread_id']);
+            if ($thread) {
+                $recipientUser = User::find($d['user_id'] ?? null);
+                $portal        = $recipientUser?->role?->portal() ?? 'provider';
+                $d += [
+                    'thread_title' => $thread->title ?? 'Direct Message',
+                    'messages_url' => $base . '/' . $portal . '/messages?thread=' . $thread->id,
+                ];
+            }
+        }
+
+        if (!empty($d['message_id'])) {
+            $msg = \App\Models\Message::find($d['message_id']);
+            if ($msg) {
+                $sender = User::find($msg->sender_id);
+                $d += [
+                    'sender_name'     => $sender?->display_name ?? 'A contact',
+                    'message_preview' => \Illuminate\Support\Str::limit($msg->body ?? '', 300),
+                    'sent_at'         => $msg->sent_at?->toFormattedDateString() ?? '',
+                ];
+            }
+        }
+
         return $d;
     }
 }

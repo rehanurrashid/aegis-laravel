@@ -35,6 +35,13 @@ class SupportService
             'created_at'         => now(),
         ]);
 
+        $this->activity->log(
+            $submitter->id, $this->portalFor($submitter), 'support',
+            ActivitySeverity::Info, 'ticket_created', 'Support ticket submitted',
+            Str::limit($data['subject'], 140), 'complaint', $ticket->id,
+            null, 'log', $submitter->id
+        );
+
         event(new TicketCreated($ticket));
         return $ticket;
     }
@@ -52,6 +59,13 @@ class SupportService
             'status'             => 'open',
             'created_at'         => now(),
         ]);
+
+        $this->activity->log(
+            $submitter->id, $this->portalFor($submitter), 'support',
+            ActivitySeverity::Info, 'feedback_submitted', 'Feedback submitted',
+            Str::limit($body, 140), 'complaint', $complaint->id,
+            null, 'log', $submitter->id
+        );
 
         event(new FeedbackReceived($complaint));
 
@@ -74,16 +88,18 @@ class SupportService
 
         if (!$isInternal && $author->id !== $ticket->submitter_id) {
             $this->activity->log(
-                $ticket->submitter_id,
-                $this->portalFor($ticket->submitter),
-                'support',
-                ActivitySeverity::Info,
-                'support_reply',
-                'Support replied to your ticket',
-                Str::limit($body, 140),
-                'complaint',
-                $ticket->id,
-                $author->id
+                $ticket->submitter_id,                          // 1  userId
+                $this->portalFor($ticket->submitter),           // 2  portal
+                'support',                                      // 3  module
+                ActivitySeverity::Info,                         // 4  severity
+                'support_reply',                                // 5  action
+                'Support replied to your ticket',              // 6  title
+                Str::limit($body, 140),                         // 7  description
+                'complaint',                                    // 8  linkableType
+                $ticket->id,                                    // 9  linkableId
+                $author->id,                                    // 10 relatedUserId
+                'notification',                                 // 11 entryType ← correct order
+                $author->id                                     // 12 actorId
             );
             event(new TicketReplied($ticket, $reply));
         }
@@ -101,6 +117,13 @@ class SupportService
             abort(403, 'Only the submitter can self-close.');
         }
         $ticket->update(['status' => 'closed', 'resolved_at' => now()]);
+
+        $this->activity->log(
+            $actor->id, $this->portalFor($actor), 'support',
+            ActivitySeverity::Info, 'ticket_closed', 'Support ticket marked as resolved',
+            Str::limit($ticket->subject, 140), 'complaint', $ticket->id,
+            null, 'log', $actor->id
+        );
 
         event(new TicketResolved($ticket->fresh()));
 
