@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             // Layer 1 — identity (no FKs)
             RoleSeeder::class,
             UserSeeder::class,
+            MfaTokenSeeder::class,
             UserMetaSeeder::class,
 
             // Layer 2 — plans + stewards

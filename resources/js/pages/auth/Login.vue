@@ -397,12 +397,12 @@ async function submitSignin() {
       }
     },
     onError: (errors) => {
-      if (Object.keys(errors).length > 0) {
+      if (errors && Object.keys(errors).length > 0) {
         toast.error('Invalid credentials. Please try again.')
+        loginForm.reset('password')
       }
-      loginForm.reset('password')
     },
-    onFinish: () => loginForm.reset('password'),
+    onFinish: () => {},
   })
 }
 

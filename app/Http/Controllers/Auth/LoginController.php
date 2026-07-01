@@ -84,7 +84,8 @@ class LoginController extends Controller
         if ($mfaActive) {
             $request->session()->put('mfa_pending_user_id', $user->id);
             $request->session()->put('mfa_remember', true);
-            return redirect()->route('mfa.challenge');
+            $request->session()->save(); // force flush before hard redirect
+            return Inertia::location(route('mfa.challenge'));
         }
 
         $request->session()->regenerate();
