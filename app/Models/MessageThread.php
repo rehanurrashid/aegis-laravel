@@ -21,11 +21,13 @@ class MessageThread extends Model
     protected $fillable = [
         'id', 'subject', 'created_by_id', 'last_message_at', 'is_pinned', 'is_muted',
         'participant_ids', 'title', 'is_continuity_contact', 'incident_id', 'archived_at',
+        'muted_until', 'muted_hours',
     ];
 
     protected $casts = [
         'last_message_at'       => 'datetime',
         'archived_at'           => 'datetime',
+        'muted_until'           => 'datetime',
         'is_pinned'             => 'boolean',
         'is_muted'              => 'boolean',
         'is_continuity_contact' => 'boolean',
@@ -33,6 +35,17 @@ class MessageThread extends Model
 
     public function creator(): BelongsTo  { return $this->belongsTo(User::class, 'created_by_id'); }
     public function messages(): HasMany   { return $this->hasMany(Message::class, 'thread_id'); }
+    public function blocks(): HasMany     { return $this->hasMany(\App\Models\MessageThreadBlock::class, 'thread_id'); }
+
+    public function isBlockedBy(string $userId): bool
+    {
+        return $this->blocks()->where('blocker_id', $userId)->exists();
+    }
+
+    public function isBlockedFor(string $userId): bool
+    {
+        return $this->blocks()->where('blocked_id', $userId)->exists();
+    }
 
     public function scopePinned($q) { return $q->where('is_pinned', 1); }
 }

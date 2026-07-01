@@ -42,6 +42,16 @@
             <a :href="activityUrl" class="btn-icon" data-tooltip="Message activity log">
               <AegisIcon name="activity" :size="16" />
             </a>
+            <!-- Mute indicator: icon reflects selected mute duration -->
+            <button
+              v-if="activeThread?.is_muted"
+              type="button"
+              class="btn-icon is-active-icon"
+              :data-tooltip="muteTooltip"
+              @click="modals.muteNotif = true"
+            >
+              <AegisIcon name="bell-off" :size="16" />
+            </button>
           </div>
         </div>
 
@@ -71,15 +81,11 @@
 
         <!-- Bucket filter dropdown -->
         <div class="msg-filter-row">
-          <div class="msg-filter-select-wrap">
-            <AegisIcon name="filter" :size="18" class="msg-filter-icon" />
-            <select v-model="activeBucket" class="msg-filter-select">
-              <option v-for="b in buckets" :key="b.key" :value="b.key">
-                {{ b.label }} ({{ bucketCounts[b.key] ?? 0 }})
-              </option>
-            </select>
-            <AegisIcon name="chevron-down" :size="18" class="msg-filter-chevron" />
-          </div>
+          <select v-model="activeBucket" class="form-select msg-bucket-select">
+            <option v-for="b in buckets" :key="b.key" :value="b.key">
+              {{ b.label }} ({{ bucketCounts[b.key] ?? 0 }})
+            </option>
+          </select>
         </div>
 
         <!-- Thread list -->
@@ -278,9 +284,24 @@
             </template>
           </div>
 
+          <!-- Block banners -->
+          <div v-if="activeThread?.is_blocked_by_me" class="msg-block-banner">
+            <AegisIcon name="x-circle" :size="14" />
+            <span>You have blocked <strong>{{ activeThread.counterpart?.display_name }}</strong>. They cannot message you.</span>
+            <button type="button" class="btn btn-outline btn-sm" @click="unblockContact">Unblock</button>
+          </div>
+          <div v-else-if="activeThread?.is_blocked_by_them" class="msg-block-banner msg-block-banner--them">
+            <AegisIcon name="x-circle" :size="14" />
+            <span><strong>{{ activeThread.counterpart?.display_name }}</strong> has blocked you. You cannot send messages.</span>
+          </div>
+
           <!-- Compose -->
           <div class="msg-compose">
-            <div class="msg-compose-row">
+            <div v-if="activeThread?.is_blocked_by_me || activeThread?.is_blocked_by_them" class="msg-compose-blocked">
+              <AegisIcon name="x-circle" :size="14" />
+              Messaging is unavailable for this conversation.
+            </div>
+            <div v-else class="msg-compose-row">
               <div class="msg-compose-tools">
                 <button type="button" class="btn-icon" data-tooltip="Attach file" @click="$refs.fileInput.click()">
                   <AegisIcon name="upload" :size="16" />
@@ -869,6 +890,7 @@ const props = defineProps({
   currentUserId:        { type: String, default: '' },
   currentUserInitials:  { type: String, default: 'U' },
   currentUserAvatarUrl: { type: String, default: null },
+  messagingStatus:      { type: String, default: 'available' },
 })
 
 const page     = usePage()
@@ -1137,14 +1159,32 @@ const blockForm = useForm({})
 async function blockContact() {
   const name = props.activeThread?.counterpart?.display_name ?? 'this contact'
   const ok = await confirmAction(
-    `Block ${name}? They won't be able to message you. You can unblock them from Settings.`,
+    `Block ${name}? They won't be able to message you. You can unblock from the conversation panel.`,
     { title: 'Block Contact', confirmLabel: 'Block', destructive: true }
   )
   if (!ok) return
-  // No dedicated block endpoint yet — mark thread archived + show feedback
-  // TODO: wire to messages.block when endpoint is built
-  showInfo.value = false
-  toast.warning(`${name} has been blocked.`)
+  blockForm.post(route('messages.block', props.activeThread.id), {
+    preserveScroll: true,
+    preserveState:  true,
+    only: ['threads', 'activeThread'],
+    onSuccess: () => {
+      showInfo.value = false
+      toast.warning(`${name} has been blocked.`)
+    },
+    onError: () => toast.error('Could not block contact.'),
+  })
+}
+
+const unblockForm = useForm({})
+function unblockContact() {
+  const name = props.activeThread?.counterpart?.display_name ?? 'this contact'
+  unblockForm.post(route('messages.unblock', props.activeThread.id), {
+    preserveScroll: true,
+    preserveState:  true,
+    only: ['threads', 'activeThread'],
+    onSuccess: () => toast.success(`${name} has been unblocked.`),
+    onError:   () => toast.error('Could not unblock contact.'),
+  })
 }
 
 // ── In-chat search ───────────────────────────────────
@@ -1258,6 +1298,27 @@ const activityUrl = computed(() => {
 // ── Export format ──────────────────────────────────
 const exportFormat = ref('txt')
 
+// ── Mute helpers ───────────────────────────────────
+function formatMuteUntil(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  const now = new Date()
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  }
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+const muteTooltip = computed(() => {
+  if (!props.activeThread?.is_muted) return ''
+  const opt = muteOptions.find(o => o.hours === (props.activeThread.muted_hours ?? 0))
+  const label = opt?.label ?? 'Indefinitely'
+  if (props.activeThread.muted_until) {
+    return `Muted ${label} (until ${formatMuteUntil(props.activeThread.muted_until)}) — click to manage`
+  }
+  return `Muted ${label} — click to manage`
+})
+
 // ── Mute options ───────────────────────────────────
 const muteOptions = [
   { value: '8',     hours: 8,   icon: 'clock',    label: '8 hours',       sub: 'Until later today' },
@@ -1302,11 +1363,20 @@ const availabilityOptions = [
   { value: 'away',      label: 'Away' },
   { value: 'busy',      label: 'Busy — Do Not Disturb' },
 ]
-const currentStatus = ref('available')
+const currentStatus = ref(props.messagingStatus)
+const availForm = useForm({ status: props.messagingStatus })
 function setAvailability(s) {
   currentStatus.value = s.value
-  modals.availability = false
-  toast.success(`Status set to: ${s.label}`)
+  availForm.status = s.value
+  availForm.post(route('messages.availability'), {
+    preserveScroll: true,
+    preserveState:  true,
+    onSuccess: () => {
+      modals.availability = false
+      toast.success(`Status set to: ${s.label}`)
+    },
+    onError: () => toast.error('Could not update status.'),
+  })
 }
 
 // ── Message templates ──────────────────────────────
@@ -1423,35 +1493,11 @@ function useTemplate(body) {
   border-bottom: 1px solid var(--border);
   background: var(--surface-2);
 }
-.msg-filter-select-wrap {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-}
-.msg-filter-icon { color: var(--text-4); flex-shrink: 0; }
-.msg-filter-select {
-  flex: 1;
-  appearance: none;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 4px 28px 4px 8px;
+/* Compact padding override — chevron/border/focus come from global form-select */
+.msg-bucket-select {
   font-size: 12px;
-  font-weight: 600;
-  color: var(--text);
-  cursor: pointer;
-  outline: none;
-  font-family: inherit;
-  transition: border-color var(--transition-fast);
-}
-.msg-filter-select:focus { border-color: var(--gold); }
-.msg-filter-chevron {
-  position: absolute;
-  right: 8px;
-  pointer-events: none;
-  color: var(--text-4);
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
 /* Badge pill (kept for other uses) */
@@ -1751,6 +1797,35 @@ function useTemplate(body) {
   transition: border-color var(--transition-fast);
 }
 .msg-compose-input:focus { border-color: var(--gold); }
+
+/* ── Block banners ───────────────────────────────── */
+.msg-block-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--surface-3);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+.msg-block-banner .aegis-icon { color: var(--red-dark); flex-shrink: 0; }
+.msg-block-banner--them .aegis-icon { color: var(--text-3); }
+.msg-block-banner strong { color: var(--text); }
+.msg-compose-blocked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: var(--text-3);
+  font-style: italic;
+}
+.msg-compose-blocked .aegis-icon { color: var(--text-4); }
+
+/* ── Compose input ───────────────────────────────── */
 
 /* ── RIGHT info panel ────────────────── */
 .msg-info-panel {

@@ -536,9 +536,12 @@ Route::middleware(['auth', 'check.locked'])->group(function () {
     Route::post('/messages/{thread}/reply', [MessagesController::class, 'reply'])->name('messages.reply');
     Route::post('/messages/{thread}/read', [MessagesController::class, 'markRead'])->name('messages.read');
     Route::get('/messages/{message}/attachments/{index}', [MessageAttachmentController::class, 'download'])->name('messages.attachment.download')->where('index', '[0-9]+');
-    Route::post('/messages/{thread}/mute',   [MessagesController::class, 'mute'])->name('messages.mute');
-    Route::post('/messages/{thread}/unmute', [MessagesController::class, 'unmute'])->name('messages.unmute');
-    Route::get('/messages/{thread}/export', [MessagesController::class, 'export'])->name('messages.export');
+    Route::post('/messages/{thread}/mute',         [MessagesController::class, 'mute'])->name('messages.mute');
+    Route::post('/messages/{thread}/unmute',       [MessagesController::class, 'unmute'])->name('messages.unmute');
+    Route::get('/messages/{thread}/export',        [MessagesController::class, 'export'])->name('messages.export');
+    Route::post('/messages/{thread}/block',        [MessagesController::class, 'block'])->name('messages.block');
+    Route::post('/messages/{thread}/unblock',      [MessagesController::class, 'unblock'])->name('messages.unblock');
+    Route::post('/messages/availability',          [MessagesController::class, 'setAvailability'])->name('messages.availability');
 
     // Activity Feed
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');

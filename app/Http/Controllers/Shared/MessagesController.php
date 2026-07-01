@@ -7,7 +7,9 @@ namespace App\Http\Controllers\Shared;
 use App\Http\Controllers\Controller;
 use App\Models\Message;
 use App\Models\MessageThread;
+use App\Models\MessageThreadBlock;
 use App\Models\User;
+use App\Models\UserMeta;
 use App\Enums\ActivitySeverity;
 use App\Services\ActivityService;
 use App\Services\MessagingService;
@@ -73,6 +75,19 @@ class MessagesController extends Controller
                 $bucket = 'network';
             }
 
+            // Block status
+            $isBlockedByMe   = MessageThreadBlock::where('thread_id', $t->id)->where('blocker_id', $user->id)->exists();
+            $isBlockedByThem = MessageThreadBlock::where('thread_id', $t->id)->where('blocked_id', $user->id)->exists();
+
+            // Mute icon mapping
+            $muteIcon = match ((int) ($t->muted_hours ?? -1)) {
+                8   => 'clock',
+                24  => 'moon',
+                168 => 'calendar',
+                0   => 'bell-off',
+                default => 'bell-off',
+            };
+
             return [
                 'id'                    => $t->id,
                 'title'                 => $t->title,
@@ -80,6 +95,10 @@ class MessagesController extends Controller
                 'is_continuity_contact' => (bool) ($t->is_continuity_contact ?? false),
                 'is_muted'              => (bool) ($t->is_muted ?? false),
                 'muted_until'           => $t->muted_until,
+                'muted_hours'           => $t->muted_hours,
+                'mute_icon'             => $muteIcon,
+                'is_blocked_by_me'      => $isBlockedByMe,
+                'is_blocked_by_them'    => $isBlockedByThem,
                 'bucket'                => $bucket,
                 'last_message_at'       => $t->last_message_at,
                 'last_message_snippet'  => $preview ?: 'No messages yet',
@@ -171,6 +190,9 @@ class MessagesController extends Controller
             'currentUserInitials' => $user->avatar_initials
                 ?? Str::upper(Str::substr($user->display_name ?? 'U', 0, 2)),
             'currentUserAvatarUrl' => $user->avatar_url,
+            'messagingStatus' => UserMeta::where('user_id', $user->id)
+                ->where('meta_key', 'messaging_status')
+                ->value('meta_value') ?? 'available',
         ]);
     }
 
@@ -230,7 +252,11 @@ class MessagesController extends Controller
         $this->authorize('read', $thread);
         $hours = (int) $request->input('hours', 8);
         $until = $hours === 0 ? null : now()->addHours($hours);
-        $thread->update(['is_muted' => true, 'muted_until' => $until]);
+        $thread->update([
+            'is_muted'    => true,
+            'muted_until' => $until,
+            'muted_hours' => $hours,     // 0=indefinite, 8/24/168 → drives icon
+        ]);
 
         $user  = $request->user();
         $label = $hours === 0 ? 'indefinitely' : "for {$hours}h";
@@ -255,7 +281,7 @@ class MessagesController extends Controller
     public function unmute(Request $request, MessageThread $thread): RedirectResponse
     {
         $this->authorize('read', $thread);
-        $thread->update(['is_muted' => false, 'muted_until' => null]);
+        $thread->update(['is_muted' => false, 'muted_until' => null, 'muted_hours' => null]);
 
         $user = $request->user();
         app(ActivityService::class)->log(
@@ -307,6 +333,79 @@ class MessagesController extends Controller
         $this->authorize('read', $thread);
         $this->messaging->markRead($thread, $request->user());
         return back();
+    }
+
+    public function block(Request $request, MessageThread $thread): RedirectResponse
+    {
+        $this->authorize('read', $thread);
+        $user = $request->user();
+
+        $participants  = json_decode($thread->participant_ids ?? '[]', true) ?: [];
+        $counterpartId = collect($participants)->first(fn ($id) => $id !== $user->id);
+        if (!$counterpartId) return back()->with('error', 'No counterpart found.');
+
+        MessageThreadBlock::firstOrCreate([
+            'thread_id'  => $thread->id,
+            'blocker_id' => $user->id,
+            'blocked_id' => $counterpartId,
+        ], ['created_at' => now()]);
+
+        app(ActivityService::class)->log(
+            $user->id,
+            $user->role?->portal() ?? 'provider',
+            'message',
+            ActivitySeverity::Info,
+            'contact_blocked',
+            'Contact blocked',
+            "Blocked user {$counterpartId} on thread {$thread->id}.",
+            'message_thread',
+            $thread->id,
+            null,
+            'log',
+            $user->id
+        );
+
+        return back()->with('success', 'Contact blocked.');
+    }
+
+    public function unblock(Request $request, MessageThread $thread): RedirectResponse
+    {
+        $this->authorize('read', $thread);
+        $user = $request->user();
+
+        MessageThreadBlock::where('thread_id', $thread->id)
+            ->where('blocker_id', $user->id)
+            ->delete();
+
+        app(ActivityService::class)->log(
+            $user->id,
+            $user->role?->portal() ?? 'provider',
+            'message',
+            ActivitySeverity::Info,
+            'contact_unblocked',
+            'Contact unblocked',
+            "Unblocked thread {$thread->id}.",
+            'message_thread',
+            $thread->id,
+            null,
+            'log',
+            $user->id
+        );
+
+        return back()->with('success', 'Contact unblocked.');
+    }
+
+    public function setAvailability(Request $request): RedirectResponse
+    {
+        $data   = $request->validate(['status' => 'required|in:available,away,busy']);
+        $user   = $request->user();
+
+        UserMeta::updateOrCreate(
+            ['user_id' => $user->id, 'meta_key' => 'messaging_status'],
+            ['meta_value' => $data['status']]
+        );
+
+        return back()->with('success', 'Status updated.');
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
