@@ -34,7 +34,7 @@
             <template v-else-if="isLoggedIn">
               <button type="button" class="btn-hero-solid is-on-light" @click="openInquireModal"><AegisIcon name="briefcase" :size="14" /> Inquire</button>
               <button type="button" class="btn-hero-ghost is-on-light" @click="openDesignateModal"><AegisIcon name="shield" :size="14" /> Designate</button>
-              <a :href="route('messages.index') + '?to=' + user.id" class="btn-hero-ghost is-on-light is-icon-only" data-tooltip="Message" aria-label="Message"><AegisIcon name="message" :size="14" /></a>
+              <button type="button" class="btn-hero-ghost is-on-light is-icon-only" data-tooltip="Message" :disabled="msgLoading === user.id" @click="openConversation(user.id)"><AegisIcon name="message" :size="14" /></button>
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Share" aria-label="Share"><AegisIcon name="link" :size="14" /></button>
             </template>
             <template v-else>
@@ -391,6 +391,7 @@ import AegisModal from '@/components/ui/AegisModal.vue'
 import AegisIcon from '@/components/ui/AegisIcon.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
+import { useMessageButton } from '@/composables/useMessageButton'
 
 const props = defineProps({
   user:       { type: Object,  required: true }
@@ -399,6 +400,7 @@ const props = defineProps({
 const page = usePage()
 const toast = useToast()
 const { confirmAction } = useConfirm()
+const { openConversation, loading: msgLoading } = useMessageButton()
 
 // Derive auth state from Inertia shared props — zero dependency on controller passing them
 const authUser   = computed(() => page.props.auth?.user ?? null)

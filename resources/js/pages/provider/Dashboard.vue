@@ -467,7 +467,7 @@
                   <span class="nw-meta-item"><AegisIcon name="map-pin" :size="11" />{{ nc.target?.location ?? '' }}</span>
                   <span class="nw-meta-item"><AegisIcon name="clock" :size="11" />Replies in {{ nc.target?.response_time_hours ? nc.target.response_time_hours + 'h' : '—' }}</span>
                   <div class="nw-cta" @click.stop>
-                    <Link :href="route('messages.index')" class="nw-btn" data-tooltip="Send message"><AegisIcon name="message-square" :size="12" /></Link>
+                    <button class="nw-btn" data-tooltip="Send message" :disabled="msgLoading === nc.target?.id" @click="openConversation(nc.target?.id)"><AegisIcon name="message-square" :size="12" /></button>
                     <a :href="'/public/provider/' + (nc.target?.slug ?? '')" class="nw-btn primary" data-tooltip="View profile"><AegisIcon name="arrow-right-line" :size="12" /></a>
                   </div>
                 </div>
@@ -506,7 +506,7 @@
                   <span class="nw-meta-item"><AegisIcon name="map-pin" :size="11" />{{ nc.target?.location ?? '' }}</span>
                   <span class="nw-meta-item"><AegisIcon name="clock" :size="11" />Replies in {{ nc.target?.response_time_hours ? nc.target.response_time_hours + 'h' : '—' }}</span>
                   <div class="nw-cta" @click.stop>
-                    <Link :href="route('messages.index')" class="nw-btn" data-tooltip="Send message"><AegisIcon name="message-square" :size="12" /></Link>
+                    <button class="nw-btn" data-tooltip="Send message" :disabled="msgLoading === nc.target?.id" @click="openConversation(nc.target?.id)"><AegisIcon name="message-square" :size="12" /></button>
                     <a :href="'/public/business/' + (nc.target?.slug ?? '')" class="nw-btn primary" data-tooltip="View profile"><AegisIcon name="arrow-right-line" :size="12" /></a>
                   </div>
                 </div>
@@ -1218,8 +1218,9 @@ import AppLayout   from '@/layouts/AppLayout.vue'
 import AegisDropzone from '@/components/ui/AegisDropzone.vue'
 import ProfileCompletionStrip from '@/components/features/ProfileCompletionStrip.vue'
 import ReferralModal from '@/components/modals/ReferralModal.vue'
-import { useToast }     from '@/composables/useToast'
-import { useConfirm }   from '@/composables/useConfirm'
+import { useToast }        from '@/composables/useToast'
+import { useConfirm }      from '@/composables/useConfirm'
+import { useMessageButton } from '@/composables/useMessageButton'
 
 // ── Props ──────────────────────────────────────────────────────────────
 const props = defineProps({
@@ -1251,6 +1252,7 @@ const props = defineProps({
 // ── Composables ───────────────────────────────────────────────────────
 const toast            = useToast()
 const { confirmAction } = useConfirm()
+const { openConversation, loading: msgLoading } = useMessageButton()
 const auth             = computed(() => usePage().props.auth ?? {})
 const publicProfileUrl = computed(() => {
   const slug = auth.value.user?.slug

@@ -86,7 +86,7 @@
         <span class="badge badge-red" style="padding:6px 12px"><AegisIcon name="x" :size="13" /> Declined</span>
       </template>
       <template v-else>
-        <button type="button" class="btn btn-outline" @click="messageApplicant">
+        <button type="button" class="btn btn-outline" :disabled="msgLoading === props.proposal?.bp?.id" @click="messageApplicant">
           <AegisIcon name="message-square" :size="13" />
           Message
         </button>
@@ -108,6 +108,7 @@ import { ref, computed, watch } from 'vue'
 import { router, Link } from '@inertiajs/vue3'
 import AegisIcon from '@/components/ui/AegisIcon.vue'
 import { useToast } from '@/composables/useToast'
+import { useMessageButton } from '@/composables/useMessageButton'
 
 const props = defineProps({
   modelValue:          { type: Boolean, default: false },
@@ -122,6 +123,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'reviewed', 'shortlist', 'schedule', 'reject', 'hire'])
 
 const toast = useToast()
+const { openConversation, loading: msgLoading } = useMessageButton()
 const notes = ref('')
 
 const isOpen = computed(() => props.modelValue)
@@ -179,7 +181,7 @@ function saveNotes() {
 }
 
 function messageApplicant() {
-  router.visit(route('provider.messages'))
+  openConversation(props.proposal?.bp?.id)
 }
 </script>
 

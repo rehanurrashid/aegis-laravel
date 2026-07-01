@@ -174,7 +174,7 @@
         <!-- MESSAGING -->
         <template v-else-if="section === 'messaging'">
           <div class="st-card">
-            <div class="st-card-head"><div class="st-card-head-l"><span class="st-card-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><div><div class="st-card-title">Messaging Preferences</div><div class="st-card-sub">Control who can reach you and how you appear across the Aegis network</div></div></div><a href="/provider/messages" class="btn btn-outline btn-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Open Chat</a></div>
+            <div class="st-card-head"><div class="st-card-head-l"><span class="st-card-ico"><AegisIcon name="message-square" :size="17" /></span><div><div class="st-card-title">Messaging Preferences</div><div class="st-card-sub">Control who can reach you and how you appear across the Aegis network</div></div></div><Link :href="route('messages.index')" class="btn btn-outline btn-sm"><AegisIcon name="message-square" :size="13" /> Open Chat</Link></div>
             <div class="st-card-body">
               <div class="st-grid2">
                 <div class="st-field"><label class="st-label">Who Can Message Me</label><select class="form-select" v-model="msg.who"><option>Connected providers only</option><option>Anyone on Aegis</option><option>No one</option></select></div>
@@ -705,6 +705,7 @@
 
 <script setup>
 import { ref, reactive, computed } from 'vue';
+import { Link, router } from '@inertiajs/vue3';
 import AppLayout from '../../Components/AppLayout.vue';
 import Modal from '../../Components/Modal.vue';
 const props = defineProps({ user: Object });

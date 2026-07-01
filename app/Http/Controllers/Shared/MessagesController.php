@@ -182,6 +182,7 @@ class MessagesController extends Controller
             'threads'        => $threads,
             'activeThread'   => $activeThreadFormatted,
             'activeMessages' => $activeMessages->values(),
+            'activeThreadId' => $activeId ?: null,
             'recipients'     => $recipients,
             'unreadCounts'   => (object) $unreadCounts,
             'buckets'        => $bucketDefs,
@@ -426,6 +427,42 @@ class MessagesController extends Controller
         }
 
         return back()->with('success', 'Status updated.');
+    }
+
+    /**
+     * Find an existing direct thread with the given recipient, or create one,
+     * then redirect to the messages page with that thread active.
+     */
+    public function findOrCreate(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'recipient_id' => 'required|string|exists:users,id',
+        ]);
+
+        $recipientId = $request->input('recipient_id');
+        $authId      = $request->user()->id;
+
+        // Search existing threads where both users are participants
+        $thread = MessageThread::whereNull('deleted_at')
+            ->get()
+            ->first(function ($t) use ($authId, $recipientId) {
+                $ids = json_decode($t->participant_ids ?? '[]', true) ?: [];
+                return in_array($authId, $ids, true) && in_array($recipientId, $ids, true);
+            });
+
+        if (! $thread) {
+            $thread = $this->messaging->createThread([$authId, $recipientId]);
+        }
+
+        $portal    = $request->user()->role?->portal() ?? 'provider';
+        $routeName = $portal . '.messages';
+
+        // Fall back to shared route if portal route doesn't exist
+        try {
+            return redirect()->route($routeName, ['thread' => $thread->id]);
+        } catch (\Throwable) {
+            return redirect()->route('messages.index', ['thread' => $thread->id]);
+        }
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

@@ -63,10 +63,10 @@
               <button type="button" class="btn-hero-ghost is-on-light" @click="openServiceRequest('Appointment')">
                 <AegisIcon name="calendar" :size="14" /> Schedule
               </button>
-              <a :href="route('messages.index') + '?to=' + user.id"
-                 class="btn-hero-ghost is-on-light is-icon-only" data-tooltip="Message" aria-label="Message">
+              <button type="button" class="btn-hero-ghost is-on-light is-icon-only" data-tooltip="Message"
+                      :disabled="msgLoading === user.id" @click="openConversation(user.id)">
                 <AegisIcon name="message" :size="14" />
-              </a>
+              </button>
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only"
                       @click="copyShareLink" data-tooltip="Share" aria-label="Share">
                 <AegisIcon name="link" :size="14" />
@@ -664,6 +664,7 @@ import PublicLayout from '@/layouts/PublicLayout.vue'
 import ReferralModal from '@/components/modals/ReferralModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
+import { useMessageButton } from '@/composables/useMessageButton'
 import { usePricingStore } from '@/stores/pricing'
 
 const props = defineProps({
@@ -675,6 +676,7 @@ const props = defineProps({
 const page = usePage()
 const toast = useToast()
 const { confirmAction } = useConfirm()
+const { openConversation, loading: msgLoading } = useMessageButton()
 const pricing = usePricingStore()
 
 // Derive auth state from Inertia shared props — zero dependency on controller passing them

@@ -182,8 +182,8 @@
           </div>
           <div class="sr-req-time-ago">{{ req.timeAgo }}</div>
           <div class="sr-req-actions">
-            <button class="ms-act-btn" title="Message" @click="goToMessages(req)">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <button class="ms-act-btn" data-tooltip="Message" @click="goToMessages(req)">
+              <AegisIcon name="message-square" :size="13" />
             </button>
             <button class="ms-act-btn" title="Counter Propose" @click="openCounterProposeModal(req)">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>
@@ -822,7 +822,7 @@ const requestActivity = ref([
 ]);
 
 import { router } from '@inertiajs/vue3';
-function goToMessages(req) { router.visit('/provider/messages'); }
+function goToMessages(req) { router.visit(route('messages.index')); }
 
 // ── Counter Propose modal ──
 const counterProposeModal = ref({ open:false, req:null, datetime:'', message:'' });

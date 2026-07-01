@@ -249,7 +249,7 @@
           <div class="jp-card-footer">
             <span class="badge badge-green"><AegisIcon name="dot" :size="8" :filled="true" /> {{ val(c.status) === 'active' ? 'Active Contract' : 'Completed' }}</span>
             <div class="jp-card-actions" @click.stop>
-              <button class="btn-icon" data-tooltip="Message" @click="router.visit(route('provider.messages'))"><AegisIcon name="message-square" :size="14" /></button>
+              <button class="btn-icon" data-tooltip="Message" :disabled="msgLoading === c.bp?.id" @click="openConversation(c.bp?.id)"><AegisIcon name="message-square" :size="14" /></button>
               <button class="btn-icon" data-tooltip="View contract" @click="openContract(c)"><AegisIcon name="file-text" :size="14" /></button>
             </div>
           </div>
@@ -316,6 +316,7 @@ import HireModal from '@/components/modals/HireModal.vue'
 import ContractModal from '@/components/modals/ContractModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
+import { useMessageButton } from '@/composables/useMessageButton'
 
 const props = defineProps({
   jobs:            { type: Array,  default: () => [] },
@@ -331,6 +332,7 @@ const props = defineProps({
 
 const toast = useToast()
 const { confirmAction } = useConfirm()
+const { openConversation, loading: msgLoading } = useMessageButton()
 
 const tab = ref('my-postings')
 watch(tab, () => syncFormEnhancements())

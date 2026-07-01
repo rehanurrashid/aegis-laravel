@@ -45,6 +45,9 @@ class ReferralsController extends Controller
                 'responded_at'            => $r->responded_at?->toISOString(),
                 'closed_at'               => $r->closed_at?->toISOString(),
                 'created_at'              => $r->created_at?->toISOString(),
+                'counterpart_user_id'     => $isSender
+                    ? $r->recipient_id
+                    : $r->sender_id,
                 'counterpart_name'        => $isSender
                     ? ($r->recipient?->display_name ?? '—')
                     : ($r->sender?->display_name ?? '—'),

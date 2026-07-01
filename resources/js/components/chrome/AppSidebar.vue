@@ -100,12 +100,16 @@ const activePage = computed(() => {
   // Route names like 'provider.dashboard' → 'dashboard'
   // Route names like 'provider.plan.index' → 'plan'
   // Route names like 'provider.messages' → 'messages'
+  // Route names like 'messages.index' (shared) → 'messages'
   // Strip portal prefix (first segment), then use remaining minus trailing .index/.show/.store
   const withoutPortal = parts.slice(1) // drop 'provider'/'cs'/'ss'/'bp'/'admin'
-  const last = withoutPortal[withoutPortal.length - 1]
+  // If slicing the portal prefix left nothing (e.g. 'messages.index' has no portal prefix),
+  // treat the full parts as the domain path instead
+  const segments = withoutPortal.length ? withoutPortal : parts
+  const last = segments[segments.length - 1]
   // Drop generic suffixes — use the domain segment before them
-  if (['index', 'show', 'store', 'update', 'destroy'].includes(last) && withoutPortal.length > 1) {
-    return withoutPortal[withoutPortal.length - 2]
+  if (['index', 'show', 'store', 'update', 'destroy'].includes(last) && segments.length > 1) {
+    return segments[segments.length - 2]
   }
   return last ?? ''
 })

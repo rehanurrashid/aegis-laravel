@@ -36,7 +36,7 @@
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Copy link" aria-label="Copy link"><AegisIcon name="link" :size="14" /></button>
             </template>
             <template v-else-if="isLinkedProvider">
-              <a :href="route('messages.index') + '?to=' + user.id" class="btn-hero-solid is-on-light is-icon-only" data-tooltip="Message" aria-label="Message"><AegisIcon name="mail" :size="14" /></a>
+              <button type="button" class="btn-hero-solid is-on-light is-icon-only" data-tooltip="Message" :disabled="msgLoading === user.id" @click="openConversation(user.id)"><AegisIcon name="mail" :size="14" /></button>
             </template>
           </div>
         </div>
@@ -168,6 +168,7 @@ import { usePage } from '@inertiajs/vue3'
 import PublicLayout from '@/layouts/PublicLayout.vue'
 import AegisIcon from '@/components/ui/AegisIcon.vue'
 import { useToast } from '@/composables/useToast'
+import { useMessageButton } from '@/composables/useMessageButton'
 
 const props = defineProps({
   user:            { type: Object,  required: true },
@@ -182,6 +183,7 @@ const props = defineProps({
 
 const page = usePage()
 const toast = useToast()
+const { openConversation, loading: msgLoading } = useMessageButton()
 
 // Derive auth state from Inertia shared props — zero dependency on controller passing them
 const authUser   = computed(() => page.props.auth?.user ?? null)

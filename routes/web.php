@@ -545,6 +545,7 @@ Route::middleware(['auth', 'check.locked'])->group(function () {
     Route::post('/messages/{thread}/block',        [MessagesController::class, 'block'])->name('messages.block');
     Route::post('/messages/{thread}/unblock',      [MessagesController::class, 'unblock'])->name('messages.unblock');
     Route::post('/messages/availability',          [MessagesController::class, 'setAvailability'])->name('messages.availability');
+    Route::post('/messages/find-or-create',        [MessagesController::class, 'findOrCreate'])->name('messages.find-or-create');
 
     // Activity Feed
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');

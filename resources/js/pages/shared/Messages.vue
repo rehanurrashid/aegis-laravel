@@ -883,6 +883,7 @@ const props = defineProps({
   threads:              { type: Array,  default: () => [] },
   activeThread:         { type: Object, default: null },
   activeMessages:       { type: Array,  default: () => [] },
+  activeThreadId:       { type: String, default: null },
   recipients:           { type: Array,  default: () => [] },
   unreadCounts:         { type: Object, default: () => ({}) },
   buckets:              { type: Array,  default: () => [{ key: 'all', label: 'All', tip: 'All conversations' }] },
@@ -945,7 +946,22 @@ const filteredThreads = computed(() => {
 })
 
 function selectThread(t) {
-  router.get(route('messages.index', { thread: t.id }), {}, {
+  const portal = page.props.auth?.portal ?? 'provider'
+  const routeMap = {
+    provider: 'provider.messages',
+    cs:       'cs.messages',
+    ss:       'ss.messages',
+    bp:       'bp.messages',
+    admin:    'admin.messages',
+  }
+  const routeName = routeMap[portal] ?? 'provider.messages'
+  let url
+  try {
+    url = route(routeName)
+  } catch {
+    url = route('messages.index')
+  }
+  router.get(url, { thread: t.id }, {
     preserveScroll: true,
     preserveState:  true,
     only: ['activeThread', 'activeMessages', 'unreadCounts', 'threads'],

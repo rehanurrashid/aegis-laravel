@@ -168,13 +168,13 @@
             </div>
           </div>
           <footer class="rfc-foot" @click.stop>
-            <a
-              class="rfc-act"
-              :href="route('messages.index')"
+            <button
+              class="btn-icon"
+              type="button"
               data-tooltip="Message sender"
-              aria-label="Message sender"
-              style="display:inline-flex;align-items:center;justify-content:center"
-            ><AegisIcon name="message" :size="14" /></a>
+              :disabled="msgLoading === r.counterpart_user_id"
+              @click.stop="openConversation(r.counterpart_user_id)"
+            ><AegisIcon name="message" :size="14" /></button>
             <button
               class="rfc-act is-danger"
               type="button"
@@ -265,7 +265,7 @@
           </div>
           <footer class="rfc-foot" @click.stop>
             <template v-if="val(r.status)==='accepted'">
-              <a class="rfc-act" :href="route('messages.index')" data-tooltip="Message" aria-label="Message" style="display:inline-flex;align-items:center;justify-content:center"><AegisIcon name="message" :size="14" /></a>
+              <button class="btn-icon" type="button" data-tooltip="Message" :disabled="msgLoading === r.counterpart_user_id" @click="openConversation(r.counterpart_user_id)"><AegisIcon name="message" :size="14" /></button>
               <button class="rfc-act" type="button" data-tooltip="View details" aria-label="View details" style="display:inline-flex;align-items:center;justify-content:center" @click="openDetail(r)"><AegisIcon name="search" :size="14" /></button>
               <button class="rfc-cta" type="button" style="display:inline-flex;align-items:center;gap:4px" @click="openComplete(r)"><AegisIcon name="check" :size="12" /> Mark complete</button>
             </template>
@@ -274,7 +274,7 @@
               <button class="rfc-cta" type="button" style="display:inline-flex;align-items:center;gap:4px" @click="openModal('referralModal')"><AegisIcon name="refresh-cw" :size="12" /> Re-refer</button>
             </template>
             <template v-else>
-              <a class="rfc-act" :href="route('messages.index')" data-tooltip="Follow up" aria-label="Follow up" style="display:inline-flex;align-items:center;justify-content:center"><AegisIcon name="message" :size="14" /></a>
+              <button class="btn-icon" type="button" data-tooltip="Follow up" :disabled="msgLoading === r.counterpart_user_id" @click="openConversation(r.counterpart_user_id)"><AegisIcon name="message" :size="14" /></button>
               <button class="rfc-act is-danger" type="button" data-tooltip="Cancel" aria-label="Cancel" style="display:inline-flex;align-items:center;justify-content:center" @click="openCancel(r)"><AegisIcon name="x" :size="14" /></button>
               <button class="rfc-cta is-muted" type="button" @click="openDetail(r)">Details</button>
             </template>
@@ -584,7 +584,7 @@
       <template #footer>
         <template v-if="activeDetail && activeDetail.direction==='received' && val(activeDetail.status)==='sent'">
           <button class="btn btn-outline" style="display:inline-flex;align-items:center;gap:5px" @click="modals.detail=false;openDecline(activeDetail)"><AegisIcon name="x" :size="12" />Decline</button>
-          <a class="btn btn-outline" :href="route('messages.index')" style="display:inline-flex;align-items:center;gap:5px"><AegisIcon name="message" :size="12" />Message</a>
+          <button class="btn btn-outline" style="display:inline-flex;align-items:center;gap:5px" :disabled="msgLoading === activeDetail?.counterpart_user_id" @click="openConversation(activeDetail?.counterpart_user_id)"><AegisIcon name="message" :size="12" />Message</button>
           <button class="btn btn-success" style="display:inline-flex;align-items:center;gap:5px" @click="modals.detail=false;openAccept(activeDetail)"><AegisIcon name="check" :size="12" />Accept Referral</button>
         </template>
         <button v-else class="btn btn-outline" @click="modals.detail=false">Close</button>
@@ -772,6 +772,7 @@ import AegisPagination from '@/components/ui/AegisPagination.vue'
 import ReferralModal from '@/components/modals/ReferralModal.vue'
 import { useModal } from '@/composables/useModal'
 import { useToast } from '@/composables/useToast'
+import { useMessageButton } from '@/composables/useMessageButton'
 
 // ── Props ──────────────────────────────────────────────────────────────
 const props = defineProps({
@@ -789,6 +790,7 @@ const props = defineProps({
 // ── Composables ────────────────────────────────────────────────────────
 const { openModal, closeModal, isOpen } = useModal()
 const toast = useToast()
+const { openConversation, loading: msgLoading } = useMessageButton()
 
 // ── Enum unwrapper ─────────────────────────────────────────────────────
 const val = (v) => (v && typeof v === 'object' && 'value' in v) ? v.value : (v ?? '')
