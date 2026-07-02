@@ -29,24 +29,23 @@ class NetworkService
         if ($this->isConnected($from->id, $to->id)) {
             throw new RuntimeException('Already connected.');
         }
-        if (NetworkRequest::where('from_user_id', $from->id)
-            ->where('to_user_id', $to->id)
+        if (NetworkRequest::where('requester_id', $from->id)
+            ->where('recipient_id', $to->id)
             ->where('status', 'pending')->exists()) {
             throw new RuntimeException('A pending request already exists.');
         }
 
         $req = NetworkRequest::create([
             'id'           => 'nr_' . Str::lower(Str::random(12)),
-            'from_user_id' => $from->id,
-            'to_user_id'   => $to->id,
-            'note'         => $note,
+            'requester_id' => $from->id,
+            'recipient_id' => $to->id,
+            'message'      => $note,
             'status'       => 'pending',
-            'created_at'   => now(),
         ]);
 
         $this->activity->log(
             $to->id,
-            $this->portalFor($to->role),
+            $this->portalFor($to->role instanceof \BackedEnum ? $to->role->value : (string) $to->role),
             'account',
             ActivitySeverity::Info,
             'network_request_received',
@@ -62,10 +61,10 @@ class NetworkService
 
     public function acceptRequest(NetworkRequest $req, User $accepter): NetworkConnection
     {
-        if ($req->to_user_id !== $accepter->id) {
+        if ($req->recipient_id !== $accepter->id) {
             throw new RuntimeException('Only the recipient can accept.');
         }
-        if ($req->status !== 'pending') {
+        if ($req->status !== \App\Enums\RequestStatus::Pending) {
             throw new RuntimeException('Request is not pending.');
         }
 
@@ -73,16 +72,18 @@ class NetworkService
             $req->update(['status' => 'accepted', 'responded_at' => now()]);
 
             $conn = NetworkConnection::create([
-                'id'           => 'nc_' . Str::lower(Str::random(12)),
-                'user_a_id'    => $req->from_user_id,
-                'user_b_id'    => $req->to_user_id,
-                'connected_at' => now(),
+                'id'                => 'nc_' . Str::lower(Str::random(12)),
+                'user_id'           => $req->requester_id,
+                'connected_user_id' => $req->recipient_id,
+                'connection_type'   => 'practitioner',
+                'status'            => 'active',
+                'connected_at'      => now(),
             ]);
 
-            $from = User::find($req->from_user_id);
+            $from = User::find($req->requester_id);
             $this->activity->log(
                 $from->id,
-                $this->portalFor($from->role),
+                $this->portalFor($from->role instanceof \BackedEnum ? $from->role->value : (string) $from->role),
                 'account',
                 ActivitySeverity::Info,
                 'network_request_accepted',
@@ -101,13 +102,12 @@ class NetworkService
 
     public function declineRequest(NetworkRequest $req, User $decliner, ?string $reason = null): NetworkRequest
     {
-        if ($req->to_user_id !== $decliner->id) {
+        if ($req->recipient_id !== $decliner->id) {
             throw new RuntimeException('Only the recipient can decline.');
         }
         $req->update([
-            'status' => 'declined',
+            'status'       => 'declined',
             'responded_at' => now(),
-            'decline_reason' => $reason,
         ]);
 
         return $req->fresh();
@@ -117,21 +117,23 @@ class NetworkService
     {
         $conn->delete();
 
-        $otherId = $conn->user_a_id === $actor->id ? $conn->user_b_id : $conn->user_a_id;
+        $otherId = $conn->user_id === $actor->id ? $conn->connected_user_id : $conn->user_id;
         $other = User::find($otherId);
 
-        $this->activity->log(
-            $other->id,
-            $this->portalFor($other->role),
-            'account',
-            ActivitySeverity::Info,
-            'network_disconnected',
-            "{$actor->display_name} disconnected from your network",
-            'You are no longer connected.',
-            'user',
-            $actor->id,
-            $actor->id
-        );
+        if ($other) {
+            $this->activity->log(
+                $other->id,
+                $this->portalFor($other->role instanceof \BackedEnum ? $other->role->value : (string) $other->role),
+                'account',
+                ActivitySeverity::Info,
+                'network_disconnected',
+                "{$actor->display_name} disconnected from your network",
+                'You are no longer connected.',
+                'user',
+                $actor->id,
+                $actor->id
+            );
+        }
     }
 
     public function inviteExternal(User $inviter, string $email, string $displayName, ?string $note = null): ShadowConnection
@@ -182,9 +184,9 @@ class NetworkService
     private function isConnected(string $a, string $b): bool
     {
         return NetworkConnection::where(function ($q) use ($a, $b) {
-            $q->where('user_a_id', $a)->where('user_b_id', $b);
+            $q->where('user_id', $a)->where('connected_user_id', $b);
         })->orWhere(function ($q) use ($a, $b) {
-            $q->where('user_a_id', $b)->where('user_b_id', $a);
+            $q->where('user_id', $b)->where('connected_user_id', $a);
         })->exists();
     }
 

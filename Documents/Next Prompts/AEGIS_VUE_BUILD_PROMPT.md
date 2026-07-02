@@ -467,6 +467,45 @@ No value required — `hasAttribute('data-no-enhance')` is the check. Applies to
 
 ---
 
+## Message buttons — always `useMessageButton()`
+
+Every icon or button that opens a conversation with a specific person **must** use the `useMessageButton` composable. Never hardcode `href="/messages"`, `route('messages.index')`, or any bare `/messages` URL — these lose the thread context and route the user to the wrong URL.
+
+```js
+import { useMessageButton } from '@/composables/useMessageButton'
+const { openConversation, loading: msgLoading } = useMessageButton()
+```
+
+```vue
+<!-- ✅ CORRECT — finds/creates the direct thread, redirects to the portal-prefixed URL -->
+<button class="btn-icon" data-tooltip="Message"
+        :disabled="msgLoading === person.id"
+        @click="openConversation(person.id)">
+  <AegisIcon name="message-square" :size="14" />
+</button>
+
+<!-- ❌ WRONG — hardcoded href, loses recipient and lands on wrong URL -->
+<a href="/messages" data-tooltip="Message"><AegisIcon name="message-square" :size="14" /></a>
+<Link :href="route('messages.index')" ...>Message</Link>
+```
+
+**Rules:**
+- Recipient ID comes from the surrounding data object — `person.id`, `referral.counterpart_user_id`, `nc.target?.id`, `proposal.bp?.id`, etc. If no user ID is available in the data (static mock data), navigate to `route('messages.index')` as a fallback — but flag it for wiring when the page gets real data.
+- `useMessageButton` POSTs to `messages.find-or-create`, which finds or creates the direct thread server-side and redirects to `{portal}.messages?thread=<id>` — the correct portal-prefixed URL that keeps the sidebar item selected.
+- Navigation-only message links (inbox openers with no specific recipient, e.g. quick action buttons, sidebar items) use `route('{portal}.messages')` via the portal-aware `r()` helper or direct route call — **never** `route('messages.index')`.
+- `selectThread()` calls in `Messages.vue` must use the portal-prefixed route, not `route('messages.index')`.
+
+**Pre-flight gate:**
+```bash
+grep -rn "route.*messages\.index\|href.*['\"].*\/messages['\"]" resources/js/ --include="*.vue" \
+  | grep -v "find-or-create\|messages\.index.*fallback\|#"
+# Expected: 0 hits (outside of Messages.vue fallback)
+grep -rn "rfc-act\|title=" resources/js/ --include="*.vue" | grep -i message
+# Expected: 0 hits
+```
+
+---
+
 ## Start
 
 Read `AEGIS_VUE_RULES.md`. Read the attached PHP file. Run Step 0. Output Step 1 inventory. Run Step 2 diff. Apply Step 3 fixes surgically. Verify Step 4. Run Step 5 gates. Deliver Step 6.

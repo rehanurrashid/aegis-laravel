@@ -601,6 +601,7 @@ function submit() {
   font-size: 12px;
   color: var(--text-2);
   line-height: 1.5;
+  margin-bottom: 16px;
 }
 .rfm-hipaa svg { flex-shrink: 0; color: var(--gold-dark); margin-top: 1px; }
 

@@ -86,6 +86,14 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Referral\ReferralClosed::class,     Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Referral\ReferralCancelled::class,  Listeners\SendEmailNotificationListener::class);
 
+        // ── Network connection events ─────────────────────────────────────────
+        Event::listen(Events\Network\ConnectionAccepted::class,  Listeners\ActivityFanoutListener::class);
+        Event::listen(Events\Network\ConnectionAccepted::class,  Listeners\SendEmailNotificationListener::class);
+
+        // ── Service request events (T58/T59) ──────────────────────────────────
+        Event::listen(Events\Service\ServiceRequestSubmitted::class, Listeners\ActivityFanoutListener::class);
+        Event::listen(Events\Service\ServiceRequestSubmitted::class, Listeners\SendEmailNotificationListener::class);
+
         // ── UNGATED incident alerts (bypass notify_* prefs entirely) ─────────────
         Event::listen(Events\Incident\IncidentReported::class,     Listeners\SendIncidentAlertsListener::class);
         Event::listen(Events\Incident\IncidentVerified::class,     Listeners\SendIncidentAlertsListener::class);

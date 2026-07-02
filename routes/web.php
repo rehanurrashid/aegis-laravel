@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\MfaController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Public\PublicPageController;
+use App\Http\Controllers\Public\PublicInteractionController;
 use App\Http\Controllers\Provider\ContinuityPlanController;
 use App\Http\Controllers\Provider\DocumentsController;
 use App\Http\Controllers\Provider\DashboardController as ProviderDashboardController;
@@ -567,4 +568,13 @@ Route::prefix('public')->name('public.')->group(function () {
     Route::get('/continuity-steward/{slug}', [PublicProfileController::class, 'continuityStewarded'])->name('cs');
     Route::get('/support-steward/{slug}', [PublicProfileController::class, 'supportSteward'])->name('ss');
     Route::get('/business/{slug}', [PublicProfileController::class, 'business'])->name('bp');
+});
+
+// ── Public Profile Interactions (auth required) ───────────────────────────────
+Route::middleware('auth')->prefix('public/profiles')->name('public.profile.')->group(function () {
+    Route::post('/{user}/endorse',         [PublicInteractionController::class, 'endorse'])->name('endorse');
+    Route::post('/{user}/service-request', [PublicInteractionController::class, 'serviceRequest'])->name('service-request');
+    Route::post('/{user}/connect',              [PublicInteractionController::class, 'connect'])->name('connect');
+    Route::delete('/{networkRequest}/cancel-connect', [PublicInteractionController::class, 'cancelConnect'])->name('cancel-connect');
+    Route::delete('/{connection}/disconnect',   [PublicInteractionController::class, 'disconnect'])->name('disconnect');
 });

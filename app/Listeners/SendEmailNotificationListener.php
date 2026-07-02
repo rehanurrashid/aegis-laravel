@@ -13,6 +13,8 @@ use App\Events\Referral\ReferralCancelled;
 use App\Events\Referral\ReferralClosed;
 use App\Events\Referral\ReferralDeclined;
 use App\Events\Referral\ReferralSent;
+use App\Events\Network\ConnectionAccepted;
+use App\Events\Service\ServiceRequestSubmitted;
 use App\Events\Business\ContractSigned;
 use App\Events\Business\InvoicePaid;
 use App\Events\Business\InvoiceSent;
@@ -94,6 +96,8 @@ class SendEmailNotificationListener
             $event instanceof ReferralDeclined        => $this->referralDeclined($event),
             $event instanceof ReferralClosed          => $this->referralClosed($event),
             $event instanceof ReferralCancelled       => $this->referralCancelled($event),
+            $event instanceof ConnectionAccepted      => $this->connectionAccepted($event),
+            $event instanceof ServiceRequestSubmitted => $this->serviceRequestSubmitted($event),
             default                                   => [],
         };
     }
@@ -357,5 +361,40 @@ class SendEmailNotificationListener
                 'portal'  => $ps->steward_type === 'continuity_steward' ? 'continuity_steward' : 'support_steward',
             ])
             ->toArray();
+    }
+
+    // ── T43: connection accepted — notify the requester ───────────────────────
+    private function connectionAccepted(ConnectionAccepted $e): array
+    {
+        $conn    = $e->connection;
+        $userId  = $conn->user_id; // the one who originally sent the request
+        return [[
+            'user_id'  => $userId,
+            'gate_key' => 'notify_network',
+            'template' => 'emails.network.43-connection-accepted',
+            'data'     => ['connection_id' => $conn->id, 'accepter_id' => $e->accepter->id],
+        ]];
+    }
+
+    // ── T58/T59: service request — notify practitioner (T58) + requester (T59) ─
+    private function serviceRequestSubmitted(ServiceRequestSubmitted $e): array
+    {
+        $req = $e->request;
+        return [
+            // T58 — practitioner receives the request
+            [
+                'user_id'  => $req->practitioner_id,
+                'gate_key' => 'notify_services',
+                'template' => 'emails.gaps.58-service-inquiry-received',
+                'data'     => ['service_request_id' => $req->id],
+            ],
+            // T59 — requester gets confirmation
+            [
+                'user_id'  => $req->inquirer_id,
+                'gate_key' => 'notify_services',
+                'template' => 'emails.gaps.59-service-inquiry-responded',
+                'data'     => ['service_request_id' => $req->id],
+            ],
+        ];
     }
 }

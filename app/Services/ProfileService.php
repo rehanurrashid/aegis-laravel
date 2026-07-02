@@ -263,6 +263,7 @@ class ProfileService
 
         // Connection info (viewer-specific)
         $connection = null;
+        $pendingRequestId = null;
         if ($viewer && $viewer->id !== $user->id) {
             $conn = NetworkConnection::where(function ($q) use ($user, $viewer) {
                 $q->where('user_id', $viewer->id)->where('connected_user_id', $user->id);
@@ -272,12 +273,19 @@ class ProfileService
 
             if ($conn) {
                 $connection = [
+                    'id'                    => $conn->id,
                     'connected_since'       => $conn->connected_at?->format('F Y'),
                     'connection_type'       => 'Mutual (Both Accepted)',
                     'last_interaction'      => $raw['last_interaction'] ?? null,
                     'mutual_connections'    => $stats['mutual_connections'],
                     'profile_completeness'  => ($raw['profile_completeness'] ?? 98) . '%',
                 ];
+            } else {
+                $pending = \App\Models\NetworkRequest::where('requester_id', $viewer->id)
+                    ->where('recipient_id', $user->id)
+                    ->where('status', 'pending')
+                    ->first();
+                $pendingRequestId = $pending?->id;
             }
         }
 
@@ -299,6 +307,7 @@ class ProfileService
             'insurance_panels' => is_array($insurance)   ? $insurance   : [],
             'reviews'          => is_array($reviews)     ? $reviews     : [],
             'connection'       => $connection,
+            'pending_request_id' => $pendingRequestId,
             'show_ratings'     => (bool) $show_ratings,
             'show_ref_stats'   => (bool) $show_ref_stats,
             'show_demographics'=> (bool) $show_demographics,

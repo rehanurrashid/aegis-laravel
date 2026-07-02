@@ -23,23 +23,6 @@
               <div class="page-hero-eyebrow">Practitioner Profile</div>
               <h1 class="page-hero-title">{{ user.display_name }}{{ user.credentials ? ', ' + user.credentials : '' }}</h1>
               <div class="page-hero-sub">{{ specialtyLabel }} &nbsp;·&nbsp; {{ practiceName }}</div>
-              <div class="hero-badges">
-                <span v-if="pm.accepting_clients !== false" class="badge badge-green">
-                  <span class="badge-dot"></span>Accepting Referrals
-                </span>
-                <span v-if="user.verified" class="badge badge-blue">
-                  <AegisIcon name="check" :size="10" />Aegis Verified
-                </span>
-                <span v-if="user.services_mode" class="badge badge-gold">
-                  <AegisIcon name="briefcase" :size="10" />Services Enabled
-                </span>
-                <span v-if="acceptsTelehealth" class="badge badge-blue">
-                  <AegisIcon name="monitor" :size="10" />Telehealth
-                </span>
-                <span v-if="user.stripe_connected" class="badge badge-green">
-                  <AegisIcon name="credit-card" :size="10" />Payment Verified
-                </span>
-              </div>
             </div>
           </div>
 
@@ -57,9 +40,25 @@
 
             <!-- Logged-in non-owner -->
             <template v-else-if="isLoggedIn">
-              <button type="button" class="btn-hero-solid is-on-light" @click="openReferral">
-                <AegisIcon name="refresh" :size="14" /> Refer
-              </button>
+              <!-- Connected: show Refer + Schedule -->
+              <template v-if="isConnected">
+                <button type="button" class="btn-hero-solid is-on-light" @click="openReferral">
+                  <AegisIcon name="refresh" :size="14" /> Refer
+                </button>
+              </template>
+              <!-- Not connected: pending or fresh -->
+              <template v-else>
+                <template v-if="pm.pending_request_id">
+                  <button type="button" class="btn-hero-ghost is-on-light" @click="cancelConnect">
+                    <AegisIcon name="x" :size="14" /> Cancel Request
+                  </button>
+                </template>
+                <template v-else>
+                  <button type="button" class="btn-hero-solid is-on-light" :disabled="connectForm.processing" @click="sendConnect">
+                    <AegisIcon name="plus" :size="14" /> Connect
+                  </button>
+                </template>
+              </template>
               <button type="button" class="btn-hero-ghost is-on-light" @click="openServiceRequest('Appointment')">
                 <AegisIcon name="calendar" :size="14" /> Schedule
               </button>
@@ -67,6 +66,10 @@
                       :disabled="msgLoading === user.id" @click="openConversation(user.id)">
                 <AegisIcon name="message" :size="14" />
               </button>
+              <a :href="route('provider.activity') + '?event_type=account'"
+                 class="btn-hero-ghost is-on-light is-icon-only" data-tooltip="View Activity">
+                <AegisIcon name="activity" :size="14" />
+              </a>
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only"
                       @click="copyShareLink" data-tooltip="Share" aria-label="Share">
                 <AegisIcon name="link" :size="14" />
@@ -84,6 +87,25 @@
               </button>
             </template>
           </div>
+        </div>
+
+        <!-- Full-width badge bar — sits between the title row and hero-meta, aligned under page-hero-text -->
+        <div class="hero-badges" style="padding-left:95px">
+          <span v-if="pm.accepting_clients !== false" class="badge badge-green">
+            <span class="badge-dot"></span>Accepting Referrals
+          </span>
+          <span v-if="user.verified" class="badge badge-blue">
+            <AegisIcon name="check" :size="10" />Aegis Verified
+          </span>
+          <span v-if="user.services_mode" class="badge badge-gold">
+            <AegisIcon name="briefcase" :size="10" />Services Enabled
+          </span>
+          <span v-if="acceptsTelehealth" class="badge badge-blue">
+            <AegisIcon name="monitor" :size="10" />Telehealth
+          </span>
+          <span v-if="user.stripe_connected" class="badge badge-green">
+            <AegisIcon name="credit-card" :size="10" />Payment Verified
+          </span>
         </div>
 
         <div class="hero-meta">
@@ -121,6 +143,33 @@
         <AegisStatChip icon="user-check" :value="pm.stats.client_slots" label="Client Slots" />
       </div>
 
+      <!-- ═══ MY SERVICE REQUESTS (viewer strip) ═══ -->
+      <div v-if="isLoggedIn && !isOwner && myServiceRequests.length" class="svc-request-strip">
+        <div class="svc-request-strip-title">
+          <AegisIcon name="clipboard" :size="13" class="aegis-icon-gold-dark" />
+          Your Service Requests to {{ user.display_name }}
+        </div>
+        <div v-for="req in myServiceRequests" :key="req.id" class="svc-request-strip-row">
+          <div class="svc-request-strip-left">
+            <div class="svc-request-strip-service">{{ req.service_title }}</div>
+            <div class="svc-request-strip-meta">Sent {{ req.created_at }}</div>
+            <div v-if="req.message" class="svc-request-strip-note">{{ req.message }}</div>
+          </div>
+          <div class="svc-request-strip-right">
+            <span :class="['badge', statusBadgeClass(req.status)]">
+              {{ statusLabel(req.status) }}
+            </span>
+            <div v-if="req.response_note" class="svc-request-strip-response">
+              <AegisIcon name="message" :size="11" />
+              {{ req.response_note }}
+            </div>
+            <div v-if="req.responded_at" class="svc-request-strip-response-date">
+              Responded {{ req.responded_at }}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- ═══ SERVICES PANEL (services_mode only) ═══ -->
       <div v-if="user.services_mode && services.length" class="pp-svc-section">
         <div class="pp-svc-header">
@@ -134,9 +183,9 @@
             This provider offers licensed professional services to other providers — including supervision,
             consultation, and training. Provider-to-provider engagements, not client-facing services.
           </div>
-          <div class="pp-svc-grid">
+          <div class="pp-svc-grid" style="grid-template-columns:repeat(3,1fr)">
             <div v-for="svc in servicesWithLabels" :key="svc.id" class="pp-svc-card">
-              <div class="pp-svc-card-top">
+              <div class="pp-svc-card-top" style="flex-direction:column;align-items:flex-start;gap:4px">
                 <div class="pp-svc-card-name">{{ svc.title }}</div>
                 <div class="pp-svc-card-price">{{ svc.rateAmount }}<span v-if="svc.rateUnit">{{ svc.rateUnit }}</span></div>
               </div>
@@ -145,14 +194,14 @@
                 <span v-if="svc.duration_min"><AegisIcon name="clock" :size="11" />{{ svc.duration_min }} min</span>
                 <span v-if="svc.format"><AegisIcon name="monitor" :size="11" />{{ formatLabel(svc.format) }}</span>
               </div>
-              <div class="pp-svc-card-footer">
+              <div class="pp-svc-card-footer" style="flex-direction:column;align-items:stretch;gap:8px">
                 <span class="pp-svc-card-avail" :class="svc.availability ?? 'open'">
                   <AegisIcon name="circle-dot" :size="9" class="aegis-icon-filled" />{{ svc.availability_label || ((svc.availability ?? 'open') === 'limited' ? 'Limited Spots' : 'Slots Available') }}
                 </span>
                 <template v-if="!isOwner">
-                  <button v-if="isLoggedIn" class="btn btn-outline btn-sm"
+                  <button v-if="isLoggedIn" class="btn btn-primary btn-sm" style="width:100%"
                           @click="openServiceRequest(svc.title)">Request</button>
-                  <a v-else :href="route('login')" class="btn btn-outline btn-sm">Sign in to Request</a>
+                  <a v-else :href="route('login')" class="btn btn-outline btn-sm" style="width:100%;text-align:center">Sign in to Request</a>
                 </template>
               </div>
             </div>
@@ -320,8 +369,8 @@
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                   <div style="font-size:13px;font-weight:700;color:var(--text)">{{ rev.name }}</div>
                   <div style="display:flex;gap:1px">
-                    <AegisIcon v-for="i in (rev.stars ?? 5)" :key="'f'+i" name="star" :size="13" class="aegis-icon-filled aegis-icon-gold-dark" />
-                    <AegisIcon v-for="i in (5 - (rev.stars ?? 5))" :key="'e'+i" name="star" :size="13" class="aegis-icon-muted" />
+                    <AegisIcon v-for="i in (rev.stars ?? 5)" :key="'f'+i" name="star" :size="13" :filled="true" style="color:var(--gold-dark)" />
+                    <AegisIcon v-for="i in (5 - (rev.stars ?? 5))" :key="'e'+i" name="star" :size="13" style="color:var(--border-strong)" />
                   </div>
                 </div>
                 <div style="font-size:12px;color:var(--text-2);line-height:1.6;font-style:italic">"{{ rev.quote }}"</div>
@@ -335,8 +384,8 @@
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
                   <div style="font-size:13px;font-weight:700;color:var(--text)">{{ rev.name }}</div>
                   <div style="display:flex;gap:1px">
-                    <AegisIcon v-for="i in rev.stars" :key="'f'+i" name="star" :size="13" class="aegis-icon-filled aegis-icon-gold-dark" />
-                    <AegisIcon v-for="i in (5 - rev.stars)" :key="'e'+i" name="star" :size="13" class="aegis-icon-muted" />
+                    <AegisIcon v-for="i in rev.stars" :key="'f'+i" name="star" :size="13" :filled="true" style="color:var(--gold-dark)" />
+                    <AegisIcon v-for="i in (5 - rev.stars)" :key="'e'+i" name="star" :size="13" style="color:var(--border-strong)" />
                   </div>
                 </div>
                 <div style="font-size:12px;color:var(--text-2);line-height:1.6;font-style:italic">"{{ rev.quote }}"</div>
@@ -344,9 +393,9 @@
               </div>
             </template>
             <div style="display:flex;align-items:center;justify-content:space-between;padding-top:14px;font-size:12px;color:var(--text-3)">
-              <span>Overall Peer Rating: <strong style="color:var(--gold-dark)">{{ pm.rating ?? '4.9' }}/5.0</strong> from {{ pm.review_count ?? 62 }} reviews</span>
+              <span>Overall Peer Rating: <strong style="color:var(--gold-dark)">{{ computedRating }}/5.0</strong> from {{ computedReviewCount }} review{{ computedReviewCount !== 1 ? 's' : '' }}</span>
               <button v-if="isLoggedIn && !isOwner" class="btn btn-outline btn-sm" @click="showEndorseModal = true">
-                <AegisIcon name="plus" :size="13" /> Endorse
+                <AegisIcon name="plus" :size="13" /> Endorse This Practitioner
               </button>
             </div>
           </div>
@@ -449,7 +498,8 @@
             </div>
             <div class="pp-avail-grid">
               <div v-for="(time, day) in schedule.availability" :key="day"
-                   :class="['pp-avail-day', time ? 'open' : 'closed']">
+                   :class="['pp-avail-day', time ? 'open' : 'closed']"
+                   :style="time ? { color: 'var(--gold-dark)', borderColor: 'var(--fade-gold)', background: 'var(--badge-bg-gold)' } : {}">
                 {{ day }}<span class="pp-avail-time">{{ time ?? '—' }}</span>
               </div>
             </div>
@@ -460,12 +510,6 @@
             <div class="pp-info-row" style="margin-top:10px"><span class="pp-info-label">New Client Wait</span><span class="pp-info-val">{{ schedule.new_client_wait }}</span></div>
             <div class="pp-info-row"><span class="pp-info-label">Urgent Slots</span><span class="pp-info-val" style="color:var(--green-dark)">{{ schedule.urgent_slots }}</span></div>
             <div class="pp-info-row" style="border-bottom:none"><span class="pp-info-label">Online Scheduling</span><span class="pp-info-val" :style="schedule.online_scheduling ? 'color:var(--green-dark)' : 'color:var(--text-4)'">{{ schedule.online_scheduling ? 'Available' : 'Not Available' }}</span></div>
-            <div v-if="isLoggedIn && !isOwner" class="pp-action-row">
-              <button class="btn-icon" data-tooltip="View calendar" @click="toast.info('Opening calendar...')">
-                <AegisIcon name="calendar" :size="14" />
-              </button>
-              <button class="btn btn-primary btn-sm" @click="openServiceRequest('Appointment')">Request Slot</button>
-            </div>
           </div>
 
           <!-- Provider Identity -->
@@ -525,7 +569,15 @@
               You're not yet connected with {{ user.display_name }}. Add them to your clinical network to
               unlock referral tracking, shared care coordination, and connection history.
             </p>
-            <button class="btn btn-outline btn-sm" @click="openReferral">
+            <template v-if="pm.pending_request_id">
+              <p style="font-size:12px;color:var(--gold-dark);font-weight:600;margin:0 0 10px">
+                <AegisIcon name="clock" :size="12" style="vertical-align:-2px" /> Connection request pending
+              </p>
+              <button class="btn btn-outline btn-sm btn-danger-outline" @click="cancelConnect">
+                <AegisIcon name="x" :size="13" /> Cancel Request
+              </button>
+            </template>
+            <button v-else class="btn btn-outline btn-sm" @click="sendConnect" :disabled="connectForm.processing">
               <AegisIcon name="plus" :size="13" /> Connect
             </button>
           </div>
@@ -550,14 +602,14 @@
     <template v-if="isLoggedIn && !isOwner">
 
       <!-- Centralized Referral Modal -->
-      <ReferralModal v-model="showReferralModal" :roster="[]" :network="[]" />
+      <ReferralModal :roster="referralRoster" :network="referralNetwork" />
 
       <!-- Service Request Modal -->
       <AegisModal v-model="showServiceRequestModal"
                   title="Request a Service"
                   subtitle="Request an appointment or specific service from this provider"
                   size="md">
-        <div class="pp-tip-box" style="margin-top:0;display:flex;gap:10px;align-items:flex-start">
+        <div class="pp-tip-box" style="margin-top:0;margin-bottom:18px;display:flex;gap:10px;align-items:flex-start">
           <span style="flex-shrink:0;margin-top:1px;display:inline-flex;align-items:center;line-height:0">
             <AegisIcon name="info" :size="16" class="aegis-icon-gold-dark" />
           </span>
@@ -598,8 +650,8 @@
         </div>
         <template #footer>
           <button class="btn btn-outline" @click="showServiceRequestModal = false">Cancel</button>
-          <button class="btn btn-primary" @click="submitServiceRequest">
-            <span class="btn-ico"><AegisIcon name="send" :size="13" /></span>Send Request
+          <button class="btn btn-primary" :disabled="svcRequestForm.processing" @click="submitServiceRequest">
+            <span class="btn-ico"><AegisIcon name="send" :size="13" /></span>{{ svcRequestForm.processing ? 'Sending…' : 'Send Request' }}
           </button>
         </template>
       </AegisModal>
@@ -615,12 +667,16 @@
         </div>
         <div class="form-group">
           <label class="form-label">Your Rating <span class="req">*</span></label>
-          <div class="rating-stars" role="radiogroup" aria-label="Star rating">
+          <div class="rating-stars" style="display:flex;gap:4px;cursor:pointer" role="radiogroup" aria-label="Star rating">
             <button v-for="i in 5" :key="i" type="button"
-                    :class="['rating-star', endorseForm.rating >= i ? 'is-on' : '']"
+                    class="rating-star"
+                    style="background:none;border:none;padding:2px;cursor:pointer;color:var(--gold-dark)"
                     @click="endorseForm.rating = i"
-                    :aria-label="i + (i === 1 ? ' star' : ' stars')">
-              <AegisIcon name="star" :size="22" />
+                    :aria-label="i + (i === 1 ? ' star' : ' stars')"
+                    :aria-pressed="endorseForm.rating >= i">
+              <AegisIcon name="star" :size="28"
+                         :filled="endorseForm.rating >= i"
+                         :style="endorseForm.rating >= i ? 'color:var(--gold-dark)' : 'color:var(--border-strong)'" />
             </button>
           </div>
         </div>
@@ -647,8 +703,8 @@
         </div>
         <template #footer>
           <button class="btn btn-outline" @click="showEndorseModal = false">Cancel</button>
-          <button class="btn btn-primary" @click="submitEndorse">
-            <span class="btn-ico"><AegisIcon name="send" :size="13" /></span>Submit Endorsement
+          <button class="btn btn-primary" :disabled="endorseForm.processing" @click="submitEndorse">
+            <span class="btn-ico"><AegisIcon name="send" :size="13" /></span>{{ endorseForm.processing ? 'Submitting…' : 'Submit Endorsement' }}
           </button>
         </template>
       </AegisModal>
@@ -659,32 +715,37 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { usePage, useForm } from '@inertiajs/vue3'
+import { usePage, useForm, router } from '@inertiajs/vue3'
 import PublicLayout from '@/layouts/PublicLayout.vue'
 import ReferralModal from '@/components/modals/ReferralModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useMessageButton } from '@/composables/useMessageButton'
+import { useModal } from '@/composables/useModal'
 import { usePricingStore } from '@/stores/pricing'
 
 const props = defineProps({
-  user:        { type: Object, required: true },
-  profileMeta: { type: Object, default: () => ({}) },
-  services:    { type: Array,  default: () => [] },
+  user:              { type: Object, required: true },
+  profileMeta:       { type: Object, default: () => ({}) },
+  services:          { type: Array,  default: () => [] },
+  referralRoster:    { type: Array,  default: () => [] },
+  referralNetwork:   { type: Array,  default: () => [] },
+  myServiceRequests: { type: Array,  default: () => [] },
 })
 
 const page = usePage()
 const toast = useToast()
 const { confirmAction } = useConfirm()
 const { openConversation, loading: msgLoading } = useMessageButton()
+const { openModal } = useModal()
 const pricing = usePricingStore()
 
-// Derive auth state from Inertia shared props — zero dependency on controller passing them
+// Derive auth state from Inertia shared props
 const authUser   = computed(() => page.props.auth?.user ?? null)
 const isLoggedIn = computed(() => !!authUser.value)
 const isOwner    = computed(() => isLoggedIn.value && authUser.value?.id === props.user?.id)
 
-// ── Aliases for cleaner template access ───────────────────────────────
+// ── Aliases ───────────────────────────────────────────────────────────
 const pm       = computed(() => props.profileMeta ?? {})
 const schedule = computed(() => pm.value.schedule  ?? {})
 const identity = computed(() => pm.value.identity  ?? {})
@@ -692,12 +753,16 @@ const creds    = computed(() => pm.value.credentials ?? {})
 const fees     = computed(() => pm.value.fees       ?? {})
 const collab   = computed(() => pm.value.collab     ?? {})
 
+// ── Connection state ──────────────────────────────────────────────────
+// isConnected = viewer has an active NetworkConnection record with this provider
+const isConnected = computed(() => !!pm.value.connection?.id)
+
 // ── Derived ───────────────────────────────────────────────────────────
-const specialtyLabel = computed(() => props.user.specialty ?? 'Clinical Practitioner')
-const practiceName   = computed(() => props.user.organization ?? 'Independent Practice')
-const sessionFormat  = computed(() => schedule.value.session_format ?? 'In-Person & Telehealth')
+const specialtyLabel    = computed(() => props.user.specialty ?? 'Clinical Practitioner')
+const practiceName      = computed(() => props.user.organization ?? 'Independent Practice')
+const sessionFormat     = computed(() => schedule.value.session_format ?? 'In-Person & Telehealth')
 const acceptsTelehealth = computed(() => sessionFormat.value.toLowerCase().includes('telehealth'))
-const avatarInitials = computed(() =>
+const avatarInitials    = computed(() =>
   props.user.avatar_initials ?? props.user.display_name?.slice(0, 2).toUpperCase() ?? '??'
 )
 
@@ -705,7 +770,20 @@ const culturalCompetencies = computed(() =>
   pm.value.identity?.lgbtq_affirming ? ['LGBTQ+ Affirming', 'Trauma-Informed', 'Multicultural', 'Faith-Sensitive'] : []
 )
 
-// ── Static fallback data ───────────────────────────────────────────────
+// Compute live rating from actual review array (falls back to stored pm.rating)
+const computedReviewCount = computed(() => {
+  const dynamic = pm.value.reviews ?? []
+  return dynamic.length > 0 ? dynamic.length : (pm.value.review_count ?? 0)
+})
+const computedRating = computed(() => {
+  const dynamic = pm.value.reviews ?? []
+  if (dynamic.length > 0) {
+    const avg = dynamic.reduce((sum, r) => sum + (r.stars ?? 5), 0) / dynamic.length
+    return avg.toFixed(1)
+  }
+  return pm.value.rating ?? '—'
+})
+
 const staticReviews = [
   { name: 'Dr. Sarah Chen, LCSW', stars: 5, quote: 'One of the most collaborative providers I\'ve worked with. Always keeps me in the loop on co-managed clients.', meta: 'Therapist · Connected since Feb 2024' },
   { name: 'Dr. James Okafor, MD', stars: 5, quote: 'Exceptional with treatment-resistant cases. My clients report feeling truly heard. Strong recommendation for complex needs.', meta: 'Primary Care · Connected since Aug 2024' },
@@ -728,52 +806,129 @@ function formatLabel(format) {
 }
 
 // ── Modal state ────────────────────────────────────────────────────────
-const showReferralModal       = ref(false)
 const showServiceRequestModal = ref(false)
 const showEndorseModal        = ref(false)
 
-const svcRequestForm = ref({ service: '', date: '', time: 'Flexible', format: 'Telehealth', notes: '' })
-const endorseForm    = ref({ rating: 0, headline: '', body: '', context: 'Referral exchange' })
-const noteForm       = useForm({ body: '' })
+// ── Forms ──────────────────────────────────────────────────────────────
+const connectForm = useForm({})
+const cancelRequestForm = useForm({})
+
+const svcRequestForm = useForm({
+  service: '',
+  date:    '',
+  time:    'Flexible',
+  format:  'Telehealth',
+  notes:   '',
+})
+
+const endorseForm = useForm({
+  rating:   0,
+  headline: '',
+  body:     '',
+  context:  'Referral exchange',
+})
+
+const noteForm = useForm({ body: '' })
 
 const privateNotes = computed(() => pm.value.private_notes ?? [])
 
 function formatNoteDate(dateStr) {
   if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-// ── Actions ───────────────────────────────────────────────────────────
-function openReferral() { showReferralModal.value = true }
+// ── Actions ────────────────────────────────────────────────────────────
+
+// Open referral modal (only valid when isConnected)
+function openReferral() {
+  openModal('referralModal')
+}
 
 function openServiceRequest(serviceName) {
-  svcRequestForm.value.service = serviceName
+  svcRequestForm.service = serviceName
   showServiceRequestModal.value = true
 }
 
+// Send network connect request to backend
+function sendConnect() {
+  connectForm.post(route('public.profile.connect', { user: props.user.id }), {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Connection request sent.'),
+    onError: () => toast.error('Could not send connection request.'),
+  })
+}
+
+// Cancel outgoing pending connection request
+function cancelConnect() {
+  const reqId = pm.value.pending_request_id
+  if (!reqId) return
+  confirmAction(
+    'Cancel your connection request to this practitioner?',
+    () => {
+      cancelRequestForm.delete(route('public.profile.cancel-connect', { networkRequest: reqId }), {
+        preserveScroll: true,
+        onSuccess: () => toast.success('Connection request cancelled.'),
+        onError: () => toast.error('Could not cancel request.'),
+      })
+    },
+    { title: 'Cancel Request', btnLabel: 'Cancel Request', type: 'danger' }
+  )
+}
+
+// Submit service request to backend
 function submitServiceRequest() {
-  if (!svcRequestForm.value.date) {
+  if (!svcRequestForm.date) {
     toast.error('Please select a preferred date.')
     return
   }
-  showServiceRequestModal.value = false
-  toast.success('Service request sent')
-  svcRequestForm.value = { service: '', date: '', time: 'Flexible', format: 'Telehealth', notes: '' }
+  svcRequestForm.post(route('public.profile.service-request', { user: props.user.id }), {
+    preserveScroll: true,
+    onSuccess: () => {
+      showServiceRequestModal.value = false
+      svcRequestForm.reset()
+      svcRequestForm.service = ''
+      toast.success('Service request sent.')
+    },
+    onError: () => toast.error('Failed to send service request.'),
+  })
 }
 
+// Submit endorsement to backend
 function submitEndorse() {
-  if (!endorseForm.value.rating) {
+  if (!endorseForm.rating) {
     toast.error('Please select a star rating.')
     return
   }
-  if (!endorseForm.value.body.trim()) {
+  if (!endorseForm.body.trim()) {
     toast.error('Please write your endorsement.')
     return
   }
-  showEndorseModal.value = false
-  toast.success('Endorsement submitted')
-  endorseForm.value = { rating: 0, headline: '', body: '', context: 'Referral exchange' }
+  endorseForm.post(route('public.profile.endorse', { user: props.user.id }), {
+    preserveScroll: true,
+    onSuccess: () => {
+      showEndorseModal.value = false
+      endorseForm.reset()
+      toast.success('Endorsement submitted.')
+    },
+    onError: () => toast.error('Failed to submit endorsement.'),
+  })
+}
+
+// Remove network connection via backend
+function confirmRemove() {
+  const connectionId = pm.value.connection?.id
+  if (!connectionId) return
+  confirmAction(
+    'Remove this practitioner from your network? Active referrals will remain accessible.',
+    () => {
+      router.delete(route('public.profile.disconnect', { connection: connectionId }), {
+        preserveScroll: true,
+        onSuccess: () => toast.success('Removed from network.'),
+        onError: () => toast.error('Could not remove connection.'),
+      })
+    },
+    { title: 'Remove from Network', btnLabel: 'Remove', type: 'danger' }
+  )
 }
 
 function saveNote() {
@@ -788,6 +943,14 @@ function saveNote() {
   })
 }
 
+function statusBadgeClass(status) {
+  return { new: 'badge-gold', accepted: 'badge-green', declined: 'badge-red' }[status] ?? 'badge-gold'
+}
+
+function statusLabel(status) {
+  return { new: 'Pending', accepted: 'Accepted', declined: 'Declined' }[status] ?? status
+}
+
 function copyShareLink() {
   if (navigator.clipboard) {
     navigator.clipboard.writeText(window.location.href)
@@ -797,12 +960,43 @@ function copyShareLink() {
     toast.success('Profile link copied')
   }
 }
-
-function confirmRemove() {
-  confirmAction(
-    'Remove this practitioner from your network? Active referrals will remain accessible.',
-    () => toast.success('Removed from network'),
-    { title: 'Remove from Network', btnLabel: 'Remove', type: 'danger' }
-  )
-}
 </script>
+
+<style scoped>
+.svc-request-strip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.svc-request-strip-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-3);
+  margin-bottom: 12px;
+}
+.svc-request-strip-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.svc-request-strip-row:first-of-type { border-top: none; padding-top: 0; }
+.svc-request-strip-service { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.svc-request-strip-meta { font-size: 11px; color: var(--text-4); }
+.svc-request-strip-note { font-size: 12px; color: var(--text-2); margin-top: 4px; line-height: 1.5; max-width: 360px; }
+.svc-request-strip-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.svc-request-strip-response { font-size: 11px; color: var(--text-2); display: flex; align-items: center; gap: 4px; max-width: 260px; text-align: right; }
+.svc-request-strip-response-date { font-size: 10px; color: var(--text-4); }
+</style>
