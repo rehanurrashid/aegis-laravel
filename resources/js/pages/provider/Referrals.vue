@@ -274,7 +274,7 @@
               <button class="rfc-cta" type="button" style="display:inline-flex;align-items:center;gap:4px" @click="openModal('referralModal')"><AegisIcon name="refresh-cw" :size="14" /> Re-refer</button>
             </template>
             <template v-else>
-              <button class="btn-icon" type="button" data-tooltip="Follow up" :disabled="msgLoading === r.counterpart_user_id" @click="openConversation(r.counterpart_user_id)"><AegisIcon name="message" :size="14" /></button>
+              <button class="rfc-act" type="button" data-tooltip="Follow up" :disabled="msgLoading === r.counterpart_user_id" @click="openConversation(r.counterpart_user_id)"><AegisIcon name="message" :size="14" /></button>
               <button class="rfc-act is-danger" type="button" data-tooltip="Cancel" aria-label="Cancel" style="display:inline-flex;align-items:center;justify-content:center" @click="openCancel(r)"><AegisIcon name="x" :size="14" /></button>
               <button class="rfc-cta is-muted" type="button" @click="openDetail(r)">Details</button>
             </template>

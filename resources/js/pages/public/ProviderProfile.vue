@@ -609,56 +609,11 @@
       />
 
       <!-- Service Request Modal -->
-      <AegisModal v-model="showServiceRequestModal"
-                  title="Request a Service"
-                  subtitle="Request an appointment or specific service from this provider"
-                  size="md">
-        <div class="pp-tip-box" style="margin-top:0;margin-bottom:18px;display:flex;gap:10px;align-items:flex-start">
-          <span style="flex-shrink:0;margin-top:1px;display:inline-flex;align-items:center;line-height:0">
-            <AegisIcon name="info" :size="16" class="aegis-icon-gold-dark" />
-          </span>
-          <div class="pp-tip-body">Service requests are sent securely through Aegis. You'll receive a confirmation once the provider responds.</div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Service</label>
-          <input type="text" class="form-input" :value="svcRequestForm.service" readonly>
-        </div>
-        <div class="form-group">
-          <label class="form-label">From Provider</label>
-          <input type="text" class="form-input" :value="user.display_name + (user.credentials ? ', ' + user.credentials : '')" readonly>
-        </div>
-        <div class="form-row form-row-2">
-          <div class="form-group">
-            <label class="form-label">Preferred Date <span class="req">*</span></label>
-            <input type="date" class="form-input" v-model="svcRequestForm.date">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Preferred Time</label>
-            <select class="form-select" v-model="svcRequestForm.time">
-              <option>Morning (9am–12pm)</option>
-              <option>Afternoon (12–5pm)</option>
-              <option>Evening (5–8pm)</option>
-              <option>Flexible</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Format</label>
-          <select class="form-select" v-model="svcRequestForm.format">
-            <option>Telehealth</option><option>In-Person</option><option>No preference</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Notes for Provider <span style="color:var(--text-4);font-weight:500">(optional)</span></label>
-          <textarea class="form-textarea" rows="3" placeholder="Briefly describe what you'd like to discuss…" v-model="svcRequestForm.notes"></textarea>
-        </div>
-        <template #footer>
-          <button class="btn btn-outline" @click="showServiceRequestModal = false">Cancel</button>
-          <button class="btn btn-primary" :disabled="svcRequestForm.processing" @click="submitServiceRequest">
-            <span class="btn-ico"><AegisIcon name="send" :size="13" /></span>{{ svcRequestForm.processing ? 'Sending…' : 'Send Request' }}
-          </button>
-        </template>
-      </AegisModal>
+      <ServiceRequestModal
+        :provider-id="user.id"
+        :provider-label="user.display_name + (user.credentials ? ', ' + user.credentials : '')"
+        ref="svcModalRef"
+      />
 
       <!-- Endorse Modal -->
       <AegisModal v-model="showEndorseModal"
@@ -742,6 +697,7 @@ const toast = useToast()
 const { confirmAction } = useConfirm()
 const { openConversation, loading: msgLoading } = useMessageButton()
 const { openModal } = useModal()
+const svcModalRef = ref(null)
 const pricing = usePricingStore()
 
 // Derive auth state from Inertia shared props
@@ -835,20 +791,11 @@ function formatLabel(format) {
 }
 
 // ── Modal state ────────────────────────────────────────────────────────
-const showServiceRequestModal = ref(false)
 const showEndorseModal        = ref(false)
 
 // ── Forms ──────────────────────────────────────────────────────────────
 const connectForm = useForm({})
 const cancelRequestForm = useForm({})
-
-const svcRequestForm = useForm({
-  service: '',
-  date:    '',
-  time:    'Flexible',
-  format:  'Telehealth',
-  notes:   '',
-})
 
 const endorseForm = useForm({
   rating:   0,
@@ -874,8 +821,8 @@ function openReferral() {
 }
 
 function openServiceRequest(serviceName) {
-  svcRequestForm.service = serviceName
-  showServiceRequestModal.value = true
+  svcModalRef.value?.preselect(serviceName)
+  openModal('serviceRequestModal')
 }
 
 // Send network connect request to backend
@@ -904,23 +851,7 @@ function cancelConnect() {
   )
 }
 
-// Submit service request to backend
-function submitServiceRequest() {
-  if (!svcRequestForm.date) {
-    toast.error('Please select a preferred date.')
-    return
-  }
-  svcRequestForm.post(route('public.profile.service-request', { user: props.user.id }), {
-    preserveScroll: true,
-    onSuccess: () => {
-      showServiceRequestModal.value = false
-      svcRequestForm.reset()
-      svcRequestForm.service = ''
-      toast.success('Service request sent.')
-    },
-    onError: () => toast.error('Failed to send service request.'),
-  })
-}
+// submitServiceRequest → handled by ServiceRequestModal.vue
 
 // Submit endorsement to backend
 function submitEndorse() {

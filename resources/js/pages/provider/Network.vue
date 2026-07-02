@@ -10,11 +10,11 @@
       quiet
     >
       <template #actions>
-        <a :href="route('provider.activity', { module: 'network' })" class="btn-hero-ghost is-on-light nw-icon-btn">
+        <a :href="route('provider.activity', { module: 'network' })" class="btn-hero-ghost is-on-light">
           <AegisIcon name="activity" :size="14" />
           Activity
         </a>
-        <button type="button" class="btn-hero-solid is-on-light nw-icon-btn" @click="modals.inviteProvider = true">
+        <button type="button" class="btn-hero-solid is-on-light" @click="modals.inviteProvider = true">
           <AegisIcon name="user-plus" :size="14" />
           Invite Provider
         </button>
@@ -32,7 +32,7 @@
             <span v-if="businessCount"> and {{ businessCount }} business contact{{ businessCount !== 1 ? 's' : '' }}</span>
           </p>
         </div>
-        <button type="button" class="btn btn-outline btn-sm nw-icon-btn" @click="modals.reviewRequests = true">
+        <button type="button" class="btn btn-outline btn-sm" @click="modals.reviewRequests = true">
           Review all <AegisIcon name="arrow-right" :size="13" />
         </button>
       </header>
@@ -64,7 +64,7 @@
             </div>
           </div>
           <div class="card-actions" @click.stop>
-            <button type="button" class="btn btn-primary btn-sm nw-icon-btn" :disabled="pendingActionId === req.id" @click="acceptRequest(req)">
+            <button type="button" class="btn btn-primary btn-sm" :disabled="pendingActionId === req.id" @click="acceptRequest(req)">
               <AegisIcon name="check" :size="12" />
               {{ pendingActionId === req.id ? 'Accepting…' : 'Accept' }}
             </button>
@@ -130,33 +130,39 @@
 
       <!-- Recommended Network Partners -->
       <div class="rec-section">
-        <div class="rec-header">
-          <div>
-            <div class="rec-title">
-              <AegisIcon name="lightbulb" :size="16" />
-              Recommended Network Partners
-              <span class="badge-ai" data-tooltip="AI-suggested specialists based on your referral patterns">AI Suggested <AegisIcon name="info" :size="11" /></span>
-            </div>
-            <p class="rec-sub">Based on your referral history and the specialties your clients ask for most</p>
+        <div class="rec-section-header">
+          <div class="rec-section-title">
+            <h3><AegisIcon name="lightbulb" :size="16" /> Recommended Network Partners</h3>
+            <span class="rec-ai-info" data-tooltip="AI-suggested specialists based on your referral patterns">AI Suggested <AegisIcon name="info" :size="11" /></span>
           </div>
         </div>
+        <div class="rec-section-subtitle">Based on your referral history and the specialties your clients ask for most</div>
         <div class="nw-slider-wrap">
           <button type="button" class="nw-slider-arrow nw-slider-arrow-left" @click="slideRnp(-1)" :disabled="rnpAtStart" aria-label="Previous">
             <AegisIcon name="chevron-left" :size="16" />
           </button>
-          <div class="rnp-scroll" ref="rnpTrack">
+          <div class="rec-partner-grid" ref="rnpTrack">
             <article
               v-for="cat in recommendedCategories"
               :key="cat.label"
               class="card rnp-card"
-              @click="clinicalTab = 'search'"
+              :class="cat.tier"
             >
-              <div class="rnp-icon"><AegisIcon :name="cat.icon" :size="16" /></div>
-              <div class="rnp-name">{{ cat.label }}</div>
-              <div class="rnp-meta">{{ cat.desc }}</div>
+              <div class="rnp-head">
+                <div class="rnp-icon"><AegisIcon :name="cat.icon" :size="14" /></div>
+                <div class="rnp-title-block">
+                  <div class="rnp-name">{{ cat.label }}</div>
+                  <div class="rnp-meta">{{ cat.desc }}</div>
+                </div>
+                <span class="badge" :class="cat.tier === 'is-high' ? 'priority-high' : 'priority-medium'"></span>
+              </div>
               <div class="rnp-foot">
-                <span class="rnp-stat"><span class="rnp-num">{{ cat.count }}</span> nearby</span>
-                <button type="button" class="rnp-cta" @click.stop="clinicalTab = 'search'"><AegisIcon name="arrow-right" :size="13" /></button>
+                <span class="rnp-stat">
+                  <span class="rnp-stat-num">{{ cat.count }}</span> nearby
+                </span>
+                <button type="button" class="btn rnp-cta" @click.stop="clinicalTab = 'search'">
+                  <AegisIcon name="arrow-right" :size="12" />
+                </button>
               </div>
             </article>
           </div>
@@ -168,44 +174,45 @@
 
       <!-- Recommended Shadow Providers (AI) -->
       <div class="rec-section rec-section-shadow">
-        <div class="rec-header">
-          <div>
-            <div class="rec-title">
-              <AegisIcon name="cpu" :size="16" />
-              Recommended Shadow Providers
-              <span class="badge-ai badge-ai-green" data-tooltip="AI matching based on your clinical profile">AI Matched <AegisIcon name="cpu" :size="10" /></span>
-            </div>
-            <p class="rec-sub">A curated referral resource that helps identify providers who closely mirror your background and practice profile — Including region, specialty, demographics, services, and payment type.</p>
+        <div class="rec-section-header">
+          <div class="rec-section-title">
+            <h3><AegisIcon name="cpu" :size="16" /> Recommended Shadow Providers</h3>
+            <span class="rec-ai-info" data-tooltip="AI matching based on your clinical profile">AI Matched <AegisIcon name="cpu" :size="10" /></span>
           </div>
         </div>
-        <div class="ai-shadow-label">AI SHADOW RECOMMENDATIONS</div>
+        <div class="rec-section-subtitle">A curated referral resource that helps identify providers who closely mirror your background and practice profile — Including region, specialty, demographics, services, and payment type.</div>
         <div class="nw-slider-wrap">
           <button type="button" class="nw-slider-arrow nw-slider-arrow-left" @click="slideSpc(-1)" :disabled="spcAtStart" aria-label="Previous">
             <AegisIcon name="chevron-left" :size="16" />
           </button>
-          <div class="spc-track" ref="spcTrack">
-            <div v-for="p in aiShadowCandidates" :key="p.name" class="spc-card" @click="viewProfile(p.slug)">
-              <div class="spc-pills">
-                <span class="spc-match-badge" :data-tooltip="p.match + '% AI match based on your clinical focus and referral patterns'">{{ p.match }}%</span>
-                <span v-if="p.telehealth" class="spc-pill-svc" data-tooltip="Telehealth available"><AegisIcon name="video" :size="12" /></span>
-              </div>
-              <div class="spc-rating" :data-tooltip="p.rating + ' from peer reviews'"><AegisIcon name="star" :size="12" /> {{ p.rating }}</div>
-              <div class="spc-body">
-                <div class="spc-avatar">{{ p.initials }}</div>
-                <div class="spc-name">{{ p.name }}</div>
-                <div class="spc-role">{{ p.role }}</div>
-                <div class="spc-loc"><AegisIcon name="map-pin" :size="10" /> {{ p.location }}</div>
-                <div class="spc-tags">
-                  <span v-for="tag in p.tags.slice(0,3)" :key="tag" class="spc-tag">{{ tag }}</span>
-                  <span v-if="p.tags.length > 3" class="spc-tag">+{{ p.tags.length - 3 }}</span>
+          <div class="rec-shadow-grid" ref="spcTrack">
+            <div v-for="p in aiShadowCandidates" :key="p.name" class="card rsp-card" @click="viewProfile(p.slug)">
+              <header class="rsp-head">
+                <span class="rsp-match" :data-tooltip="p.match + '% AI match based on your clinical focus and referral patterns'">
+                  <AegisIcon name="sparkle-cluster" :size="10" /> {{ p.match }}%
+                </span>
+                <span class="rsp-rating" :data-tooltip="p.rating + ' from peer reviews'">
+                  <AegisIcon name="star" :size="10" :filled="true" /> {{ p.rating }}
+                </span>
+              </header>
+              <div class="rsp-body">
+                <div class="rsp-avatar">{{ p.initials }}</div>
+                <div class="rsp-info">
+                  <div class="rsp-name">{{ p.name }}</div>
+                  <div class="rsp-role">{{ p.role }}</div>
+                  <div class="rsp-loc"><AegisIcon name="map-pin" :size="9" /> {{ p.location }}</div>
                 </div>
               </div>
-              <div class="spc-actions" @click.stop>
-                <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === p.id" @click="openConversation(p.id)"><AegisIcon name="message-square" :size="14" /></button>
-                <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(p.slug)"><AegisIcon name="eye" :size="14" /></button>
-                <button v-if="!p.connected" type="button" class="btn btn-primary btn-sm nw-icon-btn" @click="openConnect(p)"><AegisIcon name="user-plus" :size="11" /> Connect</button>
-                <span v-else class="nw-added-pill">✓ Connected</span>
-              </div>
+              <ul class="rsp-tags">
+                <li v-for="tag in p.tags.slice(0,3)" :key="tag" class="rsp-tag">{{ tag }}</li>
+                <li v-if="p.tags.length > 3" class="rsp-tag">+{{ p.tags.length - 3 }}</li>
+              </ul>
+              <footer class="rsp-foot" @click.stop>
+                <button type="button" class="rsp-act" data-tooltip="Message" :disabled="msgLoading === p.id" @click="openConversation(p.id)"><AegisIcon name="message-square" :size="13" /></button>
+                <button type="button" class="rsp-act" data-tooltip="View Profile" @click="viewProfile(p.slug)"><AegisIcon name="eye" :size="13" /></button>
+                <button v-if="!p.connected" type="button" class="rsp-connect" @click="openConnect(p)"><AegisIcon name="user-plus" :size="12" /> Connect</button>
+                <span v-else class="rsp-connect is-connected"><AegisIcon name="check" :size="12" /> Added</span>
+              </footer>
             </div>
           </div>
           <button type="button" class="nw-slider-arrow nw-slider-arrow-right" @click="slideSpc(1)" :disabled="spcAtEnd" aria-label="Next">
@@ -215,57 +222,237 @@
       </div>
 
       <!-- Search Results Layout -->
-      <div class="nw-search-header-label">SEARCH RESULTS</div>
-      <div class="nw-search-layout">
-        <!-- Filters sidebar -->
-        <div class="nw-sidebar">
-          <div class="nw-sidebar-top">
-            <span class="nw-sidebar-label">FILTERS</span>
-            <button type="button" class="nw-clear-btn" @click="filterGroups.forEach(f => f.open = false)">CLEAR ALL</button>
+      <div class="rec-divider-label nw-search-divider">SEARCH RESULTS</div>
+      <div class="search-layout">
+        <!-- Filters sidebar — 100% PHP class names -->
+        <aside class="filter-sidebar" id="filterSidebar">
+          <div class="filter-sidebar-header">
+            <div class="filter-sidebar-title"><AegisIcon name="filter" :size="14" /> Filters</div>
+            <button type="button" class="filter-clear-btn" @click="clearFilters">Clear All</button>
           </div>
-          <div v-for="f in filterGroups" :key="f.label" class="nw-filter-group">
-            <button type="button" class="nw-filter-btn" @click="f.open = !f.open">
-              <AegisIcon :name="f.icon" :size="12" />
-              {{ f.label }}
-              <AegisIcon name="chevron-down" :size="11" style="margin-left:auto" :style="{ transform: f.open ? 'rotate(180deg)' : '' }" />
-            </button>
-            <div v-if="f.open && f.label === 'Provider Type'" class="nw-filter-expand">
-              <input class="form-input nw-filter-search" type="text" v-model="providerTypeSearch" placeholder="Search types..." />
-              <label v-for="opt in filteredProviderTypes" :key="opt" class="nw-filter-check">
-                <input type="checkbox" v-model="selectedProviderTypes" :value="opt" />
-                {{ opt }}
-              </label>
+
+          <!-- Active filter pills -->
+          <div v-if="activeFilters.length" class="active-filters-row">
+            <span
+              v-for="f in activeFilters"
+              :key="f.value + f.group"
+              class="active-filter-pill"
+              @click="removeFilter(f)"
+            >{{ f.value }}<span class="pill-x">&times;</span></span>
+          </div>
+
+          <!-- 1. Provider Type -->
+          <div class="filter-group" :class="{ open: openGroups.type }">
+            <div class="filter-group-header" @click="toggleGroup('type')">
+              <span class="filter-group-label">
+                <AegisIcon name="users" :size="16" /> Provider Type
+                <span v-if="countGroup('type')" class="filter-group-count visible">{{ countGroup('type') }}</span>
+              </span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <input class="filter-inner-search" type="text" placeholder="Search types..." v-model="search.type" />
+              <div>
+                <span
+                  v-for="opt in filteredOpts(providerTypes, search.type)"
+                  :key="opt"
+                  class="ftag"
+                  :class="{ selected: isSelected('type', opt) }"
+                  @click="toggleFilter('type', opt)"
+                >{{ opt }}</span>
+              </div>
             </div>
           </div>
-          <button type="button" class="nw-apply-btn" @click="toast.success('Filters applied')">Apply Filters</button>
-        </div>
+
+          <!-- 2. Specialties -->
+          <div class="filter-group" :class="{ open: openGroups.specialty }">
+            <div class="filter-group-header" @click="toggleGroup('specialty')">
+              <span class="filter-group-label">
+                <AegisIcon name="star" :size="16" /> Specialties
+                <span v-if="countGroup('specialty')" class="filter-group-count visible">{{ countGroup('specialty') }}</span>
+              </span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <input class="filter-inner-search" type="text" placeholder="Search specialties..." v-model="search.specialty" />
+              <template v-for="(group, label) in specialtyGroups" :key="label">
+                <div class="filter-subcat">{{ label }}</div>
+                <span
+                  v-for="opt in filteredOpts(group, search.specialty)"
+                  :key="opt"
+                  class="ftag"
+                  :class="{ selected: isSelected('specialty', opt) }"
+                  @click="toggleFilter('specialty', opt)"
+                >{{ opt }}</span>
+              </template>
+            </div>
+          </div>
+
+          <!-- 3. Treatment Approaches -->
+          <div class="filter-group" :class="{ open: openGroups.approach }">
+            <div class="filter-group-header" @click="toggleGroup('approach')">
+              <span class="filter-group-label">
+                <AegisIcon name="leaves" :size="16" /> Treatment Approaches
+                <span v-if="countGroup('approach')" class="filter-group-count visible">{{ countGroup('approach') }}</span>
+              </span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <input class="filter-inner-search" type="text" placeholder="Search approaches..." v-model="search.approach" />
+              <template v-for="(group, label) in approachGroups" :key="label">
+                <div class="filter-subcat">{{ label }}</div>
+                <span
+                  v-for="opt in filteredOpts(group, search.approach)"
+                  :key="opt"
+                  class="ftag"
+                  :class="{ selected: isSelected('approach', opt) }"
+                  @click="toggleFilter('approach', opt)"
+                >{{ opt }}</span>
+              </template>
+            </div>
+          </div>
+
+          <!-- 4. Insurance Accepted -->
+          <div class="filter-group" :class="{ open: openGroups.insurance }">
+            <div class="filter-group-header" @click="toggleGroup('insurance')">
+              <span class="filter-group-label">
+                <AegisIcon name="credit-card" :size="16" /> Insurance Accepted
+                <span v-if="countGroup('insurance')" class="filter-group-count visible">{{ countGroup('insurance') }}</span>
+              </span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <input class="filter-inner-search" type="text" placeholder="Search insurance..." v-model="search.insurance" />
+              <template v-for="(group, label) in insuranceGroups" :key="label">
+                <div class="filter-subcat">{{ label }}</div>
+                <span
+                  v-for="opt in filteredOpts(group, search.insurance)"
+                  :key="opt"
+                  class="ftag"
+                  :class="{ selected: isSelected('insurance', opt) }"
+                  @click="toggleFilter('insurance', opt)"
+                >{{ opt }}</span>
+              </template>
+            </div>
+          </div>
+
+          <!-- 5. Format & Services -->
+          <div class="filter-group" :class="{ open: openGroups.format }">
+            <div class="filter-group-header" @click="toggleGroup('format')">
+              <span class="filter-group-label">
+                <AegisIcon name="monitor" :size="16" /> Format &amp; Services
+                <span v-if="countGroup('format')" class="filter-group-count visible">{{ countGroup('format') }}</span>
+              </span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <template v-for="(group, label) in formatGroups" :key="label">
+                <div class="filter-subcat">{{ label }}</div>
+                <span
+                  v-for="opt in filteredOpts(group, '')"
+                  :key="opt"
+                  class="ftag"
+                  :class="{ selected: isSelected('format', opt) }"
+                  @click="toggleFilter('format', opt)"
+                >{{ opt }}</span>
+              </template>
+            </div>
+          </div>
+
+          <!-- 6. Location -->
+          <div class="filter-group" :class="{ open: openGroups.location }">
+            <div class="filter-group-header" @click="toggleGroup('location')">
+              <span class="filter-group-label">
+                <AegisIcon name="map-pin" :size="16" /> Location
+                <span v-if="countGroup('location')" class="filter-group-count visible">{{ countGroup('location') }}</span>
+              </span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <template v-for="(group, label) in locationGroups" :key="label">
+                <div class="filter-subcat">{{ label }}</div>
+                <span
+                  v-for="opt in filteredOpts(group, '')"
+                  :key="opt"
+                  class="ftag"
+                  :class="{ selected: isSelected('location', opt) }"
+                  @click="toggleFilter('location', opt)"
+                >{{ opt }}</span>
+              </template>
+            </div>
+          </div>
+
+          <!-- 7. Credentials -->
+          <div class="filter-group" :class="{ open: openGroups.credentials }">
+            <div class="filter-group-header" @click="toggleGroup('credentials')">
+              <span class="filter-group-label">
+                <AegisIcon name="shield" :size="16" /> Credentials
+                <span v-if="countGroup('credentials')" class="filter-group-count visible">{{ countGroup('credentials') }}</span>
+              </span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <span v-for="opt in credentialTypes" :key="opt" class="ftag" :class="{ selected: isSelected('credentials', opt) }" @click="toggleFilter('credentials', opt)">{{ opt }}</span>
+            </div>
+          </div>
+
+          <!-- 8. Rate & Availability -->
+          <div class="filter-group" :class="{ open: openGroups.rate }">
+            <div class="filter-group-header" @click="toggleGroup('rate')">
+              <span class="filter-group-label">
+                <AegisIcon name="clock" :size="16" /> Rate &amp; Availability
+              </span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <span v-for="opt in rateTypes" :key="opt" class="ftag" :class="{ selected: isSelected('rate', opt) }" @click="toggleFilter('rate', opt)">{{ opt }}</span>
+            </div>
+          </div>
+
+          <!-- 9. Provider Demographics -->
+          <div class="filter-group" :class="{ open: openGroups.demographics }">
+            <div class="filter-group-header" @click="toggleGroup('demographics')">
+              <span class="filter-group-label">
+                <AegisIcon name="users" :size="16" /> Provider Demographics
+                <span v-if="countGroup('demographics')" class="filter-group-count visible">{{ countGroup('demographics') }}</span>
+              </span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <span v-for="opt in demographicTypes" :key="opt" class="ftag" :class="{ selected: isSelected('demographics', opt) }" @click="toggleFilter('demographics', opt)">{{ opt }}</span>
+            </div>
+          </div>
+          <div class="filter-sidebar-apply">
+            <button type="button" class="btn btn-primary" @click="toast.success('Filters applied')">Apply Filters</button>
+          </div>
+        </aside>
         <!-- Results grid -->
-        <div class="nw-results">
-          <div class="nw-results-bar">
-            <span class="nw-results-count">{{ searchResults.length }} providers found in your region</span>
+        <div class="results-panel">
+          <div class="results-topbar">
+            <span class="results-count">{{ searchResults.length }} providers found in your region</span>
             <div style="display:flex;align-items:center;gap:6px">
               <span style="font-size:12px;color:var(--text-4)">Sort:</span>
-              <select class="form-select" v-model="searchSort" style="font-size:12px;padding:4px 8px">
+              <select class="form-select" v-model="searchSort" style="font-size:12px;padding:4px 8px;min-width:160px">
                 <option>Best Match</option><option>Highest Rated</option><option>Closest</option>
               </select>
             </div>
           </div>
-          <div class="spc-results-grid">
+          <div class="search-results-grid">
             <div
               v-for="p in searchResults"
               :key="p.name"
-              class="spc-card search-provider-card"
+              class="spc-card"
               @click="viewProfile(p.slug)"
             >
-              <div class="spc-pills">
+              <div class="spc-top-pills">
                 <span
-                  class="spc-status"
+                  class="spc-status-icon"
                   :class="p.networkStatus === 'in-network' ? 'ok' : (p.networkStatus === 'pending' ? 'pend' : 'off')"
                   :data-tooltip="p.networkStatus === 'in-network' ? 'In Network' : (p.networkStatus === 'pending' ? 'Request Pending' : 'Not Connected')"
                 >
                   <AegisIcon :name="p.networkStatus === 'in-network' ? 'user-check' : 'user-plus'" :size="12" />
                 </span>
-                <span v-if="p.telehealth" class="spc-pill-svc" data-tooltip="Telehealth available"><AegisIcon name="video" :size="12" /></span>
+                <span v-if="p.telehealth" class="spc-svc-icon" data-tooltip="Telehealth available"><AegisIcon name="video" :size="12" /></span>
               </div>
               <div class="spc-rating" :data-tooltip="p.rating + ' from ' + p.reviews + ' peer reviews'"><AegisIcon name="star" :size="12" /> {{ p.rating }}</div>
               <div class="spc-body">
@@ -278,17 +465,17 @@
                   <span v-if="p.tags.length > 3" class="spc-tag">+{{ p.tags.length - 3 }}</span>
                 </div>
               </div>
-              <div class="spc-stats-row">{{ p.refs }} · {{ p.acc }} · {{ p.resp }}</div>
+              <div class="spc-stats">{{ p.refs }} · {{ p.acc }} · {{ p.resp }}</div>
               <div class="spc-actions" @click.stop>
                 <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === p.id" @click="openConversation(p.id)"><AegisIcon name="message-square" :size="14" /></button>
-                <button type="button" class="btn-icon" data-tooltip="Refer Client" @click="openReferralForProvider(p)"><AegisIcon name="refresh" :size="14" /></button>
+                <button type="button" class="btn-icon" data-tooltip="Refer Client" @click="openReferralForProvider(p)"><AegisIcon name="share-tree" :size="14" /></button>
                 <button type="button" class="btn-icon" data-tooltip="Request Service" @click="openSvcRequest('Services', p.name)"><AegisIcon name="briefcase-rx" :size="14" /></button>
                 <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(p.slug)"><AegisIcon name="eye" :size="14" /></button>
               </div>
             </div>
           </div>
           <AegisEmptyState v-if="!searchResults.length" icon="search-lg" title="No providers found" subtitle="Try adjusting your filters or search terms." />
-          <div v-if="searchResults.length" class="nw-load-more">
+          <div v-if="searchResults.length" class="results-topbar" style="justify-content:center;margin-top:20px">
             <button type="button" class="btn btn-outline btn-sm" @click="toast.info('Loading more results…')">Load More Results</button>
           </div>
         </div>
@@ -297,22 +484,22 @@
 
     <!-- MY NETWORK -->
     <div v-show="scope === 'clinical' && clinicalTab === 'mynetwork'">
-      <div class="stat-chips-row">
-        <div class="stat-chip"><div class="stat-chip-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="users" :size="18" /></div><div><div class="stat-chip-value">{{ stats.clinical }}</div><div class="stat-chip-label">Active Partners</div></div></div>
-        <div class="stat-chip"><div class="stat-chip-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="refresh" :size="18" /></div><div><div class="stat-chip-value">{{ stats.total_refs }}</div><div class="stat-chip-label">Referrals Exchanged</div></div></div>
-        <div class="stat-chip"><div class="stat-chip-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="check-badge" :size="18" /></div><div><div class="stat-chip-value">{{ stats.avg_acc }}%</div><div class="stat-chip-label">Avg Acceptance</div></div></div>
-        <div class="stat-chip"><div class="stat-chip-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="clock" :size="18" /></div><div><div class="stat-chip-value">{{ stats.avg_resp }}h</div><div class="stat-chip-label">Avg Response Time</div></div></div>
+      <div class="ph-stats">
+        <div class="ph-stat"><div class="ph-stat-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="users" :size="18" /></div><div><div class="ph-stat-val">{{ stats.clinical }}</div><div class="ph-stat-lbl">Active Partners</div></div></div>
+        <div class="ph-stat"><div class="ph-stat-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="refresh" :size="18" /></div><div><div class="ph-stat-val">{{ stats.total_refs }}</div><div class="ph-stat-lbl">Referrals Exchanged</div></div></div>
+        <div class="ph-stat"><div class="ph-stat-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="check-badge" :size="18" /></div><div><div class="ph-stat-val">{{ stats.avg_acc }}%</div><div class="ph-stat-lbl">Avg Acceptance</div></div></div>
+        <div class="ph-stat"><div class="ph-stat-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="clock" :size="18" /></div><div><div class="ph-stat-val">{{ stats.avg_resp }}h</div><div class="ph-stat-lbl">Avg Response Time</div></div></div>
       </div>
       <div class="pn-toolbar">
         <div class="pn-search-wrap">
-          <span class="pn-search-icon"><AegisIcon name="search-lg" :size="14" /></span>
+          <span class="search-icon"><AegisIcon name="search-lg" :size="14" /></span>
           <input class="form-input" type="text" placeholder="Search by name, specialty, location..." v-model="clinicalSearch" />
         </div>
       </div>
       <div class="pn-results-bar">Showing <strong>{{ filteredClinical.length }}</strong> providers</div>
-      <div class="spc-grid">
+      <div class="provider-grid">
         <div v-for="nc in filteredClinical" :key="nc.id" class="spc-card" @click="viewProfile(nc.partner_slug)">
-          <div class="spc-pills"><span class="spc-status ok" data-tooltip="In Network"><AegisIcon name="user-check" :size="12" /></span></div>
+          <div class="spc-top-pills"><span class="spc-status-icon ok" data-tooltip="In Network"><AegisIcon name="user-check" :size="12" /></span></div>
           <div class="spc-body">
             <div class="spc-avatar">{{ nc.partner_initials }}</div>
             <div class="spc-name">{{ nc.partner_name }}</div>
@@ -324,7 +511,7 @@
           </div>
           <div class="spc-actions" @click.stop>
             <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === nc.partner_id" @click="openConversation(nc.partner_id)"><AegisIcon name="message-square" :size="14" /></button>
-            <button type="button" class="btn-icon" data-tooltip="Refer Client" @click="openReferralForConnection(nc)"><AegisIcon name="refresh" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="Refer Client" @click="openReferralForConnection(nc)"><AegisIcon name="share-tree" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(nc.partner_slug)"><AegisIcon name="eye" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Remove from network" @click="confirmDisconnect(nc)"><AegisIcon name="trash-2" :size="14" /></button>
           </div>
@@ -339,26 +526,26 @@
 
     <!-- SEARCH BUSINESS PARTNERS -->
     <div v-show="scope === 'business' && businessTab === 'search'">
-      <div class="bp-search-bar">
+      <div class="pn-toolbar">
         <div class="pn-search-wrap" style="flex:1;min-width:220px">
-          <span class="pn-search-icon"><AegisIcon name="search-lg" :size="14" /></span>
+          <span class="search-icon"><AegisIcon name="search-lg" :size="14" /></span>
           <input class="form-input" style="padding-left:34px" v-model="bpSearch" placeholder="Search by name, skill, company, keyword..." />
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
           <span style="font-size:12px;color:var(--text-4)">Sort:</span>
-          <select class="form-select" v-model="bpSort" style="font-size:12px;padding:4px 8px"><option>Best Match</option><option>Highest Rated</option><option>Most Jobs</option><option>Lowest Rate</option></select>
+          <select class="form-select" v-model="bpSort" style="font-size:12px;padding:4px 8px;min-width:160px"><option>Best Match</option><option>Highest Rated</option><option>Most Jobs</option><option>Lowest Rate</option></select>
         </div>
       </div>
-      <div class="bp-count">Showing {{ filteredPartners.length }} of {{ businessPartners.length }} partners</div>
-      <div class="bp-layout">
-        <div class="nw-sidebar">
-          <div class="nw-sidebar-top"><span class="nw-sidebar-label">FILTERS</span><button type="button" class="nw-clear-btn" @click="bpSearch='';bpCategory=''">CLEAR ALL</button></div>
+      <div class="pn-results-bar">Showing {{ filteredPartners.length }} of {{ businessPartners.length }} partners</div>
+      <div class="search-layout">
+        <div class="filter-sidebar">
+          <div class="filter-sidebar-header"><span class="filter-sidebar-title">FILTERS</span><button type="button" class="filter-clear-btn" @click="bpSearch='';bpCategory=''">CLEAR ALL</button></div>
           <div class="bp-toggle-row">
             <span style="font-size:12px;color:var(--text-2)">Clinical-service providers</span>
-            <label class="bp-toggle"><input type="checkbox" v-model="bpClinicalOnly"><span class="bp-track"><span class="bp-thumb"></span></span></label>
+            <label class="bp-toggle-legacy"><input type="checkbox" v-model="bpClinicalOnly"><span class="bp-track"><span class="bp-thumb"></span></span></label>
           </div>
-          <div class="nw-filter-group">
-            <button type="button" class="nw-filter-btn" @click="bpCatOpen = !bpCatOpen">
+          <div class="filter-group">
+            <button type="button" class="filter-group-btn" @click="bpCatOpen = !bpCatOpen">
               <AegisIcon name="globe" :size="12" /> Category <AegisIcon name="chevron-down" :size="11" style="margin-left:auto" :style="{ transform: bpCatOpen ? 'rotate(180deg)' : '' }" />
             </button>
             <div v-if="bpCatOpen" style="margin-top:8px">
@@ -368,21 +555,21 @@
               </select>
             </div>
           </div>
-          <div v-for="f in bpFilterGroups" :key="f.label" class="nw-filter-group">
-            <button type="button" class="nw-filter-btn"><AegisIcon :name="f.icon" :size="12" /> {{ f.label }} <AegisIcon name="chevron-down" :size="11" style="margin-left:auto" /></button>
+          <div v-for="f in bpFilterGroups" :key="f.label" class="filter-group">
+            <button type="button" class="filter-group-btn"><AegisIcon :name="f.icon" :size="12" /> {{ f.label }} <AegisIcon name="chevron-down" :size="11" style="margin-left:auto" /></button>
           </div>
-          <button type="button" class="nw-apply-btn" @click="toast.success('Filters applied')">Apply Filters</button>
+          <button type="button" class="btn btn-primary" style="width:100%;margin-top:14px;justify-content:center" @click="toast.success('Filters applied')">Apply Filters</button>
         </div>
         <div>
-          <div class="bp-grid">
+          <div class="provider-grid">
             <div v-for="p in filteredPartners" :key="p.name" class="biz-grid-card spc-card">
-              <div class="bp-card-top"><span class="bp-type-badge">{{ p.partnerType }}</span><span class="bp-card-rating"><AegisIcon name="star" :size="11" /> {{ p.rating }}</span></div>
-              <div class="bp-avatar-row"><div class="bp-avatar" :style="{ background: p.avatarColor }">{{ p.initials }}</div></div>
-              <div class="bp-card-name">{{ p.name }}</div>
-              <div class="bp-card-role">{{ p.role }}</div>
-              <div class="bp-card-loc">{{ p.location }}</div>
+              <div class="biz-card-top"><span class="biz-type-badge billing">{{ p.partnerType }}</span><span class="spc-rating" style="position:static"><AegisIcon name="star" :size="11" /> {{ p.rating }}</span></div>
+              <div class="spc-body" style="align-items:flex-start"><div class="biz-avatar" :style="{ background: p.avatarColor }">{{ p.initials }}</div></div>
+              <div class="biz-card-name">{{ p.name }}</div>
+              <div class="biz-card-role">{{ p.role }}</div>
+              <div class="biz-card-meta">{{ p.location }}</div>
               <div class="spc-tags" style="margin-bottom:8px"><span v-for="tag in p.tags.slice(0,3)" :key="tag" class="spc-tag">{{ tag }}</span><span v-if="p.tags.length > 3" class="spc-tag">+{{ p.tags.length - 3 }}</span></div>
-              <div class="bp-card-stats">{{ p.rate }} · {{ p.reviews }} reviews · {{ p.jobs }} jobs</div>
+              <div class="biz-card-services">{{ p.rate }} · {{ p.reviews }} reviews · {{ p.jobs }} jobs</div>
               <div class="spc-actions">
                 <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === p.id" @click="openConversation(p.id)"><AegisIcon name="message-square" :size="13" /></button>
                 <button type="button" class="btn-icon" data-tooltip="Hire" @click="openBpHire(p)"><AegisIcon name="briefcase" :size="13" /></button>
@@ -397,22 +584,22 @@
 
     <!-- MY PARTNERS -->
     <div v-show="scope === 'business' && businessTab === 'mypartners'">
-      <div class="stat-chips-row">
-        <div class="stat-chip"><div class="stat-chip-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="briefcase" :size="18" /></div><div><div class="stat-chip-value">{{ bpConnections.length }}</div><div class="stat-chip-label">Business Partners</div></div></div>
-        <div class="stat-chip"><div class="stat-chip-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="heart-2" :size="18" /></div><div><div class="stat-chip-value">{{ stats.bp_count }}</div><div class="stat-chip-label">Active Contracts</div></div></div>
-        <div class="stat-chip"><div class="stat-chip-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="star" :size="18" /></div><div><div class="stat-chip-value">—</div><div class="stat-chip-label">Avg Partner Rating</div></div></div>
-        <div class="stat-chip"><div class="stat-chip-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="clock" :size="18" /></div><div><div class="stat-chip-value">{{ stats.pending_requests }}</div><div class="stat-chip-label">Pending Requests</div></div></div>
+      <div class="ph-stats">
+        <div class="ph-stat"><div class="ph-stat-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="briefcase" :size="18" /></div><div><div class="ph-stat-val">{{ bpConnections.length }}</div><div class="ph-stat-lbl">Business Partners</div></div></div>
+        <div class="ph-stat"><div class="ph-stat-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="heart-2" :size="18" /></div><div><div class="ph-stat-val">{{ stats.bp_count }}</div><div class="ph-stat-lbl">Active Contracts</div></div></div>
+        <div class="ph-stat"><div class="ph-stat-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="star" :size="18" /></div><div><div class="ph-stat-val">—</div><div class="ph-stat-lbl">Avg Partner Rating</div></div></div>
+        <div class="ph-stat"><div class="ph-stat-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="clock" :size="18" /></div><div><div class="ph-stat-val">{{ stats.pending_requests }}</div><div class="ph-stat-lbl">Pending Requests</div></div></div>
       </div>
       <div class="pn-toolbar">
         <div class="pn-search-wrap">
-          <span class="pn-search-icon"><AegisIcon name="search-lg" :size="14" /></span>
+          <span class="search-icon"><AegisIcon name="search-lg" :size="14" /></span>
           <input class="form-input" type="text" placeholder="Search business partners by name, type, service..." v-model="bizSearch" />
         </div>
       </div>
       <div class="pn-results-bar">Showing <strong>{{ filteredBpConnections.length }}</strong> business partners</div>
-      <div class="spc-grid">
+      <div class="provider-grid">
         <div v-for="nc in filteredBpConnections" :key="nc.id" class="biz-grid-card spc-card" @click="viewProfile(nc.partner_slug)">
-          <div class="spc-pills"><span class="spc-status ok" data-tooltip="Business Partner"><AegisIcon name="user-check" :size="12" /></span></div>
+          <div class="spc-top-pills"><span class="spc-status-icon ok" data-tooltip="Business Partner"><AegisIcon name="user-check" :size="12" /></span></div>
           <div class="spc-body">
             <div class="spc-avatar">{{ nc.partner_initials }}</div>
             <div class="spc-name">{{ nc.partner_name }}</div>
@@ -435,28 +622,28 @@
 
     <!-- REFERRAL LIST (AI Shadow Suggestions) -->
     <div v-show="scope === 'tools' && toolsTab === 'list'">
-      <div class="rt-section-title">Shadow Network</div>
-      <div class="rt-ai-banner">
-        <div class="rt-ai-icon"><AegisIcon name="help-circle" :size="16" /></div>
+      <div class="section-head-title">Shadow Network</div>
+      <div class="insight-box">
+        <div class="ph-stat-icon"><AegisIcon name="help-circle" :size="16" /></div>
         <div>
-          <div class="rt-ai-title">This week's AI insights</div>
-          <div class="rt-ai-sub">Based on your recent clients, you may benefit from <strong>3 additional PTSD specialists</strong> and <strong>2 child &amp; adolescent therapists</strong>. Aegis found <strong>{{ filteredRtCandidates.length }} high-match candidates</strong> below.</div>
+          <div class="insight-box-title">This week's AI insights</div>
+          <div class="rec-section-subtitle">Based on your recent clients, you may benefit from <strong>3 additional PTSD specialists</strong> and <strong>2 child &amp; adolescent therapists</strong>. Aegis found <strong>{{ filteredRtCandidates.length }} high-match candidates</strong> below.</div>
         </div>
       </div>
       <div class="pn-search-wrap" style="margin-bottom:10px">
-        <span class="pn-search-icon"><AegisIcon name="search-lg" :size="14" /></span>
+        <span class="search-icon"><AegisIcon name="search-lg" :size="14" /></span>
         <input class="form-input" style="padding-left:34px" v-model="rtSearch" placeholder="Search by name, specialty, location..." />
       </div>
       <div style="font-size:12px;color:var(--text-4);margin-bottom:14px">Showing {{ filteredRtCandidates.length }} AI suggestions</div>
-      <div class="rt-grid">
-        <div v-for="s in filteredRtCandidates" :key="s.name" class="rt-card">
-          <div class="rt-shadow-icon"><AegisIcon name="cpu" :size="12" /></div>
-          <div class="rt-avatar">{{ s.initials }}</div>
-          <div class="rt-name">{{ s.name }}</div>
-          <div class="rt-role">{{ s.role }}</div>
-          <div class="rt-loc">{{ s.location }}</div>
+      <div class="sai-grid">
+        <div v-for="s in filteredRtCandidates" :key="s.name" class="sai-grid-card">
+          <div class="rsc-ai-icon"><AegisIcon name="cpu" :size="12" /></div>
+          <div class="sai-avatar">{{ s.initials }}</div>
+          <div class="sai-card-name">{{ s.name }}</div>
+          <div class="sai-card-role">{{ s.role }}</div>
+          <div class="sai-card-meta">{{ s.location }}</div>
           <div class="spc-tags" style="justify-content:center;margin-bottom:12px"><span v-for="tag in s.tags" :key="tag" class="spc-tag">{{ tag }}</span></div>
-          <div class="rt-actions">
+          <div class="sai-card-actions">
             <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === s.id" @click="openConversation(s.id)"><AegisIcon name="message-square" :size="13" /></button>
             <button type="button" class="btn-icon" data-tooltip="Add to Shadows" @click="openConnect(s)"><AegisIcon name="user-plus" :size="13" /></button>
             <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(s.slug)"><AegisIcon name="eye" :size="13" /></button>
@@ -468,21 +655,21 @@
 
     <!-- MY SHADOWS -->
     <div v-show="scope === 'tools' && toolsTab === 'shadows'">
-      <div class="stat-chips-row">
-        <div class="stat-chip"><div class="stat-chip-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="cpu" :size="18" /></div><div><div class="stat-chip-value">{{ shadowConnections.length }}</div><div class="stat-chip-label">Active Shadows</div></div></div>
+      <div class="ph-stats">
+        <div class="ph-stat"><div class="ph-stat-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="cpu" :size="18" /></div><div><div class="ph-stat-val">{{ shadowConnections.length }}</div><div class="ph-stat-lbl">Active Shadows</div></div></div>
       </div>
       <div style="font-size:12px;color:var(--text-4);margin-bottom:14px">Showing <strong>{{ shadowConnections.length }}</strong> shadow connections</div>
-      <div class="rt-grid">
-        <div v-for="s in shadowConnections" :key="s.id" class="rt-card">
-          <div class="rt-shadow-icon"><AegisIcon name="cpu" :size="12" /></div>
-          <div class="rt-avatar">{{ s.shadow_initials }}</div>
-          <div class="rt-name">{{ s.shadow_name }}</div>
-          <div class="rt-role">{{ s.shadow_role }}</div>
-          <div class="rt-loc">{{ s.shadow_location }}</div>
+      <div class="sai-grid">
+        <div v-for="s in shadowConnections" :key="s.id" class="sai-grid-card">
+          <div class="rsc-ai-icon"><AegisIcon name="cpu" :size="12" /></div>
+          <div class="sai-avatar">{{ s.shadow_initials }}</div>
+          <div class="sai-card-name">{{ s.shadow_name }}</div>
+          <div class="sai-card-role">{{ s.shadow_role }}</div>
+          <div class="sai-card-meta">{{ s.shadow_location }}</div>
           <div class="spc-tags" style="justify-content:center;margin-bottom:12px">
             <span v-for="tag in tagList(s.shadow_specialty)" :key="tag" class="spc-tag">{{ tag }}</span>
           </div>
-          <div class="rt-actions">
+          <div class="sai-card-actions">
             <button v-if="s.shadow_user_id" type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === s.shadow_user_id" @click="openConversation(s.shadow_user_id)"><AegisIcon name="message-square" :size="13" /></button>
             <button type="button" class="btn-icon rt-remove-btn" data-tooltip="Remove Shadow" @click="confirmRemoveShadow(s)"><AegisIcon name="trash-2" :size="13" /></button>
           </div>
@@ -495,8 +682,8 @@
 
     <!-- CONFIGURATION -->
     <div v-show="scope === 'tools' && toolsTab === 'config'">
-      <div class="rt-section-title">Network Configuration</div>
-      <div class="card card-body"><p style="font-size:13px;color:var(--text-3)">Network preferences and configuration options coming soon.</p></div>
+      <div class="section-head-title">Network Configuration</div>
+      <div class="insight-box"><p style="font-size:13px;color:var(--text-3)">Network preferences and configuration options coming soon.</p></div>
     </div>
 
     <!-- ══════════ MODALS ══════════ -->
@@ -507,20 +694,20 @@
         <AegisIcon name="info" :size="14" />
         <div><strong>Accepting</strong> adds the connection and notifies the requester. <strong>Declining</strong> removes the request — the other party is not notified.</div>
       </div>
-      <div class="nw-modal-list">
-        <div v-for="req in pendingRequests" :key="req.id" class="nw-modal-row">
-          <div class="nw-modal-avatar">{{ req.requester_initials }}</div>
-          <div class="nw-modal-info">
-            <div class="nw-modal-name">{{ req.requester_name }}</div>
-            <div class="nw-modal-meta">{{ req.requester_role }}<span v-if="req.requester_location"> · {{ req.requester_location }}</span></div>
-            <div v-if="req.message" class="nw-modal-quote">"{{ req.message }}"</div>
+      <div class="pvm-panel active" style="max-height:380px;overflow-y:auto">
+        <div v-for="req in pendingRequests" :key="req.id" class="pvm-ref-item" style="display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px solid var(--border)">
+          <div class="spc-avatar" style="width:38px;height:38px;font-size:12px;border-radius:50%;flex-shrink:0">{{ req.requester_initials }}</div>
+          <div class="pvm-info">
+            <div class="pn-grid-name">{{ req.requester_name }}</div>
+            <div class="pn-grid-role">{{ req.requester_role }}<span v-if="req.requester_location"> · {{ req.requester_location }}</span></div>
+            <div v-if="req.message" class="rec-section-subtitle" style="font-style:italic">"{{ req.message }}"</div>
           </div>
-          <div class="nw-modal-right">
+          <div class="pvm-meta-row" style="flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
             <span class="badge is-quiet" :class="req.request_type === 'business' ? 'is-business' : 'is-clinical'">{{ req.request_type === 'business' ? 'Business' : 'Clinical' }}</span>
             <span style="font-size:11px;color:var(--text-4)">{{ timeAgo(req.created_at) }}</span>
           </div>
-          <div class="nw-modal-btns">
-            <button type="button" class="btn btn-primary btn-sm nw-icon-btn" :disabled="pendingActionId === req.id" @click="acceptRequest(req)"><AegisIcon name="check" :size="11" /> Accept</button>
+          <div class="pn-grid-actions">
+            <button type="button" class="btn btn-primary btn-sm" :disabled="pendingActionId === req.id" @click="acceptRequest(req)"><AegisIcon name="check" :size="11" /> Accept</button>
             <button type="button" class="btn btn-outline btn-sm" :disabled="pendingActionId === req.id" @click="declineRequest(req)">Decline</button>
             <button type="button" class="btn-icon" data-tooltip="View profile" @click="viewProfile(req.requester_slug); modals.reviewRequests = false"><AegisIcon name="eye" :size="13" /></button>
           </div>
@@ -566,7 +753,7 @@
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.inviteProvider = false">Cancel</button>
-        <button type="button" class="btn btn-primary nw-icon-btn" :disabled="inviteForm.processing" @click="submitInvite">
+        <button type="button" class="btn btn-primary" :disabled="inviteForm.processing" @click="submitInvite">
           {{ inviteForm.processing ? 'Sending…' : 'Send Invitation' }} <AegisIcon name="mail" :size="16" />
         </button>
       </template>
@@ -592,35 +779,8 @@
     </AegisModal>
 
     <!-- Service Request Modal -->
-    <AegisModal v-model="modals.svcRequest" title="Request Service">
-      <div v-if="svcTarget" style="padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:18px">
-        <div style="font-size:13px;font-weight:700;color:var(--text)">{{ svcTarget.serviceName }}</div>
-        <div style="font-size:12px;color:var(--text-4);margin-top:1px">with <strong>{{ svcTarget.providerName }}</strong></div>
-      </div>
-      <div class="alert alert-info" style="margin-bottom:16px">
-        <AegisIcon name="alert-disc" :size="14" />
-        <div>Once accepted, a <strong>Service Agreement</strong> will be generated. Payment is collected after both parties sign.</div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">Preferred Date</label><input class="form-input" type="date" v-model="svcForm.preferred_date" /></div>
-        <div class="form-group"><label class="form-label">Preferred Time</label><input class="form-input" type="time" v-model="svcForm.preferred_time" /></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">Frequency</label><select class="form-select" v-model="svcForm.frequency"><option>One-time</option><option>Weekly</option><option>Bi-weekly</option><option>Monthly</option></select></div>
-        <div class="form-group"><label class="form-label">Your License Status</label><select class="form-select" v-model="svcForm.license_status"><option>Pre-licensed (Associate)</option><option>Fully Licensed</option><option>Other</option></select></div>
-      </div>
-      <div class="form-group"><label class="form-label">Message to Provider</label><textarea class="form-textarea" v-model="svcForm.message" rows="3" placeholder="Introduce yourself and describe your goals…"></textarea></div>
-      <label class="form-check">
-        <input type="checkbox" v-model="svcForm.terms_agreed" />
-        <span class="form-check-label">I agree to Aegis's service terms and platform policies</span>
-      </label>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.svcRequest = false">Cancel</button>
-        <button type="button" class="btn btn-primary nw-icon-btn" :disabled="!svcForm.terms_agreed" @click="submitSvcRequest">
-          <AegisIcon name="check" :size="14" /> Send Request
-        </button>
-      </template>
-    </AegisModal>
+    <!-- Service Request — centralized modal -->
+    <ServiceRequestModal ref="svcModalRef" />
 
     <!-- BP Hire Modal -->
     <AegisModal v-model="modals.bpHire" title="Hire Business Partner">
@@ -648,7 +808,7 @@
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.bpHire = false">Cancel</button>
-        <button type="button" class="btn btn-primary nw-icon-btn" @click="submitBpHire"><AegisIcon name="user-cog" :size="16" /> Send Hire Request</button>
+        <button type="button" class="btn btn-primary" @click="submitBpHire"><AegisIcon name="user-cog" :size="16" /> Send Hire Request</button>
       </template>
     </AegisModal>
 
@@ -680,7 +840,7 @@
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.postJob = false">Cancel</button>
-        <button type="button" class="btn btn-primary nw-icon-btn" @click="submitPostJob"><AegisIcon name="trending-up" :size="16" /> Post Job</button>
+        <button type="button" class="btn btn-primary" @click="submitPostJob"><AegisIcon name="trending-up" :size="16" /> Post Job</button>
       </template>
     </AegisModal>
 
@@ -692,11 +852,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { router, useForm } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import AppLayout from '@/layouts/AppLayout.vue'
-import ReferralModal from '@/components/modals/ReferralModal.vue'
+import ReferralModal         from '@/components/modals/ReferralModal.vue'
+import ServiceRequestModal   from '@/components/modals/ServiceRequestModal.vue'
 import { useModal }         from '@/composables/useModal'
 import { useToast }         from '@/composables/useToast'
 import { useConfirm }       from '@/composables/useConfirm'
@@ -771,7 +932,6 @@ const modals = reactive({
   reviewRequests: false,
   inviteProvider: false,
   connect:        false,
-  svcRequest:     false,
   bpHire:         false,
   postJob:        false,
 })
@@ -865,18 +1025,17 @@ function openReferralForConnection(nc) {
   openModal('referralModal')
 }
 
-// ── Service Request ────────────────────────────────────────────────────────
-const svcTarget = ref(null)
-const svcForm   = reactive({ preferred_date: '', preferred_time: '', frequency: 'One-time', license_status: 'Fully Licensed', message: '', terms_agreed: false })
+// Reset slug after modal closes so it doesn't persist on re-open
+watch(isOpen('referralModal'), (open) => {
+  if (!open) referralPreselectSlug.value = ''
+})
 
-function openSvcRequest(serviceName, providerName) {
-  svcTarget.value = { serviceName, providerName }
-  modals.svcRequest = true
-}
+// Service Request — handled by centralized ServiceRequestModal.vue
+const svcModalRef = ref(null)
 
-function submitSvcRequest() {
-  toast.success('Service request sent! Provider will be notified.')
-  modals.svcRequest = false
+function openSvcRequest(serviceName, providerName = '') {
+  svcModalRef.value?.preselect(serviceName)
+  openModal('serviceRequestModal')
 }
 
 // ── BP Hire ────────────────────────────────────────────────────────────────
@@ -907,16 +1066,88 @@ function viewProfile(slug) {
 }
 
 // ── Search / filter helpers ────────────────────────────────────────────────
-const clinicalSearch        = ref('')
-const bizSearch             = ref('')
-const providerTypeSearch    = ref('')
-const selectedProviderTypes = ref([])
-const allProviderTypes = ['Psychotherapist','Psychologist','Psychiatrist','Pain Management Specialist','Movement/Dance Specialist','Life Coach','Health Coach','Behavioral Therapist','Massage Therapist','Acupuncturist','Naturopathic Doctor (ND)','Functional Medicine Practitioner','Registered Dietitian (RD/RDN)']
-const filteredProviderTypes = computed(() => {
-  const q = providerTypeSearch.value.toLowerCase()
-  if (!q) return allProviderTypes
-  return allProviderTypes.filter(t => t.toLowerCase().includes(q))
+const clinicalSearch = ref('')
+const bizSearch      = ref('')
+// ── Filter state ──────────────────────────────────────────────────────────
+const openGroups = reactive({ type: true, specialty: false, approach: false, insurance: false, format: false, location: false, credentials: false, rate: false, demographics: false })
+const selectedFilters = reactive({ type: [], specialty: [], approach: [], insurance: [], format: [], location: [], credentials: [], rate: [], demographics: [] })
+const search = reactive({ type: '', specialty: '', approach: '', insurance: '' })
+
+const activeFilters = computed(() => {
+  const out = []
+  for (const [group, vals] of Object.entries(selectedFilters)) {
+    for (const value of vals) out.push({ group, value })
+  }
+  return out
 })
+
+function toggleGroup(g) { openGroups[g] = !openGroups[g] }
+function isSelected(g, v) { return selectedFilters[g].includes(v) }
+function countGroup(g) { return selectedFilters[g].length || '' }
+function toggleFilter(g, v) {
+  const arr = selectedFilters[g]
+  const i = arr.indexOf(v)
+  if (i === -1) arr.push(v)
+  else arr.splice(i, 1)
+}
+function removeFilter(f) {
+  const arr = selectedFilters[f.group]
+  const i = arr.indexOf(f.value)
+  if (i !== -1) arr.splice(i, 1)
+}
+function clearFilters() {
+  for (const g of Object.keys(selectedFilters)) selectedFilters[g] = []
+  for (const g of Object.keys(search)) search[g] = ''
+}
+function filteredOpts(arr, q) {
+  if (!q) return arr
+  return arr.filter(t => t.toLowerCase().includes(q.toLowerCase()))
+}
+
+// ── Filter data ────────────────────────────────────────────────────────────
+const providerTypes = ['Psychotherapist','Psychologist','Psychiatrist','Pain Management Specialist','Movement/Dance Specialist','Life Coach','Health Coach','Behavioral Therapist','Massage Therapist','Acupuncturist','Naturopathic Doctor (ND)','Functional Medicine Practitioner','Registered Dietitian (RD/RDN)','Integrative/Holistic Nutritionist','Certified Diabetes Educator (CDE)','Hypnotherapist','Somatic Practitioner','Personal Trainer','Doula','Sleep Specialist']
+
+const specialtyGroups = {
+  'Therapy Types': ['Individual Therapy','Family Therapy','Couple Therapy','Children Therapy','Children & Adolescent Therapy','Adult','Older Adult'],
+  'Mental Health & Wellness': ['Stress Management & Burnout','Grief & Loss','Wellness Coaching','Sex Therapy','Sleep Disorders','Pain Management','Eating Disorders'],
+  'Population / Identity': ['LGBTQIA+','Women\'s Health','Men\'s Health','BIPOC Communities','Veterans & Military Families','Faith-Based/Spiritual','Neurodivergent Individuals'],
+  'Relationship & Family': ['Relationship Issues','Divorce & Separation','Parenting Support','Co-Parenting','Infidelity & Trust Issues','Premarital Counseling'],
+  'Mental Health Disorders': ['Anxiety Disorders','Depression','PTSD & Trauma','OCD','Bipolar Disorder','Personality Disorders (BPD, etc.)','ADHD','Autism Spectrum Disorder (ASD)'],
+  'Addiction & Substance Use': ['Substance Use Disorders','Alcohol Addiction','Drug Addiction','Behavioral Addictions','Relapse Prevention','Recovery Coaching'],
+  'Life Transitions': ['Career Transitions & Work Stress','Identity Development','Life Purpose & Meaning','Midlife Crisis','Chronic Illness/Disability Adjustment'],
+  'Medical / Physical Health': ['Chronic Disease Management','Hormonal Imbalances','Fertility & Reproductive Health','Pregnancy & Postpartum','Diabetes & Blood Sugar','Weight Management'],
+  'Psychiatry-Specific': ['Medication Management','Treatment-Resistant Depression','Geriatric Psychiatry','Child & Adolescent Psychiatry'],
+}
+
+const approachGroups = {
+  'Clinical Therapy': ['CBT','DBT','ACT','EMDR','Internal Family Systems (IFS)','Psychodynamic Therapy','Attachment-Based Therapy','Somatic Therapies','Emotionally Focused Therapy (EFT)','Gottman Method','Narrative Therapy','Gestalt Therapy','Humanistic Therapy','Solution-Focused Brief Therapy (SFBT)','Motivational Interviewing (MI)','MBSR','MBCT','Play Therapy','Art Therapy','Music Therapy','Trauma-Focused CBT','Prolonged Exposure Therapy'],
+  'Psychiatry Approaches': ['Psychopharmacology','Medication Management','Combined Therapy & Medication','Treatment-Resistant Protocols','ECT / TMS / Ketamine Therapy'],
+  'Nutrition Approaches': ['Intuitive Eating','Anti-Diet Approach','Health at Every Size (HAES)','Medical Nutrition Therapy (MNT)','Behavioral Nutrition Coaching'],
+  'Functional Medicine': ['Systems Biology & Root-Cause Medicine','Integrative & Holistic Protocols','Lifestyle Medicine','Precision Medicine','Preventive & Longevity Medicine'],
+}
+
+const insuranceGroups = {
+  'Commercial Plans': ['Aetna','Cigna / Evernorth','UnitedHealthcare / Optum','Humana','Kaiser Permanente','Oscar Health'],
+  'Blue Cross Blue Shield': ['Anthem BCBS','BCBS (State/Regional)','Premera Blue Cross','Highmark BCBS','Blue Shield of California'],
+  'Government Programs': ['Medicare','Medicaid','TRICARE'],
+  'Behavioral Health': ['Carelon Behavioral Health (Beacon)','Magellan Healthcare','ComPsych','UMR'],
+}
+
+const formatGroups = {
+  'Session Format': ['In-Person','Telehealth','Both (In-person & Telehealth)','Hybrid'],
+  'Services Offered': ['Individual Therapy','Couples Therapy','Family Therapy','Group Therapy','Psychiatric Medication Management','Nutrition Counseling','Coaching (Life, Health, Wellness)','Testing / Assessments'],
+}
+
+const locationGroups = {
+  'Distance': ['Within 5 miles','Within 10 miles','Within 25 miles','Any distance'],
+  'State': ['New York','New Jersey','Connecticut','California','Texas','Florida'],
+}
+
+const credentialTypes = ['Licensed Psychologist (PhD/PsyD)','Licensed Clinical Social Worker (LCSW)','Licensed Professional Counselor (LPC)','Licensed Marriage & Family Therapist (LMFT)','Psychiatrist (MD/DO)','Nurse Practitioner (PMHNP)','Registered Dietitian (RD/RDN)','Certified Health Coach']
+
+const rateTypes = ['Accepting New Clients','Sliding Scale Available','Under $100/session','$100–$150/session','$150–$200/session','$200+/session','Insurance Accepted','Self-Pay Only']
+
+const demographicTypes = ['Female Provider','Male Provider','Non-Binary Provider','BIPOC Provider','LGBTQ+ Provider','Spanish-Speaking','Multilingual']
 const searchSort     = ref('Best Match')
 const bpSearch       = ref('')
 const bpSort         = ref('Best Match')
@@ -971,7 +1202,7 @@ const recommendedCategories = [
   { label:'Therapist / LCSW', desc:'Ongoing psychotherapy', count:6, icon:'heart-2',     priority:'high'   },
   { label:'Neurologist',      desc:'Neuropsychiatric care',  count:2, icon:'globe',       priority:'medium' },
   { label:'Primary Care',     desc:'Care coordination',      count:4, icon:'home',        priority:'medium' },
-  { label:'Dietician',        desc:'Eating & metabolism',    count:3, icon:'dollar-sign', priority:'medium' },
+  { label:'Dietician',        desc:'Eating & metabolism',    count:3, icon:'dollar', priority:'medium' },
   { label:'Medical Billing',  desc:'Revenue cycle',          count:6, icon:'briefcase',   priority:'medium' },
   { label:'Credentialing',    desc:'Insurance & licensing',  count:2, icon:'shield',      priority:'medium' },
 ]
@@ -994,17 +1225,7 @@ const searchResults = ref([
   { name:'Dr. Sofia Kim, MD',     id:'', slug:'', initials:'SK', role:'Neurologist',            location:'Bronx, NY',     tags:['Epilepsy','Headaches','Neurocognitive'],        rating:4.8, reviews:44, refs:'0 refs',  acc:'—',       resp:'2.8h resp', telehealth:false, networkStatus:'not-connected' },
 ])
 
-const filterGroups = reactive([
-  { label:'Provider Type',        open:false, icon:'user'        },
-  { label:'Specialties',          open:false, icon:'star'        },
-  { label:'Treatment Approaches', open:false, icon:'book-open'   },
-  { label:'Insurance Accepted',   open:false, icon:'credit-card' },
-  { label:'Format & Services',    open:false, icon:'monitor'     },
-  { label:'Location',             open:false, icon:'map-pin'     },
-  { label:'Credentials',          open:false, icon:'shield'      },
-  { label:'Rate & Availability',  open:false, icon:'clock'       },
-  { label:'Provider Demographics',open:false, icon:'users'       },
-])
+
 
 const businessPartners = ref([
   { name:'Marisol Vega',       id:'', initials:'MV', avatarColor:'var(--gold-dark)', partnerType:'FREELANCER',  role:'Medical Billing',     location:'Miami, FL · Remote',   tags:['Medical Billing','AR Management','Denial Mgmt'],         rate:'$85/hr',  reviews:147, jobs:92,  rating:4.9, category:'Medical Billing'    },
@@ -1019,11 +1240,11 @@ const businessPartners = ref([
 
 const bpFilterGroups = [
   { label:'Partner Type',     icon:'users'       },
-  { label:'Hourly Rate',      icon:'dollar-sign' },
+  { label:'Hourly Rate',      icon:'dollar' },
   { label:'Experience Level', icon:'star'        },
   { label:'Availability',     icon:'clock'       },
-  { label:'Engagement Type',  icon:'briefcase'   },
-  { label:'Work Location',    icon:'map-pin'     },
+  { label:'Engagement Type',  icon:'briefcase' },
+  { label:'Work Location',    icon:'map-pin' },
 ]
 
 const rtCandidates = ref([
@@ -1053,246 +1274,124 @@ function timeAgo(iso) {
 </script>
 
 <style scoped>
-/* ══════════════════════════════════════════════════════
-   OVERFLOW CONTRACT — nothing in this file may produce
-   horizontal scroll. All grids use auto-fill or 100%.
-   All flex rows either wrap or are inside a slider track.
-   ══════════════════════════════════════════════════════ */
+/* ══ ONLY layout guards that cannot live in _shared.css ══
+   All component classes use 100% legacy PHP class names.
+   All visual styles come from public/css/_shared.css.       */
 
-/* ── Page root ────────────────────────────────────────── */
+/* Page root — prevents any child from causing horizontal scroll */
 .nw-page-root { width:100%; overflow-x:hidden; }
-* { box-sizing:border-box; }
 
-/* ── Hero actions ─────────────────────────────────────── */
-.nw-icon-btn { display:inline-flex; align-items:center; gap:6px; }
-
-/* ── Pending connection requests ─────────────────────── */
-.section-block {
-  background:var(--surface); border:1px solid var(--border);
-  border-radius:var(--radius-lg); padding:18px 20px; margin-bottom:14px;
-  box-shadow:var(--shadow-xs); width:100%;
+/* Slider track — hides scrollbar, lets arrow buttons control scroll */
+/* Slider tracks — override the auto-scroll from _shared.css to hide scrollbar and enable programmatic scroll */
+.rec-partner-grid {
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  /* rnp-card gets fixed width from _shared.css rec-partner-grid > .rnp-card */
 }
-.section-head { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px; }
-.section-head-eyebrow { font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--gold-dark); margin-bottom:3px; }
-.section-head-title   { font-family:var(--font-serif); font-size:17px; font-weight:700; color:var(--text); margin:0 0 2px; }
-.section-head-sub     { font-size:12px; color:var(--text-3); margin:0; }
-.list-grid { display:flex; gap:12px; flex-wrap:wrap; width:100%; }
-.card.is-person { background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; flex:1 1 200px; max-width:280px; }
-.card-top   { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
-.card-time  { font-size:11px; color:var(--text-4); }
-.badge.is-quiet.is-clinical { font-size:10px; font-weight:700; padding:2px 8px; border-radius:99px; background:var(--green-light); color:var(--green-dark); border:1px solid var(--soft-green); display:inline-flex; align-items:center; gap:4px; }
-.badge.is-quiet.is-business { font-size:10px; font-weight:700; padding:2px 8px; border-radius:99px; background:var(--blue-light);  color:var(--blue-dark);  border:1px solid var(--soft-blue);  display:inline-flex; align-items:center; gap:4px; }
-.person-row    { display:flex; align-items:flex-start; gap:10px; margin-bottom:12px; }
-.person-avatar { width:36px; height:36px; border-radius:8px; background:var(--gold-dark); color:#fff; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.person-name   { font-size:13px; font-weight:700; color:var(--text); line-height:1.3; }
-.person-meta   { font-size:11px; color:var(--text-3); margin-top:1px; }
-.card-actions  { display:flex; gap:6px; }
+.rec-partner-grid::-webkit-scrollbar { display: none; }
 
-/* ── Main tabs (two-tier) ─────────────────────────────── */
+.rec-shadow-grid {
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  flex: 1;
+  width: 0;
+  min-width: 0;
+}
+.rec-shadow-grid::-webkit-scrollbar { display: none; }
 
-
-/* ── Recommended section header ───────────────────────── */
-.rec-section        { margin-bottom:22px; width:100%; overflow:hidden; }
-.rec-section-shadow { margin-top:28px; }
-.rec-header   { margin-bottom:6px; }
-.rec-title    { display:inline-flex; align-items:center; gap:7px; font-size:14px; font-weight:700; color:var(--text); flex-wrap:wrap; }
-.rec-sub      { font-size:12px; color:var(--text-3); margin:4px 0 12px; line-height:1.5; }
-.badge-ai       { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; padding:3px 8px; border-radius:99px; background:rgba(74,144,196,.1); color:var(--blue-dark); border:1px solid var(--soft-blue); }
-.badge-ai-green { background:rgba(76,175,125,.1); color:var(--green-dark); border-color:var(--soft-green); }
-.ai-shadow-label { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-4); text-align:center; margin:4px 0 14px; }
-
-/* ── Slider wrapper ───────────────────────────────────── */
-.nw-slider-wrap { display:flex; align-items:center; gap:8px; width:100%; min-width:0; }
+/* Slider arrow buttons — not in legacy (slider is a Vue addition) */
+.nw-slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
 .nw-slider-arrow {
-  display:inline-flex; align-items:center; justify-content:center;
-  width:32px; height:32px; border-radius:50%; flex-shrink:0;
-  border:1.5px solid var(--border); background:var(--surface);
-  color:var(--text-3); cursor:pointer; transition:all .15s; box-shadow:var(--shadow-sm);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text-3);
+  cursor: pointer; flex-shrink: 0;
+  transition: all var(--transition);
 }
-.nw-slider-arrow:hover:not(:disabled) { border-color:var(--gold-dark); color:var(--gold-dark); background:var(--badge-bg-gold); }
-.nw-slider-arrow:disabled  { opacity:.3; cursor:default; }
-.nw-slider-arrow-left  { margin-right:8px; }
-.nw-slider-arrow-right { margin-left:8px; }
+.nw-slider-arrow:hover:not(:disabled) {
+  border-color: var(--gold-dark);
+  color: var(--gold-dark);
+  background: var(--badge-bg-gold);
+}
+.nw-slider-arrow:disabled { opacity: .3; cursor: default; }
 
-/* ── RNP (Recommended Network Partners) scroll track ──── */
-.rnp-scroll {
-  display:flex; gap:10px; flex:1; width:0; min-width:0;
-  overflow-x:auto; scroll-behavior:smooth; padding-bottom:4px;
-  scrollbar-width:none; -ms-overflow-style:none;
-}
-.rnp-scroll::-webkit-scrollbar { display:none; }
-.rnp-card {
-  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
-  padding:18px 18px; min-width:190px; max-width:210px; flex-shrink:0;
-  cursor:pointer; transition:box-shadow .15s,transform .15s; box-shadow:var(--shadow-sm);
-}
-.rnp-card:hover { box-shadow:var(--shadow); transform:translateY(-2px); }
-.rnp-icon { width:38px; height:38px; border-radius:var(--radius-sm); background:var(--badge-bg-gold); color:var(--gold-dark); display:flex; align-items:center; justify-content:center; margin-bottom:10px; }
-.rnp-name { font-size:14px; font-weight:700; color:var(--text); margin-bottom:4px; }
-.rnp-meta { font-size:12px; color:var(--text-4); margin-bottom:10px; }
-.rnp-foot { display:flex; align-items:center; justify-content:space-between; }
-.rnp-stat { font-size:11px; color:var(--text-3); }
-.rnp-num  { font-weight:700; color:var(--text); }
-.rnp-cta  { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; border:1.5px solid var(--border); background:transparent; color:var(--text-3); cursor:pointer; transition:all .15s; }
-.rnp-cta:hover { border-color:var(--gold-dark); color:var(--gold-dark); }
-
-/* ── SPC (Shadow Provider) card — used in slider AND grid ─ */
-.spc-track {
-  display:flex; gap:12px; flex:1; width:0; min-width:0;
-  overflow-x:auto; scroll-behavior:smooth; padding-bottom:4px;
-  scrollbar-width:none; -ms-overflow-style:none;
-}
-.spc-track::-webkit-scrollbar { display:none; }
-
-/* Grid variant (My Network / My Partners) */
-.spc-grid {
-  display:grid;
-  grid-template-columns:repeat(auto-fill, minmax(170px, 1fr));
-  gap:12px; margin-bottom:22px; width:100%;
+/* Sticky filter sidebar header — always visible at top */
+.filter-sidebar-header {
+  position: sticky;
+  top: -14px;
+  left: -10px;
+  right: -10px;
+  width: calc(100% + 20px);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  z-index: 2;
+  margin: -14px -10px 0;
 }
 
-.spc-card {
-  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
-  padding:40px 16px 14px; position:relative; cursor:pointer;
-  transition:box-shadow .18s,transform .18s; box-shadow:var(--shadow-sm);
-  display:flex; flex-direction:column;
-  /* slider: fixed width; grid: fills cell */
-  min-width:200px; max-width:220px; flex-shrink:0;
+/* Search Results divider label — centered with lines on both sides */
+.nw-search-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  margin: 28px 0 20px;
+  color: var(--text-4);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
 }
-/* In grid context, override fixed width so it fills the column */
-.spc-grid .spc-card { min-width:0; max-width:none; flex-shrink:1; }
-
-.spc-card:hover  { box-shadow:var(--shadow); transform:translateY(-2px); }
-.spc-pills  { position:absolute; top:10px; left:12px; display:flex; gap:5px; }
-.spc-pill-ai  { width:22px; height:22px; border-radius:50%; background:rgba(160,129,62,.12); color:var(--gold-dark); display:inline-flex; align-items:center; justify-content:center; }
-.spc-pill-svc { width:22px; height:22px; border-radius:50%; background:var(--surface-2); color:var(--text-3); display:inline-flex; align-items:center; justify-content:center; }
-.spc-match-badge { display:inline-flex; align-items:center; justify-content:center; padding:2px 7px; border-radius:99px; font-size:10px; font-weight:700; background:var(--green-light); color:var(--green-dark); border:1px solid var(--soft-green); }
-.spc-status  { width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; }
-.spc-status.ok   { background:var(--green-light); color:var(--green-dark); }
-.spc-status.pend { background:var(--orange-light); color:var(--orange-dark); }
-.spc-status.off  { background:var(--surface-2); color:var(--text-3); }
-.spc-rating { position:absolute; top:12px; right:12px; font-size:11px; font-weight:700; color:var(--gold-dark); display:inline-flex; align-items:center; gap:3px; }
-.spc-body   { display:flex; flex-direction:column; align-items:center; text-align:center; flex:1; }
-.spc-avatar { width:60px; height:60px; border-radius:var(--radius); background:var(--gold-dark); color:#fff; font-size:18px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-bottom:10px; }
-.spc-avatar-lg { width:66px; height:66px; border-radius:var(--radius-lg); font-size:20px; }
-.spc-name   { font-size:12px; font-weight:700; color:var(--text); line-height:1.3; margin-bottom:2px; }
-.spc-role   { font-size:11px; color:var(--text-4); margin-bottom:4px; }
-.spc-loc    { display:inline-flex; align-items:center; gap:3px; font-size:11px; color:var(--text-4); margin-bottom:8px; }
-.spc-tags   { display:flex; flex-wrap:wrap; justify-content:center; gap:4px; margin-bottom:8px; }
-.spc-tag    { font-size:10px; color:var(--text-3); background:var(--surface-2); border:1px solid var(--border); border-radius:99px; padding:2px 7px; }
-.spc-stats-row { font-size:11px; color:var(--text-4); margin-bottom:10px; text-align:center; padding:8px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
-.spc-actions { display:flex; align-items:center; justify-content:center; gap:5px; flex-wrap:wrap; padding-top:8px; border-top:1px solid var(--border); }
-
-/* ── Shared icon button ────────────────────────────────── */
-.btn-icon { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text-3); cursor:pointer; transition:all .15s; flex-shrink:0; }
-.btn-icon:hover:not(:disabled) { border-color:var(--gold-dark); color:var(--gold-dark); }
-.btn-icon:disabled { opacity:.5; cursor:not-allowed; }
-.nw-added-pill { font-size:10px; font-weight:700; color:var(--green-dark); background:var(--green-light); border:none; border-radius:99px; padding:2px 8px; }
-
-/* ── Search layout (sidebar + results) ────────────────── */
-.nw-search-header-label { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-4); text-align:center; margin:4px 0 16px; }
-.nw-search-layout { display:grid; grid-template-columns:220px 1fr; gap:18px; width:100%; }
-.nw-results       { min-width:0; width:100%; }
-.nw-results-bar   { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px; font-size:12px; color:var(--text-3); }
-.nw-results-count { font-size:12px; color:var(--text-3); }
-.spc-results-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; width:100%; }
-/* In search results, cards fill column — override slider fixed width */
-.spc-results-grid .spc-card { min-width:0; max-width:none; flex-shrink:1; }
-.search-provider-card {}
-.nw-load-more { display:flex; justify-content:center; margin-top:20px; padding-bottom:8px; }
-
-/* ── Sidebar / filters ────────────────────────────────── */
-.nw-sidebar      { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px; height:fit-content; min-width:0; }
-.nw-sidebar-top  { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-.nw-sidebar-label { font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-3); }
-.nw-clear-btn    { font-size:10px; font-weight:700; color:var(--gold-dark); background:transparent; border:none; cursor:pointer; }
-.nw-filter-group { margin-bottom:2px; }
-.nw-filter-btn   { display:flex; align-items:center; gap:7px; width:100%; padding:8px 4px; font-size:12px; font-weight:500; color:var(--text-2); background:transparent; border:none; cursor:pointer; border-bottom:1px solid var(--border); }
-.nw-filter-btn:hover { color:var(--text); }
-.nw-apply-btn    { display:block; width:100%; margin-top:14px; padding:10px; font-size:12px; font-weight:700; background:var(--gold-dark); color:#fff; border:none; border-radius:8px; cursor:pointer; transition:background .15s; }
-.nw-apply-btn:hover { background:var(--gold); }
-.nw-filter-expand  { padding:8px 4px 4px; }
-.nw-filter-search  { font-size:12px; padding:6px 10px; margin-bottom:8px; width:100%; }
-.nw-filter-check   { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text-2); padding:4px 2px; cursor:pointer; }
-.nw-filter-check:hover { color:var(--text); }
-.nw-filter-check input { accent-color:var(--gold-dark); }
-
-/* ── Toolbar / results bar ────────────────────────────── */
-.pn-toolbar     { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; width:100%; }
-.pn-search-wrap { position:relative; flex:1; min-width:0; }
-.pn-search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); display:flex; align-items:center; color:var(--text-3); pointer-events:none; }
-.pn-results-bar { font-size:12px; color:var(--text-3); margin-bottom:14px; }
-
-/* ── Stat chips row ───────────────────────────────────── */
-.stat-chips-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:22px; width:100%; }
-.stat-chip      { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px; display:flex; align-items:center; gap:14px; box-shadow:var(--shadow-sm); min-width:0; }
-.stat-chip-icon { width:36px; height:36px; border-radius:var(--radius); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.stat-chip-value { font-family:var(--font-serif); font-size:22px; font-weight:700; color:var(--text); line-height:1; margin-bottom:4px; }
-.stat-chip-label { font-size:11px; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:.05em; }
-
-/* ── Business Partners ────────────────────────────────── */
-.bp-search-bar { display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; width:100%; }
-.bp-count      { font-size:12px; color:var(--text-3); margin-bottom:14px; }
-.bp-layout     { display:grid; grid-template-columns:220px 1fr; gap:18px; width:100%; }
-.bp-toggle-row { display:flex; align-items:center; justify-content:space-between; padding:10px 4px; border-bottom:1px solid var(--border); margin-bottom:4px; }
-.bp-toggle     { position:relative; display:inline-block; width:36px; height:20px; flex-shrink:0; }
-.bp-toggle input { opacity:0; width:0; height:0; }
-.bp-track      { position:absolute; inset:0; background:var(--border-dark); border-radius:99px; cursor:pointer; transition:background .2s; }
-.bp-toggle input:checked + .bp-track { background:var(--gold-dark); }
-.bp-thumb      { position:absolute; width:16px; height:16px; left:2px; top:2px; background:#fff; border-radius:50%; transition:transform .2s; }
-.bp-toggle input:checked + .bp-track .bp-thumb { transform:translateX(16px); }
-.bp-grid       { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; width:100%; }
-.biz-grid-card { display:flex; flex-direction:column; min-width:0; }
-.bp-card-top   { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
-.bp-type-badge { font-size:10px; font-weight:700; letter-spacing:.05em; padding:2px 7px; border-radius:99px; background:var(--badge-bg-gold); color:var(--gold-dark); border:1px solid var(--fade-gold); }
-.bp-card-rating { font-size:11px; font-weight:600; color:var(--gold-dark); display:inline-flex; align-items:center; gap:2px; }
-.bp-avatar-row { display:flex; justify-content:flex-start; margin-bottom:8px; }
-.bp-avatar     { width:44px; height:44px; border-radius:10px; color:#fff; font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; }
-.bp-card-name  { font-size:13px; font-weight:700; color:var(--text); margin-bottom:2px; }
-.bp-card-role  { font-size:11px; color:var(--text-4); margin-bottom:2px; }
-.bp-card-loc   { font-size:11px; color:var(--text-4); margin-bottom:8px; }
-.bp-card-stats { font-size:11px; color:var(--text-4); margin-bottom:10px; padding-top:8px; border-top:1px solid var(--border); }
-
-/* ── Referrals & Tools ────────────────────────────────── */
-.rt-section-title { font-family:var(--font-serif); font-size:18px; font-weight:700; color:var(--text); margin-bottom:12px; }
-.rt-ai-banner { display:flex; align-items:flex-start; gap:12px; background:rgba(160,129,62,.07); border:1px solid var(--fade-gold); border-radius:10px; padding:14px 16px; margin-bottom:16px; box-shadow:var(--shadow-sm); width:100%; }
-.rt-ai-icon   { width:32px; height:32px; border-radius:8px; background:rgba(160,129,62,.12); color:var(--gold-dark); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.rt-ai-title  { font-size:13px; font-weight:700; color:var(--text); margin-bottom:3px; }
-.rt-ai-sub    { font-size:12px; color:var(--text-3); line-height:1.55; }
-.rt-ai-sub strong { color:var(--text); }
-.rt-grid      { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:14px; width:100%; }
-.rt-card      { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 14px; position:relative; transition:box-shadow .15s,transform .15s; cursor:pointer; display:flex; flex-direction:column; align-items:center; text-align:center; box-shadow:var(--shadow-sm); min-width:0; }
-.rt-card:hover { box-shadow:var(--shadow); transform:translateY(-2px); }
-.rt-shadow-icon { position:absolute; top:12px; left:12px; color:var(--gold-dark); opacity:.6; }
-.rt-avatar    { width:44px; height:44px; border-radius:10px; background:var(--gold-dark); color:#fff; font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; margin:8px auto 10px; }
-.rt-name      { font-size:13px; font-weight:700; color:var(--text); margin-bottom:2px; }
-.rt-role      { font-size:11px; color:var(--text-4); margin-bottom:2px; }
-.rt-loc       { font-size:11px; color:var(--text-4); margin-bottom:10px; }
-.rt-actions   { display:flex; justify-content:center; gap:6px; padding-top:10px; border-top:1px solid var(--border); width:100%; }
-.rt-remove-btn:hover { border-color:var(--red); color:var(--red); background:var(--red-light); }
-
-/* ── Review Requests modal internals ──────────────────── */
-.nw-modal-list   { max-height:380px; overflow-y:auto; }
-.nw-modal-row    { display:flex; align-items:flex-start; gap:12px; padding:14px 0; border-bottom:1px solid var(--border); }
-.nw-modal-row:last-child { border-bottom:none; }
-.nw-modal-avatar { width:38px; height:38px; border-radius:50%; background:var(--gold-dark); color:#fff; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.nw-modal-info   { flex:1; min-width:0; }
-.nw-modal-name   { font-size:13px; font-weight:700; color:var(--text); margin-bottom:2px; }
-.nw-modal-meta   { font-size:12px; color:var(--text-4); margin-bottom:5px; }
-.nw-modal-quote  { font-size:12px; color:var(--text-3); font-style:italic; line-height:1.5; }
-.nw-modal-right  { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
-.nw-modal-btns   { display:flex; align-items:center; gap:6px; flex-shrink:0; }
-
-/* ── Responsive ───────────────────────────────────────── */
-@media (max-width:1024px) {
-  .spc-results-grid { grid-template-columns:1fr; }
+.nw-search-divider::before,
+.nw-search-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
 }
-@media (max-width:900px) {
-  .nw-search-layout { grid-template-columns:1fr; }
-  .bp-layout        { grid-template-columns:1fr; }
+
+/* Sticky Apply Filters button at bottom of sidebar */
+.filter-sidebar-apply {
+  position: sticky;
+  bottom: -14px;           /* pull into sidebar bottom padding so zero gap */
+  left: -10px;             /* bleed past sidebar horizontal padding */
+  right: -10px;
+  width: calc(100% + 20px);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 14px 16px 20px; /* extra bottom padding covers any subpixel gap */
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-@media (max-width:600px) {
-  .stat-chips-row { grid-template-columns:1fr 1fr; }
-  .spc-results-grid { grid-template-columns:1fr; }
+.filter-sidebar-apply .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Sub-tabs — match legacy #networkTabs .net-sub-tabs rule */
+.tabs-twotier .tabs-segmented.net-sub-tabs {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-bottom: 0;
+  margin-top: 6px;
 }
 </style>
