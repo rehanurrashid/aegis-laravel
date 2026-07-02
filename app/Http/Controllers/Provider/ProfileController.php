@@ -34,7 +34,22 @@ class ProfileController extends Controller
 
         $credentials = ProviderCredential::where('user_id', $user->id)
             ->orderBy('sort_order')
-            ->get();
+            ->get()
+            ->map(fn ($c) => [
+                'id'            => $c->id,
+                'cred_type'     => $c->cred_type,
+                'icon'          => $c->icon,
+                'name'          => $c->name,
+                'subtitle'      => $c->subtitle,
+                'issuer'        => $c->issuer,
+                'number'        => $c->number,
+                'issued_on'     => $c->issued_on?->toDateString(),
+                'expires_on'    => $c->expires_on?->toDateString(),
+                'days_remaining'=> $c->days_remaining,
+                'is_insurance'  => $c->is_insurance,
+                'document_paths' => $c->document_path ? (json_decode($c->document_path, true) ?? [$c->document_path]) : [],
+            ])
+            ->toArray();
 
         return Inertia::render('Provider/EditProfile', [
             'user'        => $user,

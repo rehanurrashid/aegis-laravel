@@ -16,15 +16,16 @@ class StoreProviderCredentialRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'cred_type'   => ['required', 'string', 'max:64'],
-            'custom_type' => ['nullable', 'string', 'max:64'],
-            'name'        => ['nullable', 'string', 'max:191'],
-            'subtitle'    => ['nullable', 'string', 'max:191'],
-            'issuer'      => ['nullable', 'string', 'max:191'],
-            'number'      => ['nullable', 'string', 'max:191'],
-            'issued_on'   => ['nullable', 'date'],
-            'expires_on'  => ['nullable', 'date', 'after_or_equal:issued_on'],
-            'document'    => ['nullable', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
+            'cred_type'    => ['required', 'string', 'max:64'],
+            'custom_type'  => ['nullable', 'string', 'max:64'],
+            'name'         => ['nullable', 'string', 'max:191'],
+            'subtitle'     => ['nullable', 'string', 'max:191'],
+            'issuer'       => ['nullable', 'string', 'max:191'],
+            'number'       => ['nullable', 'string', 'max:191'],
+            'issued_on'    => ['nullable', 'date'],
+            'expires_on'   => ['nullable', 'date', 'after_or_equal:issued_on'],
+            'document'     => ['nullable', 'array'],
+            'document.*'   => ['file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
         ];
     }
 }

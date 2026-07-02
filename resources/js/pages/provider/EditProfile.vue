@@ -339,54 +339,43 @@
                 <div class="ep-cred-top">
                   <div class="ep-cred-title">
                     <AegisIcon name="flask" :size="14" />
-                    {{ cred.name || 'License' }}
+                    {{ cred.name || cred.cred_type || 'License' }}
                     <span class="ep-cred-badge">{{ cred.subtitle || cred.issuer || '—' }}</span>
                   </div>
-                  <div style="display:flex;gap:8px;flex-shrink:0;align-items:center">
-                    <button type="button" class="btn btn-outline btn-sm" @click="toggleArchiveCredential(cred)">
-                      <AegisIcon :name="cred.archived ? 'refresh' : 'archive'" :size="11" /> {{ cred.archived ? 'Restore' : 'Archive' }}
-                    </button>
-                    <button type="button" class="btn btn-danger btn-sm" @click="confirmRemoveCredential(cred)">
-                      <AegisIcon name="x" :size="11" /> Remove
-                    </button>
+                  <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
+                    <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Edit / Renew" @click="openCredModal('edit-credential', cred)"><AegisIcon name="edit" :size="13" /></button>
+                    <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Set Reminder" @click="openCredModal('reminder', cred)"><AegisIcon name="bell" :size="13" /></button>
+                    <button type="button" class="btn-icon btn-icon-sm" :data-tooltip="cred.archived ? 'Restore' : 'Archive'" @click="toggleArchiveCredential(cred)"><AegisIcon :name="cred.archived ? 'refresh-cw' : 'archive'" :size="13" /></button>
+                    <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Remove" @click="confirmRemoveCredential(cred)"><AegisIcon name="trash-2" :size="13" /></button>
                   </div>
                 </div>
-                <div class="form-row form-row-2">
-                  <div class="form-group">
-                    <label class="form-label">License Number</label>
-                    <input v-model="cred.number" type="text" class="form-input" @change="saveCredentialField(cred)">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Issuer / State <span class="ep-label-req">*</span></label>
-                    <input v-model="cred.issuer" type="text" class="form-input" @change="saveCredentialField(cred)">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Issue Date</label>
-                    <input v-model="cred.issued_on" type="date" class="form-input" @change="saveCredentialField(cred)">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Expiration Date <span class="ep-label-req">*</span></label>
-                    <input v-model="cred.expires_on" type="date" class="form-input" @change="saveCredentialField(cred)">
+                <div class="ep-cred-meta-row">
+                  <div class="ep-cred-meta-item"><span>License #</span><strong>{{ cred.number || '—' }}</strong></div>
+                  <div class="ep-cred-meta-item"><span>Issuer</span><strong>{{ cred.issuer || '—' }}</strong></div>
+                  <div class="ep-cred-meta-item"><span>Issued</span><strong>{{ cred.issued_on || '—' }}</strong></div>
+                  <div class="ep-cred-meta-item" :class="{ 'is-expiry-warn': cred.days_remaining !== null && cred.days_remaining < 30 }">
+                    <span>Expires</span><strong>{{ cred.expires_on || '—' }}</strong>
                   </div>
                 </div>
-                <div class="form-group form-group-last">
-                  <label class="form-label">License Document</label>
-                  <div v-if="cred.document_path" class="ep-file-row">
+                <div v-if="cred.document_paths?.length" style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+                  <div v-for="p in cred.document_paths" :key="p" class="ep-file-row">
                     <div class="ep-file-info">
                       <div class="ep-file-icon"><AegisIcon name="file-text" :size="16" /></div>
                       <div>
-                        <div class="ep-file-name">{{ documentName(cred.document_path) }}</div>
+                        <div class="ep-file-name">{{ documentName(p) }}</div>
                         <div class="ep-file-meta">Uploaded · on file</div>
                       </div>
                     </div>
-                    <button type="button" class="btn btn-danger btn-sm" @click="confirmRemoveCredential(cred)">Remove</button>
+                    <div style="display:flex;gap:6px;flex-shrink:0">
+                      <a :href="`/storage/${p}`" target="_blank" rel="noopener" class="btn-icon btn-icon-sm" data-tooltip="Preview"><AegisIcon name="eye" :size="13" /></a>
+                      <a :href="route('provider.credentials.download', cred.id) + '?path=' + encodeURIComponent(p)" class="btn-icon btn-icon-sm" data-tooltip="Download"><AegisIcon name="download" :size="13" /></a>
+                      <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Remove file" @click="removeCredentialDoc(cred, p)"><AegisIcon name="x" :size="11" /></button>
+                    </div>
                   </div>
-                  <AegisDropzone v-else accept=".pdf,.jpg,.jpeg,.png" hint="PDF, JPG, PNG · Max 10 MB"
-                    @files="(files) => uploadCredentialDocument(cred, files[0])" />
                 </div>
               </div>
 
-              <button type="button" class="btn btn-outline" @click="addLicense">
+              <button type="button" class="btn btn-outline" @click="modals.addLicense = true">
                 <AegisIcon name="plus" :size="13" /> Add State License
               </button>
 
@@ -447,53 +436,55 @@
               </div>
             </div>
             <div class="card-body">
-              <div v-if="!insuranceCredential" class="alert alert-warning">
-                <AegisIcon name="alert-triangle" :size="15" />
-                No certificate on file. Adding one increases your profile strength by <strong>12%</strong>.
+              <div v-if="!insuranceCredential" class="alert alert-warning" style="margin-bottom:16px">
+                <div class="alert-icon"><AegisIcon name="alert-triangle" :size="14" /></div>
+                <div class="alert-content">No certificate on file. Adding one increases your profile strength by <strong>12%</strong>.</div>
               </div>
-              <div class="form-row form-row-2">
-                <div class="form-group">
-                  <label class="form-label">Insurance Provider</label>
-                  <input v-model="insuranceForm.issuer" type="text" class="form-input" placeholder="e.g. Medical Protective">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Policy Number</label>
-                  <input v-model="insuranceForm.number" type="text" class="form-input" placeholder="Policy number">
-                </div>
-              </div>
-              <div class="form-row form-row-2">
-                <div class="form-group">
-                  <label class="form-label">Coverage Amount</label>
-                  <div class="ep-money">
-                    <span class="ep-money-prefix">$</span>
-                    <input v-model="insuranceForm.subtitle" type="text" class="form-input" placeholder="e.g. 2,000,000">
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Policy Expiration</label>
-                  <input v-model="insuranceForm.expires_on" type="date" class="form-input">
-                </div>
-              </div>
-              <div class="form-group form-group-last">
-                <label class="form-label">Certificate of Insurance</label>
-                <div v-if="insuranceCredential && insuranceCredential.document_path" class="ep-file-row">
-                  <div class="ep-file-info">
-                    <div class="ep-file-icon"><AegisIcon name="file-text" :size="16" /></div>
-                    <div>
-                      <div class="ep-file-name">{{ documentName(insuranceCredential.document_path) }}</div>
-                      <div class="ep-file-meta">Uploaded · on file</div>
+
+              <template v-if="insuranceCredential">
+                <div class="ep-cred">
+                  <div class="ep-cred-top">
+                    <div class="ep-cred-title">
+                      <AegisIcon name="shield" :size="14" />
+                      {{ insuranceCredential.cred_type || 'Insurance Policy' }}
+                      <span class="ep-cred-badge">{{ insuranceCredential.issuer || '—' }}</span>
+                    </div>
+                    <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
+                      <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Edit / Renew" @click="openCredModal('edit-insurance', insuranceCredential)"><AegisIcon name="edit" :size="13" /></button>
+                      <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Set Reminder" @click="openCredModal('reminder', insuranceCredential)"><AegisIcon name="bell" :size="13" /></button>
+                      <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Remove" @click="confirmRemoveCredential(insuranceCredential)"><AegisIcon name="trash-2" :size="13" /></button>
                     </div>
                   </div>
-                  <button type="button" class="btn btn-danger btn-sm" @click="confirmRemoveCredential(insuranceCredential)">Remove</button>
+                  <div class="ep-cred-meta-row">
+                    <div class="ep-cred-meta-item"><span>Policy #</span><strong>{{ insuranceCredential.number || '—' }}</strong></div>
+                    <div class="ep-cred-meta-item"><span>Coverage</span><strong>{{ insuranceCredential.name || insuranceCredential.subtitle || '—' }}</strong></div>
+                    <div class="ep-cred-meta-item"><span>Effective</span><strong>{{ insuranceCredential.issued_on || '—' }}</strong></div>
+                    <div class="ep-cred-meta-item" :class="{ 'is-expiry-warn': insuranceCredential.days_remaining !== null && insuranceCredential.days_remaining < 30 }">
+                      <span>Expires</span><strong>{{ insuranceCredential.expires_on || '—' }}</strong>
+                    </div>
+                  </div>
+                  <div v-if="insuranceCredential.document_paths?.length" style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+                    <div v-for="p in insuranceCredential.document_paths" :key="p" class="ep-file-row">
+                      <div class="ep-file-info">
+                        <div class="ep-file-icon"><AegisIcon name="file-text" :size="16" /></div>
+                        <div>
+                          <div class="ep-file-name">{{ documentName(p) }}</div>
+                          <div class="ep-file-meta">Uploaded · on file</div>
+                        </div>
+                      </div>
+                      <div style="display:flex;gap:6px;flex-shrink:0">
+                        <a :href="`/storage/${p}`" target="_blank" rel="noopener" class="btn-icon btn-icon-sm" data-tooltip="Preview"><AegisIcon name="eye" :size="13" /></a>
+                        <a :href="route('provider.credentials.download', insuranceCredential.id) + '?path=' + encodeURIComponent(p)" class="btn-icon btn-icon-sm" data-tooltip="Download"><AegisIcon name="download" :size="13" /></a>
+                        <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Remove file" @click="removeCredentialDoc(insuranceCredential, p)"><AegisIcon name="x" :size="11" /></button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <AegisDropzone v-else accept=".pdf,.jpg,.jpeg,.png" hint="PDF, JPG or PNG · Max 10 MB"
-                  @files="(files) => insuranceForm.document = files[0]" />
-              </div>
-              <div class="form-actions-bar">
-                <button type="button" class="btn btn-primary" :disabled="insuranceForm.processing" @click="submitInsurance">
-                  {{ insuranceForm.processing ? 'Saving…' : 'Save insurance' }}
-                </button>
-              </div>
+              </template>
+
+              <button type="button" class="btn btn-outline" style="margin-top:4px" @click="modals.addInsurance = true">
+                <AegisIcon name="plus" :size="13" /> {{ insuranceCredential ? 'Add Another Policy' : 'Add Insurance Policy' }}
+              </button>
             </div>
           </div>
 
@@ -962,16 +953,145 @@
       </template>
     </AegisModal>
 
+    <!-- ══════════════ ADD LICENSE MODAL ══════════════ -->
+    <AegisModal v-model="modals.addLicense" title="Add Credential" size="lg">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Credential Type <span class="ep-label-req">*</span></label>
+          <select v-model="licenseForm.cred_type" class="form-select" @change="licenseForm.custom_type = ''">
+            <option value="">Select a credential...</option>
+            <optgroup label="Medical &amp; Prescribing"><option>MD</option><option>DO</option><option>ND</option><option>NP</option><option>PA</option></optgroup>
+            <optgroup label="Mental Health"><option>LPC / LPCC</option><option>LCSW / LICSW</option><option>LMFT</option><option>ABPP</option><option>PhD — Psychology</option><option>PsyD — Psychology</option><option>PMHNP-BC</option></optgroup>
+            <optgroup label="Therapy &amp; Specialty"><option>EMDR Certified</option><option>DBT Certified</option><option>CSE</option><option>CSC</option><option>CST</option><option>ATR</option><option>MT-BC</option><option>RDT</option></optgroup>
+            <optgroup label="Addiction &amp; Health"><option>CADC / ICADC</option><option>LAc</option><option>RD / RDN</option><option>NBC-HWC</option><option>CNM</option><option>CGC</option><option>CDCES / CDE</option></optgroup>
+            <optgroup label="Fitness &amp; Physical"><option>CPT (NSCA)</option><option>CPT (NASM)</option><option>CPT (ACE)</option><option>EP-C (ACSM)</option></optgroup>
+            <optgroup label="Other"><option value="Licensed">Licensed</option><option value="custom">Other (enter manually)</option></optgroup>
+          </select>
+          <div v-if="licenseForm.errors.cred_type" class="form-error">{{ licenseForm.errors.cred_type }}</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Issuing State / Body</label>
+          <select v-model="licenseForm.issuer" class="form-select">
+            <option value="">Select…</option>
+            <option>Alabama</option><option>Alaska</option><option>Arizona</option><option>Arkansas</option><option>California</option><option>Colorado</option><option>Connecticut</option><option>Delaware</option><option>Florida</option><option>Georgia</option><option>Hawaii</option><option>Idaho</option><option>Illinois</option><option>Indiana</option><option>Iowa</option><option>Kansas</option><option>Kentucky</option><option>Louisiana</option><option>Maine</option><option>Maryland</option><option>Massachusetts</option><option>Michigan</option><option>Minnesota</option><option>Mississippi</option><option>Missouri</option><option>Montana</option><option>Nebraska</option><option>Nevada</option><option>New Hampshire</option><option>New Jersey</option><option>New Mexico</option><option>New York</option><option>North Carolina</option><option>North Dakota</option><option>Ohio</option><option>Oklahoma</option><option>Oregon</option><option>Pennsylvania</option><option>Rhode Island</option><option>South Carolina</option><option>South Dakota</option><option>Tennessee</option><option>Texas</option><option>Utah</option><option>Vermont</option><option>Virginia</option><option>Washington</option><option>West Virginia</option><option>Wisconsin</option><option>Wyoming</option>
+            <option>Federal</option><option>National / No State</option><option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div v-if="licenseForm.cred_type === 'custom'" class="form-group">
+        <label class="form-label">Custom Name <span class="ep-label-req">*</span></label>
+        <input v-model="licenseForm.custom_type" type="text" class="form-input" placeholder="e.g. Board Certified Coach" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">License / Credential #</label>
+          <input v-model="licenseForm.number" type="text" class="form-input" placeholder="e.g. NY-12345 (optional)" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Display Name</label>
+          <input v-model="licenseForm.name" type="text" class="form-input" placeholder="e.g. NY Medical License (optional)" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date Issued</label>
+          <input v-model="licenseForm.issued_on" type="date" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Expiration Date</label>
+          <input v-model="licenseForm.expires_on" type="date" class="form-input" />
+          <div v-if="licenseForm.errors.expires_on" class="form-error">{{ licenseForm.errors.expires_on }}</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Upload Document</label>
+        <AegisDropzone accept=".pdf,.jpg,.jpeg,.png" hint="Drop files or browse — add as many as needed" :multiple="true" @files="licenseForm.document = $event" />
+        <div v-if="licenseForm.errors.document || licenseForm.errors['document.*']" class="form-error">{{ licenseForm.errors.document || licenseForm.errors['document.*'] }}</div>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.addLicense = false; licenseForm.reset()">Cancel</button>
+        <button class="btn btn-primary" :disabled="licenseForm.processing" @click="submitLicense">
+          {{ licenseForm.processing ? 'Saving…' : 'Add Credential' }}
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- ══════════════ ADD INSURANCE MODAL ══════════════ -->
+    <AegisModal v-model="modals.addInsurance" title="Add Insurance Policy" size="lg">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Policy Type <span class="ep-label-req">*</span></label>
+          <select v-model="insuranceForm.cred_type" class="form-select">
+            <option value="">Select type</option>
+            <option>Professional Liability (Malpractice)</option>
+            <option>General Business Insurance</option>
+            <option>Workers Compensation</option>
+            <option>Cyber Liability</option>
+            <option>Life Insurance</option>
+            <option>Other</option>
+          </select>
+          <div v-if="insuranceForm.errors.cred_type" class="form-error">{{ insuranceForm.errors.cred_type }}</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Insurance Provider <span class="ep-label-req">*</span></label>
+          <input v-model="insuranceForm.issuer" type="text" class="form-input" placeholder="e.g. Medical Protective" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Policy Number</label>
+          <input v-model="insuranceForm.number" type="text" class="form-input" placeholder="Policy number" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Coverage Amount</label>
+          <div class="ep-money"><span class="ep-money-prefix">$</span><input v-model="insuranceForm.subtitle" type="text" class="form-input" placeholder="e.g. 2,000,000" /></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Effective Date</label>
+          <input v-model="insuranceForm.issued_on" type="date" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Policy Expiration</label>
+          <input v-model="insuranceForm.expires_on" type="date" class="form-input" />
+          <div v-if="insuranceForm.errors.expires_on" class="form-error">{{ insuranceForm.errors.expires_on }}</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Certificate of Insurance</label>
+        <AegisDropzone accept=".pdf,.jpg,.jpeg,.png" hint="Drop files or browse — add as many as needed" :multiple="true" @files="insuranceForm.document = $event" />
+        <div v-if="insuranceForm.errors.document || insuranceForm.errors['document.*']" class="form-error">{{ insuranceForm.errors.document || insuranceForm.errors['document.*'] }}</div>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.addInsurance = false; insuranceForm.reset()">Cancel</button>
+        <button class="btn btn-primary" :disabled="insuranceForm.processing" @click="submitInsurance">
+          {{ insuranceForm.processing ? 'Saving…' : 'Save Policy' }}
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- ══════════════ CREDENTIAL EDIT / REMINDER MODAL ══════════════ -->
+    <CredentialModal
+      v-model="credModal.open"
+      :mode="credModal.mode"
+      :credential="credModal.item"
+      :all-credentials="credentialList"
+      @saved="onCredSaved"
+      @edit="(m) => { credModal.mode = m }"
+    />
+
   </AppLayout>
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AegisDropzone from '@/components/ui/AegisDropzone.vue'
 import AegisToggle from '@/components/ui/AegisToggle.vue'
 import AegisEmptyState from '@/components/ui/AegisEmptyState.vue'
+import CredentialModal from '@/components/modals/CredentialModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 
@@ -996,7 +1116,7 @@ const mainNavItems = [
 ]
 
 // ── Modals ────────────────────────────────────────────────────────────
-const modals = reactive({ photoUpload: false, removePhoto: false })
+const modals = reactive({ photoUpload: false, removePhoto: false, addLicense: false, addInsurance: false })
 
 // ── Identity / basic info ────────────────────────────────────────────
 const nameParts = (props.user.display_name ?? '').replace(/^(Dr\.|Prof\.|Mr\.|Ms\.|Mrs\.)\s*/i, '').trim().split(' ')
@@ -1070,19 +1190,51 @@ const credentialList = ref(props.credentials.map((c) => ({ ...c, archived: false
 const licenseCredentials = computed(() => credentialList.value.filter((c) => !c.is_insurance))
 const insuranceCredential = computed(() => credentialList.value.find((c) => c.is_insurance) ?? null)
 
+// Re-sync when Inertia partial reloads update props.credentials
+watch(() => props.credentials, (fresh) => {
+  credentialList.value = fresh.map((c) => ({ ...c, archived: false }))
+}, { deep: true })
+
+// Credential modal state
+const credModal = reactive({ open: false, mode: 'add-credential', item: null })
+function openCredModal(mode, item = null) { credModal.mode = mode; credModal.item = item; credModal.open = true }
+function onCredSaved() { router.reload({ only: ['credentials'] }) }
+
 function documentName(path) {
   if (!path) return ''
-  return path.split('/').pop()
+  const file = path.split('/').pop()
+  const ext = file.includes('.') ? file.split('.').pop() : ''
+  return ext ? `Document.${ext}` : file
 }
 
-function addLicense() {
-  router.post(route('provider.credentials.store'), {
-    cred_type: 'License',
-    name:      'New State License',
-  }, {
-    preserveScroll: true,
-    onSuccess: () => { toast.success('License added.'); router.reload({ only: ['credentials'] }) },
-  })
+function addLicense() { modals.addLicense = true }
+
+const licenseForm = useForm({
+  cred_type:   '',
+  custom_type: '',
+  name:        '',
+  number:      '',
+  issuer:      '',
+  issued_on:   '',
+  expires_on:  '',
+  document:    [],
+})
+function submitLicense() {
+  const type = licenseForm.cred_type === 'custom'
+    ? (licenseForm.custom_type || 'Other')
+    : licenseForm.cred_type
+  licenseForm
+    .transform((d) => ({ ...d, cred_type: type, document: d.document }))
+    .post(route('provider.credentials.store'), {
+      forceFormData: true,
+      preserveScroll: true,
+      onSuccess: () => {
+        modals.addLicense = false
+        toast.success('License added.')
+        licenseForm.reset()
+        router.reload({ only: ['credentials'] })
+      },
+    })
 }
 
 function saveCredentialField(cred) {
@@ -1121,12 +1273,22 @@ function confirmRemoveCredential(cred) {
   )
 }
 
+function removeCredentialDoc(cred, filePath) {
+  router.delete(route('provider.credentials.document.destroy', cred.id), {
+    data: { path: filePath },
+    preserveScroll: true,
+    onSuccess: () => { toast.success('File removed.'); router.reload({ only: ['credentials'] }) },
+  })
+}
+
 const insuranceForm = useForm({
+  cred_type:   insuranceCredential.value?.cred_type ?? '',
   issuer:      insuranceCredential.value?.issuer ?? '',
   number:      insuranceCredential.value?.number ?? '',
   subtitle:    insuranceCredential.value?.subtitle ?? '',
+  issued_on:   insuranceCredential.value?.issued_on ?? '',
   expires_on:  insuranceCredential.value?.expires_on ?? '',
-  document:    null,
+  document:    [],
 })
 function submitInsurance() {
   const isUpdate = !!insuranceCredential.value
@@ -1142,7 +1304,7 @@ function submitInsurance() {
   })).post(target, {
     forceFormData: true,
     preserveScroll: true,
-    onSuccess: () => { toast.success('Insurance saved.'); router.reload({ only: ['credentials'] }) },
+    onSuccess: () => { modals.addInsurance = false; toast.success('Insurance saved.'); router.reload({ only: ['credentials'] }) },
     onFinish: () => insuranceForm.transform((data) => data),
   })
 }
@@ -1530,11 +1692,17 @@ const lastSavedLabel = computed(() => {
 
 /* ─── Credential cards (licenses) ─── */
 .ep-cred { background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px; transition: border-color var(--transition); }
-.ep-cred.primary { border-color: var(--gold-dark); background: var(--badge-bg-gold); }
+.ep-cred.primary { border: 1px solid var(--gold-dark); background: var(--badge-bg-gold); }
 .ep-cred.is-archived { opacity: 0.55; border-color: var(--border); background: var(--surface-3); }
 .ep-cred-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .ep-cred-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--text); }
 .ep-cred-badge { display: inline-flex; align-items: center; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: var(--radius-full); background: var(--badge-bg-gold); color: var(--gold-dark); border: 1px solid var(--badge-border-gold); }
+.ep-cred.is-archived .ep-cred-badge { background: var(--surface-4); color: var(--text-4); border-color: var(--border-dark); }
+.ep-cred-meta-row  { display: flex; flex-wrap: wrap; border-top: 1px solid var(--border); margin-top: 6px; padding-top: 2px; }
+.ep-cred-meta-item { display: flex; flex-direction: column; gap: 2px; padding: 8px 16px 8px 0; min-width: 110px; flex: 1; }
+.ep-cred-meta-item > span   { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-4); }
+.ep-cred-meta-item > strong { font-size: 12px; font-weight: 600; color: var(--text); }
+.ep-cred-meta-item.is-expiry-warn > strong { color: var(--red-dark); }
 .ep-cred.is-archived .ep-cred-badge { background: var(--surface-4); color: var(--text-4); border-color: var(--border-dark); }
 
 /* ─── File row ─── */

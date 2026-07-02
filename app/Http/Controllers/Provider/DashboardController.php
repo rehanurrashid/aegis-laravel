@@ -128,6 +128,7 @@ class DashboardController extends Controller
                     'expires_on'     => $c->expires_on?->toDateString(),
                     'days_remaining' => $c->days_remaining,
                     'is_insurance'   => $c->is_insurance,
+                    'document_paths' => $c->document_path ? (json_decode($c->document_path, true) ?? [$c->document_path]) : [],
                 ];
             })
             ->toArray();

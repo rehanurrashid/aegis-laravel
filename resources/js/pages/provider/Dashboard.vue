@@ -343,7 +343,7 @@
                   v-if="!credIsCritical(cred)"
                   class="btn-icon-sm"
                   data-tooltip="Set reminder"
-                  @click="modals.setReminder = true"
+                  @click="openCredModal('reminder', cred)"
                 >
                   <AegisIcon name="bell" :size="12" />
                 </button>
@@ -364,7 +364,7 @@
                 · <span class="crit-text">{{ credCriticalCount }} need attention</span>
               </template>
             </span>
-            <button class="btn btn-outline btn-sm" @click="modals.addLicense = true">
+            <button class="btn btn-outline btn-sm" @click="openCredModal('add-credential')">
               <AegisIcon name="plus" :size="12" /> Add credential
             </button>
           </div>
@@ -385,7 +385,7 @@
                   <div class="dh-att-h">Professional Liability update</div>
                   <div class="dh-att-d">Expires <strong>Mar 15</strong> · 20 days left</div>
                 </div>
-                <button class="btn btn-primary btn-sm" @click="modals.renewInsurance = true">Update Now</button>
+                <button class="btn btn-primary btn-sm" @click="openCredModal('add-insurance')">Update Now</button>
               </div>
               <div class="dh-att-item">
                 <div class="dh-att-bullet warn"></div>
@@ -846,260 +846,16 @@
       :network="referralNetwork"
     />
 
-    <!-- Add License -->
-    <AegisModal v-model="modals.addLicense" title="Add Credential" size="lg">
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Credential Type <span class="req">*</span></label>
-          <select v-model="licenseForm.cred_type" class="form-select" @change="licenseForm.custom_type = ''">
-            <option value="">Select a credential...</option>
-            <optgroup label="Medical &amp; Prescribing">
-              <option>MD</option><option>DO</option><option>ND</option><option>NP</option><option>PA</option>
-            </optgroup>
-            <optgroup label="Mental Health">
-              <option>LPC / LPCC</option><option>LCSW / LICSW</option><option>LMFT</option><option>ABPP</option>
-            </optgroup>
-            <optgroup label="Therapy &amp; Specialty">
-              <option>EMDR Certified</option><option>DBT Certified</option><option>CSE</option><option>CSC</option><option>CST</option>
-            </optgroup>
-            <optgroup label="Creative Therapies">
-              <option>ATR</option><option>MT-BC</option><option>RDT</option>
-            </optgroup>
-            <optgroup label="Addiction &amp; Behavioral">
-              <option>CADC / ICADC</option>
-            </optgroup>
-            <optgroup label="Integrative / Alt Medicine">
-              <option>LAc</option>
-            </optgroup>
-            <optgroup label="Nutrition &amp; Health">
-              <option>RD / RDN</option><option>NBC-HWC</option>
-            </optgroup>
-            <optgroup label="Birth &amp; Reproductive">
-              <option>CNM</option>
-            </optgroup>
-            <optgroup label="Specialized">
-              <option>CGC</option><option>CDCES / CDE</option>
-            </optgroup>
-            <optgroup label="Fitness &amp; Physical">
-              <option>CPT (NSCA)</option><option>CPT (NASM)</option><option>CPT (ACE)</option><option>EP-C (ACSM)</option>
-            </optgroup>
-            <optgroup label="Other">
-              <option value="Licensed">Licensed</option>
-              <option value="custom">Other (enter manually)</option>
-            </optgroup>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Issuing State / Body</label>
-          <select v-model="licenseForm.issuer" class="form-select">
-            <option value="">Select…</option>
-            <option>New York</option><option>California</option><option>Texas</option><option>Florida</option>
-            <option>Federal</option><option>National / No State</option><option>Other</option>
-          </select>
-        </div>
-      </div>
-      <div v-if="licenseForm.cred_type === 'custom'" class="form-group">
-        <label class="form-label">Custom Credential Name <span class="req">*</span></label>
-        <input v-model="licenseForm.custom_type" class="form-input" type="text" placeholder="Enter credential name" />
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">License / Credential Number</label><input v-model="licenseForm.number" type="text" class="form-input" placeholder="e.g., NY-MD-12345 (optional)" /></div>
-        <div class="form-group"><label class="form-label">Display Name</label><input v-model="licenseForm.name" type="text" class="form-input" placeholder="e.g., NY Medical License (optional)" /></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">Date of Issue</label><input v-model="licenseForm.issued_on" type="date" class="form-input" /></div>
-        <div class="form-group"><label class="form-label">Expiration Date</label><input v-model="licenseForm.expires_on" type="date" class="form-input" /></div>
-      </div>
-      <div class="form-group"><label class="form-label">Upload Document</label><AegisDropzone accept=".pdf,.jpg,.png" hint="PDF, JPG or PNG up to 10 MB" @files="licenseForm.document = $event[0]" /></div>
-      <div v-if="licenseForm.errors.document" class="form-error">{{ licenseForm.errors.document }}</div>
-      <template #footer>
-        <button class="btn btn-outline" @click="modals.addLicense = false">Cancel</button>
-        <button class="btn btn-primary" :disabled="licenseForm.processing" @click="submitLicense">
-          {{ licenseForm.processing ? 'Saving…' : 'Add Credential' }}
-        </button>
-      </template>
-    </AegisModal>
+    <!-- Credential / Insurance / Reminder — unified modal -->
+    <CredentialModal
+      v-model="credModal.open"
+      :mode="credModal.mode"
+      :credential="credModal.item"
+      :all-credentials="credentials"
+      @saved="onCredSaved"
+      @edit="(m) => { credModal.mode = m }"
+    />
 
-    <!-- Renew License -->
-    <AegisModal v-model="modals.renewLicense" title="Update Credential" size="lg">
-      <div class="alert alert-warning" style="margin-bottom:16px">
-        <div class="alert-icon"><AegisIcon name="megaphone" :size="14" /></div>
-        <div class="alert-content">
-          {{ activeCredential?.cred_type ?? 'Credential' }}
-          {{ activeCredential?.expires_on ? 'expires ' + formatDate(activeCredential.expires_on) : 'needs updating' }}
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">New Expiration Date</label><input v-model="renewForm.expires_on" type="date" class="form-input" /></div>
-        <div class="form-group"><label class="form-label">Confirmation / Reference #</label><input v-model="renewForm.number" type="text" class="form-input" placeholder="e.g., RENEW-2025-XXXXX" /></div>
-      </div>
-      <div class="form-group"><label class="form-label">Upload Updated Document</label><AegisDropzone accept=".pdf,.jpg,.png" hint="PDF, JPG or PNG up to 10 MB" @files="renewForm.document = $event[0]" /></div>
-      <div v-if="renewForm.errors.document" class="form-error">{{ renewForm.errors.document }}</div>
-      <template #footer>
-        <button class="btn btn-outline" @click="modals.renewLicense = false">Cancel</button>
-        <button class="btn btn-primary" :disabled="renewForm.processing" @click="submitRenew">
-          {{ renewForm.processing ? 'Saving…' : 'Save Update' }}
-        </button>
-      </template>
-    </AegisModal>
-
-    <!-- License Detail -->
-    <AegisModal v-model="modals.licenseDetail" title="License Details" size="md">
-      <div style="display:flex;flex-direction:column">
-        <div class="cc-detail-row"><span class="cc-detail-label">Credential Type</span><span class="cc-detail-value">{{ activeCredential?.cred_type ?? '—' }}</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">License #</span><span class="cc-detail-value">{{ activeCredential?.number ?? '—' }}</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Issuing Body</span><span class="cc-detail-value">{{ activeCredential?.issuer ?? '—' }}</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Status</span>
-          <span class="cc-detail-value" :style="activeCredential?.days_remaining !== undefined && activeCredential.days_remaining < 30 ? 'color:var(--red)' : 'color:var(--green)'">
-            ● {{ activeCredential?.days_remaining !== undefined && activeCredential.days_remaining < 1 ? 'Expired' : 'Active' }}
-          </span>
-        </div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Issue Date</span><span class="cc-detail-value">{{ activeCredential?.issued_on ? formatDate(activeCredential.issued_on) : '—' }}</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Expires</span><span class="cc-detail-value">{{ activeCredential?.expires_on ? formatDate(activeCredential.expires_on) : 'No expiry' }}</span></div>
-      </div>
-      <template #footer>
-        <button class="btn btn-outline" @click="modals.licenseDetail = false">Close</button>
-        <button class="btn btn-primary" @click="openRenewLicense(activeCredential); modals.licenseDetail = false">Update Credential</button>
-      </template>
-    </AegisModal>
-
-    <!-- Add Insurance -->
-    <AegisModal v-model="modals.addInsurance" title="Add Insurance Policy" size="lg">
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Policy Type <span class="req">*</span></label>
-          <select v-model="insuranceForm.cred_type" class="form-select">
-            <option value="">Select type</option>
-            <option>Professional Liability (Malpractice)</option>
-            <option>General Business Insurance</option>
-            <option>Workers Compensation</option>
-            <option>Cyber Liability</option>
-            <option>Life Insurance</option>
-            <option>Other</option>
-          </select>
-          <div v-if="insuranceForm.errors.cred_type" class="form-error">{{ insuranceForm.errors.cred_type }}</div>
-        </div>
-        <div class="form-group"><label class="form-label">Insurance Provider <span class="req">*</span></label><input v-model="insuranceForm.issuer" type="text" class="form-input" placeholder="e.g., Medical Protective" /></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">Policy Number <span class="req">*</span></label><input v-model="insuranceForm.number" type="text" class="form-input" placeholder="e.g., POL-2024-XXXXX" /></div>
-        <div class="form-group"><label class="form-label">Display Name / Coverage</label><input v-model="insuranceForm.name" type="text" class="form-input" placeholder="e.g., $2M / $4M Liability" /></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">Effective Date <span class="req">*</span></label><input v-model="insuranceForm.issued_on" type="date" class="form-input" /></div>
-        <div class="form-group"><label class="form-label">Expiration Date <span class="req">*</span></label><input v-model="insuranceForm.expires_on" type="date" class="form-input" /></div>
-      </div>
-      <div class="form-group"><label class="form-label">Upload Policy Document</label><AegisDropzone accept=".pdf,.jpg,.png" hint="PDF, JPG or PNG up to 10 MB" @files="insuranceForm.document = $event[0]" /></div>
-      <div v-if="insuranceForm.errors.document" class="form-error">{{ insuranceForm.errors.document }}</div>
-      <template #footer>
-        <button class="btn btn-outline" @click="modals.addInsurance = false">Cancel</button>
-        <button class="btn btn-primary" :disabled="insuranceForm.processing" @click="submitInsurance">
-          {{ insuranceForm.processing ? 'Saving…' : 'Add Policy' }}
-        </button>
-      </template>
-    </AegisModal>
-
-    <!-- Renew Insurance -->
-    <AegisModal v-model="modals.renewInsurance" title="Update Insurance Policy" size="lg">
-      <div class="alert alert-warning" style="margin-bottom:14px">
-        <div class="alert-icon"><AegisIcon name="megaphone" :size="14" /></div>
-        <div class="alert-content">
-          {{ activeInsurance?.cred_type ?? 'Insurance policy' }}
-          {{ activeInsurance?.expires_on ? 'expires ' + formatDate(activeInsurance.expires_on) : 'needs updating' }}
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">New Policy Number</label>
-        <input v-model="renewInsuranceForm.number" type="text" class="form-input" placeholder="If changed" />
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">New Effective Date <span class="req">*</span></label>
-          <input v-model="renewInsuranceForm.issued_on" type="date" class="form-input" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">New Expiration Date <span class="req">*</span></label>
-          <input v-model="renewInsuranceForm.expires_on" type="date" class="form-input" />
-          <div v-if="renewInsuranceForm.errors.expires_on" class="form-error">{{ renewInsuranceForm.errors.expires_on }}</div>
-        </div>
-      </div>
-      <div class="form-group"><label class="form-label">Upload Updated Policy</label><AegisDropzone accept=".pdf,.jpg,.png" hint="PDF, JPG or PNG up to 10 MB" @files="renewInsuranceForm.document = $event[0]" /></div>
-      <div v-if="renewInsuranceForm.errors.document" class="form-error">{{ renewInsuranceForm.errors.document }}</div>
-      <template #footer>
-        <button class="btn btn-outline" @click="modals.renewInsurance = false">Cancel</button>
-        <button class="btn btn-primary" :disabled="renewInsuranceForm.processing" @click="submitRenewInsurance">
-          {{ renewInsuranceForm.processing ? 'Saving…' : 'Save Update' }}
-        </button>
-      </template>
-    </AegisModal>
-
-    <!-- Insurance Detail -->
-    <AegisModal v-model="modals.insuranceDetail" title="Insurance Policy Details" size="md">
-      <div style="display:flex;flex-direction:column">
-        <div class="cc-detail-row"><span class="cc-detail-label">Policy Type</span><span class="cc-detail-value">{{ activeInsurance?.cred_type ?? '—' }}</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Carrier</span><span class="cc-detail-value">{{ activeInsurance?.issuer ?? '—' }}</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Policy #</span><span class="cc-detail-value">{{ activeInsurance?.number ?? '—' }}</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Status</span>
-          <span class="cc-detail-value" :style="activeInsurance?.days_remaining !== undefined && activeInsurance.days_remaining < 30 ? 'color:var(--red)' : 'color:var(--green)'">
-            ● {{ activeInsurance?.days_remaining !== undefined && activeInsurance.days_remaining < 1 ? 'Expired' : 'Active' }}
-          </span>
-        </div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Coverage</span><span class="cc-detail-value">{{ activeInsurance?.coverage ?? '—' }}</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Annual Premium</span><span class="cc-detail-value">{{ activeInsurance?.premium ?? '—' }}</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Effective Date</span><span class="cc-detail-value">{{ activeInsurance?.issued_on ? formatDate(activeInsurance.issued_on) : '—' }}</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Expires</span><span class="cc-detail-value">{{ activeInsurance?.expires_on ? formatDate(activeInsurance.expires_on) : '—' }}</span></div>
-      </div>
-      <template #footer>
-        <button class="btn btn-outline" @click="modals.insuranceDetail = false">Close</button>
-        <button class="btn btn-primary" @click="openRenewInsurance(activeInsurance); modals.insuranceDetail = false">Update Policy</button>
-      </template>
-    </AegisModal>
-
-    <!-- Set Reminder -->
-    <AegisModal v-model="modals.setReminder" title="Set Reminder" size="sm">
-      <div class="form-group">
-        <label class="form-label">Item</label>
-        <select v-model="reminderForm.item" class="form-select">
-          <option>License (NY) — Expires Jun 30, 2026</option>
-          <option>License (CA) — Expires Aug 12, 2025</option>
-          <option>License (TX) — Expires Sep 5, 2026</option>
-          <option>Professional Liability — Expires Mar 15, 2025</option>
-          <option>General Business — Expires Feb 28, 2026</option>
-        </select>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Remind Me</label>
-          <select v-model="reminderForm.days_before" class="form-select">
-            <option>30 days before</option>
-            <option>60 days before</option>
-            <option>90 days before</option>
-            <option>120 days before</option>
-            <option>180 days before</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Repeat</label>
-          <select v-model="reminderForm.repeat" class="form-select">
-            <option>One-time</option>
-            <option>Weekly until acted on</option>
-            <option>Daily in final 7 days</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Delivery</label>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
-          <label class="form-check"><input type="checkbox" v-model="reminderForm.email" class="form-check-input" /><span class="form-check-label">Email reminder</span></label>
-          <label class="form-check"><input type="checkbox" v-model="reminderForm.in_app" class="form-check-input" /><span class="form-check-label">In-app notification</span></label>
-          <label class="form-check"><input type="checkbox" v-model="reminderForm.sms" class="form-check-input" /><span class="form-check-label">SMS</span></label>
-        </div>
-      </div>
-      <template #footer>
-        <button class="btn btn-outline" @click="modals.setReminder = false">Cancel</button>
-        <button class="btn btn-primary" @click="submitReminder">Set Reminder</button>
-      </template>
-    </AegisModal>
 
     <!-- Logout -->
     <AegisModal v-model="modals.logout" title="Sign Out" size="sm">
@@ -1218,6 +974,7 @@ import AppLayout   from '@/layouts/AppLayout.vue'
 import AegisDropzone from '@/components/ui/AegisDropzone.vue'
 import ProfileCompletionStrip from '@/components/features/ProfileCompletionStrip.vue'
 import ReferralModal from '@/components/modals/ReferralModal.vue'
+import CredentialModal from '@/components/modals/CredentialModal.vue'
 import { useToast }        from '@/composables/useToast'
 import { useConfirm }      from '@/composables/useConfirm'
 import { useMessageButton } from '@/composables/useMessageButton'
@@ -1266,13 +1023,6 @@ const modals = reactive({
   annualReview:       false,
   ceu:                false,
   newReferral:        false,
-  addLicense:         false,
-  renewLicense:       false,
-  licenseDetail:      false,
-  addInsurance:       false,
-  renewInsurance:     false,
-  insuranceDetail:    false,
-  setReminder:        false,
   logout:             false,
   notif:              false,
   referralDetail:     false,
@@ -1284,11 +1034,16 @@ const activeCredential  = ref(null)
 const activeInsurance   = ref(null)
 const activeReferral    = ref(null)
 
-function openLicenseDetail(cred)    { activeCredential.value = cred; modals.licenseDetail = true }
-function openInsuranceDetail(ins)   { activeInsurance.value  = ins;  modals.insuranceDetail = true }
-function openReferralDetail(ref_)   { activeReferral.value   = ref_; modals.referralDetail = true }
-function openRenewLicense(cred)     { activeCredential.value = cred; modals.renewLicense = true }
-function openRenewInsurance(ins)    { activeInsurance.value  = ins;  modals.renewInsurance = true }
+// ── Unified credential modal ────────────────────────────────────────
+const credModal = reactive({ open: false, mode: 'add-credential', item: null })
+function openCredModal(mode, item = null) { credModal.mode = mode; credModal.item = item; credModal.open = true }
+function onCredSaved() { router.reload({ only: ['credentials'] }) }
+
+function openLicenseDetail(cred)  { activeCredential.value = cred; openCredModal('detail-credential', cred) }
+function openInsuranceDetail(ins) { activeInsurance.value  = ins;  openCredModal('detail-insurance', ins)   }
+function openReferralDetail(ref_) { activeReferral.value   = ref_; modals.referralDetail = true }
+function openRenewLicense(cred)   { activeCredential.value = cred; openCredModal('edit-credential', cred)   }
+function openRenewInsurance(ins)  { activeInsurance.value  = ins;  openCredModal('edit-insurance', ins)     }
 
 // ── Credential helpers ─────────────────────────────────────────────────
 function credIsCritical (c) {
@@ -1424,67 +1179,6 @@ function declineReferral() {
   })
 }
 
-// ── License / Credential forms — wired to provider.credentials.* ──────
-const licenseForm = useForm({
-  cred_type:  '',
-  custom_type:'',
-  name:        '',
-  number:      '',
-  issuer:      '',
-  issued_on:   '',
-  expires_on:  '',
-  document:    null,
-})
-function submitLicense() {
-  licenseForm.post(route('provider.credentials.store'), {
-    forceFormData: true,
-    preserveScroll: true,
-    onSuccess: () => { modals.addLicense = false; toast.success('Credential added.'); licenseForm.reset() },
-    onError:   () => toast.error('Please check the credential form.'),
-  })
-}
-
-const renewForm = useForm({ cred_type: '', expires_on: '', number: '', document: null })
-function submitRenew() {
-  if (!activeCredential.value?.id) { toast.error('No credential selected.'); return }
-  renewForm.post(route('provider.credentials.update', activeCredential.value.id), {
-    forceFormData: true,
-    preserveScroll: true,
-    headers: { 'X-HTTP-Method-Override': 'PUT' },
-    onSuccess: () => { modals.renewLicense = false; toast.success('Credential updated.'); renewForm.reset() },
-    onError:   () => toast.error('Could not save update.'),
-  })
-}
-
-// ── Insurance forms — share provider.credentials.* endpoints ──────────
-const insuranceForm = useForm({
-  cred_type:  '',
-  issuer:     '',
-  number:     '',
-  name:       '',
-  issued_on:  '',
-  expires_on: '',
-  document:   null,
-})
-function submitInsurance() {
-  insuranceForm.post(route('provider.credentials.store'), {
-    forceFormData: true,
-    preserveScroll: true,
-    onSuccess: () => { modals.addInsurance = false; toast.success('Insurance policy added.'); insuranceForm.reset() },
-    onError:   () => toast.error('Please check the form.'),
-  })
-}
-const renewInsuranceForm = useForm({ cred_type: '', expires_on: '', issued_on: '', number: '', document: null })
-function submitRenewInsurance() {
-  if (!activeInsurance.value?.id) { toast.error('No policy selected.'); return }
-  renewInsuranceForm.post(route('provider.credentials.update', activeInsurance.value.id), {
-    forceFormData: true,
-    preserveScroll: true,
-    headers: { 'X-HTTP-Method-Override': 'PUT' },
-    onSuccess: () => { modals.renewInsurance = false; toast.success('Insurance policy updated.'); renewInsuranceForm.reset() },
-    onError:   () => toast.error('Could not save update.'),
-  })
-}
 
 // ── CEU Requirements — wired to provider.ceu_requirements.* ───────────
 const ceuRequirementForm = useForm({
@@ -1529,9 +1223,6 @@ function removeCeuRequirement(req) {
   )
 }
 
-// ── Reminder form (UI-only — no backend reminder route exists yet) ─────
-const reminderForm = useForm({ item: '', days_before: '90 days before', repeat: 'One-time', email: true, in_app: true, sms: false })
-function submitReminder() { toast.success('Reminder set.'); modals.setReminder = false; reminderForm.reset() }
 
 // ── Succession — wired to provider.incident.activate ─────────────────
 const successionForm = useForm({

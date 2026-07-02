@@ -234,6 +234,8 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
         Route::post('/credentials', [ProviderCredentialController::class, 'store'])->name('credentials.store');
         Route::put('/credentials/{credential}', [ProviderCredentialController::class, 'update'])->name('credentials.update');
         Route::delete('/credentials/{credential}', [ProviderCredentialController::class, 'destroy'])->name('credentials.destroy');
+        Route::get('/credentials/{credential}/download', [ProviderCredentialController::class, 'download'])->name('credentials.download');
+        Route::delete('/credentials/{credential}/document', [ProviderCredentialController::class, 'destroyDocument'])->name('credentials.document.destroy');
 
         // News & Events
         Route::get('/news', [NewsController::class, 'index'])->name('news.index');
