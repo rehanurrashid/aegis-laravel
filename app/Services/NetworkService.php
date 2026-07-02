@@ -139,13 +139,11 @@ class NetworkService
     public function inviteExternal(User $inviter, string $email, string $displayName, ?string $note = null): ShadowConnection
     {
         $shadow = ShadowConnection::create([
-            'id'           => 'sc_' . Str::lower(Str::random(12)),
-            'inviter_id'   => $inviter->id,
-            'email'        => $email,
-            'display_name' => $displayName,
-            'note'         => $note,
-            'status'       => 'invited',
-            'created_at'   => now(),
+            'id'          => 'sc_' . Str::lower(Str::random(12)),
+            'user_id'     => $inviter->id,
+            'shadow_name' => $displayName,
+            'source'      => 'email_invite',
+            'created_at'  => now(),
         ]);
 
         SendEmailJob::dispatch(
@@ -168,7 +166,7 @@ class NetworkService
 
     public function getPendingRequests(string $userId): Collection
     {
-        return NetworkRequest::where('to_user_id', $userId)
+        return NetworkRequest::with('requester')->where('recipient_id', $userId)
             ->where('status', 'pending')
             ->orderByDesc('created_at')
             ->get();
@@ -176,8 +174,7 @@ class NetworkService
 
     public function getShadowConnections(string $inviterId): Collection
     {
-        return ShadowConnection::where('inviter_id', $inviterId)
-            ->whereIn('status', ['invited', 'pending'])
+        return ShadowConnection::with('shadowUser')->where('user_id', $inviterId)
             ->get();
     }
 

@@ -1,893 +1,1298 @@
 <template>
-  <AppLayout :user="user" portal="practitioner" activePage="network" pageTitle="Integrative Network">
+  <AppLayout portal="practitioner" activePage="network" pageTitle="Network">
+    <div class="nw-page-root">
 
-    <!-- HERO BANNER -->
-    <div class="nw-hero">
-      <div class="nw-hero-left">
-        <div class="nw-eyebrow">CONNECTIONS</div>
-        <h1 class="nw-title">Network</h1>
-        <p class="nw-sub">Cultivate an interdisciplinary care network, secure essential business resources, create a shadow network as a backup, and send secure referrals to support care access.</p>
-      </div>
-      <div class="nw-hero-actions">
-        <button class="btn btn-outline btn-sm nw-btn-icon" @click="showToast('Opening activity','info')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <!-- ── 1. HERO ──────────────────────────────────────────────────────── -->
+    <AegisHeroBanner
+      eyebrow="Connections"
+      title="Network"
+      subtitle="Cultivate an interdisciplinary care network, secure essential business resources, create a shadow network as a backup, and send secure referrals to support care access."
+      quiet
+    >
+      <template #actions>
+        <a :href="route('provider.activity', { module: 'network' })" class="btn-hero-ghost is-on-light nw-icon-btn">
+          <AegisIcon name="activity" :size="14" />
           Activity
-        </button>
-        <button class="btn btn-primary btn-sm nw-btn-icon" @click="showToast('Inviting provider','info')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </a>
+        <button type="button" class="btn-hero-solid is-on-light nw-icon-btn" @click="modals.inviteProvider = true">
+          <AegisIcon name="user-plus" :size="14" />
           Invite Provider
         </button>
-      </div>
-    </div>
+      </template>
+    </AegisHeroBanner>
 
-    <!-- CONNECTION REQUESTS BANNER -->
-    <div class="nw-requests-banner">
-      <div class="nw-requests-header">
-        <div>
-          <div class="nw-requests-label">PENDING · {{ pendingRequests.length }} AWAITING</div>
-          <div class="nw-requests-title">Connection Requests</div>
-          <div class="nw-requests-sub">{{ clinicalCount }} clinical providers and {{ businessCount }} business contacts</div>
+    <!-- ── 2. PENDING CONNECTION REQUESTS ──────────────────────────────── -->
+    <section v-if="pendingRequests.length" class="section-block">
+      <header class="section-head">
+        <div class="section-head-text">
+          <div class="section-head-eyebrow">Pending · {{ pendingRequests.length }} awaiting</div>
+          <h2 class="section-head-title">Connection Requests</h2>
+          <p class="section-head-sub">
+            <strong>{{ clinicalCount }} clinical provider{{ clinicalCount !== 1 ? 's' : '' }}</strong>
+            <span v-if="businessCount"> and {{ businessCount }} business contact{{ businessCount !== 1 ? 's' : '' }}</span>
+          </p>
         </div>
-        <button class="btn btn-outline btn-sm nw-btn-icon" @click="reviewModalOpen = true">Review all <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
-      </div>
-      <div class="nw-request-cards">
-        <div v-for="req in pendingRequests" :key="req.id" class="nw-request-card">
-          <div class="nw-req-top">
-            <span class="nw-req-type-badge" :class="req.type === 'Clinical' ? 'nw-badge-green' : 'nw-badge-blue'">{{ req.type }}</span>
-            <span class="nw-req-date">{{ req.date }}</span>
+        <button type="button" class="btn btn-outline btn-sm nw-icon-btn" @click="modals.reviewRequests = true">
+          Review all <AegisIcon name="arrow-right" :size="13" />
+        </button>
+      </header>
+
+      <div class="list-grid">
+        <article
+          v-for="req in pendingRequests.slice(0, 3)"
+          :key="req.id"
+          class="card is-person"
+          style="cursor:pointer"
+          @click="viewProfile(req.requester_slug)"
+        >
+          <div class="card-top">
+            <span
+              class="badge is-quiet"
+              :class="req.request_type === 'business' ? 'is-business' : 'is-clinical'"
+              :data-tooltip="req.request_type === 'business' ? 'Business Partner request' : 'Clinical Provider request'"
+            >
+              <AegisIcon :name="req.request_type === 'business' ? 'briefcase' : 'users'" :size="10" />
+              {{ req.request_type === 'business' ? 'Business' : 'Clinical' }}
+            </span>
+            <span class="card-time">{{ timeAgo(req.created_at) }}</span>
           </div>
-          <div class="nw-req-profile">
-            <div class="nw-req-avatar" :style="{ background: req.avatarColor }">{{ req.initials }}</div>
-            <div>
-              <div class="nw-req-name">{{ req.name }}</div>
-              <div class="nw-req-role">{{ req.role }}</div>
-              <div class="nw-req-loc">{{ req.location }}</div>
+          <div class="person-row">
+            <div class="person-avatar">{{ req.requester_initials }}</div>
+            <div class="person-text">
+              <div class="person-name">{{ req.requester_name }}</div>
+              <div class="person-meta">{{ req.requester_role }}<span v-if="req.requester_location"> · {{ req.requester_location }}</span></div>
             </div>
           </div>
-          <div class="nw-req-actions">
-            <button class="btn btn-primary btn-sm" @click="acceptRequest(req)">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-              Accept
+          <div class="card-actions" @click.stop>
+            <button type="button" class="btn btn-primary btn-sm nw-icon-btn" :disabled="pendingActionId === req.id" @click="acceptRequest(req)">
+              <AegisIcon name="check" :size="12" />
+              {{ pendingActionId === req.id ? 'Accepting…' : 'Accept' }}
             </button>
-            <button class="btn btn-ghost btn-sm" @click="declineRequest(req)">Decline</button>
+            <button type="button" class="btn btn-outline btn-sm" :disabled="pendingActionId === req.id" @click="declineRequest(req)">Decline</button>
           </div>
-        </div>
+        </article>
       </div>
-    </div>
+    </section>
 
-    <!-- TABS -->
-    <div class="nw-tabs">
-      <button v-for="tab in tabs" :key="tab.id" class="nw-tab" :class="{ active: activeTab === tab.id }" @click="activeTab = tab.id">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" v-html="tab.icon"></svg>
-        {{ tab.label }}
-      </button>
-    </div>
-
-    <!-- INTEGRATIVE CARE NETWORK TAB -->
-    <div v-show="activeTab === 'integrative'">
-      <!-- Sub-tabs -->
-      <div class="nw-subtabs">
-        <button class="nw-subtab" :class="{ active: subTab === 'search' }" @click="subTab = 'search'">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          Search Providers
+    <!-- ── 3. MAIN TABS ──────────────────────────────────────────────────── -->
+    <div class="tabs-twotier">
+      <div class="tabs-primary" role="tablist">
+        <button type="button" class="tab-primary" :class="{ active: scope === 'clinical' }" @click="scope = 'clinical'">
+          <AegisIcon name="users" :size="15" /> Integrative Care Network
         </button>
-        <button class="nw-subtab" :class="{ active: subTab === 'mynetwork' }" @click="subTab = 'mynetwork'">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          My Network
+        <button type="button" class="tab-primary" :class="{ active: scope === 'business' }" @click="scope = 'business'">
+          <AegisIcon name="heart-2" :size="15" /> Business Partners
+        </button>
+        <button type="button" class="tab-primary" :class="{ active: scope === 'tools' }" @click="scope = 'tools'">
+          <AegisIcon name="cpu" :size="15" /> Referrals &amp; Tools
         </button>
       </div>
 
-      <!-- Recommended Partners -->
-      <div class="nw-section-header">
-        <div class="nw-section-title">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-          Recommended Network Partners
-        </div>
-        <span class="nw-ai-badge">AI SUGGESTED <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
+      <!-- Sub-tabs: Integrative Care Network -->
+      <div v-show="scope === 'clinical'" class="tabs-segmented net-sub-tabs" role="tablist">
+        <button type="button" class="tab-pill" :class="{ active: clinicalTab === 'search' }" @click="clinicalTab = 'search'">
+          <AegisIcon name="search-lg" :size="12" /> Search Providers
+        </button>
+        <button type="button" class="tab-pill" :class="{ active: clinicalTab === 'mynetwork' }" @click="clinicalTab = 'mynetwork'">
+          <AegisIcon name="users" :size="12" /> My Network
+        </button>
       </div>
-      <p class="nw-section-sub">Based on your referral history and the specialties your clients ask for most</p>
 
-      <div class="nw-rec-scroll">
-        <div v-for="cat in recommendedCategories" :key="cat.label" class="nw-rec-card">
-          <div class="nw-rec-icon" :style="{ color: cat.color }">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" v-html="cat.icon"></svg>
+      <!-- Sub-tabs: Business Partners -->
+      <div v-show="scope === 'business'" class="tabs-segmented net-sub-tabs" role="tablist">
+        <button type="button" class="tab-pill" :class="{ active: businessTab === 'search' }" @click="businessTab = 'search'">
+          <AegisIcon name="search-lg" :size="12" /> Search Partners
+        </button>
+        <button type="button" class="tab-pill" :class="{ active: businessTab === 'mypartners' }" @click="businessTab = 'mypartners'">
+          <AegisIcon name="heart-2" :size="12" /> My Partners
+        </button>
+      </div>
+
+      <!-- Sub-tabs: Referrals & Tools -->
+      <div v-show="scope === 'tools'" class="tabs-segmented net-sub-tabs" role="tablist">
+        <button type="button" class="tab-pill" :class="{ active: toolsTab === 'list' }" @click="toolsTab = 'list'">
+          <AegisIcon name="cpu" :size="12" /> Referral List
+        </button>
+        <button type="button" class="tab-pill" :class="{ active: toolsTab === 'shadows' }" @click="toolsTab = 'shadows'">
+          <AegisIcon name="check" :size="12" /> My Shadows
+          <span class="badge-pill">{{ shadowConnections.length }}</span>
+        </button>
+        <button type="button" class="tab-pill" :class="{ active: toolsTab === 'config' }" @click="toolsTab = 'config'">
+          <AegisIcon name="settings-3" :size="12" /> Configuration
+        </button>
+      </div>
+    </div>
+
+    <!-- ══════════ INTEGRATIVE CARE NETWORK ══════════ -->
+
+    <!-- SEARCH PROVIDERS -->
+    <div v-show="scope === 'clinical' && clinicalTab === 'search'" style="width:100%;max-width:100%;overflow:hidden;">
+
+      <!-- Recommended Network Partners -->
+      <div class="rec-section">
+        <div class="rec-header">
+          <div>
+            <div class="rec-title">
+              <AegisIcon name="lightbulb" :size="16" />
+              Recommended Network Partners
+              <span class="badge-ai" data-tooltip="AI-suggested specialists based on your referral patterns">AI Suggested <AegisIcon name="info" :size="11" /></span>
+            </div>
+            <p class="rec-sub">Based on your referral history and the specialties your clients ask for most</p>
           </div>
-          <div class="nw-rec-label">{{ cat.label }}</div>
-          <div class="nw-rec-desc">{{ cat.desc }}</div>
-          <div class="nw-rec-count">{{ cat.count }} nearby</div>
-          <button class="nw-rec-arrow" @click="showToast('Searching ' + cat.label,'info')">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </div>
+        <div class="nw-slider-wrap">
+          <button type="button" class="nw-slider-arrow nw-slider-arrow-left" @click="slideRnp(-1)" :disabled="rnpAtStart" aria-label="Previous">
+            <AegisIcon name="chevron-left" :size="16" />
+          </button>
+          <div class="rnp-scroll" ref="rnpTrack">
+            <article
+              v-for="cat in recommendedCategories"
+              :key="cat.label"
+              class="card rnp-card"
+              @click="clinicalTab = 'search'"
+            >
+              <div class="rnp-icon"><AegisIcon :name="cat.icon" :size="16" /></div>
+              <div class="rnp-name">{{ cat.label }}</div>
+              <div class="rnp-meta">{{ cat.desc }}</div>
+              <div class="rnp-foot">
+                <span class="rnp-stat"><span class="rnp-num">{{ cat.count }}</span> nearby</span>
+                <button type="button" class="rnp-cta" @click.stop="clinicalTab = 'search'"><AegisIcon name="arrow-right" :size="13" /></button>
+              </div>
+            </article>
+          </div>
+          <button type="button" class="nw-slider-arrow nw-slider-arrow-right" @click="slideRnp(1)" :disabled="rnpAtEnd" aria-label="Next">
+            <AegisIcon name="chevron-right" :size="16" />
           </button>
         </div>
       </div>
 
-      <!-- Shadow Providers -->
-      <div class="nw-section-header" style="margin-top:28px;">
-        <div class="nw-section-title">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
-          Recommended Shadow Providers
-        </div>
-        <span class="nw-ai-badge nw-ai-badge-match">AI MATCHING <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/></svg></span>
-      </div>
-      <p class="nw-section-sub">A curated referral resource that helps identify providers who closely mirror your background and practice profile — Including region, specialty, demographics, services, and payment type.</p>
-
-      <div class="nw-shadow-grid">
-        <div v-for="p in shadowProviders" :key="p.name" class="nw-provider-card">
-          <div class="nw-pcard-top">
-            <div class="nw-pcard-match">{{ p.match }}%</div>
-            <div class="nw-pcard-rating">★ {{ p.rating }}</div>
-            <button v-if="p.added" class="nw-added-btn" disabled>✓ Added</button>
-          </div>
-          <div class="nw-pcard-avatar" :style="{ background: p.avatarColor }">{{ p.initials }}</div>
-          <div class="nw-pcard-name">{{ p.name }}</div>
-          <div class="nw-pcard-role">{{ p.role }}</div>
-          <div class="nw-pcard-loc">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            {{ p.location }}
-          </div>
-          <div class="nw-pcard-tags">
-            <span v-for="tag in p.tags" :key="tag" class="nw-pcard-tag">{{ tag }}</span>
-          </div>
-          <div class="nw-pcard-actions">
-            <button class="nw-pcard-icon-btn" title="Message" @click="showToast('Opening message','info')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
-            <button class="nw-pcard-icon-btn" title="View profile" @click="showToast('Viewing profile','info')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-            <button v-if="!p.added" class="btn btn-primary btn-sm nw-connect-btn" @click="connectProvider(p)">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Connect
-            </button>
+      <!-- Recommended Shadow Providers (AI) -->
+      <div class="rec-section rec-section-shadow">
+        <div class="rec-header">
+          <div>
+            <div class="rec-title">
+              <AegisIcon name="cpu" :size="16" />
+              Recommended Shadow Providers
+              <span class="badge-ai badge-ai-green" data-tooltip="AI matching based on your clinical profile">AI Matched <AegisIcon name="cpu" :size="10" /></span>
+            </div>
+            <p class="rec-sub">A curated referral resource that helps identify providers who closely mirror your background and practice profile — Including region, specialty, demographics, services, and payment type.</p>
           </div>
         </div>
+        <div class="ai-shadow-label">AI SHADOW RECOMMENDATIONS</div>
+        <div class="nw-slider-wrap">
+          <button type="button" class="nw-slider-arrow nw-slider-arrow-left" @click="slideSpc(-1)" :disabled="spcAtStart" aria-label="Previous">
+            <AegisIcon name="chevron-left" :size="16" />
+          </button>
+          <div class="spc-track" ref="spcTrack">
+            <div v-for="p in aiShadowCandidates" :key="p.name" class="spc-card" @click="viewProfile(p.slug)">
+              <div class="spc-pills">
+                <span class="spc-match-badge" :data-tooltip="p.match + '% AI match based on your clinical focus and referral patterns'">{{ p.match }}%</span>
+                <span v-if="p.telehealth" class="spc-pill-svc" data-tooltip="Telehealth available"><AegisIcon name="video" :size="12" /></span>
+              </div>
+              <div class="spc-rating" :data-tooltip="p.rating + ' from peer reviews'"><AegisIcon name="star" :size="12" /> {{ p.rating }}</div>
+              <div class="spc-body">
+                <div class="spc-avatar">{{ p.initials }}</div>
+                <div class="spc-name">{{ p.name }}</div>
+                <div class="spc-role">{{ p.role }}</div>
+                <div class="spc-loc"><AegisIcon name="map-pin" :size="10" /> {{ p.location }}</div>
+                <div class="spc-tags">
+                  <span v-for="tag in p.tags.slice(0,3)" :key="tag" class="spc-tag">{{ tag }}</span>
+                  <span v-if="p.tags.length > 3" class="spc-tag">+{{ p.tags.length - 3 }}</span>
+                </div>
+              </div>
+              <div class="spc-actions" @click.stop>
+                <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === p.id" @click="openConversation(p.id)"><AegisIcon name="message-square" :size="14" /></button>
+                <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(p.slug)"><AegisIcon name="eye" :size="14" /></button>
+                <button v-if="!p.connected" type="button" class="btn btn-primary btn-sm nw-icon-btn" @click="openConnect(p)"><AegisIcon name="user-plus" :size="11" /> Connect</button>
+                <span v-else class="nw-added-pill">✓ Connected</span>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="nw-slider-arrow nw-slider-arrow-right" @click="slideSpc(1)" :disabled="spcAtEnd" aria-label="Next">
+            <AegisIcon name="chevron-right" :size="16" />
+          </button>
+        </div>
       </div>
 
-      <!-- Search Results -->
-      <div class="nw-search-results-header">SEARCH RESULTS</div>
+      <!-- Search Results Layout -->
+      <div class="nw-search-header-label">SEARCH RESULTS</div>
       <div class="nw-search-layout">
         <!-- Filters sidebar -->
-        <div class="nw-filters-sidebar">
-          <div class="nw-filters-top">
-            <span class="nw-filters-title">FILTERS</span>
-            <button class="nw-clear-btn" @click="showToast('Filters cleared','info')">CLEAR ALL</button>
+        <div class="nw-sidebar">
+          <div class="nw-sidebar-top">
+            <span class="nw-sidebar-label">FILTERS</span>
+            <button type="button" class="nw-clear-btn" @click="filterGroups.forEach(f => f.open = false)">CLEAR ALL</button>
           </div>
           <div v-for="f in filterGroups" :key="f.label" class="nw-filter-group">
-            <button class="nw-filter-group-btn" @click="f.open = !f.open">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" v-html="f.icon"></svg>
+            <button type="button" class="nw-filter-btn" @click="f.open = !f.open">
+              <AegisIcon :name="f.icon" :size="12" />
               {{ f.label }}
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="margin-left:auto" :style="{ transform: f.open ? 'rotate(180deg)' : '' }"><polyline points="6 9 12 15 18 9"/></svg>
+              <AegisIcon name="chevron-down" :size="11" style="margin-left:auto" :style="{ transform: f.open ? 'rotate(180deg)' : '' }" />
             </button>
+            <div v-if="f.open && f.label === 'Provider Type'" class="nw-filter-expand">
+              <input class="form-input nw-filter-search" type="text" v-model="providerTypeSearch" placeholder="Search types..." />
+              <label v-for="opt in filteredProviderTypes" :key="opt" class="nw-filter-check">
+                <input type="checkbox" v-model="selectedProviderTypes" :value="opt" />
+                {{ opt }}
+              </label>
+            </div>
           </div>
-          <button class="nw-apply-btn" @click="showToast('Filters applied','success')">Apply Filters</button>
+          <button type="button" class="nw-apply-btn" @click="toast.success('Filters applied')">Apply Filters</button>
         </div>
-
         <!-- Results grid -->
         <div class="nw-results">
-          <div class="nw-results-header-row">
+          <div class="nw-results-bar">
             <span class="nw-results-count">{{ searchResults.length }} providers found in your region</span>
-            <div class="nw-results-sort">
-              <span class="nw-sort-label">Sort:</span>
-              <select class="nw-sort-select"><option>Best Match</option><option>Highest Rated</option><option>Closest</option></select>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:12px;color:var(--text-4)">Sort:</span>
+              <select class="form-select" v-model="searchSort" style="font-size:12px;padding:4px 8px">
+                <option>Best Match</option><option>Highest Rated</option><option>Closest</option>
+              </select>
             </div>
           </div>
-          <div class="nw-results-grid">
-            <div v-for="p in searchResults" :key="p.name" class="nw-provider-card nw-result-card">
-              <div class="nw-pcard-top">
-                <div class="nw-pcard-avatar" :style="{ background: p.avatarColor }">{{ p.initials }}</div>
-                <div class="nw-pcard-rating">★ {{ p.rating }}</div>
+          <div class="spc-results-grid">
+            <div
+              v-for="p in searchResults"
+              :key="p.name"
+              class="spc-card search-provider-card"
+              @click="viewProfile(p.slug)"
+            >
+              <div class="spc-pills">
+                <span
+                  class="spc-status"
+                  :class="p.networkStatus === 'in-network' ? 'ok' : (p.networkStatus === 'pending' ? 'pend' : 'off')"
+                  :data-tooltip="p.networkStatus === 'in-network' ? 'In Network' : (p.networkStatus === 'pending' ? 'Request Pending' : 'Not Connected')"
+                >
+                  <AegisIcon :name="p.networkStatus === 'in-network' ? 'user-check' : 'user-plus'" :size="12" />
+                </span>
+                <span v-if="p.telehealth" class="spc-pill-svc" data-tooltip="Telehealth available"><AegisIcon name="video" :size="12" /></span>
               </div>
-              <div class="nw-pcard-name">{{ p.name }}</div>
-              <div class="nw-pcard-role">{{ p.role }}</div>
-              <div class="nw-pcard-loc">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                {{ p.location }}
+              <div class="spc-rating" :data-tooltip="p.rating + ' from ' + p.reviews + ' peer reviews'"><AegisIcon name="star" :size="12" /> {{ p.rating }}</div>
+              <div class="spc-body">
+                <div class="spc-avatar spc-avatar-lg">{{ p.initials }}</div>
+                <div class="spc-name">{{ p.name }}</div>
+                <div class="spc-role">{{ p.role }}</div>
+                <div class="spc-loc">{{ p.location }}</div>
+                <div class="spc-tags">
+                  <span v-for="tag in p.tags.slice(0,3)" :key="tag" class="spc-tag">{{ tag }}</span>
+                  <span v-if="p.tags.length > 3" class="spc-tag">+{{ p.tags.length - 3 }}</span>
+                </div>
               </div>
-              <div class="nw-pcard-tags">
-                <span v-for="tag in p.tags.slice(0,3)" :key="tag" class="nw-pcard-tag">{{ tag }}</span>
-                <span v-if="p.tags.length > 3" class="nw-pcard-tag">+{{ p.tags.length - 3 }}</span>
-              </div>
-              <div class="nw-result-stats">{{ p.refs }} refs · {{ p.acc }} acc · {{ p.resp }} resp</div>
-              <div class="nw-pcard-actions">
-                <button class="nw-pcard-icon-btn" title="Message" @click="showToast('Opening message','info')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
-                <button class="nw-pcard-icon-btn" title="Refer" @click="showToast('Opening referral','info')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg></button>
-                <button class="nw-pcard-icon-btn" title="Save" @click="showToast('Saved','success')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
-                <button class="nw-pcard-icon-btn" title="View" @click="showToast('Viewing profile','info')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              <div class="spc-stats-row">{{ p.refs }} · {{ p.acc }} · {{ p.resp }}</div>
+              <div class="spc-actions" @click.stop>
+                <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === p.id" @click="openConversation(p.id)"><AegisIcon name="message-square" :size="14" /></button>
+                <button type="button" class="btn-icon" data-tooltip="Refer Client" @click="openReferralForProvider(p)"><AegisIcon name="refresh" :size="14" /></button>
+                <button type="button" class="btn-icon" data-tooltip="Request Service" @click="openSvcRequest('Services', p.name)"><AegisIcon name="briefcase-rx" :size="14" /></button>
+                <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(p.slug)"><AegisIcon name="eye" :size="14" /></button>
               </div>
             </div>
           </div>
-          <div style="display:flex;justify-content:center;margin-top:20px;">
-            <button class="btn btn-outline btn-sm" @click="showToast('Loading more results','info')">Load More Results</button>
+          <AegisEmptyState v-if="!searchResults.length" icon="search-lg" title="No providers found" subtitle="Try adjusting your filters or search terms." />
+          <div v-if="searchResults.length" class="nw-load-more">
+            <button type="button" class="btn btn-outline btn-sm" @click="toast.info('Loading more results…')">Load More Results</button>
           </div>
         </div>
       </div>
-    </div>
+    </div><!-- /search providers -->
 
-    <!-- BUSINESS PARTNERS TAB -->
-    <div v-show="activeTab === 'business'">
-
-      <!-- Sub-tabs -->
-      <div class="nw-subtabs" style="margin-bottom:16px;">
-        <button class="nw-subtab" :class="{ active: bpSubTab === 'search' }" @click="bpSubTab = 'search'">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          Search Partners
-        </button>
-        <button class="nw-subtab" :class="{ active: bpSubTab === 'mypartners' }" @click="bpSubTab = 'mypartners'">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-          My Partners
-        </button>
+    <!-- MY NETWORK -->
+    <div v-show="scope === 'clinical' && clinicalTab === 'mynetwork'">
+      <div class="stat-chips-row">
+        <div class="stat-chip"><div class="stat-chip-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="users" :size="18" /></div><div><div class="stat-chip-value">{{ stats.clinical }}</div><div class="stat-chip-label">Active Partners</div></div></div>
+        <div class="stat-chip"><div class="stat-chip-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="refresh" :size="18" /></div><div><div class="stat-chip-value">{{ stats.total_refs }}</div><div class="stat-chip-label">Referrals Exchanged</div></div></div>
+        <div class="stat-chip"><div class="stat-chip-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="check-badge" :size="18" /></div><div><div class="stat-chip-value">{{ stats.avg_acc }}%</div><div class="stat-chip-label">Avg Acceptance</div></div></div>
+        <div class="stat-chip"><div class="stat-chip-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="clock" :size="18" /></div><div><div class="stat-chip-value">{{ stats.avg_resp }}h</div><div class="stat-chip-label">Avg Response Time</div></div></div>
       </div>
+      <div class="pn-toolbar">
+        <div class="pn-search-wrap">
+          <span class="pn-search-icon"><AegisIcon name="search-lg" :size="14" /></span>
+          <input class="form-input" type="text" placeholder="Search by name, specialty, location..." v-model="clinicalSearch" />
+        </div>
+      </div>
+      <div class="pn-results-bar">Showing <strong>{{ filteredClinical.length }}</strong> providers</div>
+      <div class="spc-grid">
+        <div v-for="nc in filteredClinical" :key="nc.id" class="spc-card" @click="viewProfile(nc.partner_slug)">
+          <div class="spc-pills"><span class="spc-status ok" data-tooltip="In Network"><AegisIcon name="user-check" :size="12" /></span></div>
+          <div class="spc-body">
+            <div class="spc-avatar">{{ nc.partner_initials }}</div>
+            <div class="spc-name">{{ nc.partner_name }}</div>
+            <div class="spc-role">{{ nc.partner_role }}</div>
+            <div class="spc-loc">{{ nc.partner_location }}</div>
+            <div class="spc-tags">
+              <span v-for="tag in tagList(nc.partner_specialty).slice(0,3)" :key="tag" class="spc-tag">{{ tag }}</span>
+            </div>
+          </div>
+          <div class="spc-actions" @click.stop>
+            <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === nc.partner_id" @click="openConversation(nc.partner_id)"><AegisIcon name="message-square" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="Refer Client" @click="openReferralForConnection(nc)"><AegisIcon name="refresh" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(nc.partner_slug)"><AegisIcon name="eye" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="Remove from network" @click="confirmDisconnect(nc)"><AegisIcon name="trash-2" :size="14" /></button>
+          </div>
+        </div>
+      </div>
+      <AegisEmptyState v-if="!filteredClinical.length" icon="users" title="No clinical connections yet" subtitle="Search providers and send connection requests to build your network.">
+        <template #actions><button type="button" class="btn btn-primary" @click="clinicalTab = 'search'">Search Providers</button></template>
+      </AegisEmptyState>
+    </div><!-- /my network -->
 
-      <!-- Search + sort bar -->
+    <!-- ══════════ BUSINESS PARTNERS ══════════ -->
+
+    <!-- SEARCH BUSINESS PARTNERS -->
+    <div v-show="scope === 'business' && businessTab === 'search'">
       <div class="bp-search-bar">
-        <div class="bp-search-wrap">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-4);pointer-events:none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input class="bp-search-input" v-model="bpSearch" placeholder="Search by name, skill, company, keyword..." />
+        <div class="pn-search-wrap" style="flex:1;min-width:220px">
+          <span class="pn-search-icon"><AegisIcon name="search-lg" :size="14" /></span>
+          <input class="form-input" style="padding-left:34px" v-model="bpSearch" placeholder="Search by name, skill, company, keyword..." />
         </div>
-        <div class="bp-sort-wrap">
-          <span class="bp-sort-label">Sort:</span>
-          <select class="nw-sort-select" v-model="bpSort">
-            <option>Best Match</option>
-            <option>Highest Rated</option>
-            <option>Most Jobs</option>
-            <option>Lowest Rate</option>
-          </select>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <span style="font-size:12px;color:var(--text-4)">Sort:</span>
+          <select class="form-select" v-model="bpSort" style="font-size:12px;padding:4px 8px"><option>Best Match</option><option>Highest Rated</option><option>Most Jobs</option><option>Lowest Rate</option></select>
         </div>
       </div>
       <div class="bp-count">Showing {{ filteredPartners.length }} of {{ businessPartners.length }} partners</div>
-
       <div class="bp-layout">
-        <!-- Filters sidebar -->
-        <div class="nw-filters-sidebar bp-sidebar">
-          <div class="nw-filters-top">
-            <span class="nw-filters-title">FILTERS</span>
-            <button class="nw-clear-btn" @click="showToast('Filters cleared','info')">CLEAR ALL</button>
+        <div class="nw-sidebar">
+          <div class="nw-sidebar-top"><span class="nw-sidebar-label">FILTERS</span><button type="button" class="nw-clear-btn" @click="bpSearch='';bpCategory=''">CLEAR ALL</button></div>
+          <div class="bp-toggle-row">
+            <span style="font-size:12px;color:var(--text-2)">Clinical-service providers</span>
+            <label class="bp-toggle"><input type="checkbox" v-model="bpClinicalOnly"><span class="bp-track"><span class="bp-thumb"></span></span></label>
           </div>
-          <!-- Clinical-service toggle -->
-          <div class="bp-filter-toggle-row">
-            <span class="bp-filter-toggle-label">Clinical-service providers</span>
-            <label class="bp-toggle">
-              <input type="checkbox" v-model="bpClinicalOnly">
-              <span class="bp-toggle-track"><span class="bp-toggle-thumb"></span></span>
-            </label>
-          </div>
-          <!-- Category -->
-          <div class="bp-filter-section">
-            <div class="bp-filter-section-header" @click="bpFilters.category = !bpFilters.category">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10"/></svg>
-              <span>Category</span>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="margin-left:auto" :style="{ transform: bpFilters.category ? 'rotate(180deg)' : '' }"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-            <div v-if="bpFilters.category" style="margin-top:8px;">
-              <select class="nw-sort-select" style="width:100%;" v-model="bpCategory">
+          <div class="nw-filter-group">
+            <button type="button" class="nw-filter-btn" @click="bpCatOpen = !bpCatOpen">
+              <AegisIcon name="globe" :size="12" /> Category <AegisIcon name="chevron-down" :size="11" style="margin-left:auto" :style="{ transform: bpCatOpen ? 'rotate(180deg)' : '' }" />
+            </button>
+            <div v-if="bpCatOpen" style="margin-top:8px">
+              <select class="form-select" v-model="bpCategory" style="width:100%;font-size:12px">
                 <option value="">All Categories</option>
-                <option>Medical Billing</option>
-                <option>Digital Marketing</option>
-                <option>Credentialing</option>
-                <option>Practice Consulting</option>
-                <option>Accounting / CPA</option>
-                <option>Admin / VA</option>
-                <option>HR / Staffing</option>
-                <option>Legal / Attorney</option>
-                <option>IT / Software</option>
-                <option>Design / Branding</option>
+                <option>Medical Billing</option><option>Digital Marketing</option><option>Credentialing</option><option>Practice Consulting</option><option>Accounting / CPA</option><option>Admin / VA</option><option>HR / Staffing</option><option>Legal / Attorney</option><option>IT / Software</option><option>Design / Branding</option>
               </select>
             </div>
           </div>
           <div v-for="f in bpFilterGroups" :key="f.label" class="nw-filter-group">
-            <button class="nw-filter-group-btn">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" v-html="f.icon"></svg>
-              {{ f.label }}
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="margin-left:auto"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
+            <button type="button" class="nw-filter-btn"><AegisIcon :name="f.icon" :size="12" /> {{ f.label }} <AegisIcon name="chevron-down" :size="11" style="margin-left:auto" /></button>
           </div>
-          <button class="nw-apply-btn" @click="showToast('Filters applied','success')">Apply Filters</button>
+          <button type="button" class="nw-apply-btn" @click="toast.success('Filters applied')">Apply Filters</button>
         </div>
-
-        <!-- Partner cards grid -->
-        <div class="bp-results">
+        <div>
           <div class="bp-grid">
-            <div v-for="p in filteredPartners" :key="p.name" class="bp-card">
-              <div class="bp-card-top">
-                <span class="bp-type-badge">{{ p.partnerType }}</span>
-                <span class="bp-card-rating">★ {{ p.rating }}</span>
-              </div>
-              <div class="bp-card-avatar-row">
-                <div class="bp-avatar" :style="{ background: p.avatarColor }">{{ p.initials }}</div>
-              </div>
+            <div v-for="p in filteredPartners" :key="p.name" class="biz-grid-card spc-card">
+              <div class="bp-card-top"><span class="bp-type-badge">{{ p.partnerType }}</span><span class="bp-card-rating"><AegisIcon name="star" :size="11" /> {{ p.rating }}</span></div>
+              <div class="bp-avatar-row"><div class="bp-avatar" :style="{ background: p.avatarColor }">{{ p.initials }}</div></div>
               <div class="bp-card-name">{{ p.name }}</div>
               <div class="bp-card-role">{{ p.role }}</div>
               <div class="bp-card-loc">{{ p.location }}</div>
-              <div class="bp-card-tags">
-                <span v-for="tag in p.tags.slice(0,3)" :key="tag" class="nw-pcard-tag">{{ tag }}</span>
-                <span v-if="p.tags.length > 3" class="nw-pcard-tag">+{{ p.tags.length - 3 }}</span>
-              </div>
+              <div class="spc-tags" style="margin-bottom:8px"><span v-for="tag in p.tags.slice(0,3)" :key="tag" class="spc-tag">{{ tag }}</span><span v-if="p.tags.length > 3" class="spc-tag">+{{ p.tags.length - 3 }}</span></div>
               <div class="bp-card-stats">{{ p.rate }} · {{ p.reviews }} reviews · {{ p.jobs }} jobs</div>
-              <div class="bp-card-actions">
-                <button class="nw-pcard-icon-btn" title="Message" @click="showToast('Opening message to ' + p.name,'info')">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                </button>
-                <button class="nw-pcard-icon-btn" title="Hire" @click="showToast('Opening hire flow for ' + p.name,'info')">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-                </button>
-                <button class="nw-pcard-icon-btn" title="Save" @click="showToast(p.name + ' saved','success')">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><polygon points="12 2 15 8.5 22 9.3 17 14 18.2 21 12 17.5 5.8 21 7 14 2 9.3 9 8.5 12 2"/></svg>
-                </button>
-                <button class="nw-pcard-icon-btn" title="View profile" @click="showToast('Viewing profile of ' + p.name,'info')">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                </button>
+              <div class="spc-actions">
+                <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === p.id" @click="openConversation(p.id)"><AegisIcon name="message-square" :size="13" /></button>
+                <button type="button" class="btn-icon" data-tooltip="Hire" @click="openBpHire(p)"><AegisIcon name="briefcase" :size="13" /></button>
+                <button type="button" class="btn-icon" data-tooltip="View Profile"><AegisIcon name="eye" :size="13" /></button>
               </div>
             </div>
           </div>
-          <div style="display:flex;justify-content:center;margin-top:22px;">
-            <button class="btn btn-outline btn-sm" @click="showToast('Loading more partners','info')">Load More Partners</button>
+          <AegisEmptyState v-if="!filteredPartners.length" icon="briefcase" title="No partners found" subtitle="Try adjusting your search or filters." />
+        </div>
+      </div>
+    </div><!-- /search business -->
+
+    <!-- MY PARTNERS -->
+    <div v-show="scope === 'business' && businessTab === 'mypartners'">
+      <div class="stat-chips-row">
+        <div class="stat-chip"><div class="stat-chip-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="briefcase" :size="18" /></div><div><div class="stat-chip-value">{{ bpConnections.length }}</div><div class="stat-chip-label">Business Partners</div></div></div>
+        <div class="stat-chip"><div class="stat-chip-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="heart-2" :size="18" /></div><div><div class="stat-chip-value">{{ stats.bp_count }}</div><div class="stat-chip-label">Active Contracts</div></div></div>
+        <div class="stat-chip"><div class="stat-chip-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="star" :size="18" /></div><div><div class="stat-chip-value">—</div><div class="stat-chip-label">Avg Partner Rating</div></div></div>
+        <div class="stat-chip"><div class="stat-chip-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="clock" :size="18" /></div><div><div class="stat-chip-value">{{ stats.pending_requests }}</div><div class="stat-chip-label">Pending Requests</div></div></div>
+      </div>
+      <div class="pn-toolbar">
+        <div class="pn-search-wrap">
+          <span class="pn-search-icon"><AegisIcon name="search-lg" :size="14" /></span>
+          <input class="form-input" type="text" placeholder="Search business partners by name, type, service..." v-model="bizSearch" />
+        </div>
+      </div>
+      <div class="pn-results-bar">Showing <strong>{{ filteredBpConnections.length }}</strong> business partners</div>
+      <div class="spc-grid">
+        <div v-for="nc in filteredBpConnections" :key="nc.id" class="biz-grid-card spc-card" @click="viewProfile(nc.partner_slug)">
+          <div class="spc-pills"><span class="spc-status ok" data-tooltip="Business Partner"><AegisIcon name="user-check" :size="12" /></span></div>
+          <div class="spc-body">
+            <div class="spc-avatar">{{ nc.partner_initials }}</div>
+            <div class="spc-name">{{ nc.partner_name }}</div>
+            <div class="spc-role">{{ nc.partner_role }}</div>
+            <div class="spc-loc">{{ nc.partner_location }}</div>
+          </div>
+          <div class="spc-actions" @click.stop>
+            <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === nc.partner_id" @click="openConversation(nc.partner_id)"><AegisIcon name="message-square" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(nc.partner_slug)"><AegisIcon name="eye" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="Remove" @click="confirmDisconnect(nc)"><AegisIcon name="trash-2" :size="14" /></button>
           </div>
         </div>
       </div>
-    </div>
+      <AegisEmptyState v-if="!filteredBpConnections.length" icon="briefcase" title="No business partners yet" subtitle="Search the partner directory to find billing, legal, IT, and other practice services.">
+        <template #actions><button type="button" class="btn btn-primary" @click="businessTab = 'search'">Search Partners</button></template>
+      </AegisEmptyState>
+    </div><!-- /my partners -->
 
-    <!-- REFERRALS & TOOLS TAB -->
-    <div v-show="activeTab === 'referrals'">
+    <!-- ══════════ REFERRALS & TOOLS ══════════ -->
 
-      <!-- Sub-tabs -->
-      <div class="nw-subtabs" style="margin-bottom:18px;">
-        <button class="nw-subtab" :class="{ active: rtSubTab === 'list' }" @click="rtSubTab = 'list'">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>
-          Referral List
-        </button>
-        <button class="nw-subtab" :class="{ active: rtSubTab === 'shadows' }" @click="rtSubTab = 'shadows'">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-          My Shadows
-          <span class="rt-count-pill">0</span>
-        </button>
-        <button class="nw-subtab" :class="{ active: rtSubTab === 'config' }" @click="rtSubTab = 'config'">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          Configuration
-        </button>
-      </div>
-
-      <!-- Shadow Network section title -->
+    <!-- REFERRAL LIST (AI Shadow Suggestions) -->
+    <div v-show="scope === 'tools' && toolsTab === 'list'">
       <div class="rt-section-title">Shadow Network</div>
-
-      <!-- AI Insight banner -->
       <div class="rt-ai-banner">
-        <div class="rt-ai-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        </div>
+        <div class="rt-ai-icon"><AegisIcon name="help-circle" :size="16" /></div>
         <div>
           <div class="rt-ai-title">This week's AI insights</div>
-          <div class="rt-ai-sub">Based on your recent clients, you may benefit from <strong>3 additional PTSD specialists</strong> and <strong>2 child &amp; adolescent therapists</strong>. Aegis found <strong>8 high-match candidates</strong> below — sorted by compatibility score.</div>
+          <div class="rt-ai-sub">Based on your recent clients, you may benefit from <strong>3 additional PTSD specialists</strong> and <strong>2 child &amp; adolescent therapists</strong>. Aegis found <strong>{{ filteredRtCandidates.length }} high-match candidates</strong> below.</div>
         </div>
       </div>
-
-      <!-- Search bar -->
-      <div class="bp-search-wrap" style="margin-bottom:10px;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-4);pointer-events:none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input class="bp-search-input" v-model="rtSearch" placeholder="Search by name, specialty, location..." />
+      <div class="pn-search-wrap" style="margin-bottom:10px">
+        <span class="pn-search-icon"><AegisIcon name="search-lg" :size="14" /></span>
+        <input class="form-input" style="padding-left:34px" v-model="rtSearch" placeholder="Search by name, specialty, location..." />
       </div>
-
-      <div class="rt-showing">Showing {{ filteredShadows.length }} AI suggestions</div>
-
-      <!-- Shadow cards grid -->
+      <div style="font-size:12px;color:var(--text-4);margin-bottom:14px">Showing {{ filteredRtCandidates.length }} AI suggestions</div>
       <div class="rt-grid">
-        <div v-for="s in filteredShadows" :key="s.name" class="rt-card">
-          <div class="rt-card-shadow-icon">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
-          </div>
-          <div class="rt-card-avatar" :style="{ background: s.avatarColor }">{{ s.initials }}</div>
-          <div class="rt-card-name">{{ s.name }}</div>
-          <div class="rt-card-role">{{ s.role }}</div>
-          <div class="rt-card-loc">{{ s.location }}</div>
-          <div class="rt-card-tags">
-            <span v-for="tag in s.tags" :key="tag" class="nw-pcard-tag">{{ tag }}</span>
-          </div>
-          <div class="rt-card-actions">
-            <button class="nw-pcard-icon-btn" title="Message" @click="showToast('Opening message to ' + s.name,'info')">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            </button>
-            <button class="nw-pcard-icon-btn" title="Add to shadows" @click="addToShadows(s)">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="21" y1="11" x2="15" y2="11"/><line x1="18" y1="8" x2="18" y2="14"/></svg>
-            </button>
-            <button class="nw-pcard-icon-btn" title="View profile" @click="showToast('Viewing profile of ' + s.name,'info')">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-            <button class="nw-pcard-icon-btn rt-card-remove" title="Remove" @click="removeShadow(s)">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+        <div v-for="s in filteredRtCandidates" :key="s.name" class="rt-card">
+          <div class="rt-shadow-icon"><AegisIcon name="cpu" :size="12" /></div>
+          <div class="rt-avatar">{{ s.initials }}</div>
+          <div class="rt-name">{{ s.name }}</div>
+          <div class="rt-role">{{ s.role }}</div>
+          <div class="rt-loc">{{ s.location }}</div>
+          <div class="spc-tags" style="justify-content:center;margin-bottom:12px"><span v-for="tag in s.tags" :key="tag" class="spc-tag">{{ tag }}</span></div>
+          <div class="rt-actions">
+            <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === s.id" @click="openConversation(s.id)"><AegisIcon name="message-square" :size="13" /></button>
+            <button type="button" class="btn-icon" data-tooltip="Add to Shadows" @click="openConnect(s)"><AegisIcon name="user-plus" :size="13" /></button>
+            <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(s.slug)"><AegisIcon name="eye" :size="13" /></button>
+            <button type="button" class="btn-icon rt-remove-btn" data-tooltip="Remove" @click="removeRtCandidate(s)"><AegisIcon name="x" :size="13" /></button>
           </div>
         </div>
       </div>
+    </div><!-- /referral list -->
 
-      <div style="display:flex;justify-content:center;margin-top:22px;">
-        <button class="btn btn-outline btn-sm nw-btn-icon" @click="showToast('Loading more shadows','info')">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>
-          Load More Shadows
-        </button>
+    <!-- MY SHADOWS -->
+    <div v-show="scope === 'tools' && toolsTab === 'shadows'">
+      <div class="stat-chips-row">
+        <div class="stat-chip"><div class="stat-chip-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="cpu" :size="18" /></div><div><div class="stat-chip-value">{{ shadowConnections.length }}</div><div class="stat-chip-label">Active Shadows</div></div></div>
       </div>
+      <div style="font-size:12px;color:var(--text-4);margin-bottom:14px">Showing <strong>{{ shadowConnections.length }}</strong> shadow connections</div>
+      <div class="rt-grid">
+        <div v-for="s in shadowConnections" :key="s.id" class="rt-card">
+          <div class="rt-shadow-icon"><AegisIcon name="cpu" :size="12" /></div>
+          <div class="rt-avatar">{{ s.shadow_initials }}</div>
+          <div class="rt-name">{{ s.shadow_name }}</div>
+          <div class="rt-role">{{ s.shadow_role }}</div>
+          <div class="rt-loc">{{ s.shadow_location }}</div>
+          <div class="spc-tags" style="justify-content:center;margin-bottom:12px">
+            <span v-for="tag in tagList(s.shadow_specialty)" :key="tag" class="spc-tag">{{ tag }}</span>
+          </div>
+          <div class="rt-actions">
+            <button v-if="s.shadow_user_id" type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === s.shadow_user_id" @click="openConversation(s.shadow_user_id)"><AegisIcon name="message-square" :size="13" /></button>
+            <button type="button" class="btn-icon rt-remove-btn" data-tooltip="Remove Shadow" @click="confirmRemoveShadow(s)"><AegisIcon name="trash-2" :size="13" /></button>
+          </div>
+        </div>
+      </div>
+      <AegisEmptyState v-if="!shadowConnections.length" icon="cpu" title="No shadow connections yet" subtitle="Shadow providers are backup clinicians who mirror your profile. Add them from the Referral List.">
+        <template #actions><button type="button" class="btn btn-primary" @click="toolsTab = 'list'">Browse Suggestions</button></template>
+      </AegisEmptyState>
+    </div><!-- /my shadows -->
+
+    <!-- CONFIGURATION -->
+    <div v-show="scope === 'tools' && toolsTab === 'config'">
+      <div class="rt-section-title">Network Configuration</div>
+      <div class="card card-body"><p style="font-size:13px;color:var(--text-3)">Network preferences and configuration options coming soon.</p></div>
     </div>
 
-    <!-- Teleport: Review modal + toasts -->
-    <Teleport to="body">
+    <!-- ══════════ MODALS ══════════ -->
 
-      <!-- PENDING CONNECTION REQUESTS MODAL -->
-      <Transition name="nw-modal-fade">
-        <div v-if="reviewModalOpen" class="nw-modal-backdrop" @click.self="reviewModalOpen = false">
-          <div class="nw-modal">
-            <!-- Header -->
-            <div class="nw-modal-header">
-              <div>
-                <div class="nw-modal-title">Pending Connection Requests</div>
-                <div class="nw-modal-sub">{{ allPendingRequests.length }} awaiting your review · {{ allPendingRequests.filter(r=>r.type==='Clinical').length }} clinical, {{ allPendingRequests.filter(r=>r.type==='Business').length }} business</div>
-              </div>
-              <button class="nw-modal-close-btn" @click="reviewModalOpen = false">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-            <!-- Info notice -->
-            <div class="nw-modal-notice">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              <span><strong>Accepting</strong> adds the connection to your network and notifies the requester. <strong>Declining</strong> removes the request — the other party is not notified.</span>
-            </div>
-            <!-- Request list -->
-            <div class="nw-modal-list">
-              <div v-for="req in allPendingRequests" :key="req.id" class="nw-modal-row">
-                <div class="nw-modal-row-avatar" :style="{ background: req.avatarColor }">{{ req.initials }}</div>
-                <div class="nw-modal-row-info">
-                  <div class="nw-modal-row-name">{{ req.name }}</div>
-                  <div class="nw-modal-row-role">{{ req.role }} · {{ req.location }}</div>
-                  <div class="nw-modal-row-quote">"{{ req.quote }}"</div>
-                </div>
-                <div class="nw-modal-row-right">
-                  <span class="nw-req-type-badge" :class="req.type === 'Clinical' ? 'nw-badge-green' : 'nw-badge-blue'">{{ req.type }}</span>
-                  <span class="nw-req-date">{{ req.date }}</span>
-                </div>
-                <div class="nw-modal-row-btns">
-                  <button class="btn btn-primary btn-sm nw-btn-icon" @click="acceptModalRequest(req)">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    Accept
-                  </button>
-                  <button class="btn btn-outline btn-sm" @click="declineModalRequest(req)">Decline</button>
-                  <button class="nw-pcard-icon-btn" title="View profile" @click="showToast('Viewing profile','info')">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                  </button>
-                </div>
-              </div>
-              <div v-if="allPendingRequests.length === 0" class="nw-modal-empty">All requests have been reviewed.</div>
-            </div>
-            <!-- Footer -->
-            <div class="nw-modal-footer">
-              <button class="btn btn-outline btn-sm" @click="reviewModalOpen = false">Close</button>
-            </div>
+    <!-- Review Pending Requests -->
+    <AegisModal v-model="modals.reviewRequests" title="Pending Connection Requests" :subtitle="pendingRequests.length + ' awaiting · ' + clinicalCount + ' clinical, ' + businessCount + ' business'" size="lg">
+      <div class="alert alert-info" style="margin-bottom:14px">
+        <AegisIcon name="info" :size="14" />
+        <div><strong>Accepting</strong> adds the connection and notifies the requester. <strong>Declining</strong> removes the request — the other party is not notified.</div>
+      </div>
+      <div class="nw-modal-list">
+        <div v-for="req in pendingRequests" :key="req.id" class="nw-modal-row">
+          <div class="nw-modal-avatar">{{ req.requester_initials }}</div>
+          <div class="nw-modal-info">
+            <div class="nw-modal-name">{{ req.requester_name }}</div>
+            <div class="nw-modal-meta">{{ req.requester_role }}<span v-if="req.requester_location"> · {{ req.requester_location }}</span></div>
+            <div v-if="req.message" class="nw-modal-quote">"{{ req.message }}"</div>
+          </div>
+          <div class="nw-modal-right">
+            <span class="badge is-quiet" :class="req.request_type === 'business' ? 'is-business' : 'is-clinical'">{{ req.request_type === 'business' ? 'Business' : 'Clinical' }}</span>
+            <span style="font-size:11px;color:var(--text-4)">{{ timeAgo(req.created_at) }}</span>
+          </div>
+          <div class="nw-modal-btns">
+            <button type="button" class="btn btn-primary btn-sm nw-icon-btn" :disabled="pendingActionId === req.id" @click="acceptRequest(req)"><AegisIcon name="check" :size="11" /> Accept</button>
+            <button type="button" class="btn btn-outline btn-sm" :disabled="pendingActionId === req.id" @click="declineRequest(req)">Decline</button>
+            <button type="button" class="btn-icon" data-tooltip="View profile" @click="viewProfile(req.requester_slug); modals.reviewRequests = false"><AegisIcon name="eye" :size="13" /></button>
           </div>
         </div>
-      </Transition>
+        <div v-if="!pendingRequests.length" style="text-align:center;padding:24px;font-size:13px;color:var(--text-4)">All requests have been reviewed.</div>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-outline btn-sm" @click="modals.reviewRequests = false">Close</button>
+      </template>
+    </AegisModal>
 
-      <div class="dh-toast-stack">
-        <div v-for="t in toasts" :key="t.id" class="dh-toast" :class="t.type">
-          <svg v-if="t.type==='success'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-          <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <span>{{ t.msg }}</span>
+    <!-- Invite Provider Modal -->
+    <AegisModal v-model="modals.inviteProvider" title="Invite Provider to Aegis">
+      <div class="alert alert-info" style="margin-bottom:16px">
+        <AegisIcon name="lightbulb" :size="16" />
+        <div>Invited providers will receive a personalized email with your name, and a pre-filled Aegis onboarding link. You'll be notified when they join.</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Provider Full Name</label>
+          <input class="form-input" type="text" v-model="inviteForm.display_name" placeholder="Dr. First Last" />
+          <div v-if="inviteForm.errors.display_name" class="form-error">{{ inviteForm.errors.display_name }}</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input class="form-input" type="email" v-model="inviteForm.email" placeholder="doctor@clinic.com" />
+          <div v-if="inviteForm.errors.email" class="form-error">{{ inviteForm.errors.email }}</div>
         </div>
       </div>
-    </Teleport>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Specialty</label>
+          <input class="form-input" type="text" v-model="inviteForm.specialty" placeholder="e.g., Psychologist, Therapist" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Network Type</label>
+          <select class="form-select" v-model="inviteForm.network_type"><option>Network</option><option>Business Partners</option><option>Both</option></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Personal Message (optional)</label>
+        <textarea class="form-textarea" v-model="inviteForm.note" rows="3" placeholder="Hi Dr. [Name], I'd love for you to join me on Aegis…"></textarea>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="modals.inviteProvider = false">Cancel</button>
+        <button type="button" class="btn btn-primary nw-icon-btn" :disabled="inviteForm.processing" @click="submitInvite">
+          {{ inviteForm.processing ? 'Sending…' : 'Send Invitation' }} <AegisIcon name="mail" :size="16" />
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- Connect / Send Request Modal -->
+    <AegisModal v-model="modals.connect" title="Send Connection Request">
+      <div v-if="connectTarget" class="alert alert-info" style="margin-bottom:16px">
+        <AegisIcon name="user-plus" :size="16" />
+        <div><strong>{{ connectTarget.name }}</strong><span v-if="connectTarget.role"> · {{ connectTarget.role }}</span></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Message (optional)</label>
+        <textarea class="form-textarea" v-model="connectForm.note" rows="3" placeholder="Introduce yourself or explain why you'd like to connect…"></textarea>
+        <div v-if="connectForm.errors.note" class="form-error">{{ connectForm.errors.note }}</div>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="modals.connect = false">Cancel</button>
+        <button type="button" class="btn btn-primary" :disabled="connectForm.processing" @click="submitConnect">
+          {{ connectForm.processing ? 'Sending…' : 'Send Request' }}
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- Service Request Modal -->
+    <AegisModal v-model="modals.svcRequest" title="Request Service">
+      <div v-if="svcTarget" style="padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:18px">
+        <div style="font-size:13px;font-weight:700;color:var(--text)">{{ svcTarget.serviceName }}</div>
+        <div style="font-size:12px;color:var(--text-4);margin-top:1px">with <strong>{{ svcTarget.providerName }}</strong></div>
+      </div>
+      <div class="alert alert-info" style="margin-bottom:16px">
+        <AegisIcon name="alert-disc" :size="14" />
+        <div>Once accepted, a <strong>Service Agreement</strong> will be generated. Payment is collected after both parties sign.</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Preferred Date</label><input class="form-input" type="date" v-model="svcForm.preferred_date" /></div>
+        <div class="form-group"><label class="form-label">Preferred Time</label><input class="form-input" type="time" v-model="svcForm.preferred_time" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Frequency</label><select class="form-select" v-model="svcForm.frequency"><option>One-time</option><option>Weekly</option><option>Bi-weekly</option><option>Monthly</option></select></div>
+        <div class="form-group"><label class="form-label">Your License Status</label><select class="form-select" v-model="svcForm.license_status"><option>Pre-licensed (Associate)</option><option>Fully Licensed</option><option>Other</option></select></div>
+      </div>
+      <div class="form-group"><label class="form-label">Message to Provider</label><textarea class="form-textarea" v-model="svcForm.message" rows="3" placeholder="Introduce yourself and describe your goals…"></textarea></div>
+      <label class="form-check">
+        <input type="checkbox" v-model="svcForm.terms_agreed" />
+        <span class="form-check-label">I agree to Aegis's service terms and platform policies</span>
+      </label>
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="modals.svcRequest = false">Cancel</button>
+        <button type="button" class="btn btn-primary nw-icon-btn" :disabled="!svcForm.terms_agreed" @click="submitSvcRequest">
+          <AegisIcon name="check" :size="14" /> Send Request
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- BP Hire Modal -->
+    <AegisModal v-model="modals.bpHire" title="Hire Business Partner">
+      <div v-if="bpHireTarget" style="padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--text)">{{ bpHireTarget.name }}</div>
+        <div style="font-size:12px;color:var(--text-4)">{{ bpHireTarget.role }}</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Project Title</label><input class="form-input" type="text" v-model="bpHireForm.title" placeholder="e.g. Monthly billing services" /></div>
+        <div class="form-group"><label class="form-label">Engagement Type</label><select class="form-select" v-model="bpHireForm.engagement_type"><option>One-Time Project</option><option>Ongoing / Retainer</option><option>Part-Time Contract</option><option>Full-Time</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Start Date</label><input class="form-input" type="date" v-model="bpHireForm.start_date" /></div>
+        <div class="form-group"><label class="form-label">Budget</label><input class="form-input" type="text" v-model="bpHireForm.budget" placeholder="e.g. $500/mo or $2,000 fixed" /></div>
+      </div>
+      <div class="form-group"><label class="form-label">Scope of Work</label><textarea class="form-textarea" v-model="bpHireForm.scope" rows="3" placeholder="Describe deliverables, requirements, and timeline…"></textarea></div>
+      <div class="form-row" style="margin-bottom:14px">
+        <label class="form-check"><input type="checkbox" v-model="bpHireForm.include_nda" /><span class="form-check-label">Include NDA Agreement</span></label>
+        <label class="form-check"><input type="checkbox" v-model="bpHireForm.require_baa" /><span class="form-check-label">Require HIPAA BAA</span></label>
+        <label class="form-check"><input type="checkbox" v-model="bpHireForm.auto_contract" /><span class="form-check-label">Auto-generate Service Contract</span></label>
+      </div>
+      <div class="alert alert-info">
+        <AegisIcon name="clipboard" :size="16" />
+        <div>Aegis will notify the partner and generate a contract draft. Both parties must e-sign before work begins.</div>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="modals.bpHire = false">Cancel</button>
+        <button type="button" class="btn btn-primary nw-icon-btn" @click="submitBpHire"><AegisIcon name="user-cog" :size="16" /> Send Hire Request</button>
+      </template>
+    </AegisModal>
+
+    <!-- Post Job / Request Support Modal -->
+    <AegisModal v-model="modals.postJob" title="Request Support from Business Partners" size="lg">
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Request Title</label><input class="form-input" type="text" v-model="postJobForm.title" placeholder="e.g. Medical Billing Specialist Needed" /></div>
+        <div class="form-group"><label class="form-label">Service Category</label><select class="form-select" v-model="postJobForm.category"><option>Medical Billing</option><option>Accounting / CPA</option><option>Legal / Attorney</option><option>Marketing</option><option>Technology / EHR</option><option>HR / Staffing</option><option>Credentialing</option><option>Design / Branding</option><option>Admin / VA</option><option>Practice Consulting</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Partner Type Preferred</label><select class="form-select" v-model="postJobForm.partner_type"><option>Any</option><option>Freelancer</option><option>Agency</option><option>Consultant</option><option>Firm</option><option>Solopreneur</option></select></div>
+        <div class="form-group"><label class="form-label">Engagement Type</label><select class="form-select" v-model="postJobForm.engagement_type"><option>One-Time Project</option><option>Ongoing / Retainer</option><option>Part-Time Contract</option><option>Full-Time</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Budget Range</label><input class="form-input" type="text" v-model="postJobForm.budget" placeholder="e.g. $50–$100/hr or $2,000/mo" /></div>
+        <div class="form-group"><label class="form-label">Project Timeline</label><select class="form-select" v-model="postJobForm.timeline"><option>ASAP</option><option>Within 1 week</option><option>1–2 weeks</option><option>1 month</option><option>Flexible</option></select></div>
+      </div>
+      <div class="form-group"><label class="form-label">Job Description</label><textarea class="form-textarea" v-model="postJobForm.description" rows="4" placeholder="Describe the role, required skills, deliverables, and any important context about your practice…"></textarea></div>
+      <div class="form-group"><label class="form-label">Required Qualifications / Tags</label><input class="form-input" type="text" v-model="postJobForm.qualifications" placeholder="e.g. HIPAA Certified, 5+ yrs experience, Mental Health billing…" /></div>
+      <div class="form-row" style="margin-bottom:14px">
+        <label class="form-check"><input type="checkbox" v-model="postJobForm.hipaa_required" /><span class="form-check-label">Require HIPAA Compliance</span></label>
+        <label class="form-check"><input type="checkbox" v-model="postJobForm.verified_only" /><span class="form-check-label">Verified Partners Only</span></label>
+        <label class="form-check"><input type="checkbox" v-model="postJobForm.remote_allowed" /><span class="form-check-label">Remote Work Allowed</span></label>
+        <label class="form-check"><input type="checkbox" v-model="postJobForm.require_nda" /><span class="form-check-label">Require NDA Signature</span></label>
+      </div>
+      <div class="alert alert-gold">
+        <AegisIcon name="trending-up" :size="16" />
+        <div>Your job will be visible to all matching verified partners in the Aegis Business Partners. You'll receive proposals within 24–48 hours.</div>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="modals.postJob = false">Cancel</button>
+        <button type="button" class="btn btn-primary nw-icon-btn" @click="submitPostJob"><AegisIcon name="trending-up" :size="16" /> Post Job</button>
+      </template>
+    </AegisModal>
+
+    <!-- Centralized ReferralModal — wired via openModal('referralModal') -->
+    <ReferralModal :roster="roster" :network="referralNetwork" :preselect-slug="referralPreselectSlug" />
+    </div><!-- /nw-page-root -->
+
   </AppLayout>
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
-import AppLayout from '../../Components/AppLayout.vue';
+import { ref, reactive, computed, onMounted } from 'vue'
+import { router, useForm } from '@inertiajs/vue3'
+import { route } from 'ziggy-js'
+import AppLayout from '@/layouts/AppLayout.vue'
+import ReferralModal from '@/components/modals/ReferralModal.vue'
+import { useModal }         from '@/composables/useModal'
+import { useToast }         from '@/composables/useToast'
+import { useConfirm }       from '@/composables/useConfirm'
+import { useMessageButton } from '@/composables/useMessageButton'
 
-defineProps({ user: Object });
+// ── Props ──────────────────────────────────────────────────────────────────
+const props = defineProps({
+  clinicalConnections: { type: Array,  default: () => [] },
+  bpConnections:       { type: Array,  default: () => [] },
+  pendingRequests:     { type: Array,  default: () => [] },
+  shadowConnections:   { type: Array,  default: () => [] },
+  referralNetwork:     { type: Array,  default: () => [] },
+  roster:              { type: Array,  default: () => [] },
+  stats:               { type: Object, default: () => ({}) },
+})
 
-// Toast
-const toasts = ref([]);
-let toastId = 0;
-function showToast(msg, type = 'info') {
-  const id = ++toastId;
-  toasts.value.push({ id, msg, type });
-  setTimeout(() => { toasts.value = toasts.value.filter(t => t.id !== id); }, 3500);
+// ── Composables ────────────────────────────────────────────────────────────
+const { openModal } = useModal()
+const toast         = useToast()
+const { confirmAction } = useConfirm()
+const { openConversation, loading: msgLoading } = useMessageButton()
+
+// ── Slider state ──────────────────────────────────────────────────────────
+const rnpTrack  = ref(null)
+const spcTrack  = ref(null)
+const rnpAtStart = ref(true)
+const rnpAtEnd   = ref(false)
+const spcAtStart = ref(true)
+const spcAtEnd   = ref(false)
+
+const SLIDE_PX = 320
+
+function updateArrows(el, atStart, atEnd) {
+  if (!el) return
+  atStart.value = el.scrollLeft <= 4
+  atEnd.value   = el.scrollLeft >= el.scrollWidth - el.clientWidth - 4
 }
 
-const reviewModalOpen = ref(false);
-
-const allPendingRequests = ref([
-  { id:1, type:'Clinical', date:'Feb 27', initials:'AP', name:'Dr. Aisha Patel, PsyD',        role:'Psychologist',            location:'Queens, NY',    avatarColor:'#a0813e', quote:"I frequently see patients who could benefit from trauma-focused therapy." },
-  { id:2, type:'Clinical', date:'Feb 24', initials:'MW', name:'Dr. Marcus Webb, LCSW',         role:'Therapist / Counselor',   location:'New York, NY',  avatarColor:'#6a4c8c', quote:"Would love to collaborate on shared clients dealing with dual diagnoses." },
-  { id:3, type:'Business', date:'Feb 17', initials:'TM', name:'TriState Medical Billing',       role:'Medical Billing Company', location:'Newark, NJ',    avatarColor:'#4a7a6a', quote:"We specialize in mental health billing and OON claims for NY/NJ practices." },
-  { id:4, type:'Business', date:'Feb 5',  initials:'BP', name:'Bright Practice Marketing',      role:'Healthcare Marketing Agency', location:'Brooklyn, NY', avatarColor:'#7a5c4a', quote:"We've helped 50+ therapy practices grow their caseload. Happy to chat." },
-]);
-
-function acceptModalRequest(req) {
-  allPendingRequests.value = allPendingRequests.value.filter(r => r.id !== req.id);
-  pendingRequests.value    = pendingRequests.value.filter(r => r.id !== req.id);
-  showToast(req.name + ' accepted', 'success');
-}
-function declineModalRequest(req) {
-  allPendingRequests.value = allPendingRequests.value.filter(r => r.id !== req.id);
-  pendingRequests.value    = pendingRequests.value.filter(r => r.id !== req.id);
-  showToast(req.name + ' declined', 'info');
+function slideRnp(dir) {
+  const el = rnpTrack.value
+  if (!el) return
+  el.scrollBy({ left: dir * SLIDE_PX, behavior: 'smooth' })
+  setTimeout(() => updateArrows(el, rnpAtStart, rnpAtEnd), 320)
 }
 
-const activeTab = ref('integrative');
-const subTab    = ref('search');
+function slideSpc(dir) {
+  const el = spcTrack.value
+  if (!el) return
+  el.scrollBy({ left: dir * SLIDE_PX, behavior: 'smooth' })
+  setTimeout(() => updateArrows(el, spcAtStart, spcAtEnd), 320)
+}
 
-const tabs = [
-  { id: 'integrative', label: 'Integrative Care Network', icon: '<circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v6M12 13l-6 4M12 13l6 4"/>' },
-  { id: 'business',    label: 'Business Partners',        icon: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>' },
-  { id: 'referrals',   label: 'Referrals & Tools',        icon: '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/>' },
-];
+onMounted(() => {
+  if (rnpTrack.value) {
+    rnpTrack.value.addEventListener('scroll', () => updateArrows(rnpTrack.value, rnpAtStart, rnpAtEnd))
+    updateArrows(rnpTrack.value, rnpAtStart, rnpAtEnd)
+  }
+  if (spcTrack.value) {
+    spcTrack.value.addEventListener('scroll', () => updateArrows(spcTrack.value, spcAtStart, spcAtEnd))
+    updateArrows(spcTrack.value, spcAtStart, spcAtEnd)
+  }
+})
 
-// Connection requests
-const pendingRequests = ref([
-  { id:1, type:'Clinical', date:'Feb 27', initials:'AP', name:'Dr. Aisha Patel, PsyD', role:'Psychologist', location:'Queens, NY', avatarColor:'#a0813e' },
-  { id:2, type:'Clinical', date:'Feb 24', initials:'MW', name:'Dr. Marcus Webb, LCSW', role:'Therapist / Counselor', location:'New York...', avatarColor:'#6a4c8c' },
-  { id:3, type:'Business', date:'Feb 17', initials:'TM', name:'TriState Medical Billing', role:'Medical Billing Company', location:'Newark...', avatarColor:'#4a7a6a' },
-]);
-const clinicalCount = computed(() => pendingRequests.value.filter(r => r.type === 'Clinical').length);
-const businessCount = computed(() => pendingRequests.value.filter(r => r.type === 'Business').length);
+// ── Tab / scope state ──────────────────────────────────────────────────────
+const scope       = ref('clinical')
+const clinicalTab = ref('search')
+const businessTab = ref('search')
+const toolsTab    = ref('list')
+
+// ── Local modal state ──────────────────────────────────────────────────────
+const modals = reactive({
+  reviewRequests: false,
+  inviteProvider: false,
+  connect:        false,
+  svcRequest:     false,
+  bpHire:         false,
+  postJob:        false,
+})
+
+// ── Computed ───────────────────────────────────────────────────────────────
+const clinicalCount = computed(() => props.pendingRequests.filter(r => r.request_type !== 'business').length)
+const businessCount = computed(() => props.pendingRequests.filter(r => r.request_type === 'business').length)
+
+// ── Accept / Decline ───────────────────────────────────────────────────────
+const pendingActionId = ref(null)
 
 function acceptRequest(req) {
-  pendingRequests.value = pendingRequests.value.filter(r => r.id !== req.id);
-  showToast(req.name + ' accepted', 'success');
+  pendingActionId.value = req.id
+  router.post(route('provider.network.accept', { networkRequest: req.id }), {}, {
+    onSuccess: () => { toast.success(req.requester_name + ' accepted'); modals.reviewRequests = false },
+    onError:   () => toast.error('Could not accept request'),
+    onFinish:  () => { pendingActionId.value = null },
+  })
 }
+
 function declineRequest(req) {
-  pendingRequests.value = pendingRequests.value.filter(r => r.id !== req.id);
-  showToast(req.name + ' declined', 'info');
+  pendingActionId.value = req.id
+  router.post(route('provider.network.decline', { networkRequest: req.id }), {}, {
+    onSuccess: () => toast.info(req.requester_name + ' declined'),
+    onError:   () => toast.error('Could not decline request'),
+    onFinish:  () => { pendingActionId.value = null },
+  })
 }
 
-// Recommended categories
-const recommendedCategories = [
-  { label:'Psychiatrist',         desc:'Medication management',         count:3, color:'var(--green-dark)', icon:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>' },
-  { label:'Therapist / LCSW',     desc:'Ongoing psychotherapy',         count:6, color:'var(--gold-dark)',  icon:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>' },
-  { label:'Neurologist',          desc:'Neuropsychiatric care',          count:2, color:'var(--blue-dark)',  icon:'<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"/>' },
-  { label:'Primary Care',         desc:'Care coordination',             count:4, color:'var(--teal-dark)',  icon:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>' },
-  { label:'Dietician',            desc:'Eating & metabolism',           count:3, color:'var(--orange-dark)',icon:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>' },
-  { label:'Medical Billing',      desc:'Revenue cycle',                 count:6, color:'var(--purple-dark)',icon:'<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>' },
-  { label:'Credentialing',        desc:'Insurance & licensing',         count:2, color:'var(--gold-dark)',  icon:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>' },
-];
-
-// Shadow providers
-const shadowProviders = ref([
-  { name:'Dr. Rachel Moore, MD',  initials:'RM', avatarColor:'#a0813e', role:'Psychiatrist',           location:'New York, NY', tags:['Anxiety','Mood Disorders','PTSD'],                match:96, rating:4.3, added:true  },
-  { name:'Sarah Nguyen, PsyD',    initials:'SN', avatarColor:'#6a4c8c', role:'Psychologist',           location:'Brooklyn, NY',  tags:['CBT','Trauma','Depression'],                     match:93, rating:4.7, added:false },
-  { name:'Maya Torres, LCSW',     initials:'MY', avatarColor:'#4a7a6a', role:'Licensed Clinical Social Worker', location:'Queens, NY', tags:['DBT','Anxiety','LGBTQ+'],                match:88, rating:4.8, added:false },
-  { name:'James Okafor, LMFT',    initials:'JO', avatarColor:'#7a5c4a', role:'Marriage & Family Therapist',    location:'Bronx, NY',   tags:['Couples','Family Conflict','IFS'],        match:90, rating:4.6, added:false },
-  { name:'Alicia Reeves, LPC',    initials:'AR', avatarColor:'#4a6c8c', role:'Licensed Professional Counselor',location:'New York, NY', tags:['ACT','Stress','Life Transitions'],        match:84, rating:4.8, added:false },
-  { name:'Nina Park, RDN',        initials:'NP', avatarColor:'#8c5a4a', role:'Registered Dietician',   location:'Manhattan, NY', tags:['Eating Disorders','Functional Nutrition','HAES'],match:92, rating:4.6, added:false },
-]);
-
-function connectProvider(p) {
-  p.added = true;
-  showToast('Connection request sent to ' + p.name, 'success');
+// ── Disconnect ─────────────────────────────────────────────────────────────
+function confirmDisconnect(nc) {
+  confirmAction(
+    {
+      title:        'Remove from network?',
+      message:      nc.partner_name + ' will be removed from your network. This ends your referral relationship on Aegis.',
+      confirmLabel: 'Remove',
+      destructive:  true,
+    },
+    () => router.delete(route('provider.network.disconnect', { connection: nc.id }), {
+      onSuccess: () => toast.info(nc.partner_name + ' removed'),
+    })
+  )
 }
 
-// Business Partners
-const bpSubTab       = ref('search');
-const bpSearch       = ref('');
-const bpSort         = ref('Best Match');
-const bpClinicalOnly = ref(false);
-const bpCategory     = ref('');
-const bpFilters      = reactive({ category: true });
+// ── Remove shadow connection ────────────────────────────────────────────────
+function confirmRemoveShadow(s) {
+  confirmAction(
+    { title: 'Remove shadow?', message: (s.shadow_name || 'This shadow') + ' will be removed from your shadow network.', confirmLabel: 'Remove', destructive: true },
+    () => router.delete(route('provider.network.disconnect', { connection: s.id }), {
+      onSuccess: () => toast.info('Shadow removed'),
+    })
+  )
+}
 
-const bpFilterGroups = [
-  { label:'Partner Type',     icon:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>' },
-  { label:'Hourly Rate',      icon:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>' },
-  { label:'Experience Level', icon:'<polygon points="12 2 15 8.5 22 9.3 17 14 18.2 21 12 17.5 5.8 21 7 14 2 9.3 9 8.5 12 2"/>' },
-  { label:'Minimum Job Success', icon:'<polyline points="20 6 9 17 4 12"/>' },
-  { label:'Availability',     icon:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
-  { label:'Engagement Type',  icon:'<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>' },
-  { label:'Work Location',    icon:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>' },
-  { label:'Quality Badges',   icon:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>' },
-  { label:'Jobs Completed',   icon:'<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>' },
-  { label:'Language',         icon:'<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"/>' },
-  { label:'Member Since',     icon:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>' },
-];
+// ── Invite Provider ────────────────────────────────────────────────────────
+const inviteForm = useForm({ display_name: '', email: '', note: '', specialty: '', network_type: 'Network' })
 
-const businessPartners = ref([
-  { name:'Marisol Vega',           initials:'MV', avatarColor:'#a0813e', partnerType:'FREELANCER',   role:'Medical Billing',      location:'Miami, FL · Remote',        tags:['Medical Billing','AR Management','Denial Mgmt'],             rate:'$85/hr',  reviews:147, jobs:92,  rating:4.9, category:'Medical Billing'      },
-  { name:'Riya Patel',             initials:'RP', avatarColor:'#6a4c8c', partnerType:'SOLOPRENEUR',  role:'Digital Marketing',    location:'Austin, TX · Remote',       tags:['SEO','Google Ads','Social Media'],                           rate:'$70/hr',  reviews:204, jobs:78,  rating:4.8, category:'Digital Marketing'    },
-  { name:'Kevin Osei',             initials:'KO', avatarColor:'#4a7a6a', partnerType:'CONSULTANT',   role:'Credentialing',        location:'Atlanta, GA · Remote',      tags:['CAQH','PECOS','Re-credentialing'],                           rate:'$55/hr',  reviews:310, jobs:130, rating:4.9, category:'Credentialing'        },
-  { name:'Jae Won Park',           initials:'JP', avatarColor:'#7a5c4a', partnerType:'CONSULTANT',   role:'Practice Consulting',  location:'Boston, MA · Remote',       tags:['Practice Management','Revenue Optimization','Operations'],    rate:'$220/hr', reviews:72,  jobs:48,  rating:4.9, category:'Practice Consulting'  },
-  { name:'Apex Billing Co.',       initials:'AB', avatarColor:'#a0813e', partnerType:'AGENCY',       role:'Medical Billing',      location:'Chicago, IL · Remote',      tags:['Revenue Cycle','Credentialing','Claims Processing'],          rate:'$150/hr', reviews:89,  jobs:204, rating:4.7, category:'Medical Billing'      },
-  { name:'Daniel Torres, CPA',     initials:'DT', avatarColor:'#4a6c8c', partnerType:'FREELANCER',   role:'Accounting / CPA',     location:'New York, NY · Remote',     tags:['Tax Planning','GAAP','Practice Valuation'],                  rate:'$175/hr', reviews:83,  jobs:41,  rating:4.8, category:'Accounting / CPA'     },
-  { name:'Bright Minds Admin',     initials:'BA', avatarColor:'#6a4c8c', partnerType:'AGENCY',       role:'Admin / VA',           location:'Phoenix, AZ · Remote',      tags:['Virtual Assistants','Scheduling','Data Entry'],              rate:'$35/hr',  reviews:175, jobs:295, rating:4.6, category:'Admin / VA'           },
-  { name:'StaffLink HR Group',     initials:'SH', avatarColor:'#4a7a6a', partnerType:'FIRM',         role:'HR / Staffing',        location:'Dallas, TX',                tags:['Recruitment','Benefits Admin','Compliance'],                 rate:'$120/hr', reviews:44,  jobs:82,  rating:4.8, category:'HR / Staffing'        },
-  { name:'Sandra Kim',             initials:'SK', avatarColor:'#8c5a4a', partnerType:'FREELANCER',   role:'Accounting / CPA',     location:'Los Angeles, CA · Remote',  tags:['Bookkeeping','QuickBooks','Tax Prep'],                       rate:'$145/hr', reviews:58,  jobs:39,  rating:4.7, category:'Accounting / CPA'     },
-  { name:'ClearPath Legal Group',  initials:'CL', avatarColor:'#4a6c8c', partnerType:'FIRM',         role:'Legal / Attorney',     location:'Houston, TX',               tags:['Healthcare Law','HIPAA Counsel','Employment Law'],            rate:'$275/hr', reviews:38,  jobs:110, rating:4.6, category:'Legal / Attorney'     },
-  { name:'CloudMed IT Solutions',  initials:'CM', avatarColor:'#7a5c4a', partnerType:'AGENCY',       role:'IT / Software',        location:'San Francisco, CA · Remote',tags:['HIPAA IT','Network Security','Cloud Migration'],             rate:'$200/hr', reviews:52,  jobs:65,  rating:4.5, category:'IT / Software'        },
-  { name:'Lena Hoffmann',          initials:'LH', avatarColor:'#a0813e', partnerType:'FREELANCER',   role:'Design / Branding',    location:'Seattle, WA · Remote',      tags:['Brand Identity','Web Design','Logo Design'],                 rate:'$90/hr',  reviews:88,  jobs:56,  rating:4.7, category:'Design / Branding'    },
-]);
+function submitInvite() {
+  inviteForm.post(route('provider.network.invite'), {
+    onSuccess: () => { modals.inviteProvider = false; inviteForm.reset(); toast.success('Invitation sent!') },
+  })
+}
+
+// ── Connect (send request) ─────────────────────────────────────────────────
+const connectTarget = ref(null)
+const connectForm   = useForm({ to_user_id: '', note: '' })
+
+function openConnect(p) {
+  connectTarget.value = p
+  connectForm.to_user_id = p.id ?? ''
+  connectForm.note = ''
+  modals.connect = true
+}
+
+function submitConnect() {
+  connectForm.post(route('provider.network.connect'), {
+    onSuccess: () => { modals.connect = false; toast.success('Connection request sent!') },
+  })
+}
+
+// ── ReferralModal — centralized via useModal ───────────────────────────────
+const referralPreselectSlug = ref('')
+
+function openReferralForProvider(p) {
+  referralPreselectSlug.value = p.slug ?? ''
+  openModal('referralModal')
+}
+
+function openReferralForConnection(nc) {
+  referralPreselectSlug.value = nc.partner_slug ?? ''
+  openModal('referralModal')
+}
+
+// ── Service Request ────────────────────────────────────────────────────────
+const svcTarget = ref(null)
+const svcForm   = reactive({ preferred_date: '', preferred_time: '', frequency: 'One-time', license_status: 'Fully Licensed', message: '', terms_agreed: false })
+
+function openSvcRequest(serviceName, providerName) {
+  svcTarget.value = { serviceName, providerName }
+  modals.svcRequest = true
+}
+
+function submitSvcRequest() {
+  toast.success('Service request sent! Provider will be notified.')
+  modals.svcRequest = false
+}
+
+// ── BP Hire ────────────────────────────────────────────────────────────────
+const bpHireTarget = ref(null)
+const bpHireForm   = reactive({ title: '', engagement_type: 'One-Time Project', start_date: '', budget: '', scope: '', include_nda: true, require_baa: true, auto_contract: true })
+
+function openBpHire(p) {
+  bpHireTarget.value = p
+  modals.bpHire = true
+}
+
+function submitBpHire() {
+  toast.success('Hire request sent! Partner will be notified.')
+  modals.bpHire = false
+}
+
+// ── Post Job ───────────────────────────────────────────────────────────────
+const postJobForm = reactive({ title: '', category: 'Medical Billing', partner_type: 'Any', engagement_type: 'One-Time Project', budget: '', timeline: 'ASAP', description: '', qualifications: '', hipaa_required: true, verified_only: false, remote_allowed: true, require_nda: false })
+
+function submitPostJob() {
+  toast.success('Job posted! Partners will be notified.')
+  modals.postJob = false
+}
+
+// ── Profile navigation ─────────────────────────────────────────────────────
+function viewProfile(slug) {
+  if (slug) router.visit(route('provider.profile.public', { slug }))
+}
+
+// ── Search / filter helpers ────────────────────────────────────────────────
+const clinicalSearch        = ref('')
+const bizSearch             = ref('')
+const providerTypeSearch    = ref('')
+const selectedProviderTypes = ref([])
+const allProviderTypes = ['Psychotherapist','Psychologist','Psychiatrist','Pain Management Specialist','Movement/Dance Specialist','Life Coach','Health Coach','Behavioral Therapist','Massage Therapist','Acupuncturist','Naturopathic Doctor (ND)','Functional Medicine Practitioner','Registered Dietitian (RD/RDN)']
+const filteredProviderTypes = computed(() => {
+  const q = providerTypeSearch.value.toLowerCase()
+  if (!q) return allProviderTypes
+  return allProviderTypes.filter(t => t.toLowerCase().includes(q))
+})
+const searchSort     = ref('Best Match')
+const bpSearch       = ref('')
+const bpSort         = ref('Best Match')
+const bpClinicalOnly = ref(false)
+const bpCategory     = ref('')
+const bpCatOpen      = ref(true)
+const rtSearch       = ref('')
+
+const filteredClinical = computed(() => {
+  const q = clinicalSearch.value.toLowerCase()
+  if (!q) return props.clinicalConnections
+  return props.clinicalConnections.filter(nc =>
+    (nc.partner_name     ?? '').toLowerCase().includes(q) ||
+    (nc.partner_role     ?? '').toLowerCase().includes(q) ||
+    (nc.partner_location ?? '').toLowerCase().includes(q)
+  )
+})
+
+const filteredBpConnections = computed(() => {
+  const q = bizSearch.value.toLowerCase()
+  if (!q) return props.bpConnections
+  return props.bpConnections.filter(nc =>
+    (nc.partner_name ?? '').toLowerCase().includes(q) ||
+    (nc.partner_role ?? '').toLowerCase().includes(q)
+  )
+})
 
 const filteredPartners = computed(() => {
   return businessPartners.value.filter(p => {
-    const q = bpSearch.value.toLowerCase();
-    if (q && !p.name.toLowerCase().includes(q) && !p.role.toLowerCase().includes(q) && !p.tags.some(t => t.toLowerCase().includes(q))) return false;
-    if (bpCategory.value && p.category !== bpCategory.value) return false;
-    return true;
-  });
-});
+    const q = bpSearch.value.toLowerCase()
+    if (q && !p.name.toLowerCase().includes(q) && !p.role.toLowerCase().includes(q) && !p.tags.some(t => t.toLowerCase().includes(q))) return false
+    if (bpCategory.value && p.category !== bpCategory.value) return false
+    return true
+  })
+})
 
-// Referrals & Tools — Shadow Network
-const rtSubTab = ref('list');
-const rtSearch = ref('');
+const filteredRtCandidates = computed(() => {
+  const q = rtSearch.value.toLowerCase()
+  if (!q) return rtCandidates.value
+  return rtCandidates.value.filter(s =>
+    s.name.toLowerCase().includes(q) || s.role.toLowerCase().includes(q) || s.location.toLowerCase().includes(q)
+  )
+})
 
-const shadowCandidates = ref([
-  { name:'Alicia Reeves, LPC',     initials:'AR', avatarColor:'#a0813e', role:'Licensed Professional Counselor', location:'New York, NY', tags:['ACT','Stress','Life Transitions'] },
-  { name:'Carol Huang, CDE',       initials:'CH', avatarColor:'#4a7a6a', role:'Certified Diabetes Educator',     location:'Manhattan, NY', tags:['Diabetes','Blood Sugar','Lifestyle Medicine'] },
-  { name:'Danielle Fox, PMHNP',    initials:'DF', avatarColor:'#6a4c8c', role:'Psychiatric Nurse Practitioner',  location:'New York, NY', tags:['Medication Mgmt','ADHD','Depression'] },
-  { name:'Devon Hall, CADC',       initials:'DH', avatarColor:'#7a5c4a', role:'Certified Addiction Counselor',   location:'Harlem, NY',   tags:['Substance Use','Relapse Prevention','MI'] },
-  { name:'Dr. Aisha Patel, PsyD',  initials:'AP', avatarColor:'#a0813e', role:'Psychologist',                   location:'Queens, NY',   tags:['Family Therapy','Cultural Competence'] },
-  { name:'Dr. Amara Osei, LCSW',   initials:'AO', avatarColor:'#4a6c8c', role:'Clinical Social Worker',         location:'Brooklyn, NY', tags:['Trauma','BIPOC Care','CBT'] },
-  { name:'Dr. Diana Vasquez, PhD', initials:'DV', avatarColor:'#4a7a6a', role:'Clinical Psychologist',          location:'Houston, TX',  tags:['Trauma','DBT','EMDR'] },
-  { name:'Dr. Elena Rodriguez, RD',initials:'ER', avatarColor:'#8c5a4a', role:'Registered Dietitian',           location:'Manhattan, NY',tags:['Eating Disorders','Nutrition','Mental Health'] },
-  { name:'Dr. Hana Yoon, MD',      initials:'HY', avatarColor:'#6a4c8c', role:'Psychiatrist',                   location:'New York, NY', tags:['Mood disorders','adolescent psychiatry'] },
-  { name:'Dr. Hannah Brooks, LCSW',initials:'HB', avatarColor:'#a0813e', role:'Clinical Social Worker',         location:'Brooklyn, NY', tags:['Family therapy','trauma-informed care'] },
-  { name:'Dr. James Torres, MD',   initials:'JT', avatarColor:'#4a7a6a', role:'Geriatric Psychiatrist',         location:'New York, NY', tags:['Geriatric Psychiatry','Memory Disorders'] },
-  { name:'Dr. Keisha Brooks, ND',  initials:'KB', avatarColor:'#7a5c4a', role:'Naturopathic Doctor',            location:'Jersey City, NJ',tags:['Hormone Health','Gut Health','Root-Cause Medicine'] },
-]);
-
-const filteredShadows = computed(() => {
-  const q = rtSearch.value.toLowerCase();
-  if (!q) return shadowCandidates.value;
-  return shadowCandidates.value.filter(s =>
-    s.name.toLowerCase().includes(q) ||
-    s.role.toLowerCase().includes(q) ||
-    s.location.toLowerCase().includes(q) ||
-    s.tags.some(t => t.toLowerCase().includes(q))
-  );
-});
-
-function addToShadows(s) {
-  showToast(s.name + ' added to My Shadows', 'success');
-}
-function removeShadow(s) {
-  shadowCandidates.value = shadowCandidates.value.filter(c => c.name !== s.name);
-  showToast(s.name + ' removed', 'info');
+function removeRtCandidate(s) {
+  rtCandidates.value = rtCandidates.value.filter(c => c.name !== s.name)
 }
 
-// Filter groups
-const filterGroups = reactive([
-  { label:'Provider Type',          open:false, icon:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>' },
-  { label:'Specialties',            open:false, icon:'<polygon points="12 2 15 8.5 22 9.3 17 14 18.2 21 12 17.5 5.8 21 7 14 2 9.3 9 8.5 12 2"/>' },
-  { label:'Treatment Approaches',   open:false, icon:'<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>' },
-  { label:'Insurance Accepted',     open:false, icon:'<rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>' },
-  { label:'Format & Services',      open:false, icon:'<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>' },
-  { label:'Location',               open:false, icon:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>' },
-  { label:'Credentials',            open:false, icon:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>' },
-  { label:'Rate & Availability',    open:false, icon:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>' },
-  { label:'Provider Demographics',  open:false, icon:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>' },
-]);
+// ── Static display data ────────────────────────────────────────────────────
+const recommendedCategories = [
+  { label:'Psychiatrist',     desc:'Medication management',  count:3, icon:'pill-shape',  priority:'high'   },
+  { label:'Therapist / LCSW', desc:'Ongoing psychotherapy', count:6, icon:'heart-2',     priority:'high'   },
+  { label:'Neurologist',      desc:'Neuropsychiatric care',  count:2, icon:'globe',       priority:'medium' },
+  { label:'Primary Care',     desc:'Care coordination',      count:4, icon:'home',        priority:'medium' },
+  { label:'Dietician',        desc:'Eating & metabolism',    count:3, icon:'dollar-sign', priority:'medium' },
+  { label:'Medical Billing',  desc:'Revenue cycle',          count:6, icon:'briefcase',   priority:'medium' },
+  { label:'Credentialing',    desc:'Insurance & licensing',  count:2, icon:'shield',      priority:'medium' },
+]
 
-// Search results
+const aiShadowCandidates = ref([
+  { name:'Dr. Rachel Moore, MD',  id:'', slug:'', initials:'RM', role:'Psychiatrist',             location:'New York, NY', tags:['Anxiety','Mood Disorders','PTSD'],       match:96, rating:4.3, telehealth:true,  connected:false },
+  { name:'Sarah Nguyen, PsyD',    id:'', slug:'', initials:'SN', role:'Psychologist',             location:'Brooklyn, NY', tags:['CBT','Trauma','Depression'],             match:93, rating:4.7, telehealth:true,  connected:false },
+  { name:'Maya Torres, LCSW',     id:'', slug:'', initials:'MT', role:'Licensed Clinical Social Worker', location:'Queens, NY', tags:['DBT','Anxiety','LGBTQ+'],      match:88, rating:4.8, telehealth:false, connected:false },
+  { name:'James Okafor, LMFT',    id:'', slug:'', initials:'JO', role:'Marriage & Family Therapist',    location:'Bronx, NY',   tags:['Couples','Family Conflict','IFS'], match:90, rating:4.6, telehealth:false, connected:false },
+  { name:'Alicia Reeves, LPC',    id:'', slug:'', initials:'AR', role:'Licensed Professional Counselor',location:'New York, NY', tags:['ACT','Stress','Life Transitions'], match:84, rating:4.8, telehealth:true,  connected:false },
+  { name:'Nina Park, RDN',        id:'', slug:'', initials:'NP', role:'Registered Dietician',    location:'Manhattan, NY', tags:['Eating Disorders','Functional Nutrition'], match:92, rating:4.6, telehealth:true, connected:false },
+])
+
 const searchResults = ref([
-  { name:'Dr. Daniel Malik, MD',  initials:'DM', avatarColor:'#a0813e', role:'Psychiatrist',  location:'NYC, NY',       tags:['Anxiety','PTSD','Mood Disorders'], rating:4.9, refs:'14 refs', acc:'80% acc', resp:'3.1h resp' },
-  { name:'Dr. Lisa Chen, PhD',    initials:'LC', avatarColor:'#6a4c8c', role:'Psychologist',  location:'Brooklyn, NY',  tags:['CBT','Depression'],               rating:4.7, refs:'8 refs',  acc:'88% acc', resp:'2.0h resp' },
-  { name:'Dr. Marcus Webb, LCSW', initials:'MW', avatarColor:'#4a7a6a', role:'Therapist / Counselor', location:'Queens, NY', tags:['DBT','Family Therapy','Addiction'], rating:4.8, refs:'0 refs', acc:'—',       resp:'2.1h resp' },
-  { name:'Dr. Aisha Patel, PsyD', initials:'AP', avatarColor:'#7a5c4a', role:'Psychologist',  location:'Manhattan, NY', tags:['Child & Adolescent','ADHD','Autism'], rating:4.8, refs:'0 refs', acc:'—',       resp:'6.5h resp' },
-  { name:'Dr. James Torres, MD',  initials:'JT', avatarColor:'#4a6c8c', role:'Psychiatrist',  location:'Newark, NJ',    tags:['Geriatric Psych','Dementia','Medication Mgmt'], rating:4.5, refs:'5 refs', acc:'80% acc', resp:'5.1h resp' },
-  { name:'Dr. Sofia Kim, MD',     initials:'SK', avatarColor:'#8c5a4a', role:'Neurologist',   location:'Bronx, NY',     tags:['Epilepsy','Headaches','Neurocognitive'], rating:4.8, refs:'0 refs', acc:'—',       resp:'2.8h resp' },
-]);
+  { name:'Dr. Daniel Malik, MD',  id:'', slug:'', initials:'DM', role:'Psychiatrist',          location:'NYC, NY',       tags:['Anxiety','PTSD','Mood Disorders'],             rating:4.9, reviews:62, refs:'14 refs', acc:'80% acc', resp:'3.1h resp', telehealth:true,  networkStatus:'in-network'    },
+  { name:'Dr. Lisa Chen, PhD',    id:'', slug:'', initials:'LC', role:'Psychologist',           location:'Brooklyn, NY',  tags:['CBT','Depression','Trauma'],                   rating:4.7, reviews:38, refs:'8 refs',  acc:'88% acc', resp:'2.0h resp', telehealth:true,  networkStatus:'in-network'    },
+  { name:'Dr. Marcus Webb, LCSW', id:'', slug:'', initials:'MW', role:'Therapist / Counselor',  location:'Queens, NY',    tags:['DBT','Family Therapy','Addiction'],             rating:4.8, reviews:51, refs:'0 refs',  acc:'—',       resp:'2.1h resp', telehealth:false, networkStatus:'not-connected' },
+  { name:'Dr. Aisha Patel, PsyD', id:'', slug:'', initials:'AP', role:'Psychologist',           location:'Manhattan, NY', tags:['Child & Adolescent','ADHD','Autism'],          rating:4.8, reviews:29, refs:'0 refs',  acc:'—',       resp:'4.5h resp', telehealth:false, networkStatus:'pending'       },
+  { name:'Dr. James Torres, MD',  id:'', slug:'', initials:'JT', role:'Psychiatrist',           location:'Newark, NJ',    tags:['Geriatric Psych','Dementia','Medication Mgmt'],rating:4.5, reviews:18, refs:'5 refs',  acc:'80% acc', resp:'5.0h resp', telehealth:true,  networkStatus:'in-network'    },
+  { name:'Dr. Sofia Kim, MD',     id:'', slug:'', initials:'SK', role:'Neurologist',            location:'Bronx, NY',     tags:['Epilepsy','Headaches','Neurocognitive'],        rating:4.8, reviews:44, refs:'0 refs',  acc:'—',       resp:'2.8h resp', telehealth:false, networkStatus:'not-connected' },
+])
+
+const filterGroups = reactive([
+  { label:'Provider Type',        open:false, icon:'user'        },
+  { label:'Specialties',          open:false, icon:'star'        },
+  { label:'Treatment Approaches', open:false, icon:'book-open'   },
+  { label:'Insurance Accepted',   open:false, icon:'credit-card' },
+  { label:'Format & Services',    open:false, icon:'monitor'     },
+  { label:'Location',             open:false, icon:'map-pin'     },
+  { label:'Credentials',          open:false, icon:'shield'      },
+  { label:'Rate & Availability',  open:false, icon:'clock'       },
+  { label:'Provider Demographics',open:false, icon:'users'       },
+])
+
+const businessPartners = ref([
+  { name:'Marisol Vega',       id:'', initials:'MV', avatarColor:'var(--gold-dark)', partnerType:'FREELANCER',  role:'Medical Billing',     location:'Miami, FL · Remote',   tags:['Medical Billing','AR Management','Denial Mgmt'],         rate:'$85/hr',  reviews:147, jobs:92,  rating:4.9, category:'Medical Billing'    },
+  { name:'Riya Patel',         id:'', initials:'RP', avatarColor:'var(--gold-dark)', partnerType:'SOLOPRENEUR', role:'Digital Marketing',   location:'Austin, TX · Remote',  tags:['SEO','Google Ads','Social Media'],                        rate:'$70/hr',  reviews:204, jobs:78,  rating:4.8, category:'Digital Marketing'  },
+  { name:'Kevin Osei',         id:'', initials:'KO', avatarColor:'var(--gold-dark)', partnerType:'CONSULTANT',  role:'Credentialing',       location:'Atlanta, GA · Remote', tags:['CAQH','PECOS','Re-credentialing'],                        rate:'$55/hr',  reviews:310, jobs:130, rating:4.9, category:'Credentialing'      },
+  { name:'Jae Won Park',       id:'', initials:'JP', avatarColor:'var(--gold-dark)', partnerType:'CONSULTANT',  role:'Practice Consulting', location:'Boston, MA · Remote',  tags:['Practice Management','Revenue Optimization','Operations'], rate:'$220/hr', reviews:72,  jobs:48,  rating:4.9, category:'Practice Consulting' },
+  { name:'Apex Billing Co.',   id:'', initials:'AB', avatarColor:'var(--gold-dark)', partnerType:'AGENCY',      role:'Medical Billing',     location:'Chicago, IL · Remote', tags:['Revenue Cycle','Credentialing','Claims Processing'],       rate:'$150/hr', reviews:89,  jobs:204, rating:4.7, category:'Medical Billing'    },
+  { name:'Daniel Torres, CPA', id:'', initials:'DT', avatarColor:'var(--gold-dark)', partnerType:'FREELANCER',  role:'Accounting / CPA',   location:'New York, NY · Remote',tags:['Tax Planning','GAAP','Practice Valuation'],                rate:'$175/hr', reviews:83,  jobs:41,  rating:4.8, category:'Accounting / CPA'   },
+  { name:'Bright Minds Admin', id:'', initials:'BA', avatarColor:'var(--gold-dark)', partnerType:'AGENCY',      role:'Admin / VA',          location:'Phoenix, AZ · Remote', tags:['Virtual Assistants','Scheduling','Data Entry'],            rate:'$35/hr',  reviews:175, jobs:295, rating:4.6, category:'Admin / VA'         },
+  { name:'StaffLink HR Group', id:'', initials:'SH', avatarColor:'var(--gold-dark)', partnerType:'FIRM',        role:'HR / Staffing',       location:'Dallas, TX',           tags:['Recruitment','Benefits Admin','Compliance'],               rate:'$120/hr', reviews:44,  jobs:82,  rating:4.8, category:'HR / Staffing'      },
+])
+
+const bpFilterGroups = [
+  { label:'Partner Type',     icon:'users'       },
+  { label:'Hourly Rate',      icon:'dollar-sign' },
+  { label:'Experience Level', icon:'star'        },
+  { label:'Availability',     icon:'clock'       },
+  { label:'Engagement Type',  icon:'briefcase'   },
+  { label:'Work Location',    icon:'map-pin'     },
+]
+
+const rtCandidates = ref([
+  { name:'Alicia Reeves, LPC',     id:'', slug:'', initials:'AR', role:'Licensed Professional Counselor',  location:'New York, NY', tags:['ACT','Stress','Life Transitions'] },
+  { name:'Carol Huang, CDE',       id:'', slug:'', initials:'CH', role:'Certified Diabetes Educator',      location:'Manhattan, NY', tags:['Diabetes','Blood Sugar','Lifestyle Medicine'] },
+  { name:'Danielle Fox, PMHNP',    id:'', slug:'', initials:'DF', role:'Psychiatric Nurse Practitioner',   location:'New York, NY', tags:['Medication Mgmt','ADHD','Depression'] },
+  { name:'Devon Hall, CADC',       id:'', slug:'', initials:'DH', role:'Certified Addiction Counselor',    location:'Harlem, NY',   tags:['Substance Use','Relapse Prevention','MI'] },
+  { name:'Dr. Aisha Patel, PsyD',  id:'', slug:'', initials:'AP', role:'Psychologist',                    location:'Queens, NY',   tags:['Family Therapy','Cultural Competence'] },
+  { name:'Dr. Amara Osei, LCSW',   id:'', slug:'', initials:'AO', role:'Clinical Social Worker',          location:'Brooklyn, NY', tags:['Trauma','BIPOC Care','CBT'] },
+  { name:'Dr. Diana Vasquez, PhD', id:'', slug:'', initials:'DV', role:'Clinical Psychologist',           location:'Houston, TX',  tags:['Trauma','DBT','EMDR'] },
+  { name:'Dr. Elena Rodriguez, RD',id:'', slug:'', initials:'ER', role:'Registered Dietitian',            location:'Manhattan, NY',tags:['Eating Disorders','Nutrition','Mental Health'] },
+])
+
+// ── Utility ────────────────────────────────────────────────────────────────
+function tagList(str) {
+  return (str || '').split(',').map(s => s.trim()).filter(Boolean)
+}
+
+function timeAgo(iso) {
+  if (!iso) return ''
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 7)  return days + 'd ago'
+  return new Date(iso).toLocaleDateString('en-US', { month:'short', day:'numeric' })
+}
 </script>
 
 <style scoped>
-/* Hero */
-.nw-hero { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg,14px); padding:22px 26px; margin-bottom:14px; box-shadow:var(--shadow-xs); flex-wrap:wrap; }
-.nw-eyebrow { font-family:var(--font-sans); font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--gold-dark); margin-bottom:5px; }
-.nw-title { font-family:var(--font-serif); font-size:26px; font-weight:700; color:var(--text); margin:0 0 6px; }
-.nw-sub { font-family:var(--font-sans); font-size:12.5px; color:var(--text-3); margin:0; line-height:1.5; max-width:600px; }
-.nw-hero-actions { display:flex; gap:8px; flex-shrink:0; align-items:center; }
-.nw-btn-icon { display:inline-flex; align-items:center; gap:6px; }
+/* ══════════════════════════════════════════════════════
+   OVERFLOW CONTRACT — nothing in this file may produce
+   horizontal scroll. All grids use auto-fill or 100%.
+   All flex rows either wrap or are inside a slider track.
+   ══════════════════════════════════════════════════════ */
 
-/* Requests banner */
-.nw-requests-banner { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg,14px); padding:18px 20px; margin-bottom:14px; box-shadow:var(--shadow-xs); }
-.nw-requests-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px; }
-.nw-requests-label { font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--gold-dark); margin-bottom:3px; }
-.nw-requests-title { font-family:var(--font-serif); font-size:17px; font-weight:700; color:var(--text); margin-bottom:2px; }
-.nw-requests-sub { font-size:12px; color:var(--text-3); }
-.nw-request-cards { display:flex; gap:12px; flex-wrap:wrap; }
-.nw-request-card { background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; min-width:200px; flex:1; max-width:260px; }
-.nw-req-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
-.nw-req-type-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:99px; }
-.nw-badge-green { background:var(--green-light); color:var(--green-dark); border:1px solid var(--soft-green); }
-.nw-badge-blue  { background:var(--blue-light);  color:var(--blue-dark);  border:1px solid var(--soft-blue); }
-.nw-req-date { font-size:11px; color:var(--text-4); }
-.nw-req-profile { display:flex; align-items:flex-start; gap:10px; margin-bottom:12px; }
-.nw-req-avatar { width:36px; height:36px; border-radius:8px; color:#fff; font-family:var(--font-sans); font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.nw-req-name { font-size:13px; font-weight:700; color:var(--text); line-height:1.3; }
-.nw-req-role { font-size:11.5px; color:var(--text-3); margin-top:1px; }
-.nw-req-loc  { font-size:11px; color:var(--text-4); margin-top:1px; }
-.nw-req-actions { display:flex; gap:6px; }
+/* ── Page root ────────────────────────────────────────── */
+.nw-page-root { width:100%; overflow-x:hidden; }
+* { box-sizing:border-box; }
 
-/* Tabs */
-.nw-tabs { display:flex; align-items:center; gap:2px; border-bottom:1px solid var(--border); margin-bottom:18px; }
-.nw-tab { display:inline-flex; align-items:center; gap:7px; padding:9px 14px; font-family:var(--font-sans); font-size:13px; font-weight:500; color:var(--text-3); background:transparent; border:none; border-bottom:2px solid transparent; cursor:pointer; transition:color .15s,border-color .15s; margin-bottom:-1px; }
-.nw-tab:hover { color:var(--text); }
-.nw-tab.active { color:var(--text); font-weight:600; border-bottom-color:var(--gold-dark); }
+/* ── Hero actions ─────────────────────────────────────── */
+.nw-icon-btn { display:inline-flex; align-items:center; gap:6px; }
 
-/* Sub-tabs */
-.nw-subtabs { display:flex; gap:8px; margin-bottom:18px; }
-.nw-subtab { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; font-family:var(--font-sans); font-size:12.5px; font-weight:600; color:var(--text-3); background:var(--surface-2); border:1.5px solid var(--border); border-radius:8px; cursor:pointer; transition:all .15s; }
-.nw-subtab:hover { border-color:var(--gold-dark); color:var(--gold-dark); }
-.nw-subtab.active { background:var(--gold-dark); color:#fff; border-color:var(--gold-dark); }
-
-/* Section headers */
-.nw-section-header { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
-.nw-section-title { display:inline-flex; align-items:center; gap:7px; font-family:var(--font-sans); font-size:14px; font-weight:700; color:var(--text); }
-.nw-section-sub { font-size:12.5px; color:var(--text-3); margin:0 0 14px; line-height:1.5; }
-.nw-ai-badge { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; letter-spacing:.05em; padding:3px 8px; border-radius:99px; background:rgba(74,144,196,.1); color:var(--blue-dark); border:1px solid var(--soft-blue); }
-.nw-ai-badge-match { background:rgba(76,175,125,.1); color:var(--green-dark); border-color:var(--soft-green); }
-
-/* Recommended scroll row */
-.nw-rec-scroll { display:flex; gap:10px; overflow-x:auto; padding-bottom:6px; margin-bottom:4px; }
-.nw-rec-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; min-width:150px; flex-shrink:0; cursor:pointer; transition:box-shadow .15s; }
-.nw-rec-card:hover { box-shadow:var(--shadow-sm); }
-.nw-rec-icon { margin-bottom:8px; }
-.nw-rec-label { font-family:var(--font-sans); font-size:13px; font-weight:700; color:var(--text); margin-bottom:3px; }
-.nw-rec-desc { font-size:11.5px; color:var(--text-4); margin-bottom:8px; }
-.nw-rec-count { font-size:11.5px; color:var(--text-3); margin-bottom:8px; }
-.nw-rec-arrow { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; border:1.5px solid var(--border); background:transparent; color:var(--text-3); cursor:pointer; transition:all .15s; }
-.nw-rec-arrow:hover { border-color:var(--gold-dark); color:var(--gold-dark); }
-
-/* Shadow / provider cards */
-.nw-shadow-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:28px; }
-.nw-provider-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 13px; position:relative; cursor:pointer; transition:box-shadow .15s,transform .15s; }
-.nw-provider-card:hover { box-shadow:var(--shadow-sm); transform:translateY(-2px); }
-.nw-pcard-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
-.nw-pcard-match { font-size:11px; font-weight:700; color:var(--green-dark); background:var(--green-light); border-radius:99px; padding:2px 7px; }
-.nw-pcard-rating { font-size:11px; font-weight:600; color:var(--gold-dark); }
-.nw-added-btn { font-size:10px; font-weight:700; color:var(--green-dark); background:var(--green-light); border:none; border-radius:99px; padding:2px 8px; cursor:default; }
-.nw-pcard-avatar { width:40px; height:40px; border-radius:10px; color:#fff; font-family:var(--font-sans); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-bottom:8px; }
-.nw-pcard-name { font-family:var(--font-sans); font-size:12.5px; font-weight:700; color:var(--text); line-height:1.3; margin-bottom:2px; }
-.nw-pcard-role { font-size:11px; color:var(--text-4); margin-bottom:5px; }
-.nw-pcard-loc  { display:inline-flex; align-items:center; gap:4px; font-size:11px; color:var(--text-4); margin-bottom:8px; }
-.nw-pcard-tags { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:10px; }
-.nw-pcard-tag  { font-size:10.5px; color:var(--text-3); background:var(--surface-2); border:1px solid var(--border); border-radius:99px; padding:2px 7px; }
-.nw-pcard-actions { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
-.nw-pcard-icon-btn { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text-3); cursor:pointer; transition:all .15s; }
-.nw-pcard-icon-btn:hover { border-color:var(--gold-dark); color:var(--gold-dark); }
-.nw-connect-btn { display:inline-flex; align-items:center; gap:4px; font-size:11.5px; }
-
-/* Search layout */
-.nw-search-results-header { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-4); text-align:center; margin:4px 0 16px; }
-.nw-search-layout { display:grid; grid-template-columns:180px 1fr; gap:18px; }
-.nw-filters-sidebar { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg,14px); padding:16px; height:fit-content; }
-.nw-filters-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-.nw-filters-title { font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-3); }
-.nw-clear-btn { font-size:10px; font-weight:700; color:var(--gold-dark); background:transparent; border:none; cursor:pointer; letter-spacing:.04em; }
-.nw-filter-group { margin-bottom:2px; }
-.nw-filter-group-btn { display:flex; align-items:center; gap:7px; width:100%; padding:8px 4px; font-family:var(--font-sans); font-size:12px; font-weight:500; color:var(--text-2); background:transparent; border:none; cursor:pointer; border-bottom:1px solid var(--border); }
-.nw-filter-group-btn:hover { color:var(--text); }
-.nw-apply-btn { display:block; width:100%; margin-top:14px; padding:10px; font-family:var(--font-sans); font-size:12.5px; font-weight:700; background:var(--gold-dark); color:#fff; border:none; border-radius:8px; cursor:pointer; transition:background .15s; }
-.nw-apply-btn:hover { background:var(--gold); }
-.nw-results-header-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px; }
-.nw-results-count { font-size:12.5px; color:var(--text-3); }
-.nw-results-sort { display:flex; align-items:center; gap:6px; }
-.nw-sort-label { font-size:12px; color:var(--text-4); }
-.nw-sort-select { font-family:var(--font-sans); font-size:12px; color:var(--text); background:var(--surface); border:1.5px solid var(--border); border-radius:6px; padding:4px 8px; cursor:pointer; outline:none; }
-.nw-results-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
-.nw-result-card .nw-pcard-top { flex-direction:row; align-items:center; gap:10px; }
-.nw-result-card .nw-pcard-avatar { margin-bottom:0; width:38px; height:38px; font-size:12px; }
-.nw-result-stats { font-size:11px; color:var(--text-4); margin-bottom:8px; }
-
-/* Empty states */
-.nw-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:60px 20px; color:var(--text-4); }
-.nw-empty p { font-family:var(--font-sans); font-size:14px; margin:0; }
-
-@media(max-width:1200px) { .nw-shadow-grid { grid-template-columns:repeat(3,1fr); } .nw-results-grid { grid-template-columns:repeat(2,1fr); } }
-@media(max-width:860px)  { .nw-shadow-grid { grid-template-columns:repeat(2,1fr); } .nw-search-layout { grid-template-columns:1fr; } }
-
-/* ── Business Partners ──────────────────────────────────────── */
-.bp-search-bar { display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
-.bp-search-wrap { position:relative; flex:1; min-width:220px; }
-.bp-search-input { width:100%; padding:9px 12px 9px 34px; font-family:var(--font-sans); font-size:13px; color:var(--text); background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius-sm,8px); outline:none; transition:border-color .15s,box-shadow .15s; box-sizing:border-box; }
-.bp-search-input:focus { border-color:var(--gold-dark); box-shadow:0 0 0 3px rgba(160,129,62,.14); }
-.bp-search-input::placeholder { color:var(--text-4); }
-.bp-sort-wrap { display:flex; align-items:center; gap:6px; flex-shrink:0; }
-.bp-sort-label { font-size:12px; color:var(--text-4); }
-.bp-count { font-size:12.5px; color:var(--text-3); margin-bottom:14px; }
-.bp-layout { display:grid; grid-template-columns:200px 1fr; gap:18px; }
-.bp-sidebar { height:fit-content; }
-.bp-filter-toggle-row { display:flex; align-items:center; justify-content:space-between; padding:10px 4px; border-bottom:1px solid var(--border); margin-bottom:4px; }
-.bp-filter-toggle-label { font-family:var(--font-sans); font-size:12px; color:var(--text-2); }
-.bp-toggle { position:relative; display:inline-block; width:36px; height:20px; flex-shrink:0; }
-.bp-toggle input { opacity:0; width:0; height:0; }
-.bp-toggle-track { position:absolute; inset:0; background:var(--border-dark); border-radius:99px; cursor:pointer; transition:background .2s; }
-.bp-toggle input:checked + .bp-toggle-track { background:var(--gold-dark); }
-.bp-toggle-thumb { position:absolute; width:16px; height:16px; left:2px; top:2px; background:#fff; border-radius:50%; transition:transform .2s; }
-.bp-toggle input:checked + .bp-toggle-track .bp-toggle-thumb { transform:translateX(16px); }
-.bp-filter-section { border-bottom:1px solid var(--border); padding:8px 0; }
-.bp-filter-section-header { display:flex; align-items:center; gap:7px; padding:4px; font-family:var(--font-sans); font-size:12px; font-weight:500; color:var(--text-2); cursor:pointer; }
-.bp-filter-section-header:hover { color:var(--text); }
-.bp-results {}
-.bp-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
-.bp-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 13px; transition:box-shadow .15s,transform .15s; cursor:pointer; }
-.bp-card:hover { box-shadow:var(--shadow-sm); transform:translateY(-2px); }
-.bp-card-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
-.bp-type-badge { font-size:9.5px; font-weight:700; letter-spacing:.05em; padding:2px 7px; border-radius:99px; background:rgba(160,129,62,.1); color:var(--gold-dark); border:1px solid var(--fade-gold); }
-.bp-card-rating { font-size:11px; font-weight:600; color:var(--gold-dark); }
-.bp-card-avatar-row { display:flex; justify-content:flex-start; margin-bottom:8px; }
-.bp-avatar { width:44px; height:44px; border-radius:10px; color:#fff; font-family:var(--font-sans); font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; }
-.bp-card-name { font-family:var(--font-sans); font-size:13px; font-weight:700; color:var(--text); margin-bottom:2px; }
-.bp-card-role { font-size:11.5px; color:var(--text-4); margin-bottom:2px; }
-.bp-card-loc  { font-size:11px; color:var(--text-4); margin-bottom:8px; }
-.bp-card-tags { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px; }
-.bp-card-stats { font-size:11px; color:var(--text-4); margin-bottom:10px; padding-top:8px; border-top:1px solid var(--border); }
-.bp-card-actions { display:flex; gap:5px; }
-@media(max-width:1200px) { .bp-grid { grid-template-columns:repeat(3,1fr); } }
-@media(max-width:900px)  { .bp-grid { grid-template-columns:repeat(2,1fr); } .bp-layout { grid-template-columns:1fr; } }
-
-/* ── Referrals & Tools — Shadow Network ───────────────────── */
-.rt-count-pill { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 5px; font-size:10px; font-weight:700; border-radius:99px; background:#d4cdc3; color:var(--text-2); margin-left:2px; }
-.rt-section-title { font-family:var(--font-serif); font-size:18px; font-weight:700; color:var(--text); margin-bottom:12px; }
-.rt-ai-banner { display:flex; align-items:flex-start; gap:12px; background:rgba(160,129,62,0.07); border:1px solid var(--fade-gold); border-radius:10px; padding:14px 16px; margin-bottom:16px; }
-.rt-ai-icon { width:32px; height:32px; border-radius:8px; background:rgba(160,129,62,0.12); color:var(--gold-dark); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.rt-ai-title { font-family:var(--font-sans); font-size:13px; font-weight:700; color:var(--text); margin-bottom:3px; }
-.rt-ai-sub   { font-family:var(--font-sans); font-size:12.5px; color:var(--text-3); line-height:1.55; }
-.rt-ai-sub strong { color:var(--text); }
-.rt-showing { font-size:12px; color:var(--text-4); margin-bottom:14px; }
-.rt-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
-.rt-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 14px; position:relative; transition:box-shadow .15s,transform .15s; cursor:pointer; }
-.rt-card:hover { box-shadow:var(--shadow-sm); transform:translateY(-2px); }
-.rt-card-shadow-icon { position:absolute; top:12px; left:12px; color:var(--gold-dark); opacity:.6; }
-.rt-card-avatar { width:44px; height:44px; border-radius:10px; color:#fff; font-family:var(--font-sans); font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; margin:8px auto 10px; }
-.rt-card-name { font-family:var(--font-sans); font-size:13px; font-weight:700; color:var(--text); text-align:center; margin-bottom:2px; }
-.rt-card-role { font-size:11.5px; color:var(--text-4); text-align:center; margin-bottom:2px; }
-.rt-card-loc  { font-size:11px; color:var(--text-4); text-align:center; margin-bottom:10px; }
-.rt-card-tags { display:flex; flex-wrap:wrap; justify-content:center; gap:4px; margin-bottom:12px; }
-.rt-card-actions { display:flex; justify-content:center; gap:6px; padding-top:10px; border-top:1px solid var(--border); }
-.rt-card-remove:hover { border-color:var(--red); color:var(--red); background:var(--red-light); }
-@media(max-width:1200px) { .rt-grid { grid-template-columns:repeat(3,1fr); } }
-@media(max-width:860px)  { .rt-grid { grid-template-columns:repeat(2,1fr); } }
-
-/* ── Review Requests Modal ─────────────────────────────────── */
-.nw-modal-backdrop {
-  position:fixed; inset:0; z-index:1000;
-  background:rgba(30,28,26,0.45);
-  backdrop-filter:blur(4px);
-  display:flex; align-items:center; justify-content:center; padding:20px;
-}
-.nw-modal {
+/* ── Pending connection requests ─────────────────────── */
+.section-block {
   background:var(--surface); border:1px solid var(--border);
-  border-radius:14px; box-shadow:0 24px 64px rgba(30,28,26,0.2);
-  width:100%; max-width:660px; overflow:hidden;
+  border-radius:var(--radius-lg); padding:18px 20px; margin-bottom:14px;
+  box-shadow:var(--shadow-xs); width:100%;
 }
-.nw-modal-header {
-  display:flex; align-items:flex-start; justify-content:space-between;
-  padding:20px 22px 14px; border-bottom:1px solid var(--border);
+.section-head { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px; }
+.section-head-eyebrow { font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--gold-dark); margin-bottom:3px; }
+.section-head-title   { font-family:var(--font-serif); font-size:17px; font-weight:700; color:var(--text); margin:0 0 2px; }
+.section-head-sub     { font-size:12px; color:var(--text-3); margin:0; }
+.list-grid { display:flex; gap:12px; flex-wrap:wrap; width:100%; }
+.card.is-person { background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; flex:1 1 200px; max-width:280px; }
+.card-top   { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.card-time  { font-size:11px; color:var(--text-4); }
+.badge.is-quiet.is-clinical { font-size:10px; font-weight:700; padding:2px 8px; border-radius:99px; background:var(--green-light); color:var(--green-dark); border:1px solid var(--soft-green); display:inline-flex; align-items:center; gap:4px; }
+.badge.is-quiet.is-business { font-size:10px; font-weight:700; padding:2px 8px; border-radius:99px; background:var(--blue-light);  color:var(--blue-dark);  border:1px solid var(--soft-blue);  display:inline-flex; align-items:center; gap:4px; }
+.person-row    { display:flex; align-items:flex-start; gap:10px; margin-bottom:12px; }
+.person-avatar { width:36px; height:36px; border-radius:8px; background:var(--gold-dark); color:#fff; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.person-name   { font-size:13px; font-weight:700; color:var(--text); line-height:1.3; }
+.person-meta   { font-size:11px; color:var(--text-3); margin-top:1px; }
+.card-actions  { display:flex; gap:6px; }
+
+/* ── Main tabs (two-tier) ─────────────────────────────── */
+
+
+/* ── Recommended section header ───────────────────────── */
+.rec-section        { margin-bottom:22px; width:100%; overflow:hidden; }
+.rec-section-shadow { margin-top:28px; }
+.rec-header   { margin-bottom:6px; }
+.rec-title    { display:inline-flex; align-items:center; gap:7px; font-size:14px; font-weight:700; color:var(--text); flex-wrap:wrap; }
+.rec-sub      { font-size:12px; color:var(--text-3); margin:4px 0 12px; line-height:1.5; }
+.badge-ai       { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; padding:3px 8px; border-radius:99px; background:rgba(74,144,196,.1); color:var(--blue-dark); border:1px solid var(--soft-blue); }
+.badge-ai-green { background:rgba(76,175,125,.1); color:var(--green-dark); border-color:var(--soft-green); }
+.ai-shadow-label { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-4); text-align:center; margin:4px 0 14px; }
+
+/* ── Slider wrapper ───────────────────────────────────── */
+.nw-slider-wrap { display:flex; align-items:center; gap:8px; width:100%; min-width:0; }
+.nw-slider-arrow {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:32px; height:32px; border-radius:50%; flex-shrink:0;
+  border:1.5px solid var(--border); background:var(--surface);
+  color:var(--text-3); cursor:pointer; transition:all .15s; box-shadow:var(--shadow-sm);
 }
-.nw-modal-title { font-family:var(--font-serif); font-size:18px; font-weight:700; color:var(--text); margin-bottom:3px; }
-.nw-modal-sub   { font-family:var(--font-sans);  font-size:12px; color:var(--text-4); }
-.nw-modal-close-btn {
-  width:28px; height:28px; padding:0; display:inline-flex; align-items:center; justify-content:center;
-  border:1px solid var(--border); border-radius:6px; background:var(--surface);
-  color:var(--text-3); cursor:pointer; flex-shrink:0; transition:all .15s;
+.nw-slider-arrow:hover:not(:disabled) { border-color:var(--gold-dark); color:var(--gold-dark); background:var(--badge-bg-gold); }
+.nw-slider-arrow:disabled  { opacity:.3; cursor:default; }
+.nw-slider-arrow-left  { margin-right:8px; }
+.nw-slider-arrow-right { margin-left:8px; }
+
+/* ── RNP (Recommended Network Partners) scroll track ──── */
+.rnp-scroll {
+  display:flex; gap:10px; flex:1; width:0; min-width:0;
+  overflow-x:auto; scroll-behavior:smooth; padding-bottom:4px;
+  scrollbar-width:none; -ms-overflow-style:none;
 }
-.nw-modal-close-btn:hover { border-color:var(--text); color:var(--text); }
-.nw-modal-notice {
-  display:flex; align-items:flex-start; gap:9px; margin:14px 22px;
-  padding:10px 13px; background:var(--blue-light); border:1px solid var(--soft-blue);
-  border-radius:8px; font-family:var(--font-sans); font-size:12.5px; color:var(--blue-dark); line-height:1.5;
+.rnp-scroll::-webkit-scrollbar { display:none; }
+.rnp-card {
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
+  padding:18px 18px; min-width:190px; max-width:210px; flex-shrink:0;
+  cursor:pointer; transition:box-shadow .15s,transform .15s; box-shadow:var(--shadow-sm);
 }
-.nw-modal-list { padding:0 22px; max-height:380px; overflow-y:auto; }
-.nw-modal-row {
-  display:flex; align-items:flex-start; gap:12px; padding:14px 0;
-  border-bottom:1px solid var(--border);
+.rnp-card:hover { box-shadow:var(--shadow); transform:translateY(-2px); }
+.rnp-icon { width:38px; height:38px; border-radius:var(--radius-sm); background:var(--badge-bg-gold); color:var(--gold-dark); display:flex; align-items:center; justify-content:center; margin-bottom:10px; }
+.rnp-name { font-size:14px; font-weight:700; color:var(--text); margin-bottom:4px; }
+.rnp-meta { font-size:12px; color:var(--text-4); margin-bottom:10px; }
+.rnp-foot { display:flex; align-items:center; justify-content:space-between; }
+.rnp-stat { font-size:11px; color:var(--text-3); }
+.rnp-num  { font-weight:700; color:var(--text); }
+.rnp-cta  { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; border:1.5px solid var(--border); background:transparent; color:var(--text-3); cursor:pointer; transition:all .15s; }
+.rnp-cta:hover { border-color:var(--gold-dark); color:var(--gold-dark); }
+
+/* ── SPC (Shadow Provider) card — used in slider AND grid ─ */
+.spc-track {
+  display:flex; gap:12px; flex:1; width:0; min-width:0;
+  overflow-x:auto; scroll-behavior:smooth; padding-bottom:4px;
+  scrollbar-width:none; -ms-overflow-style:none;
 }
+.spc-track::-webkit-scrollbar { display:none; }
+
+/* Grid variant (My Network / My Partners) */
+.spc-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(170px, 1fr));
+  gap:12px; margin-bottom:22px; width:100%;
+}
+
+.spc-card {
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
+  padding:40px 16px 14px; position:relative; cursor:pointer;
+  transition:box-shadow .18s,transform .18s; box-shadow:var(--shadow-sm);
+  display:flex; flex-direction:column;
+  /* slider: fixed width; grid: fills cell */
+  min-width:200px; max-width:220px; flex-shrink:0;
+}
+/* In grid context, override fixed width so it fills the column */
+.spc-grid .spc-card { min-width:0; max-width:none; flex-shrink:1; }
+
+.spc-card:hover  { box-shadow:var(--shadow); transform:translateY(-2px); }
+.spc-pills  { position:absolute; top:10px; left:12px; display:flex; gap:5px; }
+.spc-pill-ai  { width:22px; height:22px; border-radius:50%; background:rgba(160,129,62,.12); color:var(--gold-dark); display:inline-flex; align-items:center; justify-content:center; }
+.spc-pill-svc { width:22px; height:22px; border-radius:50%; background:var(--surface-2); color:var(--text-3); display:inline-flex; align-items:center; justify-content:center; }
+.spc-match-badge { display:inline-flex; align-items:center; justify-content:center; padding:2px 7px; border-radius:99px; font-size:10px; font-weight:700; background:var(--green-light); color:var(--green-dark); border:1px solid var(--soft-green); }
+.spc-status  { width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; }
+.spc-status.ok   { background:var(--green-light); color:var(--green-dark); }
+.spc-status.pend { background:var(--orange-light); color:var(--orange-dark); }
+.spc-status.off  { background:var(--surface-2); color:var(--text-3); }
+.spc-rating { position:absolute; top:12px; right:12px; font-size:11px; font-weight:700; color:var(--gold-dark); display:inline-flex; align-items:center; gap:3px; }
+.spc-body   { display:flex; flex-direction:column; align-items:center; text-align:center; flex:1; }
+.spc-avatar { width:60px; height:60px; border-radius:var(--radius); background:var(--gold-dark); color:#fff; font-size:18px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-bottom:10px; }
+.spc-avatar-lg { width:66px; height:66px; border-radius:var(--radius-lg); font-size:20px; }
+.spc-name   { font-size:12px; font-weight:700; color:var(--text); line-height:1.3; margin-bottom:2px; }
+.spc-role   { font-size:11px; color:var(--text-4); margin-bottom:4px; }
+.spc-loc    { display:inline-flex; align-items:center; gap:3px; font-size:11px; color:var(--text-4); margin-bottom:8px; }
+.spc-tags   { display:flex; flex-wrap:wrap; justify-content:center; gap:4px; margin-bottom:8px; }
+.spc-tag    { font-size:10px; color:var(--text-3); background:var(--surface-2); border:1px solid var(--border); border-radius:99px; padding:2px 7px; }
+.spc-stats-row { font-size:11px; color:var(--text-4); margin-bottom:10px; text-align:center; padding:8px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+.spc-actions { display:flex; align-items:center; justify-content:center; gap:5px; flex-wrap:wrap; padding-top:8px; border-top:1px solid var(--border); }
+
+/* ── Shared icon button ────────────────────────────────── */
+.btn-icon { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text-3); cursor:pointer; transition:all .15s; flex-shrink:0; }
+.btn-icon:hover:not(:disabled) { border-color:var(--gold-dark); color:var(--gold-dark); }
+.btn-icon:disabled { opacity:.5; cursor:not-allowed; }
+.nw-added-pill { font-size:10px; font-weight:700; color:var(--green-dark); background:var(--green-light); border:none; border-radius:99px; padding:2px 8px; }
+
+/* ── Search layout (sidebar + results) ────────────────── */
+.nw-search-header-label { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-4); text-align:center; margin:4px 0 16px; }
+.nw-search-layout { display:grid; grid-template-columns:220px 1fr; gap:18px; width:100%; }
+.nw-results       { min-width:0; width:100%; }
+.nw-results-bar   { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px; font-size:12px; color:var(--text-3); }
+.nw-results-count { font-size:12px; color:var(--text-3); }
+.spc-results-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; width:100%; }
+/* In search results, cards fill column — override slider fixed width */
+.spc-results-grid .spc-card { min-width:0; max-width:none; flex-shrink:1; }
+.search-provider-card {}
+.nw-load-more { display:flex; justify-content:center; margin-top:20px; padding-bottom:8px; }
+
+/* ── Sidebar / filters ────────────────────────────────── */
+.nw-sidebar      { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px; height:fit-content; min-width:0; }
+.nw-sidebar-top  { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.nw-sidebar-label { font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-3); }
+.nw-clear-btn    { font-size:10px; font-weight:700; color:var(--gold-dark); background:transparent; border:none; cursor:pointer; }
+.nw-filter-group { margin-bottom:2px; }
+.nw-filter-btn   { display:flex; align-items:center; gap:7px; width:100%; padding:8px 4px; font-size:12px; font-weight:500; color:var(--text-2); background:transparent; border:none; cursor:pointer; border-bottom:1px solid var(--border); }
+.nw-filter-btn:hover { color:var(--text); }
+.nw-apply-btn    { display:block; width:100%; margin-top:14px; padding:10px; font-size:12px; font-weight:700; background:var(--gold-dark); color:#fff; border:none; border-radius:8px; cursor:pointer; transition:background .15s; }
+.nw-apply-btn:hover { background:var(--gold); }
+.nw-filter-expand  { padding:8px 4px 4px; }
+.nw-filter-search  { font-size:12px; padding:6px 10px; margin-bottom:8px; width:100%; }
+.nw-filter-check   { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text-2); padding:4px 2px; cursor:pointer; }
+.nw-filter-check:hover { color:var(--text); }
+.nw-filter-check input { accent-color:var(--gold-dark); }
+
+/* ── Toolbar / results bar ────────────────────────────── */
+.pn-toolbar     { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; width:100%; }
+.pn-search-wrap { position:relative; flex:1; min-width:0; }
+.pn-search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); display:flex; align-items:center; color:var(--text-3); pointer-events:none; }
+.pn-results-bar { font-size:12px; color:var(--text-3); margin-bottom:14px; }
+
+/* ── Stat chips row ───────────────────────────────────── */
+.stat-chips-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:22px; width:100%; }
+.stat-chip      { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px; display:flex; align-items:center; gap:14px; box-shadow:var(--shadow-sm); min-width:0; }
+.stat-chip-icon { width:36px; height:36px; border-radius:var(--radius); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.stat-chip-value { font-family:var(--font-serif); font-size:22px; font-weight:700; color:var(--text); line-height:1; margin-bottom:4px; }
+.stat-chip-label { font-size:11px; font-weight:600; color:var(--text-3); text-transform:uppercase; letter-spacing:.05em; }
+
+/* ── Business Partners ────────────────────────────────── */
+.bp-search-bar { display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; width:100%; }
+.bp-count      { font-size:12px; color:var(--text-3); margin-bottom:14px; }
+.bp-layout     { display:grid; grid-template-columns:220px 1fr; gap:18px; width:100%; }
+.bp-toggle-row { display:flex; align-items:center; justify-content:space-between; padding:10px 4px; border-bottom:1px solid var(--border); margin-bottom:4px; }
+.bp-toggle     { position:relative; display:inline-block; width:36px; height:20px; flex-shrink:0; }
+.bp-toggle input { opacity:0; width:0; height:0; }
+.bp-track      { position:absolute; inset:0; background:var(--border-dark); border-radius:99px; cursor:pointer; transition:background .2s; }
+.bp-toggle input:checked + .bp-track { background:var(--gold-dark); }
+.bp-thumb      { position:absolute; width:16px; height:16px; left:2px; top:2px; background:#fff; border-radius:50%; transition:transform .2s; }
+.bp-toggle input:checked + .bp-track .bp-thumb { transform:translateX(16px); }
+.bp-grid       { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; width:100%; }
+.biz-grid-card { display:flex; flex-direction:column; min-width:0; }
+.bp-card-top   { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.bp-type-badge { font-size:10px; font-weight:700; letter-spacing:.05em; padding:2px 7px; border-radius:99px; background:var(--badge-bg-gold); color:var(--gold-dark); border:1px solid var(--fade-gold); }
+.bp-card-rating { font-size:11px; font-weight:600; color:var(--gold-dark); display:inline-flex; align-items:center; gap:2px; }
+.bp-avatar-row { display:flex; justify-content:flex-start; margin-bottom:8px; }
+.bp-avatar     { width:44px; height:44px; border-radius:10px; color:#fff; font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+.bp-card-name  { font-size:13px; font-weight:700; color:var(--text); margin-bottom:2px; }
+.bp-card-role  { font-size:11px; color:var(--text-4); margin-bottom:2px; }
+.bp-card-loc   { font-size:11px; color:var(--text-4); margin-bottom:8px; }
+.bp-card-stats { font-size:11px; color:var(--text-4); margin-bottom:10px; padding-top:8px; border-top:1px solid var(--border); }
+
+/* ── Referrals & Tools ────────────────────────────────── */
+.rt-section-title { font-family:var(--font-serif); font-size:18px; font-weight:700; color:var(--text); margin-bottom:12px; }
+.rt-ai-banner { display:flex; align-items:flex-start; gap:12px; background:rgba(160,129,62,.07); border:1px solid var(--fade-gold); border-radius:10px; padding:14px 16px; margin-bottom:16px; box-shadow:var(--shadow-sm); width:100%; }
+.rt-ai-icon   { width:32px; height:32px; border-radius:8px; background:rgba(160,129,62,.12); color:var(--gold-dark); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.rt-ai-title  { font-size:13px; font-weight:700; color:var(--text); margin-bottom:3px; }
+.rt-ai-sub    { font-size:12px; color:var(--text-3); line-height:1.55; }
+.rt-ai-sub strong { color:var(--text); }
+.rt-grid      { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:14px; width:100%; }
+.rt-card      { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 14px; position:relative; transition:box-shadow .15s,transform .15s; cursor:pointer; display:flex; flex-direction:column; align-items:center; text-align:center; box-shadow:var(--shadow-sm); min-width:0; }
+.rt-card:hover { box-shadow:var(--shadow); transform:translateY(-2px); }
+.rt-shadow-icon { position:absolute; top:12px; left:12px; color:var(--gold-dark); opacity:.6; }
+.rt-avatar    { width:44px; height:44px; border-radius:10px; background:var(--gold-dark); color:#fff; font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; margin:8px auto 10px; }
+.rt-name      { font-size:13px; font-weight:700; color:var(--text); margin-bottom:2px; }
+.rt-role      { font-size:11px; color:var(--text-4); margin-bottom:2px; }
+.rt-loc       { font-size:11px; color:var(--text-4); margin-bottom:10px; }
+.rt-actions   { display:flex; justify-content:center; gap:6px; padding-top:10px; border-top:1px solid var(--border); width:100%; }
+.rt-remove-btn:hover { border-color:var(--red); color:var(--red); background:var(--red-light); }
+
+/* ── Review Requests modal internals ──────────────────── */
+.nw-modal-list   { max-height:380px; overflow-y:auto; }
+.nw-modal-row    { display:flex; align-items:flex-start; gap:12px; padding:14px 0; border-bottom:1px solid var(--border); }
 .nw-modal-row:last-child { border-bottom:none; }
-.nw-modal-row-avatar {
-  width:38px; height:38px; border-radius:50%; color:#fff;
-  font-family:var(--font-sans); font-size:12px; font-weight:700;
-  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+.nw-modal-avatar { width:38px; height:38px; border-radius:50%; background:var(--gold-dark); color:#fff; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.nw-modal-info   { flex:1; min-width:0; }
+.nw-modal-name   { font-size:13px; font-weight:700; color:var(--text); margin-bottom:2px; }
+.nw-modal-meta   { font-size:12px; color:var(--text-4); margin-bottom:5px; }
+.nw-modal-quote  { font-size:12px; color:var(--text-3); font-style:italic; line-height:1.5; }
+.nw-modal-right  { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
+.nw-modal-btns   { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+
+/* ── Responsive ───────────────────────────────────────── */
+@media (max-width:1024px) {
+  .spc-results-grid { grid-template-columns:1fr; }
 }
-.nw-modal-row-info { flex:1; min-width:0; }
-.nw-modal-row-name  { font-family:var(--font-sans); font-size:13.5px; font-weight:700; color:var(--text); margin-bottom:2px; }
-.nw-modal-row-role  { font-size:12px; color:var(--text-4); margin-bottom:5px; }
-.nw-modal-row-quote { font-size:12px; color:var(--text-3); font-style:italic; line-height:1.5; }
-.nw-modal-row-right { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
-.nw-modal-row-btns  { display:flex; align-items:center; gap:6px; flex-shrink:0; }
-.nw-modal-empty { text-align:center; padding:24px; font-size:13px; color:var(--text-4); }
-.nw-modal-footer {
-  display:flex; justify-content:flex-end; padding:14px 22px;
-  border-top:1px solid var(--border); background:var(--surface-2);
+@media (max-width:900px) {
+  .nw-search-layout { grid-template-columns:1fr; }
+  .bp-layout        { grid-template-columns:1fr; }
 }
-.nw-modal-fade-enter-active, .nw-modal-fade-leave-active { transition:opacity .2s ease; }
-.nw-modal-fade-enter-active .nw-modal, .nw-modal-fade-leave-active .nw-modal { transition:transform .2s ease; }
-.nw-modal-fade-enter-from, .nw-modal-fade-leave-to { opacity:0; }
-.nw-modal-fade-enter-from .nw-modal { transform:translateY(-10px) scale(0.98); }
+@media (max-width:600px) {
+  .stat-chips-row { grid-template-columns:1fr 1fr; }
+  .spc-results-grid { grid-template-columns:1fr; }
+}
 </style>
