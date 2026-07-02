@@ -602,7 +602,11 @@
     <template v-if="isLoggedIn && !isOwner">
 
       <!-- Centralized Referral Modal -->
-      <ReferralModal :roster="referralRoster" :network="referralNetwork" />
+      <ReferralModal
+        :roster="referralRoster"
+        :network="networkWithProfile"
+        :preselect-slug="isOwner ? '' : (user.slug ?? '')"
+      />
 
       <!-- Service Request Modal -->
       <AegisModal v-model="showServiceRequestModal"
@@ -744,6 +748,31 @@ const pricing = usePricingStore()
 const authUser   = computed(() => page.props.auth?.user ?? null)
 const isLoggedIn = computed(() => !!authUser.value)
 const isOwner    = computed(() => isLoggedIn.value && authUser.value?.id === props.user?.id)
+
+// Ensure the viewed practitioner is always available as a selectable network entry
+// even if the viewer hasn't connected with them yet (they're on their public profile,
+// so intent is clear). Deduplicate against existing network by slug.
+const networkWithProfile = computed(() => {
+  const u = props.user
+  if (!u?.slug) return props.referralNetwork
+  const already = props.referralNetwork.some((n) => n.slug === u.slug)
+  if (already) return props.referralNetwork
+  const initials = (u.avatar_initials ?? (u.display_name ?? '').replace(/[^A-Za-z]/g, '').slice(0, 2).toUpperCase())
+  return [
+    {
+      id:           u.id,
+      display_name: u.display_name,
+      credentials:  u.credentials ?? null,
+      specialty:    u.specialty   ?? null,
+      location:     u.location    ?? null,
+      slug:         u.slug,
+      accepting:    u.practitioner_public ?? true,
+      initials,
+      avatar_url:   u.avatar_url  ?? null,
+    },
+    ...props.referralNetwork,
+  ]
+})
 
 // ── Aliases ───────────────────────────────────────────────────────────
 const pm       = computed(() => props.profileMeta ?? {})

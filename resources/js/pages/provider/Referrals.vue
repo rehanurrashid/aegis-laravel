@@ -92,7 +92,7 @@
       <button class="tab-pill" :class="{ active: tab==='pending' }" role="tab" :aria-selected="tab==='pending'" @click="tab='pending'" style="display:inline-flex;align-items:center;gap:5px">
         <AegisIcon name="phone" :size="13" />
         Pending
-        <span v-if="pendingReferrals.length" class="badge-pill">{{ pendingReferrals.length }}</span>
+        <span v-if="incomingReferrals.length" class="badge-pill">{{ incomingReferrals.length }}</span>
       </button>
       <button class="tab-pill" :class="{ active: tab==='sent' }" role="tab" :aria-selected="tab==='sent'" @click="tab='sent'" style="display:inline-flex;align-items:center;gap:5px">
         <AegisIcon name="send" :size="13" />
@@ -116,9 +116,9 @@
     <!-- ══ TAB: PENDING ══ -->
     <div v-show="tab==='pending'">
       <div class="tab-top-row">
-        <div class="tab-top-info">{{ pendingReferrals.length }} referrals awaiting your response · Sorted by urgency</div>
-        <div style="display:flex;gap:8px">
-          <select v-model="filterPendingUrgency" class="form-select" style="height:34px;font-size:12px;width:130px">
+        <div class="tab-top-info">{{ incomingReferrals.length }} referrals awaiting your response · Sorted by urgency</div>
+        <div style="display:flex;gap:8px" class="pending-filters">
+          <select v-model="filterPendingUrgency" class="form-select" style="height:34px;font-size:12px;width:169px">
             <option value="">All Urgency</option>
             <option value="urgent">Urgent</option>
             <option value="soon">Soon</option>
@@ -169,7 +169,7 @@
           </div>
           <footer class="rfc-foot" @click.stop>
             <button
-              class="btn-icon"
+              class="rfc-act"
               type="button"
               data-tooltip="Message sender"
               :disabled="msgLoading === r.counterpart_user_id"
@@ -188,7 +188,7 @@
               type="button"
               style="display:inline-flex;align-items:center;gap:4px"
               @click="openAccept(r)"
-            ><AegisIcon name="check" :size="12" /> Accept</button>
+            ><AegisIcon name="check" :size="14" /> Accept</button>
           </footer>
         </article>
 
@@ -267,11 +267,11 @@
             <template v-if="val(r.status)==='accepted'">
               <button class="btn-icon" type="button" data-tooltip="Message" :disabled="msgLoading === r.counterpart_user_id" @click="openConversation(r.counterpart_user_id)"><AegisIcon name="message" :size="14" /></button>
               <button class="rfc-act" type="button" data-tooltip="View details" aria-label="View details" style="display:inline-flex;align-items:center;justify-content:center" @click="openDetail(r)"><AegisIcon name="search" :size="14" /></button>
-              <button class="rfc-cta" type="button" style="display:inline-flex;align-items:center;gap:4px" @click="openComplete(r)"><AegisIcon name="check" :size="12" /> Mark complete</button>
+              <button class="rfc-cta" type="button" style="display:inline-flex;align-items:center;gap:4px" @click="openComplete(r)"><AegisIcon name="check" :size="14" /> Mark complete</button>
             </template>
             <template v-else-if="val(r.status)==='declined'">
               <button class="rfc-act" type="button" data-tooltip="View details" aria-label="View details" style="display:inline-flex;align-items:center;justify-content:center" @click="openDetail(r)"><AegisIcon name="search" :size="14" /></button>
-              <button class="rfc-cta" type="button" style="display:inline-flex;align-items:center;gap:4px" @click="openModal('referralModal')"><AegisIcon name="refresh-cw" :size="12" /> Re-refer</button>
+              <button class="rfc-cta" type="button" style="display:inline-flex;align-items:center;gap:4px" @click="openModal('referralModal')"><AegisIcon name="refresh-cw" :size="14" /> Re-refer</button>
             </template>
             <template v-else>
               <button class="btn-icon" type="button" data-tooltip="Follow up" :disabled="msgLoading === r.counterpart_user_id" @click="openConversation(r.counterpart_user_id)"><AegisIcon name="message" :size="14" /></button>
@@ -531,61 +531,74 @@
     <ReferralModal :roster="roster" :network="network" />
 
     <!-- REFERRAL DETAIL -->
-    <AegisModal v-model="modals.detail" title="" size="lg">
+    <AegisModal
+      v-model="modals.detail"
+      :title="activeDetail ? 'Referral Details — ' + activeDetail.client_initials + '.' : 'Referral Details'"
+      size="lg"
+    >
       <template v-if="activeDetail">
-        <div class="modal-title" style="margin-bottom:4px">
-          Referral Details — {{ activeDetail.client_initials }}.
-        </div>
-        <div class="modal-subtitle" style="display:flex;align-items:center;gap:6px;color:var(--blue-dark)">
-          <AegisIcon :name="activeDetail.direction==='received' ? 'phone' : 'send'" :size="11" />
-          <span>
-            {{ activeDetail.direction==='received' ? 'From' : 'To' }}
-            <a v-if="activeDetail.counterpart_slug" :href="route('public.provider', { slug: activeDetail.counterpart_slug })" target="_blank" style="color:inherit;font-weight:700;text-decoration:underline;cursor:pointer">
-              {{ activeDetail.counterpart_name }}{{ activeDetail.counterpart_credentials ? ', ' + activeDetail.counterpart_credentials : '' }}
-            </a>
+
+        <!-- Direction strip -->
+        <div class="rd-direction-strip">
+          <div class="rd-direction-pill" :class="activeDetail.direction === 'received' ? 'is-incoming' : 'is-outgoing'">
+            <AegisIcon :name="activeDetail.direction === 'received' ? 'phone-incoming' : 'send'" :size="12" />
+            <span>{{ activeDetail.direction === 'received' ? 'Incoming referral' : 'Outgoing referral' }}</span>
+          </div>
+          <div class="rd-counterpart">
+            <AegisIcon name="user" :size="12" />
+            <span>{{ activeDetail.direction === 'received' ? 'From' : 'To' }}&nbsp;</span>
+            <a
+              v-if="activeDetail.counterpart_slug"
+              :href="route('public.provider', { slug: activeDetail.counterpart_slug })"
+              target="_blank"
+              class="rd-counterpart-link"
+            >{{ activeDetail.counterpart_name }}{{ activeDetail.counterpart_credentials ? ', ' + activeDetail.counterpart_credentials : '' }} ↗</a>
             <strong v-else>{{ activeDetail.counterpart_name }}</strong>
-            · {{ fmtDate(activeDetail.created_at) }}
-          </span>
+            <span class="rd-dot">·</span>
+            <span class="rd-date">{{ fmtDate(activeDetail.created_at) }}</span>
+          </div>
         </div>
 
-        <!-- Row 1: Patient + Referral info -->
-        <div class="grid-2" style="margin-bottom:10px;gap:14px;margin-top:14px">
+        <!-- Row 1: Client + Referral info -->
+        <div class="grid-2" style="gap:14px;margin-top:14px;margin-bottom:10px">
           <div>
-            <div class="form-label" style="margin-bottom:4px">Client Information</div>
-            <div style="display:flex;flex-direction:column;gap:1px">
-              <div class="detail-row"><span style="color:var(--text-3)">Identifier</span><strong>{{ activeDetail.client_initials }}.</strong></div>
-              <div v-if="activeDetail.client_age_band" class="detail-row"><span style="color:var(--text-3)">Age Band</span><strong>{{ activeDetail.client_age_band }}</strong></div>
+            <div class="form-label" style="margin-bottom:6px">Client Information</div>
+            <div class="detail-rows">
+              <div class="detail-row"><span>Identifier</span><strong>{{ activeDetail.client_initials }}.</strong></div>
+              <div v-if="activeDetail.client_age_band" class="detail-row"><span>Age Band</span><strong>{{ activeDetail.client_age_band }}</strong></div>
             </div>
           </div>
           <div>
-            <div class="form-label" style="margin-bottom:4px">Referral Information</div>
-            <div style="display:flex;flex-direction:column;gap:1px">
-              <div class="detail-row"><span style="color:var(--text-3)">Urgency</span><strong :style="activeDetail.urgency==='urgent' ? 'color:var(--red-dark)' : activeDetail.urgency==='soon' ? 'color:var(--orange-dark)' : ''">{{ urgencyLabel(activeDetail.urgency) }}</strong></div>
-              <div v-if="activeDetail.reason" class="detail-row"><span style="color:var(--text-3)">Reason</span><strong>{{ activeDetail.reason }}</strong></div>
+            <div class="form-label" style="margin-bottom:6px">Referral Information</div>
+            <div class="detail-rows">
+              <div class="detail-row">
+                <span>Urgency</span>
+                <strong :class="'rd-urgency-' + (activeDetail.urgency ?? 'routine')">{{ urgencyLabel(activeDetail.urgency) }}</strong>
+              </div>
+              <div v-if="activeDetail.reason" class="detail-row"><span>Reason</span><strong>{{ activeDetail.reason }}</strong></div>
             </div>
           </div>
         </div>
 
         <!-- Notes -->
-        <div v-if="activeDetail.notes" style="margin-bottom:10px">
-          <div class="form-label" style="margin-bottom:4px">Notes</div>
-          <div style="background:var(--surface-2);border-radius:var(--radius-sm);border-left:3px solid var(--blue-dark);padding:8px 11px;font-size:12px;color:var(--text-2);line-height:1.5">
-            {{ activeDetail.notes }}
-          </div>
+        <div v-if="activeDetail.notes" class="rd-notes">
+          <div class="form-label" style="margin-bottom:6px">Notes from sender</div>
+          <div class="rd-notes-body">{{ activeDetail.notes }}</div>
         </div>
 
-        <!-- Response notes (pending only) -->
-        <div v-if="activeDetail.direction==='received' && val(activeDetail.status)==='sent'" class="form-group" style="margin-bottom:0">
-          <label class="form-label" style="margin-bottom:4px">Your Response Notes (optional)</label>
-          <textarea v-model="acceptForm.notes" class="form-textarea" style="min-height:44px;font-size:12.5px" placeholder="Add scheduling notes or questions before accepting…"></textarea>
+        <!-- Response notes (pending incoming only) -->
+        <div v-if="activeDetail.direction === 'received' && val(activeDetail.status) === 'sent'" class="form-group" style="margin-bottom:0">
+          <label class="form-label" style="margin-bottom:4px">Your Response Notes <span style="font-weight:400;color:var(--text-4)">(optional)</span></label>
+          <textarea v-model="acceptForm.notes" class="form-textarea" style="min-height:64px;font-size:13px" placeholder="Add scheduling notes or questions before accepting…"></textarea>
         </div>
+
       </template>
 
       <template #footer>
-        <template v-if="activeDetail && activeDetail.direction==='received' && val(activeDetail.status)==='sent'">
-          <button class="btn btn-outline" style="display:inline-flex;align-items:center;gap:5px" @click="modals.detail=false;openDecline(activeDetail)"><AegisIcon name="x" :size="12" />Decline</button>
-          <button class="btn btn-outline" style="display:inline-flex;align-items:center;gap:5px" :disabled="msgLoading === activeDetail?.counterpart_user_id" @click="openConversation(activeDetail?.counterpart_user_id)"><AegisIcon name="message" :size="12" />Message</button>
-          <button class="btn btn-success" style="display:inline-flex;align-items:center;gap:5px" @click="modals.detail=false;openAccept(activeDetail)"><AegisIcon name="check" :size="12" />Accept Referral</button>
+        <template v-if="activeDetail && activeDetail.direction === 'received' && val(activeDetail.status) === 'sent'">
+          <button class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px" @click="modals.detail=false;openDecline(activeDetail)"><AegisIcon name="x" :size="14" />Decline</button>
+          <button class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px" :disabled="msgLoading === activeDetail?.counterpart_user_id" @click="openConversation(activeDetail?.counterpart_user_id)"><AegisIcon name="message" :size="14" />Message</button>
+          <button class="btn btn-success" style="display:inline-flex;align-items:center;gap:6px" @click="modals.detail=false;openAccept(activeDetail)"><AegisIcon name="check" :size="14" />Accept Referral</button>
         </template>
         <button v-else class="btn btn-outline" @click="modals.detail=false">Close</button>
       </template>
@@ -694,69 +707,103 @@
     </AegisModal>
 
     <!-- ARCHIVE DETAIL -->
-    <AegisModal v-model="modals.archiveDetail" title="" size="lg">
+    <AegisModal
+      v-model="modals.archiveDetail"
+      :title="activeArchive ? 'Archived Referral — ' + activeArchive.client_initials + '.' : 'Archived Referral'"
+      size="lg"
+    >
       <template v-if="activeArchive">
-        <div class="modal-title" style="margin-bottom:4px">Archived Referral — {{ activeArchive.client_initials }}.</div>
-        <div class="modal-subtitle" style="display:flex;align-items:center;gap:6px">
-          <AegisIcon name="archive" :size="11" />
-          <span>Archived · <strong>{{ fmtDate(activeArchive.closed_at || activeArchive.responded_at || activeArchive.created_at) }}</strong></span>
-          <span v-if="!activeArchive.responded_at" style="color:var(--red-dark);margin-left:auto;font-weight:700">Unanswered · SLA Expired</span>
-          <span v-else-if="val(activeArchive.status)==='declined'" style="color:var(--red-dark);margin-left:auto;font-weight:700">Declined</span>
+
+        <!-- Status strip -->
+        <div class="rd-direction-strip">
+          <div class="rd-direction-pill" :class="activeArchive.direction === 'received' ? 'is-incoming' : 'is-outgoing'">
+            <AegisIcon :name="activeArchive.direction === 'received' ? 'phone-incoming' : 'send'" :size="12" />
+            <span>{{ activeArchive.direction === 'received' ? 'Incoming' : 'Outgoing' }}</span>
+          </div>
+          <div class="rd-counterpart">
+            <AegisIcon name="archive" :size="12" />
+            <span>Archived&nbsp;<strong>{{ fmtDate(activeArchive.closed_at || activeArchive.responded_at || activeArchive.created_at) }}</strong></span>
+            <span class="rd-dot">·</span>
+            <span
+              :class="!activeArchive.responded_at || val(activeArchive.status) === 'declined' ? 'rd-status-declined' : 'rd-status-ok'"
+            >{{ !activeArchive.responded_at ? 'Unanswered · SLA Expired' : statusLabel(activeArchive.status) }}</span>
+          </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;margin-top:14px">
-          <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="rd-archive-body">
+
+          <!-- Top row: Client + Referral side by side -->
+          <div class="grid-2" style="gap:14px;margin-top:14px">
             <div>
               <div class="form-label" style="margin-bottom:6px">Client Information</div>
-              <div style="display:flex;flex-direction:column;gap:2px">
-                <div class="detail-row"><span style="color:var(--text-3)">Identifier</span><strong>{{ activeArchive.client_initials }}.</strong></div>
-                <div v-if="activeArchive.client_age_band" class="detail-row"><span style="color:var(--text-3)">Age Band</span><strong>{{ activeArchive.client_age_band }}</strong></div>
+              <div class="detail-rows">
+                <div class="detail-row"><span>Identifier</span><strong>{{ activeArchive.client_initials }}.</strong></div>
+                <div v-if="activeArchive.client_age_band" class="detail-row"><span>Age Band</span><strong>{{ activeArchive.client_age_band }}</strong></div>
               </div>
             </div>
             <div>
               <div class="form-label" style="margin-bottom:6px">Referral Information</div>
-              <div style="display:flex;flex-direction:column;gap:2px">
+              <div class="detail-rows">
                 <div class="detail-row">
-                  <span style="color:var(--text-3)">{{ activeArchive.direction==='received' ? 'From' : 'To' }}</span>
-                  <a v-if="activeArchive.counterpart_slug" :href="route('public.provider', { slug: activeArchive.counterpart_slug })" target="_blank" style="color:inherit;font-weight:700;text-decoration:underline">{{ activeArchive.counterpart_name }}</a>
+                  <span>{{ activeArchive.direction === 'received' ? 'From' : 'To' }}</span>
+                  <a v-if="activeArchive.counterpart_slug" :href="route('public.provider', { slug: activeArchive.counterpart_slug })" target="_blank" class="rd-counterpart-link">{{ activeArchive.counterpart_name }} ↗</a>
                   <strong v-else>{{ activeArchive.counterpart_name }}</strong>
                 </div>
                 <div v-if="activeArchive.urgency" class="detail-row">
-                  <span style="color:var(--text-3)">Urgency</span>
-                  <strong :style="activeArchive.urgency==='urgent' ? 'color:var(--orange-dark)' : ''">{{ urgencyLabel(activeArchive.urgency) }}</strong>
+                  <span>Urgency</span>
+                  <strong :class="'rd-urgency-' + (activeArchive.urgency ?? 'routine')">{{ urgencyLabel(activeArchive.urgency) }}</strong>
                 </div>
-                <div class="detail-row"><span style="color:var(--text-3)">Status at archive</span><strong style="color:var(--orange-dark)">{{ statusLabel(activeArchive.status) }}</strong></div>
+                <div class="detail-row">
+                  <span>Status at archive</span>
+                  <strong class="rd-status-declined">{{ statusLabel(activeArchive.status) }}</strong>
+                </div>
               </div>
             </div>
           </div>
 
-          <div>
-            <div class="form-label" style="margin-bottom:6px">Archive Timeline</div>
-            <div style="display:flex;flex-direction:column;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
-              <div class="timeline-row">
-                <AegisIcon name="send" :size="14" style="color:var(--gold-dark)" />
-                <div style="flex:1"><strong>{{ activeArchive.direction==='received' ? 'Received' : 'Sent' }}</strong></div>
-                <span class="timeline-time">{{ fmtDate(activeArchive.created_at) }}</span>
+          <!-- Timeline — full width below -->
+          <div class="rd-archive-timeline-wrap">
+            <div class="form-label" style="margin-bottom:8px">Archive Timeline</div>
+            <div class="rd-timeline rd-timeline-horizontal">
+              <div class="rd-tl-step">
+                <div class="rd-tl-step-icon rd-tl-icon-gold">
+                  <AegisIcon name="send" :size="13" />
+                </div>
+                <div class="rd-tl-step-label">{{ activeArchive.direction === 'received' ? 'Received' : 'Sent' }}</div>
+                <div class="rd-tl-step-date">{{ fmtDate(activeArchive.created_at) }}</div>
               </div>
-              <div v-if="activeArchive.responded_at" class="timeline-row">
-                <AegisIcon name="check" :size="14" style="color:var(--green-dark)" />
-                <div style="flex:1">{{ val(activeArchive.status)==='accepted' ? 'Accepted' : 'Declined' }}</div>
-                <span class="timeline-time">{{ fmtDate(activeArchive.responded_at) }}</span>
+              <div class="rd-tl-connector" :class="activeArchive.responded_at ? 'is-done' : 'is-pending'"></div>
+              <div class="rd-tl-step">
+                <div class="rd-tl-step-icon" :class="!activeArchive.responded_at ? 'rd-tl-icon-muted' : val(activeArchive.status) === 'accepted' ? 'rd-tl-icon-green' : 'rd-tl-icon-red'">
+                  <AegisIcon :name="!activeArchive.responded_at ? 'clock' : val(activeArchive.status) === 'accepted' ? 'check' : 'x'" :size="13" />
+                </div>
+                <div class="rd-tl-step-label">{{ !activeArchive.responded_at ? 'No response' : val(activeArchive.status) === 'accepted' ? 'Accepted' : 'Declined' }}</div>
+                <div class="rd-tl-step-date">{{ activeArchive.responded_at ? fmtDate(activeArchive.responded_at) : '—' }}</div>
               </div>
-              <div class="timeline-row" style="background:var(--surface-2)">
-                <AegisIcon name="archive" :size="14" />
-                <div style="flex:1;color:var(--text-3)"><strong style="color:var(--text-2)">Auto-archived</strong></div>
-                <span class="timeline-time">{{ fmtDate(activeArchive.closed_at || activeArchive.created_at) }}</span>
+              <div class="rd-tl-connector is-done"></div>
+              <div class="rd-tl-step">
+                <div class="rd-tl-step-icon rd-tl-icon-muted">
+                  <AegisIcon name="archive" :size="13" />
+                </div>
+                <div class="rd-tl-step-label">Auto-archived</div>
+                <div class="rd-tl-step-date">{{ fmtDate(activeArchive.closed_at || activeArchive.created_at) }}</div>
               </div>
             </div>
           </div>
+
         </div>
+
       </template>
 
       <template #footer>
         <button class="btn btn-outline" @click="modals.archiveDetail=false">Close</button>
-        <button v-if="activeArchive && (val(activeArchive.status)==='declined' || !activeArchive.responded_at)" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:5px" @click="modals.archiveDetail=false;openModal('referralModal')">
-          <AegisIcon name="refresh-cw" :size="12" />Re-refer
+        <button
+          v-if="activeArchive && (val(activeArchive.status) === 'declined' || !activeArchive.responded_at)"
+          class="btn btn-primary"
+          style="display:inline-flex;align-items:center;gap:6px"
+          @click="modals.archiveDetail=false;openModal('referralModal')"
+        >
+          <AegisIcon name="refresh-cw" :size="14" />Re-refer
         </button>
       </template>
     </AegisModal>
@@ -776,7 +823,7 @@ import { useMessageButton } from '@/composables/useMessageButton'
 
 // ── Props ──────────────────────────────────────────────────────────────
 const props = defineProps({
-  pendingReferrals:   { type: Array, default: () => [] },
+  incomingReferrals:   { type: Array, default: () => [] },
   sentReferrals:      { type: Array, default: () => [] },
   completedReferrals: { type: Array, default: () => [] },
   allReferrals:       { type: Array, default: () => [] },
@@ -822,7 +869,7 @@ const cancelForm   = useForm({ reason: '', notes: '' })
 const completeForm = useForm({ completed_date: '', notes: '' })
 
 // ── Urgency pending ────────────────────────────────────────────────────
-const urgentPending = computed(() => props.pendingReferrals.filter((r) => val(r.urgency) === 'urgent'))
+const urgentPending = computed(() => props.incomingReferrals.filter((r) => val(r.urgency) === 'urgent'))
 
 // ── Pagination ─────────────────────────────────────────────────────────
 const pageSize      = 5
@@ -851,7 +898,7 @@ watch([filterArchiveSearch, filterArchiveType, filterArchiveReason], () => { arc
 
 // ── Filtered lists ─────────────────────────────────────────────────────
 const filteredPending = computed(() => {
-  let list = props.pendingReferrals
+  let list = props.incomingReferrals
   if (filterPendingUrgency.value) list = list.filter((r) => val(r.urgency) === filterPendingUrgency.value)
   return list
 })
@@ -1031,6 +1078,125 @@ function rfcCardClass(r) {
 </script>
 
 <style scoped>
+/* ── pending-filters: force TomSelect wrapper to match select width ── */
+.pending-filters :deep(.ts-wrapper) { width: 169px !important; }
+
+/* ── Referral Detail Modal ───────────────────────────────────────────── */
+.rd-direction-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  margin-bottom: 2px;
+  flex-wrap: wrap;
+}
+.rd-direction-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+}
+.rd-direction-pill.is-incoming { background: var(--blue-light); color: var(--blue-dark); }
+.rd-direction-pill.is-outgoing { background: var(--green-light); color: var(--green-dark); }
+.rd-counterpart {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.rd-counterpart-link {
+  color: var(--blue-dark);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.rd-counterpart-link:hover { color: var(--text); }
+.rd-dot { color: var(--text-4); }
+.rd-date { color: var(--text-3); }
+.detail-rows { display: flex; flex-direction: column; gap: 2px; }
+.rd-urgency-urgent { color: var(--red-dark); }
+.rd-urgency-soon   { color: var(--orange-dark); }
+.rd-urgency-routine { color: var(--text); }
+.rd-notes {
+  margin-bottom: 14px;
+}
+.rd-notes-body {
+  background: var(--surface-2);
+  border-left: 3px solid var(--blue-dark);
+  border-radius: var(--radius-sm);
+  padding: 10px 13px;
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+.rd-archive-body { display: flex; flex-direction: column; gap: 18px; }
+.rd-archive-timeline-wrap { margin-top: 4px; }
+.rd-timeline-horizontal {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+  padding: 4px 0 0;
+}
+.rd-tl-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-width: 80px;
+  text-align: center;
+}
+.rd-tl-step-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.rd-tl-step-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.rd-tl-step-date {
+  font-size: 10px;
+  color: var(--text-4);
+  white-space: nowrap;
+}
+.rd-tl-connector {
+  flex: 1;
+  height: 2px;
+  margin-top: 16px;
+  background: var(--border);
+  min-width: 20px;
+}
+.rd-tl-connector.is-done { background: var(--gold-dark); }
+.rd-tl-connector.is-pending { background: var(--border); }
+.rd-tl-icon-gold  { color: var(--gold-dark);  border-color: var(--gold-dark);  background: rgba(196,169,106,0.08); }
+.rd-tl-icon-green { color: var(--green-dark); border-color: var(--green-dark); background: var(--green-light); }
+.rd-tl-icon-red   { color: var(--red-dark);   border-color: var(--red-dark);   background: var(--red-light); }
+.rd-tl-icon-muted { color: var(--text-4);     border-color: var(--border);     background: var(--surface-2); }
+
+
+
 /* ── rfc-card overrides ── */
 .rfc-card::after      { display: none; }
 .rfc-card > *         { position: relative; z-index: auto; }

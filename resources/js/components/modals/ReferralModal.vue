@@ -319,7 +319,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useForm } from '@inertiajs/vue3'
 import { useModal } from '@/composables/useModal'
 import { useToast } from '@/composables/useToast'
@@ -327,17 +327,21 @@ import AegisBadge from '@/components/ui/AegisBadge.vue'
 import AegisToggle from '@/components/ui/AegisToggle.vue'
 
 const props = defineProps({
-  roster:  { type: Array, default: () => [] },
-  network: { type: Array, default: () => [] },
+  modelValue:    { type: Boolean, default: undefined }, // v-model pattern (Dashboard)
+  roster:        { type: Array,   default: () => [] },
+  network:       { type: Array,   default: () => [] },
+  preselectSlug: { type: String,  default: '' },        // pre-select a practitioner on open
 })
+
+const emit = defineEmits(['update:modelValue'])
 
 const { isOpen, closeModal } = useModal()
 const toast = useToast()
 
-// Cache the computed ref once so Vue's render effect tracks it stably.
-// Calling isOpen() inline in :model-value creates a new ComputedRef each
-// render, breaking reactive tracking.
-const referralModalOpen = isOpen('referralModal')
+// Unified open state: v-model takes precedence when provided, otherwise store-driven.
+const referralModalOpen = computed(() =>
+  props.modelValue !== undefined ? props.modelValue : isOpen('referralModal').value
+)
 
 const stepLabels = ['Client', 'Practitioner', 'Notes', 'Review']
 const step       = ref(1)
@@ -440,8 +444,22 @@ function initials(name) {
 
 function onUpdateOpen(v) { if (!v) onClose() }
 
+// When modal opens with a preselectSlug, pre-select the practitioner in the
+// background but stay on step 1 (Client) — the user must still fill client
+// info before advancing. Step 2 will show the practitioner already highlighted.
+watch(referralModalOpen, (open) => {
+  if (open && props.preselectSlug) {
+    const match = props.network.find((n) => n.slug === props.preselectSlug)
+    if (match) selectNetwork(match)
+  }
+})
+
 function onClose() {
-  closeModal('referralModal')
+  if (props.modelValue !== undefined) {
+    emit('update:modelValue', false)
+  } else {
+    closeModal('referralModal')
+  }
   setTimeout(() => {
     step.value       = 1
     showErrors.value = false

@@ -7,10 +7,13 @@ namespace App\Http\Middleware;
 use App\Enums\IncidentStatus;
 use App\Enums\StewardStatus;
 use App\Enums\UserRole;
+use App\Enums\BpJobStatus;
 use App\Models\ActivityEvent;
+use App\Models\BpJob;
 use App\Models\CriticalIncident;
 use App\Models\Message;
 use App\Models\MessageThread;
+use App\Models\Referral;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Middleware;
@@ -47,10 +50,12 @@ class HandleInertiaRequests extends Middleware
             'cookie_session' => $request->cookies->has(config('session.cookie')) ? 'present' : 'missing',
         ]);
 
-        $hasEmergency    = false;
-        $unreadCount     = 0;
-        $unreadMessages  = 0;
-        $roleSlugs       = [];
+        $hasEmergency      = false;
+        $unreadCount       = 0;
+        $unreadMessages    = 0;
+        $roleSlugs         = [];
+        $openJobPostings   = 0;
+        $pendingReferrals  = 0;
 
         if ($user) {
             $hasEmergency = CriticalIncident::where('status', IncidentStatus::Active->value)
@@ -85,6 +90,14 @@ class HandleInertiaRequests extends Middleware
                 })
                 ->pluck('thread_id')
                 ->unique()
+                ->count();
+
+            $openJobPostings  = BpJob::where('practitioner_id', $user->id)
+                ->where('status', BpJobStatus::Open->value)
+                ->count();
+
+            $pendingReferrals = Referral::where('recipient_id', $user->id)
+                ->where('status', \App\Enums\ReferralStatus::Sent->value)
                 ->count();
 
             $roleSlugs = $user->roleAssignments()
@@ -122,7 +135,9 @@ class HandleInertiaRequests extends Middleware
                                 : ($user?->tier ?? null),
                 'roles'  => $roleSlugs,
             ],
-            'hasEmergency' => $hasEmergency,
+            'hasEmergency'     => $hasEmergency,
+            'openJobPostings'  => $openJobPostings,
+            'pendingReferrals' => $pendingReferrals,
             'unreadCount'    => $unreadCount,
             'unreadMessages' => $unreadMessages,
             'activePage'   => $request->route()?->getName(),

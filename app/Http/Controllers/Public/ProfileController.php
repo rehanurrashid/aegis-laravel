@@ -80,13 +80,19 @@ class ProfileController extends Controller
                 ->get()
                 ->map(function ($conn) use ($viewer) {
                     $peer = $conn->user_id === $viewer->id ? $conn->target : $conn->owner;
-                    return $peer ? [
-                        'id'        => $peer->id,
-                        'name'      => $peer->display_name,
-                        'title'     => trim(($peer->credentials ?? '') . ' · ' . ($peer->specialty ?? ''), ' ·'),
-                        'slug'      => $peer->slug,
-                        'accepting' => true,
-                    ] : null;
+                    if (!$peer) return null;
+                    $initials = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $peer->display_name ?? ''), 0, 2));
+                    return [
+                        'id'           => $peer->id,
+                        'display_name' => $peer->display_name,
+                        'credentials'  => $peer->credentials,
+                        'specialty'    => $peer->specialty,
+                        'location'     => null,
+                        'slug'         => $peer->slug,
+                        'accepting'    => true,
+                        'initials'     => $initials,
+                        'avatar_url'   => null,
+                    ];
                 })
                 ->filter()
                 ->values()

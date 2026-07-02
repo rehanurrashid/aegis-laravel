@@ -139,6 +139,12 @@ function enhanceSelect(el) {
         if (el.classList.contains('form-select-sm')) {
           this.wrapper.classList.add('ts-sm')
         }
+        // Sync wrapper width from the <select> inline style (TomSelect snapshots
+        // the width at init time; if the select width was updated after a prior
+        // init or before first paint the wrapper may be stale).
+        if (el.style.width) {
+          this.wrapper.style.width = el.style.width
+        }
         patchSelect(el)
         const currentValue = _selectValueProp.get.call(el)
         if (currentValue) this.setValue(currentValue, true)

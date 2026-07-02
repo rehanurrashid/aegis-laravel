@@ -120,7 +120,9 @@ const isOnOwnProfile = computed(() => {
   if (!slug) return false
   return page.url.startsWith('/public/') && page.url.includes(`/${slug}`)
 })
-const unreadMsgs   = computed(() => page.props.unreadMessages ?? 0)
+const unreadMsgs      = computed(() => page.props.unreadMessages ?? 0)
+const openJobs        = computed(() => page.props.openJobPostings  ?? 0)
+const pendingReferrals = computed(() => page.props.pendingReferrals ?? 0)
 
 const isAccessTier = computed(() => page.props.auth?.tier === 'access')
 const servicesMode = computed(() => !!user.value?.services_mode)
@@ -176,6 +178,7 @@ const dashboardUrl = computed(() => r({
 }[portal.value] ?? 'provider.dashboard'))
 
 // ── Badge helper ───────────────────────────────────────────────────────
+function badgeFromCount(n) { return n > 0 ? String(n) : '' }
 const msgs = computed(() => unreadMsgs.value > 0 ? String(unreadMsgs.value) : '')
 
 // ── Nav sections ───────────────────────────────────────────────────────
@@ -190,10 +193,10 @@ const navSections = computed(() => {
         { key: 'profile',   href: publicProfileUrl.value,       icon: 'user',      label: 'My Profile' },
       ]
       if (!isAccessTier.value) {
-        main.push({ key: 'jobs', href: r('provider.jobs.index'), icon: 'briefcase', label: 'Support & Services', badge: '12' })
+        main.push({ key: 'jobs', href: r('provider.jobs.index'), icon: 'briefcase', label: 'Support & Services', badge: badgeFromCount(openJobs.value) })
       }
       const practice = [
-        { key: 'referrals', href: r('provider.referrals.index'), icon: 'share-tree',    label: 'Referrals',   badge: isAccessTier.value ? '' : '3', locked: isAccessTier.value },
+        { key: 'referrals', href: r('provider.referrals.index'), icon: 'share-tree',    label: 'Referrals',   badge: isAccessTier.value ? '' : badgeFromCount(pendingReferrals.value), locked: isAccessTier.value },
         { key: 'network',   href: r('provider.network.index'),   icon: 'users-network', label: 'Network' },
       ]
       if (servicesMode.value) {

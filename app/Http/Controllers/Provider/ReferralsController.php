@@ -141,7 +141,7 @@ class ReferralsController extends Controller
         })->filter()->values();
 
         return Inertia::render('provider/Referrals', [
-            'pendingReferrals'   => $pending,
+            'incomingReferrals'  => $pending,
             'sentReferrals'      => $sentActive,
             'completedReferrals' => $completedThisMonth,
             'allReferrals'       => $all,
