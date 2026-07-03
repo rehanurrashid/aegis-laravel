@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\NetworkConnection;
 use App\Models\NetworkRequest as NetworkRequestModel;
 use App\Models\User;
+use App\Models\VaultItem;
 use App\Services\NetworkService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -107,6 +108,63 @@ class NetworkController extends Controller
         $recommendedPartnerCategories = $this->network->getRecommendedPartnerCategories($user->id);
         $recommendedShadowProviders   = $this->network->getRecommendedShadowProviders($user->id);
 
+        // Directory-wide search results for the Search Providers tab. Uses the
+        // same public-flag scope as the public directory. Excludes the current
+        // user and anyone already connected/pending so the network-status pill
+        // renders coherently. IDs and slugs are real — every card action wires
+        // through to the message / referral / connect / profile routes.
+        $connectedIds = $connections
+            ->flatMap(fn ($c) => [$c->user_id, $c->target_user_id])
+            ->filter()->unique()->values()->all();
+
+        $searchProviders = User::query()
+            ->where('practitioner_public', 1)
+            ->where('id', '!=', $user->id)
+            ->orderBy('display_name')
+            ->limit(60)
+            ->get()
+            ->map(function (User $u) use ($connectedIds) {
+                $tags = collect(explode(',', (string) ($u->specialty ?? '')))
+                    ->map(fn ($t) => trim($t))->filter()->values()->all();
+                return [
+                    'id'            => $u->id,
+                    'slug'          => $u->slug ?? '',
+                    'name'          => $u->display_name
+                        . ($u->credentials ? ', ' . $u->credentials : ''),
+                    'initials'      => $u->avatar_initials
+                        ?? strtoupper(substr($u->display_name, 0, 2)),
+                    'role'          => $u->title ?? '',
+                    'location'      => $u->location ?? '',
+                    'tags'          => $tags,
+                    'rating'        => 0.0,
+                    'reviews'       => 0,
+                    'refs'          => '— refs',
+                    'acc'           => '— acc',
+                    'resp'          => '— resp',
+                    'telehealth'    => false,
+                    'networkStatus' => in_array($u->id, $connectedIds, true)
+                        ? 'in-network' : 'not-connected',
+                ];
+            })->values();
+
+        // Roster — parity with DashboardController so the centralized
+        // ReferralModal shows the same client picker on both pages.
+        $referralRoster = VaultItem::where('practitioner_id', $user->id)
+            ->where('zone', 'roster')
+            ->whereNotNull('client_name')
+            ->get()
+            ->map(fn ($v) => [
+                'id'              => $v->id,
+                'client_name'     => $v->client_name,
+                'client_service'  => $v->category,
+                'client_location' => null,
+                'client_notes'    => $v->sub_label,
+                'client_status'   => $v->status?->value ?? $v->status,
+            ])
+            ->sortBy(fn ($r) => $r['client_status'] === 'priority' ? 0 : 1)
+            ->values()
+            ->toArray();
+
         return Inertia::render('provider/Network', [
             'clinicalConnections'          => $clinical,
             'bpConnections'                => $business,
@@ -115,7 +173,9 @@ class NetworkController extends Controller
             'referralNetwork'              => $referralNetwork,
             'recommendedPartnerCategories' => $recommendedPartnerCategories,
             'recommendedShadowProviders'   => $recommendedShadowProviders,
-            'roster'                       => [],
+            'searchProviders'              => $searchProviders,
+            'referralRoster'               => $referralRoster,
+            'roster'                       => $referralRoster,
             'stats'                        => [
                 'clinical'         => $clinical->count(),
                 'bp_count'         => $business->count(),

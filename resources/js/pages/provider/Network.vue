@@ -1578,8 +1578,14 @@
       </template>
     </AegisModal>
 
-    <!-- Centralized ReferralModal — wired via openModal('referralModal') -->
-    <ReferralModal :roster="roster" :network="referralNetwork" :preselect-slug="referralPreselectSlug" />
+    <!-- Centralized ReferralModal — wired via openModal('referralModal').
+         :roster uses controller-served VaultItem-based referralRoster so the
+         client picker matches Dashboard exactly. -->
+    <ReferralModal
+      :roster="referralRoster.length ? referralRoster : roster"
+      :network="referralNetwork"
+      :preselect-slug="referralPreselectSlug"
+    />
     </div><!-- /nw-page-root -->
 
   </AppLayout>
@@ -1607,6 +1613,8 @@ const props = defineProps({
   referralNetwork:              { type: Array,  default: () => [] },
   recommendedPartnerCategories: { type: Array,  default: () => [] },
   recommendedShadowProviders:   { type: Array,  default: () => [] },
+  searchProviders:              { type: Array,  default: () => [] },
+  referralRoster:               { type: Array,  default: () => [] },
   roster:                       { type: Array,  default: () => [] },
   stats:                        { type: Object, default: () => ({}) },
 })
@@ -2076,14 +2084,11 @@ function removeRtCandidate(s) {
 const recommendedCategories = computed(() => props.recommendedPartnerCategories ?? [])
 const aiShadowCandidates    = computed(() => props.recommendedShadowProviders   ?? [])
 
-const allProviders = ref([
-  { name:'Dr. Daniel Malik, MD',  id:'', slug:'', initials:'DM', role:'Psychiatrist',          location:'NYC, NY',       tags:['Anxiety','PTSD','Mood Disorders'],             rating:4.9, reviews:62, refs:'14 refs', acc:'80% acc', resp:'3.1h resp', telehealth:true,  networkStatus:'in-network'    },
-  { name:'Dr. Lisa Chen, PhD',    id:'', slug:'', initials:'LC', role:'Psychologist',           location:'Brooklyn, NY',  tags:['CBT','Depression','Trauma'],                   rating:4.7, reviews:38, refs:'8 refs',  acc:'88% acc', resp:'2.0h resp', telehealth:true,  networkStatus:'in-network'    },
-  { name:'Dr. Marcus Webb, LCSW', id:'', slug:'', initials:'MW', role:'Therapist / Counselor',  location:'Queens, NY',    tags:['DBT','Family Therapy','Addiction'],             rating:4.8, reviews:51, refs:'0 refs',  acc:'—',       resp:'2.1h resp', telehealth:false, networkStatus:'not-connected' },
-  { name:'Dr. Aisha Patel, PsyD', id:'', slug:'', initials:'AP', role:'Psychologist',           location:'Manhattan, NY', tags:['Child & Adolescent','ADHD','Autism'],          rating:4.8, reviews:29, refs:'0 refs',  acc:'—',       resp:'4.5h resp', telehealth:false, networkStatus:'pending'       },
-  { name:'Dr. James Torres, MD',  id:'', slug:'', initials:'JT', role:'Psychiatrist',           location:'Newark, NJ',    tags:['Geriatric Psych','Dementia','Medication Mgmt'],rating:4.5, reviews:18, refs:'5 refs',  acc:'80% acc', resp:'5.0h resp', telehealth:true,  networkStatus:'in-network'    },
-  { name:'Dr. Sofia Kim, MD',     id:'', slug:'', initials:'SK', role:'Neurologist',            location:'Bronx, NY',     tags:['Epilepsy','Headaches','Neurocognitive'],        rating:4.8, reviews:44, refs:'0 refs',  acc:'—',       resp:'2.8h resp', telehealth:false, networkStatus:'not-connected' },
-])
+// Search Providers directory — server-serialized from NetworkController.
+// Every row carries a real user id + slug so Message / Refer Client /
+// Connect / View Profile all wire through to real endpoints (no more
+// silent-fail 404s from empty ids/slugs).
+const allProviders = computed(() => props.searchProviders ?? [])
 
 
 
