@@ -47,8 +47,8 @@
         >
           <div class="card-top">
             <span
-              class="badge is-quiet"
-              :class="req.request_type === 'business' ? 'is-business' : 'is-clinical'"
+              class="badge"
+              :class="req.request_type === 'business' ? 'badge-gold' : 'badge-green'"
               :data-tooltip="req.request_type === 'business' ? 'Business Partner request' : 'Clinical Provider request'"
             >
               <AegisIcon :name="req.request_type === 'business' ? 'briefcase' : 'users'" :size="10" />
@@ -1451,30 +1451,54 @@
 
     <!-- Review Pending Requests -->
     <AegisModal v-model="modals.reviewRequests" title="Pending Connection Requests" :subtitle="pendingRequests.length + ' awaiting · ' + clinicalCount + ' clinical, ' + businessCount + ' business'" size="lg">
-      <div class="alert alert-info" style="margin-bottom:14px">
+      <div class="alert alert-info" style="margin-bottom:16px">
         <AegisIcon name="info" :size="14" />
         <div><strong>Accepting</strong> adds the connection and notifies the requester. <strong>Declining</strong> removes the request — the other party is not notified.</div>
       </div>
-      <div class="pvm-panel active" style="max-height:380px;overflow-y:auto">
-        <div v-for="req in pendingRequests" :key="req.id" class="pvm-ref-item" style="display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px solid var(--border)">
-          <div class="spc-avatar" style="width:38px;height:38px;font-size:12px;border-radius:50%;flex-shrink:0">{{ req.requester_initials }}</div>
-          <div class="pvm-info">
-            <div class="pn-grid-name">{{ req.requester_name }}</div>
-            <div class="pn-grid-role">{{ req.requester_role }}<span v-if="req.requester_location"> · {{ req.requester_location }}</span></div>
-            <div v-if="req.message" class="rec-section-subtitle" style="font-style:italic">"{{ req.message }}"</div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;max-height:440px;overflow-y:auto;padding:2px 0">
+
+        <div v-for="req in pendingRequests" :key="req.id" class="card" style="padding:16px">
+
+          <!-- Top row: avatar + identity + badge + time -->
+          <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:0">
+            <div class="person-avatar" style="flex-shrink:0">{{ req.requester_initials }}</div>
+            <div class="person-text" style="flex:1;min-width:0">
+              <div class="person-name">{{ req.requester_name }}</div>
+              <div class="person-meta">{{ req.requester_role }}<span v-if="req.requester_location"> · {{ req.requester_location }}</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0">
+              <span class="badge" :class="req.request_type === 'business' ? 'badge-gold' : 'badge-green'">
+                <AegisIcon :name="req.request_type === 'business' ? 'briefcase' : 'users'" :size="10" />
+                {{ req.request_type === 'business' ? 'Business' : 'Clinical' }}
+              </span>
+              <span style="font-size:11px;color:var(--text-4);font-weight:500">{{ timeAgo(req.created_at) }}</span>
+            </div>
           </div>
-          <div class="pvm-meta-row" style="flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-            <span class="badge is-quiet" :class="req.request_type === 'business' ? 'is-business' : 'is-clinical'">{{ req.request_type === 'business' ? 'Business' : 'Clinical' }}</span>
-            <span style="font-size:11px;color:var(--text-4)">{{ timeAgo(req.created_at) }}</span>
+
+          <!-- Message preview -->
+          <div v-if="req.message" style="margin:10px 0 0;padding:8px 12px;background:var(--surface-2);border-left:3px solid var(--border-dark);border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:12px;color:var(--text-3);font-style:italic;line-height:1.5">
+            "{{ req.message }}"
           </div>
-          <div class="pn-grid-actions">
-            <button type="button" class="btn btn-primary btn-sm" :disabled="pendingActionId === req.id" @click="acceptRequest(req)"><AegisIcon name="check" :size="11" /> Accept</button>
+
+          <!-- Actions -->
+          <div class="card-actions" style="padding-top:12px;margin-top:12px;border-top:1px solid var(--border)">
+            <button type="button" class="btn btn-primary btn-sm" :disabled="pendingActionId === req.id" @click="acceptRequest(req)">
+              <AegisIcon name="check" :size="12" /> Accept
+            </button>
             <button type="button" class="btn btn-outline btn-sm" :disabled="pendingActionId === req.id" @click="declineRequest(req)">Decline</button>
-            <button type="button" class="btn-icon" data-tooltip="View profile" @click="viewProfile(req.requester_slug); modals.reviewRequests = false"><AegisIcon name="eye" :size="13" /></button>
+            <button type="button" class="btn-icon" data-tooltip="View profile" style="margin-left:auto" @click="viewProfile(req.requester_slug); modals.reviewRequests = false">
+              <AegisIcon name="eye" :size="13" />
+            </button>
           </div>
         </div>
-        <div v-if="!pendingRequests.length" style="text-align:center;padding:24px;font-size:13px;color:var(--text-4)">All requests have been reviewed.</div>
+
+        <div v-if="!pendingRequests.length" style="text-align:center;padding:36px;font-size:13px;color:var(--text-4)">
+          <AegisIcon name="check-badge" :size="28" style="display:block;margin:0 auto 10px;color:var(--text-4)" />
+          All requests have been reviewed.
+        </div>
       </div>
+
       <template #footer>
         <button type="button" class="btn btn-outline btn-sm" @click="modals.reviewRequests = false">Close</button>
       </template>
