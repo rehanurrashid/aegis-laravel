@@ -1967,26 +1967,58 @@ function applyFilters() {
  * 4. Switches to Search Providers sub-tab.
  * 5. Smooth-scrolls to the results grid after Vue re-renders.
  */
+/**
+ * rnp-card arrow CTA — routes a recommended category card to the correct
+ * search tab with the right filter pre-applied.
+ *
+ * Routing rules (matched against the seeded category labels):
+ *   - `is-biz` tier (e.g. "Medical Billing") → Business Partners tab, bpSearch
+ *   - Provider type labels (exact match in providerTypes) → clinical search, type filter
+ *   - Everything else → clinical search, specialty filter (keyword search fallback)
+ *
+ * For labels not in providerTypes we also try a keyword match against the
+ * provider haystack (name/role/tags) so categories like "Therapist / LCSW",
+ * "Neurologist", "Primary Care", "Dietitian" still surface relevant results.
+ */
 function openCategoryFilter(cat) {
   const label = cat?.label
   if (!label) return
 
-  // Clear all filters first
+  // ── Business Partner category ─────────────────────────────────────────────
+  if (cat.tier === 'is-biz' || cat.priority === 'biz') {
+    bpSearch.value   = label          // pre-fill BP keyword search
+    bpCategory.value = ''             // clear category select (keyword wins)
+    scope.value      = 'business'
+    businessTab.value = 'search'
+    toast.info(`Showing ${label} business partners`)
+    nextTick(() => {
+      const el = document.querySelector('#sbpResultsGrid')
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+    return
+  }
+
+  // ── Clinical category ─────────────────────────────────────────────────────
+  // Clear all clinical filters first
   for (const g of Object.keys(selectedFilters)) selectedFilters[g] = []
   for (const g of Object.keys(appliedFilters))  appliedFilters[g]  = []
   clinicalServiceOnly.value = false
 
-  // Apply this category to the correct group
-  const group = providerTypes.includes(label) ? 'type' : 'specialty'
-  selectedFilters[group].push(label)
-  appliedFilters[group].push(label)
+  if (providerTypes.includes(label)) {
+    // Exact provider-type match → type filter
+    selectedFilters.type.push(label)
+    appliedFilters.type.push(label)
+  } else {
+    // Fuzzy: use clinicalSearch so the keyword filters across name/role/tags.
+    // This covers "Therapist / LCSW", "Neurologist", "Primary Care", "Dietitian" etc.
+    // Extract the core keyword (drop " / LCSW" style suffixes).
+    clinicalSearch.value = label.split('/')[0].trim()
+  }
 
-  // Switch tab
   scope.value       = 'clinical'
   clinicalTab.value = 'search'
   toast.info(`Showing ${label} providers`)
 
-  // Scroll to results after reactivity settles
   nextTick(() => {
     const el = document.querySelector('.search-results-grid')
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
