@@ -484,11 +484,35 @@
 
     <!-- MY NETWORK -->
     <div v-show="scope === 'clinical' && clinicalTab === 'mynetwork'">
-      <div class="ph-stats">
-        <div class="ph-stat"><div class="ph-stat-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="users" :size="18" /></div><div><div class="ph-stat-val">{{ stats.clinical }}</div><div class="ph-stat-lbl">Active Partners</div></div></div>
-        <div class="ph-stat"><div class="ph-stat-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="refresh" :size="18" /></div><div><div class="ph-stat-val">{{ stats.total_refs }}</div><div class="ph-stat-lbl">Referrals Exchanged</div></div></div>
-        <div class="ph-stat"><div class="ph-stat-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="check-badge" :size="18" /></div><div><div class="ph-stat-val">{{ stats.avg_acc }}%</div><div class="ph-stat-lbl">Avg Acceptance</div></div></div>
-        <div class="ph-stat"><div class="ph-stat-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="clock" :size="18" /></div><div><div class="ph-stat-val">{{ stats.avg_resp }}h</div><div class="ph-stat-lbl">Avg Response Time</div></div></div>
+      <div class="stat-chips-row">
+        <div class="stat-chip">
+          <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="users" :size="18" /></div>
+          <div>
+            <div class="stat-chip-value">{{ stats.clinical }}</div>
+            <div class="stat-chip-label">Active Partners</div>
+          </div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="refresh" :size="18" /></div>
+          <div>
+            <div class="stat-chip-value">{{ stats.total_refs }}</div>
+            <div class="stat-chip-label">Referrals Exchanged</div>
+          </div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="check-badge" :size="18" /></div>
+          <div>
+            <div class="stat-chip-value">{{ stats.avg_acc }}%</div>
+            <div class="stat-chip-label">Avg Acceptance</div>
+          </div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="clock" :size="18" /></div>
+          <div>
+            <div class="stat-chip-value">{{ stats.avg_resp }}h</div>
+            <div class="stat-chip-label">Avg Response Time</div>
+          </div>
+        </div>
       </div>
       <div class="pn-toolbar">
         <div class="pn-search-wrap">
@@ -498,20 +522,31 @@
       </div>
       <div class="pn-results-bar">Showing <strong>{{ filteredClinical.length }}</strong> providers</div>
       <div class="provider-grid">
-        <div v-for="nc in filteredClinical" :key="nc.id" class="spc-card" @click="viewProfile(nc.partner_slug)">
-          <div class="spc-top-pills"><span class="spc-status-icon ok" data-tooltip="In Network"><AegisIcon name="user-check" :size="12" /></span></div>
+        <div v-for="nc in filteredClinical" :key="nc.id" class="card-v2 pn-card spc-card" @click="viewProfile(nc.partner_slug)">
+          <div class="spc-top-pills">
+            <span class="spc-status-icon ok" data-tooltip="In Network — this provider is connected to your network"><AegisIcon name="user-check" :size="12" /></span>
+            <span v-if="nc.partner_telehealth" class="spc-svc-icon" data-tooltip="Telehealth available"><AegisIcon name="video" :size="12" /></span>
+            <span v-if="nc.partner_has_services" class="spc-svc-icon" data-tooltip="Services Available"><AegisIcon name="briefcase-rx" :size="12" /></span>
+          </div>
+          <div class="spc-rating" :data-tooltip="ratingTooltip(nc)">
+            <AegisIcon name="star" :size="11" />
+            {{ ratingDisplay(nc) }}
+          </div>
           <div class="spc-body">
             <div class="spc-avatar">{{ nc.partner_initials }}</div>
             <div class="spc-name">{{ nc.partner_name }}</div>
             <div class="spc-role">{{ nc.partner_role }}</div>
             <div class="spc-loc">{{ nc.partner_location }}</div>
             <div class="spc-tags">
-              <span v-for="tag in tagList(nc.partner_specialty).slice(0,3)" :key="tag" class="spc-tag">{{ tag }}</span>
+              <span v-for="tag in visibleTags(nc.partner_specialty)" :key="tag" class="spc-tag">{{ tag }}</span>
+              <span v-if="overflowTagCount(nc.partner_specialty) > 0" class="spc-tag spc-tag-more">+{{ overflowTagCount(nc.partner_specialty) }}</span>
             </div>
           </div>
+          <div class="spc-stats">{{ connectionStatsLine(nc) }}</div>
           <div class="spc-actions" @click.stop>
             <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === nc.partner_id" @click="openConversation(nc.partner_id)"><AegisIcon name="message-square" :size="14" /></button>
-            <button type="button" class="btn-icon" data-tooltip="Refer Client" @click="openReferralForConnection(nc)"><AegisIcon name="share-tree" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="Refer Client" @click="openReferralForConnection(nc)"><AegisIcon name="refresh" :size="14" /></button>
+            <button v-if="nc.partner_has_services" type="button" class="btn-icon" data-tooltip="Request Service" @click="openSvcRequest('Services', { id: nc.partner_id, name: nc.partner_name })"><AegisIcon name="briefcase-rx" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(nc.partner_slug)"><AegisIcon name="eye" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Remove from network" @click="confirmDisconnect(nc)"><AegisIcon name="trash-2" :size="14" /></button>
           </div>
@@ -526,69 +561,159 @@
 
     <!-- SEARCH BUSINESS PARTNERS -->
     <div v-show="scope === 'business' && businessTab === 'search'">
-      <div class="pn-toolbar">
-        <div class="pn-search-wrap" style="flex:1;min-width:220px">
-          <span class="search-icon"><AegisIcon name="search-lg" :size="14" /></span>
-          <input class="form-input" style="padding-left:34px" v-model="bpSearch" placeholder="Search by name, skill, company, keyword..." />
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          <span style="font-size:12px;color:var(--text-4)">Sort:</span>
-          <select class="form-select" v-model="bpSort" style="font-size:12px;padding:4px 8px;min-width:160px"><option>Best Match</option><option>Highest Rated</option><option>Most Jobs</option><option>Lowest Rate</option></select>
-        </div>
-      </div>
-      <div class="pn-results-bar">Showing {{ filteredPartners.length }} of {{ businessPartners.length }} partners</div>
-      <div class="search-layout">
-        <div class="filter-sidebar">
-          <div class="filter-sidebar-header"><span class="filter-sidebar-title">FILTERS</span><button type="button" class="filter-clear-btn" @click="bpSearch='';bpCategory=''">CLEAR ALL</button></div>
-          <div class="bp-toggle-row">
-            <span style="font-size:12px;color:var(--text-2)">Clinical-service providers</span>
-            <label class="bp-toggle-legacy"><input type="checkbox" v-model="bpClinicalOnly"><span class="bp-track"><span class="bp-thumb"></span></span></label>
+      <div class="sbp-layout">
+        <!-- ── FILTER SIDEBAR ── -->
+        <aside class="filter-sidebar" id="sbpFilterSidebar">
+          <div class="filter-sidebar-header">
+            <div class="filter-sidebar-title">
+              <AegisIcon name="filter" :size="16" />
+              Filters
+            </div>
+            <button type="button" class="filter-clear-btn" @click="sbpClearAll">Clear All</button>
           </div>
-          <div class="filter-group">
-            <button type="button" class="filter-group-btn" @click="bpCatOpen = !bpCatOpen">
-              <AegisIcon name="globe" :size="12" /> Category <AegisIcon name="chevron-down" :size="11" style="margin-left:auto" :style="{ transform: bpCatOpen ? 'rotate(180deg)' : '' }" />
-            </button>
-            <div v-if="bpCatOpen" style="margin-top:8px">
-              <select class="form-select" v-model="bpCategory" style="width:100%;font-size:12px">
+
+          <!-- Clinical-service providers toggle (non-collapsible) -->
+          <div class="filter-group nw-sbp-clinical-toggle">
+            <label class="nw-sbp-clinical-label">
+              <span class="nw-sbp-clinical-text">
+                <AegisIcon name="briefcase-rx" :size="14" />
+                Clinical-service providers
+                <span class="sbp-info-tip" data-tooltip="Aegis providers with Services Mode enabled offer services to other providers. Toggle on to show them above the business partners."><AegisIcon name="info" :size="12" /></span>
+              </span>
+              <button type="button" class="toggle" :class="{ on: bpClinicalOnly }" @click="bpClinicalOnly = !bpClinicalOnly" aria-label="Show clinical-service providers"></button>
+            </label>
+          </div>
+
+          <!-- Category -->
+          <div class="filter-group" :class="{ open: bpCatOpen }" id="sbpfg-category">
+            <div class="filter-group-header" @click="bpCatOpen = !bpCatOpen">
+              <span class="filter-group-label"><AegisIcon name="briefcase" :size="16" /> Category</span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div v-show="bpCatOpen" class="filter-group-body">
+              <select v-model="bpCategory" class="form-select" style="font-size:12px;width:100%">
                 <option value="">All Categories</option>
-                <option>Medical Billing</option><option>Digital Marketing</option><option>Credentialing</option><option>Practice Consulting</option><option>Accounting / CPA</option><option>Admin / VA</option><option>HR / Staffing</option><option>Legal / Attorney</option><option>IT / Software</option><option>Design / Branding</option>
+                <option value="it">IT / Software Development</option>
+                <option value="billing">Medical Billing &amp; Coding</option>
+                <option value="accounting">Accounting / CPA / Finance</option>
+                <option value="legal">Legal / Healthcare Law</option>
+                <option value="marketing">Marketing &amp; Growth</option>
+                <option value="hr">HR / Staffing &amp; Recruitment</option>
+                <option value="credentialing">Credentialing &amp; Enrollment</option>
+                <option value="consulting">Practice Consulting</option>
+                <option value="design">Design &amp; Branding</option>
               </select>
             </div>
           </div>
-          <div v-for="f in bpFilterGroups" :key="f.label" class="filter-group">
-            <button type="button" class="filter-group-btn"><AegisIcon :name="f.icon" :size="12" /> {{ f.label }} <AegisIcon name="chevron-down" :size="11" style="margin-left:auto" /></button>
+
+          <!-- Remaining collapsible groups -->
+          <div v-for="f in bpFilterGroups" :key="f.label" class="filter-group" :class="{ open: f.open }">
+            <div class="filter-group-header" @click="f.open = !f.open">
+              <span class="filter-group-label"><AegisIcon :name="f.icon" :size="16" /> {{ f.label }}</span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div v-show="f.open" class="filter-group-body">
+              <p class="nw-filter-placeholder">{{ f.placeholder }}</p>
+            </div>
           </div>
-          <button type="button" class="btn btn-primary" style="width:100%;margin-top:14px;justify-content:center" @click="toast.success('Filters applied')">Apply Filters</button>
-        </div>
-        <div>
-          <div class="provider-grid">
-            <div v-for="p in filteredPartners" :key="p.name" class="biz-grid-card spc-card">
-              <div class="biz-card-top"><span class="biz-type-badge billing">{{ p.partnerType }}</span><span class="spc-rating" style="position:static"><AegisIcon name="star" :size="11" /> {{ p.rating }}</span></div>
-              <div class="spc-body" style="align-items:flex-start"><div class="biz-avatar" :style="{ background: p.avatarColor }">{{ p.initials }}</div></div>
-              <div class="biz-card-name">{{ p.name }}</div>
-              <div class="biz-card-role">{{ p.role }}</div>
-              <div class="biz-card-meta">{{ p.location }}</div>
-              <div class="spc-tags" style="margin-bottom:8px"><span v-for="tag in p.tags.slice(0,3)" :key="tag" class="spc-tag">{{ tag }}</span><span v-if="p.tags.length > 3" class="spc-tag">+{{ p.tags.length - 3 }}</span></div>
-              <div class="biz-card-services">{{ p.rate }} · {{ p.reviews }} reviews · {{ p.jobs }} jobs</div>
-              <div class="spc-actions">
-                <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === p.id" @click="openConversation(p.id)"><AegisIcon name="message-square" :size="13" /></button>
-                <button type="button" class="btn-icon" data-tooltip="Hire" @click="openBpHire(p)"><AegisIcon name="briefcase" :size="13" /></button>
-                <button type="button" class="btn-icon" data-tooltip="View Profile"><AegisIcon name="eye" :size="13" /></button>
+
+          <button type="button" class="btn btn-primary nw-filter-apply" @click="toast.success('Filters applied')">Apply Filters</button>
+        </aside>
+
+        <!-- ── RESULTS PANEL ── -->
+        <div class="results-panel">
+          <div class="results-topbar">
+            <div class="results-count">
+              <strong>{{ filteredPartners.length }}</strong> of {{ businessPartners.length }} partners
+            </div>
+            <div class="results-sort">
+              <span class="nw-sort-label">Sort:</span>
+              <select v-model="bpSort" class="form-select nw-sort-select">
+                <option>Best Match</option>
+                <option>Highest Rated</option>
+                <option>Most Jobs</option>
+                <option>Lowest Rate</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="pn-toolbar" style="margin-bottom:14px">
+            <div class="pn-search-wrap">
+              <span class="search-icon"><AegisIcon name="search-lg" :size="14" /></span>
+              <input v-model="bpSearch" class="form-input" type="text" placeholder="Search by name, skill, company, keyword..." />
+            </div>
+          </div>
+
+          <div id="sbpResultsGrid" class="search-results-grid">
+            <div v-for="p in filteredPartners" :key="p.name" class="sbp-card spc-card">
+              <div class="spc-top-pills">
+                <span class="spc-pill gold" :data-tooltip="p.partnerType">{{ p.partnerType }}</span>
+              </div>
+              <div class="spc-rating" :data-tooltip="p.rating + ' from ' + p.reviews + ' reviews'">
+                <AegisIcon name="star" :size="11" />
+                {{ p.rating }}
+              </div>
+              <div class="spc-body">
+                <div class="spc-avatar" :style="{ background: p.avatarColor }">{{ p.initials }}</div>
+                <div class="spc-name">{{ p.name }}</div>
+                <div class="spc-role">{{ p.role }}</div>
+                <div class="spc-loc">{{ p.location }}</div>
+                <div class="spc-tags">
+                  <span v-for="tag in p.tags.slice(0, 3)" :key="tag" class="spc-tag">{{ tag }}</span>
+                  <span v-if="p.tags.length > 3" class="spc-tag spc-tag-more">+{{ p.tags.length - 3 }}</span>
+                </div>
+              </div>
+              <div class="spc-stats">{{ p.rate }} · {{ p.reviews }} reviews · {{ p.jobs }} jobs</div>
+              <div class="spc-actions" @click.stop>
+                <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === p.id" @click="openConversation(p.id)"><AegisIcon name="message-square" :size="14" /></button>
+                <button type="button" class="btn-icon" data-tooltip="Hire" @click="openBpHire(p)"><AegisIcon name="briefcase" :size="14" /></button>
+                <button type="button" class="btn-icon" data-tooltip="View Profile"><AegisIcon name="eye" :size="14" /></button>
               </div>
             </div>
           </div>
+
           <AegisEmptyState v-if="!filteredPartners.length" icon="briefcase" title="No partners found" subtitle="Try adjusting your search or filters." />
+
+          <div v-if="filteredPartners.length" style="text-align:center;margin-top:24px">
+            <button type="button" class="btn btn-outline" @click="toast.info('Loading more partners…')">
+              Load More Partners
+            </button>
+          </div>
         </div>
       </div>
     </div><!-- /search business -->
 
     <!-- MY PARTNERS -->
     <div v-show="scope === 'business' && businessTab === 'mypartners'">
-      <div class="ph-stats">
-        <div class="ph-stat"><div class="ph-stat-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="briefcase" :size="18" /></div><div><div class="ph-stat-val">{{ bpConnections.length }}</div><div class="ph-stat-lbl">Business Partners</div></div></div>
-        <div class="ph-stat"><div class="ph-stat-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="heart-2" :size="18" /></div><div><div class="ph-stat-val">{{ stats.bp_count }}</div><div class="ph-stat-lbl">Active Contracts</div></div></div>
-        <div class="ph-stat"><div class="ph-stat-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="star" :size="18" /></div><div><div class="ph-stat-val">—</div><div class="ph-stat-lbl">Avg Partner Rating</div></div></div>
-        <div class="ph-stat"><div class="ph-stat-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="clock" :size="18" /></div><div><div class="ph-stat-val">{{ stats.pending_requests }}</div><div class="ph-stat-lbl">Pending Requests</div></div></div>
+      <div class="stat-chips-row">
+        <div class="stat-chip">
+          <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="briefcase" :size="18" /></div>
+          <div>
+            <div class="stat-chip-value">{{ bpConnections.length }}</div>
+            <div class="stat-chip-label">Business Partners</div>
+          </div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="heart-2" :size="18" /></div>
+          <div>
+            <div class="stat-chip-value">{{ stats.bp_count }}</div>
+            <div class="stat-chip-label">Active Contracts</div>
+          </div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="star" :size="18" /></div>
+          <div>
+            <div class="stat-chip-value">{{ avgBpRatingDisplay }}</div>
+            <div class="stat-chip-label">Avg Partner Rating</div>
+          </div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="clock" :size="18" /></div>
+          <div>
+            <div class="stat-chip-value">{{ stats.pending_requests }}</div>
+            <div class="stat-chip-label">Pending Requests</div>
+          </div>
+        </div>
       </div>
       <div class="pn-toolbar">
         <div class="pn-search-wrap">
@@ -597,15 +722,22 @@
         </div>
       </div>
       <div class="pn-results-bar">Showing <strong>{{ filteredBpConnections.length }}</strong> business partners</div>
-      <div class="provider-grid">
+      <div id="bizGridView" class="provider-grid nw-biz-grid">
         <div v-for="nc in filteredBpConnections" :key="nc.id" class="biz-grid-card spc-card" @click="viewProfile(nc.partner_slug)">
-          <div class="spc-top-pills"><span class="spc-status-icon ok" data-tooltip="Business Partner"><AegisIcon name="user-check" :size="12" /></span></div>
+          <div class="spc-top-pills">
+            <span class="spc-pill gold" :data-tooltip="bpCategoryTooltip(nc)">{{ bpCategoryLabel(nc) }}</span>
+          </div>
+          <div class="spc-rating" :data-tooltip="ratingTooltip(nc, 'partner rating')">
+            <AegisIcon name="star" :size="11" />
+            {{ ratingDisplay(nc) }}
+          </div>
           <div class="spc-body">
             <div class="spc-avatar">{{ nc.partner_initials }}</div>
             <div class="spc-name">{{ nc.partner_name }}</div>
             <div class="spc-role">{{ nc.partner_role }}</div>
             <div class="spc-loc">{{ nc.partner_location }}</div>
           </div>
+          <div class="spc-stats">Active · {{ ratingDisplay(nc) }}</div>
           <div class="spc-actions" @click.stop>
             <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === nc.partner_id" @click="openConversation(nc.partner_id)"><AegisIcon name="message-square" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(nc.partner_slug)"><AegisIcon name="eye" :size="14" /></button>
@@ -622,15 +754,17 @@
 
     <!-- REFERRAL LIST (AI Shadow Suggestions) -->
     <div v-show="scope === 'tools' && toolsTab === 'list'">
-      <div class="section-head-title">Shadow Network</div>
-      <div class="insight-box">
-        <div class="ph-stat-icon"><AegisIcon name="help-circle" :size="16" /></div>
-        <div>
+      <div class="nw-section-heading">Shadow Network</div>
+
+      <div class="insight-box nw-insight-box">
+        <div class="nw-insight-icon"><AegisIcon name="target-2" :size="16" /></div>
+        <div class="nw-insight-body">
           <div class="insight-box-title">This week's AI insights</div>
-          <div class="rec-section-subtitle">Based on your recent clients, you may benefit from <strong>3 additional PTSD specialists</strong> and <strong>2 child &amp; adolescent therapists</strong>. Aegis found <strong>{{ filteredRtCandidates.length }} high-match candidates</strong> below.</div>
+          <div class="nw-insight-text">Based on your recent clients, you may benefit from <strong>3 additional PTSD specialists</strong> and <strong>2 child &amp; adolescent therapists</strong>. Aegis found <strong>{{ filteredRtCandidates.length }} high-match candidates</strong> below — sorted by compatibility score.</div>
         </div>
       </div>
-      <div class="pn-toolbar" style="margin-bottom:10px">
+
+      <div class="pn-toolbar">
         <div class="pn-search-wrap" style="flex:1;min-width:220px">
           <span class="search-icon"><AegisIcon name="search-lg" :size="14" /></span>
           <input class="form-input" style="padding-left:34px" v-model="rtSearch" placeholder="Search by name, specialty, location..." />
@@ -640,57 +774,633 @@
           Add Manually
         </button>
       </div>
-      <div style="font-size:12px;color:var(--text-4);margin-bottom:14px">Showing {{ filteredRtCandidates.length }} AI suggestions</div>
-      <div class="sai-grid">
-        <div v-for="s in filteredRtCandidates" :key="s.name" class="sai-grid-card">
-          <div class="rsc-ai-icon"><AegisIcon name="cpu" :size="12" /></div>
-          <div class="sai-avatar">{{ s.initials }}</div>
-          <div class="sai-card-name">{{ s.name }}</div>
-          <div class="sai-card-role">{{ s.role }}</div>
-          <div class="sai-card-meta">{{ s.location }}</div>
-          <div class="spc-tags" style="justify-content:center;margin-bottom:12px"><span v-for="tag in s.tags" :key="tag" class="spc-tag">{{ tag }}</span></div>
-          <div class="sai-card-actions">
-            <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === s.id" @click="openConversation(s.id)"><AegisIcon name="message-square" :size="13" /></button>
-            <button type="button" class="btn-icon" data-tooltip="Add to Shadows" @click="openConnect(s)"><AegisIcon name="user-plus" :size="13" /></button>
-            <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(s.slug)"><AegisIcon name="eye" :size="13" /></button>
-            <button type="button" class="btn-icon rt-remove-btn" data-tooltip="Remove" @click="removeRtCandidate(s)"><AegisIcon name="x" :size="13" /></button>
+
+      <div class="pn-results-bar">Showing <strong>{{ filteredRtCandidates.length }}</strong> AI suggestions</div>
+
+      <div class="provider-grid">
+        <div v-for="s in filteredRtCandidates" :key="s.name" class="sai-grid-card spc-card" @click="viewProfile(s.slug)">
+          <div class="spc-top-pills">
+            <span class="rsc-ai-icon" data-tooltip="AI suggested based on your clinical focus and referral patterns"><AegisIcon name="sparkle-cluster" :size="12" /></span>
+          </div>
+          <div class="spc-body">
+            <div class="spc-avatar">{{ s.initials }}</div>
+            <div class="spc-name">{{ s.name }}</div>
+            <div class="spc-role">{{ s.role }}</div>
+            <div class="spc-loc">{{ s.location }}</div>
+            <div class="spc-tags">
+              <span v-for="tag in (s.tags || []).slice(0, 3)" :key="tag" class="spc-tag">{{ tag }}</span>
+              <span v-if="(s.tags || []).length > 3" class="spc-tag spc-tag-more">+{{ s.tags.length - 3 }}</span>
+            </div>
+          </div>
+          <div class="spc-actions" @click.stop>
+            <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === s.id" @click="openConversation(s.id)"><AegisIcon name="message-square" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="Add to My Shadows" @click="openConnect(s)"><AegisIcon name="user-plus" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(s.slug)"><AegisIcon name="eye" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="Dismiss" @click="removeRtCandidate(s)"><AegisIcon name="x" :size="14" /></button>
           </div>
         </div>
+      </div>
+
+      <AegisEmptyState v-if="!filteredRtCandidates.length" icon="cpu" title="No AI suggestions right now" subtitle="Aegis is still learning your referral patterns. Check back after you've sent a few referrals — or add providers manually.">
+        <template #actions>
+          <button type="button" class="btn btn-outline" @click="openManualReferralEntry">Add Manually</button>
+        </template>
+      </AegisEmptyState>
+
+      <div v-if="filteredRtCandidates.length" style="text-align:center;margin-top:24px">
+        <button type="button" class="btn btn-outline" @click="toast.info('No more matches at this time')">
+          <AegisIcon name="refresh" :size="14" />
+          Load More Shadows
+        </button>
       </div>
     </div><!-- /referral list -->
 
     <!-- MY SHADOWS -->
     <div v-show="scope === 'tools' && toolsTab === 'shadows'">
-      <div class="ph-stats">
-        <div class="ph-stat"><div class="ph-stat-icon" style="background:var(--badge-bg-gold);color:var(--gold-dark)"><AegisIcon name="cpu" :size="18" /></div><div><div class="ph-stat-val">{{ shadowConnections.length }}</div><div class="ph-stat-lbl">Active Shadows</div></div></div>
-      </div>
-      <div style="font-size:12px;color:var(--text-4);margin-bottom:14px">Showing <strong>{{ shadowConnections.length }}</strong> shadow connections</div>
-      <div class="sai-grid">
-        <div v-for="s in shadowConnections" :key="s.id" class="sai-grid-card">
-          <div class="rsc-ai-icon"><AegisIcon name="cpu" :size="12" /></div>
-          <div class="sai-avatar">{{ s.shadow_initials }}</div>
-          <div class="sai-card-name">{{ s.shadow_name }}</div>
-          <div class="sai-card-role">{{ s.shadow_role }}</div>
-          <div class="sai-card-meta">{{ s.shadow_location }}</div>
-          <div class="spc-tags" style="justify-content:center;margin-bottom:12px">
-            <span v-for="tag in tagList(s.shadow_specialty)" :key="tag" class="spc-tag">{{ tag }}</span>
+      <div class="nw-section-heading">My Shadows</div>
+
+      <div class="stat-chips-row">
+        <div class="stat-chip">
+          <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="users" :size="18" /></div>
+          <div>
+            <div class="stat-chip-value">{{ shadowConnections.length }}</div>
+            <div class="stat-chip-label">Active Shadows</div>
           </div>
-          <div class="sai-card-actions">
-            <button v-if="s.shadow_user_id" type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === s.shadow_user_id" @click="openConversation(s.shadow_user_id)"><AegisIcon name="message-square" :size="13" /></button>
-            <button type="button" class="btn-icon rt-remove-btn" data-tooltip="Remove Shadow" @click="confirmRemoveShadow(s)"><AegisIcon name="trash-2" :size="13" /></button>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="refresh" :size="18" /></div>
+          <div>
+            <div class="stat-chip-value">{{ shadowTotalReferrals }}</div>
+            <div class="stat-chip-label">Total Referrals</div>
+          </div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="trending-up" :size="18" /></div>
+          <div>
+            <div class="stat-chip-value">{{ shadowAvgMatchDisplay }}</div>
+            <div class="stat-chip-label">Avg Match Score</div>
+          </div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="clock" :size="18" /></div>
+          <div>
+            <div class="stat-chip-value">{{ shadowAvgRespDisplay }}</div>
+            <div class="stat-chip-label">Avg Response Time</div>
           </div>
         </div>
       </div>
-      <AegisEmptyState v-if="!shadowConnections.length" icon="cpu" title="No shadow connections yet" subtitle="Shadow providers are backup clinicians who mirror your profile. Add them from the Referral List.">
-        <template #actions><button type="button" class="btn btn-primary" @click="toolsTab = 'list'">Browse Suggestions</button></template>
+
+      <div class="pn-toolbar">
+        <div class="pn-search-wrap">
+          <span class="search-icon"><AegisIcon name="search-lg" :size="14" /></span>
+          <input class="form-input" type="text" placeholder="Search shadows by name, specialty..." v-model="myShadowSearch" />
+        </div>
+      </div>
+
+      <div class="pn-results-bar">Showing <strong>{{ filteredMyShadows.length }}</strong> shadow connections</div>
+
+      <div class="provider-grid">
+        <div v-for="s in filteredMyShadows" :key="s.id" class="ms-grid-card spc-card" @click="viewProfile(s.shadow_slug)">
+          <div class="spc-top-pills">
+            <span class="rsc-ai-icon" :data-tooltip="'AI matched — ' + (s.match_score || 0) + '% fit based on your clinical focus'"><AegisIcon name="sparkle-cluster" :size="12" /></span>
+          </div>
+          <div v-if="s.peer_rating" class="spc-rating" :data-tooltip="s.peer_rating + ' from peer reviews'">
+            <AegisIcon name="star" :size="11" />
+            {{ Number(s.peer_rating).toFixed(1) }}
+          </div>
+          <div class="spc-body">
+            <div class="spc-avatar">{{ s.shadow_initials }}</div>
+            <div class="spc-name">{{ s.shadow_name }}</div>
+            <div class="spc-role">{{ s.shadow_role }}</div>
+            <div class="spc-loc">{{ s.shadow_location }}</div>
+            <div class="spc-tags">
+              <span v-for="tag in visibleTags(s.shadow_specialty)" :key="tag" class="spc-tag">{{ tag }}</span>
+              <span v-if="overflowTagCount(s.shadow_specialty) > 0" class="spc-tag spc-tag-more">+{{ overflowTagCount(s.shadow_specialty) }}</span>
+            </div>
+          </div>
+          <div class="spc-stats">{{ shadowStatsLine(s) }}</div>
+          <div class="spc-actions" @click.stop>
+            <button v-if="s.shadow_user_id" type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === s.shadow_user_id" @click="openConversation(s.shadow_user_id)"><AegisIcon name="message-square" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="Refer Client" @click="openReferralForShadow(s)"><AegisIcon name="refresh" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(s.shadow_slug)"><AegisIcon name="eye" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="Remove Shadow" @click="confirmRemoveShadow(s)"><AegisIcon name="trash-2" :size="14" /></button>
+          </div>
+        </div>
+      </div>
+
+      <AegisEmptyState v-if="!filteredMyShadows.length" icon="cpu" title="No shadow connections yet" subtitle="Shadow providers are backup clinicians who mirror your profile. Add them from the Referral List.">
+        <template #actions>
+          <button type="button" class="btn btn-primary" @click="toolsTab = 'list'">Browse Referral List</button>
+        </template>
       </AegisEmptyState>
     </div><!-- /my shadows -->
 
     <!-- CONFIGURATION -->
     <div v-show="scope === 'tools' && toolsTab === 'config'">
-      <div class="section-head-title">Network Configuration</div>
-      <div class="insight-box"><p style="font-size:13px;color:var(--text-3)">Network preferences and configuration options coming soon.</p></div>
-    </div>
+      <div class="cfg-alert">
+        <div class="cfg-alert-icon"><AegisIcon name="lightbulb" :size="16" /></div>
+        <div>
+          <div class="cfg-alert-title">Configure Your Network Profile</div>
+          <p class="cfg-alert-text">Select your interdisciplinary team, specialties, treatment approaches, insurance, and demographics to help referral partners and clients find you. All changes are saved to your public provider profile.</p>
+        </div>
+      </div>
+
+      <div class="config-layout">
+        <!-- LEFT NAV -->
+        <nav class="config-nav">
+          <div class="config-nav-header"><AegisIcon name="settings-3" :size="16" /> Settings</div>
+          <a
+            v-for="item in configNav"
+            :key="item.id"
+            class="config-nav-item"
+            :class="{ active: activeConfigPanel === item.id }"
+            @click="scrollToConfigPanel(item.id)"
+          >
+            <AegisIcon :name="item.icon" :size="16" />
+            {{ item.label }}
+          </a>
+        </nav>
+
+        <!-- RIGHT CONTENT -->
+        <div class="config-content">
+          <!-- 1. INTERDISCIPLINARY TEAM -->
+          <div class="cfg-panel" :class="{ open: activeConfigPanel === 'cfg-team' }" id="cfg-team">
+            <div class="cfg-panel-header" @click="toggleConfigPanel('cfg-team')">
+              <div class="cfg-panel-header-left">
+                <div class="cfg-panel-icon"><AegisIcon name="badge-id" :size="16" /></div>
+                <div>
+                  <div class="cfg-panel-title">Pre-Designed Interdisciplinary Team Network</div>
+                  <div class="cfg-panel-subtitle">Select provider types you want in your referral network</div>
+                </div>
+              </div>
+              <div class="cfg-panel-meta">
+                <span class="cfg-selected-count show">{{ selectedCount('team') }} selected</span>
+              </div>
+            </div>
+            <div class="cfg-panel-body">
+              <input v-model="cfgSearch.team" class="cfg-search" type="text" placeholder="Search provider types..." />
+              <div class="cfg-provider-grid">
+                <div
+                  v-for="opt in filteredTeamOptions"
+                  :key="opt.label"
+                  class="cfg-provider-item"
+                  :class="{ selected: cfgSelected.team.includes(opt.label) }"
+                  @click="toggleCfg('team', opt.label)"
+                >
+                  <span class="cfg-prov-icon"><AegisIcon :name="opt.icon" :size="16" /></span>
+                  <span class="cfg-prov-name">{{ opt.label }}</span>
+                  <span class="cfg-check"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. SPECIALTIES -->
+          <div class="cfg-panel" :class="{ open: activeConfigPanel === 'cfg-specialties' }" id="cfg-specialties">
+            <div class="cfg-panel-header" @click="toggleConfigPanel('cfg-specialties')">
+              <div class="cfg-panel-header-left">
+                <div class="cfg-panel-icon"><AegisIcon name="star" :size="16" /></div>
+                <div>
+                  <div class="cfg-panel-title">Your Specialties</div>
+                  <div class="cfg-panel-subtitle">Select all specialties that apply to your practice</div>
+                </div>
+              </div>
+              <div class="cfg-panel-meta">
+                <span class="cfg-selected-count show">{{ selectedCount('specialties') }} selected</span>
+              </div>
+            </div>
+            <div class="cfg-panel-body">
+              <input v-model="cfgSearch.specialties" class="cfg-search" type="text" placeholder="Search specialties..." />
+              <template v-for="group in filteredSpecialtyGroups" :key="group.subcat">
+                <div class="cfg-subcat">{{ group.subcat }}</div>
+                <div class="cfg-tag-grid">
+                  <span
+                    v-for="tag in group.items"
+                    :key="tag"
+                    class="ctag"
+                    :class="{ selected: cfgSelected.specialties.includes(tag) }"
+                    @click="toggleCfg('specialties', tag)"
+                  >{{ tag }}</span>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- 3. TREATMENT APPROACHES -->
+          <div class="cfg-panel" :class="{ open: activeConfigPanel === 'cfg-approaches' }" id="cfg-approaches">
+            <div class="cfg-panel-header" @click="toggleConfigPanel('cfg-approaches')">
+              <div class="cfg-panel-header-left">
+                <div class="cfg-panel-icon"><AegisIcon name="leaves" :size="16" /></div>
+                <div>
+                  <div class="cfg-panel-title">Treatment Approaches</div>
+                  <div class="cfg-panel-subtitle">Modalities you use in practice — CBT, DBT, EMDR, IFS, and more</div>
+                </div>
+              </div>
+              <div class="cfg-panel-meta">
+                <span class="cfg-selected-count show">{{ selectedCount('approaches') }} selected</span>
+              </div>
+            </div>
+            <div class="cfg-panel-body">
+              <input v-model="cfgSearch.approaches" class="cfg-search" type="text" placeholder="Search treatment approaches..." />
+              <template v-for="group in filteredApproachGroups" :key="group.subcat">
+                <div class="cfg-subcat">{{ group.subcat }}</div>
+                <div class="cfg-tag-grid">
+                  <span
+                    v-for="tag in group.items"
+                    :key="tag"
+                    class="ctag"
+                    :class="{ selected: cfgSelected.approaches.includes(tag) }"
+                    @click="toggleCfg('approaches', tag)"
+                  >{{ tag }}</span>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- 4. INSURANCE ACCEPTED -->
+          <div class="cfg-panel" :class="{ open: activeConfigPanel === 'cfg-insurance' }" id="cfg-insurance">
+            <div class="cfg-panel-header" @click="toggleConfigPanel('cfg-insurance')">
+              <div class="cfg-panel-header-left">
+                <div class="cfg-panel-icon"><AegisIcon name="credit-card" :size="16" /></div>
+                <div>
+                  <div class="cfg-panel-title">Insurance Accepted</div>
+                  <div class="cfg-panel-subtitle">Select all insurance plans you currently accept</div>
+                </div>
+              </div>
+              <div class="cfg-panel-meta">
+                <span class="cfg-selected-count show">{{ selectedCount('insurance') }} selected</span>
+              </div>
+            </div>
+            <div class="cfg-panel-body">
+              <input v-model="cfgSearch.insurance" class="cfg-search" type="text" placeholder="Search insurance..." />
+              <template v-for="group in filteredInsuranceGroups" :key="group.subcat">
+                <div class="cfg-subcat">{{ group.subcat }}</div>
+                <div class="cfg-insurance-grid">
+                  <div
+                    v-for="opt in group.items"
+                    :key="opt"
+                    class="cfg-insurance-item"
+                    :class="{ selected: cfgSelected.insurance.includes(opt) }"
+                    @click="toggleCfg('insurance', opt)"
+                  >
+                    <span>{{ opt }}</span>
+                    <AegisIcon v-if="cfgSelected.insurance.includes(opt)" name="check" :size="14" />
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- 5. CREDENTIALS & LICENSES -->
+          <div class="cfg-panel" :class="{ open: activeConfigPanel === 'cfg-credentials' }" id="cfg-credentials">
+            <div class="cfg-panel-header" @click="toggleConfigPanel('cfg-credentials')">
+              <div class="cfg-panel-header-left">
+                <div class="cfg-panel-icon"><AegisIcon name="graduation-cap" :size="16" /></div>
+                <div>
+                  <div class="cfg-panel-title">Credentials &amp; Licenses</div>
+                  <div class="cfg-panel-subtitle">Select all credentials and licenses you hold</div>
+                </div>
+              </div>
+              <div class="cfg-panel-meta">
+                <span class="cfg-selected-count show">{{ selectedCount('credentials') }} selected</span>
+              </div>
+            </div>
+            <div class="cfg-panel-body">
+              <input v-model="cfgSearch.credentials" class="cfg-search" type="text" placeholder="Search credentials..." />
+              <template v-for="group in filteredCredentialGroups" :key="group.subcat">
+                <div class="cfg-subcat">{{ group.subcat }}</div>
+                <div class="cfg-tag-grid">
+                  <span
+                    v-for="tag in group.items"
+                    :key="tag"
+                    class="ctag"
+                    :class="{ selected: cfgSelected.credentials.includes(tag) }"
+                    @click="toggleCfg('credentials', tag)"
+                  >{{ tag }}</span>
+                </div>
+              </template>
+              <div class="cfg-subcat">License Numbers</div>
+              <input v-model="cfgFields.license_number" class="form-input" type="text" placeholder="Comma-separate multiple license numbers (kept private)" />
+            </div>
+          </div>
+
+          <!-- 6. SERVICES & FORMAT -->
+          <div class="cfg-panel" :class="{ open: activeConfigPanel === 'cfg-services' }" id="cfg-services">
+            <div class="cfg-panel-header" @click="toggleConfigPanel('cfg-services')">
+              <div class="cfg-panel-header-left">
+                <div class="cfg-panel-icon"><AegisIcon name="umbrella-2" :size="16" /></div>
+                <div>
+                  <div class="cfg-panel-title">Services Offered &amp; Format</div>
+                  <div class="cfg-panel-subtitle">How and what you provide to clients</div>
+                </div>
+              </div>
+              <div class="cfg-panel-meta">
+                <span class="cfg-selected-count show">{{ selectedCount('services') }} selected</span>
+              </div>
+            </div>
+            <div class="cfg-panel-body">
+              <template v-for="group in cfgServicesGroups" :key="group.subcat">
+                <div class="cfg-subcat">{{ group.subcat }}</div>
+                <div class="cfg-tag-grid">
+                  <span
+                    v-for="tag in group.items"
+                    :key="tag"
+                    class="ctag"
+                    :class="{ selected: cfgSelected.services.includes(tag) }"
+                    @click="toggleCfg('services', tag)"
+                  >{{ tag }}</span>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- 7. LOCATION & PRACTICE GEOGRAPHY -->
+          <div class="cfg-panel" :class="{ open: activeConfigPanel === 'cfg-location' }" id="cfg-location">
+            <div class="cfg-panel-header" @click="toggleConfigPanel('cfg-location')">
+              <div class="cfg-panel-header-left">
+                <div class="cfg-panel-icon"><AegisIcon name="map-pin" :size="16" /></div>
+                <div>
+                  <div class="cfg-panel-title">Location &amp; Practice Geography</div>
+                  <div class="cfg-panel-subtitle">Where you are licensed and available to practice</div>
+                </div>
+              </div>
+            </div>
+            <div class="cfg-panel-body">
+              <div class="cfg-subcat">Primary Practice Location</div>
+              <div class="cfg-field-row nw-cfg-2col">
+                <div>
+                  <label class="cfg-field-label">Primary State</label>
+                  <select v-model="cfgFields.primary_state" class="form-select">
+                    <option value="">Select state...</option>
+                    <optgroup v-for="region in primaryStates" :key="region.region" :label="region.region">
+                      <option v-for="[code, name] in region.items" :key="code" :value="code">{{ name }}</option>
+                    </optgroup>
+                  </select>
+                </div>
+                <div>
+                  <label class="cfg-field-label">Years in Practice</label>
+                  <select v-model="cfgFields.years_in_practice" class="form-select">
+                    <option value="">Select...</option>
+                    <option v-for="y in yearsInPracticeOptions" :key="y">{{ y }}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="cfg-subcat">Additional Licensed States</div>
+              <p class="nw-cfg-help">Select all states where you hold an active license</p>
+              <div class="cfg-state-grid">
+                <div
+                  v-for="st in usStates"
+                  :key="st"
+                  class="cfg-state-item"
+                  :class="{ selected: cfgSelected.states.includes(st) }"
+                  @click="toggleCfg('states', st)"
+                >{{ st }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 8. PROVIDER DEMOGRAPHICS -->
+          <div class="cfg-panel" :class="{ open: activeConfigPanel === 'cfg-demographics' }" id="cfg-demographics">
+            <div class="cfg-panel-header" @click="toggleConfigPanel('cfg-demographics')">
+              <div class="cfg-panel-header-left">
+                <div class="cfg-panel-icon"><AegisIcon name="user" :size="16" /></div>
+                <div>
+                  <div class="cfg-panel-title">Provider Demographics</div>
+                  <div class="cfg-panel-subtitle">Helps clients find culturally matched practitioners</div>
+                </div>
+              </div>
+              <div class="cfg-panel-meta">
+                <span class="cfg-selected-count show">{{ selectedCount('demographics') }} selected</span>
+              </div>
+            </div>
+            <div class="cfg-panel-body">
+              <div class="cfg-subcat">Sex &amp; Pronouns</div>
+              <div class="cfg-field-row nw-cfg-2col">
+                <div>
+                  <label class="cfg-field-label">Sex Assigned at Birth</label>
+                  <select v-model="cfgFields.sex_assigned" class="form-select">
+                    <option v-for="opt in sexAssignedOptions" :key="opt">{{ opt }}</option>
+                  </select>
+                </div>
+              </div>
+              <template v-for="group in demographicsGroups" :key="group.subcat">
+                <div class="cfg-subcat">{{ group.subcat }}</div>
+                <div class="cfg-tag-grid">
+                  <span
+                    v-for="tag in group.items"
+                    :key="tag"
+                    class="ctag"
+                    :class="{ selected: cfgSelected.demographics.includes(tag) }"
+                    @click="toggleCfg('demographics', tag)"
+                  >{{ tag }}</span>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- 9. LANGUAGES SPOKEN -->
+          <div class="cfg-panel" :class="{ open: activeConfigPanel === 'cfg-languages' }" id="cfg-languages">
+            <div class="cfg-panel-header" @click="toggleConfigPanel('cfg-languages')">
+              <div class="cfg-panel-header-left">
+                <div class="cfg-panel-icon"><AegisIcon name="send-2" :size="16" /></div>
+                <div>
+                  <div class="cfg-panel-title">Languages Spoken</div>
+                  <div class="cfg-panel-subtitle">Languages you can conduct sessions in</div>
+                </div>
+              </div>
+              <div class="cfg-panel-meta">
+                <span class="cfg-selected-count show">{{ selectedCount('languages') }} selected</span>
+              </div>
+            </div>
+            <div class="cfg-panel-body">
+              <input v-model="cfgSearch.languages" class="cfg-search" type="text" placeholder="Search languages..." />
+              <div class="cfg-tag-grid">
+                <span
+                  v-for="lang in filteredLanguageOptions"
+                  :key="lang"
+                  class="ctag"
+                  :class="{ selected: cfgSelected.languages.includes(lang) }"
+                  @click="toggleCfg('languages', lang)"
+                >{{ lang }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 10. IDENTITY & AFFILIATIONS -->
+          <div class="cfg-panel" :class="{ open: activeConfigPanel === 'cfg-identity' }" id="cfg-identity">
+            <div class="cfg-panel-header" @click="toggleConfigPanel('cfg-identity')">
+              <div class="cfg-panel-header-left">
+                <div class="cfg-panel-icon"><AegisIcon name="circle-user" :size="16" /></div>
+                <div>
+                  <div class="cfg-panel-title">Identity &amp; Affiliations</div>
+                  <div class="cfg-panel-subtitle">LGBTQ+ identity and religious/spiritual orientation — all optional</div>
+                </div>
+              </div>
+              <div class="cfg-panel-meta">
+                <span class="cfg-selected-count show">{{ selectedCount('identity') }} selected</span>
+              </div>
+            </div>
+            <div class="cfg-panel-body">
+              <template v-for="group in cfgIdentityGroups" :key="group.subcat">
+                <div class="cfg-subcat">{{ group.subcat }}</div>
+                <div class="cfg-tag-grid">
+                  <span
+                    v-for="tag in group.items"
+                    :key="tag"
+                    class="ctag"
+                    :class="{ selected: cfgSelected.identity.includes(tag) }"
+                    @click="toggleCfg('identity', tag)"
+                  >{{ tag }}</span>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- 11. RATES & AVAILABILITY -->
+          <div class="cfg-panel" :class="{ open: activeConfigPanel === 'cfg-rates' }" id="cfg-rates">
+            <div class="cfg-panel-header" @click="toggleConfigPanel('cfg-rates')">
+              <div class="cfg-panel-header-left">
+                <div class="cfg-panel-icon"><AegisIcon name="dollar" :size="16" /></div>
+                <div>
+                  <div class="cfg-panel-title">Rates &amp; Availability</div>
+                  <div class="cfg-panel-subtitle">Session fees, sliding scale, and network preferences</div>
+                </div>
+              </div>
+            </div>
+            <div class="cfg-panel-body">
+              <div class="cfg-subcat">Session Rate (Out-of-Pocket / Self-Pay)</div>
+              <div class="cfg-field-row nw-cfg-2col">
+                <div>
+                  <label class="cfg-field-label">Session Length</label>
+                  <select v-model="cfgFields.session_length" class="form-select">
+                    <option v-for="opt in sessionLengthOptions" :key="opt">{{ opt }}</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="cfg-field-label">Rate per Session</label>
+                  <div class="nw-cfg-currency">
+                    <span class="nw-cfg-currency-symbol">$</span>
+                    <input v-model.number="cfgFields.rate_per_session" class="form-input" type="number" min="0" step="5" placeholder="200" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="cfg-subcat">Sliding Scale</div>
+              <div class="cfg-tag-grid">
+                <span
+                  v-for="opt in slidingScaleOptions"
+                  :key="opt"
+                  class="ctag"
+                  :class="{ selected: cfgSelected.rates.includes(opt) }"
+                  @click="toggleCfg('rates', opt)"
+                >{{ opt }}</span>
+              </div>
+              <div class="cfg-field-row nw-cfg-2col">
+                <div>
+                  <label class="cfg-field-label">Sliding Scale Min ($)</label>
+                  <input v-model.number="cfgFields.sliding_scale_min" class="form-input" type="number" min="0" step="5" placeholder="80" />
+                </div>
+                <div>
+                  <label class="cfg-field-label">Sliding Scale Max ($)</label>
+                  <input v-model.number="cfgFields.sliding_scale_max" class="form-input" type="number" min="0" step="5" placeholder="180" />
+                </div>
+              </div>
+
+              <div class="cfg-subcat">Network Preferences</div>
+              <div class="cfg-field-row nw-cfg-4col">
+                <div>
+                  <label class="cfg-field-label">Max Provider Partners</label>
+                  <select v-model="cfgFields.max_partners" class="form-select">
+                    <option v-for="opt in maxPartnersOptions" :key="opt">{{ opt }}</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="cfg-field-label">Geographic Search Radius</label>
+                  <select v-model="cfgFields.geographic_radius" class="form-select">
+                    <option v-for="opt in geographicRadiusOptions" :key="opt">{{ opt }}</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="cfg-field-label">Default Referral Urgency</label>
+                  <select v-model="cfgFields.referral_urgency" class="form-select">
+                    <option v-for="opt in referralUrgencyOptions" :key="opt">{{ opt }}</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="cfg-field-label">AI Matching Frequency</label>
+                  <select v-model="cfgFields.ai_match_frequency" class="form-select">
+                    <option v-for="opt in aiMatchFrequencyOptions" :key="opt">{{ opt }}</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 12. NETWORK NOTIFICATIONS -->
+          <div class="cfg-panel" :class="{ open: activeConfigPanel === 'cfg-notifications' }" id="cfg-notifications">
+            <div class="cfg-panel-header" @click="toggleConfigPanel('cfg-notifications')">
+              <div class="cfg-panel-header-left">
+                <div class="cfg-panel-icon"><AegisIcon name="bell-2" :size="16" /></div>
+                <div>
+                  <div class="cfg-panel-title">Network Notifications</div>
+                  <div class="cfg-panel-subtitle">Control what alerts you receive</div>
+                </div>
+              </div>
+            </div>
+            <div class="cfg-panel-body">
+              <div
+                v-for="n in notifSettings"
+                :key="n.key"
+                class="toggle-wrap"
+              >
+                <div>
+                  <div class="toggle-info-label">{{ n.label }}</div>
+                  <div class="toggle-info-sub">{{ n.desc }}</div>
+                </div>
+                <button type="button" class="toggle" :class="{ on: cfgNotifications[n.key] }" @click="cfgNotifications[n.key] = !cfgNotifications[n.key]"></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 13. PRIVACY & AI MATCHING -->
+          <div class="cfg-panel" :class="{ open: activeConfigPanel === 'cfg-privacy' }" id="cfg-privacy">
+            <div class="cfg-panel-header" @click="toggleConfigPanel('cfg-privacy')">
+              <div class="cfg-panel-header-left">
+                <div class="cfg-panel-icon"><AegisIcon name="lock-closed" :size="16" /></div>
+                <div>
+                  <div class="cfg-panel-title">Privacy &amp; AI Matching</div>
+                  <div class="cfg-panel-subtitle">Control your visibility and how the AI uses your data</div>
+                </div>
+              </div>
+            </div>
+            <div class="cfg-panel-body">
+              <div
+                v-for="p in privacyToggles"
+                :key="p.key"
+                class="toggle-wrap"
+              >
+                <div>
+                  <div class="toggle-info-label">{{ p.label }}</div>
+                  <div class="toggle-info-sub">{{ p.desc }}</div>
+                </div>
+                <button type="button" class="toggle" :class="{ on: cfgPrivacy[p.key] }" @click="cfgPrivacy[p.key] = !cfgPrivacy[p.key]"></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Save bar -->
+          <div class="nw-cfg-save-bar">
+            <span class="cfg-save-hint">{{ configDirtyCount }} unsaved change{{ configDirtyCount === 1 ? '' : 's' }}</span>
+            <button type="button" class="btn btn-outline" @click="resetConfig">Reset Changes</button>
+            <button type="button" class="btn btn-primary" @click="saveConfig">
+              <AegisIcon name="save" :size="14" />
+              Save Configuration
+            </button>
+          </div>
+        </div>
+      </div>
+    </div><!-- /config -->
 
     <!-- ══════════ MODALS ══════════ -->
 
@@ -876,7 +1586,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import { router, useForm } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import AppLayout from '@/layouts/AppLayout.vue'
@@ -1388,14 +2098,34 @@ const businessPartners = ref([
   { name:'StaffLink HR Group', id:'', initials:'SH', avatarColor:'var(--gold-dark)', partnerType:'FIRM',        role:'HR / Staffing',       location:'Dallas, TX',           tags:['Recruitment','Benefits Admin','Compliance'],               rate:'$120/hr', reviews:44,  jobs:82,  rating:4.8, category:'HR / Staffing'      },
 ])
 
-const bpFilterGroups = [
-  { label:'Partner Type',     icon:'users'       },
-  { label:'Hourly Rate',      icon:'dollar' },
-  { label:'Experience Level', icon:'star'        },
-  { label:'Availability',     icon:'clock'       },
-  { label:'Engagement Type',  icon:'briefcase' },
-  { label:'Work Location',    icon:'map-pin' },
-]
+const bpFilterGroups = reactive([
+  { label: 'Partner Type',      icon: 'users',     open: false, placeholder: 'Filter by freelancer, agency, consultant, firm, or solopreneur.' },
+  { label: 'Hourly Rate',       icon: 'dollar',    open: false, placeholder: 'Set a minimum and maximum hourly rate range.' },
+  { label: 'Experience Level',  icon: 'star',      open: false, placeholder: 'Entry, mid, senior, or expert-level partners.' },
+  { label: 'Availability',      icon: 'clock',     open: false, placeholder: 'Full-time, part-time, contract, or on-demand availability.' },
+  { label: 'Engagement Type',   icon: 'briefcase', open: false, placeholder: 'One-time project, ongoing retainer, or hourly.' },
+  { label: 'Work Location',     icon: 'map-pin',   open: false, placeholder: 'Remote, on-site, or hybrid partners.' },
+  { label: 'Success Metrics',   icon: 'check-badge', open: false, placeholder: 'Filter by proposal success rate and jobs completed.' },
+  { label: 'Quality Score',     icon: 'award-2',   open: false, placeholder: 'Verified partners, HIPAA-trained, and high-quality-score filters.' },
+  { label: 'Languages',         icon: 'send-2',    open: false, placeholder: 'Filter by languages the partner is fluent in.' },
+  { label: 'Aegis Membership',  icon: 'shield',    open: false, placeholder: 'Verified Aegis members and specific membership tiers.' },
+])
+
+function sbpClearAll() {
+  bpSearch.value      = ''
+  bpCategory.value    = ''
+  bpClinicalOnly.value = false
+  bpFilterGroups.forEach(f => { f.open = false })
+  toast.info('All filters cleared')
+}
+
+const avgBpRatingDisplay = computed(() => {
+  const vals = props.bpConnections
+    .map(c => Number(c.peer_rating || 0))
+    .filter(v => v > 0)
+  if (!vals.length) return '—'
+  return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)
+})
 
 const rtCandidates = ref([
   { name:'Alicia Reeves, LPC',     id:'', slug:'', initials:'AR', role:'Licensed Professional Counselor',  location:'New York, NY', tags:['ACT','Stress','Life Transitions'] },
@@ -1420,6 +2150,390 @@ function timeAgo(iso) {
   if (days === 1) return 'Yesterday'
   if (days < 7)  return days + 'd ago'
   return new Date(iso).toLocaleDateString('en-US', { month:'short', day:'numeric' })
+}
+
+// ── Card display helpers (parity with PHP net_provider_card / net_bp_card) ─
+function visibleTags(str) {
+  return tagList(str).slice(0, 3)
+}
+function overflowTagCount(str) {
+  const t = tagList(str)
+  return t.length > 3 ? t.length - 3 : 0
+}
+function ratingDisplay(nc) {
+  const v = Number(nc.peer_rating ?? nc.rating ?? 0)
+  return v > 0 ? v.toFixed(1) : '—'
+}
+function ratingTooltip(nc, label = 'peer reviews') {
+  const v = Number(nc.peer_rating ?? nc.rating ?? 0)
+  const reviews = Number(nc.peer_reviews ?? nc.reviews ?? 0)
+  if (v <= 0) return 'No ratings yet'
+  return reviews > 0 ? `${v.toFixed(1)} from ${reviews} ${label}` : `${v.toFixed(1)} ${label}`
+}
+function connectionStatsLine(nc) {
+  const refs = Number(nc.referral_count ?? nc.refs ?? 0)
+  const acc  = Number(nc.acceptance_rate ?? nc.acc  ?? 0)
+  const resp = Number(nc.response_time_hours ?? nc.resp ?? 0)
+  return `${refs} refs · ${acc}% acc · ${resp.toFixed(1)}h resp`
+}
+function shadowStatsLine(s) {
+  const match = Number(s.match_score ?? 0)
+  const refs  = Number(s.referral_count ?? 0)
+  const acc   = Number(s.acceptance_rate ?? 0)
+  const resp  = Number(s.response_time_hours ?? 0)
+  const prefix = match > 0 ? `${match}% match · ` : ''
+  return `${prefix}${refs} refs · ${acc}% acc · ${resp.toFixed(1)}h resp`
+}
+function bpCategoryLabel(nc) {
+  const cats = (nc.partner_categories || '').split(',').map(s => s.trim()).filter(Boolean)
+  if (cats.length) return cats[0]
+  return nc.partner_role || 'Services'
+}
+function bpCategoryTooltip(nc) {
+  const cats = (nc.partner_categories || '').split(',').map(s => s.trim()).filter(Boolean)
+  return cats.length > 1 ? `${cats.length} categories · ${cats.join(', ')}` : bpCategoryLabel(nc)
+}
+
+// ── My Shadows: filters, aggregates, referral shortcut ────────────────────
+const myShadowSearch = ref('')
+const filteredMyShadows = computed(() => {
+  const q = myShadowSearch.value.trim().toLowerCase()
+  if (!q) return props.shadowConnections
+  return props.shadowConnections.filter((s) => {
+    const hay = [s.shadow_name, s.shadow_role, s.shadow_location, s.shadow_specialty]
+      .filter(Boolean).join(' ').toLowerCase()
+    return hay.includes(q)
+  })
+})
+const shadowTotalReferrals = computed(() =>
+  props.shadowConnections.reduce((sum, s) => sum + Number(s.referral_count || 0), 0)
+)
+const shadowAvgMatchDisplay = computed(() => {
+  const vals = props.shadowConnections.map(s => Number(s.match_score || 0)).filter(v => v > 0)
+  if (!vals.length) return '—'
+  return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) + '%'
+})
+const shadowAvgRespDisplay = computed(() => {
+  const vals = props.shadowConnections.map(s => Number(s.response_time_hours || 0)).filter(v => v > 0)
+  if (!vals.length) return '—'
+  return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) + 'h'
+})
+
+function openReferralForShadow(s) {
+  referralPreselectSlug.value = s.shadow_slug ?? ''
+  openModal('referralModal')
+}
+
+// ── Configuration tab (Section 3.3) ───────────────────────────────────────
+const activeConfigPanel = ref('cfg-team')
+
+const configNav = [
+  { id: 'cfg-team',          label: 'Interdisciplinary Team',  icon: 'id-card' },
+  { id: 'cfg-specialties',   label: 'Specialties',             icon: 'star' },
+  { id: 'cfg-approaches',    label: 'Treatment Approaches',    icon: 'leaves' },
+  { id: 'cfg-insurance',     label: 'Insurance Accepted',      icon: 'credit-card' },
+  { id: 'cfg-credentials',   label: 'Credentials & Licenses',  icon: 'graduation-cap' },
+  { id: 'cfg-services',      label: 'Services & Format',       icon: 'umbrella-2' },
+  { id: 'cfg-location',      label: 'Location & Availability', icon: 'map-pin' },
+  { id: 'cfg-demographics',  label: 'Demographics',            icon: 'user' },
+  { id: 'cfg-languages',     label: 'Languages',               icon: 'send-2' },
+  { id: 'cfg-identity',      label: 'Identity & Affiliations', icon: 'circle-user' },
+  { id: 'cfg-rates',         label: 'Rates & Availability',    icon: 'dollar' },
+  { id: 'cfg-notifications', label: 'Notifications',           icon: 'bell-2' },
+  { id: 'cfg-privacy',       label: 'Privacy & Matching',      icon: 'lock-closed' },
+]
+
+// First two panels get fully-populated option lists — matches PHP fidelity for
+// the "above the fold" panels while remaining 11 render as functional
+// scaffolds pending Phase 4 wiring.
+// ─── Panel 1: Interdisciplinary Team — full 27 provider types (PHP parity) ─
+const teamOptions = [
+  { label: 'Psychotherapist',                       icon: 'leaves' },
+  { label: 'Psychologist',                          icon: 'user' },
+  { label: 'Psychiatrist',                          icon: 'flame' },
+  { label: 'Pain Management Specialist',            icon: 'heart-2' },
+  { label: 'Movement/Dance Specialist',             icon: 'trending-up' },
+  { label: 'Life / Health Coach',                   icon: 'target-2' },
+  { label: 'Behavioral Therapist',                  icon: 'clipboard' },
+  { label: 'Massage Therapist',                     icon: 'moon' },
+  { label: 'Acupuncturist',                         icon: 'umbrella-2' },
+  { label: 'Naturopathic Doctor (ND)',              icon: 'leaves' },
+  { label: 'Functional Medicine Practitioner',      icon: 'flask' },
+  { label: 'Registered Dietitian (RD/RDN)',         icon: 'heart-2' },
+  { label: 'Integrative Nutrition Practitioner',    icon: 'leaves' },
+  { label: 'Holistic Nutrition Practitioner',       icon: 'leaves' },
+  { label: 'Detox/Functional Nutrition Specialist', icon: 'flask' },
+  { label: 'Certified Diabetes Educator (CDE)',     icon: 'clipboard' },
+  { label: 'Hypnotherapist',                        icon: 'moon' },
+  { label: 'Reiki/Energy Healing Practitioner',     icon: 'sparkle-cluster' },
+  { label: 'Homeopath',                             icon: 'leaves' },
+  { label: 'Herbalist',                             icon: 'leaves' },
+  { label: 'Ayurveda Practitioner',                 icon: 'leaves' },
+  { label: 'Certified Nurse-Midwife (CNM)',         icon: 'heart-2' },
+  { label: 'Doula',                                 icon: 'heart-2' },
+  { label: 'Sleep Specialist',                      icon: 'moon' },
+  { label: 'Genetic Counselor',                     icon: 'flask' },
+  { label: 'Personal Trainer',                      icon: 'trending-up' },
+  { label: 'Somatic Practitioner',                  icon: 'heart-2' },
+]
+
+// ─── Panel 2: Specialties — full 11 subcats × ~90 items (PHP parity) ───────
+const cfgSpecialtyGroups = [
+  { subcat: 'Therapy Types',            items: ['Individual Therapy','Family Therapy','Couple Therapy','Children Therapy','Children & Adolescent Therapy','Adult','Older Adult'] },
+  { subcat: 'Mental Health & Wellness', items: ['Stress Management & Burnout','Grief & Loss','Wellness Coaching','Sex Therapy','Healthy Aging','Animal Assisted Therapy','Lifestyle Coaching','Dance Therapy','Fitness and Health Coaching','Eco-Psychology','Art Therapy / Play Therapy','Spirituality & Religion','Sleep Disorders','Pain Management'] },
+  { subcat: 'Population & Identity',    items: ['LGBTQIA+',"Women's Health","Men's Health",'BIPOC Communities','Veterans & Military Families','Immigrant & Refugee Populations','Neurodivergent Individuals','Disability / Chronic Illness','Cultural Stress'] },
+  { subcat: 'Relationship & Family',    items: ['Infidelity & Trust Issues','Couples','Divorce & Separation','Intimate Partner Violence','Family Conflict','Parenting Support','Co-Parenting','Blended Family Dynamics','Premarital Counseling'] },
+  { subcat: 'Mental Health Disorders',  items: ['Anxiety Disorders','Depression / Depressive Disorders','PTSD & Trauma','Mood Disorders','Bipolar Disorders','OCD','Schizophrenia & Psychotic Disorders','ADHD','Autism Spectrum Disorder (ASD)','Eating Disorders','Body Image Issues','Dissociative Disorders','Personality Disorders (BPD, etc.)','Treatment-Resistant Depression'] },
+  { subcat: 'Addiction & Substance Use', items: ['Substance Use Disorders','Alcohol Addiction','Drug Addiction','Behavioral Addictions','Relapse Prevention','Recovery Coaching'] },
+  { subcat: 'Life Transitions & Personal Growth', items: ['Career Transitions & Work Stress','Career Counseling','Self-Esteem & Identity','Life Purpose & Meaning','Midlife Crisis','Retirement Adjustment','Empty Nest Syndrome'] },
+  { subcat: 'Medical & Physical Health', items: ['Chronic Illness','Chronic Disease Management','Autoimmune Disorders','Thyroid Health','Hormonal Imbalances','Menopause & Perimenopause','Fertility & Reproductive Health','Pregnancy & Postpartum','PCOS','Diabetes & Blood Sugar','Cardiovascular Health','Cancer'] },
+  { subcat: 'Specialty Psychiatry',     items: ['General Psychiatry','Medication Management','Geriatric Psychiatry','Child & Adolescent Psychiatry','Reproductive Psychiatry','Forensic Psychiatry','Psychopharmacology'] },
+  { subcat: 'Nutrition & Dietetics',    items: ['Weight Management','Metabolic Health','Cardiovascular Nutrition','Gut Health & Microbiome','Food Sensitivities & Allergies','Eating Disorders & Disordered Eating','Sports Nutrition','Prenatal & Postnatal Nutrition','Plant-Based Nutrition','Functional Nutrition','Pediatric Nutrition'] },
+  { subcat: 'Functional Medicine',      items: ['Root-Cause Medicine','Hormone Optimization','Chronic Fatigue & Fibromyalgia','Inflammation & Immune Dysregulation','Detoxification & Environmental Medicine','Longevity & Preventive Medicine','Mind-Body Medicine','Integrative Mental Health'] },
+]
+
+// ─── Panel 3: Treatment Approaches — 4 subcats × 73 items (PHP parity) ────
+const cfgApproachGroups = [
+  { subcat: 'Clinical Therapy Frameworks', items: ['Cognitive Behavioral Therapy (CBT)','Dialectical Behavioral Therapy (DBT)','Acceptance and Commitment Therapy (ACT)','EMDR','Internal Family Systems (IFS)','Psychodynamic Therapy','Psychoanalytic','Attachment-Based Therapy','Somatic Therapy / Somatic Experiencing','Trauma-Focused Therapy','Emotionally Focused Therapy (EFT)','Gottman Method Couples Therapy','Narrative Therapy','Collaborative Language Therapy','Structural Family Therapy','Gestalt Therapy','Jungian Therapy','Adlerian Therapy','Existential Therapy','Humanistic / Person-Centered Therapy','Solution-Focused Brief Therapy (SFBT)','Motivational Interviewing (MI)','Mindfulness-Based Stress Reduction (MBSR)','Mindfulness-Based Cognitive Therapy (MBCT)','Compassion-Focused Therapy (CFT)','Polyvagal-Informed Therapy','Sensorimotor Psychotherapy','Trauma-Focused CBT (TF-CBT)','Prolonged Exposure Therapy (PE)','Interpersonal Therapy (IPT)','Imago Relationship Therapy','Brainspotting','Hypnotherapy/Hypnosis','Play Therapy','Art Therapy','Music Therapy','Dance/Movement Therapy','Equine-Assisted Therapy','Wilderness Therapy','Family Systems Therapy','Eclectic / Integrative'] },
+  { subcat: 'Nutrition & Dietetics Approaches', items: ['Medical Nutrition Therapy (MNT)','Personalized Nutrition Planning','Behavior Change Counseling','Intuitive Eating','Anti-Diet Approach','Health at Every Size (HAES)','Anti-Inflammatory Nutrition','Therapeutic Diets (low-FODMAP, DASH, Mediterranean)','Elimination Diets','Meal Planning & Dietary Structuring','Weight-Neutral Nutrition','Functional Nutrition Therapy'] },
+  { subcat: 'Functional Medicine Approaches',  items: ['Root-Cause Analysis','Systems Biology Approach','Personalized / Precision Medicine','Lifestyle Medicine','Hormone Optimization','Gut Restoration Protocols','Detoxification Protocols','Nutraceutical & Supplement Therapy','Mind-Body Medicine','Environmental Medicine'] },
+  { subcat: 'Psychiatry Approaches',           items: ['Psychopharmacology','Medication Management','Combined Therapy & Medication','Diagnostic Evaluation & Monitoring','Evidence-Based Prescribing','Treatment-Resistant Protocols','Long-Acting Injectable Therapy','ECT / TMS / Ketamine Therapy','Collaborative Care Models','Psychiatric Assessment & Care Planning'] },
+]
+
+// ─── Panel 4: Insurance — 5 subcats × 25 plans (PHP parity) ────────────────
+const cfgInsuranceGroups = [
+  { subcat: 'Commercial Health Plans',              items: ['Aetna','Cigna / Evernorth','UnitedHealthcare / Optum','Humana','Kaiser Permanente','Oscar Health'] },
+  { subcat: 'Blue Cross Blue Shield Network',       items: ['Anthem BCBS','BCBS (State/Regional)','BCBS Federal Employee Program','Premera Blue Cross','Highmark BCBS','Regence BlueCross BlueShield','Wellmark BCBS','Blue Shield of California'] },
+  { subcat: 'Government Programs',                  items: ['Medicare','Medicaid (Various State Plans)','TRICARE'] },
+  { subcat: 'Behavioral Health Networks / Carve-Outs', items: ['Carelon Behavioral Health (Beacon)','Magellan Healthcare','Beacon Health Options'] },
+  { subcat: 'Other / Third-Party Administrators',   items: ['UMR (United Medical Resources)','ComPsych','Quest Behavioral Health'] },
+]
+
+// ─── Panel 5: Credentials — 9 subcats × 40 credentials (PHP parity) ────────
+const cfgCredentialGroups = [
+  { subcat: 'Medical & Psychiatric',            items: ['MD (Doctor of Medicine)','DO (Doctor of Osteopathic Medicine)','Psychiatric Nurse Practitioner (PMHNP)','Physician Assistant (PA)'] },
+  { subcat: 'Psychology',                       items: ['PhD (Psychology)','PsyD (Doctor of Psychology)','Licensed Psychologist','Clinical Psychologist','Neuropsychologist'] },
+  { subcat: 'Clinical Social Work & Counseling', items: ['LCSW','LMSW','LMFT','LPC','LPCC','LMHC','LCPC','NCC (National Certified Counselor)'] },
+  { subcat: 'Addiction & Substance Abuse',      items: ['CADC','LCADC','CASAC','CAC (Certified Addiction Counselor)'] },
+  { subcat: 'Nutrition & Dietetics',            items: ['RD (Registered Dietitian)','RDN (Registered Dietitian Nutritionist)','LD (Licensed Dietitian)','CDN','CN (Certified Nutritionist)','CDE (Certified Diabetes Educator)','CDCES'] },
+  { subcat: 'Functional & Integrative Medicine', items: ['IFMCP','ND (Naturopathic Doctor)','DC (Doctor of Chiropractic)','LAc (Licensed Acupuncturist)','DAOM'] },
+  { subcat: 'Coaching & Alternative',           items: ['NBC-HWC','CHC (Certified Health Coach)','ACC (ICF)','PCC (ICF)','MCC (ICF)','CLC (Certified Life Coach)'] },
+  { subcat: 'Specialized Certifications',       items: ['EMDR Certified Therapist','DBT Certified Clinician','CBT Certified Therapist','Certified Sex Therapist (AASECT)','Certified Play Therapist (RPT)','Art Therapist (ATR, ATR-BC)','Somatic Experiencing Practitioner (SEP)'] },
+  { subcat: 'Nursing',                          items: ['RN (Registered Nurse)','NP (Nurse Practitioner)','CNM (Certified Nurse-Midwife)','FNP (Family Nurse Practitioner)'] },
+]
+
+// ─── Panel 6: Services & Format — 3 subcats × 25 items (PHP parity) ───────
+const cfgServicesGroups = [
+  { subcat: 'Services Offered',           items: ['Individual Therapy','Couples Therapy','Family Therapy','Group Therapy','Medication Management','Psychiatric Evaluation','Psychological Testing / Assessment','Neuropsychological Assessment','Nutritional Counseling','Wellness Coaching','Life Coaching','Career Counseling','Crisis Intervention','Case Management','Workshops & Seminars','Clinical Supervision / Training'] },
+  { subcat: 'Session Format',             items: ['In-Person Only','Telehealth Only','Both In-Person & Telehealth','Hybrid'] },
+  { subcat: 'Clinical Supervisor Status', items: ['Yes — I Provide Clinical Supervision','No — I Do Not Provide Supervision','Approved Supervisor (Licensed)','Accepting Supervisees','Not Accepting Supervisees Currently'] },
+]
+
+// ─── Panel 7: Location — full 50-state grid + primary state select ─────────
+const primaryStates = [
+  { region: 'Northeast', items: [['CT','Connecticut'],['ME','Maine'],['MA','Massachusetts'],['NH','New Hampshire'],['NJ','New Jersey'],['NY','New York'],['PA','Pennsylvania'],['RI','Rhode Island'],['VT','Vermont']] },
+  { region: 'Southeast', items: [['AL','Alabama'],['AR','Arkansas'],['DE','Delaware'],['FL','Florida'],['GA','Georgia'],['KY','Kentucky'],['LA','Louisiana'],['MD','Maryland'],['MS','Mississippi'],['NC','North Carolina'],['SC','South Carolina'],['TN','Tennessee'],['VA','Virginia'],['WV','West Virginia']] },
+  { region: 'Midwest',   items: [['IL','Illinois'],['IN','Indiana'],['IA','Iowa'],['KS','Kansas'],['MI','Michigan'],['MN','Minnesota'],['MO','Missouri'],['NE','Nebraska'],['ND','North Dakota'],['OH','Ohio'],['SD','South Dakota'],['WI','Wisconsin']] },
+  { region: 'Southwest', items: [['AZ','Arizona'],['NM','New Mexico'],['OK','Oklahoma'],['TX','Texas']] },
+  { region: 'West',      items: [['AK','Alaska'],['CA','California'],['CO','Colorado'],['HI','Hawaii'],['ID','Idaho'],['MT','Montana'],['NV','Nevada'],['OR','Oregon'],['UT','Utah'],['WA','Washington'],['WY','Wyoming']] },
+  { region: 'Territories', items: [['DC','Washington D.C.'],['PR','Puerto Rico'],['GU','Guam']] },
+]
+const yearsInPracticeOptions = ['0–2 years (Early Career)','3–5 years','6–10 years','11–15 years','16–20 years','21–25 years','26–30 years','30+ years']
+const usStates = ['NY','NJ','CT','PA','MA','VT','NH','RI','ME','DE','MD','VA','WV','NC','SC','GA','FL','AL','MS','TN','KY','OH','IN','IL','MI','WI','MN','IA','MO','AR','LA','TX','OK','KS','NE','SD','ND','MT','WY','CO','NM','AZ','UT','NV','ID','WA','OR','CA','AK','HI','DC']
+
+// ─── Panel 8: Demographics — 6 subcats × 50+ items (PHP parity) ────────────
+const demographicsGroups = [
+  { subcat: 'Pronouns',                             items: ['She/Her/Hers','He/Him/His','They/Them/Theirs','Ze/Zir/Zirs','Any Pronouns','Ask Me'] },
+  { subcat: 'Race / Ethnicity',                     items: ['American Indian or Alaska Native','Asian','Black or African American','Hispanic or Latino/a/x','Middle Eastern or North African','Native Hawaiian or Pacific Islander','White or Caucasian','Multiracial or Biracial','South Asian','East Asian','Southeast Asian','Caribbean','African (non-American)','Prefer not to say'] },
+  { subcat: 'Parenting Status',                     items: ['Parent','Not a Parent','Parent of Young Children (0–5)','Parent of School-Age Children (6–12)','Parent of Teenagers (13–17)','Parent of Adult Children (18+)','Single Parent','Co-Parent','Adoptive Parent','Expecting Parent','Prefer not to say'] },
+  { subcat: 'Disability / Neurodivergent Identity', items: ['Person with Disability','Neurodivergent','ADHD','Autism / Autistic','Dyslexia','Chronic Illness','D/deaf or Hard of Hearing','Blind or Low Vision','Mobility Disability','Mental Health Disability','Disability Ally','Prefer not to say'] },
+  { subcat: 'Veteran Status',                       items: ['Military Veteran','Active Duty Military','Reservist / National Guard','Military Spouse','Military Family Member','Veteran-Affirming (Non-Veteran)','Not Applicable'] },
+]
+const sexAssignedOptions = ['Prefer not to say','Male','Female','Intersex']
+
+// ─── Panel 9: Languages — full 29 languages (PHP parity) ───────────────────
+const languageOptions = [
+  'English','Spanish','Mandarin Chinese','Cantonese','French','German','Italian','Portuguese',
+  'Russian','Arabic','Hindi','Urdu','Korean','Japanese','Vietnamese','Tagalog (Filipino)',
+  'Polish','Farsi (Persian)','Hebrew','Greek','Turkish','Bengali','Punjabi','Tamil','Telugu',
+  'Thai','Dutch','Swedish','American Sign Language (ASL)',
+]
+
+// ─── Panel 10: Identity & Affiliations — 4 subcats × 45 items (PHP parity) ─
+const cfgIdentityGroups = [
+  { subcat: 'LGBTQ+ Identity',                                         items: ['LGBTQ+ Identifying Provider','LGBTQ+ Affirming (Ally)','Gay','Lesbian','Bisexual','Transgender','Non-Binary','Queer','Asexual','Pansexual','Two-Spirit','Gender Non-Conforming','Genderqueer'] },
+  { subcat: 'Religious / Spiritual Orientation — Major World Religions', items: ['Christianity (General)','Catholic','Protestant','Eastern Orthodox','Baptist','Evangelical','Judaism (General)','Orthodox Judaism','Reform Judaism','Islam (General)','Sunni Islam','Shia Islam','Hinduism','Buddhism','Sikhism','Jainism'] },
+  { subcat: 'Eastern & Indigenous Traditions',                          items: ['Taoism','Zen Buddhism','Tibetan Buddhism','Indigenous Spirituality','Native American Spirituality','African Traditional Religions'] },
+  { subcat: 'Alternative & Contemporary',                               items: ['Spiritual but Not Religious','Agnostic','Atheist','Secular Humanist','Unitarian Universalist','Mindfulness-Based','Yogic Philosophy','Interfaith','Non-Denominational','Prefer not to say'] },
+]
+
+// ─── Panel 11: Rates & Availability — sliding scale ctags + network prefs ─
+const slidingScaleOptions   = ['Yes — Sliding Scale Available','Limited Sliding Scale Spots','No Sliding Scale']
+const sessionLengthOptions  = ['30 minutes','45 minutes','50 minutes','60 minutes','75 minutes','90 minutes','120 minutes']
+const maxPartnersOptions    = ['25 partners','50 partners','100 partners','Unlimited']
+const geographicRadiusOptions = ['5 miles','15 miles','25 miles','50 miles','State-wide','National']
+const referralUrgencyOptions  = ['Routine (standard)','Soon (48–72 hrs)','Urgent (24 hrs)']
+const aiMatchFrequencyOptions = ['Daily','Weekly','Monthly','Disabled']
+
+// ─── Panel 12: Notifications — exact PHP labels/descriptions ───────────────
+const notifSettings = [
+  { key: 'connection_requests', label: 'New connection requests',       desc: 'Get notified when someone requests to join your network' },
+  { key: 'referral_activity',   label: 'Referral activity alerts',      desc: 'Notifications for new referrals sent/received' },
+  { key: 'shadow_suggestions',  label: 'AI Shadow suggestions',         desc: 'Weekly digest of new shadow match recommendations' },
+  { key: 'member_news',         label: 'Network member news',           desc: 'Updates when network members achieve milestones or post updates' },
+  { key: 'read_receipts',       label: 'Message read receipts',         desc: 'Know when your messages have been read' },
+  { key: 'weekly_digest',       label: 'Weekly network digest email',   desc: 'Summary of your network activity each week' },
+  { key: 'feature_updates',     label: 'New Aegis features & updates',  desc: 'Be the first to know about new platform features' },
+]
+
+// ─── Panel 13: Privacy & AI Matching — exact PHP labels/descriptions ───────
+const privacyToggles = [
+  { key: 'searchable',           label: 'Show profile in provider search',                     desc: 'Allow other Aegis providers to find and view your profile' },
+  { key: 'share_stats',          label: 'Share referral statistics publicly',                  desc: 'Display your response time and acceptance rate on your public profile' },
+  { key: 'ai_matching',          label: 'Allow AI shadow matching',                            desc: 'Let Aegis AI suggest high-compatibility shadow connections' },
+  { key: 'manual_approval',      label: 'Require manual approval for connections',             desc: 'Review and approve all connection requests before they join your network' },
+  { key: 'hide_business',        label: 'Hide from business network search',                   desc: 'Business contacts cannot find you without a direct invite' },
+  { key: 'ai_data_use',          label: 'Allow use of my data to improve AI matching',         desc: "Anonymized referral and matching data helps improve Aegis's AI recommendations" },
+  { key: 'show_demographics',    label: 'Show demographics on public profile',                 desc: 'Display race, language, and identity details on your public-facing profile' },
+]
+
+// ── Reactive selection + form state ─────────────────────────────────────────
+const cfgSearch = reactive({
+  team:        '',
+  specialties: '',
+  approaches:  '',
+  insurance:   '',
+  credentials: '',
+  languages:   '',
+})
+const cfgSelected = reactive({
+  team:         ['Psychotherapist', 'Psychologist', 'Psychiatrist'],
+  specialties:  [],
+  approaches:   [],
+  insurance:    [],
+  credentials:  [],
+  services:     [],
+  states:       ['NY'],
+  demographics: [],
+  languages:    ['English'],
+  identity:     [],
+  rates:        [],
+})
+const cfgFields = reactive({
+  license_number:        '',
+  primary_state:         'NJ',
+  years_in_practice:     '16–20 years',
+  session_length:        '50 minutes',
+  rate_per_session:      200,
+  sliding_scale_min:     80,
+  sliding_scale_max:     180,
+  max_partners:          '50 partners',
+  geographic_radius:     '15 miles',
+  referral_urgency:      'Routine (standard)',
+  ai_match_frequency:    'Weekly',
+  sex_assigned:          'Female',
+})
+const cfgNotifications = reactive({
+  connection_requests: true,
+  referral_activity:   true,
+  shadow_suggestions:  true,
+  member_news:         false,
+  read_receipts:       true,
+  weekly_digest:       true,
+  feature_updates:     false,
+})
+const cfgPrivacy = reactive({
+  searchable:         true,
+  share_stats:        true,
+  ai_matching:        true,
+  manual_approval:    false,
+  hide_business:      false,
+  ai_data_use:        true,
+  show_demographics:  true,
+})
+
+// ── Computed filters + counts ───────────────────────────────────────────────
+const filteredTeamOptions = computed(() => {
+  const q = cfgSearch.team.trim().toLowerCase()
+  if (!q) return teamOptions
+  return teamOptions.filter(o => o.label.toLowerCase().includes(q))
+})
+
+function filterGroups(groups, q) {
+  const query = q.trim().toLowerCase()
+  if (!query) return groups
+  return groups
+    .map(g => ({ subcat: g.subcat, items: g.items.filter(t => t.toLowerCase().includes(query)) }))
+    .filter(g => g.items.length > 0)
+}
+
+const filteredSpecialtyGroups   = computed(() => filterGroups(cfgSpecialtyGroups,   cfgSearch.specialties))
+const filteredApproachGroups    = computed(() => filterGroups(cfgApproachGroups,    cfgSearch.approaches))
+const filteredInsuranceGroups   = computed(() => filterGroups(cfgInsuranceGroups,   cfgSearch.insurance))
+const filteredCredentialGroups  = computed(() => filterGroups(cfgCredentialGroups,  cfgSearch.credentials))
+const filteredLanguageOptions   = computed(() => {
+  const q = cfgSearch.languages.trim().toLowerCase()
+  if (!q) return languageOptions
+  return languageOptions.filter(o => o.toLowerCase().includes(q))
+})
+
+// Rough dirty-count for the save bar hint
+const configDirtyCount = computed(() => {
+  return (
+    cfgSelected.specialties.length +
+    cfgSelected.approaches.length +
+    cfgSelected.insurance.length +
+    cfgSelected.credentials.length +
+    cfgSelected.services.length +
+    cfgSelected.states.length +
+    cfgSelected.demographics.length +
+    cfgSelected.identity.length +
+    cfgSelected.rates.length
+  )
+})
+
+function selectedCount(key) {
+  return cfgSelected[key]?.length ?? 0
+}
+function toggleCfg(key, value) {
+  const arr = cfgSelected[key]
+  const idx = arr.indexOf(value)
+  if (idx === -1) arr.push(value)
+  else arr.splice(idx, 1)
+}
+function scrollToConfigPanel(id) {
+  activeConfigPanel.value = id
+  // Wait for the panel to expand (Vue tick) before scrolling to it,
+  // otherwise scrollIntoView measures the collapsed height.
+  nextTick(() => {
+    const el = document.getElementById(id)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
+}
+function toggleConfigPanel(id) {
+  activeConfigPanel.value = activeConfigPanel.value === id ? '' : id
+}
+function saveConfig() {
+  // Backend wiring lives in Phase 4 (ProviderProfileController::updateNetwork).
+  // Frontend collects state today so the panels feel live and are ready to POST.
+  toast.success('Configuration saved.')
+}
+function resetConfig() {
+  cfgSelected.team         = ['Psychotherapist', 'Psychologist', 'Psychiatrist']
+  cfgSelected.specialties  = []
+  cfgSelected.approaches   = []
+  cfgSelected.insurance    = []
+  cfgSelected.credentials  = []
+  cfgSelected.services     = []
+  cfgSelected.states       = []
+  cfgSelected.demographics = []
+  cfgSelected.languages    = ['English']
+  cfgSelected.identity     = []
+  cfgSelected.rates        = []
+  cfgSearch.team = ''; cfgSearch.specialties = ''
+  cfgSearch.approaches = ''; cfgSearch.insurance = ''
+  cfgSearch.credentials = ''; cfgSearch.languages = ''
+  toast.info('Changes reset.')
 }
 </script>
 
@@ -1553,5 +2667,172 @@ function timeAgo(iso) {
   align-self: flex-start;
   margin-bottom: 0;
   margin-top: 6px;
+}
+
+/* ═══════════ Design-parity add-ons — legacy classes not in _shared.css ═══════════ */
+
+/* pn-card — Provider Network variant of spc-card (card-v2 chrome).
+   In legacy PHP, .pn-card was defined in network.php's page <style>. */
+.pn-card {
+  padding-top: 40px; /* space for spc-top-pills + spc-rating */
+}
+
+/* Section heading used above Referral List / My Shadows tabs */
+.nw-section-heading {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+/* Insight box layout — icon block + body */
+.nw-insight-box {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+.nw-insight-icon {
+  flex-shrink: 0;
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--gold-dark);
+  color: var(--surface);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.nw-insight-body { flex: 1; }
+.nw-insight-text {
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+/* Gold-toned stat chip icon — replaces inline background/color on stat-chip-icon */
+.nw-chip-gold {
+  background: var(--badge-bg-gold);
+  color: var(--gold-dark);
+}
+
+/* Configuration tab — placeholder body copy + save bar */
+.nw-cfg-placeholder {
+  font-size: 13px;
+  color: var(--text-3);
+  line-height: 1.55;
+  padding: 8px 4px 4px;
+  margin: 0;
+}
+.nw-cfg-save-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 18px 0 6px;
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  position: sticky;
+  bottom: 0;
+  background: var(--surface-2);
+}
+.cfg-save-hint {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-3);
+  font-weight: 600;
+}
+
+/* Tag grid — shared layout for specialty/approach/language/demographic
+   ctag pickers. .ctag itself is defined in _shared.css. */
+.cfg-tag-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+/* Config field row column overrides — PHP uses inline styles; we lift them
+   to scoped classes so the template stays clean. */
+.nw-cfg-2col.cfg-field-row { grid-template-columns: 1fr 1fr; }
+.nw-cfg-4col.cfg-field-row { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+/* Clickable panel header — accordion toggle */
+:deep(.cfg-panel-header) { cursor: pointer; }
+
+/* Currency input group (Rates panel) */
+.nw-cfg-currency {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nw-cfg-currency-symbol {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* Help text under a cfg-subcat (Location panel) */
+.nw-cfg-help {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+
+/* My Partners — bizGridView layout */
+.nw-biz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+/* Search Business Partners — filter-sidebar internals not covered by legacy */
+.nw-sbp-clinical-toggle {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+.nw-sbp-clinical-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  margin: 0;
+}
+.nw-sbp-clinical-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.nw-filter-placeholder {
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.5;
+  margin: 8px 4px 0;
+  padding: 6px 8px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+}
+.nw-filter-apply {
+  width: 100%;
+  margin-top: 14px;
+  justify-content: center;
+}
+
+/* Search Business Partners — results-panel top bar */
+.nw-sort-label {
+  font-size: 12px;
+  color: var(--text-4);
+  font-weight: 600;
+}
+.nw-sort-select {
+  font-size: 12px;
+  padding: 4px 8px;
+  min-width: 160px;
 }
 </style>
