@@ -114,9 +114,20 @@ class NetworkController extends Controller
         // user and anyone already connected/pending so the network-status pill
         // renders coherently. IDs and slugs are real — every card action wires
         // through to the message / referral / connect / profile routes.
+        // Collect all user IDs this user is connected to (accepted connections)
+        // NetworkConnection columns: user_id / connected_user_id
         $connectedIds = $connections
-            ->flatMap(fn ($c) => [$c->user_id, $c->target_user_id])
-            ->filter()->unique()->values()->all();
+            ->flatMap(fn ($c) => [$c->user_id, $c->connected_user_id])
+            ->filter()
+            ->reject(fn ($id) => $id === $user->id)
+            ->unique()->values()->all();
+
+        // Also track pending outbound requests so the button shows "Pending" not "Connect"
+        $pendingOutboundIds = \App\Models\NetworkRequest::where('requester_id', $user->id)
+            ->where('status', 'pending')
+            ->pluck('recipient_id')
+            ->filter()
+            ->all();
 
         $searchProviders = User::query()
             ->where('practitioner_public', 1)
@@ -124,7 +135,7 @@ class NetworkController extends Controller
             ->orderBy('display_name')
             ->limit(60)
             ->get()
-            ->map(function (User $u) use ($connectedIds) {
+            ->map(function (User $u) use ($connectedIds, $pendingOutboundIds) {
                 $tags = collect(explode(',', (string) ($u->specialty ?? '')))
                     ->map(fn ($t) => trim($t))->filter()->values()->all();
                 return [
@@ -145,7 +156,8 @@ class NetworkController extends Controller
                     'telehealth'    => false,
                     'has_services'  => (bool) $u->services_mode,
                     'networkStatus' => in_array($u->id, $connectedIds, true)
-                        ? 'in-network' : 'not-connected',
+                        ? 'in-network'
+                        : (in_array($u->id, $pendingOutboundIds, true) ? 'pending' : 'not-connected'),
                 ];
             })->values();
 
