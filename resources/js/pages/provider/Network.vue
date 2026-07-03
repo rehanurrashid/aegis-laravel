@@ -147,6 +147,8 @@
               :key="cat.label"
               class="card rnp-card"
               :class="cat.tier"
+              style="cursor:pointer"
+              @click="openCategoryFilter(cat)"
             >
               <div class="rnp-head">
                 <div class="rnp-icon"><AegisIcon :name="cat.icon" :size="14" /></div>
@@ -491,12 +493,25 @@
                 <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === p.id" @click="openConversation(p.id)"><AegisIcon name="message-square" :size="14" /></button>
                 <button type="button" class="btn-icon" data-tooltip="Refer Client" @click="openReferralForProvider(p)"><AegisIcon name="share-tree" :size="14" /></button>
                 <button type="button" class="btn-icon" data-tooltip="Request Service" @click="openSvcRequest('Services', p)"><AegisIcon name="briefcase-rx" :size="14" /></button>
+                <button
+                  v-if="p.networkStatus === 'not-connected'"
+                  type="button"
+                  class="btn-icon"
+                  data-tooltip="Send Connection Request"
+                  @click="openConnect(p)"
+                ><AegisIcon name="user-plus" :size="14" /></button>
+                <span
+                  v-else-if="p.networkStatus === 'pending'"
+                  class="btn-icon"
+                  data-tooltip="Connection request pending"
+                  style="opacity:.45;cursor:default"
+                ><AegisIcon name="clock" :size="14" /></span>
                 <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(p.slug)"><AegisIcon name="eye" :size="14" /></button>
               </div>
             </div>
           </div>
           <AegisEmptyState v-if="!searchResults.length" icon="search-lg" title="No providers found" subtitle="Try adjusting your filters or search terms." />
-          <div v-if="searchResults.length" class="results-topbar" style="justify-content:center;margin-top:20px">
+          <div v-if="searchResults.length > 12" class="results-topbar" style="justify-content:center;margin-top:20px">
             <button type="button" class="btn btn-outline btn-sm" @click="toast.info('Loading more results…')">Load More Results</button>
           </div>
         </div>
@@ -516,21 +531,21 @@
         <div class="stat-chip">
           <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="refresh" :size="18" /></div>
           <div>
-            <div class="stat-chip-value">{{ stats.total_refs }}</div>
+            <div class="stat-chip-value">{{ stats.total_refs || '—' }}</div>
             <div class="stat-chip-label">Referrals Exchanged</div>
           </div>
         </div>
-        <div class="stat-chip">
+        <div class="stat-chip" :data-tooltip="stats.avg_acc ? stats.avg_acc + '% of incoming referrals accepted' : 'No incoming referrals yet'">
           <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="check-badge" :size="18" /></div>
           <div>
-            <div class="stat-chip-value">{{ stats.avg_acc }}%</div>
+            <div class="stat-chip-value">{{ stats.avg_acc ? stats.avg_acc + '%' : '—' }}</div>
             <div class="stat-chip-label">Avg Acceptance</div>
           </div>
         </div>
-        <div class="stat-chip">
+        <div class="stat-chip" :data-tooltip="stats.avg_resp ? 'Average ' + stats.avg_resp + 'h to respond to referrals' : 'No response data yet'">
           <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="clock" :size="18" /></div>
           <div>
-            <div class="stat-chip-value">{{ stats.avg_resp }}h</div>
+            <div class="stat-chip-value">{{ stats.avg_resp ? stats.avg_resp + 'h' : '—' }}</div>
             <div class="stat-chip-label">Avg Response Time</div>
           </div>
         </div>
@@ -541,7 +556,9 @@
           <input class="form-input" type="text" placeholder="Search by name, specialty, location..." v-model="clinicalSearch" />
         </div>
       </div>
-      <div class="pn-results-bar">Showing <strong>{{ filteredClinical.length }}</strong> providers</div>
+      <div class="results-topbar">
+        <span class="results-count" style="display:inline-flex;align-items:center;gap:4px"><AegisIcon name="users" :size="13" style="color:var(--text-4);flex-shrink:0" /><strong>{{ filteredClinical.length }}</strong><span v-if="filteredClinical.length !== stats.clinical">of {{ stats.clinical }}</span>provider{{ filteredClinical.length === 1 ? '' : 's' }} in your network</span>
+      </div>
       <div class="provider-grid">
         <div v-for="nc in filteredClinical" :key="nc.id" class="card-v2 pn-card spc-card" @click="viewProfile(nc.partner_slug)">
           <div class="spc-top-pills">
@@ -742,7 +759,9 @@
           <input class="form-input" type="text" placeholder="Search business partners by name, type, service..." v-model="bizSearch" />
         </div>
       </div>
-      <div class="pn-results-bar">Showing <strong>{{ filteredBpConnections.length }}</strong> business partners</div>
+      <div class="results-topbar">
+        <span class="results-count" style="display:inline-flex;align-items:center;gap:4px"><AegisIcon name="briefcase" :size="13" style="color:var(--text-4);flex-shrink:0" /><strong>{{ filteredBpConnections.length }}</strong><span v-if="filteredBpConnections.length !== bpConnections.length">of {{ bpConnections.length }}</span>business partner{{ filteredBpConnections.length === 1 ? '' : 's' }}</span>
+      </div>
       <div id="bizGridView" class="provider-grid nw-biz-grid">
         <div v-for="nc in filteredBpConnections" :key="nc.id" class="biz-grid-card spc-card" @click="viewProfile(nc.partner_slug)">
           <div class="spc-top-pills">
@@ -796,7 +815,10 @@
         </button>
       </div>
 
-      <div class="pn-results-bar">Showing <strong>{{ filteredRtCandidates.length }}</strong> AI suggestions</div>
+      <div class="results-topbar">
+        <span class="results-count" style="display:inline-flex;align-items:center;gap:4px"><AegisIcon name="sparkle-cluster" :size="13" style="color:var(--text-4);flex-shrink:0" /><strong>{{ filteredRtCandidates.length }}</strong>AI suggestion{{ filteredRtCandidates.length === 1 ? '' : 's' }}</span>
+        <span style="font-size:11px;color:var(--text-4)">Sorted by compatibility score</span>
+      </div>
 
       <div class="provider-grid">
         <div v-for="s in filteredRtCandidates" :key="s.name" class="sai-grid-card spc-card" @click="viewProfile(s.slug)">
@@ -878,7 +900,9 @@
         </div>
       </div>
 
-      <div class="pn-results-bar">Showing <strong>{{ filteredMyShadows.length }}</strong> shadow connections</div>
+      <div class="results-topbar">
+        <span class="results-count" style="display:inline-flex;align-items:center;gap:4px"><AegisIcon name="cpu" :size="13" style="color:var(--text-4);flex-shrink:0" /><strong>{{ filteredMyShadows.length }}</strong>shadow connection{{ filteredMyShadows.length === 1 ? '' : 's' }}</span>
+      </div>
 
       <div class="provider-grid">
         <div v-for="s in filteredMyShadows" :key="s.id" class="ms-grid-card spc-card" @click="viewProfile(s.shadow_slug)">

@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Provider;
 use App\Http\Controllers\Controller;
 use App\Models\NetworkConnection;
 use App\Models\NetworkRequest as NetworkRequestModel;
+use App\Models\Referral;
 use App\Models\User;
 use App\Models\VaultItem;
 use App\Services\NetworkService;
@@ -166,6 +167,37 @@ class NetworkController extends Controller
             ->values()
             ->toArray();
 
+        // ── Real network stats ─────────────────────────────────────────────
+        $myReferrals = Referral::where('sender_id', $user->id)
+            ->orWhere('recipient_id', $user->id)
+            ->get();
+
+        $totalRefs = $myReferrals->count();
+
+        // Acceptance rate = referrals RECEIVED by this user that they accepted
+        // (mirrors the public-profile metric: "how often does this practitioner
+        // accept incoming referrals?")
+        $receivedRefs    = $myReferrals->where('recipient_id', $user->id);
+        $receivedCount   = $receivedRefs->count();
+        $acceptedReceived = $receivedRefs->where('status', 'accepted');
+
+        $avgAcc = $receivedCount > 0
+            ? (int) round($acceptedReceived->count() / $receivedCount * 100)
+            : 0;
+
+        // Avg response time in hours — time between referral creation and
+        // when this user (recipient) responded. Use abs() so seeded data
+        // with inverted timestamps never produces a negative display value.
+        $respondedRefs = $acceptedReceived->filter(fn ($r) => $r->responded_at !== null);
+        if ($respondedRefs->count() > 0) {
+            $totalMinutes = $respondedRefs->sum(
+                fn ($r) => abs($r->created_at->diffInMinutes($r->responded_at))
+            );
+            $avgResp = round($totalMinutes / $respondedRefs->count() / 60, 1);
+        } else {
+            $avgResp = 0;
+        }
+
         return Inertia::render('provider/Network', [
             'clinicalConnections'          => $clinical,
             'bpConnections'                => $business,
@@ -180,9 +212,9 @@ class NetworkController extends Controller
             'stats'                        => [
                 'clinical'         => $clinical->count(),
                 'bp_count'         => $business->count(),
-                'total_refs'       => 0,
-                'avg_acc'          => 0,
-                'avg_resp'         => 0,
+                'total_refs'       => $totalRefs,
+                'avg_acc'          => $avgAcc,
+                'avg_resp'         => $avgResp,
                 'pending_requests' => $pending->count(),
                 'active_shadows'   => $shadows->count(),
             ],
