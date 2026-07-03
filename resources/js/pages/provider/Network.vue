@@ -473,6 +473,7 @@
                   <AegisIcon :name="p.networkStatus === 'in-network' ? 'user-check' : 'user-plus'" :size="12" />
                 </span>
                 <span v-if="p.telehealth" class="spc-svc-icon" data-tooltip="Telehealth available"><AegisIcon name="video" :size="12" /></span>
+                <span v-if="p.has_services" class="spc-svc-icon" data-tooltip="Offers services to other providers — supervision, consultation &amp; more"><AegisIcon name="briefcase-rx" :size="12" /></span>
               </div>
               <div class="spc-rating" :data-tooltip="p.rating + ' from ' + p.reviews + ' peer reviews'"><AegisIcon name="star" :size="12" /> {{ p.rating }}</div>
               <div class="spc-body">
