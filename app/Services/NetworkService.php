@@ -9,10 +9,12 @@ use App\Events\Network\ConnectionAccepted;
 use App\Enums\ActivitySeverity;
 use App\Jobs\SendEmailJob;
 use App\Models\NetworkConnection;
+use App\Models\NetworkRecommendation;
 use App\Models\NetworkRequest;
 use App\Models\ShadowConnection;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -156,6 +158,39 @@ class NetworkService
         return $shadow;
     }
 
+    /**
+     * Add a provider to the current user's referral (shadow) list manually.
+     * Unlike inviteExternal(), no email is sent — this covers the case where
+     * a practitioner wants to keep a personal referral note about someone
+     * who is not (yet) an Aegis user. Source is 'manual_add' so downstream
+     * reporting can distinguish these from auto-suggested shadows.
+     */
+    public function addShadowManual(User $inviter, string $displayName, ?string $note = null): ShadowConnection
+    {
+        $shadow = ShadowConnection::create([
+            'id'          => 'sc_' . Str::lower(Str::random(12)),
+            'user_id'     => $inviter->id,
+            'shadow_name' => $displayName,
+            'source'      => 'manual_add',
+            'created_at'  => now(),
+        ]);
+
+        $this->activity->log(
+            $inviter->id,
+            'provider',
+            'account',
+            ActivitySeverity::Info,
+            'network_shadow_added',
+            "Added {$displayName} to your referral list",
+            $note ? Str::limit($note, 140) : 'A manual referral-list entry was created.',
+            'shadow_connection',
+            $shadow->id,
+            null
+        );
+
+        return $shadow;
+    }
+
     public function getConnections(string $userId): Collection
     {
         return NetworkConnection::where('user_id', $userId)
@@ -176,6 +211,83 @@ class NetworkService
     {
         return ShadowConnection::with('shadowUser')->where('user_id', $inviterId)
             ->get();
+    }
+
+    /**
+     * Recommended specialty categories ("Recommended Network Partners" row).
+     * Returns user-specific rows if seeded, otherwise falls back to globals
+     * (rows with user_id = NULL). Frontend consumes these as `rnp-card`s.
+     */
+    public function getRecommendedPartnerCategories(string $userId): SupportCollection
+    {
+        $rows = NetworkRecommendation::where('kind', 'partner_category')
+            ->where('user_id', $userId)
+            ->orderBy('sort_order')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            $rows = NetworkRecommendation::where('kind', 'partner_category')
+                ->whereNull('user_id')
+                ->orderBy('sort_order')
+                ->get();
+        }
+
+        return $rows->map(fn (NetworkRecommendation $r) => [
+            'id'          => $r->id,
+            'label'       => $r->label,
+            'description' => $r->description ?? '',
+            'icon'        => $r->icon ?? 'users',
+            'count'       => (int) ($r->nearby_count ?? 0),
+            'priority'    => $r->priority ?? 'medium',
+            'tier'        => 'is-' . ($r->priority ?? 'medium'),
+        ]);
+    }
+
+    /**
+     * Recommended shadow providers ("Recommended Shadow Providers" row).
+     * Joins the referenced user for display fields. Rows whose provider
+     * user was deleted are skipped defensively.
+     */
+    public function getRecommendedShadowProviders(string $userId): SupportCollection
+    {
+        $rows = NetworkRecommendation::with('providerUser')
+            ->where('kind', 'shadow_provider')
+            ->where('user_id', $userId)
+            ->orderBy('sort_order')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            $rows = NetworkRecommendation::with('providerUser')
+                ->where('kind', 'shadow_provider')
+                ->whereNull('user_id')
+                ->orderBy('sort_order')
+                ->get();
+        }
+
+        return $rows
+            ->filter(fn (NetworkRecommendation $r) => $r->providerUser !== null)
+            ->map(function (NetworkRecommendation $r) {
+                $u = $r->providerUser;
+                $tags = array_values(array_filter(array_map(
+                    'trim',
+                    explode(',', (string) ($u->specialty ?? ''))
+                )));
+
+                return [
+                    'id'         => $u->id,
+                    'name'       => $u->display_name . ($u->credentials ? ', ' . $u->credentials : ''),
+                    'slug'       => $u->slug ?? '',
+                    'initials'   => $u->avatar_initials ?? strtoupper(substr($u->display_name, 0, 2)),
+                    'role'       => $u->title ?? '',
+                    'location'   => $u->location ?? '',
+                    'tags'       => array_slice($tags, 0, 3),
+                    'match'      => (int) ($r->match_score ?? 0),
+                    'rating'     => 0,   // Peer-rating aggregation is a Phase-4 concern
+                    'telehealth' => false,
+                    'connected'  => false,
+                ];
+            })
+            ->values();
     }
 
     private function isConnected(string $a, string $b): bool

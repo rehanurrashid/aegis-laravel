@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
 
             // Layer 6 — network
             NetworkSeeder::class,
+            NetworkRecommendationSeeder::class,
             ReferralSeeder::class,
 
             // Layer 7 — messaging

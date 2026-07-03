@@ -469,7 +469,7 @@
               <div class="spc-actions" @click.stop>
                 <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === p.id" @click="openConversation(p.id)"><AegisIcon name="message-square" :size="14" /></button>
                 <button type="button" class="btn-icon" data-tooltip="Refer Client" @click="openReferralForProvider(p)"><AegisIcon name="share-tree" :size="14" /></button>
-                <button type="button" class="btn-icon" data-tooltip="Request Service" @click="openSvcRequest('Services', p.name)"><AegisIcon name="briefcase-rx" :size="14" /></button>
+                <button type="button" class="btn-icon" data-tooltip="Request Service" @click="openSvcRequest('Services', p)"><AegisIcon name="briefcase-rx" :size="14" /></button>
                 <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(p.slug)"><AegisIcon name="eye" :size="14" /></button>
               </div>
             </div>
@@ -630,9 +630,15 @@
           <div class="rec-section-subtitle">Based on your recent clients, you may benefit from <strong>3 additional PTSD specialists</strong> and <strong>2 child &amp; adolescent therapists</strong>. Aegis found <strong>{{ filteredRtCandidates.length }} high-match candidates</strong> below.</div>
         </div>
       </div>
-      <div class="pn-search-wrap" style="margin-bottom:10px">
-        <span class="search-icon"><AegisIcon name="search-lg" :size="14" /></span>
-        <input class="form-input" style="padding-left:34px" v-model="rtSearch" placeholder="Search by name, specialty, location..." />
+      <div class="pn-toolbar" style="margin-bottom:10px">
+        <div class="pn-search-wrap" style="flex:1;min-width:220px">
+          <span class="search-icon"><AegisIcon name="search-lg" :size="14" /></span>
+          <input class="form-input" style="padding-left:34px" v-model="rtSearch" placeholder="Search by name, specialty, location..." />
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" @click="openManualReferralEntry" data-tooltip="Add a provider to your referral list manually">
+          <AegisIcon name="user-plus" :size="14" />
+          Add Manually
+        </button>
       </div>
       <div style="font-size:12px;color:var(--text-4);margin-bottom:14px">Showing {{ filteredRtCandidates.length }} AI suggestions</div>
       <div class="sai-grid">
@@ -778,9 +784,14 @@
       </template>
     </AegisModal>
 
-    <!-- Service Request Modal -->
-    <!-- Service Request — centralized modal -->
-    <ServiceRequestModal ref="svcModalRef" />
+    <!-- Service Request Modal — centralized. provider-id / provider-label
+         are bound reactively so the modal always targets the card the user
+         clicked from (Search Providers, My Network, Recommended Shadow etc). -->
+    <ServiceRequestModal
+      ref="svcModalRef"
+      :provider-id="svcTarget.id"
+      :provider-label="svcTarget.label"
+    />
 
     <!-- BP Hire Modal -->
     <AegisModal v-model="modals.bpHire" title="Hire Business Partner">
@@ -812,35 +823,48 @@
       </template>
     </AegisModal>
 
-    <!-- Post Job / Request Support Modal -->
-    <AegisModal v-model="modals.postJob" title="Request Support from Business Partners" size="lg">
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">Request Title</label><input class="form-input" type="text" v-model="postJobForm.title" placeholder="e.g. Medical Billing Specialist Needed" /></div>
-        <div class="form-group"><label class="form-label">Service Category</label><select class="form-select" v-model="postJobForm.category"><option>Medical Billing</option><option>Accounting / CPA</option><option>Legal / Attorney</option><option>Marketing</option><option>Technology / EHR</option><option>HR / Staffing</option><option>Credentialing</option><option>Design / Branding</option><option>Admin / VA</option><option>Practice Consulting</option></select></div>
+    <!-- Post Job — centralized 4-step wizard (PostJobModal.vue).
+         Posts to provider.jobs.store. Replaces the old local one-step form
+         so the Network tab and the dedicated Support & Services page use
+         the same wizard. -->
+    <PostJobModal v-model="modals.postJob" />
+
+    <!-- Add to Referral List — local, small. Creates a manual ShadowConnection
+         via provider.network.shadow.add so a practitioner can jot down a
+         referral partner who isn't (yet) on Aegis. No email is sent. -->
+    <AegisModal v-model="modals.manualReferralEntry" title="Add to Referral List" size="md">
+      <div class="alert alert-gold" style="margin-bottom:14px">
+        <AegisIcon name="info" :size="14" />
+        <div>Use this to keep a private note of a provider you refer to. No email is sent — the entry is visible only to you under <strong>Referrals &amp; Tools · My Shadows</strong>.</div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">Partner Type Preferred</label><select class="form-select" v-model="postJobForm.partner_type"><option>Any</option><option>Freelancer</option><option>Agency</option><option>Consultant</option><option>Firm</option><option>Solopreneur</option></select></div>
-        <div class="form-group"><label class="form-label">Engagement Type</label><select class="form-select" v-model="postJobForm.engagement_type"><option>One-Time Project</option><option>Ongoing / Retainer</option><option>Part-Time Contract</option><option>Full-Time</option></select></div>
+      <div class="form-group">
+        <label class="form-label">Provider Name <span class="req">*</span></label>
+        <input
+          class="form-input"
+          type="text"
+          v-model="manualShadowForm.display_name"
+          placeholder="e.g. Dr. Alex Rivera, MD"
+          :class="{ 'is-error': manualShadowForm.errors.display_name }"
+        />
+        <div v-if="manualShadowForm.errors.display_name" class="form-error">{{ manualShadowForm.errors.display_name }}</div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">Budget Range</label><input class="form-input" type="text" v-model="postJobForm.budget" placeholder="e.g. $50–$100/hr or $2,000/mo" /></div>
-        <div class="form-group"><label class="form-label">Project Timeline</label><select class="form-select" v-model="postJobForm.timeline"><option>ASAP</option><option>Within 1 week</option><option>1–2 weeks</option><option>1 month</option><option>Flexible</option></select></div>
-      </div>
-      <div class="form-group"><label class="form-label">Job Description</label><textarea class="form-textarea" v-model="postJobForm.description" rows="4" placeholder="Describe the role, required skills, deliverables, and any important context about your practice…"></textarea></div>
-      <div class="form-group"><label class="form-label">Required Qualifications / Tags</label><input class="form-input" type="text" v-model="postJobForm.qualifications" placeholder="e.g. HIPAA Certified, 5+ yrs experience, Mental Health billing…" /></div>
-      <div class="form-row" style="margin-bottom:14px">
-        <label class="form-check"><input type="checkbox" v-model="postJobForm.hipaa_required" /><span class="form-check-label">Require HIPAA Compliance</span></label>
-        <label class="form-check"><input type="checkbox" v-model="postJobForm.verified_only" /><span class="form-check-label">Verified Partners Only</span></label>
-        <label class="form-check"><input type="checkbox" v-model="postJobForm.remote_allowed" /><span class="form-check-label">Remote Work Allowed</span></label>
-        <label class="form-check"><input type="checkbox" v-model="postJobForm.require_nda" /><span class="form-check-label">Require NDA Signature</span></label>
-      </div>
-      <div class="alert alert-gold">
-        <AegisIcon name="trending-up" :size="16" />
-        <div>Your job will be visible to all matching verified partners in the Aegis Business Partners. You'll receive proposals within 24–48 hours.</div>
+      <div class="form-group">
+        <label class="form-label">Note (optional)</label>
+        <textarea
+          class="form-textarea"
+          v-model="manualShadowForm.note"
+          rows="3"
+          placeholder="Why you refer to this provider — specialty, patient fit, contact info…"
+          :class="{ 'is-error': manualShadowForm.errors.note }"
+        ></textarea>
+        <div v-if="manualShadowForm.errors.note" class="form-error">{{ manualShadowForm.errors.note }}</div>
       </div>
       <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.postJob = false">Cancel</button>
-        <button type="button" class="btn btn-primary" @click="submitPostJob"><AegisIcon name="trending-up" :size="16" /> Post Job</button>
+        <button type="button" class="btn btn-outline" :disabled="manualShadowForm.processing" @click="modals.manualReferralEntry = false">Cancel</button>
+        <button type="button" class="btn btn-primary" :disabled="manualShadowForm.processing" @click="submitManualShadow">
+          <AegisIcon name="user-plus" :size="14" />
+          {{ manualShadowForm.processing ? 'Saving…' : 'Add to List' }}
+        </button>
       </template>
     </AegisModal>
 
@@ -858,6 +882,7 @@ import { route } from 'ziggy-js'
 import AppLayout from '@/layouts/AppLayout.vue'
 import ReferralModal         from '@/components/modals/ReferralModal.vue'
 import ServiceRequestModal   from '@/components/modals/ServiceRequestModal.vue'
+import PostJobModal          from '@/components/modals/PostJobModal.vue'
 import { useModal }         from '@/composables/useModal'
 import { useToast }         from '@/composables/useToast'
 import { useConfirm }       from '@/composables/useConfirm'
@@ -865,13 +890,15 @@ import { useMessageButton } from '@/composables/useMessageButton'
 
 // ── Props ──────────────────────────────────────────────────────────────────
 const props = defineProps({
-  clinicalConnections: { type: Array,  default: () => [] },
-  bpConnections:       { type: Array,  default: () => [] },
-  pendingRequests:     { type: Array,  default: () => [] },
-  shadowConnections:   { type: Array,  default: () => [] },
-  referralNetwork:     { type: Array,  default: () => [] },
-  roster:              { type: Array,  default: () => [] },
-  stats:               { type: Object, default: () => ({}) },
+  clinicalConnections:          { type: Array,  default: () => [] },
+  bpConnections:                { type: Array,  default: () => [] },
+  pendingRequests:              { type: Array,  default: () => [] },
+  shadowConnections:            { type: Array,  default: () => [] },
+  referralNetwork:              { type: Array,  default: () => [] },
+  recommendedPartnerCategories: { type: Array,  default: () => [] },
+  recommendedShadowProviders:   { type: Array,  default: () => [] },
+  roster:                       { type: Array,  default: () => [] },
+  stats:                        { type: Object, default: () => ({}) },
 })
 
 // ── Composables ────────────────────────────────────────────────────────────
@@ -954,7 +981,10 @@ function slugify(name) {
 
 onMounted(() => {
   // Backfill slugs so every "View Profile" control can navigate.
-  ;[allProviders, aiShadowCandidates, rtCandidates].forEach((r) => {
+  // aiShadowCandidates is now a server-backed computed (slugs already
+  // hydrated by NetworkService::getRecommendedShadowProviders), so it's
+  // excluded here.
+  ;[allProviders, rtCandidates].forEach((r) => {
     r.value.forEach((p) => { if (!p.slug) p.slug = slugify(p.name) })
   })
   if (rnpTrack.value) {
@@ -977,11 +1007,12 @@ const toolsTab    = ref('list')
 
 // ── Local modal state ──────────────────────────────────────────────────────
 const modals = reactive({
-  reviewRequests: false,
-  inviteProvider: false,
-  connect:        false,
-  bpHire:         false,
-  postJob:        false,
+  reviewRequests:       false,
+  inviteProvider:       false,
+  connect:              false,
+  bpHire:               false,
+  postJob:              false,
+  manualReferralEntry:  false,
 })
 
 // ── Computed ───────────────────────────────────────────────────────────────
@@ -1078,11 +1109,41 @@ watch(isOpen('referralModal'), (open) => {
   if (!open) referralPreselectSlug.value = ''
 })
 
-// Service Request — handled by centralized ServiceRequestModal.vue
+// Service Request — handled by centralized ServiceRequestModal.vue.
+// The modal needs a provider-id and provider-label; we keep them in a
+// reactive object so any card can retarget the modal at open time.
 const svcModalRef = ref(null)
+const svcTarget   = reactive({ id: '', label: '' })
 
-function openSvcRequest(serviceName, providerName = '') {
-  svcModalRef.value?.preselect(serviceName)
+/**
+ * Open the Service Request modal for a given provider card.
+ *
+ * Overloads accepted (backwards-compatible with older callsites):
+ *   openSvcRequest(serviceName, providerName)             — string form
+ *   openSvcRequest(serviceName, providerObject)           — object form
+ *   openSvcRequest({ service, id, label })                — one-arg form
+ */
+function openSvcRequest(serviceName, providerRef = '') {
+  // One-arg form
+  if (typeof serviceName === 'object' && serviceName !== null) {
+    const cfg = serviceName
+    svcTarget.id    = cfg.id    ?? ''
+    svcTarget.label = cfg.label ?? ''
+    svcModalRef.value?.preselect(cfg.service ?? 'Services')
+  }
+  // Object provider form
+  else if (typeof providerRef === 'object' && providerRef !== null) {
+    svcTarget.id    = providerRef.id   ?? providerRef.partner_id ?? ''
+    svcTarget.label = providerRef.name ?? providerRef.partner_name ?? ''
+    svcModalRef.value?.preselect(serviceName)
+  }
+  // Legacy: string provider name only (no id available — modal will
+  // still open but the caller should migrate to the object form).
+  else {
+    svcTarget.id    = ''
+    svcTarget.label = providerRef || ''
+    svcModalRef.value?.preselect(serviceName)
+  }
   openModal('serviceRequestModal')
 }
 
@@ -1101,11 +1162,34 @@ function submitBpHire() {
 }
 
 // ── Post Job ───────────────────────────────────────────────────────────────
-const postJobForm = reactive({ title: '', category: 'Medical Billing', partner_type: 'Any', engagement_type: 'One-Time Project', budget: '', timeline: 'ASAP', description: '', qualifications: '', hipaa_required: true, verified_only: false, remote_allowed: true, require_nda: false })
+// The Post Job flow is now handled entirely by PostJobModal.vue (centralized
+// 4-step wizard, posts to provider.jobs.store). No local form or submit
+// handler is needed here — the modal owns its own useForm() instance.
 
-function submitPostJob() {
-  toast.success('Job posted! Partners will be notified.')
-  modals.postJob = false
+// ── Add to Referral List (manual shadow add) ───────────────────────────────
+const manualShadowForm = useForm({
+  display_name: '',
+  note:         '',
+})
+
+function openManualReferralEntry() {
+  manualShadowForm.reset()
+  manualShadowForm.clearErrors()
+  modals.manualReferralEntry = true
+}
+
+function submitManualShadow() {
+  manualShadowForm.post(route('provider.network.shadow.add'), {
+    preserveScroll: true,
+    onSuccess: () => {
+      modals.manualReferralEntry = false
+      manualShadowForm.reset()
+      toast.success('Added to your referral list.')
+    },
+    onError: () => {
+      toast.error('Could not add — check the highlighted fields.')
+    },
+  })
 }
 
 // ── Profile navigation ─────────────────────────────────────────────────────
@@ -1275,25 +1359,12 @@ function removeRtCandidate(s) {
   rtCandidates.value = rtCandidates.value.filter(c => c.name !== s.name)
 }
 
-// ── Static display data ────────────────────────────────────────────────────
-const recommendedCategories = [
-  { label:'Psychiatrist',     desc:'Medication management',  count:3, icon:'pill-shape',  priority:'high'   },
-  { label:'Therapist / LCSW', desc:'Ongoing psychotherapy', count:6, icon:'heart-2',     priority:'high'   },
-  { label:'Neurologist',      desc:'Neuropsychiatric care',  count:2, icon:'globe',       priority:'medium' },
-  { label:'Primary Care',     desc:'Care coordination',      count:4, icon:'home',        priority:'medium' },
-  { label:'Dietician',        desc:'Eating & metabolism',    count:3, icon:'dollar', priority:'medium' },
-  { label:'Medical Billing',  desc:'Revenue cycle',          count:6, icon:'briefcase',   priority:'medium' },
-  { label:'Credentialing',    desc:'Insurance & licensing',  count:2, icon:'shield',      priority:'medium' },
-]
-
-const aiShadowCandidates = ref([
-  { name:'Dr. Rachel Moore, MD',  id:'', slug:'', initials:'RM', role:'Psychiatrist',             location:'New York, NY', tags:['Anxiety','Mood Disorders','PTSD'],       match:96, rating:4.3, telehealth:true,  connected:false },
-  { name:'Sarah Nguyen, PsyD',    id:'', slug:'', initials:'SN', role:'Psychologist',             location:'Brooklyn, NY', tags:['CBT','Trauma','Depression'],             match:93, rating:4.7, telehealth:true,  connected:false },
-  { name:'Maya Torres, LCSW',     id:'', slug:'', initials:'MT', role:'Licensed Clinical Social Worker', location:'Queens, NY', tags:['DBT','Anxiety','LGBTQ+'],      match:88, rating:4.8, telehealth:false, connected:false },
-  { name:'James Okafor, LMFT',    id:'', slug:'', initials:'JO', role:'Marriage & Family Therapist',    location:'Bronx, NY',   tags:['Couples','Family Conflict','IFS'], match:90, rating:4.6, telehealth:false, connected:false },
-  { name:'Alicia Reeves, LPC',    id:'', slug:'', initials:'AR', role:'Licensed Professional Counselor',location:'New York, NY', tags:['ACT','Stress','Life Transitions'], match:84, rating:4.8, telehealth:true,  connected:false },
-  { name:'Nina Park, RDN',        id:'', slug:'', initials:'NP', role:'Registered Dietician',    location:'Manhattan, NY', tags:['Eating Disorders','Functional Nutrition'], match:92, rating:4.6, telehealth:true, connected:false },
-])
+// ── Recommendations (dynamic from network_recommendations table) ──────────
+// Fed by NetworkController::index → NetworkService::getRecommended*.
+// If the DB is empty, the shape falls back to [] and the carousels render
+// their empty state without crashing.
+const recommendedCategories = computed(() => props.recommendedPartnerCategories ?? [])
+const aiShadowCandidates    = computed(() => props.recommendedShadowProviders   ?? [])
 
 const allProviders = ref([
   { name:'Dr. Daniel Malik, MD',  id:'', slug:'', initials:'DM', role:'Psychiatrist',          location:'NYC, NY',       tags:['Anxiety','PTSD','Mood Disorders'],             rating:4.9, reviews:62, refs:'14 refs', acc:'80% acc', resp:'3.1h resp', telehealth:true,  networkStatus:'in-network'    },

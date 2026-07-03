@@ -102,14 +102,21 @@ class NetworkController extends Controller
             'location'     => $c['partner_location'],
         ])->values();
 
+        // Dynamic recommendation feeds — see NetworkService::getRecommended*.
+        // If no per-user rows are seeded, the service falls back to globals.
+        $recommendedPartnerCategories = $this->network->getRecommendedPartnerCategories($user->id);
+        $recommendedShadowProviders   = $this->network->getRecommendedShadowProviders($user->id);
+
         return Inertia::render('provider/Network', [
-            'clinicalConnections' => $clinical,
-            'bpConnections'       => $business,
-            'pendingRequests'     => $pending,
-            'shadowConnections'   => $shadows,
-            'referralNetwork'     => $referralNetwork,
-            'roster'              => [],
-            'stats'               => [
+            'clinicalConnections'          => $clinical,
+            'bpConnections'                => $business,
+            'pendingRequests'              => $pending,
+            'shadowConnections'            => $shadows,
+            'referralNetwork'              => $referralNetwork,
+            'recommendedPartnerCategories' => $recommendedPartnerCategories,
+            'recommendedShadowProviders'   => $recommendedShadowProviders,
+            'roster'                       => [],
+            'stats'                        => [
                 'clinical'         => $clinical->count(),
                 'bp_count'         => $business->count(),
                 'total_refs'       => 0,
@@ -172,5 +179,23 @@ class NetworkController extends Controller
             $data['note'] ?? null
         );
         return back()->with('success', 'Invitation sent.');
+    }
+
+    /**
+     * Add a provider to the practitioner's referral (shadow) list manually.
+     * Powers the "Add to Referral List" modal on the Referrals & Tools tab.
+     */
+    public function addShadow(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'display_name' => 'required|string|max:191',
+            'note'         => 'nullable|string|max:500',
+        ]);
+        $this->network->addShadowManual(
+            $request->user(),
+            $data['display_name'],
+            $data['note'] ?? null
+        );
+        return back()->with('success', 'Added to your referral list.');
     }
 }
