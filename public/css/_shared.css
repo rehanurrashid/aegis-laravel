@@ -206,7 +206,10 @@ body {
   background: var(--bg);
   min-height: 100vh;
   line-height: 1.6;
+  margin: 0;
 }
+
+#app { width: 100%; min-height: 100vh; }
 
 a             { color: inherit; text-decoration: none; }
 button        { cursor: pointer; font-family: var(--font-sans); }
@@ -308,7 +311,8 @@ p {
 /* ═══════════════════════════════════════════════════════════════
    LAYOUT SHELL
    ═══════════════════════════════════════════════════════════════ */
-.layout { display: flex; min-height: 100vh; }
+.layout,
+.app-shell { display: flex; min-height: 100vh; }
 
 .main-content {
   flex: 1;

@@ -621,14 +621,13 @@ async function submitReset() {
   flex-direction: column;
   justify-content: center;
   padding: 52px 64px;
-  max-width: 520px;
   width: 100%;
-  margin: 0 auto;
   min-height: 100vh;
 }
 
 .signin-view {
   width: 100%;
+  max-width: 480px;
 }
 
 /* Form header */
