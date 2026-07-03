@@ -160,7 +160,7 @@
                 <span class="rnp-stat">
                   <span class="rnp-stat-num">{{ cat.count }}</span> nearby
                 </span>
-                <button type="button" class="btn rnp-cta" @click.stop="clinicalTab = 'search'">
+                <button type="button" class="btn rnp-cta" data-tooltip="Find matching providers" @click.stop="openCategoryFilter(cat)">
                   <AegisIcon name="arrow-right" :size="12" />
                 </button>
               </div>
@@ -239,6 +239,26 @@
               class="active-filter-pill"
               @click="removeFilter(f)"
             >{{ f.value }}<span class="pill-x">&times;</span></span>
+          </div>
+
+          <!-- Clinical-service providers toggle -->
+          <div class="filter-group nw-sbp-clinical-toggle">
+            <label class="nw-sbp-clinical-label">
+              <span class="nw-sbp-clinical-text">
+                <AegisIcon name="briefcase-rx" :size="14" />
+                Clinical-service providers
+                <span class="sbp-info-tip" data-tooltip="Practitioners with Services Mode enabled offer services to other providers. Toggle on to surface them at the top of results.">
+                  <AegisIcon name="info" :size="12" />
+                </span>
+              </span>
+              <button
+                type="button"
+                class="toggle"
+                :class="{ on: clinicalServiceOnly }"
+                @click="clinicalServiceOnly = !clinicalServiceOnly"
+                aria-label="Prioritise clinical-service providers"
+              ></button>
+            </label>
           </div>
 
           <!-- 1. Provider Type -->
@@ -1936,6 +1956,40 @@ const searchResults = computed(() => {
 function applyFilters() {
   for (const g of Object.keys(appliedFilters)) appliedFilters[g] = [...selectedFilters[g]]
   toast.success(activeFilters.value.length ? 'Filters applied' : 'Showing all providers')
+}
+
+/**
+ * rnp-card arrow CTA handler.
+ * 1. Clears all active filters (fresh drill-down).
+ * 2. Routes label → `type` group if it's a known provider role, `specialty` otherwise.
+ * 3. Commits to both selectedFilters + appliedFilters so searchResults reacts.
+ * 4. Switches to Search Providers sub-tab.
+ * 5. Smooth-scrolls to the results grid after Vue re-renders.
+ */
+function openCategoryFilter(cat) {
+  const label = cat?.label
+  if (!label) return
+
+  // Clear all filters first
+  for (const g of Object.keys(selectedFilters)) selectedFilters[g] = []
+  for (const g of Object.keys(appliedFilters))  appliedFilters[g]  = []
+  clinicalServiceOnly.value = false
+
+  // Apply this category to the correct group
+  const group = providerTypes.includes(label) ? 'type' : 'specialty'
+  selectedFilters[group].push(label)
+  appliedFilters[group].push(label)
+
+  // Switch tab
+  scope.value       = 'clinical'
+  clinicalTab.value = 'search'
+  toast.info(`Showing ${label} providers`)
+
+  // Scroll to results after reactivity settles
+  nextTick(() => {
+    const el = document.querySelector('.search-results-grid')
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
 }
 
 // ── Filter data ────────────────────────────────────────────────────────────
