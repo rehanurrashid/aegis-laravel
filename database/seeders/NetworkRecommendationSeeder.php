@@ -35,17 +35,21 @@ class NetworkRecommendationSeeder extends Seeder
      */
     private function directoryUsers(): array
     {
+        // services_mode = 1 means this practitioner offers services to other
+        // providers (e.g. supervision, consultation, group co-therapy).
+        // Marking 4 out of 10 gives the "Clinical-service providers" toggle
+        // on the Search Providers sidebar visible results to surface.
         return [
-            ['id' => 'nd_rachel_moore', 'display_name' => 'Rachel Moore',    'credentials' => 'MD',    'title' => 'Psychiatrist',                           'specialty' => 'Anxiety, Mood Disorders, PTSD',      'location' => 'New York, NY',   'avatar_initials' => 'RM', 'slug' => 'rachel-moore-md'],
-            ['id' => 'nd_sarah_nguyen', 'display_name' => 'Sarah Nguyen',    'credentials' => 'PsyD',  'title' => 'Psychologist',                           'specialty' => 'CBT, Trauma, Depression',            'location' => 'Brooklyn, NY',   'avatar_initials' => 'SN', 'slug' => 'sarah-nguyen-psyd'],
-            ['id' => 'nd_maya_torres',  'display_name' => 'Maya Torres',     'credentials' => 'LCSW',  'title' => 'Licensed Clinical Social Worker',        'specialty' => 'DBT, Anxiety, LGBTQ+',               'location' => 'Queens, NY',     'avatar_initials' => 'MT', 'slug' => 'maya-torres-lcsw'],
-            ['id' => 'nd_james_okafor', 'display_name' => 'James Okafor',    'credentials' => 'LMFT',  'title' => 'Marriage & Family Therapist',            'specialty' => 'Couples, Family Conflict, IFS',      'location' => 'Bronx, NY',      'avatar_initials' => 'JO', 'slug' => 'james-okafor-lmft'],
-            ['id' => 'nd_alicia_reeves','display_name' => 'Alicia Reeves',   'credentials' => 'LPC',   'title' => 'Licensed Professional Counselor',        'specialty' => 'ACT, Stress, Life Transitions',      'location' => 'New York, NY',   'avatar_initials' => 'AR', 'slug' => 'alicia-reeves-lpc'],
-            ['id' => 'nd_nina_park',    'display_name' => 'Nina Park',       'credentials' => 'RDN',   'title' => 'Registered Dietitian',                   'specialty' => 'Eating Disorders, Functional Nutrition','location' => 'Manhattan, NY','avatar_initials' => 'NP', 'slug' => 'nina-park-rdn'],
-            ['id' => 'nd_daniel_kim',   'display_name' => 'Daniel Kim',      'credentials' => 'MD',    'title' => 'Neurologist',                            'specialty' => 'Neuropsychiatry, Migraine, Sleep',   'location' => 'Boston, MA',     'avatar_initials' => 'DK', 'slug' => 'daniel-kim-md'],
-            ['id' => 'nd_luisa_pena',   'display_name' => 'Luisa Peña',      'credentials' => 'PhD',   'title' => 'Clinical Psychologist',                  'specialty' => 'Trauma, EMDR, Bilingual (ES)',       'location' => 'Miami, FL',      'avatar_initials' => 'LP', 'slug' => 'luisa-pena-phd'],
-            ['id' => 'nd_omar_haddad',  'display_name' => 'Omar Haddad',     'credentials' => 'DO',    'title' => 'Primary Care Physician',                 'specialty' => 'Integrative Care, Chronic Illness',  'location' => 'Chicago, IL',    'avatar_initials' => 'OH', 'slug' => 'omar-haddad-do'],
-            ['id' => 'nd_hannah_ward',  'display_name' => 'Hannah Ward',     'credentials' => 'LMFT',  'title' => 'Somatic Therapist',                      'specialty' => 'Somatic Experiencing, Attachment',   'location' => 'Portland, OR',   'avatar_initials' => 'HW', 'slug' => 'hannah-ward-lmft'],
+            ['id' => 'nd_rachel_moore', 'display_name' => 'Rachel Moore',    'credentials' => 'MD',    'title' => 'Psychiatrist',                           'specialty' => 'Anxiety, Mood Disorders, PTSD',      'location' => 'New York, NY',   'avatar_initials' => 'RM', 'slug' => 'rachel-moore-md',    'services_mode' => 1],
+            ['id' => 'nd_sarah_nguyen', 'display_name' => 'Sarah Nguyen',    'credentials' => 'PsyD',  'title' => 'Psychologist',                           'specialty' => 'CBT, Trauma, Depression',            'location' => 'Brooklyn, NY',   'avatar_initials' => 'SN', 'slug' => 'sarah-nguyen-psyd',  'services_mode' => 0],
+            ['id' => 'nd_maya_torres',  'display_name' => 'Maya Torres',     'credentials' => 'LCSW',  'title' => 'Licensed Clinical Social Worker',        'specialty' => 'DBT, Anxiety, LGBTQ+',               'location' => 'Queens, NY',     'avatar_initials' => 'MT', 'slug' => 'maya-torres-lcsw',   'services_mode' => 1],
+            ['id' => 'nd_james_okafor', 'display_name' => 'James Okafor',    'credentials' => 'LMFT',  'title' => 'Marriage & Family Therapist',            'specialty' => 'Couples, Family Conflict, IFS',      'location' => 'Bronx, NY',      'avatar_initials' => 'JO', 'slug' => 'james-okafor-lmft',  'services_mode' => 0],
+            ['id' => 'nd_alicia_reeves','display_name' => 'Alicia Reeves',   'credentials' => 'LPC',   'title' => 'Licensed Professional Counselor',        'specialty' => 'ACT, Stress, Life Transitions',      'location' => 'New York, NY',   'avatar_initials' => 'AR', 'slug' => 'alicia-reeves-lpc',  'services_mode' => 0],
+            ['id' => 'nd_nina_park',    'display_name' => 'Nina Park',       'credentials' => 'RDN',   'title' => 'Registered Dietitian',                   'specialty' => 'Eating Disorders, Functional Nutrition','location' => 'Manhattan, NY','avatar_initials' => 'NP', 'slug' => 'nina-park-rdn',      'services_mode' => 1],
+            ['id' => 'nd_daniel_kim',   'display_name' => 'Daniel Kim',      'credentials' => 'MD',    'title' => 'Neurologist',                            'specialty' => 'Neuropsychiatry, Migraine, Sleep',   'location' => 'Boston, MA',     'avatar_initials' => 'DK', 'slug' => 'daniel-kim-md',      'services_mode' => 0],
+            ['id' => 'nd_luisa_pena',   'display_name' => 'Luisa Peña',      'credentials' => 'PhD',   'title' => 'Clinical Psychologist',                  'specialty' => 'Trauma, EMDR, Bilingual (ES)',       'location' => 'Miami, FL',      'avatar_initials' => 'LP', 'slug' => 'luisa-pena-phd',     'services_mode' => 1],
+            ['id' => 'nd_omar_haddad',  'display_name' => 'Omar Haddad',     'credentials' => 'DO',    'title' => 'Primary Care Physician',                 'specialty' => 'Integrative Care, Chronic Illness',  'location' => 'Chicago, IL',    'avatar_initials' => 'OH', 'slug' => 'omar-haddad-do',     'services_mode' => 0],
+            ['id' => 'nd_hannah_ward',  'display_name' => 'Hannah Ward',     'credentials' => 'LMFT',  'title' => 'Somatic Therapist',                      'specialty' => 'Somatic Experiencing, Attachment',   'location' => 'Portland, OR',   'avatar_initials' => 'HW', 'slug' => 'hannah-ward-lmft',   'services_mode' => 0],
         ];
     }
 
@@ -94,7 +98,7 @@ class NetworkRecommendationSeeder extends Seeder
                 'bio'                   => '',
                 'practitioner_public'   => 1,
                 'tier'                  => 'access',
-                'services_mode'         => 0,
+                'services_mode'         => (int) ($u['services_mode'] ?? 0),
                 'maat_addon'            => 0,
                 'two_factor_enabled'    => 0,
                 'verified'              => 1,

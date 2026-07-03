@@ -578,9 +578,9 @@
               <span class="nw-sbp-clinical-text">
                 <AegisIcon name="briefcase-rx" :size="14" />
                 Clinical-service providers
-                <span class="sbp-info-tip" data-tooltip="Aegis providers with Services Mode enabled offer services to other providers. Toggle on to show them above the business partners."><AegisIcon name="info" :size="12" /></span>
+                <span class="sbp-info-tip" data-tooltip="Practitioners with Services Mode enabled offer services to other providers. Toggle on to surface them at the top of results."><AegisIcon name="info" :size="12" /></span>
               </span>
-              <button type="button" class="toggle" :class="{ on: bpClinicalOnly }" @click="bpClinicalOnly = !bpClinicalOnly" aria-label="Show clinical-service providers"></button>
+              <button type="button" class="toggle" :class="{ on: clinicalServiceOnly }" @click="clinicalServiceOnly = !clinicalServiceOnly" aria-label="Prioritise clinical-service providers"></button>
             </label>
           </div>
 
@@ -1476,23 +1476,12 @@
     </AegisModal>
 
     <!-- Connect / Send Request Modal -->
-    <AegisModal v-model="modals.connect" title="Send Connection Request">
-      <div v-if="connectTarget" class="alert alert-info" style="margin-bottom:16px">
-        <AegisIcon name="user-plus" :size="16" />
-        <div><strong>{{ connectTarget.name }}</strong><span v-if="connectTarget.role"> · {{ connectTarget.role }}</span></div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Message (optional)</label>
-        <textarea class="form-textarea" v-model="connectForm.note" rows="3" placeholder="Introduce yourself or explain why you'd like to connect…"></textarea>
-        <div v-if="connectForm.errors.note" class="form-error">{{ connectForm.errors.note }}</div>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.connect = false">Cancel</button>
-        <button type="button" class="btn btn-primary" :disabled="connectForm.processing" @click="submitConnect">
-          {{ connectForm.processing ? 'Sending…' : 'Send Request' }}
-        </button>
-      </template>
-    </AegisModal>
+    <ConnectionRequestModal
+      :recipient-id="connectTarget.id"
+      :recipient-name="connectTarget.name"
+      :recipient-role="connectTarget.role"
+      @sent="router.reload({ only: ['clinicalConnections', 'pendingRequests', 'stats'] })"
+    />
 
     <!-- Service Request Modal — centralized. provider-id / provider-label
          are bound reactively so the modal always targets the card the user
@@ -1596,9 +1585,10 @@ import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import { router, useForm } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import AppLayout from '@/layouts/AppLayout.vue'
-import ReferralModal         from '@/components/modals/ReferralModal.vue'
-import ServiceRequestModal   from '@/components/modals/ServiceRequestModal.vue'
-import PostJobModal          from '@/components/modals/PostJobModal.vue'
+import ReferralModal          from '@/components/modals/ReferralModal.vue'
+import ServiceRequestModal    from '@/components/modals/ServiceRequestModal.vue'
+import ConnectionRequestModal from '@/components/modals/ConnectionRequestModal.vue'
+import PostJobModal           from '@/components/modals/PostJobModal.vue'
 import { useModal }         from '@/composables/useModal'
 import { useToast }         from '@/composables/useToast'
 import { useConfirm }       from '@/composables/useConfirm'
@@ -1655,38 +1645,6 @@ function slideSpc(dir) {
   setTimeout(() => updateArrows(el, spcAtStart, spcAtEnd), 320)
 }
 
-// Pointer drag-to-scroll for a slider track. Suppresses the trailing click when
-// the user actually dragged, so card clicks (viewProfile) still work on a tap.
-function enableDragScroll(el, atStart, atEnd) {
-  if (!el) return
-  let down = false, startX = 0, startLeft = 0, moved = false
-  el.addEventListener('pointerdown', (e) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return
-    down = true; moved = false; startX = e.clientX; startLeft = el.scrollLeft
-    el.classList.add('is-dragging')
-    try { el.setPointerCapture(e.pointerId) } catch (_) {}
-  })
-  el.addEventListener('pointermove', (e) => {
-    if (!down) return
-    const dx = e.clientX - startX
-    if (Math.abs(dx) > 4) moved = true
-    el.scrollLeft = startLeft - dx
-    updateArrows(el, atStart, atEnd)
-  })
-  const end = (e) => {
-    if (!down) return
-    down = false
-    el.classList.remove('is-dragging')
-    try { el.releasePointerCapture(e.pointerId) } catch (_) {}
-    if (moved) { el.dataset.dragged = '1'; setTimeout(() => { delete el.dataset.dragged }, 0) }
-  }
-  el.addEventListener('pointerup', end)
-  el.addEventListener('pointercancel', end)
-  el.addEventListener('click', (e) => {
-    if (el.dataset.dragged) { e.stopPropagation(); e.preventDefault() }
-  }, true)
-}
-
 // Slugify a display name into a public-profile slug (fallback for records
 // whose slug isn't yet supplied by the backend search payload).
 function slugify(name) {
@@ -1698,21 +1656,15 @@ function slugify(name) {
 }
 
 onMounted(() => {
-  // Backfill slugs so every "View Profile" control can navigate.
-  // aiShadowCandidates is now a server-backed computed (slugs already
-  // hydrated by NetworkService::getRecommendedShadowProviders), so it's
-  // excluded here.
   ;[allProviders, rtCandidates].forEach((r) => {
     r.value.forEach((p) => { if (!p.slug) p.slug = slugify(p.name) })
   })
   if (rnpTrack.value) {
     rnpTrack.value.addEventListener('scroll', () => updateArrows(rnpTrack.value, rnpAtStart, rnpAtEnd))
-    enableDragScroll(rnpTrack.value, rnpAtStart, rnpAtEnd)
     updateArrows(rnpTrack.value, rnpAtStart, rnpAtEnd)
   }
   if (spcTrack.value) {
     spcTrack.value.addEventListener('scroll', () => updateArrows(spcTrack.value, spcAtStart, spcAtEnd))
-    enableDragScroll(spcTrack.value, spcAtStart, spcAtEnd)
     updateArrows(spcTrack.value, spcAtStart, spcAtEnd)
   }
 })
@@ -1727,7 +1679,6 @@ const toolsTab    = ref('list')
 const modals = reactive({
   reviewRequests:       false,
   inviteProvider:       false,
-  connect:              false,
   bpHire:               false,
   postJob:              false,
   manualReferralEntry:  false,
@@ -1793,20 +1744,14 @@ function submitInvite() {
 }
 
 // ── Connect (send request) ─────────────────────────────────────────────────
-const connectTarget = ref(null)
-const connectForm   = useForm({ to_user_id: '', note: '' })
+// ── Connection Request — centralized via ConnectionRequestModal ────────────
+const connectTarget = reactive({ id: '', name: '', role: '' })
 
 function openConnect(p) {
-  connectTarget.value = p
-  connectForm.to_user_id = p.id ?? ''
-  connectForm.note = ''
-  modals.connect = true
-}
-
-function submitConnect() {
-  connectForm.post(route('provider.network.connect'), {
-    onSuccess: () => { modals.connect = false; toast.success('Connection request sent!') },
-  })
+  connectTarget.id   = p.id   ?? p.shadow_user_id ?? ''
+  connectTarget.name = p.name ?? p.shadow_name    ?? ''
+  connectTarget.role = p.role ?? p.shadow_role    ?? ''
+  openModal('connectionRequestModal')
 }
 
 // ── ReferralModal — centralized via useModal ───────────────────────────────
@@ -1952,6 +1897,7 @@ function clearFilters() {
   for (const g of Object.keys(selectedFilters)) selectedFilters[g] = []
   for (const g of Object.keys(search)) search[g] = ''
   for (const g of Object.keys(appliedFilters)) appliedFilters[g] = []
+  clinicalServiceOnly.value = false
 }
 function filteredOpts(arr, q) {
   if (!q) return arr
@@ -1972,12 +1918,19 @@ function providerHaystack(p) {
 
 const searchResults = computed(() => {
   const groups = Object.entries(appliedFilters).filter(([, vals]) => vals.length)
-  if (!groups.length) return allProviders.value
-  return allProviders.value.filter((p) => {
-    const hay = providerHaystack(p)
-    // AND across groups, OR within a group
-    return groups.every(([, vals]) => vals.some((v) => hay.includes(String(v).toLowerCase())))
-  })
+  let base = allProviders.value
+  if (groups.length) {
+    base = base.filter((p) => {
+      const hay = providerHaystack(p)
+      return groups.every(([, vals]) => vals.some((v) => hay.includes(String(v).toLowerCase())))
+    })
+  }
+  // Clinical-service toggle: float services-enabled providers to top; all
+  // providers remain visible (intent is surfacing, not filtering).
+  if (clinicalServiceOnly.value) {
+    return [...base].sort((a, b) => (b.has_services ? 1 : 0) - (a.has_services ? 1 : 0))
+  }
+  return base
 })
 
 function applyFilters() {
@@ -2031,6 +1984,9 @@ const rateTypes = ['Accepting New Clients','Sliding Scale Available','Under $100
 const demographicTypes = ['Female Provider','Male Provider','Non-Binary Provider','BIPOC Provider','LGBTQ+ Provider','Spanish-Speaking','Multilingual']
 const searchSort     = ref('Best Match')
 const bpSearch       = ref('')
+// Clinical-service toggle for Search Providers sidebar
+const clinicalServiceOnly = ref(false)
+
 const bpSort         = ref('Best Match')
 const bpClinicalOnly = ref(false)
 const bpCategory     = ref('')
@@ -2576,16 +2532,6 @@ function resetConfig() {
   min-width: 0;
 }
 .rec-shadow-grid::-webkit-scrollbar { display: none; }
-
-/* Drag-to-scroll affordance for both slider tracks */
-.rec-partner-grid,
-.rec-shadow-grid { cursor: grab; }
-.rec-partner-grid.is-dragging,
-.rec-shadow-grid.is-dragging {
-  cursor: grabbing;
-  scroll-behavior: auto;
-  user-select: none;
-}
 
 /* Slider arrow buttons — not in legacy (slider is a Vue addition) */
 .nw-slider-wrap {

@@ -142,6 +142,7 @@ class NetworkController extends Controller
                     'acc'           => '— acc',
                     'resp'          => '— resp',
                     'telehealth'    => false,
+                    'has_services'  => (bool) $u->services_mode,
                     'networkStatus' => in_array($u->id, $connectedIds, true)
                         ? 'in-network' : 'not-connected',
                 ];
