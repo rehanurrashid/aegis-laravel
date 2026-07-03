@@ -423,7 +423,7 @@
             </div>
           </div>
           <div class="filter-sidebar-apply">
-            <button type="button" class="btn btn-primary" @click="toast.success('Filters applied')">Apply Filters</button>
+            <button type="button" class="btn btn-primary" @click="applyFilters">Apply Filters</button>
           </div>
         </aside>
         <!-- Results grid -->
@@ -875,7 +875,7 @@ const props = defineProps({
 })
 
 // ── Composables ────────────────────────────────────────────────────────────
-const { openModal } = useModal()
+const { openModal, isOpen } = useModal()
 const toast         = useToast()
 const { confirmAction } = useConfirm()
 const { openConversation, loading: msgLoading } = useMessageButton()
@@ -910,13 +910,61 @@ function slideSpc(dir) {
   setTimeout(() => updateArrows(el, spcAtStart, spcAtEnd), 320)
 }
 
+// Pointer drag-to-scroll for a slider track. Suppresses the trailing click when
+// the user actually dragged, so card clicks (viewProfile) still work on a tap.
+function enableDragScroll(el, atStart, atEnd) {
+  if (!el) return
+  let down = false, startX = 0, startLeft = 0, moved = false
+  el.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    down = true; moved = false; startX = e.clientX; startLeft = el.scrollLeft
+    el.classList.add('is-dragging')
+    try { el.setPointerCapture(e.pointerId) } catch (_) {}
+  })
+  el.addEventListener('pointermove', (e) => {
+    if (!down) return
+    const dx = e.clientX - startX
+    if (Math.abs(dx) > 4) moved = true
+    el.scrollLeft = startLeft - dx
+    updateArrows(el, atStart, atEnd)
+  })
+  const end = (e) => {
+    if (!down) return
+    down = false
+    el.classList.remove('is-dragging')
+    try { el.releasePointerCapture(e.pointerId) } catch (_) {}
+    if (moved) { el.dataset.dragged = '1'; setTimeout(() => { delete el.dataset.dragged }, 0) }
+  }
+  el.addEventListener('pointerup', end)
+  el.addEventListener('pointercancel', end)
+  el.addEventListener('click', (e) => {
+    if (el.dataset.dragged) { e.stopPropagation(); e.preventDefault() }
+  }, true)
+}
+
+// Slugify a display name into a public-profile slug (fallback for records
+// whose slug isn't yet supplied by the backend search payload).
+function slugify(name) {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/,.*$/, '')          // drop credentials after comma
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
 onMounted(() => {
+  // Backfill slugs so every "View Profile" control can navigate.
+  ;[allProviders, aiShadowCandidates, rtCandidates].forEach((r) => {
+    r.value.forEach((p) => { if (!p.slug) p.slug = slugify(p.name) })
+  })
   if (rnpTrack.value) {
     rnpTrack.value.addEventListener('scroll', () => updateArrows(rnpTrack.value, rnpAtStart, rnpAtEnd))
+    enableDragScroll(rnpTrack.value, rnpAtStart, rnpAtEnd)
     updateArrows(rnpTrack.value, rnpAtStart, rnpAtEnd)
   }
   if (spcTrack.value) {
     spcTrack.value.addEventListener('scroll', () => updateArrows(spcTrack.value, spcAtStart, spcAtEnd))
+    enableDragScroll(spcTrack.value, spcAtStart, spcAtEnd)
     updateArrows(spcTrack.value, spcAtStart, spcAtEnd)
   }
 })
@@ -1062,7 +1110,7 @@ function submitPostJob() {
 
 // ── Profile navigation ─────────────────────────────────────────────────────
 function viewProfile(slug) {
-  if (slug) router.visit(route('provider.profile.public', { slug }))
+  if (slug) router.visit(route('public.provider', { slug }))
 }
 
 // ── Search / filter helpers ────────────────────────────────────────────────
@@ -1094,14 +1142,45 @@ function removeFilter(f) {
   const arr = selectedFilters[f.group]
   const i = arr.indexOf(f.value)
   if (i !== -1) arr.splice(i, 1)
+  const ap = appliedFilters[f.group]
+  const j = ap.indexOf(f.value)
+  if (j !== -1) ap.splice(j, 1)
 }
 function clearFilters() {
   for (const g of Object.keys(selectedFilters)) selectedFilters[g] = []
   for (const g of Object.keys(search)) search[g] = ''
+  for (const g of Object.keys(appliedFilters)) appliedFilters[g] = []
 }
 function filteredOpts(arr, q) {
   if (!q) return arr
   return arr.filter(t => t.toLowerCase().includes(q.toLowerCase()))
+}
+
+// ── Applied filters → search results ───────────────────────────────────────
+// selectedFilters = live sidebar selection; appliedFilters = committed via Apply.
+const appliedFilters = reactive({ type: [], specialty: [], approach: [], insurance: [], format: [], location: [], credentials: [], rate: [], demographics: [] })
+
+function providerHaystack(p) {
+  return [
+    p.name, p.role, p.location, ...(p.tags || []),
+    p.telehealth ? 'telehealth online video remote' : 'in-person in office',
+    p.networkStatus || '',
+  ].join(' ').toLowerCase()
+}
+
+const searchResults = computed(() => {
+  const groups = Object.entries(appliedFilters).filter(([, vals]) => vals.length)
+  if (!groups.length) return allProviders.value
+  return allProviders.value.filter((p) => {
+    const hay = providerHaystack(p)
+    // AND across groups, OR within a group
+    return groups.every(([, vals]) => vals.some((v) => hay.includes(String(v).toLowerCase())))
+  })
+})
+
+function applyFilters() {
+  for (const g of Object.keys(appliedFilters)) appliedFilters[g] = [...selectedFilters[g]]
+  toast.success(activeFilters.value.length ? 'Filters applied' : 'Showing all providers')
 }
 
 // ── Filter data ────────────────────────────────────────────────────────────
@@ -1216,7 +1295,7 @@ const aiShadowCandidates = ref([
   { name:'Nina Park, RDN',        id:'', slug:'', initials:'NP', role:'Registered Dietician',    location:'Manhattan, NY', tags:['Eating Disorders','Functional Nutrition'], match:92, rating:4.6, telehealth:true, connected:false },
 ])
 
-const searchResults = ref([
+const allProviders = ref([
   { name:'Dr. Daniel Malik, MD',  id:'', slug:'', initials:'DM', role:'Psychiatrist',          location:'NYC, NY',       tags:['Anxiety','PTSD','Mood Disorders'],             rating:4.9, reviews:62, refs:'14 refs', acc:'80% acc', resp:'3.1h resp', telehealth:true,  networkStatus:'in-network'    },
   { name:'Dr. Lisa Chen, PhD',    id:'', slug:'', initials:'LC', role:'Psychologist',           location:'Brooklyn, NY',  tags:['CBT','Depression','Trauma'],                   rating:4.7, reviews:38, refs:'8 refs',  acc:'88% acc', resp:'2.0h resp', telehealth:true,  networkStatus:'in-network'    },
   { name:'Dr. Marcus Webb, LCSW', id:'', slug:'', initials:'MW', role:'Therapist / Counselor',  location:'Queens, NY',    tags:['DBT','Family Therapy','Addiction'],             rating:4.8, reviews:51, refs:'0 refs',  acc:'—',       resp:'2.1h resp', telehealth:false, networkStatus:'not-connected' },
@@ -1308,6 +1387,16 @@ function timeAgo(iso) {
 }
 .rec-shadow-grid::-webkit-scrollbar { display: none; }
 
+/* Drag-to-scroll affordance for both slider tracks */
+.rec-partner-grid,
+.rec-shadow-grid { cursor: grab; }
+.rec-partner-grid.is-dragging,
+.rec-shadow-grid.is-dragging {
+  cursor: grabbing;
+  scroll-behavior: auto;
+  user-select: none;
+}
+
 /* Slider arrow buttons — not in legacy (slider is a Vue addition) */
 .nw-slider-wrap {
   display: flex;
@@ -1318,20 +1407,19 @@ function timeAgo(iso) {
 }
 .nw-slider-arrow {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px;
+  width: 26px; height: 26px;
   border-radius: var(--radius-full);
-  border: 1.5px solid var(--border);
-  background: var(--surface);
-  color: var(--text-3);
+  border: none;
+  background: transparent;
+  color: var(--text-4);
   cursor: pointer; flex-shrink: 0;
-  transition: all var(--transition);
+  transition: color var(--transition), background var(--transition);
 }
 .nw-slider-arrow:hover:not(:disabled) {
-  border-color: var(--gold-dark);
   color: var(--gold-dark);
   background: var(--badge-bg-gold);
 }
-.nw-slider-arrow:disabled { opacity: .3; cursor: default; }
+.nw-slider-arrow:disabled { opacity: .2; cursor: default; }
 
 /* Sticky filter sidebar header — always visible at top */
 .filter-sidebar-header {
@@ -1344,7 +1432,7 @@ function timeAgo(iso) {
   border-bottom: 1px solid var(--border);
   padding: 12px 16px;
   z-index: 2;
-  margin: -14px -10px 0;
+  margin: -14px -10px 3px;
 }
 
 /* Search Results divider label — centered with lines on both sides */
@@ -1377,6 +1465,7 @@ function timeAgo(iso) {
   background: var(--surface);
   border-top: 1px solid var(--border);
   padding: 14px 16px 20px; /* extra bottom padding covers any subpixel gap */
+  margin-top: 3px;
   z-index: 2;
   display: flex;
   align-items: center;
