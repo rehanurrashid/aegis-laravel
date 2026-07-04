@@ -261,7 +261,7 @@ class ProfileController extends Controller
                         'consultation' => 'Consultation — ' . ($r->start_date?->format('M j, Y') ?? ''),
                         default        => ucfirst($r->type),
                     },
-                    'status' => ucfirst($r->status),
+                    'status' => $r->status,  // lowercase — Vue filters on 'pending'
                     'time'   => $r->created_at->format('M j, g:i A'),
                 ])
                 ->values()

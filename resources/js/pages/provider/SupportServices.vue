@@ -61,6 +61,10 @@
         <AegisIcon name="check" :size="15" />
         Hired <span v-if="stats.hired" class="tab-count">{{ stats.hired }}</span>
       </button>
+      <button class="tab-primary" :class="{ active: tab === 'requests' }" role="tab" :aria-selected="tab === 'requests'" @click="tab = 'requests'">
+        <AegisIcon name="briefcase" :size="13" />
+        Requests <span v-if="engagements.length" class="tab-count">{{ engagements.length }}</span>
+      </button>
     </div>
 
     <!-- ============================================================
@@ -232,9 +236,7 @@
       <div class="section-header" style="margin-bottom:16px">
         <div class="section-title-h"><AegisIcon name="check" :size="16" /> Hired Business Partners</div>
       </div>
-
       <AegisEmptyState v-if="!activeContracts.length" icon="users" title="No hired partners yet" description="Accepted proposals will appear here. Accept an application to hire a business partner." />
-
       <div v-else class="jp-grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">
         <div v-for="c in activeContracts" :key="c.id" class="jp-card" style="border-color:var(--green)" @click="openContract(c)">
           <div class="jp-card-header">
@@ -255,6 +257,94 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- ============================================================
+         PANE 5: REQUESTS
+    ============================================================ -->
+    <div v-show="tab === 'requests'">
+      <div class="section-header" style="margin-bottom:16px">
+        <div class="section-title-h"><AegisIcon name="briefcase" :size="16" /> Engagement Requests</div>
+        <span v-if="engagements.length" class="badge badge-blue">{{ engagements.length }} total</span>
+      </div>
+
+      <AegisEmptyState v-if="!engagements.length" icon="briefcase" title="No engagement requests yet" description="Hire, quote, and consultation requests you send from a partner's profile will appear here." />
+
+      <template v-else>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Partner</th>
+                <th>Type</th>
+                <th>Details</th>
+                <th>Status</th>
+                <th>Submitted</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="r in pagedEngagements" :key="r.id">
+                <!-- Partner — linked to public profile -->
+                <td>
+                  <div class="ert-partner-cell">
+                    <div class="avatar avatar-sm avatar-gold" style="border-radius:var(--radius-sm);font-size:11px;font-weight:700;flex-shrink:0">
+                      {{ r.bp?.avatar_initials ?? '??' }}
+                    </div>
+                    <div>
+                      <a v-if="r.bp?.slug" :href="route('public.bp', r.bp.slug)" class="ert-partner-link" target="_blank">
+                        {{ r.bp?.display_name ?? '—' }}
+                      </a>
+                      <span v-else class="ert-partner-name">{{ r.bp?.display_name ?? '—' }}</span>
+                      <div class="ert-partner-type">{{ r.bp?.bp_type ? (r.bp.bp_type.charAt(0).toUpperCase() + r.bp.bp_type.slice(1)) : '' }}</div>
+                    </div>
+                  </div>
+                </td>
+                <!-- Type -->
+                <td>
+                  <span :class="['badge', r.type === 'hire' ? 'badge-gold' : r.type === 'quote' ? 'badge-blue' : 'badge-green']">
+                    <AegisIcon :name="r.type === 'hire' ? 'briefcase' : r.type === 'quote' ? 'clipboard' : 'calendar'" :size="10" />
+                    {{ r.type === 'hire' ? 'Engagement' : r.type === 'quote' ? 'Quote' : 'Consultation' }}
+                  </span>
+                </td>
+                <!-- Details summary -->
+                <td class="ert-details-cell">
+                  <div class="ert-details-primary">{{ r.engagement_type || r.service || r.meeting_type || '—' }}</div>
+                  <div v-if="r.start_date" class="ert-details-sub"><AegisIcon name="calendar" :size="10" /> {{ r.start_date }}</div>
+                  <div v-if="r.budget" class="ert-details-sub"><AegisIcon name="dollar" :size="10" /> {{ r.budget }}</div>
+                  <span v-if="r.urgent" class="badge badge-orange" style="font-size:10px;margin-top:3px">Urgent</span>
+                </td>
+                <!-- Status -->
+                <td>
+                  <span :class="['badge', r.status === 'pending' ? 'badge-gold' : r.status === 'accepted' ? 'badge-green' : 'badge-red']">
+                    {{ r.status.charAt(0).toUpperCase() + r.status.slice(1) }}
+                  </span>
+                </td>
+                <!-- Submitted -->
+                <td class="ert-date-cell">{{ r.created_at }}</td>
+                <!-- Actions -->
+                <td>
+                  <div class="ert-actions-cell">
+                    <button class="btn-icon" data-tooltip="View details" @click="viewRequest(r)"><AegisIcon name="eye" :size="13" /></button>
+                    <button class="btn-icon" data-tooltip="Message" :disabled="msgLoading === r.bp?.id" @click="openConversation(r.bp?.id)"><AegisIcon name="message-square" :size="13" /></button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div v-if="totalRequestPages > 1" class="ert-pagination">
+          <button class="btn btn-outline btn-sm" :disabled="requestsPage === 1" @click="requestsPage--">
+            <AegisIcon name="chevron-left" :size="13" /> Prev
+          </button>
+          <span class="ert-page-info">{{ requestsPage }} / {{ totalRequestPages }}</span>
+          <button class="btn btn-outline btn-sm" :disabled="requestsPage === totalRequestPages" @click="requestsPage++">
+            Next <AegisIcon name="chevron-right" :size="13" />
+          </button>
+        </div>
+      </template>
     </div>
 
     <PostJobModal v-model="showPostJob" :prefill="postJobPrefill" @update:model-value="(v) => { if (!v) postJobPrefill = null }" />
@@ -295,6 +385,7 @@
       :contract="activeContract"
       :milestones="activeContract ? (milestonesByContract?.[activeContract.id] ?? []) : []"
     />
+    <EngagementRequestModal v-model="showRequestDetail" :request="activeEngagementRequest" />
   </AppLayout>
 </template>
 
@@ -313,6 +404,7 @@ import StageActionModal from '@/components/modals/StageActionModal.vue'
 import ScheduleInterviewModal from '@/components/modals/ScheduleInterviewModal.vue'
 import RejectModal from '@/components/modals/RejectModal.vue'
 import HireModal from '@/components/modals/HireModal.vue'
+import EngagementRequestModal from '@/components/modals/EngagementRequestModal.vue'
 import ContractModal from '@/components/modals/ContractModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
@@ -322,11 +414,12 @@ const props = defineProps({
   jobs:            { type: Array,  default: () => [] },
   proposalsByJob:  { type: Object, default: () => ({}) },
   activeContracts:       { type: Array,  default: () => [] },
+  engagementRequests:    { type: Array,  default: () => [] },
   milestonesByContract:  { type: Object, default: () => ({}) },
   bpStats:         { type: Object, default: () => ({}) },
   stats: {
     type: Object,
-    default: () => ({ open: 0, draft: 0, paused: 0, filled: 0, closed: 0, total_jobs: 0, total_proposals: 0, pending_proposals: 0, hired: 0, total_spent_cents: 0 }),
+    default: () => ({ open: 0, draft: 0, paused: 0, filled: 0, closed: 0, total_jobs: 0, total_proposals: 0, pending_proposals: 0, hired: 0, total_spent_cents: 0, engagement_requests: 0 }),
   },
 })
 
@@ -336,6 +429,18 @@ const { openConversation, loading: msgLoading } = useMessageButton()
 
 const tab = ref('my-postings')
 watch(tab, () => syncFormEnhancements())
+const engagements = computed(() => Array.isArray(props.engagementRequests) ? props.engagementRequests : [])
+
+// Requests tab pagination
+const PAGE_SIZE_REQ       = 10
+const requestsPage        = ref(1)
+const totalRequestPages   = computed(() => Math.max(1, Math.ceil(engagements.value.length / PAGE_SIZE_REQ)))
+const pagedEngagements    = computed(() => engagements.value.slice((requestsPage.value - 1) * PAGE_SIZE_REQ, requestsPage.value * PAGE_SIZE_REQ))
+
+// Engagement request detail modal
+const showRequestDetail       = ref(false)
+const activeEngagementRequest = ref(null)
+function viewRequest(r) { activeEngagementRequest.value = r; showRequestDetail.value = true }
 const postingFilter = ref('all')
 const applicationsJobFilter = ref('')
 const pipelineJobFilter = ref('')
@@ -526,7 +631,7 @@ function proposalStatusBadgeClass(p) {
   return ({ new: 'badge-gray', reviewed: 'badge-orange', shortlisted: 'badge-blue', interview: 'badge-gold', hired: 'badge-green' }[stage] || 'badge-gray')
 }
 
-const avatarPalette = ['var(--gold-dark)', 'var(--blue-dark)', 'var(--green-dark)', 'var(--orange)']
+const avatarPalette = ['var(--gold-dark)']
 function initials(name) {
   if (!name) return 'BP'
   return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
@@ -660,4 +765,17 @@ function onUseTemplate(t) {
   .jp-my-table-head > *:nth-child(3), .jp-my-table-head > *:nth-child(4),
   .jp-my-row > *:nth-child(3), .jp-my-row > *:nth-child(4) { display: none; }
 }
+/* ── Requests tab table ── */
+.ert-partner-cell  { display: flex; align-items: center; gap: 10px; }
+.ert-partner-link  { font-size: 13px; font-weight: 600; color: var(--gold-dark); text-decoration: none; }
+.ert-partner-link:hover { text-decoration: underline; }
+.ert-partner-name  { font-size: 13px; font-weight: 600; color: var(--text); }
+.ert-partner-type  { font-size: 11px; color: var(--text-4); margin-top: 2px; }
+.ert-details-cell  { max-width: 200px; }
+.ert-details-primary { font-size: 12px; font-weight: 600; color: var(--text); }
+.ert-details-sub   { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-4); margin-top: 2px; }
+.ert-date-cell     { font-size: 11px; color: var(--text-4); white-space: nowrap; }
+.ert-actions-cell  { display: flex; gap: 6px; justify-content: flex-end; }
+.ert-pagination    { display: flex; align-items: center; gap: 10px; justify-content: center; margin-top: 20px; }
+.ert-page-info     { font-size: 12px; color: var(--text-3); font-weight: 600; min-width: 60px; text-align: center; }
 </style>

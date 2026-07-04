@@ -12,6 +12,7 @@ use App\Http\Requests\Business\ProposalStageRequest;
 use App\Models\BpMilestone;
 use App\Http\Requests\Business\UpdateJobRequest;
 use App\Models\BpContract;
+use App\Models\BpEngagementRequest;
 use App\Models\BpJob;
 use App\Models\BpProposal;
 use App\Services\BpJobService;
@@ -82,10 +83,40 @@ class JobPostingsController extends Controller
             'asking_rate_cents' => $bpUsers[$id]->bp_hourly_rate_cents ?? null,
         ]]);
 
-        return Inertia::render('Provider/SupportServices', [
+        // Direct engagement requests from public profile (hire/quote/consultation)
+        $engagementRequests = BpEngagementRequest::with('bp:id,display_name,bp_type,avatar_initials,slug')
+            ->where('practitioner_id', $user->id)
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn ($r) => [
+                'id'              => $r->id,
+                'type'            => $r->type,
+                'engagement_type' => $r->engagement_type,
+                'service'         => $r->service,
+                'meeting_type'    => $r->meeting_type,
+                'start_date'      => $r->start_date?->format('M j, Y'),
+                'budget'          => $r->budget,
+                'payment_terms'   => $r->payment_terms,
+                'duration'        => $r->duration,
+                'notes'           => $r->notes,
+                'agenda'          => $r->agenda,
+                'status'          => $r->status,
+                'urgent'          => $r->urgent,
+                'created_at'      => $r->created_at->format('M j, Y g:i A'),
+                'bp'              => $r->bp ? [
+                    'id'             => $r->bp->id,
+                    'display_name'   => $r->bp->display_name,
+                    'bp_type'        => $r->bp->bp_type instanceof \BackedEnum ? $r->bp->bp_type->value : (string) ($r->bp->bp_type ?? ''),
+                    'avatar_initials'=> $r->bp->avatar_initials,
+                    'slug'           => $r->bp->slug,
+                ] : null,
+            ])->values()->toArray();
+
+        return Inertia::render('provider/SupportServices', [
             'jobs'             => $jobs,
             'proposalsByJob'   => $proposalsByJob,
             'activeContracts'  => $contracts,
+            'engagementRequests' => $engagementRequests,
             'milestonesByContract' => BpMilestone::whereIn('contract_id', $contracts->pluck('id'))
                 ->orderBy('sort_order')
                 ->get()
@@ -103,6 +134,7 @@ class JobPostingsController extends Controller
                 'pending_proposals' => $proposalsByJob->flatten()->where('status', 'pending')->count(),
                 'hired'             => $contracts->where('status', 'active')->count(),
                 'total_spent_cents' => (int) $totalSpent,
+                'engagement_requests' => count($engagementRequests),
             ],
         ]);
     }

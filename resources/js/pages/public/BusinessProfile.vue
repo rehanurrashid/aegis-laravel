@@ -66,14 +66,15 @@
       <!-- ═══ ENGAGEMENT ACTIVITY TRACKER (below hero, logged-in non-owner) ═══ -->
       <div v-if="isLoggedIn && !isOwner && allEngagements.length" class="bp-eng-tracker">
         <div class="bp-eng-tracker-head">
-          <span class="bp-eng-tracker-label"><AegisIcon name="clock" :size="12" /> Your requests to this partner</span>
-          <span>{{ allEngagements.length }} total</span>
+          <span class="bp-eng-tracker-label"><AegisIcon name="clock" :size="12" /> Your pending requests</span>
+          <span>{{ allEngagements.length }} pending</span>
         </div>
         <div v-for="(eng, i) in allEngagements" :key="eng.id || i" class="bp-eng-row">
           <AegisIcon name="briefcase" :size="14" />
           <span class="bp-eng-type">{{ eng.label }}</span>
-          <span class="bp-eng-status">{{ eng.status }}</span>
+          <span class="bp-eng-status">{{ eng.status.charAt(0).toUpperCase() + eng.status.slice(1) }}</span>
           <span class="bp-eng-time">{{ eng.time }}</span>
+          <button class="btn btn-outline btn-xs" @click="viewRequest(eng)"><AegisIcon name="eye" :size="11" /> View</button>
         </div>
       </div>
 
@@ -309,6 +310,8 @@
         @submitted="submitHireRequest"
       />
 
+      <EngagementRequestModal v-model="showRequestDetail" :request="activeEngagementRequest" />
+
       <!-- Propose Contract Modal -->
       <AegisModal v-model="showContractModal" title="Propose a Contract" subtitle="Draft a custom service contract with scope, terms, and payment schedule" size="lg">
         <div class="form-group"><label class="form-label">Partner</label><input type="text" class="form-input" :value="businessName" readonly></div>
@@ -470,6 +473,7 @@ import AegisModal from '@/components/ui/AegisModal.vue'
 import AegisIcon from '@/components/ui/AegisIcon.vue'
 import AegisStatChip from '@/components/ui/AegisStatChip.vue'
 import BpEngageModal from '@/components/modals/BpEngageModal.vue'
+import EngagementRequestModal from '@/components/modals/EngagementRequestModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useMessageButton } from '@/composables/useMessageButton'
@@ -512,7 +516,13 @@ function titleCase(str) { return str.replace(/\b\w/g, c => c.toUpperCase()) }
 // ── Engagement tracker — loaded from DB via props, refreshed after each submit ─
 // No local buffer needed. After each form submit we do a partial Inertia reload
 // (only: ['engagementRequests']) so the prop updates without full page reload.
-const allEngagements = computed(() => props.engagementRequests)
+// On BusinessProfile only pending requests show — completed ones live in SupportServices.
+const allEngagements    = computed(() => (props.engagementRequests ?? []).filter(r => r.status === 'pending'))
+
+// Engagement request detail modal
+const showRequestDetail       = ref(false)
+const activeEngagementRequest = ref(null)
+function viewRequest(r) { activeEngagementRequest.value = r; showRequestDetail.value = true }
 
 function refreshEngagements() {
   router.reload({ only: ['engagementRequests'], preserveScroll: true })
