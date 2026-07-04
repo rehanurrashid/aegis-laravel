@@ -2282,9 +2282,9 @@ function openCategoryFilter(cat) {
     selectedFilters.type.push(label)
     appliedFilters.type.push(label)
   } else {
-    // Fuzzy: use clinicalSearch so the keyword filters across name/role/tags.
-    // This covers "Therapist / LCSW", "Neurologist", "Primary Care", "Dietitian" etc.
-    // Extract the core keyword (drop " / LCSW" style suffixes).
+    // Fuzzy keyword: extract core word (drop " / LCSW" suffix) and search
+    // across name/role/tags. "Dietitian" matches "Registered Dietitian",
+    // "Therapist" matches all therapist variants, etc.
     clinicalSearch.value = label.split('/')[0].trim()
   }
 

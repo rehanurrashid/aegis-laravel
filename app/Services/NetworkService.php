@@ -232,15 +232,43 @@ class NetworkService
                 ->get();
         }
 
-        return $rows->map(fn (NetworkRecommendation $r) => [
-            'id'          => $r->id,
-            'label'       => $r->label,
-            'description' => $r->description ?? '',
-            'icon'        => $r->icon ?? 'users',
-            'count'       => (int) ($r->nearby_count ?? 0),
-            'priority'    => $r->priority ?? 'medium',
-            'tier'        => 'is-' . ($r->priority ?? 'medium'),
-        ]);
+        return $rows->map(function (NetworkRecommendation $r) {
+            $label   = $r->label ?? '';
+            $keyword = trim(explode('/', $label)[0]); // strip " / LCSW" suffix
+
+            if ($keyword && $r->priority !== 'biz') {
+                // Count public practitioners matching this category label.
+                // Uses the same filters as the searchProviders query so the
+                // count matches what the filter will actually surface.
+                $realCount = \App\Models\User::where('practitioner_public', 1)
+                    ->where('role', 'practitioner')
+                    ->where(function ($q) use ($keyword) {
+                        $q->where('title', 'like', "%{$keyword}%")
+                          ->orWhere('specialty', 'like', "%{$keyword}%");
+                    })
+                    ->count();
+            } elseif ($r->priority === 'biz') {
+                $realCount = \App\Models\User::where('business_partner_public', 1)
+                    ->where('role', 'business_partner')
+                    ->where(function ($q) use ($keyword) {
+                        $q->where('title', 'like', "%{$keyword}%")
+                          ->orWhere('specialty', 'like', "%{$keyword}%");
+                    })
+                    ->count();
+            } else {
+                $realCount = 0;
+            }
+
+            return [
+                'id'          => $r->id,
+                'label'       => $label,
+                'description' => $r->description ?? '',
+                'icon'        => $r->icon ?? 'users',
+                'count'       => $realCount,
+                'priority'    => $r->priority ?? 'medium',
+                'tier'        => 'is-' . ($r->priority ?? 'medium'),
+            ];
+        });
     }
 
     /**
