@@ -268,6 +268,9 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
         Route::put('/profile/ai-settings', [ProviderProfileController::class, 'updateAiSettings'])->name('profile.ai-settings');
         Route::put('/profile/demographics', [ProviderProfileController::class, 'updateDemographics'])->name('profile.demographics');
         Route::post('/profile/private-note', [ProviderProfileController::class, 'savePrivateNote'])->name('profile.private-note');
+        // Network config — single atomic save/reset
+        Route::put('/network/config', [NetworkController::class, 'saveNetworkConfig'])->name('network.config.save');
+        Route::post('/network/config/reset', [NetworkController::class, 'resetNetworkConfig'])->name('network.config.reset');
 
         // Finances
         Route::get('/finances', [ProviderFinancesController::class, 'index'])->name('finances.index');

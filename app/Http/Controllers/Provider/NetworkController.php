@@ -368,18 +368,228 @@ class NetworkController extends Controller
             'stats'                        => [
                 'clinical'         => $clinical->count(),
                 'bp_count'         => $activeContracts,
-                // All outbound pending connection requests (sent by this user, not yet responded to)
                 'bp_pending'       => NetworkRequestModel::where('requester_id', $user->id)
                     ->where('status', 'pending')
                     ->count(),
                 'total_refs'       => $totalRefs,
                 'avg_acc'          => $avgAcc,
                 'avg_resp'         => $avgResp,
-                // Incoming requests awaiting this user's response
                 'pending_requests' => $pending->count(),
                 'active_shadows'   => $shadows->count(),
             ],
+            'networkConfig'                => $this->loadNetworkConfig($user),
         ]);
+    }
+
+    // ── Network config helpers ────────────────────────────────────────────────
+
+    private function loadNetworkConfig(User $user): array
+    {
+        $user->loadMissing('meta');
+        $rawMeta  = $user->meta->pluck('meta_value', 'meta_key')->all();
+        $metaTypes = $user->meta->pluck('meta_type',  'meta_key')->all();
+
+        $jsonMeta = function (string $key, array $default = []) use ($rawMeta, $metaTypes): array {
+            if (!isset($rawMeta[$key])) return $default;
+            if (($metaTypes[$key] ?? 'json') !== 'json') return $default;
+            $d = json_decode($rawMeta[$key], true);
+            return is_array($d) ? $d : $default;
+        };
+
+        $boolMeta = function (string $key, bool $default = false) use ($rawMeta): bool {
+            return isset($rawMeta[$key])
+                ? in_array((string)$rawMeta[$key], ['1','true','on','yes'], true)
+                : $default;
+        };
+
+        $profileMeta = $user->profile_meta ? (json_decode($user->profile_meta, true) ?: []) : [];
+
+        // Specialties — stored as JSON or comma-string in users.specialty
+        $specialty = [];
+        if ($user->specialty) {
+            $dec = json_decode($user->specialty, true);
+            $specialty = is_array($dec)
+                ? $dec
+                : array_values(array_filter(array_map('trim', explode(',', $user->specialty))));
+        }
+
+        $aiSettings    = $jsonMeta('ai_shadow_settings');
+        $notifications = $jsonMeta('cfg_notifications');
+        $privacy       = $jsonMeta('cfg_privacy');
+
+        return [
+            // Selections
+            'team'         => $jsonMeta('network_partners'),
+            'specialties'  => $specialty,
+            'approaches'   => $profileMeta['approaches'] ?? [],
+            'insurance'    => is_array($ins = json_decode($user->network_insurance ?? '[]', true)) ? $ins : [],
+            'credentials'  => $jsonMeta('cfg_credentials'),
+            'services'     => $profileMeta['services']   ?? [],
+            'states'       => $jsonMeta('licensed_states'),
+            'demographics' => $jsonMeta('cfg_demographics'),
+            'languages'    => $jsonMeta('languages'),
+            'identity'     => $jsonMeta('cfg_identity'),
+            'rates'        => $jsonMeta('cfg_rates'),
+            // Scalar fields
+            'license_number'     => $rawMeta['license_number']     ?? '',
+            'primary_state'      => $rawMeta['primary_state']      ?? '',
+            'years_in_practice'  => $rawMeta['years_in_practice']  ?? '',
+            'session_length'     => $rawMeta['session_length']      ?? '',
+            'rate_per_session'   => (int)($rawMeta['rate_per_session']  ?? 0),
+            'sliding_scale_min'  => (int)($rawMeta['sliding_scale_min'] ?? 0),
+            'sliding_scale_max'  => (int)($rawMeta['sliding_scale_max'] ?? 0),
+            'max_partners'       => $rawMeta['max_partners']       ?? '',
+            'geographic_radius'  => $rawMeta['geographic_radius']  ?? '',
+            'referral_urgency'   => $rawMeta['referral_urgency']   ?? '',
+            'ai_match_frequency' => $aiSettings['frequency']       ?? '',
+            'sex_assigned'       => $rawMeta['sex_assigned']       ?? '',
+            // Notifications — stored as single JSON blob; fall back to per-key bools
+            'notifications' => $notifications ?: [
+                'connection_requests' => $boolMeta('notify_connection', true),
+                'referral_activity'   => $boolMeta('notify_referral',   true),
+                'shadow_suggestions'  => $boolMeta('notify_shadow',     true),
+                'member_news'         => $boolMeta('notify_news',       false),
+                'read_receipts'       => $boolMeta('notify_read',       true),
+                'weekly_digest'       => $boolMeta('notify_digest',     true),
+                'feature_updates'     => $boolMeta('notify_features',   false),
+            ],
+            // Privacy
+            'privacy' => $privacy ?: [
+                'searchable'        => (bool)($user->practitioner_public ?? true),
+                'share_stats'       => $boolMeta('privacy_share_stats',    true),
+                'ai_matching'       => $boolMeta('privacy_ai_matching',    true),
+                'manual_approval'   => $boolMeta('privacy_manual_approval',false),
+                'hide_business'     => $boolMeta('privacy_hide_business',  false),
+                'ai_data_use'       => $boolMeta('privacy_ai_data_use',    true),
+                'show_demographics' => $boolMeta('privacy_show_demographics',true),
+            ],
+        ];
+    }
+
+    /**
+     * Save all network config fields in one atomic request.
+     */
+    public function saveNetworkConfig(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        $d    = $request->validate([
+            'team'              => 'nullable|array',
+            'specialties'       => 'nullable|array',
+            'approaches'        => 'nullable|array',
+            'insurance'         => 'nullable|array',
+            'credentials'       => 'nullable|array',
+            'services'          => 'nullable|array',
+            'states'            => 'nullable|array',
+            'demographics'      => 'nullable|array',
+            'languages'         => 'nullable|array',
+            'identity'          => 'nullable|array',
+            'rates'             => 'nullable|array',
+            'license_number'    => 'nullable|string|max:200',
+            'primary_state'     => 'nullable|string|max:50',
+            'years_in_practice' => 'nullable|string|max:50',
+            'session_length'    => 'nullable|string|max:50',
+            'rate_per_session'  => 'nullable|integer|min:0',
+            'sliding_scale_min' => 'nullable|integer|min:0',
+            'sliding_scale_max' => 'nullable|integer|min:0',
+            'max_partners'      => 'nullable|string|max:50',
+            'geographic_radius' => 'nullable|string|max:50',
+            'referral_urgency'  => 'nullable|string|max:50',
+            'ai_match_frequency'=> 'nullable|string|max:50',
+            'sex_assigned'      => 'nullable|string|max:50',
+            'notifications'     => 'nullable|array',
+            'privacy'           => 'nullable|array',
+        ]);
+
+        /** @var \App\Services\ProfileService $ps */
+        $ps = app(\App\Services\ProfileService::class);
+
+        // Users table columns
+        $userUpdate = [];
+        if (isset($d['specialties'])) {
+            $userUpdate['specialty'] = json_encode($d['specialties']);
+        }
+        if (isset($d['insurance'])) {
+            $userUpdate['network_insurance'] = json_encode($d['insurance']);
+        }
+        // profile_meta JSON blob (approaches + services)
+        $pm = $user->profile_meta ? (json_decode($user->profile_meta, true) ?: []) : [];
+        if (isset($d['approaches'])) $pm['approaches'] = $d['approaches'];
+        if (isset($d['services']))   $pm['services']   = $d['services'];
+        $userUpdate['profile_meta'] = json_encode($pm);
+
+        if ($userUpdate) $user->update($userUpdate);
+
+        // Languages via dedicated method
+        if (isset($d['languages'])) {
+            $ps->updateLanguagesAndWebsite($user, $d['languages'], null);
+        }
+
+        // user_meta arrays
+        foreach (['team'=>'network_partners','states'=>'licensed_states','credentials'=>'cfg_credentials',
+                  'demographics'=>'cfg_demographics','identity'=>'cfg_identity','rates'=>'cfg_rates'] as $key=>$mk) {
+            if (isset($d[$key])) $ps->setMetaPublic($user, $mk, $d[$key]);
+        }
+
+        // user_meta scalars
+        foreach (['license_number','primary_state','years_in_practice','session_length',
+                  'rate_per_session','sliding_scale_min','sliding_scale_max',
+                  'max_partners','geographic_radius','referral_urgency','sex_assigned'] as $k) {
+            if (array_key_exists($k, $d)) {
+                $ps->setMetaPublic($user, $k, (string)($d[$k] ?? ''), 'string');
+            }
+        }
+
+        // AI match frequency inside ai_shadow_settings
+        if (isset($d['ai_match_frequency'])) {
+            $row = $user->meta->firstWhere('meta_key', 'ai_shadow_settings');
+            $ai  = $row ? (json_decode($row->meta_value, true) ?: []) : [];
+            $ai['frequency'] = $d['ai_match_frequency'];
+            $ps->setMetaPublic($user, 'ai_shadow_settings', $ai);
+        }
+
+        if (isset($d['notifications'])) {
+            $ps->setMetaPublic($user, 'cfg_notifications', $d['notifications']);
+        }
+        if (isset($d['privacy'])) {
+            $ps->setMetaPublic($user, 'cfg_privacy', $d['privacy']);
+            if (isset($d['privacy']['searchable'])) {
+                $user->update(['practitioner_public' => (int)$d['privacy']['searchable']]);
+            }
+        }
+
+        return back()->with('success', 'Network configuration saved.');
+    }
+
+    /**
+     * Reset all network configuration to empty defaults.
+     */
+    public function resetNetworkConfig(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        /** @var \App\Services\ProfileService $ps */
+        $ps = app(\App\Services\ProfileService::class);
+
+        foreach (['network_partners','licensed_states','cfg_credentials','cfg_demographics',
+                  'cfg_identity','cfg_rates','languages','cfg_notifications','cfg_privacy',
+                  'ai_shadow_settings'] as $k) {
+            $ps->setMetaPublic($user, $k, []);
+        }
+        foreach (['license_number','primary_state','years_in_practice','session_length',
+                  'rate_per_session','sliding_scale_min','sliding_scale_max',
+                  'max_partners','geographic_radius','referral_urgency','sex_assigned'] as $k) {
+            $ps->setMetaPublic($user, $k, '', 'string');
+        }
+
+        $pm = $user->profile_meta ? (json_decode($user->profile_meta, true) ?: []) : [];
+        $pm['approaches'] = [];
+        $pm['services']   = [];
+        $user->update([
+            'specialty'         => json_encode([]),
+            'network_insurance' => json_encode([]),
+            'profile_meta'      => json_encode($pm),
+        ]);
+
+        return back()->with('success', 'Configuration reset to defaults.');
     }
 
     public function connect(Request $request): RedirectResponse

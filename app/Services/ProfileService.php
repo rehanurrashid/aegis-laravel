@@ -57,6 +57,14 @@ class ProfileService
         );
     }
 
+    /**
+     * Public alias for setMeta — used by NetworkController config save/reset.
+     */
+    public function setMetaPublic(User $user, string $key, mixed $value, string $type = 'json'): void
+    {
+        $this->setMeta($user, $key, $value, $type);
+    }
+
     public function updateServices(User $user, array $services): User
     {
         $this->setMeta($user, 'services', $services);

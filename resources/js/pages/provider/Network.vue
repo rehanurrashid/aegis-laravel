@@ -1218,8 +1218,9 @@
               <div class="cfg-panel-meta" style="display:flex;align-items:center;gap:10px">
                 <span class="cfg-selected-count show">{{ selectedCount('team') }} selected</span>
               </div>
+              <span class="cfg-chevron"><AegisIcon name="chevron-down" :size="16" /></span>
             </div>
-            <div class="cfg-panel-body">
+            <Transition name="cfg-slide"><div v-show="activeConfigPanel === 'cfg-team'" class="cfg-panel-body">
               <input v-model="cfgSearch.team" class="cfg-search" type="text" placeholder="Search provider types..." />
               <div class="cfg-provider-grid">
                 <div
@@ -1234,7 +1235,7 @@
                   <span class="cfg-check"></span>
                 </div>
               </div>
-            </div>
+            </div></Transition>
           </div>
 
           <!-- 2. SPECIALTIES -->
@@ -1250,8 +1251,9 @@
               <div class="cfg-panel-meta" style="display:flex;align-items:center;gap:10px">
                 <span class="cfg-selected-count show">{{ selectedCount('specialties') }} selected</span>
               </div>
+              <span class="cfg-chevron"><AegisIcon name="chevron-down" :size="16" /></span>
             </div>
-            <div class="cfg-panel-body">
+            <Transition name="cfg-slide"><div v-show="activeConfigPanel === 'cfg-specialties'" class="cfg-panel-body">
               <input v-model="cfgSearch.specialties" class="cfg-search" type="text" placeholder="Search specialties..." />
               <template v-for="group in filteredSpecialtyGroups" :key="group.subcat">
                 <div class="cfg-subcat">{{ group.subcat }}</div>
@@ -1265,7 +1267,7 @@
                   >{{ tag }}</span>
                 </div>
               </template>
-            </div>
+            </div></Transition>
           </div>
 
           <!-- 3. TREATMENT APPROACHES -->
@@ -1281,8 +1283,9 @@
               <div class="cfg-panel-meta" style="display:flex;align-items:center;gap:10px">
                 <span class="cfg-selected-count show">{{ selectedCount('approaches') }} selected</span>
               </div>
+              <span class="cfg-chevron"><AegisIcon name="chevron-down" :size="16" /></span>
             </div>
-            <div class="cfg-panel-body">
+            <Transition name="cfg-slide"><div v-show="activeConfigPanel === 'cfg-approaches'" class="cfg-panel-body">
               <input v-model="cfgSearch.approaches" class="cfg-search" type="text" placeholder="Search treatment approaches..." />
               <template v-for="group in filteredApproachGroups" :key="group.subcat">
                 <div class="cfg-subcat">{{ group.subcat }}</div>
@@ -1296,7 +1299,7 @@
                   >{{ tag }}</span>
                 </div>
               </template>
-            </div>
+            </div></Transition>
           </div>
 
           <!-- 4. INSURANCE ACCEPTED -->
@@ -1312,8 +1315,9 @@
               <div class="cfg-panel-meta" style="display:flex;align-items:center;gap:10px">
                 <span class="cfg-selected-count show">{{ selectedCount('insurance') }} selected</span>
               </div>
+              <span class="cfg-chevron"><AegisIcon name="chevron-down" :size="16" /></span>
             </div>
-            <div class="cfg-panel-body">
+            <Transition name="cfg-slide"><div v-show="activeConfigPanel === 'cfg-insurance'" class="cfg-panel-body">
               <input v-model="cfgSearch.insurance" class="cfg-search" type="text" placeholder="Search insurance..." />
               <template v-for="group in filteredInsuranceGroups" :key="group.subcat">
                 <div class="cfg-subcat">{{ group.subcat }}</div>
@@ -1330,7 +1334,7 @@
                   </div>
                 </div>
               </template>
-            </div>
+            </div></Transition>
           </div>
 
           <!-- 5. CREDENTIALS & LICENSES -->
@@ -1346,8 +1350,9 @@
               <div class="cfg-panel-meta" style="display:flex;align-items:center;gap:10px">
                 <span class="cfg-selected-count show">{{ selectedCount('credentials') }} selected</span>
               </div>
+              <span class="cfg-chevron"><AegisIcon name="chevron-down" :size="16" /></span>
             </div>
-            <div class="cfg-panel-body">
+            <Transition name="cfg-slide"><div v-show="activeConfigPanel === 'cfg-credentials'" class="cfg-panel-body">
               <input v-model="cfgSearch.credentials" class="cfg-search" type="text" placeholder="Search credentials..." />
               <template v-for="group in filteredCredentialGroups" :key="group.subcat">
                 <div class="cfg-subcat">{{ group.subcat }}</div>
@@ -1363,7 +1368,7 @@
               </template>
               <div class="cfg-subcat">License Numbers</div>
               <input v-model="cfgFields.license_number" class="form-input" type="text" placeholder="Comma-separate multiple license numbers (kept private)" />
-            </div>
+            </div></Transition>
           </div>
 
           <!-- 6. SERVICES & FORMAT -->
@@ -1379,8 +1384,9 @@
               <div class="cfg-panel-meta" style="display:flex;align-items:center;gap:10px">
                 <span class="cfg-selected-count show">{{ selectedCount('services') }} selected</span>
               </div>
+              <span class="cfg-chevron"><AegisIcon name="chevron-down" :size="16" /></span>
             </div>
-            <div class="cfg-panel-body">
+            <Transition name="cfg-slide"><div v-show="activeConfigPanel === 'cfg-services'" class="cfg-panel-body">
               <template v-for="group in cfgServicesGroups" :key="group.subcat">
                 <div class="cfg-subcat">{{ group.subcat }}</div>
                 <div class="cfg-tag-grid">
@@ -1393,7 +1399,7 @@
                   >{{ tag }}</span>
                 </div>
               </template>
-            </div>
+            </div></Transition>
           </div>
 
           <!-- 7. LOCATION & PRACTICE GEOGRAPHY -->
@@ -1406,8 +1412,9 @@
                   <div class="cfg-panel-subtitle">Where you are licensed and available to practice</div>
                 </div>
               </div>
+              <span class="cfg-chevron"><AegisIcon name="chevron-down" :size="16" /></span>
             </div>
-            <div class="cfg-panel-body">
+            <Transition name="cfg-slide"><div v-show="activeConfigPanel === 'cfg-location'" class="cfg-panel-body">
               <div class="cfg-subcat">Primary Practice Location</div>
               <div class="cfg-field-row nw-cfg-2col">
                 <div>
@@ -1439,7 +1446,7 @@
                   @click="toggleCfg('states', st)"
                 >{{ st }}</div>
               </div>
-            </div>
+            </div></Transition>
           </div>
 
           <!-- 8. PROVIDER DEMOGRAPHICS -->
@@ -1455,8 +1462,9 @@
               <div class="cfg-panel-meta" style="display:flex;align-items:center;gap:10px">
                 <span class="cfg-selected-count show">{{ selectedCount('demographics') }} selected</span>
               </div>
+              <span class="cfg-chevron"><AegisIcon name="chevron-down" :size="16" /></span>
             </div>
-            <div class="cfg-panel-body">
+            <Transition name="cfg-slide"><div v-show="activeConfigPanel === 'cfg-demographics'" class="cfg-panel-body">
               <div class="cfg-subcat">Sex &amp; Pronouns</div>
               <div class="cfg-field-row nw-cfg-2col">
                 <div>
@@ -1478,7 +1486,7 @@
                   >{{ tag }}</span>
                 </div>
               </template>
-            </div>
+            </div></Transition>
           </div>
 
           <!-- 9. LANGUAGES SPOKEN -->
@@ -1494,8 +1502,9 @@
               <div class="cfg-panel-meta" style="display:flex;align-items:center;gap:10px">
                 <span class="cfg-selected-count show">{{ selectedCount('languages') }} selected</span>
               </div>
+              <span class="cfg-chevron"><AegisIcon name="chevron-down" :size="16" /></span>
             </div>
-            <div class="cfg-panel-body">
+            <Transition name="cfg-slide"><div v-show="activeConfigPanel === 'cfg-languages'" class="cfg-panel-body">
               <input v-model="cfgSearch.languages" class="cfg-search" type="text" placeholder="Search languages..." />
               <div class="cfg-tag-grid">
                 <span
@@ -1506,7 +1515,7 @@
                   @click="toggleCfg('languages', lang)"
                 >{{ lang }}</span>
               </div>
-            </div>
+            </div></Transition>
           </div>
 
           <!-- 10. IDENTITY & AFFILIATIONS -->
@@ -1522,8 +1531,9 @@
               <div class="cfg-panel-meta" style="display:flex;align-items:center;gap:10px">
                 <span class="cfg-selected-count show">{{ selectedCount('identity') }} selected</span>
               </div>
+              <span class="cfg-chevron"><AegisIcon name="chevron-down" :size="16" /></span>
             </div>
-            <div class="cfg-panel-body">
+            <Transition name="cfg-slide"><div v-show="activeConfigPanel === 'cfg-identity'" class="cfg-panel-body">
               <template v-for="group in cfgIdentityGroups" :key="group.subcat">
                 <div class="cfg-subcat">{{ group.subcat }}</div>
                 <div class="cfg-tag-grid">
@@ -1536,7 +1546,7 @@
                   >{{ tag }}</span>
                 </div>
               </template>
-            </div>
+            </div></Transition>
           </div>
 
           <!-- 11. RATES & AVAILABILITY -->
@@ -1549,8 +1559,9 @@
                   <div class="cfg-panel-subtitle">Session fees, sliding scale, and network preferences</div>
                 </div>
               </div>
+              <span class="cfg-chevron"><AegisIcon name="chevron-down" :size="16" /></span>
             </div>
-            <div class="cfg-panel-body">
+            <Transition name="cfg-slide"><div v-show="activeConfigPanel === 'cfg-rates'" class="cfg-panel-body">
               <div class="cfg-subcat">Session Rate (Out-of-Pocket / Self-Pay)</div>
               <div class="cfg-field-row nw-cfg-2col">
                 <div>
@@ -1616,7 +1627,7 @@
                   </select>
                 </div>
               </div>
-            </div>
+            </div></Transition>
           </div>
 
           <!-- 12. NETWORK NOTIFICATIONS -->
@@ -1629,8 +1640,9 @@
                   <div class="cfg-panel-subtitle">Control what alerts you receive</div>
                 </div>
               </div>
+              <span class="cfg-chevron"><AegisIcon name="chevron-down" :size="16" /></span>
             </div>
-            <div class="cfg-panel-body">
+            <Transition name="cfg-slide"><div v-show="activeConfigPanel === 'cfg-notifications'" class="cfg-panel-body">
               <div
                 v-for="n in notifSettings"
                 :key="n.key"
@@ -1642,7 +1654,7 @@
                 </div>
                 <button type="button" class="toggle" :class="{ on: cfgNotifications[n.key] }" @click="cfgNotifications[n.key] = !cfgNotifications[n.key]"></button>
               </div>
-            </div>
+            </div></Transition>
           </div>
 
           <!-- 13. PRIVACY & AI MATCHING -->
@@ -1655,8 +1667,9 @@
                   <div class="cfg-panel-subtitle">Control your visibility and how the AI uses your data</div>
                 </div>
               </div>
+              <span class="cfg-chevron"><AegisIcon name="chevron-down" :size="16" /></span>
             </div>
-            <div class="cfg-panel-body">
+            <Transition name="cfg-slide"><div v-show="activeConfigPanel === 'cfg-privacy'" class="cfg-panel-body">
               <div
                 v-for="p in privacyToggles"
                 :key="p.key"
@@ -1668,13 +1681,15 @@
                 </div>
                 <button type="button" class="toggle" :class="{ on: cfgPrivacy[p.key] }" @click="cfgPrivacy[p.key] = !cfgPrivacy[p.key]"></button>
               </div>
-            </div>
+            </div></Transition>
           </div>
 
           <!-- Save bar -->
           <div class="nw-cfg-save-bar">
             <span class="cfg-save-hint">{{ configDirtyCount }} unsaved change{{ configDirtyCount === 1 ? '' : 's' }}</span>
-            <button type="button" class="btn btn-outline" @click="resetConfig">Reset Changes</button>
+            <button type="button" class="btn btn-outline" :disabled="cfgResetting" @click="resetConfig">
+              {{ cfgResetting ? 'Resetting…' : 'Reset Changes' }}
+            </button>
             <button type="button" class="btn btn-primary" :disabled="cfgSaving" @click="saveConfig">
               <AegisIcon :name="cfgSaving ? 'refresh' : 'save'" :size="14" :style="cfgSaving ? 'animation:spin 1s linear infinite' : ''" />
               {{ cfgSaving ? 'Saving…' : 'Save Configuration' }}
@@ -1926,6 +1941,7 @@ const props = defineProps({
   referralRoster:               { type: Array,  default: () => [] },
   roster:                       { type: Array,  default: () => [] },
   stats:                        { type: Object, default: () => ({}) },
+  networkConfig:                { type: Object, default: () => ({}) },
 })
 
 // ── Composables ────────────────────────────────────────────────────────────
@@ -2988,50 +3004,53 @@ const cfgSearch = reactive({
   credentials: '',
   languages:   '',
 })
+// ── Config state — initialized from DB via props.networkConfig ───────────────
+const nc = props.networkConfig || {}
+
 const cfgSelected = reactive({
-  team:         ['Psychotherapist', 'Psychologist', 'Psychiatrist'],
-  specialties:  [],
-  approaches:   [],
-  insurance:    [],
-  credentials:  [],
-  services:     [],
-  states:       ['NY'],
-  demographics: [],
-  languages:    ['English'],
-  identity:     [],
-  rates:        [],
+  team:         nc.team         || [],
+  specialties:  nc.specialties  || [],
+  approaches:   nc.approaches   || [],
+  insurance:    nc.insurance    || [],
+  credentials:  nc.credentials  || [],
+  services:     nc.services     || [],
+  states:       nc.states       || [],
+  demographics: nc.demographics || [],
+  languages:    nc.languages    || [],
+  identity:     nc.identity     || [],
+  rates:        nc.rates        || [],
 })
 const cfgFields = reactive({
-  license_number:        '',
-  primary_state:         'NJ',
-  years_in_practice:     '16–20 years',
-  session_length:        '50 minutes',
-  rate_per_session:      200,
-  sliding_scale_min:     80,
-  sliding_scale_max:     180,
-  max_partners:          '50 partners',
-  geographic_radius:     '15 miles',
-  referral_urgency:      'Routine (standard)',
-  ai_match_frequency:    'Weekly',
-  sex_assigned:          'Female',
+  license_number:     nc.license_number     ?? '',
+  primary_state:      nc.primary_state      ?? '',
+  years_in_practice:  nc.years_in_practice  ?? '',
+  session_length:     nc.session_length      ?? '',
+  rate_per_session:   nc.rate_per_session   ?? 0,
+  sliding_scale_min:  nc.sliding_scale_min  ?? 0,
+  sliding_scale_max:  nc.sliding_scale_max  ?? 0,
+  max_partners:       nc.max_partners       ?? '',
+  geographic_radius:  nc.geographic_radius  ?? '',
+  referral_urgency:   nc.referral_urgency   ?? '',
+  ai_match_frequency: nc.ai_match_frequency ?? '',
+  sex_assigned:       nc.sex_assigned       ?? '',
 })
 const cfgNotifications = reactive({
-  connection_requests: true,
-  referral_activity:   true,
-  shadow_suggestions:  true,
-  member_news:         false,
-  read_receipts:       true,
-  weekly_digest:       true,
-  feature_updates:     false,
+  connection_requests: nc.notifications?.connection_requests ?? true,
+  referral_activity:   nc.notifications?.referral_activity   ?? true,
+  shadow_suggestions:  nc.notifications?.shadow_suggestions  ?? true,
+  member_news:         nc.notifications?.member_news         ?? false,
+  read_receipts:       nc.notifications?.read_receipts       ?? true,
+  weekly_digest:       nc.notifications?.weekly_digest       ?? true,
+  feature_updates:     nc.notifications?.feature_updates     ?? false,
 })
 const cfgPrivacy = reactive({
-  searchable:         true,
-  share_stats:        true,
-  ai_matching:        true,
-  manual_approval:    false,
-  hide_business:      false,
-  ai_data_use:        true,
-  show_demographics:  true,
+  searchable:        nc.privacy?.searchable        ?? true,
+  share_stats:       nc.privacy?.share_stats       ?? true,
+  ai_matching:       nc.privacy?.ai_matching       ?? true,
+  manual_approval:   nc.privacy?.manual_approval   ?? false,
+  hide_business:     nc.privacy?.hide_business     ?? false,
+  ai_data_use:       nc.privacy?.ai_data_use       ?? true,
+  show_demographics: nc.privacy?.show_demographics ?? true,
 })
 
 // ── Computed filters + counts ───────────────────────────────────────────────
@@ -3095,67 +3114,67 @@ function scrollToConfigPanel(id) {
 function toggleConfigPanel(id) {
   activeConfigPanel.value = activeConfigPanel.value === id ? '' : id
 }
-// Config save forms — must be declared at setup time, not inside functions
-const networkPrefsForm = useForm({
-  network_accepting:  true,
-  network_insurance:  [],
-  network_languages:  [],
-})
-const partnersForm = useForm({ partners: [] })
+
+// Single useForm for all config — declared at setup time
+const cfgForm = useForm({})
 
 const cfgSaving = ref(false)
 function saveConfig() {
   cfgSaving.value = true
-
-  networkPrefsForm.network_accepting = true
-  networkPrefsForm.network_insurance = [...cfgSelected.insurance]
-  networkPrefsForm.network_languages = [...cfgSelected.languages]
-
-  networkPrefsForm.put(route('provider.profile.network'), {
-    preserveScroll: true,
-    onError: () => { cfgSaving.value = false; toast.error('Could not save preferences.') },
-  })
-
-  partnersForm.partners = [...cfgSelected.team]
-  partnersForm.put(route('provider.profile.network-partners'), {
-    preserveScroll: true,
-    onSuccess: () => { cfgSaving.value = false; toast.success('Configuration saved.') },
-    onError:   () => { cfgSaving.value = false; toast.error('Could not save configuration.') },
-  })
+  cfgForm
+    .transform(() => ({
+      // Arrays
+      team:         [...cfgSelected.team],
+      specialties:  [...cfgSelected.specialties],
+      approaches:   [...cfgSelected.approaches],
+      insurance:    [...cfgSelected.insurance],
+      credentials:  [...cfgSelected.credentials],
+      services:     [...cfgSelected.services],
+      states:       [...cfgSelected.states],
+      demographics: [...cfgSelected.demographics],
+      languages:    [...cfgSelected.languages],
+      identity:     [...cfgSelected.identity],
+      rates:        [...cfgSelected.rates],
+      // Scalar fields
+      ...cfgFields,
+      // Nested objects
+      notifications: { ...cfgNotifications },
+      privacy:       { ...cfgPrivacy },
+    }))
+    .put(route('provider.network.config.save'), {
+      preserveScroll: true,
+      onSuccess: () => { cfgSaving.value = false; toast.success('Configuration saved.') },
+      onError:   () => { cfgSaving.value = false; toast.error('Could not save configuration.') },
+    })
 }
+
+const cfgResetting = ref(false)
 function resetConfig() {
-  // Selections — all empty except locked defaults
-  cfgSelected.team         = []
-  cfgSelected.specialties  = []
-  cfgSelected.approaches   = []
-  cfgSelected.insurance    = []
-  cfgSelected.credentials  = []
-  cfgSelected.services     = []
-  cfgSelected.states       = []
-  cfgSelected.demographics = []
-  cfgSelected.languages    = []
-  cfgSelected.identity     = []
-  cfgSelected.rates        = []
-  // Search inputs
-  Object.keys(cfgSearch).forEach(k => { cfgSearch[k] = '' })
-  // Fields
-  cfgFields.license_number     = ''
-  cfgFields.primary_state      = ''
-  cfgFields.years_in_practice  = ''
-  cfgFields.session_length     = ''
-  cfgFields.rate_per_session   = 0
-  cfgFields.sliding_scale_min  = 0
-  cfgFields.sliding_scale_max  = 0
-  cfgFields.max_partners       = ''
-  cfgFields.geographic_radius  = ''
-  cfgFields.referral_urgency   = ''
-  cfgFields.ai_match_frequency = ''
-  cfgFields.sex_assigned       = ''
-  // Notifications — all off
-  Object.keys(cfgNotifications).forEach(k => { cfgNotifications[k] = false })
-  // Privacy — all off
-  Object.keys(cfgPrivacy).forEach(k => { cfgPrivacy[k] = false })
-  toast.info('All configuration cleared.')
+  confirmAction({
+    title:   'Reset Configuration',
+    message: 'This will clear all selections, fields, and preferences. Cannot be undone.',
+    confirmLabel: 'Reset',
+    destructive:  true,
+  }, () => {
+    cfgResetting.value = true
+    // Clear local state immediately
+    Object.keys(cfgSelected).forEach(k => { cfgSelected[k] = [] })
+    Object.keys(cfgSearch).forEach(k => { cfgSearch[k] = '' })
+    Object.assign(cfgFields, {
+      license_number:'', primary_state:'', years_in_practice:'', session_length:'',
+      rate_per_session:0, sliding_scale_min:0, sliding_scale_max:0,
+      max_partners:'', geographic_radius:'', referral_urgency:'', ai_match_frequency:'', sex_assigned:'',
+    })
+    Object.keys(cfgNotifications).forEach(k => { cfgNotifications[k] = false })
+    Object.keys(cfgPrivacy).forEach(k => { cfgPrivacy[k] = false })
+    // Persist reset to DB
+    cfgForm.post(route('provider.network.config.reset'), {
+      preserveScroll: true,
+      onFinish: () => { cfgResetting.value = false },
+      onSuccess: () => toast.success('Configuration reset.'),
+      onError:   () => toast.error('Reset failed — please try again.'),
+    })
+  })
 }
 </script>
 
@@ -3491,4 +3510,10 @@ button.toggle.on        { background: var(--gold-dark); }
 button.toggle:focus-visible { box-shadow: var(--focus-ring); }
 
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* Config accordion slide-fade animation */
+.cfg-slide-enter-active { transition: opacity 0.22s ease, transform 0.22s ease; }
+.cfg-slide-leave-active { transition: opacity 0.18s ease, transform 0.18s ease; }
+.cfg-slide-enter-from   { opacity: 0; transform: translateY(-8px); }
+.cfg-slide-leave-to     { opacity: 0; transform: translateY(-4px); }
 </style>
