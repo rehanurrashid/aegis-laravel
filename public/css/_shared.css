@@ -1947,6 +1947,8 @@ p {
 }
 .btn-icon    { width: 32px; height: 32px; border-radius: var(--radius-sm); }
 .btn-icon-sm { width: 26px; height: 26px; border-radius: var(--radius-sm); }
+.btn-icon svg,
+.btn-icon-sm svg { pointer-events: none; } /* let mouse events hit the button, not the SVG, so data-tooltip fires on the button */
 .btn-icon svg    { width: 14px; height: 14px; }
 .btn-icon-sm svg { width: 12px; height: 12px; }
 

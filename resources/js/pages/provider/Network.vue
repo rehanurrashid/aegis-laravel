@@ -1790,7 +1790,7 @@
       :partner="bpScheduleTarget"
     />
 
-    <!-- Post Job — centralized 4-step wizard (PostJobModal.vue). -->
+    <!-- Post Job — centralized 4-step wizard (PostJobModal.vue).
          Posts to provider.jobs.store. Replaces the old local one-step form
          so the Network tab and the dedicated Support & Services page use
          the same wizard. -->
