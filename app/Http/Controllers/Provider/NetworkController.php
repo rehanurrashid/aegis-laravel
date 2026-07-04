@@ -69,9 +69,11 @@ class NetworkController extends Controller
             ->map(function (NetworkRequestModel $nr) {
                 $req = $nr->requester;
                 if (!$req) return null;
+                $reqRole = $req->role instanceof \BackedEnum ? $req->role->value : (string) $req->role;
+                $isBusiness = $reqRole === 'business_partner';
                 return [
                     'id'                 => $nr->id,
-                    'request_type'       => 'clinical',
+                    'request_type'       => $isBusiness ? 'business' : 'clinical',
                     'message'            => $nr->message,
                     'created_at'         => $nr->created_at?->toISOString(),
                     'requester_id'       => $req->id,
@@ -79,7 +81,9 @@ class NetworkController extends Controller
                         . ($req->credentials ? ', ' . $req->credentials : ''),
                     'requester_initials' => $req->avatar_initials
                         ?? strtoupper(substr($req->display_name, 0, 2)),
-                    'requester_role'     => $req->title ?? '',
+                    'requester_role'     => $isBusiness
+                        ? ($req->bp_business_name ?? $req->display_name)
+                        : ($req->title ?? ''),
                     'requester_location' => $req->location ?? '',
                     'requester_slug'     => $req->slug ?? '',
                 ];

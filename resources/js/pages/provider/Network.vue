@@ -43,7 +43,7 @@
           :key="req.id"
           class="card is-person"
           style="cursor:pointer"
-          @click="viewProfile(req.requester_slug)"
+          @click="viewProfile(req.requester_slug, req.request_type === 'business' ? 'business' : 'provider')"
         >
           <div class="card-top">
             <span
@@ -1697,7 +1697,7 @@
               <AegisIcon name="check" :size="12" /> Accept
             </button>
             <button type="button" class="btn btn-outline btn-sm" :disabled="pendingActionId === req.id" @click="declineRequest(req)">Decline</button>
-            <button type="button" class="btn-icon" data-tooltip="View profile" style="margin-left:auto" @click="viewProfile(req.requester_slug); modals.reviewRequests = false">
+            <button type="button" class="btn-icon" data-tooltip="View profile" style="margin-left:auto" @click="viewProfile(req.requester_slug, req.request_type === 'business' ? 'business' : 'provider'); modals.reviewRequests = false">
               <AegisIcon name="eye" :size="13" />
             </button>
           </div>

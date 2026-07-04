@@ -27,6 +27,122 @@ class SarahConnectionRequestsSeeder extends Seeder
     {
         $now = Carbon::now();
 
+        // ── Ensure required users exist (BP directory + shadow practitioners) ──
+        // These are also seeded by BpDirectorySeeder + NetworkRecommendationSeeder,
+        // but we guard here so this seeder is safely runnable in isolation.
+        $requiredUsers = [
+            // Business Partners
+            [
+                'id' => 'bp_dir_marisol', 'role' => 'business_partner',
+                'display_name' => 'Marisol Vega', 'email' => 'marisol@dir.aegis',
+                'avatar_initials' => 'MV', 'slug' => 'marisol-vega',
+                'title' => 'Medical Billing Specialist', 'location' => 'Miami, FL',
+                'business_partner_public' => 1, 'bp_type' => 'freelancer', 'verified' => 1,
+                'password' => bcrypt('password'), 'created_at' => $now, 'updated_at' => $now,
+            ],
+            [
+                'id' => 'bp_dir_riya', 'role' => 'business_partner',
+                'display_name' => 'Riya Patel', 'email' => 'riya@dir.aegis',
+                'avatar_initials' => 'RP', 'slug' => 'riya-patel-marketing',
+                'title' => 'Digital Marketing Strategist', 'location' => 'Austin, TX',
+                'business_partner_public' => 1, 'bp_type' => 'freelancer', 'verified' => 1,
+                'password' => bcrypt('password'), 'created_at' => $now, 'updated_at' => $now,
+            ],
+            [
+                'id' => 'bp_dir_apex', 'role' => 'business_partner',
+                'display_name' => 'Apex Billing Co.', 'email' => 'contact@apexbilling.dir.aegis',
+                'avatar_initials' => 'AB', 'slug' => 'apex-billing-co',
+                'title' => 'Medical Billing Agency', 'location' => 'Chicago, IL',
+                'business_partner_public' => 1, 'bp_type' => 'agency', 'verified' => 1,
+                'password' => bcrypt('password'), 'created_at' => $now, 'updated_at' => $now,
+            ],
+            [
+                'id' => 'bp_dir_kevin', 'role' => 'business_partner',
+                'display_name' => 'Kevin Osei', 'email' => 'kevin@dir.aegis',
+                'avatar_initials' => 'KO', 'slug' => 'kevin-osei-cpcs',
+                'title' => 'Credentialing Specialist', 'location' => 'Atlanta, GA',
+                'business_partner_public' => 1, 'bp_type' => 'freelancer', 'verified' => 1,
+                'password' => bcrypt('password'), 'created_at' => $now, 'updated_at' => $now,
+            ],
+            [
+                'id' => 'bp_dir_daniel', 'role' => 'business_partner',
+                'display_name' => 'Daniel Torres', 'email' => 'daniel@dir.aegis',
+                'avatar_initials' => 'DT', 'slug' => 'daniel-torres-cpa',
+                'title' => 'Healthcare Accountant', 'location' => 'New York, NY',
+                'business_partner_public' => 1, 'bp_type' => 'freelancer', 'verified' => 1,
+                'password' => bcrypt('password'), 'created_at' => $now, 'updated_at' => $now,
+            ],
+            // Shadow practitioners (nd_* users)
+            [
+                'id' => 'nd_rachel_moore', 'role' => 'practitioner',
+                'display_name' => 'Rachel Moore', 'email' => 'rachel.moore@nd.aegis',
+                'credentials' => 'MD', 'avatar_initials' => 'RM', 'slug' => 'rachel-moore-md',
+                'title' => 'Psychiatrist', 'location' => 'New York, NY', 'verified' => 1,
+                'password' => bcrypt('password'), 'created_at' => $now, 'updated_at' => $now,
+            ],
+            [
+                'id' => 'nd_ben_okafor', 'role' => 'practitioner',
+                'display_name' => 'Benjamin Okafor', 'email' => 'ben.okafor@nd.aegis',
+                'credentials' => 'MD', 'avatar_initials' => 'BO', 'slug' => 'benjamin-okafor-md',
+                'title' => 'Psychiatrist', 'location' => 'Brooklyn, NY', 'verified' => 0,
+                'password' => bcrypt('password'), 'created_at' => $now, 'updated_at' => $now,
+            ],
+            [
+                'id' => 'nd_priya_sharma', 'role' => 'practitioner',
+                'display_name' => 'Priya Sharma', 'email' => 'priya.sharma@nd.aegis',
+                'credentials' => 'LCSW', 'avatar_initials' => 'PS', 'slug' => 'priya-sharma-lcsw',
+                'title' => 'Licensed Clinical Social Worker', 'location' => 'Queens, NY', 'verified' => 0,
+                'password' => bcrypt('password'), 'created_at' => $now, 'updated_at' => $now,
+            ],
+            [
+                'id' => 'nd_grace_chen', 'role' => 'practitioner',
+                'display_name' => 'Grace Chen', 'email' => 'grace.chen@nd.aegis',
+                'credentials' => 'MD', 'avatar_initials' => 'GC', 'slug' => 'grace-chen-md',
+                'title' => 'Primary Care Physician', 'location' => 'Flushing, NY', 'verified' => 1,
+                'password' => bcrypt('password'), 'created_at' => $now, 'updated_at' => $now,
+            ],
+            [
+                'id' => 'nd_theo_grant', 'role' => 'practitioner',
+                'display_name' => 'Theodore Grant', 'email' => 'theo.grant@nd.aegis',
+                'credentials' => 'PhD', 'avatar_initials' => 'TG', 'slug' => 'theodore-grant-phd',
+                'title' => 'Clinical Psychologist', 'location' => 'Newark, NJ', 'verified' => 0,
+                'password' => bcrypt('password'), 'created_at' => $now, 'updated_at' => $now,
+            ],
+            [
+                'id' => 'nd_fatima_ali', 'role' => 'practitioner',
+                'display_name' => 'Fatima Ali', 'email' => 'fatima.ali@nd.aegis',
+                'credentials' => 'MD', 'avatar_initials' => 'FA', 'slug' => 'fatima-ali-md',
+                'title' => 'Neurologist', 'location' => 'Jersey City, NJ', 'verified' => 1,
+                'password' => bcrypt('password'), 'created_at' => $now, 'updated_at' => $now,
+            ],
+            [
+                'id' => 'nd_clara_novak', 'role' => 'practitioner',
+                'display_name' => 'Clara Novak', 'email' => 'clara.novak@nd.aegis',
+                'credentials' => 'MD', 'avatar_initials' => 'CN', 'slug' => 'clara-novak-md',
+                'title' => 'Geriatric Psychiatrist', 'location' => 'Philadelphia, PA', 'verified' => 0,
+                'password' => bcrypt('password'), 'created_at' => $now, 'updated_at' => $now,
+            ],
+            [
+                'id' => 'nd_marcus_bell', 'role' => 'practitioner',
+                'display_name' => 'Marcus Bell', 'email' => 'marcus.bell@nd.aegis',
+                'credentials' => 'MD', 'avatar_initials' => 'MB', 'slug' => 'marcus-bell-md',
+                'title' => 'Internal Medicine', 'location' => 'Hoboken, NJ', 'verified' => 0,
+                'password' => bcrypt('password'), 'created_at' => $now, 'updated_at' => $now,
+            ],
+            [
+                'id' => 'nd_amber_cole', 'role' => 'practitioner',
+                'display_name' => 'Amber Cole', 'email' => 'amber.cole@nd.aegis',
+                'credentials' => 'RD', 'avatar_initials' => 'AC', 'slug' => 'amber-cole-rd',
+                'title' => 'Registered Dietitian', 'location' => 'New York, NY', 'verified' => 1,
+                'password' => bcrypt('password'), 'created_at' => $now, 'updated_at' => $now,
+            ],
+        ];
+
+        foreach ($requiredUsers as $u) {
+            DB::table('users')->updateOrInsert(['id' => $u['id']], $u);
+        }
+        $this->command->info('Ensured ' . count($requiredUsers) . ' prerequisite users exist.');
+
         $requests = [
             // ──────────────────────────────────────────────────────────────────
             // INCOMING — practitioners sending requests to Sarah
