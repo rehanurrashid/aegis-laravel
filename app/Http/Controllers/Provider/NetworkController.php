@@ -32,18 +32,24 @@ class NetworkController extends Controller
                 ? $nc->connection_type->value
                 : (string) $nc->connection_type;
             return [
-                'id'               => $nc->id,
-                'connection_type'  => $type,
-                'connected_at'     => $nc->connected_at?->toISOString(),
-                'partner_id'       => $partner->id,
-                'partner_name'     => $partner->display_name
+                'id'                  => $nc->id,
+                'connection_type'     => $type,
+                'connected_at'        => $nc->connected_at?->toISOString(),
+                'partner_id'          => $partner->id,
+                'partner_name'        => $partner->display_name
                     . ($partner->credentials ? ', ' . $partner->credentials : ''),
-                'partner_initials' => $partner->avatar_initials
+                'partner_initials'    => $partner->avatar_initials
                     ?? strtoupper(substr($partner->display_name, 0, 2)),
-                'partner_role'     => $partner->title ?? '',
-                'partner_location' => $partner->location ?? '',
-                'partner_slug'     => $partner->slug ?? '',
-                'partner_specialty'=> $partner->specialty ?? '',
+                'partner_role'        => $partner->title ?? '',
+                'partner_location'    => $partner->location ?? '',
+                'partner_slug'        => $partner->slug ?? '',
+                'partner_specialty'   => $partner->specialty ?? '',
+                'partner_has_services'=> (bool) $partner->services_mode,
+                'partner_telehealth'  => false,
+                'partner_categories'  => $partner->organization ?? $partner->title ?? '',
+                'partner_type'        => $partner->bp_type instanceof \BackedEnum ? $partner->bp_type->value : (string) ($partner->bp_type ?? ''),
+                'partner_rate_cents'  => (int) ($partner->bp_hourly_rate_cents ?? 0),
+                'peer_rating'         => 0,
             ];
         };
 
@@ -179,7 +185,43 @@ class NetworkController extends Controller
             ->values()
             ->toArray();
 
-        // ── Real network stats ─────────────────────────────────────────────
+        // ── Business Partner directory (Search Business Partners tab) ────────
+        $bpDirectory = User::query()
+            ->where('business_partner_public', 1)
+            ->where('id', '!=', $user->id)
+            ->orderBy('display_name')
+            ->limit(60)
+            ->get()
+            ->map(function (User $u) use ($connectedIds, $pendingOutboundIds) {
+                $rateDollars = $u->bp_hourly_rate_cents
+                    ? '$' . number_format($u->bp_hourly_rate_cents / 100) . '/hr'
+                    : null;
+                return [
+                    'id'          => $u->id,
+                    'slug'        => $u->slug ?? '',
+                    'name'        => $u->display_name . ($u->credentials ? ', ' . $u->credentials : ''),
+                    'initials'    => $u->avatar_initials ?? strtoupper(substr($u->display_name, 0, 2)),
+                    'role'        => $u->title ?? '',
+                    'location'    => $u->location ?? '',
+                    'tags'        => array_values(array_filter(array_map('trim', explode(',', (string) ($u->specialty ?? ''))))),
+                    'rating'      => 0.0,
+                    'reviews'     => 0,
+                    'jobs'        => 0,
+                    'rate'        => $rateDollars ?? '—',
+                    'partnerType' => strtoupper($u->bp_type instanceof \BackedEnum ? $u->bp_type->value : (string) ($u->bp_type ?? 'partner')),
+                    'category'    => strtolower($u->title ?? ''),
+                    'has_services'=> (bool) $u->services_mode,
+                    'networkStatus' => in_array($u->id, $connectedIds, true)
+                        ? 'in-network'
+                        : (in_array($u->id, $pendingOutboundIds, true) ? 'pending' : 'not-connected'),
+                ];
+            })->values();
+
+        // Real BP stats for My Partners chips
+        $bpActiveCount     = $business->count();
+        $bpPendingCount    = $this->network->getPendingRequests($user->id)
+            ->filter(fn($r) => ($r->requester?->role ?? '') === 'business_partner')
+            ->count();
         $myReferrals = Referral::where('sender_id', $user->id)
             ->orWhere('recipient_id', $user->id)
             ->get();
@@ -221,9 +263,11 @@ class NetworkController extends Controller
             'searchProviders'              => $searchProviders,
             'referralRoster'               => $referralRoster,
             'roster'                       => $referralRoster,
+            'bpDirectory'                  => $bpDirectory,
             'stats'                        => [
                 'clinical'         => $clinical->count(),
-                'bp_count'         => $business->count(),
+                'bp_count'         => $bpActiveCount,
+                'bp_pending'       => $bpPendingCount,
                 'total_refs'       => $totalRefs,
                 'avg_acc'          => $avgAcc,
                 'avg_resp'         => $avgResp,

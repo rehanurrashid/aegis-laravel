@@ -603,59 +603,245 @@
         <!-- ── FILTER SIDEBAR ── -->
         <aside class="filter-sidebar" id="sbpFilterSidebar">
           <div class="filter-sidebar-header">
-            <div class="filter-sidebar-title">
-              <AegisIcon name="filter" :size="16" />
-              Filters
-            </div>
+            <div class="filter-sidebar-title"><AegisIcon name="filter" :size="14" /> Filters</div>
             <button type="button" class="filter-clear-btn" @click="sbpClearAll">Clear All</button>
           </div>
 
-          <!-- Clinical-service providers toggle (non-collapsible) -->
+          <!-- Clinical-service providers toggle -->
           <div class="filter-group nw-sbp-clinical-toggle">
             <label class="nw-sbp-clinical-label">
               <span class="nw-sbp-clinical-text">
                 <AegisIcon name="briefcase-rx" :size="14" />
                 Clinical-service providers
-                <span class="sbp-info-tip" data-tooltip="Practitioners with Services Mode enabled offer services to other providers. Toggle on to surface them at the top of results."><AegisIcon name="info" :size="12" /></span>
+                <span class="sbp-info-tip" data-tooltip="Toggle to surface Aegis providers with Services Mode at the top of results."><AegisIcon name="info" :size="12" /></span>
               </span>
-              <button type="button" class="toggle" :class="{ on: clinicalServiceOnly }" @click="clinicalServiceOnly = !clinicalServiceOnly" aria-label="Prioritise clinical-service providers"></button>
+              <button type="button" class="toggle" :class="{ on: bpClinicalOnly }" @click="bpClinicalOnly = !bpClinicalOnly" aria-label="Show clinical-service providers"></button>
             </label>
           </div>
 
-          <!-- Category -->
-          <div class="filter-group" :class="{ open: bpCatOpen }" id="sbpfg-category">
-            <div class="filter-group-header" @click="bpCatOpen = !bpCatOpen">
-              <span class="filter-group-label"><AegisIcon name="briefcase" :size="16" /> Category</span>
+          <!-- 1. Category -->
+          <div class="filter-group" :class="{ open: sbpGroups.category }">
+            <div class="filter-group-header" @click="sbpGroups.category = !sbpGroups.category">
+              <span class="filter-group-label">
+                <AegisIcon name="briefcase" :size="16" /> Category
+                <span v-if="bpCategory" class="filter-group-count visible">1</span>
+              </span>
               <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
             </div>
-            <div v-show="bpCatOpen" class="filter-group-body">
-              <select v-model="bpCategory" class="form-select" style="font-size:12px;width:100%">
-                <option value="">All Categories</option>
-                <option value="it">IT / Software Development</option>
-                <option value="billing">Medical Billing &amp; Coding</option>
-                <option value="accounting">Accounting / CPA / Finance</option>
-                <option value="legal">Legal / Healthcare Law</option>
-                <option value="marketing">Marketing &amp; Growth</option>
-                <option value="hr">HR / Staffing &amp; Recruitment</option>
-                <option value="credentialing">Credentialing &amp; Enrollment</option>
-                <option value="consulting">Practice Consulting</option>
-                <option value="design">Design &amp; Branding</option>
-              </select>
+            <div class="filter-group-body">
+              <div class="filter-subcat">Select one</div>
+              <span
+                v-for="cat in bpCategories" :key="cat.val"
+                class="ftag"
+                :class="{ selected: bpCategory === cat.val }"
+                @click="bpCategory = bpCategory === cat.val ? '' : cat.val"
+              >{{ cat.label }}</span>
             </div>
           </div>
 
-          <!-- Remaining collapsible groups -->
-          <div v-for="f in bpFilterGroups" :key="f.label" class="filter-group" :class="{ open: f.open }">
-            <div class="filter-group-header" @click="f.open = !f.open">
-              <span class="filter-group-label"><AegisIcon :name="f.icon" :size="16" /> {{ f.label }}</span>
+          <!-- 2. Partner Type -->
+          <div class="filter-group" :class="{ open: sbpGroups.type }">
+            <div class="filter-group-header" @click="sbpGroups.type = !sbpGroups.type">
+              <span class="filter-group-label">
+                <AegisIcon name="users" :size="16" /> Partner Type
+                <span v-if="bpTypeFilter" class="filter-group-count visible">1</span>
+              </span>
               <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
             </div>
-            <div v-show="f.open" class="filter-group-body">
-              <p class="nw-filter-placeholder">{{ f.placeholder }}</p>
+            <div class="filter-group-body">
+              <span
+                v-for="t in ['Freelancer','Agency','Consultant','Firm','Solopreneur']" :key="t"
+                class="ftag"
+                :class="{ selected: bpTypeFilter === t.toLowerCase() }"
+                @click="bpTypeFilter = bpTypeFilter === t.toLowerCase() ? '' : t.toLowerCase()"
+              >{{ t }}</span>
             </div>
           </div>
 
-          <button type="button" class="btn btn-primary nw-filter-apply" @click="toast.success('Filters applied')">Apply Filters</button>
+          <!-- 3. Hourly Rate -->
+          <div class="filter-group" :class="{ open: sbpGroups.rate }">
+            <div class="filter-group-header" @click="sbpGroups.rate = !sbpGroups.rate">
+              <span class="filter-group-label">
+                <AegisIcon name="dollar" :size="16" /> Hourly Rate
+                <span v-if="bpRateMin > 0 || bpRateMax < 9999" class="filter-group-count visible">1</span>
+              </span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <div class="filter-subcat">Quick range</div>
+              <span class="ftag" :class="{ selected: bpRateMin===0&&bpRateMax===25 }" @click="bpRateMin=0;bpRateMax=25">Under $25</span>
+              <span class="ftag" :class="{ selected: bpRateMin===25&&bpRateMax===50 }" @click="bpRateMin=25;bpRateMax=50">$25–$50</span>
+              <span class="ftag" :class="{ selected: bpRateMin===50&&bpRateMax===100 }" @click="bpRateMin=50;bpRateMax=100">$50–$100</span>
+              <span class="ftag" :class="{ selected: bpRateMin===100&&bpRateMax===200 }" @click="bpRateMin=100;bpRateMax=200">$100–$200</span>
+              <span class="ftag" :class="{ selected: bpRateMin===200&&bpRateMax===9999 }" @click="bpRateMin=200;bpRateMax=9999">$200+</span>
+              <div class="filter-subcat">Custom range ($/hr)</div>
+              <div class="sbp-range-row">
+                <input v-model.number="bpRateMin" class="filter-inner-search" type="number" placeholder="Min" min="0" />
+                <input v-model.number="bpRateMax" class="filter-inner-search" type="number" placeholder="Max" min="0" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Experience Level -->
+          <div class="filter-group" :class="{ open: sbpGroups.exp }">
+            <div class="filter-group-header" @click="sbpGroups.exp = !sbpGroups.exp">
+              <span class="filter-group-label">
+                <AegisIcon name="graduation-cap" :size="16" /> Experience Level
+                <span v-if="bpExpLevel" class="filter-group-count visible">1</span>
+              </span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <label v-for="opt in bpExpOptions" :key="opt.val" class="sbp-radio-row" @click="bpExpLevel = bpExpLevel === opt.val ? '' : opt.val">
+                <div class="sbp-radio" :class="{ active: bpExpLevel === opt.val }"></div>
+                <div>
+                  <div class="sbp-radio-label">{{ opt.label }}</div>
+                  <div v-if="opt.sub" class="sbp-radio-sub">{{ opt.sub }}</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- 5. Minimum Rating -->
+          <div class="filter-group" :class="{ open: sbpGroups.rating }">
+            <div class="filter-group-header" @click="sbpGroups.rating = !sbpGroups.rating">
+              <span class="filter-group-label">
+                <AegisIcon name="star" :size="16" /> Minimum Rating
+                <span v-if="bpMinRating > 0" class="filter-group-count visible">1</span>
+              </span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <label v-for="opt in bpRatingOptions" :key="opt.val" class="sbp-radio-row" @click="bpMinRating = bpMinRating === opt.val ? 0 : opt.val">
+                <div class="sbp-radio" :class="{ active: bpMinRating === opt.val }"></div>
+                <span class="sbp-radio-label">{{ opt.label }}<AegisIcon v-if="opt.val > 0" name="star" :size="11" /></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 6. Availability -->
+          <div class="filter-group" :class="{ open: sbpGroups.avail }">
+            <div class="filter-group-header" @click="sbpGroups.avail = !sbpGroups.avail">
+              <span class="filter-group-label">
+                <AegisIcon name="clock" :size="16" /> Availability
+                <span v-if="bpAvail" class="filter-group-count visible">1</span>
+              </span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <span class="ftag" :class="{ selected: bpAvail === 'immediate' }" @click="bpAvail = bpAvail === 'immediate' ? '' : 'immediate'">Available Now</span>
+              <span class="ftag" :class="{ selected: bpAvail === 'within_week' }" @click="bpAvail = bpAvail === 'within_week' ? '' : 'within_week'">This Week</span>
+              <span class="ftag" :class="{ selected: bpAvail === 'within_month' }" @click="bpAvail = bpAvail === 'within_month' ? '' : 'within_month'">This Month</span>
+            </div>
+          </div>
+
+          <!-- 7. Engagement Type -->
+          <div class="filter-group" :class="{ open: sbpGroups.eng }">
+            <div class="filter-group-header" @click="sbpGroups.eng = !sbpGroups.eng">
+              <span class="filter-group-label">
+                <AegisIcon name="briefcase" :size="16" /> Engagement Type
+                <span v-if="bpEngTypes.length" class="filter-group-count visible">{{ bpEngTypes.length }}</span>
+              </span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <label v-for="opt in bpEngOptions" :key="opt.val" class="sbp-check-row">
+                <input type="checkbox" :value="opt.val" v-model="bpEngTypes" />
+                <span class="sbp-check-label">{{ opt.label }}</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 8. Work Location -->
+          <div class="filter-group" :class="{ open: sbpGroups.location }">
+            <div class="filter-group-header" @click="sbpGroups.location = !sbpGroups.location">
+              <span class="filter-group-label">
+                <AegisIcon name="map-pin" :size="16" /> Work Location
+                <span v-if="bpLocation" class="filter-group-count visible">1</span>
+              </span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <span class="ftag" :class="{ selected: bpLocation === 'remote' }" @click="bpLocation = bpLocation === 'remote' ? '' : 'remote'">Remote</span>
+              <span class="ftag" :class="{ selected: bpLocation === 'onsite' }" @click="bpLocation = bpLocation === 'onsite' ? '' : 'onsite'">On-Site</span>
+              <span class="ftag" :class="{ selected: bpLocation === 'hybrid' }" @click="bpLocation = bpLocation === 'hybrid' ? '' : 'hybrid'">Hybrid</span>
+            </div>
+          </div>
+
+          <!-- 9. Quality Badges -->
+          <div class="filter-group" :class="{ open: sbpGroups.quality }">
+            <div class="filter-group-header" @click="sbpGroups.quality = !sbpGroups.quality">
+              <span class="filter-group-label">
+                <AegisIcon name="shield" :size="16" /> Quality Badges
+                <span v-if="Object.values(bpBadges).some(Boolean)" class="filter-group-count visible">{{ Object.values(bpBadges).filter(Boolean).length }}</span>
+              </span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <label class="sbp-toggle-row">
+                <span class="sbp-toggle-label"><AegisIcon name="shield" :size="13" /> Verified Profile</span>
+                <button type="button" class="toggle" :class="{ on: bpBadges.verified }" @click="bpBadges.verified = !bpBadges.verified"></button>
+              </label>
+              <label class="sbp-toggle-row">
+                <span class="sbp-toggle-label"><AegisIcon name="award-2" :size="13" /> Top Rated (4.8+)</span>
+                <button type="button" class="toggle" :class="{ on: bpBadges.topRated }" @click="bpBadges.topRated = !bpBadges.topRated"></button>
+              </label>
+              <label class="sbp-toggle-row">
+                <span class="sbp-toggle-label"><AegisIcon name="zap" :size="13" /> Fast Responder</span>
+                <button type="button" class="toggle" :class="{ on: bpBadges.fast }" @click="bpBadges.fast = !bpBadges.fast"></button>
+              </label>
+              <label class="sbp-toggle-row">
+                <span class="sbp-toggle-label"><AegisIcon name="lock-closed" :size="13" /> HIPAA Compliant</span>
+                <button type="button" class="toggle" :class="{ on: bpBadges.hipaa }" @click="bpBadges.hipaa = !bpBadges.hipaa"></button>
+              </label>
+              <label class="sbp-toggle-row">
+                <span class="sbp-toggle-label"><AegisIcon name="sparkle-cluster" :size="13" /> New on Aegis</span>
+                <button type="button" class="toggle" :class="{ on: bpBadges.newMember }" @click="bpBadges.newMember = !bpBadges.newMember"></button>
+              </label>
+            </div>
+          </div>
+
+          <!-- 10. Jobs Completed -->
+          <div class="filter-group" :class="{ open: sbpGroups.jobs }">
+            <div class="filter-group-header" @click="sbpGroups.jobs = !sbpGroups.jobs">
+              <span class="filter-group-label">
+                <AegisIcon name="check-badge" :size="16" /> Jobs Completed
+                <span v-if="bpMinJobs > 0" class="filter-group-count visible">1</span>
+              </span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <span class="ftag" :class="{ selected: bpMinJobs === 0 }" @click="bpMinJobs = 0">Any</span>
+              <span class="ftag" :class="{ selected: bpMinJobs === 1 }" @click="bpMinJobs = 1">1+</span>
+              <span class="ftag" :class="{ selected: bpMinJobs === 10 }" @click="bpMinJobs = 10">10+</span>
+              <span class="ftag" :class="{ selected: bpMinJobs === 50 }" @click="bpMinJobs = 50">50+</span>
+              <span class="ftag" :class="{ selected: bpMinJobs === 100 }" @click="bpMinJobs = 100">100+</span>
+            </div>
+          </div>
+
+          <!-- 11. Language -->
+          <div class="filter-group" :class="{ open: sbpGroups.lang }">
+            <div class="filter-group-header" @click="sbpGroups.lang = !sbpGroups.lang">
+              <span class="filter-group-label">
+                <AegisIcon name="globe" :size="16" /> Language
+                <span v-if="bpLang" class="filter-group-count visible">1</span>
+              </span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <input class="filter-inner-search" type="text" placeholder="Search languages..." v-model="bpLangSearch" />
+              <span
+                v-for="lang in filteredBpLangs" :key="lang"
+                class="ftag"
+                :class="{ selected: bpLang === lang.toLowerCase() }"
+                @click="bpLang = bpLang === lang.toLowerCase() ? '' : lang.toLowerCase()"
+              >{{ lang }}</span>
+            </div>
+          </div>
+
+          <div class="filter-sidebar-apply">
+            <button type="button" class="btn btn-primary" @click="toast.success('Filters applied')">Apply Filters</button>
+          </div>
         </aside>
 
         <!-- ── RESULTS PANEL ── -->
@@ -666,7 +852,7 @@
             </div>
             <div class="results-sort">
               <span class="nw-sort-label">Sort:</span>
-              <select v-model="bpSort" class="form-select nw-sort-select">
+              <select v-model="bpSort" class="form-select nw-sort-select" style="min-width:220px">
                 <option>Best Match</option>
                 <option>Highest Rated</option>
                 <option>Most Jobs</option>
@@ -683,29 +869,38 @@
           </div>
 
           <div id="sbpResultsGrid" class="search-results-grid">
-            <div v-for="p in filteredPartners" :key="p.name" class="sbp-card spc-card">
+            <div v-for="p in filteredPartners" :key="p.id || p.name" class="sbp-card spc-card" @click="viewProfile(p.slug)">
               <div class="spc-top-pills">
-                <span class="spc-pill gold" :data-tooltip="p.partnerType">{{ p.partnerType }}</span>
+                <span class="spc-status-icon" :class="p.networkStatus === 'in-network' ? 'ok' : (p.networkStatus === 'pending' ? 'pend' : 'off')"
+                  :data-tooltip="p.networkStatus === 'in-network' ? 'In your network' : (p.networkStatus === 'pending' ? 'Request pending' : 'Not connected')">
+                  <AegisIcon :name="p.networkStatus === 'in-network' ? 'user-check' : 'user-plus'" :size="12" />
+                </span>
+                <span v-if="p.has_services" class="spc-svc-icon" data-tooltip="Offers services to practitioners"><AegisIcon name="briefcase-rx" :size="12" /></span>
               </div>
-              <div class="spc-rating" :data-tooltip="p.rating + ' from ' + p.reviews + ' reviews'">
-                <AegisIcon name="star" :size="11" />
-                {{ p.rating }}
+              <div class="spc-rating" v-if="p.rating" :data-tooltip="p.rating + ' from ' + p.reviews + ' reviews'">
+                <AegisIcon name="star" :size="11" />{{ p.rating }}
               </div>
               <div class="spc-body">
-                <div class="spc-avatar" :style="{ background: p.avatarColor }">{{ p.initials }}</div>
+                <div class="spc-avatar">{{ p.initials }}</div>
                 <div class="spc-name">{{ p.name }}</div>
-                <div class="spc-role">{{ p.role }}</div>
+                <div class="spc-role">{{ p.partnerType ? p.partnerType + ' · ' : '' }}{{ p.role }}</div>
                 <div class="spc-loc">{{ p.location }}</div>
                 <div class="spc-tags">
-                  <span v-for="tag in p.tags.slice(0, 3)" :key="tag" class="spc-tag">{{ tag }}</span>
-                  <span v-if="p.tags.length > 3" class="spc-tag spc-tag-more">+{{ p.tags.length - 3 }}</span>
+                  <span v-for="tag in (p.tags || []).slice(0, 3)" :key="tag" class="spc-tag">{{ tag }}</span>
+                  <span v-if="(p.tags || []).length > 3" class="spc-tag spc-tag-more">+{{ p.tags.length - 3 }}</span>
                 </div>
               </div>
-              <div class="spc-stats">{{ p.rate }} · {{ p.reviews }} reviews · {{ p.jobs }} jobs</div>
+              <div v-if="p.rate && p.rate !== '—'" class="spc-stats">{{ p.rate }}<span v-if="p.reviews"> · {{ p.reviews }} reviews</span><span v-if="p.jobs"> · {{ p.jobs }} jobs</span></div>
               <div class="spc-actions" @click.stop>
                 <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === p.id" @click="openConversation(p.id)"><AegisIcon name="message-square" :size="14" /></button>
                 <button type="button" class="btn-icon" data-tooltip="Hire" @click="openBpHire(p)"><AegisIcon name="briefcase" :size="14" /></button>
-                <button type="button" class="btn-icon" data-tooltip="View Profile"><AegisIcon name="eye" :size="14" /></button>
+                <button
+                  v-if="p.networkStatus === 'not-connected'"
+                  type="button" class="btn-icon" data-tooltip="Send Connection Request"
+                  @click="openConnect(p)"
+                ><AegisIcon name="user-plus" :size="14" /></button>
+                <span v-else-if="p.networkStatus === 'pending'" class="btn-icon" data-tooltip="Request pending" style="opacity:.45;cursor:default"><AegisIcon name="clock" :size="14" /></span>
+                <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(p.slug)"><AegisIcon name="eye" :size="14" /></button>
               </div>
             </div>
           </div>
@@ -727,28 +922,28 @@
         <div class="stat-chip">
           <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="briefcase" :size="18" /></div>
           <div>
-            <div class="stat-chip-value">{{ bpConnections.length }}</div>
+            <div class="stat-chip-value">{{ bpConnections.length || '—' }}</div>
             <div class="stat-chip-label">Business Partners</div>
           </div>
         </div>
-        <div class="stat-chip">
-          <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="heart-2" :size="18" /></div>
+        <div class="stat-chip" :data-tooltip="stats.bp_count ? stats.bp_count + ' active contracts' : 'No active contracts yet'">
+          <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="check-badge" :size="18" /></div>
           <div>
-            <div class="stat-chip-value">{{ stats.bp_count }}</div>
+            <div class="stat-chip-value">{{ stats.bp_count || '—' }}</div>
             <div class="stat-chip-label">Active Contracts</div>
           </div>
         </div>
-        <div class="stat-chip">
+        <div class="stat-chip" :data-tooltip="avgBpRatingDisplay !== '—' ? avgBpRatingDisplay + ' avg rating across partners' : 'No ratings yet'">
           <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="star" :size="18" /></div>
           <div>
             <div class="stat-chip-value">{{ avgBpRatingDisplay }}</div>
             <div class="stat-chip-label">Avg Partner Rating</div>
           </div>
         </div>
-        <div class="stat-chip">
+        <div class="stat-chip" :data-tooltip="stats.bp_pending ? stats.bp_pending + ' pending requests' : 'No pending requests'">
           <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="clock" :size="18" /></div>
           <div>
-            <div class="stat-chip-value">{{ stats.pending_requests }}</div>
+            <div class="stat-chip-value">{{ stats.bp_pending ?? stats.pending_requests ?? '—' }}</div>
             <div class="stat-chip-label">Pending Requests</div>
           </div>
         </div>
@@ -764,12 +959,15 @@
       </div>
       <div id="bizGridView" class="provider-grid nw-biz-grid">
         <div v-for="nc in filteredBpConnections" :key="nc.id" class="biz-grid-card spc-card" @click="viewProfile(nc.partner_slug)">
+          <!-- Top pills: type icon + services badge -->
           <div class="spc-top-pills">
-            <span class="spc-pill gold" :data-tooltip="bpCategoryTooltip(nc)">{{ bpCategoryLabel(nc) }}</span>
+            <span class="spc-status-icon ok" data-tooltip="Business partner in your network"><AegisIcon name="user-check" :size="12" /></span>
+            <span v-if="nc.partner_has_services" class="spc-svc-icon" data-tooltip="Offers services to practitioners"><AegisIcon name="briefcase-rx" :size="12" /></span>
+            <!-- Category as compact icon+tooltip (replaces overflowing text pill) -->
+            <span v-if="nc.partner_categories" class="spc-svc-icon" :data-tooltip="nc.partner_categories"><AegisIcon name="bookmark" :size="12" /></span>
           </div>
-          <div class="spc-rating" :data-tooltip="ratingTooltip(nc, 'partner rating')">
-            <AegisIcon name="star" :size="11" />
-            {{ ratingDisplay(nc) }}
+          <div v-if="ratingDisplay(nc) !== '—'" class="spc-rating" :data-tooltip="ratingTooltip(nc, 'partner rating')">
+            <AegisIcon name="star" :size="11" />{{ ratingDisplay(nc) }}
           </div>
           <div class="spc-body">
             <div class="spc-avatar">{{ nc.partner_initials }}</div>
@@ -777,9 +975,9 @@
             <div class="spc-role">{{ nc.partner_role }}</div>
             <div class="spc-loc">{{ nc.partner_location }}</div>
           </div>
-          <div class="spc-stats">Active · {{ ratingDisplay(nc) }}</div>
           <div class="spc-actions" @click.stop>
             <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === nc.partner_id" @click="openConversation(nc.partner_id)"><AegisIcon name="message-square" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="Hire" @click="openBpHire(nc)"><AegisIcon name="briefcase" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(nc.partner_slug)"><AegisIcon name="eye" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Remove" @click="confirmDisconnect(nc)"><AegisIcon name="trash-2" :size="14" /></button>
           </div>
@@ -1667,6 +1865,7 @@ import { useMessageButton } from '@/composables/useMessageButton'
 const props = defineProps({
   clinicalConnections:          { type: Array,  default: () => [] },
   bpConnections:                { type: Array,  default: () => [] },
+  bpDirectory:                  { type: Array,  default: () => [] },
   pendingRequests:              { type: Array,  default: () => [] },
   shadowConnections:            { type: Array,  default: () => [] },
   referralNetwork:              { type: Array,  default: () => [] },
@@ -2125,7 +2324,6 @@ const clinicalServiceOnly = ref(false)
 const bpSort         = ref('Best Match')
 const bpClinicalOnly = ref(false)
 const bpCategory     = ref('')
-const bpCatOpen      = ref(true)
 const rtSearch       = ref('')
 
 const filteredClinical = computed(() => {
@@ -2148,12 +2346,53 @@ const filteredBpConnections = computed(() => {
 })
 
 const filteredPartners = computed(() => {
-  return businessPartners.value.filter(p => {
-    const q = bpSearch.value.toLowerCase()
-    if (q && !p.name.toLowerCase().includes(q) && !p.role.toLowerCase().includes(q) && !p.tags.some(t => t.toLowerCase().includes(q))) return false
-    if (bpCategory.value && p.category !== bpCategory.value) return false
+  let results = businessPartners.value.filter(p => {
+    // Keyword search
+    const q = bpSearch.value.toLowerCase().trim()
+    if (q) {
+      const hay = [p.name, p.role, p.location, ...(p.tags || [])].join(' ').toLowerCase()
+      if (!hay.includes(q)) return false
+    }
+    // Category
+    if (bpCategory.value) {
+      const cat = (p.category || p.role || '').toLowerCase()
+      if (!cat.includes(bpCategory.value.toLowerCase())) return false
+    }
+    // Partner type
+    if (bpTypeFilter.value) {
+      const pt = (p.partnerType || '').toLowerCase()
+      if (!pt.includes(bpTypeFilter.value)) return false
+    }
+    // Rate range (only if set)
+    if (bpRateMin.value > 0 || bpRateMax.value < 9999) {
+      const rateNum = parseInt(String(p.rate || '').replace(/[^0-9]/g, '')) || 0
+      if (rateNum > 0 && (rateNum < bpRateMin.value || rateNum > bpRateMax.value)) return false
+    }
+    // Minimum rating
+    if (bpMinRating.value > 0 && (p.rating || 0) < bpMinRating.value) return false
+    // Min jobs
+    if (bpMinJobs.value > 0 && (p.jobs || 0) < bpMinJobs.value) return false
+    // Location
+    if (bpLocation.value) {
+      const loc = (p.location || '').toLowerCase()
+      if (bpLocation.value === 'remote' && !loc.includes('remote')) return false
+      if (bpLocation.value === 'onsite' && loc.includes('remote')) return false
+    }
     return true
   })
+
+  // Sort
+  if (bpSort.value === 'Highest Rated') results = [...results].sort((a, b) => (b.rating || 0) - (a.rating || 0))
+  if (bpSort.value === 'Most Jobs')     results = [...results].sort((a, b) => (b.jobs || 0) - (a.jobs || 0))
+  if (bpSort.value === 'Lowest Rate')   results = [...results].sort((a, b) => {
+    const ra = parseInt(String(a.rate).replace(/[^0-9]/g, '')) || 9999
+    const rb = parseInt(String(b.rate).replace(/[^0-9]/g, '')) || 9999
+    return ra - rb
+  })
+  // Clinical-service on top
+  if (bpClinicalOnly.value) results = [...results].sort((a, b) => (b.has_services ? 1 : 0) - (a.has_services ? 1 : 0))
+
+  return results
 })
 
 const filteredRtCandidates = computed(() => {
@@ -2183,35 +2422,97 @@ const allProviders = computed(() => props.searchProviders ?? [])
 
 
 
-const businessPartners = ref([
-  { name:'Marisol Vega',       id:'', initials:'MV', avatarColor:'var(--gold-dark)', partnerType:'FREELANCER',  role:'Medical Billing',     location:'Miami, FL · Remote',   tags:['Medical Billing','AR Management','Denial Mgmt'],         rate:'$85/hr',  reviews:147, jobs:92,  rating:4.9, category:'Medical Billing'    },
-  { name:'Riya Patel',         id:'', initials:'RP', avatarColor:'var(--gold-dark)', partnerType:'SOLOPRENEUR', role:'Digital Marketing',   location:'Austin, TX · Remote',  tags:['SEO','Google Ads','Social Media'],                        rate:'$70/hr',  reviews:204, jobs:78,  rating:4.8, category:'Digital Marketing'  },
-  { name:'Kevin Osei',         id:'', initials:'KO', avatarColor:'var(--gold-dark)', partnerType:'CONSULTANT',  role:'Credentialing',       location:'Atlanta, GA · Remote', tags:['CAQH','PECOS','Re-credentialing'],                        rate:'$55/hr',  reviews:310, jobs:130, rating:4.9, category:'Credentialing'      },
-  { name:'Jae Won Park',       id:'', initials:'JP', avatarColor:'var(--gold-dark)', partnerType:'CONSULTANT',  role:'Practice Consulting', location:'Boston, MA · Remote',  tags:['Practice Management','Revenue Optimization','Operations'], rate:'$220/hr', reviews:72,  jobs:48,  rating:4.9, category:'Practice Consulting' },
-  { name:'Apex Billing Co.',   id:'', initials:'AB', avatarColor:'var(--gold-dark)', partnerType:'AGENCY',      role:'Medical Billing',     location:'Chicago, IL · Remote', tags:['Revenue Cycle','Credentialing','Claims Processing'],       rate:'$150/hr', reviews:89,  jobs:204, rating:4.7, category:'Medical Billing'    },
-  { name:'Daniel Torres, CPA', id:'', initials:'DT', avatarColor:'var(--gold-dark)', partnerType:'FREELANCER',  role:'Accounting / CPA',   location:'New York, NY · Remote',tags:['Tax Planning','GAAP','Practice Valuation'],                rate:'$175/hr', reviews:83,  jobs:41,  rating:4.8, category:'Accounting / CPA'   },
-  { name:'Bright Minds Admin', id:'', initials:'BA', avatarColor:'var(--gold-dark)', partnerType:'AGENCY',      role:'Admin / VA',          location:'Phoenix, AZ · Remote', tags:['Virtual Assistants','Scheduling','Data Entry'],            rate:'$35/hr',  reviews:175, jobs:295, rating:4.6, category:'Admin / VA'         },
-  { name:'StaffLink HR Group', id:'', initials:'SH', avatarColor:'var(--gold-dark)', partnerType:'FIRM',        role:'HR / Staffing',       location:'Dallas, TX',           tags:['Recruitment','Benefits Admin','Compliance'],               rate:'$120/hr', reviews:44,  jobs:82,  rating:4.8, category:'HR / Staffing'      },
-])
+// Business Partner directory — server-serialized from NetworkController.
+// Real user IDs + slugs so Message / Connect / View Profile all work.
+const businessPartners = computed(() => props.bpDirectory ?? [])
 
-const bpFilterGroups = reactive([
-  { label: 'Partner Type',      icon: 'users',     open: false, placeholder: 'Filter by freelancer, agency, consultant, firm, or solopreneur.' },
-  { label: 'Hourly Rate',       icon: 'dollar',    open: false, placeholder: 'Set a minimum and maximum hourly rate range.' },
-  { label: 'Experience Level',  icon: 'star',      open: false, placeholder: 'Entry, mid, senior, or expert-level partners.' },
-  { label: 'Availability',      icon: 'clock',     open: false, placeholder: 'Full-time, part-time, contract, or on-demand availability.' },
-  { label: 'Engagement Type',   icon: 'briefcase', open: false, placeholder: 'One-time project, ongoing retainer, or hourly.' },
-  { label: 'Work Location',     icon: 'map-pin',   open: false, placeholder: 'Remote, on-site, or hybrid partners.' },
-  { label: 'Success Metrics',   icon: 'check-badge', open: false, placeholder: 'Filter by proposal success rate and jobs completed.' },
-  { label: 'Quality Score',     icon: 'award-2',   open: false, placeholder: 'Verified partners, HIPAA-trained, and high-quality-score filters.' },
-  { label: 'Languages',         icon: 'send-2',    open: false, placeholder: 'Filter by languages the partner is fluent in.' },
-  { label: 'Aegis Membership',  icon: 'shield',    open: false, placeholder: 'Verified Aegis members and specific membership tiers.' },
-])
+// ── BP Sidebar — group open/close state ───────────────────────────────────
+const sbpGroups = reactive({
+  category: true,
+  type:     false,
+  rate:     false,
+  exp:      false,
+  rating:   false,
+  avail:    false,
+  eng:      false,
+  location: false,
+  quality:  false,
+  jobs:     false,
+  lang:     false,
+})
+
+// ── BP Sidebar — filter values ────────────────────────────────────────────
+const bpTypeFilter  = ref('')
+const bpRateMin     = ref(0)
+const bpRateMax     = ref(9999)
+const bpExpLevel    = ref('')
+const bpMinRating   = ref(0)
+const bpAvail       = ref('')
+const bpEngTypes    = ref([])
+const bpLocation    = ref('')
+const bpMinJobs     = ref(0)
+const bpLang        = ref('')
+const bpBadges      = reactive({ verified: false, topRated: false, fast: false, hipaa: false, newMember: false })
+
+// BP category options (replaces the old <select>)
+const bpCategories = [
+  { val: 'it',            label: 'IT / Software' },
+  { val: 'billing',       label: 'Medical Billing' },
+  { val: 'accounting',    label: 'Accounting / CPA' },
+  { val: 'legal',         label: 'Legal / Healthcare Law' },
+  { val: 'marketing',     label: 'Marketing & Growth' },
+  { val: 'hr',            label: 'HR / Staffing' },
+  { val: 'credentialing', label: 'Credentialing' },
+  { val: 'consulting',    label: 'Practice Consulting' },
+  { val: 'design',        label: 'Design & Branding' },
+  { val: 'admin',         label: 'Admin / VA' },
+]
+
+const bpAllLangs = ['English','Spanish','Mandarin','French','Arabic','Hindi','Portuguese','Russian','Korean','Japanese']
+const bpLangSearch = ref('')
+const filteredBpLangs = computed(() => {
+  const q = bpLangSearch.value.toLowerCase().trim()
+  if (!q) return bpAllLangs
+  return bpAllLangs.filter(l => l.toLowerCase().includes(q))
+})
+const bpExpOptions = [
+  { val: '',       label: 'Any Level' },
+  { val: 'entry',  label: 'Entry', sub: '0–2 years experience' },
+  { val: 'mid',    label: 'Mid-Level', sub: '3–7 years experience' },
+  { val: 'senior', label: 'Senior', sub: '8–15 years experience' },
+  { val: 'expert', label: 'Expert', sub: '15+ years or nationally recognized' },
+]
+const bpRatingOptions = [
+  { val: 0,   label: 'Any Rating' },
+  { val: 3.0, label: '3.0+' },
+  { val: 4.0, label: '4.0+' },
+  { val: 4.5, label: '4.5+' },
+  { val: 4.8, label: '4.8+' },
+]
+const bpEngOptions = [
+  { val: 'one_time',  label: 'One-Time Project' },
+  { val: 'retainer',  label: 'Monthly Retainer' },
+  { val: 'hourly',    label: 'Hourly' },
+  { val: 'part_time', label: 'Part-Time Ongoing' },
+  { val: 'full_time', label: 'Full-Time Contract' },
+]
 
 function sbpClearAll() {
   bpSearch.value      = ''
   bpCategory.value    = ''
   bpClinicalOnly.value = false
-  bpFilterGroups.forEach(f => { f.open = false })
+  bpTypeFilter.value  = ''
+  bpRateMin.value     = 0
+  bpRateMax.value     = 9999
+  bpExpLevel.value    = ''
+  bpMinRating.value   = 0
+  bpAvail.value       = ''
+  bpEngTypes.value    = []
+  bpLocation.value    = ''
+  bpMinJobs.value     = 0
+  bpLang.value        = ''
+  Object.keys(bpBadges).forEach(k => { bpBadges[k] = false })
+  Object.keys(sbpGroups).forEach(k => { sbpGroups[k] = k === 'category' })
   toast.info('All filters cleared')
 }
 
@@ -2726,18 +3027,29 @@ function resetConfig() {
   background: var(--border);
 }
 
-/* Sticky Apply Filters button at bottom of sidebar */
+/* sbp row label helpers — typography only, _shared.css owns the row layout */
+.sbp-radio-label   { font-size: 12px; font-weight: 600; color: var(--text-2); display: inline-flex; align-items: center; gap: 4px; }
+.sbp-radio-sub     { font-size: 10px; color: var(--text-3); margin-top: 1px; }
+.sbp-check-label   { font-size: 12px; font-weight: 600; color: var(--text-2); }
+.sbp-toggle-label  { font-size: 12px; font-weight: 600; color: var(--text-2); display: inline-flex; align-items: center; gap: 5px; flex: 1; }
+
+/* filter-sidebar sticky position — 81px aligns flush with the topbar
+   (global _shared.css sets top:80px which leaves a 1px gap on this app). */
+:deep(#filterSidebar),
+:deep(#sbpFilterSidebar) { top: 81px; }
+
+/* filter-sidebar-apply — sticky footer for both filter sidebars.
+   Bleeds past sidebar padding (10px sides, 0 bottom) and matches the
+   sidebar's border-radius-lg (16px) on the bottom corners so there is
+   no visible gap or glitch at the bottom of the sidebar. */
 .filter-sidebar-apply {
   position: sticky;
-  bottom: -14px;           /* pull into sidebar bottom padding so zero gap */
-  left: -10px;             /* bleed past sidebar horizontal padding */
-  right: -10px;
-  width: calc(100% + 20px);
+  bottom: 0;
+  margin: 4px -10px -16px;
   background: var(--surface);
   border-top: 1px solid var(--border);
-  padding: 14px 16px 20px; /* extra bottom padding covers any subpixel gap */
-  margin-top: 3px;
-  z-index: 2;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  padding: 12px 12px 12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2745,7 +3057,14 @@ function resetConfig() {
 .filter-sidebar-apply .btn {
   width: 100%;
   justify-content: center;
+  text-align: center;
 }
+
+/* sbp-info-tip — keep tooltip visible when cursor moves into the child icon.
+   pointer-events:none on the svg child prevents the tooltip element from
+   losing hover state as the cursor crosses the icon boundary. */
+:deep(.sbp-info-tip) svg,
+:deep(.sbp-info-tip) .aegis-icon { pointer-events: none; }
 
 /* Sub-tabs — match legacy #networkTabs .net-sub-tabs rule */
 .tabs-twotier .tabs-segmented.net-sub-tabs {
@@ -2904,12 +3223,6 @@ function resetConfig() {
   background: var(--surface-2);
   border-radius: var(--radius-sm);
 }
-.nw-filter-apply {
-  width: 100%;
-  margin-top: 14px;
-  justify-content: center;
-}
-
 /* Search Business Partners — results-panel top bar */
 .nw-sort-label {
   font-size: 12px;
