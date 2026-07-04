@@ -6,8 +6,6 @@ namespace App\Http\Controllers\Public;
 
 use App\Enums\ActivitySeverity;
 use App\Events\Business\EngagementRequested;
-use App\Events\Network\ConnectionAccepted;
-use App\Events\Network\ConnectionRequestSent;
 use App\Events\Service\ServiceRequestSubmitted;
 use App\Http\Controllers\Controller;
 use App\Models\BpEngagementRequest;
@@ -191,24 +189,8 @@ class PublicInteractionController extends Controller
         $viewer = $request->user();
         abort_if($viewer->id === $user->id, 403);
 
-        $req = $this->network->sendRequest($viewer, $user, $request->input('message'));
-
-        // Fire email T42 — connection-request to recipient
-        event(new ConnectionRequestSent($req, $viewer, $user));
-
-        // Log for sender
-        $this->activity->log(
-            $viewer->id,
-            $this->portalFor($viewer),
-            'account',
-            ActivitySeverity::Info,
-            'connection_request_sent',
-            "You sent a connection request to {$user->display_name}",
-            'Awaiting their response.',
-            'user',
-            $user->id,
-            $viewer->id
-        );
+        // sendRequest() handles actor log, recipient notification, and fires ConnectionRequestSent event
+        $this->network->sendRequest($viewer, $user, $request->input('message'));
 
         return back()->with('success', 'Connection request sent.');
     }
@@ -223,6 +205,21 @@ class PublicInteractionController extends Controller
         abort_if($networkRequest->requester_id !== $viewer->id, 403);
         abort_if($networkRequest->status !== \App\Enums\RequestStatus::Pending, 422, 'Request is no longer pending.');
         $networkRequest->update(['status' => 'cancelled']);
+
+        $recipient = \App\Models\User::find($networkRequest->recipient_id);
+        $this->activity->log(
+            $viewer->id,
+            $this->portalFor($viewer),
+            'account',
+            \App\Enums\ActivitySeverity::Info,
+            'connection_request_cancelled',
+            'You cancelled a connection request' . ($recipient ? " to {$recipient->display_name}" : ''),
+            'The request has been withdrawn.',
+            'network_request',
+            $networkRequest->id,
+            $networkRequest->recipient_id
+        );
+
         return back()->with('success', 'Connection request cancelled.');
     }
 

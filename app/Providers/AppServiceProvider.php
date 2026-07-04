@@ -63,6 +63,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Steward\StewardRemoved::class,        Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Incident\IncidentClosed::class,       Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Business\ProposalAccepted::class,     Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\ProposalDeclined::class,     Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Business\ContractCreated::class,      Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Business\ContractSigned::class,       Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Business\InvoiceSent::class,          Listeners\SendEmailNotificationListener::class);
@@ -70,6 +71,8 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Business\PayoutReleased::class,       Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Support\TicketCreated::class,         Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Support\TicketReplied::class,         Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Support\FeedbackReceived::class,      Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Support\TicketResolved::class,        Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Admin\UserLocked::class,              Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Auth\EmailVerified::class,            Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\News\NewsPostPublished::class,        Listeners\SendEmailNotificationListener::class);
@@ -89,6 +92,7 @@ class AppServiceProvider extends ServiceProvider
         // ── Network connection events ─────────────────────────────────────────
         Event::listen(Events\Network\ConnectionAccepted::class,    Listeners\ActivityFanoutListener::class);
         Event::listen(Events\Network\ConnectionAccepted::class,    Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Network\ConnectionRequestSent::class, Listeners\ActivityFanoutListener::class);
         Event::listen(Events\Network\ConnectionRequestSent::class, Listeners\SendEmailNotificationListener::class);
 
         // ── BP engagement requests (hire / quote / consultation) ──────────────

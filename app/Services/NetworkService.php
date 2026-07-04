@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Events\Network\ConnectionAccepted;
+use App\Events\Network\ConnectionRequestSent;
 
 use App\Enums\ActivitySeverity;
 use App\Jobs\SendEmailJob;
@@ -45,6 +46,21 @@ class NetworkService
             'status'       => 'pending',
         ]);
 
+        // Actor self-log (entry_type: log)
+        $this->activity->log(
+            $from->id,
+            $this->portalFor($from->role instanceof \BackedEnum ? $from->role->value : (string) $from->role),
+            'account',
+            ActivitySeverity::Info,
+            'network_request_sent',
+            "You sent a connection request to {$to->display_name}",
+            $note ? Str::limit($note, 140) : 'Awaiting their response.',
+            'network_request',
+            $req->id,
+            $to->id
+        );
+
+        // Recipient notification (entry_type: notification — default)
         $this->activity->log(
             $to->id,
             $this->portalFor($to->role instanceof \BackedEnum ? $to->role->value : (string) $to->role),
@@ -57,6 +73,8 @@ class NetworkService
             $req->id,
             $from->id
         );
+
+        event(new ConnectionRequestSent($req, $from, $to));
 
         return $req;
     }
@@ -83,6 +101,22 @@ class NetworkService
             ]);
 
             $from = User::find($req->requester_id);
+
+            // Accepter self-log
+            $this->activity->log(
+                $accepter->id,
+                $this->portalFor($accepter->role instanceof \BackedEnum ? $accepter->role->value : (string) $accepter->role),
+                'account',
+                ActivitySeverity::Info,
+                'network_request_accepted_self',
+                "You accepted a connection request from {$from->display_name}",
+                'You are now connected.',
+                'network_connection',
+                $conn->id,
+                $from->id
+            );
+
+            // Requester notification
             $this->activity->log(
                 $from->id,
                 $this->portalFor($from->role instanceof \BackedEnum ? $from->role->value : (string) $from->role),
@@ -111,6 +145,21 @@ class NetworkService
             'status'       => 'declined',
             'responded_at' => now(),
         ]);
+
+        $requester = User::find($req->requester_id);
+        // Decliner self-log (silent to requester by design)
+        $this->activity->log(
+            $decliner->id,
+            $this->portalFor($decliner->role instanceof \BackedEnum ? $decliner->role->value : (string) $decliner->role),
+            'account',
+            ActivitySeverity::Info,
+            'network_request_declined_self',
+            "You declined a connection request" . ($requester ? " from {$requester->display_name}" : ''),
+            $reason ?? 'Request declined.',
+            'network_request',
+            $req->id,
+            $req->requester_id
+        );
 
         return $req->fresh();
     }

@@ -17,7 +17,6 @@ use App\Models\BpJob;
 use App\Models\BpProposal;
 use App\Services\BpJobService;
 use App\Services\ContractService;
-use App\Services\ActivityService;
 use App\Services\MessagingService;
 use App\Services\ProposalService;
 use Illuminate\Http\RedirectResponse;
@@ -32,7 +31,6 @@ class JobPostingsController extends Controller
         private ProposalService $proposals,
         private ContractService $contracts,
         private MessagingService $messaging,
-        private ActivityService $activity,
     ) {}
 
     public function index(Request $request): Response
@@ -143,16 +141,6 @@ class JobPostingsController extends Controller
     {
         $job = $this->jobs->create($request->user(), $request->validated());
 
-        if ($job->status === 'open') {
-            $this->activity->log(
-                $request->user()->id, 'provider', 'job_postings', \App\Enums\ActivitySeverity::Info,
-                'job_posted',
-                "Posted: {$job->title}",
-                'Now visible to Business Partners on Aegis.',
-                'bp_job', $job->id
-            );
-        }
-
         return back()->with('success', $job->status === 'draft' ? 'Draft saved.' : 'Support request posted.');
     }
 
@@ -200,17 +188,6 @@ class JobPostingsController extends Controller
         $this->authorize('close', $job);
         $data = $request->validated();
         $this->proposals->setStage($proposal, $data['pipeline_stage'], $data['note'] ?? null, $data['interview_type'] ?? null, $data['interview_at'] ?? null);
-
-        $stageLabels = ['reviewed' => 'Marked reviewed', 'shortlisted' => 'Shortlisted', 'interview' => 'Interview scheduled'];
-        if (isset($stageLabels[$data['pipeline_stage']])) {
-            $this->activity->log(
-                $request->user()->id, 'provider', 'job_postings', \App\Enums\ActivitySeverity::Info,
-                'applicant_stage_changed',
-                "{$stageLabels[$data['pipeline_stage']]}: " . ($proposal->bp?->display_name ?? 'Applicant'),
-                $job->title,
-                'bp_proposal', $proposal->id, $proposal->bp_id
-            );
-        }
 
         if ($data['pipeline_stage'] === 'interview' && !empty($data['notify_applicant'])) {
             $user = $request->user();

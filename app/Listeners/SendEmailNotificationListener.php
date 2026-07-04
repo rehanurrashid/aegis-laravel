@@ -7,6 +7,7 @@ namespace App\Listeners;
 use App\Events\Admin\UserLocked;
 use App\Events\Auth\PasswordReset;
 use App\Events\Auth\UserRegistered;
+use App\Events\Business\ContractCancelled;
 use App\Events\Business\ContractCreated;
 use App\Events\Referral\ReferralAccepted;
 use App\Events\Referral\ReferralCancelled;
@@ -22,6 +23,7 @@ use App\Events\Business\InvoicePaid;
 use App\Events\Business\InvoiceSent;
 use App\Events\Business\PayoutReleased;
 use App\Events\Business\ProposalAccepted;
+use App\Events\Business\ProposalDeclined;
 use App\Events\Incident\IncidentClosed;
 use App\Events\Plan\AnnualReviewCompleted;
 use App\Events\Plan\AnnualReviewDue;
@@ -31,8 +33,10 @@ use App\Events\Steward\StewardAccepted;
 use App\Events\Steward\StewardDeclined;
 use App\Events\Steward\StewardDesignated;
 use App\Events\Steward\StewardRemoved;
+use App\Events\Support\FeedbackReceived;
 use App\Events\Support\TicketCreated;
 use App\Events\Support\TicketReplied;
+use App\Events\Support\TicketResolved;
 use App\Jobs\SendEmailJob;
 use App\Models\BpPayout;
 use App\Models\PlanSteward;
@@ -85,13 +89,17 @@ class SendEmailNotificationListener
             $event instanceof StewardRemoved          => $this->stewardRemoved($event),
             $event instanceof IncidentClosed          => $this->incidentClosed($event),
             $event instanceof ProposalAccepted        => $this->proposalAccepted($event),
+            $event instanceof ProposalDeclined        => $this->proposalDeclined($event),
             $event instanceof ContractCreated         => $this->contractCreated($event),
             $event instanceof ContractSigned          => $this->contractSigned($event),
+            $event instanceof ContractCancelled       => $this->contractCancelled($event),
             $event instanceof InvoiceSent             => $this->invoiceSent($event),
             $event instanceof InvoicePaid             => $this->invoicePaid($event),
             $event instanceof PayoutReleased          => $this->payoutReleased($event),
             $event instanceof TicketCreated           => $this->ticketCreated($event),
             $event instanceof TicketReplied           => $this->ticketReplied($event),
+            $event instanceof FeedbackReceived        => $this->feedbackReceived($event),
+            $event instanceof TicketResolved          => $this->ticketResolved($event),
             $event instanceof UserLocked              => $this->userLocked($event),
             $event instanceof ReferralSent            => $this->referralSent($event),
             $event instanceof ReferralAccepted        => $this->referralAccepted($event),
@@ -226,6 +234,13 @@ class SendEmailNotificationListener
                  'data' => ['proposal_id' => $e->proposal->id, 'contract_id' => $e->contract->id]]];
     }
 
+    private function proposalDeclined(ProposalDeclined $e): array
+    {
+        return [['user_id' => $e->proposal->bp_id, 'gate_key' => 'notify_payment',
+                 'template' => 'emails.bp.34-proposal-declined',
+                 'data' => ['proposal_id' => $e->proposal->id, 'reason' => $e->reason]]];
+    }
+
     private function contractCreated(ContractCreated $e): array
     {
         return [
@@ -247,6 +262,23 @@ class SendEmailNotificationListener
             ['user_id' => $e->contract->bp_id, 'gate_key' => 'notify_payment',
              'template' => 'emails.business.42-contract-fully-executed',
              'data' => ['contract_id' => $e->contract->id]],
+        ];
+    }
+
+    private function contractCancelled(ContractCancelled $e): array
+    {
+        $otherPartyId = $e->actor->id === $e->contract->practitioner_id
+            ? $e->contract->bp_id
+            : $e->contract->practitioner_id;
+        return [
+            // Actor confirmation
+            ['user_id' => $e->actor->id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.gaps.67-contract-cancelled',
+             'data' => ['contract_id' => $e->contract->id, 'reason' => $e->reason]],
+            // Other party notification
+            ['user_id' => $otherPartyId, 'gate_key' => 'notify_payment',
+             'template' => 'emails.gaps.67-contract-cancelled',
+             'data' => ['contract_id' => $e->contract->id, 'reason' => $e->reason]],
         ];
     }
 
@@ -284,6 +316,21 @@ class SendEmailNotificationListener
         return [['user_id' => $e->complaint->submitter_id, 'gate_key' => 'notify_account',
                  'template' => 'emails.support.61-ticket-replied',
                  'data' => ['complaint_id' => $e->complaint->id, 'reply_id' => $e->reply->id]]];
+    }
+
+    private function feedbackReceived(FeedbackReceived $e): array
+    {
+        // Submitter confirmation only — feedback is internal, no email to admin by design
+        return [['user_id' => $e->complaint->submitter_id, 'gate_key' => 'notify_account',
+                 'template' => 'emails.support.49-feedback-received',
+                 'data' => ['complaint_id' => $e->complaint->id]]];
+    }
+
+    private function ticketResolved(TicketResolved $e): array
+    {
+        return [['user_id' => $e->complaint->submitter_id, 'gate_key' => 'notify_account',
+                 'template' => 'emails.support.48-ticket-resolved',
+                 'data' => ['complaint_id' => $e->complaint->id]]];
     }
 
     private function userLocked(UserLocked $e): array
