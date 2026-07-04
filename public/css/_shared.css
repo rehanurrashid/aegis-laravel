@@ -5412,17 +5412,20 @@ body.theme-gold-dark {
 
   /* ── CONFIG PANEL (collapsible) ── */
   .cfg-panel           { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); margin-bottom: 14px; overflow: hidden; scroll-margin-top: 88px; }
-  .cfg-panel-header    { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; user-select: none; }
+  .cfg-panel-header    { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; user-select: none; cursor: pointer; transition: background var(--transition); }
+  .cfg-panel-header:hover { background: var(--surface-2); }
   .cfg-panel-header-left { display: flex; align-items: center; gap: 12px; }
   .cfg-panel-icon      { width: 36px; height: 36px; border-radius: var(--radius); background: var(--badge-bg-gold); color: var(--gold-dark); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .cfg-panel-icon svg  { color: var(--gold-dark); }
   .cfg-panel-title     { font-family: var(--font-serif); font-size: 16px; font-weight: 700; color: var(--primary); }
   .cfg-panel-subtitle  { font-size: 11px; color: var(--text-3); margin-top: 1px; }
   .cfg-panel-meta      { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .cfg-chevron         { display: flex; align-items: center; color: var(--text-4); transition: transform 0.22s ease; flex-shrink: 0; }
+  .cfg-panel.open .cfg-chevron { transform: rotate(180deg); }
   .cfg-selected-count  { font-size: 11px; font-weight: 700; background: var(--primary); color: #fff; padding: 2px 8px; border-radius: var(--radius-full); display: none; }
   .cfg-selected-count.show { display: inline; }
-  .cfg-panel-body      { display: none; padding: 18px 20px 20px; border-top: 1px solid var(--border); }
-  .cfg-panel.open .cfg-panel-body { display: block; }
+  .cfg-panel-body      { max-height: 0; overflow: hidden; transition: max-height 0.28s ease, padding 0.28s ease, border-top-color 0.28s ease; padding: 0 20px; border-top: 1px solid transparent; }
+  .cfg-panel.open .cfg-panel-body { max-height: 1800px; padding: 18px 20px 20px; border-top-color: var(--border); }
 
   /* ── CONFIG INTERNALS ── */
   .cfg-alert       { display: flex; gap: 12px; background: var(--badge-bg-gold); border: 1px solid var(--gold-dark); border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 18px; }
@@ -5464,9 +5467,9 @@ body.theme-gold-dark {
   .ctag.selected   { background: var(--gold-dark); color: #fff; border-color: var(--gold-dark); }
   .ctag.hidden     { display: none; }
   .cfg-provider-grid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-top: 8px; }
-  .cfg-provider-item  { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all var(--transition); background: var(--surface-2); }
-  .cfg-provider-item:hover    { border-color: var(--primary); background: var(--surface-2); }
-  .cfg-provider-item.selected { border-color: var(--primary); background: var(--surface-3); }
+  .cfg-provider-item  { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: none !important; border-radius: var(--radius-sm); cursor: pointer; transition: all var(--transition); background: var(--surface-2); }
+  .cfg-provider-item:hover    { background: var(--surface-3); }
+  .cfg-provider-item.selected { background: var(--badge-bg-gold); }
   .cfg-provider-item.selected .cfg-check,
   .cfg-insurance-item.selected .cfg-check {
     background-color: var(--gold-dark);
@@ -5490,7 +5493,6 @@ body.theme-gold-dark {
     background-size: 11px 11px;
     transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
   }
-  /* Brand focus-ring glow — soft gold halo on hover (unchecked) and when selected (checked) */
   .cfg-provider-item:hover .cfg-check,
   .cfg-insurance-item:hover .cfg-check {
     border-color: var(--gold-dark);
@@ -5501,9 +5503,9 @@ body.theme-gold-dark {
     box-shadow: var(--focus-ring-checkbox);
   }
   .cfg-insurance-grid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 7px; margin-top: 6px; }
-  .cfg-insurance-item  { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: all var(--transition); background: var(--surface-2); font-size: 12px; font-weight: 600; color: var(--text-2); }
-  .cfg-insurance-item:hover    { border-color: var(--primary); color: var(--primary); }
-  .cfg-insurance-item.selected { border-color: var(--primary); background: var(--surface-3); color: var(--primary); }
+  .cfg-insurance-item  { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; border: none; border-radius: var(--radius-sm); cursor: pointer; transition: all var(--transition); background: var(--surface-2); font-size: 12px; font-weight: 600; color: var(--text-2); }
+  .cfg-insurance-item:hover    { background: var(--surface-3); color: var(--text); }
+  .cfg-insurance-item.selected { background: var(--badge-bg-gold); color: var(--gold-dark); }
 
   .cfg-insurance-item.hidden { display: none; }
   .cfg-state-grid  { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; max-height: 220px; overflow-y: auto; padding: 2px; scrollbar-width: thin; }

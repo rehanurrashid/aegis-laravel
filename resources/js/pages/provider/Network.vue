@@ -191,7 +191,7 @@
             <div v-for="p in aiShadowCandidates" :key="p.name" class="card rsp-card" @click="viewProfile(p.slug)">
               <header class="rsp-head">
                 <span class="rsp-match" :data-tooltip="p.match + '% AI match based on your clinical focus and referral patterns'">
-                  <AegisIcon name="sparkle-cluster" :size="10" /> {{ p.match }}%
+                  <AegisIcon name="sparkle-cluster" :size="10" /> {{ p.match }}% <span style="font-size:9px;font-weight:600;opacity:.75;letter-spacing:0.3px">AI Match</span>
                 </span>
                 <span class="rsp-rating" :data-tooltip="p.rating + ' from peer reviews'">
                   <AegisIcon name="star" :size="10" :filled="true" /> {{ p.rating }}
@@ -1024,10 +1024,6 @@
           <span class="search-icon"><AegisIcon name="search-lg" :size="14" /></span>
           <input class="form-input" style="padding-left:34px" v-model="rtSearch" placeholder="Search by name, specialty, location..." />
         </div>
-        <button type="button" class="btn btn-outline btn-sm" @click="openManualReferralEntry" data-tooltip="Add a provider to your referral list manually">
-          <AegisIcon name="user-plus" :size="14" />
-          Add Manually
-        </button>
       </div>
 
       <div class="results-topbar">
@@ -1037,8 +1033,23 @@
 
       <div class="provider-grid">
         <div v-for="s in pagedRtCandidates" :key="s.name" class="sai-grid-card spc-card" @click="viewProfile(s.slug)">
+          <!-- Top-left: AI match badge -->
           <div class="spc-top-pills">
-            <span class="rsc-ai-icon" data-tooltip="AI suggested based on your clinical focus and referral patterns"><AegisIcon name="sparkle-cluster" :size="12" /></span>
+            <span class="rsp-match" :data-tooltip="(s.match || 0) + '% AI match based on your clinical focus and referral patterns'">
+              <AegisIcon name="sparkle-cluster" :size="10" /> {{ s.match || '—' }}{{ s.match ? '%' : '' }} <span style="font-size:9px;font-weight:600;opacity:.75;letter-spacing:0.3px">AI Match</span>
+            </span>
+          </div>
+          <!-- Top-right: rating + network status -->
+          <div style="position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:5px;z-index:2">
+            <span class="rsp-rating" :data-tooltip="(s.rating || 0) + ' from peer reviews'">
+              <AegisIcon name="star" :size="10" :filled="true" /> {{ s.rating || 0 }}
+            </span>
+            <span v-if="s.networkStatus === 'in-network'" class="spc-status-icon ok" data-tooltip="In your network">
+              <AegisIcon name="user-check" :size="12" />
+            </span>
+            <span v-else-if="s.networkStatus === 'pending' || s.networkStatus === 'pending-received'" class="spc-status-icon pend" data-tooltip="Connection request pending">
+              <AegisIcon name="clock" :size="12" />
+            </span>
           </div>
           <div class="spc-body">
             <div class="spc-avatar">{{ s.initials }}</div>
@@ -1051,10 +1062,9 @@
             </div>
           </div>
           <div class="spc-actions" @click.stop>
-            <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === s.id" @click="openConversation(s.id)"><AegisIcon name="message-square" :size="14" /></button>
-            <button type="button" class="btn-icon" data-tooltip="Add to My Shadows" @click="openConnect(s)"><AegisIcon name="user-plus" :size="14" /></button>
-            <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(s.slug)"><AegisIcon name="eye" :size="14" /></button>
-            <button type="button" class="btn-icon" data-tooltip="Dismiss" @click="removeRtCandidate(s)"><AegisIcon name="x" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === s.id || !s.id" @click="s.id && openConversation(s.id)"><AegisIcon name="message-square" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="Add to My Shadows" @click="addShadowDirect(s)"><AegisIcon name="user-plus" :size="14" /></button>
+            <button v-if="s.slug" type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(s.slug, 'provider')"><AegisIcon name="eye" :size="14" /></button>
           </div>
         </div>
       </div>
@@ -1121,12 +1131,20 @@
 
       <div class="provider-grid">
         <div v-for="s in pagedMyShadows" :key="s.id" class="ms-grid-card spc-card" @click="viewProfile(s.shadow_slug)">
+          <!-- Top-left: AI match badge -->
           <div class="spc-top-pills">
-            <span class="rsc-ai-icon" :data-tooltip="'AI matched — ' + (s.match_score || 0) + '% fit based on your clinical focus'"><AegisIcon name="sparkle-cluster" :size="12" /></span>
+            <span class="rsp-match" :data-tooltip="(s.match_score || 0) + '% AI match based on your clinical focus'">
+              <AegisIcon name="sparkle-cluster" :size="10" /> {{ s.match_score || '—' }}{{ s.match_score ? '%' : '' }} <span style="font-size:9px;font-weight:600;opacity:.75;letter-spacing:0.3px">AI Match</span>
+            </span>
           </div>
-          <div v-if="s.peer_rating" class="spc-rating" :data-tooltip="s.peer_rating + ' from peer reviews'">
-            <AegisIcon name="star" :size="11" />
-            {{ Number(s.peer_rating).toFixed(1) }}
+          <!-- Top-right: rating + always-in-network icon -->
+          <div style="position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:5px;z-index:2">
+            <span class="rsp-rating" :data-tooltip="(s.peer_rating || 0) + ' from peer reviews'">
+              <AegisIcon name="star" :size="10" :filled="true" /> {{ Number(s.peer_rating || 0).toFixed(1) }}
+            </span>
+            <span class="spc-status-icon ok" data-tooltip="In your network">
+              <AegisIcon name="user-check" :size="12" />
+            </span>
           </div>
           <div class="spc-body">
             <div class="spc-avatar">{{ s.shadow_initials }}</div>
@@ -1196,7 +1214,7 @@
                   <div class="cfg-panel-subtitle">Select provider types you want in your referral network</div>
                 </div>
               </div>
-              <div class="cfg-panel-meta">
+              <div class="cfg-panel-meta" style="display:flex;align-items:center;gap:10px">
                 <span class="cfg-selected-count show">{{ selectedCount('team') }} selected</span>
               </div>
             </div>
@@ -1228,7 +1246,7 @@
                   <div class="cfg-panel-subtitle">Select all specialties that apply to your practice</div>
                 </div>
               </div>
-              <div class="cfg-panel-meta">
+              <div class="cfg-panel-meta" style="display:flex;align-items:center;gap:10px">
                 <span class="cfg-selected-count show">{{ selectedCount('specialties') }} selected</span>
               </div>
             </div>
@@ -1259,7 +1277,7 @@
                   <div class="cfg-panel-subtitle">Modalities you use in practice — CBT, DBT, EMDR, IFS, and more</div>
                 </div>
               </div>
-              <div class="cfg-panel-meta">
+              <div class="cfg-panel-meta" style="display:flex;align-items:center;gap:10px">
                 <span class="cfg-selected-count show">{{ selectedCount('approaches') }} selected</span>
               </div>
             </div>
@@ -1290,7 +1308,7 @@
                   <div class="cfg-panel-subtitle">Select all insurance plans you currently accept</div>
                 </div>
               </div>
-              <div class="cfg-panel-meta">
+              <div class="cfg-panel-meta" style="display:flex;align-items:center;gap:10px">
                 <span class="cfg-selected-count show">{{ selectedCount('insurance') }} selected</span>
               </div>
             </div>
@@ -1324,7 +1342,7 @@
                   <div class="cfg-panel-subtitle">Select all credentials and licenses you hold</div>
                 </div>
               </div>
-              <div class="cfg-panel-meta">
+              <div class="cfg-panel-meta" style="display:flex;align-items:center;gap:10px">
                 <span class="cfg-selected-count show">{{ selectedCount('credentials') }} selected</span>
               </div>
             </div>
@@ -1357,7 +1375,7 @@
                   <div class="cfg-panel-subtitle">How and what you provide to clients</div>
                 </div>
               </div>
-              <div class="cfg-panel-meta">
+              <div class="cfg-panel-meta" style="display:flex;align-items:center;gap:10px">
                 <span class="cfg-selected-count show">{{ selectedCount('services') }} selected</span>
               </div>
             </div>
@@ -1433,7 +1451,7 @@
                   <div class="cfg-panel-subtitle">Helps clients find culturally matched practitioners</div>
                 </div>
               </div>
-              <div class="cfg-panel-meta">
+              <div class="cfg-panel-meta" style="display:flex;align-items:center;gap:10px">
                 <span class="cfg-selected-count show">{{ selectedCount('demographics') }} selected</span>
               </div>
             </div>
@@ -1472,7 +1490,7 @@
                   <div class="cfg-panel-subtitle">Languages you can conduct sessions in</div>
                 </div>
               </div>
-              <div class="cfg-panel-meta">
+              <div class="cfg-panel-meta" style="display:flex;align-items:center;gap:10px">
                 <span class="cfg-selected-count show">{{ selectedCount('languages') }} selected</span>
               </div>
             </div>
@@ -1500,7 +1518,7 @@
                   <div class="cfg-panel-subtitle">LGBTQ+ identity and religious/spiritual orientation — all optional</div>
                 </div>
               </div>
-              <div class="cfg-panel-meta">
+              <div class="cfg-panel-meta" style="display:flex;align-items:center;gap:10px">
                 <span class="cfg-selected-count show">{{ selectedCount('identity') }} selected</span>
               </div>
             </div>
@@ -1656,9 +1674,9 @@
           <div class="nw-cfg-save-bar">
             <span class="cfg-save-hint">{{ configDirtyCount }} unsaved change{{ configDirtyCount === 1 ? '' : 's' }}</span>
             <button type="button" class="btn btn-outline" @click="resetConfig">Reset Changes</button>
-            <button type="button" class="btn btn-primary" @click="saveConfig">
-              <AegisIcon name="save" :size="14" />
-              Save Configuration
+            <button type="button" class="btn btn-primary" :disabled="cfgSaving" @click="saveConfig">
+              <AegisIcon :name="cfgSaving ? 'refresh' : 'save'" :size="14" :style="cfgSaving ? 'animation:spin 1s linear infinite' : ''" />
+              {{ cfgSaving ? 'Saving…' : 'Save Configuration' }}
             </button>
           </div>
         </div>
@@ -2060,10 +2078,33 @@ function confirmDisconnect(nc) {
 function confirmRemoveShadow(s) {
   confirmAction(
     { title: 'Remove shadow?', message: (s.shadow_name || 'This shadow') + ' will be removed from your shadow network.', confirmLabel: 'Remove', destructive: true },
-    () => router.delete(route('provider.network.disconnect', { connection: s.id }), {
-      onSuccess: () => toast.info('Shadow removed'),
+    () => router.delete(route('provider.network.shadow.remove', { shadowConnection: s.id }), {
+      preserveScroll: true,
+      onSuccess: () => toast.info('Shadow removed.'),
     })
   )
+}
+
+// Direct-add from RT candidate card — no modal, immediate POST
+const shadowAddForm = useForm({ shadow_user_id: '', display_name: '' })
+function addShadowDirect(s) {
+  shadowAddForm.shadow_user_id = s.id    ?? ''
+  shadowAddForm.display_name   = s.name  ?? s.shadow_name ?? ''
+  shadowAddForm.post(route('provider.network.shadow.add'), {
+    preserveScroll: true,
+    onSuccess: () => {
+      // Remove from list immediately — match by id when available, else by name
+      if (s.id) {
+        addedToShadowIds.value.add(s.id)
+        rtCandidates.value = rtCandidates.value.filter(c => c.id !== s.id)
+      } else {
+        rtCandidates.value = rtCandidates.value.filter(c => c.name !== s.name)
+      }
+      toast.success((s.name || 'Provider') + ' added to My Shadows.')
+      router.reload({ only: ['shadowConnections', 'stats'], preserveScroll: true })
+    },
+    onError: () => toast.error('Could not add to shadows.'),
+  })
 }
 
 // ── Invite Provider ────────────────────────────────────────────────────────
@@ -2521,8 +2562,10 @@ const hasMorePartners    = computed(() => filteredPartners.value.length > pagedP
 
 const filteredRtCandidates = computed(() => {
   const q = rtSearch.value.toLowerCase()
-  if (!q) return rtCandidates.value
-  return rtCandidates.value.filter(s =>
+  // Filter by ID for real users; name-based filter handled by direct splice in addShadowDirect
+  let list = rtCandidates.value.filter(s => !s.id || !addedToShadowIds.value.has(s.id))
+  if (!q) return list
+  return list.filter(s =>
     s.name.toLowerCase().includes(q) || s.role.toLowerCase().includes(q) || s.location.toLowerCase().includes(q)
   )
 })
@@ -2657,6 +2700,11 @@ const avgBpRatingDisplay = computed(() => {
   if (!vals.length) return '—'
   return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1)
 })
+
+// Track IDs added to shadows this session — hide from RT list immediately
+const addedToShadowIds = ref(new Set(
+  (props.shadowConnections || []).map(s => s.shadow_user_id).filter(Boolean)
+))
 
 const rtCandidates = ref([
   { name:'Alicia Reeves, LPC',     id:'', slug:'', initials:'AR', role:'Licensed Professional Counselor',  location:'New York, NY', tags:['ACT','Stress','Life Transitions'] },
@@ -3046,13 +3094,37 @@ function scrollToConfigPanel(id) {
 function toggleConfigPanel(id) {
   activeConfigPanel.value = activeConfigPanel.value === id ? '' : id
 }
+// Config save forms — must be declared at setup time, not inside functions
+const networkPrefsForm = useForm({
+  network_accepting:  true,
+  network_insurance:  [],
+  network_languages:  [],
+})
+const partnersForm = useForm({ partners: [] })
+
+const cfgSaving = ref(false)
 function saveConfig() {
-  // Backend wiring lives in Phase 4 (ProviderProfileController::updateNetwork).
-  // Frontend collects state today so the panels feel live and are ready to POST.
-  toast.success('Configuration saved.')
+  cfgSaving.value = true
+
+  networkPrefsForm.network_accepting = true
+  networkPrefsForm.network_insurance = [...cfgSelected.insurance]
+  networkPrefsForm.network_languages = [...cfgSelected.languages]
+
+  networkPrefsForm.put(route('provider.profile.network'), {
+    preserveScroll: true,
+    onError: () => { cfgSaving.value = false; toast.error('Could not save preferences.') },
+  })
+
+  partnersForm.partners = [...cfgSelected.team]
+  partnersForm.put(route('provider.profile.network-partners'), {
+    preserveScroll: true,
+    onSuccess: () => { cfgSaving.value = false; toast.success('Configuration saved.') },
+    onError:   () => { cfgSaving.value = false; toast.error('Could not save configuration.') },
+  })
 }
 function resetConfig() {
-  cfgSelected.team         = ['Psychotherapist', 'Psychologist', 'Psychiatrist']
+  // Selections — all empty except locked defaults
+  cfgSelected.team         = []
   cfgSelected.specialties  = []
   cfgSelected.approaches   = []
   cfgSelected.insurance    = []
@@ -3060,13 +3132,29 @@ function resetConfig() {
   cfgSelected.services     = []
   cfgSelected.states       = []
   cfgSelected.demographics = []
-  cfgSelected.languages    = ['English']
+  cfgSelected.languages    = []
   cfgSelected.identity     = []
   cfgSelected.rates        = []
-  cfgSearch.team = ''; cfgSearch.specialties = ''
-  cfgSearch.approaches = ''; cfgSearch.insurance = ''
-  cfgSearch.credentials = ''; cfgSearch.languages = ''
-  toast.info('Changes reset.')
+  // Search inputs
+  Object.keys(cfgSearch).forEach(k => { cfgSearch[k] = '' })
+  // Fields
+  cfgFields.license_number     = ''
+  cfgFields.primary_state      = ''
+  cfgFields.years_in_practice  = ''
+  cfgFields.session_length     = ''
+  cfgFields.rate_per_session   = 0
+  cfgFields.sliding_scale_min  = 0
+  cfgFields.sliding_scale_max  = 0
+  cfgFields.max_partners       = ''
+  cfgFields.geographic_radius  = ''
+  cfgFields.referral_urgency   = ''
+  cfgFields.ai_match_frequency = ''
+  cfgFields.sex_assigned       = ''
+  // Notifications — all off
+  Object.keys(cfgNotifications).forEach(k => { cfgNotifications[k] = false })
+  // Privacy — all off
+  Object.keys(cfgPrivacy).forEach(k => { cfgPrivacy[k] = false })
+  toast.info('All configuration cleared.')
 }
 </script>
 
@@ -3400,4 +3488,6 @@ button.toggle::after {
 button.toggle.on::after { transform: translate(18px, -50%); }
 button.toggle.on        { background: var(--gold-dark); }
 button.toggle:focus-visible { box-shadow: var(--focus-ring); }
+
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>

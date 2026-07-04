@@ -182,6 +182,7 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
         Route::delete('/network/{connection}', [NetworkController::class, 'disconnect'])->name('network.disconnect');
         Route::post('/network/invite', [NetworkController::class, 'invite'])->name('network.invite');
         Route::post('/network/shadow/add', [NetworkController::class, 'addShadow'])->name('network.shadow.add');
+        Route::delete('/network/shadow/{shadowConnection}', [NetworkController::class, 'removeShadow'])->name('network.shadow.remove');
 
         // Referrals
         Route::get('/referrals', [ReferralsController::class, 'index'])->name('referrals.index');

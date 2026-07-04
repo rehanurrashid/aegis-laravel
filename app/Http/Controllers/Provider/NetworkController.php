@@ -93,15 +93,20 @@ class NetworkController extends Controller
             ->map(function ($sc) {
                 $shadow = $sc->shadowUser;
                 return [
-                    'id'               => $sc->id,
-                    'shadow_name'      => $shadow?->display_name ?? $sc->shadow_name ?? '',
-                    'shadow_initials'  => $shadow?->avatar_initials
+                    'id'                  => $sc->id,
+                    'shadow_name'         => $shadow?->display_name ?? $sc->shadow_name ?? '',
+                    'shadow_initials'     => $shadow?->avatar_initials
                         ?? strtoupper(substr($sc->shadow_name ?? 'SC', 0, 2)),
-                    'shadow_role'      => $shadow?->title ?? '',
-                    'shadow_location'  => $shadow?->location ?? '',
-                    'shadow_specialty' => $shadow?->specialty ?? '',
-                    'shadow_user_id'   => $sc->shadow_user_id,
-                    'shadow_slug'      => $shadow?->slug ?? '',
+                    'shadow_role'         => $shadow?->title ?? '',
+                    'shadow_location'     => $shadow?->location ?? '',
+                    'shadow_specialty'    => $shadow?->specialty ?? '',
+                    'shadow_user_id'      => $sc->shadow_user_id,
+                    'shadow_slug'         => $shadow?->slug ?? '',
+                    // Stats — pulled from UserMeta where seeded, else zero
+                    'match_score'         => 0,
+                    'peer_rating'         => 0,
+                    'referral_count'      => 0,
+                    'response_time_hours' => 0,
                 ];
             })->values();
 
@@ -377,14 +382,47 @@ class NetworkController extends Controller
     public function addShadow(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'display_name' => 'required|string|max:191',
-            'note'         => 'nullable|string|max:500',
+            'shadow_user_id' => 'nullable|exists:users,id',
+            'display_name'   => 'nullable|string|max:191',
+            'note'           => 'nullable|string|max:500',
         ]);
-        $this->network->addShadowManual(
-            $request->user(),
-            $data['display_name'],
-            $data['note'] ?? null
-        );
-        return back()->with('success', 'Added to your referral list.');
+
+        $user = $request->user();
+
+        if (!empty($data['shadow_user_id'])) {
+            // Direct add by user ID (from search/RSP card)
+            $existing = \App\Models\ShadowConnection::where('user_id', $user->id)
+                ->where('shadow_user_id', $data['shadow_user_id'])
+                ->whereNull('deleted_at')
+                ->first();
+            if ($existing) {
+                return back()->with('info', 'Already in your shadow network.');
+            }
+            \App\Models\ShadowConnection::create([
+                'id'             => 'sc_' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(12)),
+                'user_id'        => $user->id,
+                'shadow_user_id' => $data['shadow_user_id'],
+                'source'         => 'direct',
+            ]);
+        } else {
+            // Manual add by name (from the manual entry modal)
+            $this->network->addShadowManual(
+                $user,
+                $data['display_name'] ?? 'Unknown',
+                $data['note'] ?? null
+            );
+        }
+
+        return back()->with('success', 'Added to your shadow network.');
+    }
+
+    /**
+     * Remove a shadow connection.
+     */
+    public function removeShadow(Request $request, \App\Models\ShadowConnection $shadowConnection): RedirectResponse
+    {
+        abort_if($shadowConnection->user_id !== $request->user()->id, 403);
+        $shadowConnection->delete();
+        return back()->with('success', 'Shadow removed.');
     }
 }
