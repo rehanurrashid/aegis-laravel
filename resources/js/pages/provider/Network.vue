@@ -942,10 +942,10 @@
             <div class="stat-chip-label">Avg Partner Rating</div>
           </div>
         </div>
-        <div class="stat-chip" :data-tooltip="stats.bp_pending ? stats.bp_pending + ' pending requests' : 'No pending requests'">
+        <div class="stat-chip" :data-tooltip="stats.bp_pending > 0 ? stats.bp_pending + ' outbound connection requests pending' : 'No pending requests sent'">
           <div class="stat-chip-icon nw-chip-gold"><AegisIcon name="clock" :size="18" /></div>
           <div>
-            <div class="stat-chip-value">{{ stats.bp_pending ?? stats.pending_requests ?? '—' }}</div>
+            <div class="stat-chip-value">{{ stats.bp_pending !== undefined ? (stats.bp_pending || '—') : '—' }}</div>
             <div class="stat-chip-label">Pending Requests</div>
           </div>
         </div>
@@ -2203,14 +2203,22 @@ function providerHaystack(p) {
 const searchResults = computed(() => {
   const groups = Object.entries(appliedFilters).filter(([, vals]) => vals.length)
   let base = allProviders.value
+
+  // Keyword search (clinicalSearch input in the toolbar)
+  const q = clinicalSearch.value.toLowerCase().trim()
+  if (q) base = base.filter(p => providerHaystack(p).includes(q))
+
   if (groups.length) {
     base = base.filter((p) => {
       const hay = providerHaystack(p)
       return groups.every(([, vals]) => vals.some((v) => hay.includes(String(v).toLowerCase())))
     })
   }
-  // Clinical-service toggle: float services-enabled providers to top; all
-  // providers remain visible (intent is surfacing, not filtering).
+
+  // Sort
+  if (searchSort.value === 'Highest Rated') base = [...base].sort((a, b) => (b.rating || 0) - (a.rating || 0))
+
+  // Clinical-service toggle: float services-enabled providers to top
   if (clinicalServiceOnly.value) {
     return [...base].sort((a, b) => (b.has_services ? 1 : 0) - (a.has_services ? 1 : 0))
   }
@@ -2411,8 +2419,8 @@ const filteredPartners = computed(() => {
   if (bpSort.value === 'Highest Rated') results = [...results].sort((a, b) => (b.rating || 0) - (a.rating || 0))
   if (bpSort.value === 'Most Jobs')     results = [...results].sort((a, b) => (b.jobs || 0) - (a.jobs || 0))
   if (bpSort.value === 'Lowest Rate')   results = [...results].sort((a, b) => {
-    const ra = parseInt(String(a.rate).replace(/[^0-9]/g, '')) || 9999
-    const rb = parseInt(String(b.rate).replace(/[^0-9]/g, '')) || 9999
+    const ra = a.rate_cents || (parseInt(String(a.rate || '').replace(/[^0-9]/g, '')) * 100) || 999999
+    const rb = b.rate_cents || (parseInt(String(b.rate || '').replace(/[^0-9]/g, '')) * 100) || 999999
     return ra - rb
   })
 
@@ -2550,7 +2558,7 @@ const bpEngOptions = [
 ]
 
 // ── Pagination watchers — placed here so every ref they touch is declared ──
-watch([clinicalSearch, clinicalServiceOnly], () => { spPage.value = 1 })
+watch([clinicalSearch, clinicalServiceOnly, searchSort], () => { spPage.value = 1 })
 watch(rtSearch, () => { rtPage.value = 1 })
 watch(bizSearch, () => { myNetworkPage.value = 1; myPartnersPage.value = 1 })
 watch([bpSearch, bpCategory, bpTypeFilter, bpRateMin, bpRateMax, bpExpLevel,

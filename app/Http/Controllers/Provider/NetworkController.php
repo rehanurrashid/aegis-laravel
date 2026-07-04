@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
+use App\Models\BpContract;
 use App\Models\NetworkConnection;
 use App\Models\NetworkRequest as NetworkRequestModel;
 use App\Models\Referral;
@@ -196,6 +197,13 @@ class NetworkController extends Controller
                 $rateDollars = $u->bp_hourly_rate_cents
                     ? '$' . number_format($u->bp_hourly_rate_cents / 100) . '/hr'
                     : null;
+                // Jobs completed = count of active+completed contracts for this BP
+                $jobsCompleted = BpContract::where('bp_id', $u->id)
+                    ->whereIn('status', ['active', 'completed'])
+                    ->count();
+                $bpTypeVal = $u->bp_type instanceof \BackedEnum
+                    ? $u->bp_type->value
+                    : (string) ($u->bp_type ?? '');
                 return [
                     'id'          => $u->id,
                     'slug'        => $u->slug ?? '',
@@ -204,11 +212,13 @@ class NetworkController extends Controller
                     'role'        => $u->title ?? '',
                     'location'    => $u->location ?? '',
                     'tags'        => array_values(array_filter(array_map('trim', explode(',', (string) ($u->specialty ?? ''))))),
-                    'rating'      => 0.0,
+                    'rating'      => 0.0,   // Phase 4: peer-review aggregation
                     'reviews'     => 0,
-                    'jobs'        => 0,
+                    'jobs'        => $jobsCompleted,
                     'rate'        => $rateDollars ?? '—',
-                    'partnerType' => strtoupper($u->bp_type instanceof \BackedEnum ? $u->bp_type->value : (string) ($u->bp_type ?? 'partner')),
+                    'rate_cents'  => (int) ($u->bp_hourly_rate_cents ?? 0),
+                    'partnerType' => $bpTypeVal ? strtoupper($bpTypeVal) : '',
+                    'kind'        => 'business',
                     'category'    => strtolower($u->title ?? ''),
                     'has_services'=> (bool) $u->services_mode,
                     'networkStatus' => in_array($u->id, $connectedIds, true)
@@ -218,9 +228,9 @@ class NetworkController extends Controller
             })->values();
 
         // Real BP stats for My Partners chips
-        $bpActiveCount     = $business->count();
-        $bpPendingCount    = $this->network->getPendingRequests($user->id)
-            ->filter(fn($r) => ($r->requester?->role ?? '') === 'business_partner')
+        $bpActiveCount = $business->count();
+        $activeContracts = BpContract::where('practitioner_id', $user->id)
+            ->where('status', 'active')
             ->count();
         $myReferrals = Referral::where('sender_id', $user->id)
             ->orWhere('recipient_id', $user->id)
@@ -266,11 +276,15 @@ class NetworkController extends Controller
             'bpDirectory'                  => $bpDirectory,
             'stats'                        => [
                 'clinical'         => $clinical->count(),
-                'bp_count'         => $bpActiveCount,
-                'bp_pending'       => $bpPendingCount,
+                'bp_count'         => $activeContracts,
+                // All outbound pending connection requests (sent by this user, not yet responded to)
+                'bp_pending'       => NetworkRequestModel::where('requester_id', $user->id)
+                    ->where('status', 'pending')
+                    ->count(),
                 'total_refs'       => $totalRefs,
                 'avg_acc'          => $avgAcc,
                 'avg_resp'         => $avgResp,
+                // Incoming requests awaiting this user's response
                 'pending_requests' => $pending->count(),
                 'active_shadows'   => $shadows->count(),
             ],
