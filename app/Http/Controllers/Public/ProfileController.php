@@ -6,7 +6,9 @@ namespace App\Http\Controllers\Public;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Models\BpContract;
 use App\Models\NetworkConnection;
+use App\Models\NetworkRequest;
 use App\Models\ServiceRequest;
 use App\Models\VaultItem;
 use App\Services\ProfileService;
@@ -204,12 +206,67 @@ class ProfileController extends Controller
             $user->makeHidden(['email', 'phone']);
         }
 
+        // ── Connection status for viewer ───────────────────────────────────────
+        $connectionStatus = 'not-connected'; // 'connected' | 'pending-sent' | 'pending-received' | 'not-connected'
+        $connectionId     = null;
+        $pendingRequestId = null;
+
+        if ($viewer && ! $isOwner) {
+            $conn = NetworkConnection::where(function ($q) use ($viewer, $user) {
+                $q->where('user_id', $viewer->id)->where('connected_user_id', $user->id);
+            })->orWhere(function ($q) use ($viewer, $user) {
+                $q->where('user_id', $user->id)->where('connected_user_id', $viewer->id);
+            })->where('status', 'active')->first();
+
+            if ($conn) {
+                $connectionStatus = 'connected';
+                $connectionId     = $conn->id;
+            } else {
+                $outbound = \App\Models\NetworkRequest::where('requester_id', $viewer->id)
+                    ->where('recipient_id', $user->id)
+                    ->where('status', 'pending')->first();
+                $inbound  = \App\Models\NetworkRequest::where('requester_id', $user->id)
+                    ->where('recipient_id', $viewer->id)
+                    ->where('status', 'pending')->first();
+
+                if ($outbound) { $connectionStatus = 'pending-sent';     $pendingRequestId = $outbound->id; }
+                elseif ($inbound) { $connectionStatus = 'pending-received'; $pendingRequestId = $inbound->id; }
+            }
+        }
+
+        // ── Real stats ─────────────────────────────────────────────────────────
+        $completedContracts = \App\Models\BpContract::where('bp_id', $user->id)
+            ->where('status', 'completed')->count();
+        $activeContracts    = \App\Models\BpContract::where('bp_id', $user->id)
+            ->where('status', 'active')->count();
+
+        // ── Reviews from UserMeta ──────────────────────────────────────────────
+        $reviewsMeta = $user->meta()->where('meta_key', 'peer_reviews')->first();
+        $reviews     = $reviewsMeta ? (json_decode((string) $reviewsMeta->meta_value, true) ?? []) : [];
+        $avgRating   = count($reviews) ? round(collect($reviews)->avg('stars'), 1) : null;
+
         return Inertia::render('public/BusinessProfile', [
-            'user'        => $user,
-            'profileMeta' => $profileMeta,
-            'viewerRole'  => $viewer?->role?->value ?? null,
-            'isOwner'     => $isOwner,
-            'isLoggedIn'  => $isLoggedIn,
+            'user'             => $user,
+            'profileMeta'      => $profileMeta,
+            'viewerRole'       => $viewer?->role?->value ?? null,
+            'isOwner'          => $isOwner,
+            'isLoggedIn'       => $isLoggedIn,
+            // Connection
+            'connectionStatus' => $connectionStatus,   // 'connected'|'pending-sent'|'pending-received'|'not-connected'
+            'connectionId'     => $connectionId,
+            'pendingRequestId' => $pendingRequestId,
+            // Stats
+            'bpStats' => [
+                'completed_contracts' => $completedContracts,
+                'active_contracts'    => $activeContracts,
+                'avg_rating'          => $avgRating,
+                'review_count'        => count($reviews),
+                'hourly_rate'         => $user->bp_hourly_rate_cents
+                    ? '$' . number_format($user->bp_hourly_rate_cents / 100) . '/hr'
+                    : null,
+            ],
+            // Reviews
+            'reviews' => collect($reviews)->sortByDesc('created_at')->take(5)->values()->toArray(),
         ]);
     }
 }

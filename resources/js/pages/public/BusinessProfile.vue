@@ -22,7 +22,6 @@
               <div class="hero-badges">
                 <span class="badge badge-green"><span class="badge-dot"></span>Accepting Clients</span>
                 <span v-if="user.verified" class="badge badge-blue"><AegisIcon name="check" :size="10" />Aegis Verified</span>
-                <span class="badge badge-blue"><AegisIcon name="shield" :size="10" />BAA-Ready</span>
               </div>
             </div>
           </div>
@@ -34,8 +33,9 @@
             <template v-else-if="isLoggedIn">
               <button type="button" class="btn-hero-solid is-on-light" @click="openHireModal"><AegisIcon name="check" :size="14" /> Hire</button>
               <button type="button" class="btn-hero-ghost is-on-light" @click="openRequestQuoteModal"><AegisIcon name="clipboard" :size="14" /> Quote</button>
-              <button type="button" class="btn-hero-ghost is-on-light is-icon-only" data-tooltip="Message" :disabled="msgLoading === user.id" @click="openConversation(user.id)"><AegisIcon name="message" :size="14" /></button>
-              <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="toast.success('Saved to favorites')" data-tooltip="Save" aria-label="Save"><AegisIcon name="star" :size="14" /></button>
+              <button v-if="isConnected" type="button" class="btn-hero-ghost is-on-light is-icon-only" data-tooltip="Message" :disabled="msgLoading === user.id" @click="openConversation(user.id)"><AegisIcon name="message" :size="14" /></button>
+              <button v-if="!isConnected && !isPendingSent" type="button" class="btn-hero-ghost is-on-light" @click="showConnectModal = true"><AegisIcon name="user-plus" :size="14" /> Connect</button>
+              <button v-if="isPendingSent" type="button" class="btn-hero-ghost is-on-light" @click="cancelConnect"><AegisIcon name="x" :size="14" /> Cancel Request</button>
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Share" aria-label="Share"><AegisIcon name="link" :size="14" /></button>
             </template>
             <template v-else>
@@ -46,21 +46,35 @@
         </div>
         <div class="hero-meta">
           <span v-if="user.location" class="hero-meta-item"><AegisIcon name="map-pin" :size="12" />{{ user.location }}</span>
-          <span class="hero-meta-item is-rating"><AegisIcon name="star" :size="12" class="aegis-icon-filled" />{{ pm.rating ?? '4.6' }} <span class="rating-count">({{ pm.review_count ?? 87 }})</span></span>
-          <span class="hero-meta-item"><AegisIcon name="briefcase" :size="12" />{{ pmStats.jobs_completed ?? 42 }} projects</span>
-          <span class="hero-meta-item"><AegisIcon name="clock" :size="12" />~{{ pmStats.response_time ?? '24h' }}</span>
+          <span v-if="displayRating" class="hero-meta-item is-rating"><AegisIcon name="star" :size="12" class="aegis-icon-filled" />{{ displayRating }} <span class="rating-count">({{ reviewCount }} reviews)</span></span>
+          <span class="hero-meta-item"><AegisIcon name="briefcase" :size="12" />{{ completedJobs }} projects</span>
+          <span v-if="pmStats.response_time" class="hero-meta-item"><AegisIcon name="clock" :size="12" />~{{ pmStats.response_time }}</span>
           <span v-if="user.bp_team_size" class="hero-meta-item"><AegisIcon name="user" :size="12" />Team of {{ user.bp_team_size }}</span>
-          <span class="hero-meta-item"><AegisIcon name="calendar" :size="12" />Mon-Fri 9-5 EST</span>
+          <span v-if="hourlyRate" class="hero-meta-item"><AegisIcon name="dollar" :size="12" />{{ hourlyRate }}</span>
         </div>
       </div>
 
       <!-- ═══ STAT CHIPS ═══ -->
       <div class="stat-chips-row">
-        <AegisStatChip icon="briefcase" :value="pmStats.jobs_completed ?? 42" label="Projects Done" />
-        <AegisStatChip icon="star" :value="pm.rating ?? '4.6'" label="Client Rating" />
-        <AegisStatChip icon="clock" :value="'~' + (pmStats.response_time ?? '24h')" label="Response Time" />
-        <AegisStatChip icon="check" value="96%" label="On-Time Delivery" />
-        <AegisStatChip icon="dollar" :value="hourlyRate + '/hr'" label="Hourly Rate" />
+        <AegisStatChip icon="briefcase" :value="completedJobs || '—'" label="Projects Done" />
+        <AegisStatChip icon="star"      :value="displayRating || '—'" label="Client Rating" />
+        <AegisStatChip icon="clock"     :value="pmStats.response_time ? '~' + pmStats.response_time : '—'" label="Response Time" />
+        <AegisStatChip icon="check"     :value="pmStats.on_time_rate ? pmStats.on_time_rate + '%' : '—'" label="On-Time Delivery" />
+        <AegisStatChip icon="dollar"    :value="hourlyRate || '—'" label="Hourly Rate" />
+      </div>
+
+      <!-- ═══ ENGAGEMENT ACTIVITY TRACKER (below hero, logged-in non-owner) ═══ -->
+      <div v-if="isLoggedIn && !isOwner && sentEngagements.length" class="bp-eng-tracker">
+        <div class="bp-eng-tracker-head">
+          <span class="bp-eng-tracker-label"><AegisIcon name="clock" :size="12" /> Your requests to this partner</span>
+          <span>{{ sentEngagements.length }} sent this session</span>
+        </div>
+        <div v-for="(eng, i) in sentEngagements" :key="i" class="bp-eng-row">
+          <AegisIcon name="briefcase" :size="14" />
+          <span class="bp-eng-type">{{ eng.label }}</span>
+          <span class="bp-eng-status">{{ eng.status }}</span>
+          <span class="bp-eng-time">{{ eng.time }}</span>
+        </div>
       </div>
 
       <!-- ENGAGEMENT ACTIONS PANEL (non-owner) -->
@@ -149,19 +163,23 @@
 
           <div class="pp-section">
             <div class="pp-section-title"><AegisIcon name="star" :size="13" class="aegis-icon-filled aegis-icon-gold-dark" /> Client Reviews</div>
-            <div v-for="rev in clientReviews" :key="rev.name" style="margin-bottom:12px;padding:14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm)">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                <div style="font-size:13px;font-weight:700;color:var(--text)">{{ rev.name }}</div>
-                <div style="display:flex;gap:1px">
-                  <AegisIcon v-for="i in rev.stars" :key="'f'+i" name="star" :size="13" class="aegis-icon-filled aegis-icon-gold-dark" />
-                  <AegisIcon v-for="i in (5-rev.stars)" :key="'e'+i" name="star" :size="13" class="aegis-icon-muted" />
+            <div v-if="reviews.length">
+              <div v-for="rev in reviews" :key="rev.created_at" style="margin-bottom:12px;padding:14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm)">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                  <div style="font-size:13px;font-weight:700;color:var(--text)">{{ rev.name }}</div>
+                  <div style="display:flex;gap:1px">
+                    <AegisIcon v-for="i in rev.stars" :key="'f'+i" name="star" :size="13" class="aegis-icon-filled aegis-icon-gold-dark" />
+                    <AegisIcon v-for="i in (5-rev.stars)" :key="'e'+i" name="star" :size="13" class="aegis-icon-muted" />
+                  </div>
                 </div>
+                <div v-if="rev.headline" style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:4px">{{ rev.headline }}</div>
+                <div style="font-size:12px;color:var(--text-2);line-height:1.6;font-style:italic">{{ rev.quote }}</div>
+                <div style="font-size:11px;color:var(--text-3);font-weight:600;margin-top:6px">{{ rev.eng_type ? rev.eng_type + ' · ' : '' }}{{ rev.meta }}</div>
               </div>
-              <div style="font-size:12px;color:var(--text-2);line-height:1.6;font-style:italic">{{ rev.quote }}</div>
-              <div style="font-size:11px;color:var(--text-3);font-weight:600;margin-top:6px">{{ rev.meta }}</div>
             </div>
+            <div v-else style="font-size:13px;color:var(--text-3);padding:12px 0">No reviews yet.</div>
             <div style="display:flex;align-items:center;justify-content:space-between;padding-top:14px;font-size:12px;color:var(--text-3)">
-              Client Rating: <strong style="color:var(--gold-dark)">{{ pm.rating ?? '4.6' }}/5.0</strong> from {{ pm.review_count ?? 87 }} reviews
+              <span>Client Rating: <strong style="color:var(--gold-dark)">{{ displayRating ? displayRating + '/5.0' : 'No ratings yet' }}</strong>{{ reviewCount ? ' from ' + reviewCount + ' reviews' : '' }}</span>
               <button v-if="isLoggedIn && !isOwner" class="btn btn-outline btn-sm" @click="openLeaveReviewModal"><AegisIcon name="plus" :size="13" /> Leave Review</button>
             </div>
           </div>
@@ -213,17 +231,28 @@
             <div style="display:flex;gap:5px;flex-wrap:wrap"><span class="tag-chip">English</span><span class="tag-chip">Spanish</span></div>
           </div>
 
-          <div v-if="isLoggedIn && !isOwner" class="pp-section">
+          <div v-if="isLoggedIn && !isOwner && isConnected" class="pp-section">
             <div class="pp-section-title"><AegisIcon name="link" :size="13" class="aegis-icon-gold-dark" /> Connection Info</div>
-            <div class="pp-info-row"><span class="pp-info-label">Connected Since</span><span class="pp-info-val">{{ pmConn.connected_since ?? 'January 2023' }}</span></div>
-            <div class="pp-info-row"><span class="pp-info-label">Active Contract</span><span class="pp-info-val" style="color:var(--green-dark)">{{ pmConn.active_contract ?? 'Yes - Active Project' }}</span></div>
-            <div class="pp-info-row"><span class="pp-info-label">NDA Signed</span><span class="pp-info-val" style="color:var(--green-dark)">{{ pmConn.nda_signed ?? 'Yes' }}</span></div>
-            <div class="pp-info-row"><span class="pp-info-label">BAA Signed</span><span class="pp-info-val" style="color:var(--green-dark)">{{ pmConn.baa_signed ?? 'Yes (HIPAA)' }}</span></div>
-            <div class="pp-info-row" style="border-bottom:none"><span class="pp-info-label">Profile Completeness</span><span class="pp-info-val" style="color:var(--green-dark)">{{ pmConn.profile_completeness ?? '95%' }} Complete</span></div>
+            <div class="pp-info-row"><span class="pp-info-label">Status</span><span class="pp-info-val" style="color:var(--green-dark)">Connected</span></div>
+            <div class="pp-info-row"><span class="pp-info-label">Active Contracts</span><span class="pp-info-val">{{ bpStats.active_contracts || 0 }}</span></div>
+            <div class="pp-info-row" style="border-bottom:none"><span class="pp-info-label">Completed Projects</span><span class="pp-info-val">{{ bpStats.completed_contracts || 0 }}</span></div>
             <div class="pp-action-row">
               <button class="btn-icon btn-icon-danger" data-tooltip="Remove partner" @click="confirmRemovePartner"><AegisIcon name="trash" :size="14" /></button>
             </div>
           </div>
+
+          <div v-else-if="isLoggedIn && !isOwner && isPendingSent" class="pp-section">
+            <div class="pp-section-title"><AegisIcon name="clock" :size="13" class="aegis-icon-gold-dark" /> Connection Pending</div>
+            <p style="font-size:13px;color:var(--text-2);margin:0 0 12px">Your connection request is awaiting a response from {{ businessName }}.</p>
+            <button class="btn btn-outline btn-sm btn-danger-ghost" @click="cancelConnect"><AegisIcon name="x" :size="13" /> Cancel Request</button>
+          </div>
+
+          <div v-else-if="isLoggedIn && !isOwner" class="pp-section">
+            <div class="pp-section-title"><AegisIcon name="user-plus" :size="13" class="aegis-icon-gold-dark" /> Connect</div>
+            <p style="font-size:13px;color:var(--text-2);margin:0 0 12px">Add {{ businessName }} to your network to message them and track engagements.</p>
+            <button class="btn btn-primary btn-sm" @click="showConnectModal = true"><AegisIcon name="user-plus" :size="13" /> Send Connection Request</button>
+          </div>
+
           <div v-else-if="!isLoggedIn" class="pp-section">
             <div class="pp-section-title"><AegisIcon name="lock" :size="13" class="aegis-icon-gold-dark" /> Connection &amp; Contract Info</div>
             <p style="font-size:12px;color:var(--text-3);line-height:1.6;margin:0 0 10px">See active contracts, NDA/BAA status, and connection history with this partner.</p>
@@ -247,6 +276,23 @@
     <template v-if="isLoggedIn && !isOwner">
 
       <!-- Hire Modal -->
+      <!-- Connect Modal -->
+      <AegisModal v-model="showConnectModal" title="Send Connection Request" size="md">
+        <div class="form-group">
+          <label class="form-label">Message <span style="color:var(--text-4);font-weight:500">(optional)</span></label>
+          <textarea class="form-textarea" rows="3"
+            :placeholder="'Hi ' + businessName + ', I\'d love to connect and explore how we can work together...'"
+            v-model="connectForm.message"></textarea>
+        </div>
+        <template #footer>
+          <button class="btn btn-outline" @click="showConnectModal = false">Cancel</button>
+          <button class="btn btn-primary" :disabled="connectForm.processing" @click="sendConnect">
+            <AegisIcon name="user-plus" :size="13" />
+            {{ connectForm.processing ? 'Sending…' : 'Send Request' }}
+          </button>
+        </template>
+      </AegisModal>
+
       <!-- Hire / Engage Modal — centralized BpEngageModal -->
       <BpEngageModal
         v-model="showHireModal"
@@ -256,11 +302,11 @@
           role:     primaryLabel,
           initials: avatarInitials,
           avatar_url: user.avatar_url,
-          rating:   pm.rating ?? null,
+          rating:   displayRating,
           verified: user.verified,
-          rate:     hourlyRate ? '$' + hourlyRate + '/hr' : null,
+          rate:     hourlyRate,
         }"
-        @submitted="toast.success('Engagement request sent — partner notified via Aegis.')"
+        @submitted="submitHireRequest"
       />
 
       <!-- Propose Contract Modal -->
@@ -324,7 +370,7 @@
         <label style="display:flex;align-items:center;gap:10px;font-size:13px;line-height:1.5;cursor:pointer;margin-top:4px"><input type="checkbox" v-model="quoteForm.urgent"> Mark as urgent - request response within 48 hours</label>
         <template #footer>
           <button class="btn btn-outline" @click="showQuoteModal = false">Cancel</button>
-          <button class="btn btn-primary" @click="submitQuote"><span class="btn-ico"><AegisIcon name="send" :size="13" /></span>Send Request</button>
+          <button class="btn btn-primary" :disabled="quoteForm.processing" @click="submitQuote"><span class="btn-ico"><AegisIcon name="send" :size="13" /></span>{{ quoteForm.processing ? 'Sending…' : 'Send Request' }}</button>
         </template>
       </AegisModal>
 
@@ -360,9 +406,10 @@
           </div>
         </div>
         <div class="form-group"><label class="form-label">Agenda / Topics to Discuss</label><textarea class="form-textarea" rows="2" placeholder="What do you want to cover?" v-model="scheduleForm.agenda"></textarea></div>
+        <div v-if="scheduleForm.errors.date" class="alert alert-danger">{{ scheduleForm.errors.date }}</div>
         <template #footer>
           <button class="btn btn-outline" @click="showScheduleModal = false">Cancel</button>
-          <button class="btn btn-primary" @click="submitSchedule"><span class="btn-ico"><AegisIcon name="calendar" :size="13" /></span>Send Request</button>
+          <button class="btn btn-primary" :disabled="scheduleForm.processing" @click="submitSchedule"><span class="btn-ico"><AegisIcon name="calendar" :size="13" /></span>{{ scheduleForm.processing ? 'Sending…' : 'Send Request' }}</button>
         </template>
       </AegisModal>
 
@@ -372,19 +419,23 @@
         <div class="form-group">
           <label class="form-label">Your Rating <span class="req">*</span></label>
           <div class="rating-stars" role="radiogroup" aria-label="Star rating">
-            <button v-for="i in 5" :key="i" type="button" :class="['rating-star', reviewForm.rating >= i ? 'is-on' : '']" @click="reviewForm.rating = i" :aria-label="i + (i === 1 ? ' star' : ' stars')"><AegisIcon name="star" :size="22" /></button>
+            <button v-for="i in 5" :key="i" type="button"
+              :class="['rating-star', reviewForm.rating >= i ? 'is-on' : '']"
+              @click="reviewForm.rating = i"
+              :aria-label="i + (i === 1 ? ' star' : ' stars')"
+            ><AegisIcon name="star" :size="22" :class="reviewForm.rating >= i ? 'aegis-icon-filled' : ''" /></button>
           </div>
         </div>
-        <div class="form-group"><label class="form-label">Headline <span style="color:var(--text-4);font-weight:500">(optional)</span></label><input type="text" class="form-input" placeholder="e.g. Saved us $14k in the first year - great communication" maxlength="80" v-model="reviewForm.headline"></div>
+        <div class="form-group"><label class="form-label">Headline <span style="color:var(--text-4);font-weight:500">(optional)</span></label><input type="text" class="form-input" placeholder="e.g. Saved us $14k in the first year" maxlength="80" v-model="reviewForm.headline"></div>
         <div class="form-group">
           <label class="form-label">Your Review <span class="req">*</span></label>
           <textarea class="form-textarea" rows="4" placeholder="What was the engagement like? Strengths, areas to improve, who is this partner best suited for?" maxlength="600" v-model="reviewForm.body"></textarea>
-          <div class="form-hint">Visible to other clinicians on this profile - 600 chars max</div>
+          <div class="form-hint">Visible to other clinicians — 600 chars max</div>
         </div>
         <div class="form-row form-row-2">
           <div class="form-group">
             <label class="form-label">Engagement Type</label>
-            <select class="form-select" v-model="reviewForm.engType">
+            <select class="form-select" v-model="reviewForm.eng_type">
               <option>Fixed-Scope Project</option><option>Hourly / Time-Based</option><option>Monthly Retainer</option><option>One-Time Consultation</option>
             </select>
           </div>
@@ -395,9 +446,15 @@
             </select>
           </div>
         </div>
+        <div v-if="reviewForm.errors.body || reviewForm.errors.rating" class="alert alert-danger">
+          {{ reviewForm.errors.rating || reviewForm.errors.body }}
+        </div>
         <template #footer>
           <button class="btn btn-outline" @click="showReviewModal = false">Cancel</button>
-          <button class="btn btn-primary" @click="submitReview"><span class="btn-ico"><AegisIcon name="send" :size="13" /></span>Submit Review</button>
+          <button class="btn btn-primary" :disabled="reviewForm.processing" @click="submitReview">
+            <span class="btn-ico"><AegisIcon name="send" :size="13" /></span>
+            {{ reviewForm.processing ? 'Submitting…' : 'Submit Review' }}
+          </button>
         </template>
       </AegisModal>
 
@@ -407,17 +464,27 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { usePage } from '@inertiajs/vue3'
+import { useForm, usePage, router } from '@inertiajs/vue3'
 import PublicLayout from '@/layouts/PublicLayout.vue'
 import AegisModal from '@/components/ui/AegisModal.vue'
 import AegisIcon from '@/components/ui/AegisIcon.vue'
+import AegisStatChip from '@/components/ui/AegisStatChip.vue'
 import BpEngageModal from '@/components/modals/BpEngageModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useMessageButton } from '@/composables/useMessageButton'
 
 const props = defineProps({
-  user:       { type: Object,  required: true }
+  user:             { type: Object,  required: true },
+  profileMeta:      { type: Object,  default: () => ({}) },
+  viewerRole:       { type: String,  default: null },
+  isOwner:          { type: Boolean, default: false },
+  isLoggedIn:       { type: Boolean, default: false },
+  connectionStatus: { type: String,  default: 'not-connected' },  // 'connected'|'pending-sent'|'pending-received'|'not-connected'
+  connectionId:     { type: String,  default: null },
+  pendingRequestId: { type: String,  default: null },
+  bpStats:          { type: Object,  default: () => ({}) },
+  reviews:          { type: Array,   default: () => [] },
 })
 
 const page = usePage()
@@ -425,29 +492,141 @@ const toast = useToast()
 const { confirmAction } = useConfirm()
 const { openConversation, loading: msgLoading } = useMessageButton()
 
-// Derive auth state from Inertia shared props — zero dependency on controller passing them
-const authUser   = computed(() => page.props.auth?.user ?? null)
-const isLoggedIn = computed(() => !!authUser.value)
-const isOwner    = computed(() => isLoggedIn.value && authUser.value?.id === props.user?.id)
-
-const pm        = computed(() => props.user.profile_meta ?? {})
+const pm        = computed(() => props.profileMeta ?? {})
 const pmStats   = computed(() => pm.value.stats ?? {})
 const pmCreds   = computed(() => pm.value.credentials ?? {})
 const pmContact = computed(() => pm.value.contact_meta ?? {})
-const pmConn    = computed(() => pm.value.connection ?? {})
 
 const businessName   = computed(() => props.user.bp_business_name ?? props.user.display_name ?? '')
 const avatarInitials = computed(() => props.user.avatar_initials ?? businessName.value.slice(0, 2).toUpperCase() ?? '??')
 const categories     = computed(() => props.user.bp_categories ?? [])
 const primaryLabel   = computed(() => titleCase((categories.value[0] ?? 'Services').replace(/[_-]/g, ' ')))
-const hourlyRate     = computed(() => props.user.bp_hourly_rate_cents ? '$' + Math.round(props.user.bp_hourly_rate_cents / 100) : '$95')
+const hourlyRate     = computed(() => props.bpStats.hourly_rate ?? (props.user.bp_hourly_rate_cents ? '$' + Math.round(props.user.bp_hourly_rate_cents / 100) + '/hr' : null))
+const displayRating  = computed(() => props.bpStats.avg_rating ?? pmStats.value.avg_rating ?? null)
+const reviewCount    = computed(() => props.bpStats.review_count ?? props.reviews.length ?? 0)
+const completedJobs  = computed(() => props.bpStats.completed_contracts ?? pmStats.value.jobs_completed ?? 0)
 
 function titleCase(str) { return str.replace(/\b\w/g, c => c.toUpperCase()) }
 
-const clientReviews = [
-  { name: 'Dr. Sarah Johnson, LMFT', stars: 5, quote: 'Reliable and detail-oriented. Tax filings always come in early. Knows healthcare-specific deductions inside-out.', meta: 'Solo Practice - 2 years engagement' },
-  { name: 'Lotus Group Practice',    stars: 4, quote: 'Great communicator. Helped us through a complex multi-state restructuring. A few minor scheduling hiccups but always made up for it.', meta: 'Group Practice (8 clinicians) - 1 year engagement' },
-  { name: 'Dr. Marcus Chen, MD',     stars: 5, quote: 'Hands down the most knowledgeable healthcare-focused partner I\'ve worked with. Saved my practice $14k in the first year through better insurance contract negotiation.', meta: 'Solo Practice - 3 years engagement' },
+// ── Engagement status tracker (below hero) ────────────────────────────────
+// Tracks what this viewer has sent to this BP. Stored locally until page reload.
+const sentEngagements = ref([])
+function trackEngagement(type, label) {
+  sentEngagements.value.unshift({ type, label, status: 'Pending', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })
+}
+
+// ── Connection state ──────────────────────────────────────────────────────
+const connectionStatus  = ref(props.connectionStatus)
+const connectionId      = ref(props.connectionId)
+const pendingRequestId  = ref(props.pendingRequestId)
+const isConnected       = computed(() => connectionStatus.value === 'connected')
+const isPendingSent     = computed(() => connectionStatus.value === 'pending-sent')
+
+// ── Modals ────────────────────────────────────────────────────────────────
+const showHireModal     = ref(false)
+const showConnectModal  = ref(false)
+const showQuoteModal    = ref(false)
+const showScheduleModal = ref(false)
+const showReviewModal   = ref(false)
+const showContractModal = ref(false)
+
+// ── Forms ─────────────────────────────────────────────────────────────────
+const connectForm  = useForm({ message: '' })
+const quoteForm    = useForm({ service: '', size: 'Solo Practitioner', budget: '', timeline: '', notes: '', urgent: false })
+const scheduleForm = useForm({ type: 'Video Call', date: '', time: '10:00 AM', duration: '30 minutes', tz: 'EST (New York)', agenda: '' })
+const reviewForm   = useForm({ rating: 0, headline: '', body: '', eng_type: 'Fixed-Scope Project', duration: '1-3 months' })
+
+// ── Actions ───────────────────────────────────────────────────────────────
+function openHireModal()  { showHireModal.value = true }
+function openRequestQuoteModal() { quoteForm.reset(); showQuoteModal.value = true }
+function openScheduleModal()     { scheduleForm.reset(); showScheduleModal.value = true }
+function openLeaveReviewModal()  { reviewForm.reset(); showReviewModal.value = true }
+
+function sendConnect() {
+  connectForm.post(route('public.profile.connect', props.user.id), {
+    preserveScroll: true,
+    onSuccess: () => {
+      connectionStatus.value = 'pending-sent'
+      showConnectModal.value = false
+      toast.success('Connection request sent.')
+    },
+  })
+}
+
+function cancelConnect() {
+  if (!pendingRequestId.value) return
+  confirmAction({ title: 'Cancel Request', message: 'Cancel your connection request to ' + businessName.value + '?', btnLabel: 'Cancel Request', type: 'danger' }, () => {
+    router.delete(route('public.profile.cancel-connect', pendingRequestId.value), {
+      preserveScroll: true,
+      onSuccess: () => { connectionStatus.value = 'not-connected'; pendingRequestId.value = null; toast.success('Request cancelled.') },
+    })
+  })
+}
+
+function confirmRemovePartner() {
+  confirmAction({ title: 'Remove Partner', message: 'Remove ' + businessName.value + ' from your network? Active contracts remain in your history.', btnLabel: 'Remove', type: 'danger' }, () => {
+    router.delete(route('public.profile.disconnect', connectionId.value), {
+      preserveScroll: true,
+      onSuccess: () => { connectionStatus.value = 'not-connected'; connectionId.value = null; toast.success('Partner removed.') },
+    })
+  })
+}
+
+function submitHireRequest(formData) {
+  // BpEngageModal calls route('provider.network.hire') internally via useForm.
+  // We also track it locally for the below-hero activity panel.
+  trackEngagement('hire', 'Engagement Request — ' + (formData.type ?? 'Custom'))
+}
+
+function submitQuote() {
+  quoteForm.post(route('public.profile.quote-request', props.user.id), {
+    preserveScroll: true,
+    onSuccess: () => {
+      showQuoteModal.value = false
+      trackEngagement('quote', 'Quote Request — ' + (quoteForm.service || 'General'))
+      toast.success('Quote request sent. The partner will respond shortly.')
+    },
+  })
+}
+
+function submitSchedule() {
+  scheduleForm.post(route('public.profile.consultation', props.user.id), {
+    preserveScroll: true,
+    onSuccess: () => {
+      showScheduleModal.value = false
+      trackEngagement('consultation', 'Consultation — ' + scheduleForm.date)
+      toast.success('Consultation request sent.')
+    },
+  })
+}
+
+function submitReview() {
+  if (!reviewForm.rating) { toast.error('Please select a star rating.'); return }
+  if (!reviewForm.body)   { toast.error('Please write a review.'); return }
+  reviewForm.post(route('public.profile.bp-review', props.user.id), {
+    preserveScroll: true,
+    onSuccess: () => { showReviewModal.value = false; toast.success('Review submitted. Thank you!') },
+  })
+}
+
+function copyShareLink() {
+  navigator.clipboard?.writeText(window.location.href)
+    .then(() => toast.success('Profile link copied'))
+    .catch(() => toast.error('Could not copy link'))
+}
+
+// ── Engagement actions (Propose Contract removed — covered by hire workflow) ──
+const engagementActions = computed(() => [
+  { name: 'Hire / Engage',        desc: 'Start a new engagement or activate this partner for a specific project or hourly consultation.', avail: 'open',    availLabel: 'Available Now',   btnClass: 'btn-primary', btnLabel: 'Hire Now', handler: openHireModal },
+  { name: 'Request a Quote',      desc: 'Describe your needs and request a formal quote or pricing proposal from this partner.',           avail: 'open',    availLabel: '24h Turnaround', btnClass: 'btn-outline', btnLabel: 'Request',  handler: openRequestQuoteModal },
+  { name: 'Schedule Consultation',desc: 'Book a discovery call, strategy session, or consultation meeting with this partner.',             avail: 'limited', availLabel: 'Limited Slots',  btnClass: 'btn-outline', btnLabel: 'Book',     handler: openScheduleModal },
+])
+
+const meetingTypes = [
+  { label: 'Video Call', icon: 'user' },
+  { label: 'Phone Call', icon: 'phone' },
+  { label: 'In-Person',  icon: 'map-pin' },
+  { label: 'Aegis Chat', icon: 'message' },
 ]
 
 const howItWorks = [
@@ -456,64 +635,11 @@ const howItWorks = [
   { title: 'Proposal',           desc: 'Custom quote within 48 hours.' },
   { title: 'Contract via Aegis', desc: 'Sign + start work, all tracked in-platform.' },
 ]
-
-const engagementActions = computed(() => [
-  { name: 'Hire / Engage',        desc: 'Start a new engagement or activate this partner for a specific project or hourly consultation.', avail: 'open',    availLabel: 'Available Now',   btnClass: 'btn-primary', btnLabel: 'Hire Now', handler: openHireModal },
-  { name: 'Propose Contract',     desc: 'Draft and send a custom service contract - set scope, timeline, payment terms, and deliverables.', avail: 'open', availLabel: 'Custom Terms',    btnClass: 'btn-outline', btnLabel: 'Draft',    handler: () => { showContractModal.value = true } },
-  { name: 'Request a Quote',      desc: 'Describe your needs and request a formal quote or pricing proposal from this partner.',           avail: 'open',    availLabel: '24h Turnaround', btnClass: 'btn-outline', btnLabel: 'Request',  handler: openRequestQuoteModal },
-  { name: 'Schedule Consultation',desc: 'Book a discovery call, strategy session, or consultation meeting with this partner.',             avail: 'limited', availLabel: 'Limited Slots',  btnClass: 'btn-outline', btnLabel: 'Book',     handler: openScheduleModal },
-])
-
-const engagementTypes = [
-  { label: 'Fixed-Scope Project', icon: 'clipboard', sub: 'One-time deliverable based' },
-  { label: 'Hourly / Time-Based', icon: 'clock',     sub: 'Pay per hour worked' },
-  { label: 'Consultation Only',   icon: 'credit-card', sub: 'Single advisory session' },
-]
-const standardClauses = [
-  { label: 'HIPAA / BAA Compliance', checked: true },
-  { label: 'Confidentiality / NDA',  checked: true },
-  { label: 'Termination Clause (30-day notice)', checked: true },
-  { label: 'Exclusivity Clause',     checked: false },
-  { label: 'Liability Limitation',   checked: true },
-]
-
-const showHireModal     = ref(false)
-const showContractModal = ref(false)
-const showQuoteModal    = ref(false)
-const showScheduleModal = ref(false)
-const showReviewModal   = ref(false)
-
-const hireForm     = ref({ type: 'Fixed-Scope Project', startDate: '', duration: '', budget: '', paymentTerms: 'Net 30', notes: '' })
-const quoteForm    = ref({ service: 'Tax Preparation (one-time)', size: 'Solo Practitioner', budget: '', timeline: '', notes: '', urgent: false })
-const scheduleForm = ref({ type: 'Video Call', date: '', time: '10:00 AM', duration: '30 minutes', tz: 'EST (New York)', agenda: '' })
-const reviewForm   = ref({ rating: 0, headline: '', body: '', engType: 'Fixed-Scope Project', duration: '1-3 months' })
-
-function openHireModal()            { showHireModal.value = true }
-function openRequestQuoteModal()    { showQuoteModal.value = true }
-function openScheduleModal()        { showScheduleModal.value = true }
-function openLeaveReviewModal()     { reviewForm.value = { rating: 0, headline: '', body: '', engType: 'Fixed-Scope Project', duration: '1-3 months' }; showReviewModal.value = true }
-
-function submitContract() { showContractModal.value = false; toast.success('Contract proposal sent') }
-function submitQuote()    { showQuoteModal.value = false; toast.success('Quote request sent') }
-function submitSchedule() { showScheduleModal.value = false; toast.success('Consultation request sent') }
-function submitReview()   { showReviewModal.value = false; toast.success('Review submitted') }
-
-function copyShareLink() {
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(window.location.href)
-      .then(() => toast.success('Profile link copied'))
-      .catch(() => toast.error('Could not copy link'))
-  } else {
-    toast.success('Profile link copied')
-  }
-}
-function confirmRemovePartner() {
-  confirmAction('Remove this business partner? Active contracts will remain accessible in your history.', () => toast.success('Partner removed'), { title: 'Remove Partner', btnLabel: 'Remove', type: 'danger' })
-}
 </script>
-
 <style scoped>
 .public-profile-wrap { max-width: 960px; margin: 0 auto; padding: var(--space-6) var(--space-4); }
+/* 3 engagement action cards fill the grid row */
+:deep(.pp-svc-grid) { grid-template-columns: repeat(3, 1fr); }
 /* bpe-option — used by Schedule Consultation modal meeting-type picker */
 .bpe-option-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 14px; }
 .bpe-option { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; transition: border-color var(--transition), background var(--transition), box-shadow var(--transition); }
@@ -522,10 +648,23 @@ function confirmRemovePartner() {
 .bpe-option-icon { flex-shrink: 0; display: inline-flex; align-items: center; line-height: 0; color: var(--text-3); }
 .bpe-option.selected .bpe-option-icon { color: var(--gold-dark); }
 .bpe-option-sub { font-size: 11px; font-weight: 600; color: var(--text-4); margin-top: 2px; }
+/* rating stars — filled via is-on class */
 .rating-stars { display: inline-flex; gap: 4px; }
 .rating-star { background: transparent; border: none; padding: 4px; color: var(--text-4); cursor: pointer; line-height: 0; transition: color 0.15s ease, transform 0.15s ease; }
-.rating-star:hover { transform: scale(1.08); }
+.rating-star:hover,
 .rating-star.is-on { color: var(--gold-dark); }
+.rating-star.is-on .aegis-icon { fill: var(--gold-dark); stroke: var(--gold-dark); }
+.rating-star:hover { transform: scale(1.08); }
+/* engagement tracker */
+.bp-eng-tracker { margin: 0 0 24px; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.bp-eng-tracker-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: var(--surface-2); border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-4); }
+.bp-eng-tracker-label { display: inline-flex; align-items: center; gap: 5px; }
+.bp-eng-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.bp-eng-row:last-child { border-bottom: none; }
+.bp-eng-type { flex: 1; font-weight: 600; color: var(--text); }
+.bp-eng-status { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: var(--radius-full); background: var(--badge-bg-gold); color: var(--gold-dark); }
+.bp-eng-time { font-size: 11px; color: var(--text-4); }
+/* hero overrides */
 .hero-banner.is-quiet .page-hero-left.has-icon { gap: 20px; }
 .hero-banner.is-quiet .page-hero-actions { gap: 8px; }
 .hero-banner.is-quiet .hero-badges { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 6px; margin-top: 10px; }

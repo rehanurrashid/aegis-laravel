@@ -14,6 +14,8 @@ use App\Events\Referral\ReferralClosed;
 use App\Events\Referral\ReferralDeclined;
 use App\Events\Referral\ReferralSent;
 use App\Events\Network\ConnectionAccepted;
+use App\Events\Network\ConnectionRequestSent;
+use App\Events\Business\EngagementRequested;
 use App\Events\Service\ServiceRequestSubmitted;
 use App\Events\Business\ContractSigned;
 use App\Events\Business\InvoicePaid;
@@ -97,6 +99,8 @@ class SendEmailNotificationListener
             $event instanceof ReferralClosed          => $this->referralClosed($event),
             $event instanceof ReferralCancelled       => $this->referralCancelled($event),
             $event instanceof ConnectionAccepted      => $this->connectionAccepted($event),
+            $event instanceof ConnectionRequestSent   => $this->connectionRequestSent($event),
+            $event instanceof EngagementRequested     => $this->engagementRequested($event),
             $event instanceof ServiceRequestSubmitted => $this->serviceRequestSubmitted($event),
             default                                   => [],
         };
@@ -367,7 +371,7 @@ class SendEmailNotificationListener
     private function connectionAccepted(ConnectionAccepted $e): array
     {
         $conn    = $e->connection;
-        $userId  = $conn->user_id; // the one who originally sent the request
+        $userId  = $conn->user_id;
         return [[
             'user_id'  => $userId,
             'gate_key' => 'notify_network',
@@ -376,7 +380,42 @@ class SendEmailNotificationListener
         ]];
     }
 
-    // ── T58/T59: service request — notify practitioner (T58) + requester (T59) ─
+    // T42 — new connection request received by recipient
+    private function connectionRequestSent(ConnectionRequestSent $e): array
+    {
+        return [[
+            'user_id'  => $e->recipient->id,
+            'gate_key' => 'notify_network',
+            'template' => 'emails.network.42-connection-request',
+            'data'     => [
+                'practitioner_name' => $e->recipient->display_name,
+                'requester_name'    => $e->requester->display_name,
+                'requester_role'    => $e->requester->title ?? ($e->requester->role?->value ?? ''),
+                'request_note'      => $e->networkRequest->message,
+                'review_url'        => config('app.url') . '/provider/network',
+            ],
+        ]];
+    }
+
+    // Engagement requested — notify the BP (hire / quote / consultation)
+    private function engagementRequested(EngagementRequested $e): array
+    {
+        // Use service-inquiry template (gaps/58) as the closest match
+        // until a dedicated BP engagement template is built.
+        return [[
+            'user_id'  => $e->bp->id,
+            'gate_key' => 'notify_business',
+            'template' => 'emails.gaps.58-service-inquiry-received',
+            'data'     => [
+                'practitioner_name' => $e->practitioner->display_name,
+                'bp_name'           => $e->bp->display_name,
+                'type'              => $e->type,
+                'details'           => $e->details,
+            ],
+        ]];
+    }
+
+    // ── T58/T59: service request ─────────────────────────────────────────────
     private function serviceRequestSubmitted(ServiceRequestSubmitted $e): array
     {
         $req = $e->request;

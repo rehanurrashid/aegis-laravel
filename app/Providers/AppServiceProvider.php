@@ -87,8 +87,12 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Referral\ReferralCancelled::class,  Listeners\SendEmailNotificationListener::class);
 
         // ── Network connection events ─────────────────────────────────────────
-        Event::listen(Events\Network\ConnectionAccepted::class,  Listeners\ActivityFanoutListener::class);
-        Event::listen(Events\Network\ConnectionAccepted::class,  Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Network\ConnectionAccepted::class,    Listeners\ActivityFanoutListener::class);
+        Event::listen(Events\Network\ConnectionAccepted::class,    Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Network\ConnectionRequestSent::class, Listeners\SendEmailNotificationListener::class);
+
+        // ── BP engagement requests (hire / quote / consultation) ──────────────
+        Event::listen(Events\Business\EngagementRequested::class,  Listeners\SendEmailNotificationListener::class);
 
         // ── Service request events (T58/T59) ──────────────────────────────────
         Event::listen(Events\Service\ServiceRequestSubmitted::class, Listeners\ActivityFanoutListener::class);

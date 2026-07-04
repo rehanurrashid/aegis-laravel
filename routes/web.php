@@ -580,4 +580,9 @@ Route::middleware('auth')->prefix('public/profiles')->name('public.profile.')->g
     Route::post('/{user}/connect',              [PublicInteractionController::class, 'connect'])->name('connect');
     Route::delete('/{networkRequest}/cancel-connect', [PublicInteractionController::class, 'cancelConnect'])->name('cancel-connect');
     Route::delete('/{connection}/disconnect',   [PublicInteractionController::class, 'disconnect'])->name('disconnect');
+    // BP-specific engagement actions
+    Route::post('/{user}/hire-request',     [PublicInteractionController::class, 'hireRequest'])->name('hire-request');
+    Route::post('/{user}/quote-request',    [PublicInteractionController::class, 'quoteRequest'])->name('quote-request');
+    Route::post('/{user}/consultation',     [PublicInteractionController::class, 'consultation'])->name('consultation');
+    Route::post('/{user}/bp-review',        [PublicInteractionController::class, 'bpReview'])->name('bp-review');
 });

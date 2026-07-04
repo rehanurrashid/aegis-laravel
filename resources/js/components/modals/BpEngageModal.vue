@@ -250,7 +250,6 @@ const engagementTypes = [
   { label: 'Fixed-Scope Project', icon: 'clipboard',    sub: 'One-time deliverable based' },
   { label: 'Hourly / Time-Based', icon: 'clock',        sub: 'Pay per hour worked' },
   { label: 'Monthly Retainer',    icon: 'refresh',      sub: 'Ongoing recurring engagement' },
-  { label: 'Consultation Only',   icon: 'credit-card',  sub: 'Single advisory session' },
 ]
 
 const canAdvance = computed(() => {
@@ -352,7 +351,7 @@ function submit() {
 /* Engagement type option chips */
 .bpe-option-row {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin-bottom: 4px;
 }
