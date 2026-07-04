@@ -47,14 +47,19 @@ class ProfileService
      */
     private function setMeta(User $user, string $key, mixed $value, string $type = 'json'): void
     {
-        $user->meta()->updateOrCreate(
-            ['meta_key' => $key],
-            [
-                'id'         => (string) Str::uuid(),
-                'meta_value' => $type === 'json' ? json_encode($value) : (string) $value,
+        $encoded = $type === 'json' ? json_encode($value) : (string) $value;
+
+        $existing = $user->meta()->where('meta_key', $key)->first();
+        if ($existing) {
+            $existing->update(['meta_value' => $encoded, 'meta_type' => $type]);
+        } else {
+            $user->meta()->create([
+                'id'         => 'um_' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(12)),
+                'meta_key'   => $key,
+                'meta_value' => $encoded,
                 'meta_type'  => $type,
-            ]
-        );
+            ]);
+        }
     }
 
     /**

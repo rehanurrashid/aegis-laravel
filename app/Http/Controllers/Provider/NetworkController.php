@@ -385,21 +385,26 @@ class NetworkController extends Controller
 
     private function loadNetworkConfig(User $user): array
     {
-        $user->loadMissing('meta');
-        $rawMeta  = $user->meta->pluck('meta_value', 'meta_key')->all();
-        $metaTypes = $user->meta->pluck('meta_type',  'meta_key')->all();
+        // Force fresh load — cached relation may be stale after saves
+        $user->load('meta');
 
-        $jsonMeta = function (string $key, array $default = []) use ($rawMeta, $metaTypes): array {
-            if (!isset($rawMeta[$key])) return $default;
-            if (($metaTypes[$key] ?? 'json') !== 'json') return $default;
-            $d = json_decode($rawMeta[$key], true);
-            return is_array($d) ? $d : $default;
+        // Build a flat key→typed_value map using the model's own cast logic
+        $meta = [];
+        foreach ($user->meta as $row) {
+            $meta[$row->meta_key] = $row->typed_value;
+        }
+
+        // Raw string values (for scalars stored as 'string' type)
+        $rawMeta = $user->meta->pluck('meta_value', 'meta_key')->all();
+
+        $jsonMeta = function (string $key, array $default = []) use ($meta): array {
+            if (!array_key_exists($key, $meta)) return $default;
+            $v = $meta[$key];
+            return is_array($v) ? $v : $default;
         };
 
-        $boolMeta = function (string $key, bool $default = false) use ($rawMeta): bool {
-            return isset($rawMeta[$key])
-                ? in_array((string)$rawMeta[$key], ['1','true','on','yes'], true)
-                : $default;
+        $boolMeta = function (string $key, bool $default = false) use ($meta): bool {
+            return array_key_exists($key, $meta) ? (bool)$meta[$key] : $default;
         };
 
         $profileMeta = $user->profile_meta ? (json_decode($user->profile_meta, true) ?: []) : [];
@@ -430,7 +435,7 @@ class NetworkController extends Controller
             'languages'    => $jsonMeta('languages'),
             'identity'     => $jsonMeta('cfg_identity'),
             'rates'        => $jsonMeta('cfg_rates'),
-            // Scalar fields
+            // Scalar fields — use raw string values for these
             'license_number'     => $rawMeta['license_number']     ?? '',
             'primary_state'      => $rawMeta['primary_state']      ?? '',
             'years_in_practice'  => $rawMeta['years_in_practice']  ?? '',
@@ -443,7 +448,7 @@ class NetworkController extends Controller
             'referral_urgency'   => $rawMeta['referral_urgency']   ?? '',
             'ai_match_frequency' => $aiSettings['frequency']       ?? '',
             'sex_assigned'       => $rawMeta['sex_assigned']       ?? '',
-            // Notifications — stored as single JSON blob; fall back to per-key bools
+            // Notifications
             'notifications' => $notifications ?: [
                 'connection_requests' => $boolMeta('notify_connection', true),
                 'referral_activity'   => $boolMeta('notify_referral',   true),
@@ -541,7 +546,7 @@ class NetworkController extends Controller
 
         // AI match frequency inside ai_shadow_settings
         if (isset($d['ai_match_frequency'])) {
-            $row = $user->meta->firstWhere('meta_key', 'ai_shadow_settings');
+            $row = \App\Models\UserMeta::where('user_id', $user->id)->where('meta_key', 'ai_shadow_settings')->first();
             $ai  = $row ? (json_decode($row->meta_value, true) ?: []) : [];
             $ai['frequency'] = $d['ai_match_frequency'];
             $ps->setMetaPublic($user, 'ai_shadow_settings', $ai);
