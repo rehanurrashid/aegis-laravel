@@ -32,6 +32,9 @@ Break any of these and the component is wrong:
 20. **NEVER use `ui.openModal()`, `ui.closeModal()`, `modal-id=`, or `@file-selected`** — these patterns are banned. Modals use `v-model="modals.xxx"` on `AegisModal`; AegisDropzone emits `@files` (an array), not `@file-selected`.
 21. **NEVER complete a write action without triggering the correct email** — every save, submit, sign, activate, assign, or status change has a matching template in `resources/views/emails/`. Find it, verify the Service dispatches the event, verify the Listener sends via `SendEmailJob`. Silent saves with no email are incomplete (see Section 25).
 22. **NEVER complete a write action without logging to `ActivityService::log()`** — the actor gets `entry_type: 'log'`; every other affected party gets `entry_type: 'notification'`. More than one other recipient → dispatch `ActivityFanoutJob` instead of looping. Missing logs and notifications are incomplete deliverables (see Section 26).
+23. **NEVER declare `useForm()` inside a function, handler, `if` block, or callback** — all `useForm()` instances live at component setup top-level. A form built inside `saveConfig()` is a bug: it re-instantiates on every call and breaks reactivity. For many-field saves use one form + `.transform(() => ({...}))`.
+24. **NEVER `await confirmAction()` or check its return value** — it is callback-based: `confirmAction(options, callback)`. The gated logic runs inside the callback. No `const ok = await ...`, no `if (!ok) return`.
+25. **NEVER hardcode user-specific defaults in `reactive({})`** — initialize from the controller prop (`const nc = props.networkConfig || {}`). Hardcoded selections silently override saved DB state on every page load.
 ---
  
 ## SECTION 2 — IMPORT CHEATSHEET
@@ -172,14 +175,16 @@ function submitCreate() {
     })
 }
  
-async function remove(item) {
-    const ok = await confirmAction(`Remove "${item.name}"?`, {
-        title: 'Confirm Removal', confirmLabel: 'Remove', destructive: true,
-    })
-    if (!ok) return
-    router.delete(route('provider.items.destroy', item.id), {
-        onSuccess: () => toast.success('Removed.'),
-    })
+// confirmAction is CALLBACK-based — never await it, never check a return value
+function remove(item) {
+    confirmAction(
+        { title: 'Confirm Removal', message: `Remove "${item.name}"?`, confirmLabel: 'Remove', destructive: true },
+        () => {
+            router.delete(route('provider.items.destroy', item.id), {
+                onSuccess: () => toast.success('Removed.'),
+            })
+        }
+    )
 }
 </script>
 ```
@@ -376,19 +381,26 @@ toast.showToast(msg, type, ms)    // raw
 ```
  
 ### `useConfirm()`
+**⚠️ CALLBACK-BASED, NOT PROMISE-BASED.** Never `await confirmAction()`, never check a return value. The gated logic runs inside the second-argument callback.
 ```js
 const { confirmAction } = useConfirm()
- 
-async function remove(item) {
-    const ok = await confirmAction('Are you sure?', {
-        title:        'Confirm',
-        confirmLabel: 'Remove',
-        destructive:  true,
-    })
-    if (!ok) return
-    // ...
+
+function remove(item) {
+    confirmAction(
+        {
+            title:        'Confirm',
+            message:      'Are you sure?',
+            confirmLabel: 'Remove',
+            destructive:  true,
+        },
+        () => {
+            // runs ONLY if the user confirms
+            deleteForm.delete(route('...'))
+        }
+    )
 }
 ```
+Signature: `confirmAction(options, callback)`. There is no `const ok = await ...`, no `if (!ok) return`. Everything conditional on confirmation lives in the callback body.
  
 ### `useActivity()`
 ```js
@@ -1298,7 +1310,8 @@ When porting any PHP page, `grep -n "input type=\"file\"" page.php` — every ma
 | `appearance: none` | `-webkit-appearance: none` |
 | `<button class="btn btn-gold">` | `<button class="btn btn-primary">` |
 | `alert('Done')` | `toast.success('Done')` |
-| `confirm('Sure?')` | `await confirmAction('Sure?')` |
+| `confirm('Sure?')` | `confirmAction({ message: 'Sure?' }, () => {...})` |
+| `const ok = await confirmAction(...)` | `confirmAction(opts, callback)` — callback-based, no await, no return |
 | `<svg><use href="..."/></svg>` | `<AegisIcon name="..." />` |
 | `style.display = 'flex'` for modal | `<AegisModal v-model="modals.x">` |
 | Page-local CSS `.btn-primary { ... }` overriding global | Scoped `.page-x .btn-primary { ... }` |
@@ -1337,6 +1350,18 @@ When porting any PHP page, `grep -n "input type=\"file\"" page.php` — every ma
 | `display: flex` on icon row but no `gap` | Add `gap: 6–8px` to space icon from text |
 | `vertical-align: middle` on `<AegisIcon>` | Parent: `align-items: center` on flex/inline-flex |
 | Custom `margin-top: -2px` to "nudge" icon | Use flex centering on the parent instead |
+| `useForm({})` declared inside a function / handler / `if` block | Declare ALL `useForm()` at component setup top-level — never inside functions |
+| Multiple parallel `useForm()` for a multi-field config save | Single `cfgForm = useForm({})` + `.transform(() => ({...}))` → one atomic endpoint |
+| Hardcoded defaults in `reactive({ team: ['Psychotherapist'], states: ['NY'] })` | Init from prop: `const nc = props.networkConfig \|\| {}` then spread into reactive |
+| `v-if="isConnected"` gating a Message button in a public-profile hero | Message shows for all logged-in non-owners; don't gate on connection state |
+| `v-if="s.match"` on a match badge (0 is falsy → badge vanishes) | Render always; show `'—'` when 0: `{{ s.match \|\| '—' }}{{ s.match ? '%' : '' }}` |
+| `justify-content: space-between` on `.spc-top-pills` (it's `position:absolute`) | Left pill in `.spc-top-pills`; right pill in its own `position:absolute; right:10px` div |
+| `display:none/block` toggle expecting a CSS open+close animation | `v-show` + `<Transition name="cfg-slide">`; CSS `@keyframes` only animates the open |
+| `max-height: 0 → 1800px` accordion transition (content bleeds on tall panels) | `v-show` + Vue `<Transition>` — no max-height guessing |
+| `router.reload()` after a save without the new prop in `only: [...]` | Include every section that must refresh: `only: ['shadowConnections','referralCandidates','stats']` |
+| Splicing a card by `id` when the list has empty-string ids | Splice by `id` when present, else by `name` — empty-string ids are falsy and never match |
+| Chevron `<span>` placed inside `.cfg-panel-header-left` | Chevron is a sibling of `-left` (or inside `.cfg-panel-meta`), right-aligned in the header |
+| Surfacing CS/SS/BP users in shadow slots or referral candidates | Shadows + referral candidates are practitioner-only (`role === 'practitioner'`) |
  
 ---
  
