@@ -26,15 +26,15 @@ class ProfileController extends Controller
         $user   = $this->profiles->getPublicProfile($slug);
         $viewer = Auth::user();
 
+        $isOwner    = $viewer && $viewer->id === $user->id;
+        $isLoggedIn = (bool) $viewer;
+
         abort_if(
             ! $user
             || $user->role !== UserRole::Practitioner
-            || ! $user->practitioner_public,
+            || (! $user->practitioner_public && ! $isOwner),
             404
         );
-
-        $isOwner    = $viewer && $viewer->id === $user->id;
-        $isLoggedIn = (bool) $viewer;
         $profileMeta = $this->profiles->buildProfileMeta($user, $viewer);
 
         $services = \App\Models\Service::where('practitioner_id', $user->id)
@@ -136,15 +136,15 @@ class ProfileController extends Controller
         $user   = $this->profiles->getPublicProfile($slug);
         $viewer = Auth::user();
 
+        $isOwner    = $viewer && $viewer->id === $user->id;
+        $isLoggedIn = (bool) $viewer;
+
         abort_if(
             ! $user
             || $user->role !== UserRole::ContinuitySteward
-            || ! $user->cs_public,
+            || (! $user->cs_public && ! $isOwner),
             404
         );
-
-        $isOwner    = $viewer && $viewer->id === $user->id;
-        $isLoggedIn = (bool) $viewer;
         $profileMeta = $this->profiles->buildProfileMeta($user, $viewer);
 
         if (! $isLoggedIn) {
@@ -191,15 +191,15 @@ class ProfileController extends Controller
         $user   = $this->profiles->getPublicProfile($slug);
         $viewer = Auth::user();
 
+        $isOwner    = $viewer && $viewer->id === $user->id;
+        $isLoggedIn = (bool) $viewer;
+
         abort_if(
             ! $user
             || $user->role !== UserRole::BusinessPartner
-            || ! $user->business_partner_public,
+            || (! $user->business_partner_public && ! $isOwner),
             404
         );
-
-        $isOwner    = $viewer && $viewer->id === $user->id;
-        $isLoggedIn = (bool) $viewer;
         $profileMeta = $this->profiles->buildProfileMeta($user, $viewer);
 
         if (! $isLoggedIn) {
