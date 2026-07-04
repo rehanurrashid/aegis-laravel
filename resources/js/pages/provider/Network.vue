@@ -451,7 +451,7 @@
         <!-- Results grid -->
         <div class="results-panel">
           <div class="results-topbar">
-            <span class="results-count">{{ searchResults.length }} providers found in your region</span>
+            <span class="results-count"><strong>{{ pagedSearchResults.length }}</strong> of {{ searchResults.length }} providers</span>
             <div style="display:flex;align-items:center;gap:6px">
               <span style="font-size:12px;color:var(--text-4)">Sort:</span>
               <select class="form-select" v-model="searchSort" style="font-size:12px;padding:4px 8px;min-width:160px">
@@ -461,7 +461,7 @@
           </div>
           <div class="search-results-grid">
             <div
-              v-for="p in searchResults"
+              v-for="p in pagedSearchResults"
               :key="p.name"
               class="spc-card"
               @click="viewProfile(p.slug)"
@@ -511,8 +511,8 @@
             </div>
           </div>
           <AegisEmptyState v-if="!searchResults.length" icon="search-lg" title="No providers found" subtitle="Try adjusting your filters or search terms." />
-          <div v-if="searchResults.length > 12" class="results-topbar" style="justify-content:center;margin-top:20px">
-            <button type="button" class="btn btn-outline btn-sm" @click="toast.info('Loading more results…')">Load More Results</button>
+          <div v-if="hasMoreSearchResults" class="results-topbar" style="justify-content:center;margin-top:20px">
+            <button type="button" class="btn btn-outline btn-sm" @click="spPage++">Load More Results</button>
           </div>
         </div>
       </div>
@@ -557,10 +557,10 @@
         </div>
       </div>
       <div class="results-topbar">
-        <span class="results-count" style="display:inline-flex;align-items:center;gap:4px"><AegisIcon name="users" :size="13" style="color:var(--text-4);flex-shrink:0" /><strong>{{ filteredClinical.length }}</strong><span v-if="filteredClinical.length !== stats.clinical">of {{ stats.clinical }}</span>provider{{ filteredClinical.length === 1 ? '' : 's' }} in your network</span>
+        <span class="results-count" style="display:inline-flex;align-items:center;gap:4px"><AegisIcon name="users" :size="13" style="color:var(--text-4);flex-shrink:0" /><strong>{{ pagedClinical.length }}</strong> of {{ filteredClinical.length }}<span v-if="filteredClinical.length !== stats.clinical">of {{ stats.clinical }}</span>provider{{ filteredClinical.length === 1 ? '' : 's' }} in your network</span>
       </div>
       <div class="provider-grid">
-        <div v-for="nc in filteredClinical" :key="nc.id" class="card-v2 pn-card spc-card" @click="viewProfile(nc.partner_slug)">
+        <div v-for="nc in pagedClinical" :key="nc.id" class="card-v2 pn-card spc-card" @click="viewProfile(nc.partner_slug)">
           <div class="spc-top-pills">
             <span class="spc-status-icon ok" data-tooltip="In Network — this provider is connected to your network"><AegisIcon name="user-check" :size="12" /></span>
             <span v-if="nc.partner_telehealth" class="spc-svc-icon" data-tooltip="Telehealth available"><AegisIcon name="video" :size="12" /></span>
@@ -593,6 +593,9 @@
       <AegisEmptyState v-if="!filteredClinical.length" icon="users" title="No clinical connections yet" subtitle="Search providers and send connection requests to build your network.">
         <template #actions><button type="button" class="btn btn-primary" @click="clinicalTab = 'search'">Search Providers</button></template>
       </AegisEmptyState>
+      <div v-if="hasMoreClinical" style="text-align:center;margin-top:24px">
+        <button type="button" class="btn btn-outline" @click="myNetworkPage++">Load More</button>
+      </div>
     </div><!-- /my network -->
 
     <!-- ══════════ BUSINESS PARTNERS ══════════ -->
@@ -870,7 +873,7 @@
           </div>
 
           <div id="sbpResultsGrid" class="search-results-grid">
-            <div v-for="p in filteredPartners" :key="p.id || p.name" class="sbp-card spc-card" @click="viewProfile(p.slug, p.kind || 'business')">
+            <div v-for="p in pagedPartners" :key="p.id || p.name" class="sbp-card spc-card" @click="viewProfile(p.slug, p.kind || 'business')">
               <div class="spc-top-pills">
                 <span class="spc-status-icon" :class="p.networkStatus === 'in-network' ? 'ok' : (p.networkStatus === 'pending' ? 'pend' : 'off')"
                   :data-tooltip="p.networkStatus === 'in-network' ? 'In your network' : (p.networkStatus === 'pending' ? 'Request pending' : 'Not connected')">
@@ -908,10 +911,8 @@
 
           <AegisEmptyState v-if="!filteredPartners.length" icon="briefcase" title="No partners found" subtitle="Try adjusting your search or filters." />
 
-          <div v-if="filteredPartners.length" style="text-align:center;margin-top:24px">
-            <button type="button" class="btn btn-outline" @click="toast.info('Loading more partners…')">
-              Load More Partners
-            </button>
+          <div v-if="hasMorePartners" style="text-align:center;margin-top:24px">
+            <button type="button" class="btn btn-outline" @click="bpPage++">Load More Partners</button>
           </div>
         </div>
       </div>
@@ -959,7 +960,7 @@
         <span class="results-count" style="display:inline-flex;align-items:center;gap:4px"><AegisIcon name="briefcase" :size="13" style="color:var(--text-4);flex-shrink:0" /><strong>{{ filteredBpConnections.length }}</strong><span v-if="filteredBpConnections.length !== bpConnections.length">of {{ bpConnections.length }}</span>business partner{{ filteredBpConnections.length === 1 ? '' : 's' }}</span>
       </div>
       <div id="bizGridView" class="provider-grid nw-biz-grid">
-        <div v-for="nc in filteredBpConnections" :key="nc.id" class="biz-grid-card spc-card" @click="viewProfile(nc.partner_slug, 'business')">
+        <div v-for="nc in pagedBpConnections" :key="nc.id" class="biz-grid-card spc-card" @click="viewProfile(nc.partner_slug, 'business')">
           <!-- Top pills: type icon + services badge -->
           <div class="spc-top-pills">
             <span class="spc-status-icon ok" data-tooltip="Business partner in your network"><AegisIcon name="user-check" :size="12" /></span>
@@ -987,6 +988,9 @@
       <AegisEmptyState v-if="!filteredBpConnections.length" icon="briefcase" title="No business partners yet" subtitle="Search the partner directory to find billing, legal, IT, and other practice services.">
         <template #actions><button type="button" class="btn btn-primary" @click="businessTab = 'search'">Search Partners</button></template>
       </AegisEmptyState>
+      <div v-if="hasMoreBpConnections" style="text-align:center;margin-top:24px">
+        <button type="button" class="btn btn-outline" @click="myPartnersPage++">Load More</button>
+      </div>
     </div><!-- /my partners -->
 
     <!-- ══════════ REFERRALS & TOOLS ══════════ -->
@@ -1020,7 +1024,7 @@
       </div>
 
       <div class="provider-grid">
-        <div v-for="s in filteredRtCandidates" :key="s.name" class="sai-grid-card spc-card" @click="viewProfile(s.slug)">
+        <div v-for="s in pagedRtCandidates" :key="s.name" class="sai-grid-card spc-card" @click="viewProfile(s.slug)">
           <div class="spc-top-pills">
             <span class="rsc-ai-icon" data-tooltip="AI suggested based on your clinical focus and referral patterns"><AegisIcon name="sparkle-cluster" :size="12" /></span>
           </div>
@@ -1049,10 +1053,10 @@
         </template>
       </AegisEmptyState>
 
-      <div v-if="filteredRtCandidates.length" style="text-align:center;margin-top:24px">
-        <button type="button" class="btn btn-outline" @click="toast.info('No more matches at this time')">
+      <div v-if="hasMoreRtCandidates" style="text-align:center;margin-top:24px">
+        <button type="button" class="btn btn-outline" @click="rtPage++">
           <AegisIcon name="refresh" :size="14" />
-          Load More Shadows
+          Load More
         </button>
       </div>
     </div><!-- /referral list -->
@@ -1104,7 +1108,7 @@
       </div>
 
       <div class="provider-grid">
-        <div v-for="s in filteredMyShadows" :key="s.id" class="ms-grid-card spc-card" @click="viewProfile(s.shadow_slug)">
+        <div v-for="s in pagedMyShadows" :key="s.id" class="ms-grid-card spc-card" @click="viewProfile(s.shadow_slug)">
           <div class="spc-top-pills">
             <span class="rsc-ai-icon" :data-tooltip="'AI matched — ' + (s.match_score || 0) + '% fit based on your clinical focus'"><AegisIcon name="sparkle-cluster" :size="12" /></span>
           </div>
@@ -1132,6 +1136,9 @@
         </div>
       </div>
 
+      <div v-if="hasMoreMyShadows" style="text-align:center;margin-top:24px">
+        <button type="button" class="btn btn-outline" @click="myShadowPage++">Load More</button>
+      </div>
       <AegisEmptyState v-if="!filteredMyShadows.length" icon="cpu" title="No shadow connections yet" subtitle="Shadow providers are backup clinicians who mirror your profile. Add them from the Referral List.">
         <template #actions>
           <button type="button" class="btn btn-primary" @click="toolsTab = 'list'">Browse Referral List</button>
@@ -2209,6 +2216,8 @@ const searchResults = computed(() => {
   }
   return base
 })
+const pagedSearchResults    = computed(() => searchResults.value.slice(0, spPage.value * PAGE_SIZE))
+const hasMoreSearchResults  = computed(() => searchResults.value.length > pagedSearchResults.value.length)
 
 function applyFilters() {
   for (const g of Object.keys(appliedFilters)) appliedFilters[g] = [...selectedFilters[g]]
@@ -2333,6 +2342,17 @@ const clinicalServiceOnly = ref(false)
 const bpSort         = ref('Best Match')
 const bpClinicalOnly = ref(false)
 const bpCategory     = ref('')
+
+// ── Per-tab pagination ─────────────────────────────────────────────────────
+const PAGE_SIZE      = 12
+const spPage         = ref(1)  // Search Providers
+const bpPage         = ref(1)  // Search Partners
+const rtPage         = ref(1)  // Referral List
+const myShadowPage   = ref(1)  // My Shadows
+const myNetworkPage  = ref(1)  // My Network
+const myPartnersPage = ref(1)  // My Partners
+
+// Reset pages when filters change — placed here so all refs are already declared
 const rtSearch       = ref('')
 
 const filteredClinical = computed(() => {
@@ -2344,6 +2364,8 @@ const filteredClinical = computed(() => {
     (nc.partner_location ?? '').toLowerCase().includes(q)
   )
 })
+const pagedClinical      = computed(() => filteredClinical.value.slice(0, myNetworkPage.value * PAGE_SIZE))
+const hasMoreClinical    = computed(() => filteredClinical.value.length > pagedClinical.value.length)
 
 const filteredBpConnections = computed(() => {
   const q = bizSearch.value.toLowerCase()
@@ -2353,6 +2375,8 @@ const filteredBpConnections = computed(() => {
     (nc.partner_role ?? '').toLowerCase().includes(q)
   )
 })
+const pagedBpConnections    = computed(() => filteredBpConnections.value.slice(0, myPartnersPage.value * PAGE_SIZE))
+const hasMoreBpConnections  = computed(() => filteredBpConnections.value.length > pagedBpConnections.value.length)
 
 const filteredPartners = computed(() => {
   let results = businessPartners.value.filter(p => {
@@ -2418,6 +2442,8 @@ const filteredPartners = computed(() => {
 
   return results
 })
+const pagedPartners      = computed(() => filteredPartners.value.slice(0, bpPage.value * PAGE_SIZE))
+const hasMorePartners    = computed(() => filteredPartners.value.length > pagedPartners.value.length)
 
 const filteredRtCandidates = computed(() => {
   const q = rtSearch.value.toLowerCase()
@@ -2426,6 +2452,8 @@ const filteredRtCandidates = computed(() => {
     s.name.toLowerCase().includes(q) || s.role.toLowerCase().includes(q) || s.location.toLowerCase().includes(q)
   )
 })
+const pagedRtCandidates  = computed(() => filteredRtCandidates.value.slice(0, rtPage.value * PAGE_SIZE))
+const hasMoreRtCandidates = computed(() => filteredRtCandidates.value.length > pagedRtCandidates.value.length)
 
 function removeRtCandidate(s) {
   rtCandidates.value = rtCandidates.value.filter(c => c.name !== s.name)
@@ -2520,6 +2548,14 @@ const bpEngOptions = [
   { val: 'part_time', label: 'Part-Time Ongoing' },
   { val: 'full_time', label: 'Full-Time Contract' },
 ]
+
+// ── Pagination watchers — placed here so every ref they touch is declared ──
+watch([clinicalSearch, clinicalServiceOnly], () => { spPage.value = 1 })
+watch(rtSearch, () => { rtPage.value = 1 })
+watch(bizSearch, () => { myNetworkPage.value = 1; myPartnersPage.value = 1 })
+watch([bpSearch, bpCategory, bpTypeFilter, bpRateMin, bpRateMax, bpExpLevel,
+       bpMinRating, bpAvail, bpEngTypes, bpLocation, bpMinJobs, bpLang,
+       bpClinicalOnly, bpSort], () => { bpPage.value = 1 }, { deep: true })
 
 function sbpClearAll() {
   bpSearch.value      = ''
@@ -2626,6 +2662,8 @@ const filteredMyShadows = computed(() => {
     return hay.includes(q)
   })
 })
+const pagedMyShadows     = computed(() => filteredMyShadows.value.slice(0, myShadowPage.value * PAGE_SIZE))
+const hasMoreMyShadows   = computed(() => filteredMyShadows.value.length > pagedMyShadows.value.length)
 const shadowTotalReferrals = computed(() =>
   props.shadowConnections.reduce((sum, s) => sum + Number(s.referral_count || 0), 0)
 )
