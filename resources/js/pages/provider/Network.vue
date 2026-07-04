@@ -585,7 +585,7 @@
             <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === nc.partner_id" @click="openConversation(nc.partner_id)"><AegisIcon name="message-square" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Refer Client" @click="openReferralForConnection(nc)"><AegisIcon name="refresh" :size="14" /></button>
             <button v-if="nc.partner_has_services" type="button" class="btn-icon" data-tooltip="Request Service" @click="openSvcRequest('Services', { id: nc.partner_id, name: nc.partner_name })"><AegisIcon name="briefcase-rx" :size="14" /></button>
-            <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(nc.partner_slug)"><AegisIcon name="eye" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(nc.partner_slug, 'business')"><AegisIcon name="eye" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Remove from network" @click="confirmDisconnect(nc)"><AegisIcon name="trash-2" :size="14" /></button>
           </div>
         </div>
@@ -869,7 +869,7 @@
           </div>
 
           <div id="sbpResultsGrid" class="search-results-grid">
-            <div v-for="p in filteredPartners" :key="p.id || p.name" class="sbp-card spc-card" @click="viewProfile(p.slug)">
+            <div v-for="p in filteredPartners" :key="p.id || p.name" class="sbp-card spc-card" @click="viewProfile(p.slug, 'business')">
               <div class="spc-top-pills">
                 <span class="spc-status-icon" :class="p.networkStatus === 'in-network' ? 'ok' : (p.networkStatus === 'pending' ? 'pend' : 'off')"
                   :data-tooltip="p.networkStatus === 'in-network' ? 'In your network' : (p.networkStatus === 'pending' ? 'Request pending' : 'Not connected')">
@@ -900,7 +900,7 @@
                   @click="openConnect(p)"
                 ><AegisIcon name="user-plus" :size="14" /></button>
                 <span v-else-if="p.networkStatus === 'pending'" class="btn-icon" data-tooltip="Request pending" style="opacity:.45;cursor:default"><AegisIcon name="clock" :size="14" /></span>
-                <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(p.slug)"><AegisIcon name="eye" :size="14" /></button>
+                <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(p.slug, 'business')"><AegisIcon name="eye" :size="14" /></button>
               </div>
             </div>
           </div>
@@ -958,7 +958,7 @@
         <span class="results-count" style="display:inline-flex;align-items:center;gap:4px"><AegisIcon name="briefcase" :size="13" style="color:var(--text-4);flex-shrink:0" /><strong>{{ filteredBpConnections.length }}</strong><span v-if="filteredBpConnections.length !== bpConnections.length">of {{ bpConnections.length }}</span>business partner{{ filteredBpConnections.length === 1 ? '' : 's' }}</span>
       </div>
       <div id="bizGridView" class="provider-grid nw-biz-grid">
-        <div v-for="nc in filteredBpConnections" :key="nc.id" class="biz-grid-card spc-card" @click="viewProfile(nc.partner_slug)">
+        <div v-for="nc in filteredBpConnections" :key="nc.id" class="biz-grid-card spc-card" @click="viewProfile(nc.partner_slug, 'business')">
           <!-- Top pills: type icon + services badge -->
           <div class="spc-top-pills">
             <span class="spc-status-icon ok" data-tooltip="Business partner in your network"><AegisIcon name="user-check" :size="12" /></span>
@@ -978,7 +978,7 @@
           <div class="spc-actions" @click.stop>
             <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === nc.partner_id" @click="openConversation(nc.partner_id)"><AegisIcon name="message-square" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Hire" @click="openBpHire(nc)"><AegisIcon name="briefcase" :size="14" /></button>
-            <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(nc.partner_slug)"><AegisIcon name="eye" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(nc.partner_slug, 'business')"><AegisIcon name="eye" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Remove" @click="confirmDisconnect(nc)"><AegisIcon name="trash-2" :size="14" /></button>
           </div>
         </div>
@@ -2124,8 +2124,16 @@ function submitManualShadow() {
 }
 
 // ── Profile navigation ─────────────────────────────────────────────────────
-function viewProfile(slug) {
-  if (slug) router.visit(route('public.provider', { slug }))
+function viewProfile(slug, kind = 'provider') {
+  if (!slug) return
+  const routeMap = {
+    provider: 'public.provider',
+    business: 'public.bp',
+    cs:       'public.cs',
+    ss:       'public.ss',
+  }
+  const routeName = routeMap[kind] ?? 'public.provider'
+  router.visit(route(routeName, { slug }))
 }
 
 // ── Search / filter helpers ────────────────────────────────────────────────
