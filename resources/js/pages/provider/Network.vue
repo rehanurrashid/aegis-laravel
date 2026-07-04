@@ -1767,37 +1767,14 @@
       :provider-label="svcTarget.label"
     />
 
-    <!-- BP Hire Modal -->
-    <AegisModal v-model="modals.bpHire" title="Hire Business Partner">
-      <div v-if="bpHireTarget" style="padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:16px">
-        <div style="font-size:13px;font-weight:700;color:var(--text)">{{ bpHireTarget.name }}</div>
-        <div style="font-size:12px;color:var(--text-4)">{{ bpHireTarget.role }}</div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">Project Title</label><input class="form-input" type="text" v-model="bpHireForm.title" placeholder="e.g. Monthly billing services" /></div>
-        <div class="form-group"><label class="form-label">Engagement Type</label><select class="form-select" v-model="bpHireForm.engagement_type"><option>One-Time Project</option><option>Ongoing / Retainer</option><option>Part-Time Contract</option><option>Full-Time</option></select></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">Start Date</label><input class="form-input" type="date" v-model="bpHireForm.start_date" /></div>
-        <div class="form-group"><label class="form-label">Budget</label><input class="form-input" type="text" v-model="bpHireForm.budget" placeholder="e.g. $500/mo or $2,000 fixed" /></div>
-      </div>
-      <div class="form-group"><label class="form-label">Scope of Work</label><textarea class="form-textarea" v-model="bpHireForm.scope" rows="3" placeholder="Describe deliverables, requirements, and timeline…"></textarea></div>
-      <div class="form-row" style="margin-bottom:14px">
-        <label class="form-check"><input type="checkbox" v-model="bpHireForm.include_nda" /><span class="form-check-label">Include NDA Agreement</span></label>
-        <label class="form-check"><input type="checkbox" v-model="bpHireForm.require_baa" /><span class="form-check-label">Require HIPAA BAA</span></label>
-        <label class="form-check"><input type="checkbox" v-model="bpHireForm.auto_contract" /><span class="form-check-label">Auto-generate Service Contract</span></label>
-      </div>
-      <div class="alert alert-info">
-        <AegisIcon name="clipboard" :size="16" />
-        <div>Aegis will notify the partner and generate a contract draft. Both parties must e-sign before work begins.</div>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.bpHire = false">Cancel</button>
-        <button type="button" class="btn btn-primary" @click="submitBpHire"><AegisIcon name="user-cog" :size="16" /> Send Hire Request</button>
-      </template>
-    </AegisModal>
+    <!-- BP Hire Modal — centralized BpEngageModal (4-step wizard) -->
+    <BpEngageModal
+      v-model="modals.bpHire"
+      :partner="bpHireTarget"
+      @submitted="toast.success('Engagement request sent — partner notified via Aegis.')"
+    />
 
-    <!-- Post Job — centralized 4-step wizard (PostJobModal.vue).
+    <!-- Post Job — centralized 4-step wizard (PostJobModal.vue). -->
          Posts to provider.jobs.store. Replaces the old local one-step form
          so the Network tab and the dedicated Support & Services page use
          the same wizard. -->
@@ -1864,6 +1841,7 @@ import ReferralModal          from '@/components/modals/ReferralModal.vue'
 import ServiceRequestModal    from '@/components/modals/ServiceRequestModal.vue'
 import ConnectionRequestModal from '@/components/modals/ConnectionRequestModal.vue'
 import PostJobModal           from '@/components/modals/PostJobModal.vue'
+import BpEngageModal          from '@/components/modals/BpEngageModal.vue'
 import { useModal }         from '@/composables/useModal'
 import { useToast }         from '@/composables/useToast'
 import { useConfirm }       from '@/composables/useConfirm'
@@ -2088,16 +2066,10 @@ function openSvcRequest(serviceName, providerRef = '') {
 
 // ── BP Hire ────────────────────────────────────────────────────────────────
 const bpHireTarget = ref(null)
-const bpHireForm   = reactive({ title: '', engagement_type: 'One-Time Project', start_date: '', budget: '', scope: '', include_nda: true, require_baa: true, auto_contract: true })
 
 function openBpHire(p) {
   bpHireTarget.value = p
   modals.bpHire = true
-}
-
-function submitBpHire() {
-  toast.success('Hire request sent! Partner will be notified.')
-  modals.bpHire = false
 }
 
 // ── Post Job ───────────────────────────────────────────────────────────────

@@ -247,56 +247,21 @@
     <template v-if="isLoggedIn && !isOwner">
 
       <!-- Hire Modal -->
-      <AegisModal v-model="showHireModal" title="Hire / Engage Partner" subtitle="Start a new engagement or activate this partner for a specific project" size="lg">
-        <div class="modal-steps">
-          <div class="modal-step done"><div class="modal-step-num"><AegisIcon name="check" :size="12" /></div>Partner Selected</div>
-          <div class="modal-step-divider"></div>
-          <div class="modal-step active"><div class="modal-step-num">2</div>Engagement Type</div>
-          <div class="modal-step-divider"></div>
-          <div class="modal-step"><div class="modal-step-num">3</div>Scope &amp; Terms</div>
-          <div class="modal-step-divider"></div>
-          <div class="modal-step"><div class="modal-step-num">4</div>Confirm</div>
-        </div>
-        <div class="bpe-summary">
-          <div class="bpe-summary-avatar">{{ avatarInitials }}</div>
-          <div style="min-width:0;flex:1">
-            <div class="bpe-summary-name">{{ businessName }}</div>
-            <div class="bpe-summary-role">{{ primaryLabel }}</div>
-            <div class="bpe-summary-meta">
-              <span v-if="user.verified" class="badge badge-green"><AegisIcon name="check" :size="10" /> Verified</span>
-              <span style="color:var(--gold-dark);font-weight:700;display:inline-flex;align-items:center;gap:4px"><AegisIcon name="star" :size="11" class="aegis-icon-filled aegis-icon-gold-dark" /> {{ pm.rating ?? '4.6' }}</span>
-            </div>
-          </div>
-        </div>
-        <div class="bpe-label">Select Engagement Type</div>
-        <div class="bpe-option-row">
-          <div v-for="opt in engagementTypes" :key="opt.label" :class="['bpe-option', hireForm.type === opt.label ? 'selected' : '']" @click="hireForm.type = opt.label">
-            <span class="bpe-option-icon"><AegisIcon :name="opt.icon" :size="16" /></span>
-            <div><div>{{ opt.label }}</div><div class="bpe-option-sub">{{ opt.sub }}</div></div>
-          </div>
-        </div>
-        <div class="form-row form-row-2">
-          <div class="form-group"><label class="form-label">Start Date <span class="req">*</span></label><input type="date" class="form-input" v-model="hireForm.startDate"></div>
-          <div class="form-group"><label class="form-label">Duration</label><input type="text" class="form-input" placeholder="e.g. 3 months / Ongoing" v-model="hireForm.duration"></div>
-          <div class="form-group"><label class="form-label">Budget / Rate</label><input type="text" class="form-input" placeholder="e.g. $95/hr or $2,000 fixed" v-model="hireForm.budget"></div>
-          <div class="form-group">
-            <label class="form-label">Payment Terms</label>
-            <select class="form-select" v-model="hireForm.paymentTerms">
-              <option>Net 30</option><option>Net 15</option><option>Upon Completion</option><option>50% Upfront / 50% On Delivery</option><option>Hourly Time-Tracking</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-group"><label class="form-label">Scope of Work / Notes</label><textarea class="form-textarea" rows="3" placeholder="Describe what you need from this partner..." v-model="hireForm.notes"></textarea></div>
-        <div class="pp-tip-box" style="display:flex;gap:10px;align-items:flex-start">
-          <span style="flex-shrink:0;margin-top:1px;display:inline-flex;align-items:center;line-height:0"><AegisIcon name="check" :size="16" class="aegis-icon-gold-dark" /></span>
-          <div class="pp-tip-body"><strong style="color:var(--gold-dark)">NDA &amp; BAA on file.</strong> This partner has signed all required agreements. An engagement confirmation will be sent via Aegis secure messaging.</div>
-        </div>
-        <template #footer>
-          <button class="btn btn-outline" @click="showHireModal = false">Cancel</button>
-          <button class="btn btn-outline" @click="openProposeContractModal"><AegisIcon name="file-text" :size="13" /> Add Formal Contract</button>
-          <button class="btn btn-primary" @click="submitHire"><span class="btn-ico"><AegisIcon name="check" :size="13" /></span>Confirm Engagement</button>
-        </template>
-      </AegisModal>
+      <!-- Hire / Engage Modal — centralized BpEngageModal -->
+      <BpEngageModal
+        v-model="showHireModal"
+        :partner="{
+          id:       user.id,
+          name:     businessName,
+          role:     primaryLabel,
+          initials: avatarInitials,
+          avatar_url: user.avatar_url,
+          rating:   pm.rating ?? null,
+          verified: user.verified,
+          rate:     hourlyRate ? '$' + hourlyRate + '/hr' : null,
+        }"
+        @submitted="toast.success('Engagement request sent — partner notified via Aegis.')"
+      />
 
       <!-- Propose Contract Modal -->
       <AegisModal v-model="showContractModal" title="Propose a Contract" subtitle="Draft a custom service contract with scope, terms, and payment schedule" size="lg">
@@ -446,6 +411,7 @@ import { usePage } from '@inertiajs/vue3'
 import PublicLayout from '@/layouts/PublicLayout.vue'
 import AegisModal from '@/components/ui/AegisModal.vue'
 import AegisIcon from '@/components/ui/AegisIcon.vue'
+import BpEngageModal from '@/components/modals/BpEngageModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useMessageButton } from '@/composables/useMessageButton'
@@ -493,7 +459,7 @@ const howItWorks = [
 
 const engagementActions = computed(() => [
   { name: 'Hire / Engage',        desc: 'Start a new engagement or activate this partner for a specific project or hourly consultation.', avail: 'open',    availLabel: 'Available Now',   btnClass: 'btn-primary', btnLabel: 'Hire Now', handler: openHireModal },
-  { name: 'Propose Contract',     desc: 'Draft and send a custom service contract - set scope, timeline, payment terms, and deliverables.', avail: 'open', availLabel: 'Custom Terms',    btnClass: 'btn-outline', btnLabel: 'Draft',    handler: openProposeContractModal },
+  { name: 'Propose Contract',     desc: 'Draft and send a custom service contract - set scope, timeline, payment terms, and deliverables.', avail: 'open', availLabel: 'Custom Terms',    btnClass: 'btn-outline', btnLabel: 'Draft',    handler: () => { showContractModal.value = true } },
   { name: 'Request a Quote',      desc: 'Describe your needs and request a formal quote or pricing proposal from this partner.',           avail: 'open',    availLabel: '24h Turnaround', btnClass: 'btn-outline', btnLabel: 'Request',  handler: openRequestQuoteModal },
   { name: 'Schedule Consultation',desc: 'Book a discovery call, strategy session, or consultation meeting with this partner.',             avail: 'limited', availLabel: 'Limited Slots',  btnClass: 'btn-outline', btnLabel: 'Book',     handler: openScheduleModal },
 ])
@@ -502,12 +468,6 @@ const engagementTypes = [
   { label: 'Fixed-Scope Project', icon: 'clipboard', sub: 'One-time deliverable based' },
   { label: 'Hourly / Time-Based', icon: 'clock',     sub: 'Pay per hour worked' },
   { label: 'Consultation Only',   icon: 'credit-card', sub: 'Single advisory session' },
-]
-const meetingTypes = [
-  { label: 'Video Call', icon: 'user' },
-  { label: 'Phone Call', icon: 'phone' },
-  { label: 'In-Person',  icon: 'map-pin' },
-  { label: 'Aegis Chat', icon: 'message' },
 ]
 const standardClauses = [
   { label: 'HIPAA / BAA Compliance', checked: true },
@@ -524,18 +484,15 @@ const showScheduleModal = ref(false)
 const showReviewModal   = ref(false)
 
 const hireForm     = ref({ type: 'Fixed-Scope Project', startDate: '', duration: '', budget: '', paymentTerms: 'Net 30', notes: '' })
-const contractForm = ref({ title: '', type: 'Service Agreement', startDate: '', endDate: '', value: '', paymentSchedule: 'Milestone-based', scope: '', specialTerms: '' })
 const quoteForm    = ref({ service: 'Tax Preparation (one-time)', size: 'Solo Practitioner', budget: '', timeline: '', notes: '', urgent: false })
 const scheduleForm = ref({ type: 'Video Call', date: '', time: '10:00 AM', duration: '30 minutes', tz: 'EST (New York)', agenda: '' })
 const reviewForm   = ref({ rating: 0, headline: '', body: '', engType: 'Fixed-Scope Project', duration: '1-3 months' })
 
 function openHireModal()            { showHireModal.value = true }
-function openProposeContractModal() { showHireModal.value = false; showContractModal.value = true }
 function openRequestQuoteModal()    { showQuoteModal.value = true }
 function openScheduleModal()        { showScheduleModal.value = true }
 function openLeaveReviewModal()     { reviewForm.value = { rating: 0, headline: '', body: '', engType: 'Fixed-Scope Project', duration: '1-3 months' }; showReviewModal.value = true }
 
-function submitHire()     { showHireModal.value = false; toast.success('Engagement started - partner notified via Aegis') }
 function submitContract() { showContractModal.value = false; toast.success('Contract proposal sent') }
 function submitQuote()    { showQuoteModal.value = false; toast.success('Quote request sent') }
 function submitSchedule() { showScheduleModal.value = false; toast.success('Consultation request sent') }
@@ -557,22 +514,14 @@ function confirmRemovePartner() {
 
 <style scoped>
 .public-profile-wrap { max-width: 960px; margin: 0 auto; padding: var(--space-6) var(--space-4); }
-.bpe-summary { display: flex; gap: 12px; align-items: center; padding: 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 18px; }
-.bpe-summary-avatar { width: 48px; height: 48px; border-radius: var(--radius-sm); background: var(--gold-dark); color: var(--text-inverted); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; flex-shrink: 0; }
-.bpe-summary-name { font-size: 14px; font-weight: 700; color: var(--text); }
-.bpe-summary-role { font-size: 12px; color: var(--text-3); margin-top: 2px; }
-.bpe-summary-meta { display: flex; gap: 10px; margin-top: 5px; font-size: 11px; }
-.bpe-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-4); margin-bottom: 8px; }
+/* bpe-option — used by Schedule Consultation modal meeting-type picker */
 .bpe-option-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 14px; }
-.bpe-option { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; transition: box-shadow 180ms; }
+.bpe-option { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; transition: border-color var(--transition), background var(--transition), box-shadow var(--transition); }
 .bpe-option:hover { box-shadow: var(--shadow-sm); }
-.bpe-option.selected { background: var(--badge-bg-gold); border-color: transparent; color: var(--gold-dark); font-weight: 700; }
+.bpe-option.selected { background: var(--badge-bg-gold); border-color: var(--gold-dark); color: var(--gold-dark); font-weight: 700; }
 .bpe-option-icon { flex-shrink: 0; display: inline-flex; align-items: center; line-height: 0; color: var(--text-3); }
 .bpe-option.selected .bpe-option-icon { color: var(--gold-dark); }
 .bpe-option-sub { font-size: 11px; font-weight: 600; color: var(--text-4); margin-top: 2px; }
-.bpe-option.selected .bpe-option-sub { color: var(--gold-dark); }
-.bpe-clause-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-.bpe-clause-grid label { display: flex; align-items: center; gap: 10px; font-size: 13px; line-height: 1.5; cursor: pointer; }
 .rating-stars { display: inline-flex; gap: 4px; }
 .rating-star { background: transparent; border: none; padding: 4px; color: var(--text-4); cursor: pointer; line-height: 0; transition: color 0.15s ease, transform 0.15s ease; }
 .rating-star:hover { transform: scale(1.08); }
