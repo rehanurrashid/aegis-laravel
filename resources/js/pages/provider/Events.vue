@@ -1,111 +1,957 @@
+<!--
+  pages/provider/Events.vue
+  100% parity with events.php (1236 lines).
+  Design pass only — props are stubs; Prompt 2 wires real backend data.
+-->
 <template>
-  <AppLayout :user="user" portal="practitioner" activePage="events" pageTitle="Events">
-    <div class="hero-banner is-quiet">
-      <div class="page-hero-inner">
-        <div class="page-hero-text">
-          <div class="page-hero-eyebrow">Events</div>
-          <h1 class="page-hero-title">Events</h1>
-        <p class="page-hero-sub">Browse upcoming events, webinars, and professional development opportunities.</p>
+  <AppLayout>
+    <Head title="Events &amp; Trainings — Aegis" />
+
+    <!-- ══ HERO (quiet) ══════════════════════════════════════════════ -->
+    <AegisHeroBanner
+      eyebrow="PROVIDER PORTAL"
+      title="Events &amp; Trainings"
+      subtitle="CEU courses, conferences, workshops, and networking for health and well-being professionals."
+      quiet
+    >
+      <template #actions>
+        <a :href="route('activity.index', { module: 'events' })" class="btn-hero-ghost is-on-light">
+          <AegisIcon name="activity" :size="14" /> Activity
+        </a>
+        <button class="btn-hero-solid is-on-light" @click="modals.submitEvent = true">
+          <AegisIcon name="plus" :size="14" /> Submit Event
+        </button>
+      </template>
+    </AegisHeroBanner>
+
+    <!-- ══ STAT CHIPS (sibling of hero) ══════════════════════════════ -->
+    <div class="stat-chips-row">
+      <AegisStatChip icon="calendar" :value="props.countTotal ?? 0" label="Upcoming Events" />
+      <AegisStatChip icon="bookmark" :value="props.registeredCount ?? 0" label="Registered" />
+      <AegisStatChip icon="award" :value="props.ceuEarned ?? '0'" label="CEUs Earned" />
+    </div>
+
+    <!-- ══ CEU PROGRESS TRACKER ═══════════════════════════════════════ -->
+    <div class="card evt-ceu-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">My 2026 CEU Progress</div>
+          <div class="card-subtitle">Track licensure-renewal credits across categories.</div>
         </div>
-        <div class="page-hero-actions"></div>
+        <button class="btn btn-outline btn-sm" @click="modals.ceu = true">
+          <AegisIcon name="bar-chart" :size="14" /> View Transcript
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="ceu-rows">
+          <div
+            v-for="row in ceuRows"
+            :key="row.category"
+            class="ceu-row"
+          >
+            <div class="ceu-row-name">
+              <AegisIcon :name="row.icon || 'book'" :size="14" /> {{ row.category }}
+            </div>
+            <div class="ceu-row-bar">
+              <div
+                class="ceu-row-bar-fill"
+                :class="`is-${row.status}`"
+                :style="`width:${row.pct}%`"
+              ></div>
+            </div>
+            <div class="ceu-row-meta" :class="{ 'is-danger': row.status === 'danger', 'is-done': row.status === 'done' }">
+              {{ fmtCeu(row.earned_hrs) }} / {{ fmtCeu(row.required_hrs) }} hrs<template v-if="row.meta_label"> · {{ row.meta_label }}</template>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="dh-sh"><div><div class="dh-sh-eyebrow">Upcoming</div><h2 class="dh-sh-title">Scheduled Events</h2></div></div>
-    <div class="pg-list">
-      <div class="pg-item"><div class="pg-item-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div class="pg-item-content"><div class="pg-item-title">Continuity Planning Webinar: Best Practices for 2025</div><div class="pg-item-sub">Virtual Event — Jan 28, 2025 at 2:00 PM ET — Free for Aegis members</div></div><span class="badge badge-blue">Register</span><span class="pg-item-meta">In 26 days</span></div>
-      <div class="pg-item"><div class="pg-item-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div class="pg-item-content"><div class="pg-item-title">Aegis Annual Conference 2025</div><div class="pg-item-sub">Boston Convention Center — Mar 15-17, 2025 — In-person</div></div><span class="badge badge-green">Confirmed</span><span class="pg-item-meta">In 73 days</span></div>
-      <div class="pg-item"><div class="pg-item-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div class="pg-item-content"><div class="pg-item-title">Steward Certification Training — Q1 Cohort</div><div class="pg-item-sub">Virtual — Feb 3-7, 2025 — $450</div></div><span class="badge badge-warning">Limited Spots</span><span class="pg-item-meta">In 32 days</span></div>
-    </div>
+
+    <!-- ══ MAIN LAYOUT: feed + sidebar ═══════════════════════════════ -->
+    <div class="evt-layout">
+
+      <!-- ── FEED COLUMN ─────────────────────────────────────────── -->
+      <div>
+
+        <!-- TOOLBAR -->
+        <div class="evt-toolbar">
+          <div class="evt-search-wrap">
+            <span class="evt-search-icon"><AegisIcon name="search" :size="16" /></span>
+            <input
+              v-model="searchQuery"
+              type="text"
+              class="evt-search-input"
+              placeholder="Search events, topics, speakers..."
+            >
+          </div>
+          <select v-model="categoryFilter" class="form-select evt-toolbar-select" aria-label="Filter by category">
+            <option value="all">All categories</option>
+            <option value="webinar">Webinars</option>
+            <option value="conference">Conferences</option>
+            <option value="training">CEU Training</option>
+            <option value="networking">Networking</option>
+            <option value="workshop">Workshops</option>
+          </select>
+          <select v-model="sortMode" class="form-select evt-toolbar-select" aria-label="Sort events">
+            <option value="date">Soonest first</option>
+            <option value="popular">Most popular</option>
+            <option value="price-asc">Price: low to high</option>
+            <option value="ceu">Most CEUs</option>
+          </select>
+        </div>
+
+        <!-- RESULT BAR -->
+        <div class="evt-result-bar">
+          <strong>{{ visibleEvents.length }}</strong> event{{ visibleEvents.length !== 1 ? 's' : '' }}
+        </div>
+
+        <!-- EVENT LIST -->
+        <div class="evt-list">
+          <div
+            v-for="(ev, i) in visibleEvents"
+            :key="ev.id"
+            class="evt-card"
+            :data-category="evtCategory(ev)"
+          >
+            <!-- Date block -->
+            <div class="evt-date-block">
+              <div class="evt-date-month">{{ fmtMonth(ev.starts_at) }}</div>
+              <div class="evt-date-day">{{ fmtDay(ev.starts_at) }}</div>
+              <div class="evt-date-year">{{ fmtYear(ev.starts_at) }}</div>
+            </div>
+
+            <!-- Content -->
+            <div class="evt-content">
+              <div class="evt-content-top">
+                <span class="evt-category" :class="evtCategory(ev)">{{ evtCategoryLabel(ev) }}</span>
+                <span v-if="i === 0" class="evt-featured-badge">
+                  <AegisIcon name="star" :size="11" /> Featured
+                </span>
+                <span
+                  v-if="daysAway(ev.starts_at) >= 0 && daysAway(ev.starts_at) <= 7"
+                  class="evt-urgent-badge"
+                  :class="{ 'is-today': daysAway(ev.starts_at) === 0 }"
+                >
+                  <AegisIcon name="clock" :size="11" />
+                  {{ daysAway(ev.starts_at) === 0 ? 'Today' : daysAway(ev.starts_at) === 1 ? 'Tomorrow' : daysAway(ev.starts_at) + ' days away' }}
+                </span>
+              </div>
+              <div class="evt-title">{{ ev.title }}</div>
+              <div v-if="ev.description" class="evt-desc">{{ ev.description }}</div>
+              <div class="evt-meta">
+                <div class="evt-meta-item">
+                  <AegisIcon name="clock" :size="14" />
+                  {{ fmtTimeRange(ev.starts_at, ev.ends_at) }}
+                </div>
+                <div v-if="ev.location" class="evt-meta-item">
+                  <AegisIcon :name="ev.location === 'Online' ? 'monitor' : 'map-pin'" :size="14" />
+                  {{ ev.location }}
+                </div>
+                <div v-if="ev.ceu_credits > 0" class="evt-meta-item is-ceu">
+                  <AegisIcon name="award" :size="14" />
+                  {{ fmtCeu(ev.ceu_credits) }} CEU Credit{{ ev.ceu_credits === 1 ? '' : 's' }}
+                </div>
+                <div v-if="ev.is_free" class="evt-meta-item is-free">
+                  <AegisIcon name="check" :size="14" /> Free
+                </div>
+                <div v-else class="evt-meta-item is-paid">
+                  <AegisIcon name="dollar" :size="14" /> Paid
+                </div>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="evt-actions">
+              <button
+                class="evt-btn evt-btn-primary"
+                :class="{ 'is-registered': registeredIds.has(ev.id) }"
+                @click="handleRegister(ev)"
+              >
+                <template v-if="registeredIds.has(ev.id)">
+                  <AegisIcon name="check" :size="13" /> Registered
+                </template>
+                <template v-else>
+                  {{ ev.is_free ? 'Register Free' : 'Register Now' }}
+                </template>
+              </button>
+              <button class="evt-btn evt-btn-secondary" @click="openDetail(ev)">View Details</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- EMPTY STATE -->
+        <AegisEmptyState
+          v-if="visibleEvents.length === 0"
+          icon="calendar"
+          title="No events found"
+          subtitle="Try a different category or clear the filter."
+        >
+          <template #actions>
+            <button class="btn btn-outline btn-sm" @click="clearFilter">Clear filter</button>
+          </template>
+        </AegisEmptyState>
+
+        <!-- LOAD MORE -->
+        <div class="evt-load-more">
+          <button class="btn btn-outline btn-sm" @click="loadMore">
+            <AegisIcon name="refresh" :size="14" />
+            {{ loadMoreText }}
+          </button>
+        </div>
+
+      </div><!-- end feed column -->
+
+      <!-- ── SIDEBAR ─────────────────────────────────────────────── -->
+      <aside class="evt-sidebar">
+
+        <!-- MY REGISTERED EVENTS -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">My Registered Events</div>
+              <div class="card-subtitle">{{ props.registeredCount ?? 0 }} upcoming</div>
+            </div>
+            <button class="btn-icon" data-tooltip="View CEU transcript" @click="modals.ceu = true">
+              <AegisIcon name="bar-chart" :size="14" />
+            </button>
+          </div>
+          <div class="card-body">
+            <div v-if="myEvents.length === 0" class="evt-no-reg">No upcoming registrations yet.</div>
+            <div v-else class="evt-my-list">
+              <div
+                v-for="mev in myEvents"
+                :key="mev.id"
+                class="evt-my-item"
+                @click="openDetail(mev)"
+              >
+                <div class="evt-my-dot" :class="evtCategory(mev)"></div>
+                <div style="min-width:0">
+                  <div class="evt-my-title">{{ mev.title }}</div>
+                  <div class="evt-my-date">
+                    {{ fmtShortDate(mev.starts_at) }} · {{ fmtTime(mev.starts_at) }}<template v-if="mev.ceu_credits"> · {{ fmtCeu(mev.ceu_credits) }} CEUs</template>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- EVENT CALENDAR -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Event Calendar</div>
+              <div class="card-subtitle">Days marked have events.</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="evt-cal-nav">
+              <button class="evt-cal-nav-btn" data-tooltip="Previous month" @click="changeCalMonth(-1)">
+                <AegisIcon name="chevron-left" :size="14" />
+              </button>
+              <span class="evt-cal-month-label">{{ calMonthLabel }}</span>
+              <button class="evt-cal-nav-btn" data-tooltip="Next month" @click="changeCalMonth(1)">
+                <AegisIcon name="chevron-right" :size="14" />
+              </button>
+            </div>
+            <div class="evt-cal">
+              <div v-for="h in ['Su','Mo','Tu','We','Th','Fr','Sa']" :key="h" class="evt-cal-header">{{ h }}</div>
+              <div
+                v-for="cell in calCells"
+                :key="cell.key"
+                class="evt-cal-day"
+                :class="{
+                  'today': cell.isToday,
+                  'has-event': cell.hasEvent && !cell.isToday,
+                  'other-month': cell.otherMonth
+                }"
+              >{{ cell.day }}</div>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+    </div><!-- end evt-layout -->
+
+    <!-- ══ MODALS ═════════════════════════════════════════════════════ -->
+
+    <!-- EVENT DETAIL MODAL -->
+    <AegisModal v-model="modals.detail" title="Event Details" size="lg">
+      <template v-if="detailEvent">
+        <div class="evt-detail-heading">
+          <div class="evt-detail-eyebrow">Aegis Event</div>
+          <div class="evt-detail-title">{{ detailEvent.title }}</div>
+        </div>
+        <div class="evt-detail-meta">
+          <div class="evt-detail-chip"><strong>{{ fmtFullDate(detailEvent.starts_at) }}</strong></div>
+          <div v-if="detailEvent.location" class="evt-detail-chip"><strong>{{ detailEvent.location }}</strong></div>
+          <div v-if="detailEvent.ceu_credits > 0" class="evt-detail-chip"><strong>{{ fmtCeu(detailEvent.ceu_credits) }} CEU{{ detailEvent.ceu_credits === 1 ? '' : 's' }}</strong></div>
+          <div class="evt-detail-chip"><strong>{{ detailEvent.is_free ? 'Free' : 'Paid' }}</strong></div>
+        </div>
+        <p v-if="detailEvent.description" class="evt-detail-desc">{{ detailEvent.description }}</p>
+        <div v-if="detailEvent.rsvp_url" class="evt-detail-link">
+          <a :href="detailEvent.rsvp_url" target="_blank" rel="noopener">Event details &amp; RSVP →</a>
+        </div>
+      </template>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.detail = false">Close</button>
+        <button v-if="detailEvent" class="btn btn-primary" @click="handleRegister(detailEvent); modals.detail = false">
+          {{ detailEvent?.is_free ? 'Register Free' : 'Register Now' }}
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- REGISTER CONFIRM MODAL -->
+    <AegisModal v-model="modals.registerConfirm" title="Confirm Registration" size="sm">
+      <div class="evt-detail-heading" style="text-align:center">
+        <div class="evt-detail-eyebrow">You're registering for</div>
+        <div class="evt-detail-title">{{ pendingEvent?.title }}</div>
+      </div>
+      <p style="text-align:center;font-size:13px;color:var(--text-3);margin-bottom:18px">Confirmation will be emailed.</p>
+      <div class="form-group">
+        <label class="form-label">Preferred contact email</label>
+        <input v-model="regForm.email" type="email" class="form-input" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dietary restrictions or accessibility needs</label>
+        <input v-model="regForm.notes" type="text" class="form-input" placeholder="Optional" />
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.registerConfirm = false">Cancel</button>
+        <button class="btn btn-primary" @click="confirmRegistration">Confirm Registration →</button>
+      </template>
+    </AegisModal>
+
+    <!-- CANCEL REGISTRATION MODAL -->
+    <AegisModal v-model="modals.cancelReg" title="Cancel Registration" size="sm">
+      <div class="evt-detail-heading" style="text-align:center">
+        <div class="evt-detail-eyebrow">Are you sure?</div>
+        <div class="evt-detail-title">{{ pendingEvent?.title }}</div>
+      </div>
+      <div class="alert alert-warning" style="margin-top:14px">
+        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
+        <div class="alert-content">
+          <div class="alert-title">Refund policy</div>
+          <div>Cancellations within 48 hours of the event may not be eligible for a refund. Please review the event's policy before confirming.</div>
+        </div>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.cancelReg = false">Keep Registration</button>
+        <button class="btn btn-danger" @click="confirmCancel">Cancel Registration</button>
+      </template>
+    </AegisModal>
+
+    <!-- SUBMIT EVENT MODAL -->
+    <AegisModal v-model="modals.submitEvent" title="Submit an Event" size="lg">
+      <div class="alert alert-info" style="margin-bottom:16px">
+        <div class="alert-icon"><AegisIcon name="info" :size="18" /></div>
+        <div class="alert-content">
+          <div class="alert-title">For community review</div>
+          <div>Approved events are listed on this page and promoted to the Aegis community.</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Event Title <span class="required">*</span></label>
+        <input v-model="submitForm.title" type="text" class="form-input" placeholder="e.g. CBT for Anxiety Disorders — Advanced Workshop" />
+      </div>
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label class="form-label">Event Type <span class="required">*</span></label>
+          <select v-model="submitForm.type" class="form-select">
+            <option value="">Select type…</option>
+            <option>Webinar</option>
+            <option>Conference</option>
+            <option>CEU Training</option>
+            <option>Networking</option>
+            <option>Workshop</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Event Date <span class="required">*</span></label>
+          <input v-model="submitForm.date" type="date" class="form-input" />
+        </div>
+      </div>
+      <div class="form-row form-row-2">
+        <div class="form-group">
+          <label class="form-label">Price</label>
+          <input v-model="submitForm.price" type="text" class="form-input" placeholder="$0 for free events" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">CEU Credits Offered</label>
+          <input v-model="submitForm.ceu" type="text" class="form-input" placeholder="e.g. 2 Ethics CEUs" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Location / Format</label>
+        <input v-model="submitForm.location" type="text" class="form-input" placeholder="Online (Zoom) or City, State" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description <span class="required">*</span></label>
+        <textarea v-model="submitForm.description" class="form-textarea" rows="4" placeholder="Describe the event, target audience, learning objectives…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Registration URL</label>
+        <input v-model="submitForm.url" type="url" class="form-input" placeholder="https://…" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Organizer / Sponsor</label>
+        <input v-model="submitForm.organizer" type="text" class="form-input" placeholder="Organization name" />
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.submitEvent = false">Cancel</button>
+        <button class="btn btn-primary" @click="submitEvent">Submit for Review →</button>
+      </template>
+    </AegisModal>
+
+    <!-- CEU TRANSCRIPT MODAL -->
+    <AegisModal v-model="modals.ceu" title="My CEU Transcript — 2026" size="lg">
+      <div class="stat-chips-row" style="margin-bottom:18px">
+        <AegisStatChip icon="award" value="18.5" label="Total CEUs Earned" />
+        <AegisStatChip icon="alert-circle" value="0 / 3" label="Ethics — Due Mar 1" />
+        <AegisStatChip icon="check-circle" value="6 / 6" label="Practice Mgmt" />
+      </div>
+      <div class="section-label" style="margin-bottom:8px">Completed CEUs</div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Course</th>
+              <th>Type</th>
+              <th>Date</th>
+              <th style="text-align:center">Credits</th>
+              <th style="text-align:center">Certificate</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in ceuTranscript" :key="row.course">
+              <td><strong>{{ row.course }}</strong></td>
+              <td><AegisBadge :variant="row.badge">{{ row.type }}</AegisBadge></td>
+              <td>{{ row.date }}</td>
+              <td style="text-align:center;font-weight:700">{{ row.credits }}</td>
+              <td style="text-align:center">
+                <button class="btn-icon" data-tooltip="Download certificate" @click="toast.success('Downloading certificate')">
+                  <AegisIcon name="download" :size="14" />
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.ceu = false">Close</button>
+        <button class="btn btn-primary" @click="exportTranscript">
+          <AegisIcon name="download" :size="14" /> Export Transcript
+        </button>
+      </template>
+    </AegisModal>
+
   </AppLayout>
 </template>
 
 <script setup>
-import AppLayout from '../../Components/AppLayout.vue';
-defineProps({ user: Object });
+import { ref, reactive, computed, watch } from 'vue'
+import { Head, router } from '@inertiajs/vue3'
+import AppLayout from '@/layouts/AppLayout.vue'
+import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
+
+const toast = useToast()
+const { confirmAction } = useConfirm()
+
+// ── Props (stubs — real data wired in Prompt 2) ─────────────────────────
+const props = defineProps({
+  events:          { type: Array,  default: () => [] },
+  countTotal:      { type: Number, default: 0 },
+  registeredCount: { type: Number, default: 0 },
+  ceuEarned:       { type: [Number, String], default: 0 },
+  ceuRows:         { type: Array,  default: () => [] },
+  myEvents:        { type: Array,  default: () => [] },
+  registeredEventIds: { type: Array, default: () => [] },
+  eventDays:       { type: Object, default: () => ({}) },
+})
+
+// ── Modal state ──────────────────────────────────────────────────────────
+const modals = reactive({
+  detail:          false,
+  registerConfirm: false,
+  cancelReg:       false,
+  submitEvent:     false,
+  ceu:             false,
+})
+
+// ── Filter / search / sort ───────────────────────────────────────────────
+const searchQuery    = ref('')
+const categoryFilter = ref('all')
+const sortMode       = ref('date')
+const loadMoreText   = ref('Load more events')
+
+const registeredIds = ref(new Set(props.registeredEventIds))
+
+const filteredEvents = computed(() => {
+  let list = props.events ?? []
+  if (categoryFilter.value !== 'all') {
+    list = list.filter(e => evtCategory(e) === categoryFilter.value)
+  }
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase()
+    list = list.filter(e =>
+      (e.title ?? '').toLowerCase().includes(q) ||
+      (e.description ?? '').toLowerCase().includes(q)
+    )
+  }
+  return list
+})
+
+const visibleEvents = computed(() => {
+  const list = [...filteredEvents.value]
+  if (sortMode.value === 'date') {
+    list.sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))
+  } else if (sortMode.value === 'price-asc') {
+    list.sort((a, b) => (a.is_free ? 0 : 50) - (b.is_free ? 0 : 50))
+  } else if (sortMode.value === 'ceu') {
+    list.sort((a, b) => (b.ceu_credits ?? 0) - (a.ceu_credits ?? 0))
+  }
+  return list
+})
+
+function clearFilter() {
+  categoryFilter.value = 'all'
+  searchQuery.value = ''
+}
+
+function loadMore() {
+  loadMoreText.value = 'All caught up'
+  toast.info('No more events to load')
+}
+
+// ── Pending event for modals ─────────────────────────────────────────────
+const pendingEvent = ref(null)
+const detailEvent  = ref(null)
+
+const regForm = reactive({ email: '', notes: '' })
+const submitForm = reactive({
+  title: '', type: '', date: '', price: '', ceu: '',
+  location: '', description: '', url: '', organizer: '',
+})
+
+// ── Registration ─────────────────────────────────────────────────────────
+function handleRegister(ev) {
+  if (registeredIds.value.has(ev.id)) {
+    toast.info(`You're already registered for ${ev.title}`)
+    return
+  }
+  pendingEvent.value = ev
+  regForm.email = ''
+  regForm.notes = ''
+  modals.registerConfirm = true
+}
+
+function confirmRegistration() {
+  if (!pendingEvent.value) return
+  router.post(route('provider.events.register', pendingEvent.value.id), {
+    email: regForm.email,
+    notes: regForm.notes,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      registeredIds.value.add(pendingEvent.value.id)
+      modals.registerConfirm = false
+      toast.success(`Registered for ${pendingEvent.value.title} — check your email.`)
+    },
+    onError: () => {
+      modals.registerConfirm = false
+      toast.error('Registration failed.')
+    },
+  })
+}
+
+// ── Cancel ───────────────────────────────────────────────────────────────
+function openCancelModal(ev) {
+  pendingEvent.value = ev
+  modals.cancelReg = true
+}
+
+function confirmCancel() {
+  if (!pendingEvent.value) return
+  confirmAction(`Cancel registration for "${pendingEvent.value.title}"?`, () => {
+    router.delete(route('provider.events.cancel', pendingEvent.value.id), {
+      preserveScroll: true,
+      onSuccess: () => {
+        registeredIds.value.delete(pendingEvent.value.id)
+        modals.cancelReg = false
+        toast.info('Registration cancelled')
+      },
+      onError: () => {
+        modals.cancelReg = false
+        toast.error('Cancellation failed.')
+      },
+    })
+  })
+}
+
+// ── Event detail ─────────────────────────────────────────────────────────
+function openDetail(ev) {
+  detailEvent.value = ev
+  modals.detail = true
+}
+
+// ── Submit event ─────────────────────────────────────────────────────────
+function submitEvent() {
+  if (!submitForm.title.trim() || !submitForm.description.trim()) {
+    toast.warning('Please fill in the required fields')
+    return
+  }
+  router.post(route('provider.events.submit'), { ...submitForm }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      modals.submitEvent = false
+      toast.success("Event submitted for review — we'll respond within 2 business days.")
+      Object.keys(submitForm).forEach(k => (submitForm[k] = ''))
+    },
+    onError: () => toast.error('Submission failed.'),
+  })
+}
+
+// ── Export transcript ────────────────────────────────────────────────────
+function exportTranscript() {
+  router.post(route('provider.events.export-transcript'), {}, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Transcript export queued — you will receive an email with the link shortly.'),
+    onError: () => toast.error('Export failed.'),
+  })
+}
+
+// ── Format helpers ───────────────────────────────────────────────────────
+function fmtMonth(iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('en-US', { month: 'short' }).toUpperCase()
+}
+function fmtDay(iso) {
+  if (!iso) return '—'
+  return new Date(iso).getDate()
+}
+function fmtYear(iso) {
+  if (!iso) return '—'
+  return new Date(iso).getFullYear()
+}
+function fmtTime(iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })
+}
+function fmtTimeRange(start, end) {
+  if (!start) return '—'
+  const s = fmtTime(start)
+  if (!end) return s
+  return s + ' – ' + fmtTime(end)
+}
+function fmtShortDate(iso) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric' })
+}
+function fmtFullDate(iso) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+function fmtCeu(n) {
+  if (n == null) return '0'
+  const v = parseFloat(n)
+  return v % 1 === 0 ? String(Math.round(v)) : String(parseFloat(v.toFixed(1)))
+}
+function daysAway(iso) {
+  if (!iso) return -1
+  return Math.max(0, Math.floor((new Date(iso) - Date.now()) / 86400000))
+}
+
+const CAT_MAP = { webinar: 'webinar', conference: 'conference', training: 'training', networking: 'networking', workshop: 'workshop' }
+const CAT_LABELS = { webinar: 'Webinar', conference: 'Conference', training: 'CEU Training', networking: 'Networking', workshop: 'Workshop' }
+function evtCategory(ev) {
+  const c = (ev.category ?? '').toLowerCase()
+  if (CAT_MAP[c]) return c
+  const t = (ev.title ?? '').toLowerCase()
+  if (t.includes('webinar') || t.includes('office hours')) return 'webinar'
+  if (t.includes('workshop')) return 'workshop'
+  if (t.includes('summit') || t.includes('conference')) return 'conference'
+  if (t.includes('networking') || t.includes('meetup')) return 'networking'
+  return 'training'
+}
+function evtCategoryLabel(ev) {
+  return CAT_LABELS[evtCategory(ev)] ?? 'Event'
+}
+
+// ── CEU transcript rows (static for design pass) ─────────────────────────
+const ceuTranscript = [
+  { course: 'Telehealth Best Practices 2025',        type: 'Webinar',  badge: 'blue',   date: 'Nov 14, 2025', credits: '3.0' },
+  { course: 'Medicare Billing for Mental Health',    type: 'Training', badge: 'teal',   date: 'Sep 22, 2025', credits: '6.0' },
+  { course: 'ADHD Diagnosis & Treatment',            type: 'Workshop', badge: 'orange', date: 'Jul 10, 2025', credits: '4.0' },
+  { course: 'Risk Assessment in Outpatient Settings',type: 'Webinar',  badge: 'blue',   date: 'May 5, 2025',  credits: '5.5' },
+]
+
+// ── Mini calendar ────────────────────────────────────────────────────────
+const today    = new Date()
+const calYear  = ref(today.getFullYear())
+const calMonth = ref(today.getMonth())
+const MONTHS   = ['January','February','March','April','May','June','July','August','September','October','November','December']
+
+const calMonthLabel = computed(() => `${MONTHS[calMonth.value]} ${calYear.value}`)
+
+const calCells = computed(() => {
+  const cells = []
+  const firstDay   = new Date(calYear.value, calMonth.value, 1).getDay()
+  const daysInMon  = new Date(calYear.value, calMonth.value + 1, 0).getDate()
+  const daysInPrev = new Date(calYear.value, calMonth.value, 0).getDate()
+  for (let i = firstDay - 1; i >= 0; i--) {
+    cells.push({ key: `p${i}`, day: daysInPrev - i, otherMonth: true, isToday: false, hasEvent: false })
+  }
+  for (let d = 1; d <= daysInMon; d++) {
+    const key = `${calYear.value}-${calMonth.value}-${d}`
+    const isToday = today.getFullYear() === calYear.value && today.getMonth() === calMonth.value && today.getDate() === d
+    cells.push({ key, day: d, otherMonth: false, isToday, hasEvent: !!(props.eventDays?.[key]) })
+  }
+  const total   = firstDay + daysInMon
+  const remain  = total % 7 === 0 ? 0 : 7 - (total % 7)
+  for (let i = 1; i <= remain; i++) {
+    cells.push({ key: `n${i}`, day: i, otherMonth: true, isToday: false, hasEvent: false })
+  }
+  return cells
+})
+
+function changeCalMonth(dir) {
+  let m = calMonth.value + dir
+  let y = calYear.value
+  if (m > 11) { m = 0; y++ }
+  if (m < 0)  { m = 11; y-- }
+  calMonth.value = m
+  calYear.value  = y
+}
 </script>
 
 <style scoped>
-.hero-banner.is-quiet {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-xl, 18px); padding: 28px 32px;
-  margin-bottom: 22px; border-left: 4px solid var(--gold-dark, #a0813e);
+/* ── Layout ─────────────────────────────────────────────────────── */
+.evt-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 24px;
 }
-.page-hero-inner { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
-.page-hero-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; color: var(--gold-dark); margin-bottom: 8px; }
-.page-hero-title { font-family: var(--font-serif, 'Spectral', Georgia, serif); font-size: 28px; font-weight: 600; color: var(--text); margin: 0; letter-spacing: -0.3px; }
-.page-hero-sub { font-size: 13.5px; color: var(--text-3); line-height: 1.6; margin-top: 6px; max-width: 600px; }
-.page-hero-actions { flex-shrink: 0; }
-.stat-chip-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
-.stat-chip { padding: 14px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg, 14px); min-width: 140px; flex: 1; }
-.stat-chip-label { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-4); display: block; margin-bottom: 6px; }
-.stat-chip-value { font-family: var(--font-serif); font-size: 24px; font-weight: 700; color: var(--text); display: block; }
-.stat-chip-sub { font-size: 11px; color: var(--text-4); margin-top: 2px; display: block; }
-.dh-sh { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
-.dh-sh-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--gold-dark); margin-bottom: 4px; }
-.dh-sh-title { font-family: var(--font-serif); font-size: 20px; font-weight: 600; color: var(--text); margin: 0; }
-.dh-sh-link { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--gold-dark); text-decoration: none; }
-.dh-sh-link:hover { text-decoration: underline; }
-.pg-grid { display: grid; grid-template-columns: repeat(var(--pg-cols, 2), 1fr); gap: 14px; margin-bottom: 28px; }
-.pg-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
-.pg-card-title { font-family: var(--font-serif); font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
-.pg-card-sub { font-size: 12px; color: var(--text-3); }
-.pg-card-body { font-size: 13px; color: var(--text-2); line-height: 1.6; }
-.pg-card-actions { display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
-.pg-list { margin-bottom: 24px; }
-.pg-item { display: flex; align-items: center; gap: 14px; padding: 14px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg, 14px); margin-bottom: 8px; transition: border-color var(--transition); }
-.pg-item:hover { border-color: var(--gold); }
-.pg-item-icon { width: 38px; height: 38px; border-radius: 50%; background: var(--surface-2); color: var(--gold-dark); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.pg-item-content { flex: 1; min-width: 0; }
-.pg-item-title { font-size: 13.5px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
-.pg-item-sub { font-size: 12px; color: var(--text-3); }
-.pg-item-meta { font-size: 11px; color: var(--text-4); flex-shrink: 0; }
-.table-wrap { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--border); margin-bottom: 24px; }
-.table { width: 100%; border-collapse: collapse; }
-.table th { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-4); padding: 12px 16px; text-align: left; background: var(--surface-2); border-bottom: 1px solid var(--border); }
-.table td { font-size: 13px; color: var(--text-2); padding: 12px 16px; border-bottom: 1px solid var(--border); }
-.table tr:last-child td { border-bottom: none; }
-.table tr:hover td { background: var(--surface-2); }
-.settings-layout { display: grid; grid-template-columns: 220px 1fr; gap: 28px; }
-.settings-nav { list-style: none; }
-.settings-nav li { padding: 10px 14px; font-size: 13px; font-weight: 500; color: var(--text-2); border-radius: var(--radius); cursor: pointer; margin-bottom: 2px; transition: all var(--transition); }
-.settings-nav li:hover { background: var(--surface-2); color: var(--text); }
-.settings-nav li.active { background: var(--surface-2); color: var(--gold-dark); font-weight: 700; }
-.settings-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl, 18px); padding: 28px 30px; }
-.settings-section-title { font-family: var(--font-serif); font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
-.settings-section-desc { font-size: 13px; color: var(--text-3); margin-bottom: 22px; line-height: 1.5; }
-.pg-form-group { margin-bottom: 18px; }
-.pg-form-label { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-2); margin-bottom: 6px; }
-.pg-form-input { display: block; width: 100%; padding: 10px 13px; font-size: 13px; color: var(--text); background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm, 8px); transition: border-color var(--transition), box-shadow var(--transition); outline: none; }
-.pg-form-input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(196,169,106,0.18); }
-.pg-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.empty-state { text-align: center; padding: 48px 24px; color: var(--text-4); font-size: 14px; }
-.empty-state-icon { width: 56px; height: 56px; border-radius: 50%; background: var(--surface-2); color: var(--text-4); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
-.msg-layout { display: grid; grid-template-columns: 320px 1fr; gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl, 18px); overflow: hidden; min-height: 500px; }
-.msg-sidebar { border-right: 1px solid var(--border); }
-.msg-search { padding: 14px; border-bottom: 1px solid var(--border); }
-.msg-threads { max-height: 500px; overflow-y: auto; }
-.msg-thread { display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background var(--transition); }
-.msg-thread:hover, .msg-thread.active { background: var(--surface-2); }
-.msg-thread.is-unread { background: rgba(196,169,106,0.05); }
-.msg-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--gold-dark); color: #fff; display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-size: 13px; font-weight: 700; flex-shrink: 0; }
-.msg-thread-info { flex: 1; min-width: 0; }
-.msg-thread-name { font-size: 13px; font-weight: 600; color: var(--text); }
-.msg-thread-preview { font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.msg-thread-time { font-size: 11px; color: var(--text-4); flex-shrink: 0; }
-.msg-main { display: flex; flex-direction: column; }
-.msg-conv-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
-.msg-conv-name { font-size: 14px; font-weight: 600; color: var(--text); }
-.msg-conv-role { font-size: 12px; color: var(--text-3); }
-.msg-conv-body { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
-.msg-bubble { max-width: 75%; }
-.msg-bubble.msg-incoming { align-self: flex-start; }
-.msg-bubble.msg-outgoing { align-self: flex-end; }
-.msg-bubble-text { padding: 10px 14px; border-radius: 14px; font-size: 13px; line-height: 1.55; }
-.msg-incoming .msg-bubble-text { background: var(--surface-2); color: var(--text-2); }
-.msg-outgoing .msg-bubble-text { background: var(--gold-dark); color: #fff; }
-.msg-bubble-time { font-size: 10px; color: var(--text-4); margin-top: 4px; }
-.msg-outgoing .msg-bubble-time { text-align: right; }
-.msg-compose { display: flex; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border); align-items: center; }
-.msg-compose input { flex: 1; }
-@media (max-width: 900px) { .pg-grid { grid-template-columns: 1fr !important; } .settings-layout { grid-template-columns: 1fr; } .pg-form-row { grid-template-columns: 1fr; } .stat-chip-row { flex-direction: column; } .msg-layout { grid-template-columns: 1fr; } .msg-sidebar { display: none; } }
+
+/* ── CEU card spacing ────────────────────────────────────────────── */
+.evt-ceu-card { margin-bottom: 22px; }
+
+/* ── CEU rows ────────────────────────────────────────────────────── */
+.ceu-rows { display: flex; flex-direction: column; gap: 14px; }
+.ceu-row  { display: grid; grid-template-columns: minmax(140px, 200px) 1fr auto; gap: 14px; align-items: center; }
+.ceu-row-name {
+  font-size: 12px; font-weight: 700; color: var(--text);
+  display: flex; align-items: center; gap: 8px;
+}
+.ceu-row-bar { height: 6px; background: var(--surface-3); border-radius: var(--radius-full); overflow: hidden; }
+.ceu-row-bar-fill {
+  height: 100%; border-radius: var(--radius-full);
+  background: var(--gold-dark); transition: width 0.4s ease;
+}
+.ceu-row-bar-fill.is-warn   { background: var(--orange-dark); }
+.ceu-row-bar-fill.is-danger { background: var(--red-dark); }
+.ceu-row-bar-fill.is-done   { background: var(--green-dark); }
+.ceu-row-meta { font-size: 11px; font-weight: 700; color: var(--text-2); white-space: nowrap; min-width: 110px; text-align: right; }
+.ceu-row-meta.is-danger { color: var(--red-dark); }
+.ceu-row-meta.is-done   { color: var(--green-dark); }
+
+/* ── Toolbar ─────────────────────────────────────────────────────── */
+.evt-toolbar {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;
+}
+.evt-search-wrap { flex: 1; min-width: 220px; position: relative; }
+.evt-search-icon {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--text-4); pointer-events: none; display: flex;
+}
+.evt-search-input {
+  width: 100%; padding: 9px 13px 9px 36px;
+  border: 1.5px solid var(--border); border-radius: var(--radius);
+  font-family: var(--font-sans); font-size: 13px; color: var(--text);
+  background: var(--surface); transition: border-color var(--transition);
+}
+.evt-search-input:focus { outline: none; border-color: var(--gold-dark); box-shadow: 0 0 0 3px var(--badge-bg-gold); }
+.evt-toolbar-select { min-width: 168px; }
+
+/* ── Result bar ──────────────────────────────────────────────────── */
+.evt-result-bar { font-size: 12px; color: var(--text-3); margin-bottom: 14px; }
+.evt-result-bar strong { color: var(--text); font-weight: 700; }
+
+/* ── Event list ──────────────────────────────────────────────────── */
+.evt-list { display: flex; flex-direction: column; gap: 12px; }
+.evt-card {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 152px;
+  gap: 22px;
+  align-items: stretch;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 20px 22px;
+  transition: box-shadow var(--transition), border-color var(--transition);
+}
+.evt-card:hover { box-shadow: var(--shadow); border-color: var(--border-dark); }
+
+/* Date block */
+.evt-date-block {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center;
+  border-right: 1px solid var(--border);
+  padding-right: 22px;
+  line-height: 1;
+}
+.evt-date-month { font-size: 11px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--gold-dark); }
+.evt-date-day   { font-family: var(--font-serif); font-size: 30px; font-weight: 700; color: var(--text); margin: 3px 0 4px; }
+.evt-date-year  { font-size: 11px; font-weight: 600; color: var(--text-4); }
+
+/* Content */
+.evt-content      { min-width: 0; }
+.evt-content-top  { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 9px; }
+
+/* Category pills */
+.evt-category {
+  display: inline-flex; align-items: center;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+  padding: 3px 9px; border-radius: var(--radius-full);
+  background: var(--surface-3); color: var(--text-3);
+}
+.evt-category.webinar    { background: var(--blue-light);   color: var(--blue-dark); }
+.evt-category.conference { background: var(--purple-light); color: var(--purple-dark); }
+.evt-category.workshop   { background: var(--orange-light); color: var(--orange-dark); }
+.evt-category.networking { background: var(--green-light);  color: var(--green-dark); }
+.evt-category.training   { background: var(--teal-light);   color: var(--teal-dark); }
+
+/* Badges */
+.evt-featured-badge, .evt-urgent-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+  padding: 3px 8px; border-radius: var(--radius-full);
+}
+.evt-featured-badge { background: var(--badge-bg-gold); color: var(--gold-dark); }
+.evt-urgent-badge   { background: var(--orange-light); color: var(--orange-dark); }
+.evt-urgent-badge.is-today { background: var(--red-light); color: var(--red-dark); }
+
+.evt-title {
+  font-family: var(--font-serif); font-size: 16px; font-weight: 700;
+  color: var(--text); line-height: 1.35; margin-bottom: 5px;
+}
+.evt-desc {
+  font-size: 13px; color: var(--text-3); line-height: 1.55; margin-bottom: 12px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Meta */
+.evt-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.evt-meta-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 500; color: var(--text-3);
+}
+.evt-meta-item.is-ceu  { font-weight: 700; color: var(--gold-dark); }
+.evt-meta-item.is-free { font-weight: 700; color: var(--green-dark); }
+.evt-meta-item.is-paid { font-weight: 700; color: var(--text-2); }
+
+/* Actions column */
+.evt-actions { display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+.evt-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; padding: 9px 14px; border-radius: var(--radius);
+  font-family: var(--font-sans); font-size: 13px; font-weight: 700; letter-spacing: 0.2px;
+  border: 1.5px solid transparent; cursor: pointer; white-space: nowrap; line-height: 1;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+}
+.evt-btn-primary          { background: var(--gold-dark); color: #fff; }
+.evt-btn-primary:hover    { box-shadow: var(--shadow-gold); }
+.evt-btn-primary.is-registered { background: var(--green-dark); cursor: default; }
+.evt-btn-secondary        { background: transparent; color: var(--text-2); border-color: var(--border-dark); }
+.evt-btn-secondary:hover  { color: var(--gold-dark); background: var(--surface-2); border-color: var(--gold-dark); }
+
+/* Load more */
+.evt-load-more { display: flex; justify-content: center; margin: 22px 0 0; }
+
+/* ── Sidebar ─────────────────────────────────────────────────────── */
+.evt-sidebar { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 84px; align-self: start; }
+
+.evt-no-reg { font-size: 12px; color: var(--text-3); padding: 6px 0; }
+.evt-my-list { display: flex; flex-direction: column; }
+.evt-my-item {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: color var(--transition);
+}
+.evt-my-item:first-child { padding-top: 0; }
+.evt-my-item:last-child  { border-bottom: none; padding-bottom: 0; }
+.evt-my-item:hover .evt-my-title { color: var(--gold-dark); }
+.evt-my-dot { width: 8px; height: 8px; border-radius: var(--radius-full); flex-shrink: 0; margin-top: 6px; }
+.evt-my-dot.webinar    { background: var(--blue-dark); }
+.evt-my-dot.conference { background: var(--purple-dark); }
+.evt-my-dot.workshop   { background: var(--orange-dark); }
+.evt-my-dot.networking { background: var(--green-dark); }
+.evt-my-dot.training   { background: var(--teal-dark); }
+.evt-my-title { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.4; transition: color var(--transition); }
+.evt-my-date  { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+/* Mini calendar */
+.evt-cal-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.evt-cal-nav-btn {
+  background: none; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  width: 26px; height: 26px; cursor: pointer; color: var(--text-3);
+  transition: border-color var(--transition), color var(--transition);
+  display: flex; align-items: center; justify-content: center;
+}
+.evt-cal-nav-btn:hover { border-color: var(--gold-dark); color: var(--gold-dark); }
+.evt-cal-month-label { font-size: 13px; font-weight: 700; color: var(--text); font-family: var(--font-serif); }
+.evt-cal {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;
+}
+.evt-cal-header {
+  text-align: center; font-size: 10px; font-weight: 700;
+  color: var(--text-4); padding: 2px 0; letter-spacing: 0.4px;
+}
+.evt-cal-day {
+  text-align: center; font-size: 11px; padding: 5px 2px;
+  border-radius: var(--radius-sm); color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.evt-cal-day.today     { background: var(--gold-dark); color: #fff; font-weight: 700; }
+.evt-cal-day.has-event { background: var(--badge-bg-gold); color: var(--gold-dark); font-weight: 700; cursor: pointer; }
+.evt-cal-day.has-event:hover { background: var(--gold-dark); color: #fff; }
+.evt-cal-day.other-month { opacity: 0.35; }
+
+/* ── Modal detail extras ─────────────────────────────────────────── */
+.evt-detail-heading  { margin-bottom: 14px; }
+.evt-detail-eyebrow  { font-size: 10px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-4); margin-bottom: 6px; }
+.evt-detail-title    { font-family: var(--font-serif); font-size: 19px; font-weight: 700; color: var(--text); line-height: 1.35; }
+.evt-detail-desc     { font-size: 13px; color: var(--text-2); line-height: 1.65; margin: 0 0 12px; }
+.evt-detail-link     { font-size: 12px; color: var(--gold-dark); font-weight: 700; }
+.evt-detail-link a   { color: inherit; text-decoration: none; }
+.evt-detail-link a:hover { text-decoration: underline; }
+.evt-detail-meta     { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; }
+.evt-detail-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 7px 12px;
+  font-size: 12px; color: var(--text-2);
+}
+.evt-detail-chip strong { color: var(--text); font-weight: 700; }
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .evt-layout  { grid-template-columns: 1fr; }
+  .evt-sidebar { position: static; }
+}
+@media (max-width: 680px) {
+  .evt-card { grid-template-columns: 56px minmax(0, 1fr); gap: 16px; }
+  .evt-date-block { padding-right: 16px; }
+  .evt-actions { grid-column: 1 / -1; flex-direction: row; }
+}
+@media (max-width: 720px) {
+  .evt-toolbar { flex-direction: column; align-items: stretch; }
+  .evt-search-wrap, .evt-toolbar-select { width: 100%; }
+}
+@media (max-width: 600px) {
+  .ceu-row { grid-template-columns: 1fr; gap: 6px; }
+  .ceu-row-meta { text-align: left; }
+}
 </style>
