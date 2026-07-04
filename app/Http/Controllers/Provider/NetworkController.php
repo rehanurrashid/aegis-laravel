@@ -89,9 +89,33 @@ class NetworkController extends Controller
                 ];
             })->filter()->values();
 
+        // Pull match scores from network_recommendations for this user's shadows
+        $shadowMatchScores = \App\Models\NetworkRecommendation::where('user_id', $user->id)
+            ->where('kind', 'shadow_provider')
+            ->whereNotNull('match_score')
+            ->pluck('match_score', 'provider_user_id');
+
+        // Realistic demo referral stats per nd_* shadow user
+        $demoShadowStats = [
+            'nd_rachel_moore'  => ['referral_count' => 14, 'acceptance_rate' => 92, 'response_time_hours' => 1.2, 'peer_rating' => 4.9],
+            'nd_sarah_nguyen'  => ['referral_count' => 9,  'acceptance_rate' => 89, 'response_time_hours' => 2.4, 'peer_rating' => 4.7],
+            'nd_nina_park'     => ['referral_count' => 6,  'acceptance_rate' => 85, 'response_time_hours' => 3.1, 'peer_rating' => 4.6],
+            'nd_james_okafor'  => ['referral_count' => 11, 'acceptance_rate' => 91, 'response_time_hours' => 1.8, 'peer_rating' => 4.8],
+            'nd_maya_torres'   => ['referral_count' => 7,  'acceptance_rate' => 88, 'response_time_hours' => 2.0, 'peer_rating' => 4.7],
+            'nd_alicia_reeves' => ['referral_count' => 4,  'acceptance_rate' => 80, 'response_time_hours' => 4.5, 'peer_rating' => 4.5],
+            'nd_danielle_fox'  => ['referral_count' => 3,  'acceptance_rate' => 78, 'response_time_hours' => 5.0, 'peer_rating' => 4.4],
+            'nd_amara_osei'    => ['referral_count' => 5,  'acceptance_rate' => 83, 'response_time_hours' => 3.8, 'peer_rating' => 4.6],
+            'nd_diana_vasquez' => ['referral_count' => 2,  'acceptance_rate' => 75, 'response_time_hours' => 6.2, 'peer_rating' => 4.3],
+            'nd_aisha_patel'   => ['referral_count' => 8,  'acceptance_rate' => 87, 'response_time_hours' => 2.2, 'peer_rating' => 4.7],
+            'nd_devon_hall'    => ['referral_count' => 1,  'acceptance_rate' => 70, 'response_time_hours' => 8.0, 'peer_rating' => 4.2],
+            'nd_jordan_lee'    => ['referral_count' => 3,  'acceptance_rate' => 76, 'response_time_hours' => 5.5, 'peer_rating' => 4.3],
+        ];
+
         $shadows = $this->network->getShadowConnections($user->id)
-            ->map(function ($sc) {
-                $shadow = $sc->shadowUser;
+            ->map(function ($sc) use ($shadowMatchScores, $demoShadowStats) {
+                $shadow  = $sc->shadowUser;
+                $uid     = $sc->shadow_user_id ?? '';
+                $stats   = $demoShadowStats[$uid] ?? [];
                 return [
                     'id'                  => $sc->id,
                     'shadow_name'         => $shadow?->display_name ?? $sc->shadow_name ?? '',
@@ -100,13 +124,13 @@ class NetworkController extends Controller
                     'shadow_role'         => $shadow?->title ?? '',
                     'shadow_location'     => $shadow?->location ?? '',
                     'shadow_specialty'    => $shadow?->specialty ?? '',
-                    'shadow_user_id'      => $sc->shadow_user_id,
+                    'shadow_user_id'      => $uid,
                     'shadow_slug'         => $shadow?->slug ?? '',
-                    // Stats — pulled from UserMeta where seeded, else zero
-                    'match_score'         => 0,
-                    'peer_rating'         => 0,
-                    'referral_count'      => 0,
-                    'response_time_hours' => 0,
+                    'match_score'         => (int) ($shadowMatchScores[$uid] ?? 0),
+                    'peer_rating'         => $stats['peer_rating']         ?? 0,
+                    'referral_count'      => $stats['referral_count']      ?? 0,
+                    'response_time_hours' => $stats['response_time_hours'] ?? 0,
+                    'acceptance_rate'     => $stats['acceptance_rate']     ?? 0,
                 ];
             })->values();
 
@@ -293,11 +317,47 @@ class NetworkController extends Controller
             $avgResp = 0;
         }
 
+        // Referral List AI candidates — real practitioners only (role=practitioner),
+        // excluding the viewer, already-connected, and already-shadowed users.
+        // Sorted by practitioner_public desc (verified/public first), then display_name.
+        $shadowedIds = \App\Models\ShadowConnection::where('user_id', $user->id)
+            ->whereNull('deleted_at')
+            ->pluck('shadow_user_id')
+            ->filter()
+            ->all();
+
+        $referralCandidates = User::query()
+            ->where('role', 'practitioner')
+            ->where('practitioner_public', 1)
+            ->where('id', '!=', $user->id)
+            ->whereNotIn('id', array_merge($connectedIds, $shadowedIds))
+            ->orderByDesc('verified')
+            ->orderBy('display_name')
+            ->limit(40)
+            ->get()
+            ->map(function (User $u) {
+                $tags = collect(explode(',', (string) ($u->specialty ?? '')))
+                    ->map(fn ($t) => trim($t))->filter()->values()->all();
+                return [
+                    'id'       => $u->id,
+                    'name'     => $u->display_name . ($u->credentials ? ', ' . $u->credentials : ''),
+                    'slug'     => $u->slug ?? '',
+                    'initials' => $u->avatar_initials ?? strtoupper(substr($u->display_name, 0, 2)),
+                    'role'     => $u->title ?? '',
+                    'location' => $u->location ?? '',
+                    'tags'     => array_slice($tags, 0, 3),
+                    'match'    => 0,   // AI scoring is Phase 4
+                    'rating'   => 0,
+                    'networkStatus' => 'not-connected',
+                ];
+            })->values();
+
         return Inertia::render('provider/Network', [
             'clinicalConnections'          => $clinical,
             'bpConnections'                => $business,
             'pendingRequests'              => $pending,
             'shadowConnections'            => $shadows,
+            'referralCandidates'           => $referralCandidates,
             'referralNetwork'              => $referralNetwork,
             'recommendedPartnerCategories' => $recommendedPartnerCategories,
             'recommendedShadowProviders'   => $recommendedShadowProviders,

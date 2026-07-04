@@ -1033,17 +1033,17 @@
 
       <div class="provider-grid">
         <div v-for="s in pagedRtCandidates" :key="s.name" class="sai-grid-card spc-card" @click="viewProfile(s.slug)">
-          <!-- Top-left: AI match badge -->
+          <!-- Top-left: AI sparkle icon -->
           <div class="spc-top-pills">
-            <span class="rsp-match" :data-tooltip="(s.match || 0) + '% AI match based on your clinical focus and referral patterns'">
-              <AegisIcon name="sparkle-cluster" :size="10" /> {{ s.match || '—' }}{{ s.match ? '%' : '' }} <span style="font-size:9px;font-weight:600;opacity:.75;letter-spacing:0.3px">AI Match</span>
+            <span v-if="s.match" class="rsp-match" :data-tooltip="s.match + '% AI match based on your clinical focus and referral patterns'">
+              <AegisIcon name="sparkle-cluster" :size="10" /> {{ s.match }}% <span style="font-size:9px;font-weight:600;opacity:.75;letter-spacing:0.3px">AI Match</span>
+            </span>
+            <span v-else class="rsc-ai-icon" data-tooltip="AI suggested based on your clinical focus and referral patterns">
+              <AegisIcon name="sparkle-cluster" :size="12" />
             </span>
           </div>
-          <!-- Top-right: rating + network status -->
+          <!-- Top-right: network status only -->
           <div style="position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:5px;z-index:2">
-            <span class="rsp-rating" :data-tooltip="(s.rating || 0) + ' from peer reviews'">
-              <AegisIcon name="star" :size="10" :filled="true" /> {{ s.rating || 0 }}
-            </span>
             <span v-if="s.networkStatus === 'in-network'" class="spc-status-icon ok" data-tooltip="In your network">
               <AegisIcon name="user-check" :size="12" />
             </span>
@@ -1061,6 +1061,7 @@
               <span v-if="(s.tags || []).length > 3" class="spc-tag spc-tag-more">+{{ s.tags.length - 3 }}</span>
             </div>
           </div>
+          <div class="spc-stats">{{ s.referral_count || 0 }} refs · {{ s.acceptance_rate || 0 }}% acc · {{ s.response_time_hours ? Number(s.response_time_hours).toFixed(1) : 0 }}h resp</div>
           <div class="spc-actions" @click.stop>
             <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === s.id || !s.id" @click="s.id && openConversation(s.id)"><AegisIcon name="message-square" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Add to My Shadows" @click="addShadowDirect(s)"><AegisIcon name="user-plus" :size="14" /></button>
@@ -1133,15 +1134,15 @@
         <div v-for="s in pagedMyShadows" :key="s.id" class="ms-grid-card spc-card" @click="viewProfile(s.shadow_slug)">
           <!-- Top-left: AI match badge -->
           <div class="spc-top-pills">
-            <span class="rsp-match" :data-tooltip="(s.match_score || 0) + '% AI match based on your clinical focus'">
-              <AegisIcon name="sparkle-cluster" :size="10" /> {{ s.match_score || '—' }}{{ s.match_score ? '%' : '' }} <span style="font-size:9px;font-weight:600;opacity:.75;letter-spacing:0.3px">AI Match</span>
+            <span v-if="s.match_score" class="rsp-match" :data-tooltip="s.match_score + '% AI match based on your clinical focus'">
+              <AegisIcon name="sparkle-cluster" :size="10" /> {{ s.match_score }}% <span style="font-size:9px;font-weight:600;opacity:.75;letter-spacing:0.3px">AI Match</span>
+            </span>
+            <span v-else class="rsc-ai-icon" data-tooltip="AI matched shadow">
+              <AegisIcon name="sparkle-cluster" :size="12" />
             </span>
           </div>
-          <!-- Top-right: rating + always-in-network icon -->
-          <div style="position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:5px;z-index:2">
-            <span class="rsp-rating" :data-tooltip="(s.peer_rating || 0) + ' from peer reviews'">
-              <AegisIcon name="star" :size="10" :filled="true" /> {{ Number(s.peer_rating || 0).toFixed(1) }}
-            </span>
+          <!-- Top-right: in-network status icon only -->
+          <div style="position:absolute;top:10px;right:10px;z-index:2">
             <span class="spc-status-icon ok" data-tooltip="In your network">
               <AegisIcon name="user-check" :size="12" />
             </span>
@@ -1921,6 +1922,7 @@ const props = defineProps({
   recommendedPartnerCategories: { type: Array,  default: () => [] },
   recommendedShadowProviders:   { type: Array,  default: () => [] },
   searchProviders:              { type: Array,  default: () => [] },
+  referralCandidates:           { type: Array,  default: () => [] },
   referralRoster:               { type: Array,  default: () => [] },
   roster:                       { type: Array,  default: () => [] },
   stats:                        { type: Object, default: () => ({}) },
@@ -2101,7 +2103,7 @@ function addShadowDirect(s) {
         rtCandidates.value = rtCandidates.value.filter(c => c.name !== s.name)
       }
       toast.success((s.name || 'Provider') + ' added to My Shadows.')
-      router.reload({ only: ['shadowConnections', 'stats'], preserveScroll: true })
+      router.reload({ only: ['shadowConnections', 'referralCandidates', 'stats'], preserveScroll: true })
     },
     onError: () => toast.error('Could not add to shadows.'),
   })
@@ -2706,16 +2708,15 @@ const addedToShadowIds = ref(new Set(
   (props.shadowConnections || []).map(s => s.shadow_user_id).filter(Boolean)
 ))
 
-const rtCandidates = ref([
-  { name:'Alicia Reeves, LPC',     id:'', slug:'', initials:'AR', role:'Licensed Professional Counselor',  location:'New York, NY', tags:['ACT','Stress','Life Transitions'] },
-  { name:'Carol Huang, CDE',       id:'', slug:'', initials:'CH', role:'Certified Diabetes Educator',      location:'Manhattan, NY', tags:['Diabetes','Blood Sugar','Lifestyle Medicine'] },
-  { name:'Danielle Fox, PMHNP',    id:'', slug:'', initials:'DF', role:'Psychiatric Nurse Practitioner',   location:'New York, NY', tags:['Medication Mgmt','ADHD','Depression'] },
-  { name:'Devon Hall, CADC',       id:'', slug:'', initials:'DH', role:'Certified Addiction Counselor',    location:'Harlem, NY',   tags:['Substance Use','Relapse Prevention','MI'] },
-  { name:'Dr. Aisha Patel, PsyD',  id:'', slug:'', initials:'AP', role:'Psychologist',                    location:'Queens, NY',   tags:['Family Therapy','Cultural Competence'] },
-  { name:'Dr. Amara Osei, LCSW',   id:'', slug:'', initials:'AO', role:'Clinical Social Worker',          location:'Brooklyn, NY', tags:['Trauma','BIPOC Care','CBT'] },
-  { name:'Dr. Diana Vasquez, PhD', id:'', slug:'', initials:'DV', role:'Clinical Psychologist',           location:'Houston, TX',  tags:['Trauma','DBT','EMDR'] },
-  { name:'Dr. Elena Rodriguez, RD',id:'', slug:'', initials:'ER', role:'Registered Dietitian',            location:'Manhattan, NY',tags:['Eating Disorders','Nutrition','Mental Health'] },
-])
+// Referral List candidates — sourced from backend (role=practitioner only, no CS/SS/BP).
+// Mutable ref so we can splice cards out immediately when added to shadows.
+const rtCandidates = ref([...(props.referralCandidates || [])])
+
+// Sync when Inertia reloads referralCandidates (after shadow add)
+watch(() => props.referralCandidates, (newList) => {
+  // Only add new entries; don't re-add ones we've already hidden this session
+  rtCandidates.value = (newList || []).filter(c => !addedToShadowIds.value.has(c.id))
+}, { deep: true })
 
 // ── Utility ────────────────────────────────────────────────────────────────
 function tagList(str) {

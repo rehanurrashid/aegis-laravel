@@ -297,6 +297,12 @@ class NetworkService
 
         return $rows
             ->filter(fn (NetworkRecommendation $r) => $r->providerUser !== null)
+            ->filter(function (NetworkRecommendation $r) {
+                $role = $r->providerUser->role instanceof \BackedEnum
+                    ? $r->providerUser->role->value
+                    : (string) $r->providerUser->role;
+                return $role === 'practitioner';
+            })
             ->map(function (NetworkRecommendation $r) {
                 $u = $r->providerUser;
                 $tags = array_values(array_filter(array_map(

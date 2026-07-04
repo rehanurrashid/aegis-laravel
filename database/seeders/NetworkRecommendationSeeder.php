@@ -65,6 +65,15 @@ class NetworkRecommendationSeeder extends Seeder
             ['id' => 'nd_luisa_pena',    'display_name' => 'Luisa Peña',        'credentials' => 'PhD',   'title' => 'Clinical Psychologist',          'specialty' => 'Trauma, EMDR, Bilingual Spanish',          'location' => 'Miami, FL',        'avatar_initials' => 'LP', 'slug' => 'luisa-pena-phd',       'services_mode' => 1],
             ['id' => 'nd_amber_cole',    'display_name' => 'Amber Cole',        'credentials' => 'RD',    'title' => 'Registered Dietitian',           'specialty' => 'Sports Nutrition, Weight Management',      'location' => 'Atlanta, GA',      'avatar_initials' => 'AC', 'slug' => 'amber-cole-rd',        'services_mode' => 0],
             ['id' => 'nd_sarah_nguyen',  'display_name' => 'Sarah Nguyen',      'credentials' => 'PsyD',  'title' => 'Psychologist',                   'specialty' => 'CBT, Trauma, Depression',                  'location' => 'Brooklyn, NY',     'avatar_initials' => 'SN', 'slug' => 'sarah-nguyen-psyd',    'services_mode' => 0],
+            // ── Additional shadow candidates ──────────────────────────────────
+            ['id' => 'nd_carol_huang',   'display_name' => 'Carol Huang',       'credentials' => 'CDE',   'title' => 'Certified Diabetes Educator',     'specialty' => 'Diabetes, Blood Sugar, Lifestyle Medicine', 'location' => 'Manhattan, NY',    'avatar_initials' => 'CH', 'slug' => 'carol-huang-cde',      'services_mode' => 0],
+            ['id' => 'nd_danielle_fox',  'display_name' => 'Danielle Fox',      'credentials' => 'PMHNP', 'title' => 'Psychiatric Nurse Practitioner',  'specialty' => 'Medication Mgmt, ADHD, Depression',        'location' => 'New York, NY',     'avatar_initials' => 'DF', 'slug' => 'danielle-fox-pmhnp',   'services_mode' => 1],
+            ['id' => 'nd_devon_hall',    'display_name' => 'Devon Hall',        'credentials' => 'CADC',  'title' => 'Certified Addiction Counselor',   'specialty' => 'Substance Use, Relapse Prevention, MI',    'location' => 'Harlem, NY',       'avatar_initials' => 'DH', 'slug' => 'devon-hall-cadc',      'services_mode' => 0],
+            ['id' => 'nd_aisha_patel',   'display_name' => 'Aisha Patel',       'credentials' => 'PsyD',  'title' => 'Psychologist',                   'specialty' => 'Family Therapy, Cultural Competence',      'location' => 'Queens, NY',       'avatar_initials' => 'AP', 'slug' => 'aisha-patel-psyd',     'services_mode' => 0],
+            ['id' => 'nd_amara_osei',    'display_name' => 'Amara Osei',        'credentials' => 'LCSW',  'title' => 'Clinical Social Worker',          'specialty' => 'Trauma, BIPOC Care, CBT',                  'location' => 'Brooklyn, NY',     'avatar_initials' => 'AO', 'slug' => 'amara-osei-lcsw',      'services_mode' => 0],
+            ['id' => 'nd_diana_vasquez', 'display_name' => 'Diana Vasquez',     'credentials' => 'PhD',   'title' => 'Clinical Psychologist',           'specialty' => 'Trauma, DBT, EMDR',                        'location' => 'Houston, TX',      'avatar_initials' => 'DV', 'slug' => 'diana-vasquez-phd',    'services_mode' => 1],
+            ['id' => 'nd_elena_rod',     'display_name' => 'Elena Rodriguez',   'credentials' => 'RD',    'title' => 'Registered Dietitian',            'specialty' => 'Eating Disorders, Nutrition, Mental Health','location' => 'Manhattan, NY',    'avatar_initials' => 'ER', 'slug' => 'elena-rodriguez-rd',   'services_mode' => 0],
+            ['id' => 'nd_jordan_lee',    'display_name' => 'Jordan Lee',        'credentials' => 'LMHC',  'title' => 'Mental Health Counselor',         'specialty' => 'Anxiety, Grief, LGBTQ+',                   'location' => 'Boston, MA',       'avatar_initials' => 'JL', 'slug' => 'jordan-lee-lmhc',      'services_mode' => 0],
         ];
     }
 
@@ -95,6 +104,12 @@ class NetworkRecommendationSeeder extends Seeder
             ['provider_user_id' => 'nd_james_okafor',  'match_score' => 90],
             ['provider_user_id' => 'nd_maya_torres',   'match_score' => 88],
             ['provider_user_id' => 'nd_alicia_reeves', 'match_score' => 84],
+            ['provider_user_id' => 'nd_danielle_fox',  'match_score' => 82],
+            ['provider_user_id' => 'nd_amara_osei',    'match_score' => 80],
+            ['provider_user_id' => 'nd_diana_vasquez', 'match_score' => 78],
+            ['provider_user_id' => 'nd_aisha_patel',   'match_score' => 76],
+            ['provider_user_id' => 'nd_devon_hall',    'match_score' => 74],
+            ['provider_user_id' => 'nd_jordan_lee',    'match_score' => 72],
         ];
     }
 
@@ -121,6 +136,12 @@ class NetworkRecommendationSeeder extends Seeder
                 'created_at'            => $now,
                 'updated_at'            => $now,
             ]);
+            // If another row holds this slug with a different id, free the slug by renaming it
+            // (cannot delete — the row may have FK children like continuity_plans)
+            DB::table('users')
+                ->where('slug', $u['slug'])
+                ->where('id', '!=', $u['id'])
+                ->update(['slug' => $u['slug'] . '-dup-' . substr($u['id'], -6)]);
             DB::table('users')->updateOrInsert(['id' => $u['id']], $row);
         }
 
