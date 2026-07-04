@@ -1661,23 +1661,31 @@
 
     <!-- Review Pending Requests -->
     <AegisModal v-model="modals.reviewRequests" title="Pending Connection Requests" :subtitle="pendingRequests.length + ' awaiting · ' + clinicalCount + ' clinical, ' + businessCount + ' business'" size="lg">
-      <div class="alert alert-info" style="margin-bottom:16px">
+      <div class="alert alert-info" style="margin-bottom:20px">
         <AegisIcon name="info" :size="14" />
         <div><strong>Accepting</strong> adds the connection and notifies the requester. <strong>Declining</strong> removes the request — the other party is not notified.</div>
       </div>
 
-      <div style="display:flex;flex-direction:column;gap:10px;max-height:440px;overflow-y:auto;padding:2px 0">
+      <div v-if="!pendingRequests.length" style="text-align:center;padding:36px;font-size:13px;color:var(--text-4)">
+        <AegisIcon name="check" :size="28" />
+        <div style="margin-top:8px">All requests have been reviewed.</div>
+      </div>
 
-        <div v-for="req in pendingRequests" :key="req.id" class="card" style="padding:16px">
+      <div v-else style="display:flex;flex-direction:column;gap:12px">
+        <div v-for="req in pagedPendingRequests" :key="req.id" class="card" style="padding:20px;gap:0">
 
-          <!-- Top row: avatar + identity + badge + time -->
-          <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:0">
-            <div class="person-avatar" style="flex-shrink:0">{{ req.requester_initials }}</div>
-            <div class="person-text" style="flex:1;min-width:0">
-              <div class="person-name">{{ req.requester_name }}</div>
-              <div class="person-meta">{{ req.requester_role }}<span v-if="req.requester_location"> · {{ req.requester_location }}</span></div>
+          <!-- Identity row -->
+          <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:12px">
+            <div class="person-avatar" style="flex-shrink:0;width:44px;height:44px;font-size:14px;font-weight:700;border-radius:var(--radius-full)">
+              {{ req.requester_initials }}
             </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:3px">{{ req.requester_name }}</div>
+              <div style="font-size:12px;color:var(--text-3);line-height:1.4">
+                {{ req.requester_role }}<span v-if="req.requester_location"> · {{ req.requester_location }}</span>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
               <span class="badge" :class="req.request_type === 'business' ? 'badge-gold' : 'badge-green'">
                 <AegisIcon :name="req.request_type === 'business' ? 'briefcase' : 'users'" :size="10" />
                 {{ req.request_type === 'business' ? 'Business' : 'Clinical' }}
@@ -1687,29 +1695,37 @@
           </div>
 
           <!-- Message preview -->
-          <div v-if="req.message" style="margin:10px 0 0;padding:8px 12px;background:var(--surface-2);border-left:3px solid var(--border-dark);border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:12px;color:var(--text-3);font-style:italic;line-height:1.5">
+          <div v-if="req.message" style="padding:10px 14px;background:var(--surface-2);border-left:3px solid var(--gold-dark);border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:12.5px;color:var(--text-2);font-style:italic;line-height:1.6;margin-bottom:14px">
             "{{ req.message }}"
           </div>
 
           <!-- Actions -->
-          <div class="card-actions" style="padding-top:12px;margin-top:12px;border-top:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:8px;padding-top:14px;border-top:1px solid var(--border)">
             <button type="button" class="btn btn-primary btn-sm" :disabled="pendingActionId === req.id" @click="acceptRequest(req)">
               <AegisIcon name="check" :size="12" /> Accept
             </button>
-            <button type="button" class="btn btn-outline btn-sm" :disabled="pendingActionId === req.id" @click="declineRequest(req)">Decline</button>
+            <button type="button" class="btn btn-outline btn-sm" :disabled="pendingActionId === req.id" @click="declineRequest(req)">
+              Decline
+            </button>
             <button type="button" class="btn-icon" data-tooltip="View profile" style="margin-left:auto" @click="viewProfile(req.requester_slug, req.request_type === 'business' ? 'business' : 'provider'); modals.reviewRequests = false">
-              <AegisIcon name="eye" :size="13" />
+              <AegisIcon name="eye" :size="14" />
             </button>
           </div>
         </div>
-
-        <div v-if="!pendingRequests.length" style="text-align:center;padding:36px;font-size:13px;color:var(--text-4)">
-          <AegisIcon name="check-badge" :size="28" style="display:block;margin:0 auto 10px;color:var(--text-4)" />
-          All requests have been reviewed.
-        </div>
       </div>
 
+      <!-- Pagination -->
+      <AegisPagination
+        v-if="prTotalPages > 1"
+        :current-page="prPage"
+        :total-pages="prTotalPages"
+        :show-meta="false"
+        style="margin-top:20px"
+        @change="prPage = $event"
+      />
+
       <template #footer>
+        <span style="font-size:12px;color:var(--text-4)">{{ pendingRequests.length }} total · showing {{ PR_PER_PAGE }} per page</span>
         <button type="button" class="btn btn-outline btn-sm" @click="modals.reviewRequests = false">Close</button>
       </template>
     </AegisModal>
@@ -1853,6 +1869,7 @@ import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import { router, useForm } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import AppLayout from '@/layouts/AppLayout.vue'
+import AegisPagination        from '@/components/ui/AegisPagination.vue'
 import ReferralModal          from '@/components/modals/ReferralModal.vue'
 import ServiceRequestModal    from '@/components/modals/ServiceRequestModal.vue'
 import ConnectionRequestModal from '@/components/modals/ConnectionRequestModal.vue'
@@ -1961,6 +1978,16 @@ const modals = reactive({
 // ── Computed ───────────────────────────────────────────────────────────────
 const clinicalCount = computed(() => props.pendingRequests.filter(r => r.request_type !== 'business').length)
 const businessCount = computed(() => props.pendingRequests.filter(r => r.request_type === 'business').length)
+
+// Pending requests pagination — 3 per page inside modal
+const prPage      = ref(1)
+const PR_PER_PAGE = 3
+const prTotalPages = computed(() => Math.max(1, Math.ceil(props.pendingRequests.length / PR_PER_PAGE)))
+const pagedPendingRequests = computed(() =>
+  props.pendingRequests.slice((prPage.value - 1) * PR_PER_PAGE, prPage.value * PR_PER_PAGE)
+)
+// Reset to page 1 each time the modal opens
+watch(() => modals.reviewRequests, (val) => { if (val) prPage.value = 1 })
 
 // ── Accept / Decline ───────────────────────────────────────────────────────
 const pendingActionId = ref(null)

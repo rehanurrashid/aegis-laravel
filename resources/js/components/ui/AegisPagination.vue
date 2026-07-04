@@ -51,6 +51,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import AegisIcon from '@/components/ui/AegisIcon.vue'
 
 const props = defineProps({
   currentPage: { type: Number, default: 1 },
