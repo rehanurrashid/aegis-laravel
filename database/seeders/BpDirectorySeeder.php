@@ -65,7 +65,7 @@ class BpDirectorySeeder extends Seeder
                 'specialty'               => 'CAQH, PECOS, Re-credentialing, Provider Enrollment',
                 'slug'                    => 'kevin-osei-cpcs',
                 'business_partner_public' => 1,
-                'bp_type'                 => 'consultant',
+                'bp_type'                 => 'freelancer',
                 'bp_hourly_rate_cents'    => 5500,
                 'verified'                => 1,
             ],
@@ -81,7 +81,7 @@ class BpDirectorySeeder extends Seeder
                 'specialty'               => 'SEO, Google Ads, Social Media, Healthcare Marketing',
                 'slug'                    => 'riya-patel-marketing',
                 'business_partner_public' => 1,
-                'bp_type'                 => 'solopreneur',
+                'bp_type'                 => 'freelancer',
                 'bp_hourly_rate_cents'    => 7000,
                 'verified'                => 1,
             ],
@@ -156,10 +156,10 @@ class BpDirectorySeeder extends Seeder
 
             DB::table('users')->updateOrInsert(['id' => $p['id']], $row);
 
-            // User roles pivot
+            // User roles pivot — uuid PK must be supplied on insert
             DB::table('user_roles')->updateOrInsert(
                 ['user_id' => $p['id'], 'role' => 'business_partner'],
-                ['user_id' => $p['id'], 'role' => 'business_partner']
+                ['id' => (string) \Illuminate\Support\Str::uuid(), 'user_id' => $p['id'], 'role' => 'business_partner']
             );
 
             $this->command->info("Seeded BP: {$p['display_name']} ({$p['slug']})");

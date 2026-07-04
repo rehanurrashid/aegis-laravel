@@ -264,6 +264,7 @@ class ProfileService
         // Connection info (viewer-specific)
         $connection = null;
         $pendingRequestId = null;
+        $inboundRequestId = null;
         if ($viewer && $viewer->id !== $user->id) {
             $conn = NetworkConnection::where(function ($q) use ($user, $viewer) {
                 $q->where('user_id', $viewer->id)->where('connected_user_id', $user->id);
@@ -281,11 +282,18 @@ class ProfileService
                     'profile_completeness'  => ($raw['profile_completeness'] ?? 98) . '%',
                 ];
             } else {
-                $pending = \App\Models\NetworkRequest::where('requester_id', $viewer->id)
+                // Outbound: viewer sent a request to this profile owner
+                $outbound = \App\Models\NetworkRequest::where('requester_id', $viewer->id)
                     ->where('recipient_id', $user->id)
                     ->where('status', 'pending')
                     ->first();
-                $pendingRequestId = $pending?->id;
+                // Inbound: profile owner sent viewer a request (viewer should see Accept/Decline)
+                $inbound  = \App\Models\NetworkRequest::where('requester_id', $user->id)
+                    ->where('recipient_id', $viewer->id)
+                    ->where('status', 'pending')
+                    ->first();
+                $pendingRequestId  = $outbound?->id;
+                $inboundRequestId  = $inbound?->id;
             }
         }
 
@@ -307,7 +315,8 @@ class ProfileService
             'insurance_panels' => is_array($insurance)   ? $insurance   : [],
             'reviews'          => is_array($reviews)     ? $reviews     : [],
             'connection'       => $connection,
-            'pending_request_id' => $pendingRequestId,
+            'pending_request_id'  => $pendingRequestId,
+            'inbound_request_id'  => $inboundRequestId,
             'show_ratings'     => (bool) $show_ratings,
             'show_ref_stats'   => (bool) $show_ref_stats,
             'show_demographics'=> (bool) $show_demographics,

@@ -34,7 +34,11 @@
               <button type="button" class="btn-hero-solid is-on-light" @click="openHireModal"><AegisIcon name="check" :size="14" /> Hire</button>
               <button type="button" class="btn-hero-ghost is-on-light" @click="openRequestQuoteModal"><AegisIcon name="clipboard" :size="14" /> Quote</button>
               <button v-if="isConnected" type="button" class="btn-hero-ghost is-on-light is-icon-only" data-tooltip="Message" :disabled="msgLoading === user.id" @click="openConversation(user.id)"><AegisIcon name="message" :size="14" /></button>
-              <button v-if="!isConnected && !isPendingSent" type="button" class="btn-hero-ghost is-on-light" @click="showConnectModal = true"><AegisIcon name="user-plus" :size="14" /> Connect</button>
+              <template v-if="isPendingReceived">
+                <button type="button" class="btn-hero-solid is-on-light" :disabled="connectForm.processing" @click="acceptInbound"><AegisIcon name="check" :size="14" /> Accept Request</button>
+                <button type="button" class="btn-hero-ghost is-on-light" :disabled="connectForm.processing" @click="declineInbound"><AegisIcon name="x" :size="14" /> Decline</button>
+              </template>
+              <button v-if="!isConnected && !isPendingSent && !isPendingReceived" type="button" class="btn-hero-ghost is-on-light" @click="showConnectModal = true"><AegisIcon name="user-plus" :size="14" /> Connect</button>
               <button v-if="isPendingSent" type="button" class="btn-hero-ghost is-on-light" @click="cancelConnect"><AegisIcon name="x" :size="14" /> Cancel Request</button>
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Share" aria-label="Share"><AegisIcon name="link" :size="14" /></button>
             </template>
@@ -248,6 +252,15 @@
             <button class="btn btn-outline btn-sm btn-danger-ghost" @click="cancelConnect"><AegisIcon name="x" :size="13" /> Cancel Request</button>
           </div>
 
+          <div v-else-if="isLoggedIn && !isOwner && isPendingReceived" class="pp-section">
+            <div class="pp-section-title"><AegisIcon name="user-plus" :size="13" class="aegis-icon-gold-dark" /> Connection Request</div>
+            <p style="font-size:13px;color:var(--text-2);margin:0 0 12px"><strong>{{ businessName }}</strong> sent you a connection request.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-primary btn-sm" :disabled="connectForm.processing" @click="acceptInbound"><AegisIcon name="check" :size="13" /> Accept</button>
+              <button class="btn btn-outline btn-sm" :disabled="connectForm.processing" @click="declineInbound">Decline</button>
+            </div>
+          </div>
+
           <div v-else-if="isLoggedIn && !isOwner" class="pp-section">
             <div class="pp-section-title"><AegisIcon name="user-plus" :size="13" class="aegis-icon-gold-dark" /> Connect</div>
             <p style="font-size:13px;color:var(--text-2);margin:0 0 12px">Add {{ businessName }} to your network to message them and track engagements.</p>
@@ -410,7 +423,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useForm, usePage, router } from '@inertiajs/vue3'
 import PublicLayout from '@/layouts/PublicLayout.vue'
 import AegisModal from '@/components/ui/AegisModal.vue'
@@ -478,8 +491,14 @@ function refreshEngagements() {
 const connectionStatus  = ref(props.connectionStatus)
 const connectionId      = ref(props.connectionId)
 const pendingRequestId  = ref(props.pendingRequestId)
+
+// Sync local refs when Inertia partial reloads update these props
+watch(() => props.connectionStatus,  v => { connectionStatus.value  = v })
+watch(() => props.connectionId,      v => { connectionId.value      = v })
+watch(() => props.pendingRequestId,  v => { pendingRequestId.value  = v })
 const isConnected       = computed(() => connectionStatus.value === 'connected')
 const isPendingSent     = computed(() => connectionStatus.value === 'pending-sent')
+const isPendingReceived = computed(() => connectionStatus.value === 'pending-received')
 
 // ── Modals ────────────────────────────────────────────────────────────────
 const showHireModal     = ref(false)
@@ -507,6 +526,32 @@ function sendConnect() {
       showConnectModal.value = false
       toast.success('Connection request sent.')
     },
+  })
+}
+
+function acceptInbound() {
+  if (!pendingRequestId.value) return
+  connectForm.post(route('provider.network.accept', pendingRequestId.value), {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success('Connected with ' + businessName.value + '.')
+      // Reload only the connection props so connectionId is populated for disconnect
+      router.reload({
+        only: ['connectionStatus', 'connectionId', 'pendingRequestId'],
+        preserveScroll: true,
+      })
+    },
+    onError: () => toast.error('Could not accept request.'),
+  })
+}
+
+function declineInbound() {
+  if (!pendingRequestId.value) return
+  confirmAction({ title: 'Decline Request', message: 'Decline connection request from ' + businessName.value + '?', btnLabel: 'Decline', type: 'danger' }, () => {
+    connectForm.post(route('provider.network.decline', pendingRequestId.value), {
+      preserveScroll: true,
+      onSuccess: () => { connectionStatus.value = 'not-connected'; pendingRequestId.value = null; toast.info('Request declined.') },
+    })
   })
 }
 

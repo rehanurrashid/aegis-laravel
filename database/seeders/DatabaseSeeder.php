@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             // Layer 1 — identity (no FKs)
             RoleSeeder::class,
             UserSeeder::class,
+            BpDirectorySeeder::class,
             MfaTokenSeeder::class,
             UserMetaSeeder::class,
 
@@ -32,7 +33,9 @@ class DatabaseSeeder extends Seeder
 
             // Layer 6 — network
             NetworkSeeder::class,
+            SarahConnectionRequestsSeeder::class,
             NetworkRecommendationSeeder::class,
+            FixNinaConnectionSeeder::class,
             ReferralSeeder::class,
 
             // Layer 7 — messaging

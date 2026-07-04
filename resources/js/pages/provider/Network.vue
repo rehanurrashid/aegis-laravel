@@ -212,8 +212,10 @@
               <footer class="rsp-foot" @click.stop>
                 <button type="button" class="rsp-act" data-tooltip="Message" :disabled="msgLoading === p.id" @click="openConversation(p.id)"><AegisIcon name="message-square" :size="13" /></button>
                 <button type="button" class="rsp-act" data-tooltip="View Profile" @click="viewProfile(p.slug)"><AegisIcon name="eye" :size="13" /></button>
-                <button v-if="!p.connected" type="button" class="rsp-connect" @click="openConnect(p)"><AegisIcon name="user-plus" :size="12" /> Connect</button>
-                <span v-else class="rsp-connect is-connected"><AegisIcon name="check" :size="12" /> Added</span>
+                <button v-if="p.networkStatus === 'pending-received'" type="button" class="rsp-connect" @click="acceptPendingRequest(p)"><AegisIcon name="check" :size="12" /> Accept</button>
+                <button v-else-if="p.networkStatus === 'not-connected' || !p.networkStatus" type="button" class="rsp-connect" @click="openConnect(p)"><AegisIcon name="user-plus" :size="12" /> Connect</button>
+                <span v-else-if="p.networkStatus === 'pending'" class="rsp-connect" style="opacity:.5;cursor:default"><AegisIcon name="clock" :size="12" /> Pending</span>
+                <span v-else class="rsp-connect is-connected"><AegisIcon name="user-check" :size="12" /> In Network</span>
               </footer>
             </div>
           </div>
@@ -494,17 +496,18 @@
                 <button type="button" class="btn-icon" data-tooltip="Refer Client" @click="openReferralForProvider(p)"><AegisIcon name="share-tree" :size="14" /></button>
                 <button type="button" class="btn-icon" data-tooltip="Request Service" @click="openSvcRequest('Services', p)"><AegisIcon name="briefcase-rx" :size="14" /></button>
                 <button
-                  v-if="p.networkStatus === 'not-connected'"
-                  type="button"
-                  class="btn-icon"
-                  data-tooltip="Send Connection Request"
+                  v-if="p.networkStatus === 'pending-received'"
+                  type="button" class="btn-icon" data-tooltip="Accept connection request"
+                  @click="acceptPendingRequest(p)"
+                ><AegisIcon name="check" :size="14" /></button>
+                <button
+                  v-else-if="p.networkStatus === 'not-connected'"
+                  type="button" class="btn-icon" data-tooltip="Send Connection Request"
                   @click="openConnect(p)"
                 ><AegisIcon name="user-plus" :size="14" /></button>
                 <span
                   v-else-if="p.networkStatus === 'pending'"
-                  class="btn-icon"
-                  data-tooltip="Connection request pending"
-                  style="opacity:.45;cursor:default"
+                  class="btn-icon" data-tooltip="Connection request pending" style="opacity:.45;cursor:default"
                 ><AegisIcon name="clock" :size="14" /></span>
                 <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(p.slug)"><AegisIcon name="eye" :size="14" /></button>
               </div>
@@ -901,7 +904,12 @@
                 <button v-if="p.kind !== 'provider'" type="button" class="btn-icon" data-tooltip="Request Quote" @click="openBpQuote(p)"><AegisIcon name="clipboard" :size="14" /></button>
                 <button v-if="p.kind !== 'provider'" type="button" class="btn-icon" data-tooltip="Schedule Consultation" @click="openBpSchedule(p)"><AegisIcon name="calendar" :size="14" /></button>
                 <button
-                  v-if="p.networkStatus === 'not-connected'"
+                  v-if="p.networkStatus === 'pending-received'"
+                  type="button" class="btn-icon" data-tooltip="Accept connection request"
+                  @click="acceptPendingRequest(p)"
+                ><AegisIcon name="check" :size="14" /></button>
+                <button
+                  v-else-if="p.networkStatus === 'not-connected'"
                   type="button" class="btn-icon" data-tooltip="Send Connection Request"
                   @click="openConnect(p)"
                 ><AegisIcon name="user-plus" :size="14" /></button>
@@ -1680,7 +1688,12 @@
               {{ req.requester_initials }}
             </div>
             <div style="flex:1;min-width:0">
-              <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:3px">{{ req.requester_name }}</div>
+              <div style="font-size:15px;font-weight:700;margin-bottom:3px">
+                <a :href="req.request_type === 'business' ? route('public.bp', req.requester_slug) : route('public.provider', req.requester_slug)"
+                   target="_blank" style="color:var(--gold-dark);text-decoration:none;font-weight:700" @click.stop>
+                  {{ req.requester_name }}
+                </a>
+              </div>
               <div style="font-size:12px;color:var(--text-3);line-height:1.4">
                 {{ req.requester_role }}<span v-if="req.requester_location"> · {{ req.requester_location }}</span>
               </div>
@@ -1699,16 +1712,13 @@
             "{{ req.message }}"
           </div>
 
-          <!-- Actions -->
+          <!-- Actions — no eye icon; name is the link -->
           <div style="display:flex;align-items:center;gap:8px;padding-top:14px;border-top:1px solid var(--border)">
             <button type="button" class="btn btn-primary btn-sm" :disabled="pendingActionId === req.id" @click="acceptRequest(req)">
               <AegisIcon name="check" :size="12" /> Accept
             </button>
             <button type="button" class="btn btn-outline btn-sm" :disabled="pendingActionId === req.id" @click="declineRequest(req)">
               Decline
-            </button>
-            <button type="button" class="btn-icon" data-tooltip="View profile" style="margin-left:auto" @click="viewProfile(req.requester_slug, req.request_type === 'business' ? 'business' : 'provider'); modals.reviewRequests = false">
-              <AegisIcon name="eye" :size="14" />
             </button>
           </div>
         </div>
@@ -1995,7 +2005,11 @@ const pendingActionId = ref(null)
 function acceptRequest(req) {
   pendingActionId.value = req.id
   router.post(route('provider.network.accept', { networkRequest: req.id }), {}, {
-    onSuccess: () => { toast.success(req.requester_name + ' accepted'); modals.reviewRequests = false },
+    onSuccess: () => {
+      toast.success(req.requester_name + ' accepted')
+      modals.reviewRequests = false
+      router.reload({ only: ['recommendedShadowProviders', 'searchProviders', 'bpDirectory', 'pendingRequests', 'stats'], preserveScroll: true })
+    },
     onError:   () => toast.error('Could not accept request'),
     onFinish:  () => { pendingActionId.value = null },
   })
@@ -2007,6 +2021,23 @@ function declineRequest(req) {
     onSuccess: () => toast.info(req.requester_name + ' declined'),
     onError:   () => toast.error('Could not decline request'),
     onFinish:  () => { pendingActionId.value = null },
+  })
+}
+
+// Accept an inbound pending request from a search card (p.networkStatus === 'pending-received')
+// Looks up the NetworkRequest ID from pendingRequests prop by requester_id
+function acceptPendingRequest(p) {
+  const userId = p.id ?? p.partner_id
+  const req = props.pendingRequests.find(r => r.requester_id === userId)
+  if (!req) { toast.error('Could not find the request. Try refreshing.'); return }
+  pendingActionId.value = req.id
+  router.post(route('provider.network.accept', { networkRequest: req.id }), {}, {
+    onSuccess: () => {
+      toast.success((p.name ?? p.display_name ?? 'Request') + ' accepted — now in your network.')
+      router.reload({ only: ['searchProviders', 'bpDirectory', 'recommendedShadowProviders', 'pendingRequests', 'stats'], preserveScroll: true })
+    },
+    onError:  () => toast.error('Could not accept request.'),
+    onFinish: () => { pendingActionId.value = null },
   })
 }
 
@@ -3339,4 +3370,34 @@ function resetConfig() {
   padding: 4px 8px;
   min-width: 160px;
 }
+
+/* Ensure filter-sidebar toggle matches global button.toggle design */
+button.toggle {
+  width: 42px; height: 24px;
+  border-radius: var(--radius-full);
+  background: var(--border-dark);
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: background var(--transition);
+  flex-shrink: 0;
+  outline: none;
+  padding: 0;
+  display: inline-block;
+  vertical-align: middle;
+}
+button.toggle::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 3px;
+  width: 18px; height: 18px;
+  background: var(--surface);
+  border-radius: var(--radius-full);
+  transform: translateY(-50%);
+  transition: transform var(--transition);
+  box-shadow: 0 1px 4px rgba(44,34,24,0.22), 0 0 1px rgba(44,34,24,0.10);
+}
+button.toggle.on::after { transform: translate(18px, -50%); }
+button.toggle.on        { background: var(--gold-dark); }
+button.toggle:focus-visible { box-shadow: var(--focus-ring); }
 </style>

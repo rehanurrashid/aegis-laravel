@@ -118,7 +118,6 @@ class NetworkController extends Controller
         // Dynamic recommendation feeds — see NetworkService::getRecommended*.
         // If no per-user rows are seeded, the service falls back to globals.
         $recommendedPartnerCategories = $this->network->getRecommendedPartnerCategories($user->id);
-        $recommendedShadowProviders   = $this->network->getRecommendedShadowProviders($user->id);
 
         // Directory-wide search results for the Search Providers tab. Uses the
         // same public-flag scope as the public directory. Excludes the current
@@ -140,13 +139,33 @@ class NetworkController extends Controller
             ->filter()
             ->all();
 
+        // Track inbound pending requests so the button shows "Accept" instead of "Connect"
+        $pendingInboundIds = \App\Models\NetworkRequest::where('recipient_id', $user->id)
+            ->where('status', 'pending')
+            ->pluck('requester_id')
+            ->filter()
+            ->all();
+
+        // Build recommended shadow providers AFTER ID arrays so networkStatus is accurate
+        $recommendedShadowProviders = $this->network->getRecommendedShadowProviders($user->id)
+            ->map(function (array $p) use ($connectedIds, $pendingOutboundIds, $pendingInboundIds) {
+                $id = $p['id'];
+                $p['networkStatus'] = in_array($id, $connectedIds, true)
+                    ? 'in-network'
+                    : (in_array($id, $pendingInboundIds, true)  ? 'pending-received'
+                    : (in_array($id, $pendingOutboundIds, true) ? 'pending' : 'not-connected'));
+                $p['connected'] = $p['networkStatus'] === 'in-network';
+                return $p;
+            })->values();
+
         $searchProviders = User::query()
             ->where('practitioner_public', 1)
+            ->where('role', 'practitioner')
             ->where('id', '!=', $user->id)
             ->orderBy('display_name')
             ->limit(60)
             ->get()
-            ->map(function (User $u) use ($connectedIds, $pendingOutboundIds) {
+            ->map(function (User $u) use ($connectedIds, $pendingOutboundIds, $pendingInboundIds) {
                 $tags = collect(explode(',', (string) ($u->specialty ?? '')))
                     ->map(fn ($t) => trim($t))->filter()->values()->all();
                 return [
@@ -168,7 +187,8 @@ class NetworkController extends Controller
                     'has_services'  => (bool) $u->services_mode,
                     'networkStatus' => in_array($u->id, $connectedIds, true)
                         ? 'in-network'
-                        : (in_array($u->id, $pendingOutboundIds, true) ? 'pending' : 'not-connected'),
+                        : (in_array($u->id, $pendingInboundIds, true) ? 'pending-received'
+                            : (in_array($u->id, $pendingOutboundIds, true) ? 'pending' : 'not-connected')),
                 ];
             })->values();
 
@@ -193,11 +213,12 @@ class NetworkController extends Controller
         // ── Business Partner directory (Search Business Partners tab) ────────
         $bpDirectory = User::query()
             ->where('business_partner_public', 1)
+            ->where('role', 'business_partner')
             ->where('id', '!=', $user->id)
             ->orderBy('display_name')
             ->limit(60)
             ->get()
-            ->map(function (User $u) use ($connectedIds, $pendingOutboundIds) {
+            ->map(function (User $u) use ($connectedIds, $pendingOutboundIds, $pendingInboundIds) {
                 $rateDollars = $u->bp_hourly_rate_cents
                     ? '$' . number_format($u->bp_hourly_rate_cents / 100) . '/hr'
                     : null;
@@ -227,7 +248,8 @@ class NetworkController extends Controller
                     'has_services'=> (bool) $u->services_mode,
                     'networkStatus' => in_array($u->id, $connectedIds, true)
                         ? 'in-network'
-                        : (in_array($u->id, $pendingOutboundIds, true) ? 'pending' : 'not-connected'),
+                        : (in_array($u->id, $pendingInboundIds, true) ? 'pending-received'
+                            : (in_array($u->id, $pendingOutboundIds, true) ? 'pending' : 'not-connected')),
                 ];
             })->values();
 

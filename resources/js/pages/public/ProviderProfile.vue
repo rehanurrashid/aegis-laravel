@@ -46,18 +46,26 @@
                   <AegisIcon name="refresh" :size="14" /> Refer
                 </button>
               </template>
-              <!-- Not connected: pending or fresh -->
+              <!-- Inbound: profile owner sent viewer a request — show Accept/Decline -->
+              <template v-else-if="pm.inbound_request_id">
+                <button type="button" class="btn-hero-solid is-on-light" :disabled="connectForm.processing" @click="acceptInbound">
+                  <AegisIcon name="check" :size="14" /> Accept Request
+                </button>
+                <button type="button" class="btn-hero-ghost is-on-light" :disabled="connectForm.processing" @click="declineInbound">
+                  <AegisIcon name="x" :size="14" /> Decline
+                </button>
+              </template>
+              <!-- Outbound pending: viewer sent request, waiting -->
+              <template v-else-if="pm.pending_request_id">
+                <button type="button" class="btn-hero-ghost is-on-light" @click="cancelConnect">
+                  <AegisIcon name="x" :size="14" /> Cancel Request
+                </button>
+              </template>
+              <!-- Not connected: show Connect modal -->
               <template v-else>
-                <template v-if="pm.pending_request_id">
-                  <button type="button" class="btn-hero-ghost is-on-light" @click="cancelConnect">
-                    <AegisIcon name="x" :size="14" /> Cancel Request
-                  </button>
-                </template>
-                <template v-else>
-                  <button type="button" class="btn-hero-solid is-on-light" :disabled="connectForm.processing" @click="sendConnect">
-                    <AegisIcon name="plus" :size="14" /> Connect
-                  </button>
-                </template>
+                <button type="button" class="btn-hero-solid is-on-light" :disabled="connectForm.processing" @click="showConnectModal = true">
+                  <AegisIcon name="plus" :size="14" /> Connect
+                </button>
               </template>
               <button type="button" class="btn-hero-ghost is-on-light" @click="openServiceRequest('Appointment')">
                 <AegisIcon name="calendar" :size="14" /> Schedule
@@ -66,10 +74,6 @@
                       :disabled="msgLoading === user.id" @click="openConversation(user.id)">
                 <AegisIcon name="message" :size="14" />
               </button>
-              <a :href="route('provider.activity') + '?event_type=account'"
-                 class="btn-hero-ghost is-on-light is-icon-only" data-tooltip="View Activity">
-                <AegisIcon name="activity" :size="14" />
-              </a>
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only"
                       @click="copyShareLink" data-tooltip="Share" aria-label="Share">
                 <AegisIcon name="link" :size="14" />
@@ -565,21 +569,43 @@
             <div class="pp-section-title">
               <AegisIcon name="link" :size="13" class="aegis-icon-gold-dark" /> Network Connection
             </div>
-            <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin:0 0 14px">
-              You're not yet connected with {{ user.display_name }}. Add them to your clinical network to
-              unlock referral tracking, shared care coordination, and connection history.
-            </p>
-            <template v-if="pm.pending_request_id">
-              <p style="font-size:12px;color:var(--gold-dark);font-weight:600;margin:0 0 10px">
-                <AegisIcon name="clock" :size="12" style="vertical-align:-2px" /> Connection request pending
+            <!-- Inbound: they sent us a request -->
+            <template v-if="pm.inbound_request_id">
+              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin:0 0 14px">
+                <strong>{{ user.display_name }}</strong> sent you a connection request.
+              </p>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-primary btn-sm" :disabled="connectForm.processing" @click="acceptInbound">
+                  <AegisIcon name="check" :size="13" /> Accept Request
+                </button>
+                <button class="btn btn-outline btn-sm" :disabled="connectForm.processing" @click="declineInbound">
+                  Decline
+                </button>
+              </div>
+            </template>
+            <!-- Outbound: we sent them a request -->
+            <template v-else-if="pm.pending_request_id">
+              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin:0 0 14px">
+                You're not yet connected with {{ user.display_name }}. Add them to your clinical network to
+                unlock referral tracking, shared care coordination, and connection history.
+              </p>
+              <p style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--gold-dark);font-weight:600;margin:0 0 10px">
+                <AegisIcon name="clock" :size="12" /> Connection request pending
               </p>
               <button class="btn btn-outline btn-sm btn-danger-outline" @click="cancelConnect">
                 <AegisIcon name="x" :size="13" /> Cancel Request
               </button>
             </template>
-            <button v-else class="btn btn-outline btn-sm" @click="sendConnect" :disabled="connectForm.processing">
-              <AegisIcon name="plus" :size="13" /> Connect
-            </button>
+            <!-- Not connected at all -->
+            <template v-else>
+              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin:0 0 14px">
+                You're not yet connected with {{ user.display_name }}. Add them to your clinical network to
+                unlock referral tracking, shared care coordination, and connection history.
+              </p>
+              <button class="btn btn-outline btn-sm" @click="showConnectModal = true" :disabled="connectForm.processing">
+                <AegisIcon name="plus" :size="13" /> Connect
+              </button>
+            </template>
           </div>
 
           <!-- Anonymous: locked Connection Info -->
@@ -664,6 +690,24 @@
           <button class="btn btn-outline" @click="showEndorseModal = false">Cancel</button>
           <button class="btn btn-primary" :disabled="endorseForm.processing" @click="submitEndorse">
             <span class="btn-ico"><AegisIcon name="send" :size="13" /></span>{{ endorseForm.processing ? 'Submitting…' : 'Submit Endorsement' }}
+          </button>
+        </template>
+      </AegisModal>
+
+      <!-- Connect Modal -->
+      <AegisModal v-model="showConnectModal" title="Send Connection Request" size="md">
+        <div class="form-group">
+          <label class="form-label">Message <span style="color:var(--text-4);font-weight:500">(optional)</span></label>
+          <textarea class="form-textarea" rows="3"
+            :placeholder="`Hi ${user.display_name}, I'd love to connect and build a referral relationship…`"
+            v-model="connectForm.message"
+          ></textarea>
+        </div>
+        <template #footer>
+          <button class="btn btn-outline" @click="showConnectModal = false">Cancel</button>
+          <button class="btn btn-primary" :disabled="connectForm.processing" @click="sendConnect">
+            <AegisIcon name="user-plus" :size="13" />
+            {{ connectForm.processing ? 'Sending…' : 'Send Request' }}
           </button>
         </template>
       </AegisModal>
@@ -792,10 +836,11 @@ function formatLabel(format) {
 }
 
 // ── Modal state ────────────────────────────────────────────────────────
-const showEndorseModal        = ref(false)
+const showEndorseModal = ref(false)
+const showConnectModal = ref(false)
 
 // ── Forms ──────────────────────────────────────────────────────────────
-const connectForm = useForm({})
+const connectForm       = useForm({ message: '' })
 const cancelRequestForm = useForm({})
 
 const endorseForm = useForm({
@@ -830,9 +875,37 @@ function openServiceRequest(serviceName) {
 function sendConnect() {
   connectForm.post(route('public.profile.connect', { user: props.user.id }), {
     preserveScroll: true,
-    onSuccess: () => toast.success('Connection request sent.'),
+    onSuccess: () => { showConnectModal.value = false; toast.success('Connection request sent.') },
     onError: () => toast.error('Could not send connection request.'),
   })
+}
+
+// Accept inbound request from this profile owner
+function acceptInbound() {
+  const reqId = pm.value.inbound_request_id
+  if (!reqId) return
+  connectForm.post(route('provider.network.accept', { networkRequest: reqId }), {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Connection accepted — ' + props.user.display_name + ' is now in your network.'),
+    onError: () => toast.error('Could not accept request.'),
+  })
+}
+
+// Decline inbound request from this profile owner
+function declineInbound() {
+  const reqId = pm.value.inbound_request_id
+  if (!reqId) return
+  confirmAction(
+    'Decline connection request from ' + props.user.display_name + '?',
+    () => {
+      connectForm.post(route('provider.network.decline', { networkRequest: reqId }), {
+        preserveScroll: true,
+        onSuccess: () => toast.info('Connection request declined.'),
+        onError: () => toast.error('Could not decline request.'),
+      })
+    },
+    { title: 'Decline Request', btnLabel: 'Decline', type: 'danger' }
+  )
 }
 
 // Cancel outgoing pending connection request

@@ -193,9 +193,12 @@ class NetworkService
 
     public function getConnections(string $userId): Collection
     {
-        return NetworkConnection::where('user_id', $userId)
+        return NetworkConnection::where(function ($q) use ($userId) {
+            $q->where('user_id', $userId)
+              ->orWhere('connected_user_id', $userId);
+        })
             ->where('status', 'active')
-            ->with('target')
+            ->with(['target', 'owner'])
             ->get();
     }
 
