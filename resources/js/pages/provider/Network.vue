@@ -848,7 +848,8 @@
         <div class="results-panel">
           <div class="results-topbar">
             <div class="results-count">
-              <strong>{{ filteredPartners.length }}</strong> of {{ businessPartners.length }} partners
+              <strong>{{ filteredPartners.length }}</strong>
+              {{ bpClinicalOnly ? 'results (BPs + clinical providers)' : `of ${businessPartners.length} partners` }}
             </div>
             <div class="results-sort">
               <span class="nw-sort-label">Sort:</span>
@@ -869,7 +870,7 @@
           </div>
 
           <div id="sbpResultsGrid" class="search-results-grid">
-            <div v-for="p in filteredPartners" :key="p.id || p.name" class="sbp-card spc-card" @click="viewProfile(p.slug, 'business')">
+            <div v-for="p in filteredPartners" :key="p.id || p.name" class="sbp-card spc-card" @click="viewProfile(p.slug, p.kind || 'business')">
               <div class="spc-top-pills">
                 <span class="spc-status-icon" :class="p.networkStatus === 'in-network' ? 'ok' : (p.networkStatus === 'pending' ? 'pend' : 'off')"
                   :data-tooltip="p.networkStatus === 'in-network' ? 'In your network' : (p.networkStatus === 'pending' ? 'Request pending' : 'Not connected')">
@@ -893,14 +894,14 @@
               <div v-if="p.rate && p.rate !== '—'" class="spc-stats">{{ p.rate }}<span v-if="p.reviews"> · {{ p.reviews }} reviews</span><span v-if="p.jobs"> · {{ p.jobs }} jobs</span></div>
               <div class="spc-actions" @click.stop>
                 <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === p.id" @click="openConversation(p.id)"><AegisIcon name="message-square" :size="14" /></button>
-                <button type="button" class="btn-icon" data-tooltip="Hire" @click="openBpHire(p)"><AegisIcon name="briefcase" :size="14" /></button>
+                <button v-if="p.kind !== 'provider'" type="button" class="btn-icon" data-tooltip="Hire" @click="openBpHire(p)"><AegisIcon name="briefcase" :size="14" /></button>
                 <button
                   v-if="p.networkStatus === 'not-connected'"
                   type="button" class="btn-icon" data-tooltip="Send Connection Request"
                   @click="openConnect(p)"
                 ><AegisIcon name="user-plus" :size="14" /></button>
                 <span v-else-if="p.networkStatus === 'pending'" class="btn-icon" data-tooltip="Request pending" style="opacity:.45;cursor:default"><AegisIcon name="clock" :size="14" /></span>
-                <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(p.slug, 'business')"><AegisIcon name="eye" :size="14" /></button>
+                <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(p.slug, p.kind || 'business')"><AegisIcon name="eye" :size="14" /></button>
               </div>
             </div>
           </div>
@@ -2355,32 +2356,25 @@ const filteredBpConnections = computed(() => {
 
 const filteredPartners = computed(() => {
   let results = businessPartners.value.filter(p => {
-    // Keyword search
     const q = bpSearch.value.toLowerCase().trim()
     if (q) {
       const hay = [p.name, p.role, p.location, ...(p.tags || [])].join(' ').toLowerCase()
       if (!hay.includes(q)) return false
     }
-    // Category
     if (bpCategory.value) {
       const cat = (p.category || p.role || '').toLowerCase()
       if (!cat.includes(bpCategory.value.toLowerCase())) return false
     }
-    // Partner type
     if (bpTypeFilter.value) {
       const pt = (p.partnerType || '').toLowerCase()
       if (!pt.includes(bpTypeFilter.value)) return false
     }
-    // Rate range (only if set)
     if (bpRateMin.value > 0 || bpRateMax.value < 9999) {
       const rateNum = parseInt(String(p.rate || '').replace(/[^0-9]/g, '')) || 0
       if (rateNum > 0 && (rateNum < bpRateMin.value || rateNum > bpRateMax.value)) return false
     }
-    // Minimum rating
     if (bpMinRating.value > 0 && (p.rating || 0) < bpMinRating.value) return false
-    // Min jobs
     if (bpMinJobs.value > 0 && (p.jobs || 0) < bpMinJobs.value) return false
-    // Location
     if (bpLocation.value) {
       const loc = (p.location || '').toLowerCase()
       if (bpLocation.value === 'remote' && !loc.includes('remote')) return false
@@ -2389,7 +2383,7 @@ const filteredPartners = computed(() => {
     return true
   })
 
-  // Sort
+  // Sort BPs
   if (bpSort.value === 'Highest Rated') results = [...results].sort((a, b) => (b.rating || 0) - (a.rating || 0))
   if (bpSort.value === 'Most Jobs')     results = [...results].sort((a, b) => (b.jobs || 0) - (a.jobs || 0))
   if (bpSort.value === 'Lowest Rate')   results = [...results].sort((a, b) => {
@@ -2397,8 +2391,30 @@ const filteredPartners = computed(() => {
     const rb = parseInt(String(b.rate).replace(/[^0-9]/g, '')) || 9999
     return ra - rb
   })
-  // Clinical-service on top
-  if (bpClinicalOnly.value) results = [...results].sort((a, b) => (b.has_services ? 1 : 0) - (a.has_services ? 1 : 0))
+
+  // Clinical-service toggle: prepend practitioners with services_mode=1 above BPs.
+  // They are real Aegis providers offering services (supervision, consultation etc.)
+  // to other practitioners — semantically different from BPs, shown with a distinct
+  // "Clinical Services" badge. kind='provider' routes them to /public/provider/{slug}.
+  if (bpClinicalOnly.value) {
+    const q = bpSearch.value.toLowerCase().trim()
+    const clinicians = allProviders.value
+      .filter(p => p.has_services)
+      .filter(p => {
+        if (!q) return true
+        const hay = [p.name, p.role, p.location, ...(p.tags || [])].join(' ').toLowerCase()
+        return hay.includes(q)
+      })
+      .map(p => ({
+        ...p,
+        kind:        'provider',
+        partnerType: 'CLINICAL',
+        rate:        p.rate ?? '—',
+        reviews:     p.reviews ?? 0,
+        jobs:        p.jobs ?? 0,
+      }))
+    return [...clinicians, ...results]
+  }
 
   return results
 })
