@@ -33,13 +33,13 @@
             <template v-else-if="isLoggedIn">
               <button type="button" class="btn-hero-solid is-on-light" @click="openHireModal"><AegisIcon name="check" :size="14" /> Hire</button>
               <button type="button" class="btn-hero-ghost is-on-light" @click="openRequestQuoteModal"><AegisIcon name="clipboard" :size="14" /> Quote</button>
-              <button v-if="isConnected" type="button" class="btn-hero-ghost is-on-light is-icon-only" data-tooltip="Message" :disabled="msgLoading === user.id" @click="openConversation(user.id)"><AegisIcon name="message" :size="14" /></button>
               <template v-if="isPendingReceived">
                 <button type="button" class="btn-hero-solid is-on-light" :disabled="connectForm.processing" @click="acceptInbound"><AegisIcon name="check" :size="14" /> Accept Request</button>
                 <button type="button" class="btn-hero-ghost is-on-light" :disabled="connectForm.processing" @click="declineInbound"><AegisIcon name="x" :size="14" /> Decline</button>
               </template>
               <button v-if="!isConnected && !isPendingSent && !isPendingReceived" type="button" class="btn-hero-ghost is-on-light" @click="showConnectModal = true"><AegisIcon name="user-plus" :size="14" /> Connect</button>
               <button v-if="isPendingSent" type="button" class="btn-hero-ghost is-on-light" @click="cancelConnect"><AegisIcon name="x" :size="14" /> Cancel Request</button>
+              <button type="button" class="btn-hero-ghost is-on-light is-icon-only" data-tooltip="Message" :disabled="msgLoading === user.id" @click="openConversation(user.id)"><AegisIcon name="message" :size="14" /></button>
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Share" aria-label="Share"><AegisIcon name="link" :size="14" /></button>
             </template>
             <template v-else>
