@@ -262,45 +262,32 @@ function submit() {
   if (!props.partner) return
   busy.value = true
 
-  // POST to network hire route — creates a BpJob / direct engagement request.
-  // Falls back to toast-only if route not wired yet.
-  try {
-    const inertiaForm = useForm({
-      bp_id:              props.partner.id,
-      engagement_type:    form.value.type,
-      start_date:         form.value.start_date,
-      duration:           form.value.duration,
-      budget:             form.value.budget,
-      payment_terms:      form.value.payment_terms,
-      notes:              form.value.notes,
-      include_nda:        form.value.include_nda,
-      require_baa:        form.value.require_baa,
-      auto_contract:      form.value.auto_contract,
-      termination_clause: form.value.termination_clause,
-    })
+  const inertiaForm = useForm({
+    type:               form.value.type,
+    start_date:         form.value.start_date,
+    duration:           form.value.duration,
+    budget:             form.value.budget,
+    payment_terms:      form.value.payment_terms,
+    notes:              form.value.notes,
+    include_nda:        form.value.include_nda,
+    require_baa:        form.value.require_baa,
+    auto_contract:      form.value.auto_contract,
+    termination_clause: form.value.termination_clause,
+  })
 
-    inertiaForm.post(route('provider.network.hire'), {
-      preserveScroll: true,
-      onSuccess: () => {
-        toast.success(`Engagement request sent to ${props.partner.name}. They'll be notified via Aegis.`)
-        emit('submitted', { ...form.value, partner: props.partner })
-        onClose()
-        busy.value = false
-      },
-      onError: () => {
-        // Route may not be wired yet — still close gracefully
-        toast.success(`Engagement request sent to ${props.partner.name}.`)
-        emit('submitted', { ...form.value, partner: props.partner })
-        onClose()
-        busy.value = false
-      },
-    })
-  } catch {
-    toast.success(`Engagement request sent to ${props.partner.name}.`)
-    emit('submitted', { ...form.value, partner: props.partner })
-    onClose()
-    busy.value = false
-  }
+  inertiaForm.post(route('public.profile.hire-request', props.partner.id), {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success(`Engagement request sent to ${props.partner.name}. They'll be notified via Aegis.`)
+      emit('submitted', { ...form.value, partner: props.partner })
+      onClose()
+      busy.value = false
+    },
+    onError: (errors) => {
+      toast.error(Object.values(errors)[0] ?? 'Could not send request. Please try again.')
+      busy.value = false
+    },
+  })
 }
 </script>
 

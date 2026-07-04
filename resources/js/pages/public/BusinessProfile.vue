@@ -64,12 +64,12 @@
       </div>
 
       <!-- ═══ ENGAGEMENT ACTIVITY TRACKER (below hero, logged-in non-owner) ═══ -->
-      <div v-if="isLoggedIn && !isOwner && sentEngagements.length" class="bp-eng-tracker">
+      <div v-if="isLoggedIn && !isOwner && allEngagements.length" class="bp-eng-tracker">
         <div class="bp-eng-tracker-head">
           <span class="bp-eng-tracker-label"><AegisIcon name="clock" :size="12" /> Your requests to this partner</span>
-          <span>{{ sentEngagements.length }} sent this session</span>
+          <span>{{ allEngagements.length }} total</span>
         </div>
-        <div v-for="(eng, i) in sentEngagements" :key="i" class="bp-eng-row">
+        <div v-for="(eng, i) in allEngagements" :key="eng.id || i" class="bp-eng-row">
           <AegisIcon name="briefcase" :size="14" />
           <span class="bp-eng-type">{{ eng.label }}</span>
           <span class="bp-eng-status">{{ eng.status }}</span>
@@ -484,7 +484,8 @@ const props = defineProps({
   connectionId:     { type: String,  default: null },
   pendingRequestId: { type: String,  default: null },
   bpStats:          { type: Object,  default: () => ({}) },
-  reviews:          { type: Array,   default: () => [] },
+  reviews:            { type: Array,   default: () => [] },
+  engagementRequests: { type: Array,   default: () => [] },
 })
 
 const page = usePage()
@@ -508,11 +509,13 @@ const completedJobs  = computed(() => props.bpStats.completed_contracts ?? pmSta
 
 function titleCase(str) { return str.replace(/\b\w/g, c => c.toUpperCase()) }
 
-// ── Engagement status tracker (below hero) ────────────────────────────────
-// Tracks what this viewer has sent to this BP. Stored locally until page reload.
-const sentEngagements = ref([])
-function trackEngagement(type, label) {
-  sentEngagements.value.unshift({ type, label, status: 'Pending', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })
+// ── Engagement tracker — loaded from DB via props, refreshed after each submit ─
+// No local buffer needed. After each form submit we do a partial Inertia reload
+// (only: ['engagementRequests']) so the prop updates without full page reload.
+const allEngagements = computed(() => props.engagementRequests)
+
+function refreshEngagements() {
+  router.reload({ only: ['engagementRequests'], preserveScroll: true })
 }
 
 // ── Connection state ──────────────────────────────────────────────────────
@@ -573,9 +576,7 @@ function confirmRemovePartner() {
 }
 
 function submitHireRequest(formData) {
-  // BpEngageModal calls route('provider.network.hire') internally via useForm.
-  // We also track it locally for the below-hero activity panel.
-  trackEngagement('hire', 'Engagement Request — ' + (formData.type ?? 'Custom'))
+  refreshEngagements()
 }
 
 function submitQuote() {
@@ -583,7 +584,7 @@ function submitQuote() {
     preserveScroll: true,
     onSuccess: () => {
       showQuoteModal.value = false
-      trackEngagement('quote', 'Quote Request — ' + (quoteForm.service || 'General'))
+      refreshEngagements()
       toast.success('Quote request sent. The partner will respond shortly.')
     },
   })
@@ -594,7 +595,7 @@ function submitSchedule() {
     preserveScroll: true,
     onSuccess: () => {
       showScheduleModal.value = false
-      trackEngagement('consultation', 'Consultation — ' + scheduleForm.date)
+      refreshEngagements()
       toast.success('Consultation request sent.')
     },
   })

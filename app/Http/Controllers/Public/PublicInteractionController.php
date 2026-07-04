@@ -10,6 +10,7 @@ use App\Events\Network\ConnectionAccepted;
 use App\Events\Network\ConnectionRequestSent;
 use App\Events\Service\ServiceRequestSubmitted;
 use App\Http\Controllers\Controller;
+use App\Models\BpEngagementRequest;
 use App\Models\NetworkConnection;
 use App\Models\NetworkRequest;
 use App\Models\ServiceRequest;
@@ -249,14 +250,33 @@ class PublicInteractionController extends Controller
         abort_if($viewer->id === $user->id, 403);
 
         $data = $request->validate([
-            'type'          => 'required|string|max:80',
-            'start_date'    => 'required|date|after_or_equal:today',
-            'duration'      => 'nullable|string|max:100',
-            'budget'        => 'nullable|string|max:100',
-            'payment_terms' => 'nullable|string|max:80',
-            'notes'         => 'nullable|string|max:1000',
-            'include_nda'   => 'boolean',
-            'require_baa'   => 'boolean',
+            'type'               => 'required|string|max:80',
+            'start_date'         => 'required|date|after_or_equal:today',
+            'duration'           => 'nullable|string|max:100',
+            'budget'             => 'nullable|string|max:100',
+            'payment_terms'      => 'nullable|string|max:80',
+            'notes'              => 'nullable|string|max:1000',
+            'include_nda'        => 'boolean',
+            'require_baa'        => 'boolean',
+            'auto_contract'      => 'boolean',
+            'termination_clause' => 'boolean',
+        ]);
+
+        BpEngagementRequest::create([
+            'id'              => 'ber_' . Str::lower(Str::random(12)),
+            'bp_id'           => $user->id,
+            'practitioner_id' => $viewer->id,
+            'type'            => 'hire',
+            'engagement_type' => $data['type'],
+            'start_date'      => $data['start_date'],
+            'duration'        => $data['duration'] ?? null,
+            'budget'          => $data['budget'] ?? null,
+            'payment_terms'   => $data['payment_terms'] ?? null,
+            'notes'           => $data['notes'] ?? null,
+            'include_nda'     => (bool) ($data['include_nda'] ?? false),
+            'require_baa'     => (bool) ($data['require_baa'] ?? false),
+            'auto_contract'   => (bool) ($data['auto_contract'] ?? false),
+            'status'          => 'pending',
         ]);
 
         event(new EngagementRequested($user, $viewer, 'hire', $data));
@@ -293,6 +313,20 @@ class PublicInteractionController extends Controller
             'urgent'   => 'boolean',
         ]);
 
+        BpEngagementRequest::create([
+            'id'              => 'ber_' . Str::lower(Str::random(12)),
+            'bp_id'           => $user->id,
+            'practitioner_id' => $viewer->id,
+            'type'            => 'quote',
+            'service'         => $data['service'],
+            'size'            => $data['size'] ?? null,
+            'budget'          => $data['budget'] ?? null,
+            'timeline'        => $data['timeline'] ?? null,
+            'notes'           => $data['notes'] ?? null,
+            'urgent'          => (bool) ($data['urgent'] ?? false),
+            'status'          => 'pending',
+        ]);
+
         event(new EngagementRequested($user, $viewer, 'quote', $data));
 
         $this->activity->log($viewer->id, $this->portalFor($viewer), 'business',
@@ -325,6 +359,20 @@ class PublicInteractionController extends Controller
             'duration' => 'nullable|string|max:50',
             'tz'       => 'nullable|string|max:50',
             'agenda'   => 'nullable|string|max:500',
+        ]);
+
+        BpEngagementRequest::create([
+            'id'              => 'ber_' . Str::lower(Str::random(12)),
+            'bp_id'           => $user->id,
+            'practitioner_id' => $viewer->id,
+            'type'            => 'consultation',
+            'meeting_type'    => $data['type'],
+            'start_date'      => $data['date'],
+            'preferred_time'  => $data['time'] ?? null,
+            'meeting_duration' => $data['duration'] ?? null,
+            'timezone'        => $data['tz'] ?? null,
+            'agenda'          => $data['agenda'] ?? null,
+            'status'          => 'pending',
         ]);
 
         event(new EngagementRequested($user, $viewer, 'consultation', $data));

@@ -245,6 +245,29 @@ class ProfileController extends Controller
         $reviews     = $reviewsMeta ? (json_decode((string) $reviewsMeta->meta_value, true) ?? []) : [];
         $avgRating   = count($reviews) ? round(collect($reviews)->avg('stars'), 1) : null;
 
+        // ── Past engagement requests this viewer sent to this BP ────────────────
+        $engagementRequests = [];
+        if ($viewer && ! $isOwner) {
+            $engagementRequests = \App\Models\BpEngagementRequest::where('bp_id', $user->id)
+                ->where('practitioner_id', $viewer->id)
+                ->orderByDesc('created_at')
+                ->get()
+                ->map(fn ($r) => [
+                    'id'     => $r->id,
+                    'type'   => $r->type,
+                    'label'  => match ($r->type) {
+                        'hire'         => 'Engagement Request — ' . ($r->engagement_type ?? 'Custom'),
+                        'quote'        => 'Quote Request — ' . ($r->service ?? 'General'),
+                        'consultation' => 'Consultation — ' . ($r->start_date?->format('M j, Y') ?? ''),
+                        default        => ucfirst($r->type),
+                    },
+                    'status' => ucfirst($r->status),
+                    'time'   => $r->created_at->format('M j, g:i A'),
+                ])
+                ->values()
+                ->toArray();
+        }
+
         return Inertia::render('public/BusinessProfile', [
             'user'             => $user,
             'profileMeta'      => $profileMeta,
@@ -266,7 +289,9 @@ class ProfileController extends Controller
                     : null,
             ],
             // Reviews
-            'reviews' => collect($reviews)->sortByDesc('created_at')->take(5)->values()->toArray(),
+            'reviews'            => collect($reviews)->sortByDesc('created_at')->take(5)->values()->toArray(),
+            // Past engagement requests this viewer sent (persisted in DB, survives refresh)
+            'engagementRequests' => $engagementRequests,
         ]);
     }
 }
