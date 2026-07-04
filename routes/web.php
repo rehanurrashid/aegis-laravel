@@ -406,6 +406,12 @@ Route::middleware(['auth', 'role:business_partner', 'check.locked'])
 
         Route::get('/dashboard', [BpDashboardController::class, 'index'])->name('dashboard');
 
+        // Engagement Requests (direct hire/quote/consultation from public profile)
+        Route::get('/engagement-requests',                            [\App\Http\Controllers\BusinessPartner\EngagementRequestsController::class, 'index'])->name('engagement-requests.index');
+        Route::post('/engagement-requests/{engagementRequest}/accept',  [\App\Http\Controllers\BusinessPartner\EngagementRequestsController::class, 'accept'])->name('engagement-requests.accept');
+        Route::post('/engagement-requests/{engagementRequest}/decline',  [\App\Http\Controllers\BusinessPartner\EngagementRequestsController::class, 'decline'])->name('engagement-requests.decline');
+        Route::post('/engagement-requests/{engagementRequest}/reply',    [\App\Http\Controllers\BusinessPartner\EngagementRequestsController::class, 'reply'])->name('engagement-requests.reply');
+
         // Job Board
         Route::get('/find-jobs', [JobsController::class, 'index'])->name('jobs.index');
         Route::post('/find-jobs/{job}/save', [JobsController::class, 'save'])->name('jobs.save');

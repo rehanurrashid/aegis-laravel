@@ -180,6 +180,10 @@ const dashboardUrl = computed(() => r({
 // ── Badge helper ───────────────────────────────────────────────────────
 function badgeFromCount(n) { return n > 0 ? String(n) : '' }
 const msgs = computed(() => unreadMsgs.value > 0 ? String(unreadMsgs.value) : '')
+const pendingEngagements = computed(() => {
+  const n = page.props.pendingEngagementRequests ?? 0
+  return n > 0 ? String(n) : ''
+})
 
 // ── Nav sections ───────────────────────────────────────────────────────
 const navSections = computed(() => {
@@ -293,6 +297,7 @@ const navSections = computed(() => {
         ],
         'Work': [
           { key: 'jobs',  href: r('bp.jobs.index'),       icon: 'search',         label: 'Find Jobs' },
+          { key: 'engagement-requests', href: r('bp.engagement-requests.index'), icon: 'briefcase', label: 'Engagement Requests', badge: pendingEngagements.value, badge_type: 'warning' },
           { key: 'contracts',  href: r('bp.contracts.index'),  icon: 'file-text',      label: 'Contracts' },
           { key: 'proposals',  href: r('bp.proposals.index'),  icon: 'message-square', label: 'Proposals' },
           { key: 'milestones', href: r('bp.milestones.index'), icon: 'target-2',       label: 'Milestones' },

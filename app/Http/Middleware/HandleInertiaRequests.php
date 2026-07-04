@@ -9,6 +9,7 @@ use App\Enums\StewardStatus;
 use App\Enums\UserRole;
 use App\Enums\BpJobStatus;
 use App\Models\ActivityEvent;
+use App\Models\BpEngagementRequest;
 use App\Models\BpJob;
 use App\Models\CriticalIncident;
 use App\Models\Message;
@@ -140,6 +141,9 @@ class HandleInertiaRequests extends Middleware
             'pendingReferrals' => $pendingReferrals,
             'unreadCount'    => $unreadCount,
             'unreadMessages' => $unreadMessages,
+            'pendingEngagementRequests' => $user && $user->role === UserRole::BusinessPartner
+                ? BpEngagementRequest::where('bp_id', $user->id)->where('status', 'pending')->count()
+                : 0,
             'activePage'   => $request->route()?->getName(),
             'flash'        => [
                 'success' => session('success'),
