@@ -898,6 +898,8 @@
               <div class="spc-actions" @click.stop>
                 <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === p.id" @click="openConversation(p.id)"><AegisIcon name="message-square" :size="14" /></button>
                 <button v-if="p.kind !== 'provider'" type="button" class="btn-icon" data-tooltip="Hire" @click="openBpHire(p)"><AegisIcon name="briefcase" :size="14" /></button>
+                <button v-if="p.kind !== 'provider'" type="button" class="btn-icon" data-tooltip="Request Quote" @click="openBpQuote(p)"><AegisIcon name="clipboard" :size="14" /></button>
+                <button v-if="p.kind !== 'provider'" type="button" class="btn-icon" data-tooltip="Schedule Consultation" @click="openBpSchedule(p)"><AegisIcon name="calendar" :size="14" /></button>
                 <button
                   v-if="p.networkStatus === 'not-connected'"
                   type="button" class="btn-icon" data-tooltip="Send Connection Request"
@@ -980,6 +982,8 @@
           <div class="spc-actions" @click.stop>
             <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === nc.partner_id" @click="openConversation(nc.partner_id)"><AegisIcon name="message-square" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Hire" @click="openBpHire(nc)"><AegisIcon name="briefcase" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="Request Quote" @click="openBpQuote({ id: nc.partner_id, display_name: nc.partner_name, slug: nc.partner_slug })"><AegisIcon name="clipboard" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="Schedule Consultation" @click="openBpSchedule({ id: nc.partner_id, display_name: nc.partner_name, slug: nc.partner_slug })"><AegisIcon name="calendar" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(nc.partner_slug, 'business')"><AegisIcon name="eye" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Remove" @click="confirmDisconnect(nc)"><AegisIcon name="trash-2" :size="14" /></button>
           </div>
@@ -1774,6 +1778,18 @@
       @submitted="toast.success('Engagement request sent — partner notified via Aegis.')"
     />
 
+    <!-- BP Quote Modal — centralized -->
+    <BpQuoteModal
+      v-model="modals.bpQuote"
+      :partner="bpQuoteTarget"
+    />
+
+    <!-- BP Schedule Consultation Modal — centralized -->
+    <BpScheduleModal
+      v-model="modals.bpSchedule"
+      :partner="bpScheduleTarget"
+    />
+
     <!-- Post Job — centralized 4-step wizard (PostJobModal.vue). -->
          Posts to provider.jobs.store. Replaces the old local one-step form
          so the Network tab and the dedicated Support & Services page use
@@ -1842,6 +1858,8 @@ import ServiceRequestModal    from '@/components/modals/ServiceRequestModal.vue'
 import ConnectionRequestModal from '@/components/modals/ConnectionRequestModal.vue'
 import PostJobModal           from '@/components/modals/PostJobModal.vue'
 import BpEngageModal          from '@/components/modals/BpEngageModal.vue'
+import BpQuoteModal           from '@/components/modals/BpQuoteModal.vue'
+import BpScheduleModal        from '@/components/modals/BpScheduleModal.vue'
 import { useModal }         from '@/composables/useModal'
 import { useToast }         from '@/composables/useToast'
 import { useConfirm }       from '@/composables/useConfirm'
@@ -1934,6 +1952,8 @@ const modals = reactive({
   reviewRequests:       false,
   inviteProvider:       false,
   bpHire:               false,
+  bpQuote:              false,
+  bpSchedule:           false,
   postJob:              false,
   manualReferralEntry:  false,
 })
@@ -2070,6 +2090,22 @@ const bpHireTarget = ref(null)
 function openBpHire(p) {
   bpHireTarget.value = p
   modals.bpHire = true
+}
+
+// ── Quote request ──────────────────────────────────────────────────────────
+const bpQuoteTarget = ref(null)
+
+function openBpQuote(p) {
+  bpQuoteTarget.value = { id: p.id ?? p.partner_id, display_name: p.display_name ?? p.name ?? p.partner_name }
+  modals.bpQuote = true
+}
+
+// ── Consultation ───────────────────────────────────────────────────────────
+const bpScheduleTarget = ref(null)
+
+function openBpSchedule(p) {
+  bpScheduleTarget.value = { id: p.id ?? p.partner_id, display_name: p.display_name ?? p.name ?? p.partner_name }
+  modals.bpSchedule = true
 }
 
 // ── Post Job ───────────────────────────────────────────────────────────────

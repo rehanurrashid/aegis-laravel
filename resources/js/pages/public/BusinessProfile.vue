@@ -311,6 +311,16 @@
       />
 
       <EngagementRequestModal v-model="showRequestDetail" :request="activeEngagementRequest" />
+      <BpQuoteModal
+        v-model="showQuoteModal"
+        :partner="{ id: user.id, display_name: businessName }"
+        @submitted="refreshEngagements"
+      />
+      <BpScheduleModal
+        v-model="showScheduleModal"
+        :partner="{ id: user.id, display_name: businessName }"
+        @submitted="refreshEngagements"
+      />
 
       <!-- Propose Contract Modal -->
       <AegisModal v-model="showContractModal" title="Propose a Contract" subtitle="Draft a custom service contract with scope, terms, and payment schedule" size="lg">
@@ -347,72 +357,6 @@
           <button class="btn btn-outline" @click="showContractModal = false">Cancel</button>
           <button class="btn btn-outline" @click="toast.success('Draft saved')"><AegisIcon name="save" :size="13" /> Save Draft</button>
           <button class="btn btn-primary" @click="submitContract"><span class="btn-ico"><AegisIcon name="send" :size="13" /></span>Send Proposal</button>
-        </template>
-      </AegisModal>
-
-      <!-- Request Quote Modal -->
-      <AegisModal v-model="showQuoteModal" title="Request a Quote" subtitle="Describe your needs and request a formal quote from this partner" size="md">
-        <div class="form-group"><label class="form-label">From Partner</label><input type="text" class="form-input" :value="businessName" readonly></div>
-        <div class="form-group">
-          <label class="form-label">Service Needed <span class="req">*</span></label>
-          <select class="form-select" v-model="quoteForm.service">
-            <option>Tax Preparation (one-time)</option><option>Bookkeeping Setup &amp; Cleanup</option><option>Payroll Setup</option><option>Practice Valuation</option><option>Financial Audit</option><option>Hourly Consultation</option><option>Other / Custom</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Practice Size</label>
-          <select class="form-select" v-model="quoteForm.size">
-            <option>Solo Practitioner</option><option>2-5 Providers</option><option>6-15 Providers</option><option>16+ Providers / Group Practice</option>
-          </select>
-        </div>
-        <div class="form-row form-row-2">
-          <div class="form-group"><label class="form-label">Estimated Budget</label><input type="text" class="form-input" placeholder="e.g. $1,500-$3,000 fixed" v-model="quoteForm.budget"></div>
-          <div class="form-group"><label class="form-label">Timeline</label><input type="text" class="form-input" placeholder="e.g. Start by March 2025" v-model="quoteForm.timeline"></div>
-        </div>
-        <div class="form-group"><label class="form-label">Additional Details <span style="color:var(--text-4);font-weight:500">(optional)</span></label><textarea class="form-textarea" rows="3" placeholder="Describe specific needs, pain points, or context..." v-model="quoteForm.notes"></textarea></div>
-        <label style="display:flex;align-items:center;gap:10px;font-size:13px;line-height:1.5;cursor:pointer;margin-top:4px"><input type="checkbox" v-model="quoteForm.urgent"> Mark as urgent - request response within 48 hours</label>
-        <template #footer>
-          <button class="btn btn-outline" @click="showQuoteModal = false">Cancel</button>
-          <button class="btn btn-primary" :disabled="quoteForm.processing" @click="submitQuote"><span class="btn-ico"><AegisIcon name="send" :size="13" /></span>{{ quoteForm.processing ? 'Sending…' : 'Send Request' }}</button>
-        </template>
-      </AegisModal>
-
-      <!-- Schedule Consultation Modal -->
-      <AegisModal v-model="showScheduleModal" title="Schedule a Consultation" subtitle="Book a discovery call, strategy session, or consultation meeting" size="md">
-        <div class="form-group"><label class="form-label">Partner</label><input type="text" class="form-input" :value="businessName" readonly></div>
-        <div class="bpe-label">Meeting Type</div>
-        <div class="bpe-option-row" style="grid-template-columns:repeat(4,1fr)">
-          <div v-for="mt in meetingTypes" :key="mt.label" :class="['bpe-option', scheduleForm.type === mt.label ? 'selected' : '']" @click="scheduleForm.type = mt.label" style="padding:10px 12px">
-            <span class="bpe-option-icon"><AegisIcon :name="mt.icon" :size="16" /></span>
-            <div>{{ mt.label }}</div>
-          </div>
-        </div>
-        <div class="form-row form-row-2">
-          <div class="form-group"><label class="form-label">Preferred Date <span class="req">*</span></label><input type="date" class="form-input" v-model="scheduleForm.date"></div>
-          <div class="form-group">
-            <label class="form-label">Preferred Time</label>
-            <select class="form-select" v-model="scheduleForm.time">
-              <option>9:00 AM</option><option>10:00 AM</option><option>11:00 AM</option><option>1:00 PM</option><option>2:00 PM</option><option>3:00 PM</option><option>4:00 PM</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Duration</label>
-            <select class="form-select" v-model="scheduleForm.duration">
-              <option>15 minutes</option><option>30 minutes</option><option>45 minutes</option><option>1 hour</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Your Timezone</label>
-            <select class="form-select" v-model="scheduleForm.tz">
-              <option>EST (New York)</option><option>CST</option><option>MST</option><option>PST</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-group"><label class="form-label">Agenda / Topics to Discuss</label><textarea class="form-textarea" rows="2" placeholder="What do you want to cover?" v-model="scheduleForm.agenda"></textarea></div>
-        <div v-if="scheduleForm.errors.date" class="alert alert-danger">{{ scheduleForm.errors.date }}</div>
-        <template #footer>
-          <button class="btn btn-outline" @click="showScheduleModal = false">Cancel</button>
-          <button class="btn btn-primary" :disabled="scheduleForm.processing" @click="submitSchedule"><span class="btn-ico"><AegisIcon name="calendar" :size="13" /></span>{{ scheduleForm.processing ? 'Sending…' : 'Send Request' }}</button>
         </template>
       </AegisModal>
 
@@ -473,6 +417,8 @@ import AegisModal from '@/components/ui/AegisModal.vue'
 import AegisIcon from '@/components/ui/AegisIcon.vue'
 import AegisStatChip from '@/components/ui/AegisStatChip.vue'
 import BpEngageModal from '@/components/modals/BpEngageModal.vue'
+import BpQuoteModal from '@/components/modals/BpQuoteModal.vue'
+import BpScheduleModal from '@/components/modals/BpScheduleModal.vue'
 import EngagementRequestModal from '@/components/modals/EngagementRequestModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
@@ -545,14 +491,12 @@ const showContractModal = ref(false)
 
 // ── Forms ─────────────────────────────────────────────────────────────────
 const connectForm  = useForm({ message: '' })
-const quoteForm    = useForm({ service: '', size: 'Solo Practitioner', budget: '', timeline: '', notes: '', urgent: false })
-const scheduleForm = useForm({ type: 'Video Call', date: '', time: '10:00 AM', duration: '30 minutes', tz: 'EST (New York)', agenda: '' })
 const reviewForm   = useForm({ rating: 0, headline: '', body: '', eng_type: 'Fixed-Scope Project', duration: '1-3 months' })
 
 // ── Actions ───────────────────────────────────────────────────────────────
 function openHireModal()  { showHireModal.value = true }
-function openRequestQuoteModal() { quoteForm.reset(); showQuoteModal.value = true }
-function openScheduleModal()     { scheduleForm.reset(); showScheduleModal.value = true }
+function openRequestQuoteModal() { showQuoteModal.value = true }
+function openScheduleModal()     { showScheduleModal.value = true }
 function openLeaveReviewModal()  { reviewForm.reset(); showReviewModal.value = true }
 
 function sendConnect() {
@@ -589,28 +533,6 @@ function submitHireRequest(formData) {
   refreshEngagements()
 }
 
-function submitQuote() {
-  quoteForm.post(route('public.profile.quote-request', props.user.id), {
-    preserveScroll: true,
-    onSuccess: () => {
-      showQuoteModal.value = false
-      refreshEngagements()
-      toast.success('Quote request sent. The partner will respond shortly.')
-    },
-  })
-}
-
-function submitSchedule() {
-  scheduleForm.post(route('public.profile.consultation', props.user.id), {
-    preserveScroll: true,
-    onSuccess: () => {
-      showScheduleModal.value = false
-      refreshEngagements()
-      toast.success('Consultation request sent.')
-    },
-  })
-}
-
 function submitReview() {
   if (!reviewForm.rating) { toast.error('Please select a star rating.'); return }
   if (!reviewForm.body)   { toast.error('Please write a review.'); return }
@@ -632,13 +554,6 @@ const engagementActions = computed(() => [
   { name: 'Request a Quote',      desc: 'Describe your needs and request a formal quote or pricing proposal from this partner.',           avail: 'open',    availLabel: '24h Turnaround', btnClass: 'btn-outline', btnLabel: 'Request',  handler: openRequestQuoteModal },
   { name: 'Schedule Consultation',desc: 'Book a discovery call, strategy session, or consultation meeting with this partner.',             avail: 'limited', availLabel: 'Limited Slots',  btnClass: 'btn-outline', btnLabel: 'Book',     handler: openScheduleModal },
 ])
-
-const meetingTypes = [
-  { label: 'Video Call', icon: 'user' },
-  { label: 'Phone Call', icon: 'phone' },
-  { label: 'In-Person',  icon: 'map-pin' },
-  { label: 'Aegis Chat', icon: 'message' },
-]
 
 const howItWorks = [
   { title: 'Inquiry',            desc: 'Describe your need (free, no obligation).' },
