@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Provider\LogCeuEntryRequest;
 use App\Http\Requests\Roster\UpsertRosterEntryRequest;
 use App\Models\CeuEntry;
 use App\Services\CeuService;
@@ -38,6 +39,16 @@ class RosterController extends Controller
                                     ->sum('credit_hours'),
             ],
         ]);
+    }
+
+    public function logCeu(LogCeuEntryRequest $request): RedirectResponse
+    {
+        $this->ceu->create(
+            $request->user(),
+            $request->validated(),
+            $request->file('certificate')
+        );
+        return back()->with('success', 'CEU entry logged.');
     }
 
     public function upsert(UpsertRosterEntryRequest $request): RedirectResponse

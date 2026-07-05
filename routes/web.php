@@ -223,6 +223,7 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
         Route::post('/activate', [ProviderIncidentController::class, 'activate'])->name('incident.activate');
 
         // CEUs
+        Route::post('/ceus/log', [RosterController::class, 'logCeu'])->name('ceus.log');
         Route::post('/ceus', [RosterController::class, "upsert"])->name('ceus.store');
         Route::put('/ceus/{ceu}', [RosterController::class, "upsert"])->name('ceus.update');
         Route::delete('/ceus/{ceu}', [RosterController::class, "deleteCeu"])->name('ceus.destroy');

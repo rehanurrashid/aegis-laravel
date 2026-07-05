@@ -84,7 +84,7 @@
               placeholder="Search events, topics, speakers..."
             >
           </div>
-          <select v-model="categoryFilter" class="form-select evt-toolbar-select" aria-label="Filter by category">
+          <select v-model="categoryFilter" class="form-select evt-toolbar-select" aria-label="Filter by category" data-no-enhance>
             <option value="all">All categories</option>
             <option value="webinar">Webinars</option>
             <option value="conference">Conferences</option>
@@ -92,7 +92,7 @@
             <option value="networking">Networking</option>
             <option value="workshop">Workshops</option>
           </select>
-          <select v-model="sortMode" class="form-select evt-toolbar-select" aria-label="Sort events">
+          <select v-model="sortMode" class="form-select evt-toolbar-select" aria-label="Sort events" data-no-enhance>
             <option value="date">Soonest first</option>
             <option value="popular">Most popular</option>
             <option value="price-asc">Price: low to high</option>
@@ -529,58 +529,138 @@
     </AegisModal>
 
     <!-- CEU TRANSCRIPT MODAL -->
-    <AegisModal v-model="modals.ceu" title="My CEU Transcript — 2026" size="lg">
-      <div class="stat-chips-row" style="margin-bottom:18px">
-        <AegisStatChip icon="award" :value="fmtCeu(props.ceuEarned)" label="Total CEUs Earned" />
-        <AegisStatChip
-          v-for="row in props.ceuRows.slice(0,2)"
-          :key="row.category"
-          icon="award"
-          :value="`${fmtCeu(row.earned_hrs)} / ${fmtCeu(row.required_hrs)}`"
-          :label="row.category.split('—')[0].trim()"
-        />
+    <AegisModal v-model="modals.ceu" title="My CEU Transcript" size="lg">
+      <!-- Tab switcher -->
+      <div class="tabs-segmented" style="margin-bottom:18px" role="tablist">
+        <button type="button" class="tab-pill" role="tab"
+          :class="{ active: ceuTab === 'transcript' }" @click="ceuTab = 'transcript'">
+          <AegisIcon name="list" :size="12" /> Transcript
+        </button>
+        <button type="button" class="tab-pill" role="tab"
+          :class="{ active: ceuTab === 'log' }" @click="ceuTab = 'log'">
+          <AegisIcon name="plus-circle" :size="12" /> Log CEU
+        </button>
       </div>
-      <div class="section-label" style="margin-bottom:8px">Completed CEUs</div>
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Course</th>
-              <th>Type</th>
-              <th>Date</th>
-              <th style="text-align:center">Credits</th>
-              <th style="text-align:center">Certificate</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in ceuTranscript" :key="row.course">
-              <td><strong>{{ row.course }}</strong></td>
-              <td><AegisBadge :variant="row.badge">{{ row.type }}</AegisBadge></td>
-              <td>{{ row.date }}</td>
-              <td style="text-align:center;font-weight:700">{{ row.credits }}</td>
-              <td style="text-align:center">
-                <a
-                  v-if="row.certificate"
-                  :href="`/storage/${row.certificate}`"
-                  target="_blank"
-                  rel="noopener"
-                  class="btn-icon"
-                  data-tooltip="Download certificate"
-                >
-                  <AegisIcon name="download" :size="14" />
-                </a>
-                <span v-else class="btn-icon" style="opacity:0.35;cursor:default" data-tooltip="No certificate on file">
-                  <AegisIcon name="download" :size="14" />
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+
+      <!-- TRANSCRIPT TAB -->
+      <div v-show="ceuTab === 'transcript'">
+        <div class="stat-chips-row" style="margin-bottom:18px">
+          <AegisStatChip icon="award" :value="fmtCeu(props.ceuEarned)" label="Total CEUs Earned" />
+          <AegisStatChip
+            v-for="row in props.ceuRows.slice(0,2)" :key="row.category"
+            icon="award"
+            :value="`${fmtCeu(row.earned_hrs)} / ${fmtCeu(row.required_hrs)}`"
+            :label="row.category.split('—')[0].trim()"
+          />
+        </div>
+        <AegisEmptyState v-if="ceuTranscript.length === 0"
+          icon="award" title="No CEU entries yet"
+          subtitle="Log your first continuing education credit using the Log CEU tab.">
+          <template #actions>
+            <button class="btn btn-primary btn-sm" @click="ceuTab = 'log'">
+              <AegisIcon name="plus" :size="13" /> Log CEU
+            </button>
+          </template>
+        </AegisEmptyState>
+        <div v-else class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Course</th>
+                <th>Provider</th>
+                <th>Date</th>
+                <th style="text-align:center">Credits</th>
+                <th style="text-align:center">Certificate</th>
+                <th style="text-align:center">Remove</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in ceuTranscript" :key="row.id">
+                <td><strong>{{ row.course }}</strong></td>
+                <td>{{ row.type }}</td>
+                <td>{{ row.date }}</td>
+                <td style="text-align:center;font-weight:700">{{ row.credits }}</td>
+                <td style="text-align:center">
+                  <a v-if="row.certificate_url" :href="row.certificate_url"
+                    target="_blank" rel="noopener" class="btn-icon" data-tooltip="Download certificate">
+                    <AegisIcon name="download" :size="14" />
+                  </a>
+                  <span v-else class="btn-icon" style="opacity:0.3;cursor:default" data-tooltip="No certificate on file">
+                    <AegisIcon name="download" :size="14" />
+                  </span>
+                </td>
+                <td style="text-align:center">
+                  <button class="btn-icon" data-tooltip="Delete entry" @click="deleteCeuEntry(row.id)">
+                    <AegisIcon name="trash" :size="14" />
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      <!-- LOG CEU TAB -->
+      <div v-show="ceuTab === 'log'">
+        <div class="alert alert-info" style="margin-bottom:16px">
+          <div class="alert-icon"><AegisIcon name="info" :size="18" /></div>
+          <div class="alert-content">
+            <div class="alert-title">Logging your own credits</div>
+            <div>Enter details from a CEU certificate you received from a training provider (APA, NASW, etc.). Aegis is the record-keeper — not the course provider.</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Course / Training Name <span class="required">*</span></label>
+          <input v-model="ceuLogForm.title" type="text" class="form-input"
+            :class="{ 'is-error': ceuFieldError('title') }"
+            placeholder="e.g. Ethics in Telehealth Practice"
+            @blur="vCeu$.title.$touch()" />
+          <div v-if="ceuFieldError('title')" class="form-error">{{ ceuFieldError('title') }}</div>
+        </div>
+        <div class="form-row form-row-2">
+          <div class="form-group">
+            <label class="form-label">Provider / Organization</label>
+            <input v-model="ceuLogForm.provider_name" type="text" class="form-input" placeholder="e.g. NASW, APA" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Credit Hours <span class="required">*</span></label>
+            <input v-model="ceuLogForm.credit_hours" type="number" min="0.5" step="0.5" class="form-input"
+              :class="{ 'is-error': ceuFieldError('credit_hours') }"
+              placeholder="e.g. 3" @blur="vCeu$.credit_hours.$touch()" />
+            <div v-if="ceuFieldError('credit_hours')" class="form-error">{{ ceuFieldError('credit_hours') }}</div>
+          </div>
+        </div>
+        <div class="form-row form-row-2">
+          <div class="form-group">
+            <label class="form-label">Date Completed <span class="required">*</span></label>
+            <input v-model="ceuLogForm.completed_on" type="date" class="form-input"
+              :class="{ 'is-error': ceuFieldError('completed_on') }"
+              @change="vCeu$.completed_on.$touch()" />
+            <div v-if="ceuFieldError('completed_on')" class="form-error">{{ ceuFieldError('completed_on') }}</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Expiry Date <span style="font-size:11px;color:var(--text-3)">(optional)</span></label>
+            <input v-model="ceuLogForm.expires_on" type="date" class="form-input" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Certificate <span style="font-size:11px;color:var(--text-3)">(PDF, JPG or PNG · max 10 MB)</span></label>
+          <AegisDropzone accept=".pdf,.jpg,.jpeg,.png" hint="Drop certificate here or click to browse"
+            @files="ceuLogForm.certificate = $event[0]" />
+        </div>
+        <div style="margin-top:16px">
+          <button class="btn btn-primary" :disabled="ceuLogForm.processing" @click="submitCeuLog">
+            <AegisIcon name="check" :size="13" />
+            {{ ceuLogForm.processing ? 'Saving…' : 'Save CEU Entry' }}
+          </button>
+        </div>
+      </div>
+
       <template #footer>
         <button class="btn btn-outline" @click="modals.ceu = false">Close</button>
-        <button class="btn btn-primary" @click="exportTranscript">
-          <AegisIcon name="download" :size="14" /> Export Transcript
+        <button v-if="ceuTab === 'transcript' && ceuTranscript.length > 0"
+          class="btn btn-primary" @click="exportTranscript">
+          <AegisIcon name="download" :size="14" /> Export CSV
         </button>
       </template>
     </AegisModal>
@@ -590,7 +670,8 @@
 
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
-import { Head, router } from '@inertiajs/vue3'
+import { Head, router, useForm } from '@inertiajs/vue3'
+import AegisDropzone from '@/components/ui/AegisDropzone.vue'
 import { useVuelidate }                                        from '@vuelidate/core'
 import { required, maxLength, minValue, numeric, url as vUrl,
          helpers, minLength }                                  from '@vuelidate/validators'
@@ -870,8 +951,57 @@ function evtCategoryLabel(ev) {
   return CAT_LABELS[evtCategory(ev)] ?? 'Event'
 }
 
-// ── CEU transcript rows — from props (wired in Prompt 2) ─────────────────
+// ── CEU transcript rows ──────────────────────────────────────────────────
 const ceuTranscript = computed(() => props.ceuTranscript ?? [])
+
+// ── CEU modal tab state ───────────────────────────────────────────────────
+const ceuTab = ref('transcript')
+watch(() => modals.ceu, open => { if (!open) { ceuTab.value = 'transcript'; vCeu$.value.$reset() } })
+
+// ── CEU Log form ──────────────────────────────────────────────────────────
+const ceuLogForm = useForm({
+  title: '', provider_name: '', credit_hours: '', completed_on: '', expires_on: '', certificate: null,
+})
+
+const ceuLogRules = computed(() => ({
+  title:        { required: helpers.withMessage('Course name is required.', required) },
+  credit_hours: {
+    required: helpers.withMessage('Credit hours are required.', required),
+    min:      helpers.withMessage('Must be at least 0.5 hours.', minValue(0.5)),
+  },
+  completed_on: { required: helpers.withMessage('Completion date is required.', required) },
+}))
+
+const vCeu$ = useVuelidate(ceuLogRules, ceuLogForm)
+
+function ceuFieldError(field) {
+  if (vCeu$.value[field]?.$error) return vCeu$.value[field].$errors[0]?.$message
+  return null
+}
+
+async function submitCeuLog() {
+  const valid = await vCeu$.value.$validate()
+  if (!valid) { toast.error('Please fix the highlighted fields.'); return }
+  ceuLogForm.post(route('provider.ceus.log'), {
+    forceFormData: true,
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success('CEU entry logged.')
+      ceuLogForm.reset()
+      vCeu$.value.$reset()
+      ceuTab.value = 'transcript'
+    },
+    onError: (errors) => toast.error(Object.values(errors)[0] || 'Failed to save CEU entry.'),
+  })
+}
+
+function deleteCeuEntry(id) {
+  router.delete(route('provider.ceus.destroy', { ceu: id }), {
+    preserveScroll: true,
+    onSuccess: () => toast.info('CEU entry removed.'),
+    onError:   () => toast.error('Could not remove entry.'),
+  })
+}
 
 // ── Mini calendar ────────────────────────────────────────────────────────
 const today    = new Date()

@@ -15,6 +15,7 @@ use App\Models\CeuEntry;
 use App\Models\CeuRequirement;
 use App\Models\NewsEvent;
 use App\Models\NewsPost;
+use App\Services\CeuService;
 use App\Services\NewsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -101,18 +102,19 @@ class NewsController extends Controller
             ];
         })->values();
 
-        // CEU transcript (completed entries)
+        // CEU transcript — all entries (not year-filtered), real storage URLs
         $ceuTranscript = CeuEntry::where('practitioner_id', $userId)
             ->orderByDesc('completed_on')
             ->get()
             ->map(fn($e) => [
-                'id'          => $e->id,
-                'course'      => $e->title,
-                'type'        => $e->provider_name ?? 'Training',
-                'badge'       => 'teal',
-                'date'        => $e->completed_on?->format('M j, Y') ?? '—',
-                'credits'     => number_format((float) $e->credit_hours, 1),
-                'certificate' => $e->certificate_ref,
+                'id'              => $e->id,
+                'course'          => $e->title,
+                'type'            => $e->provider_name ?? 'Training',
+                'badge'           => 'teal',
+                'date'            => $e->completed_on?->format('M j, Y') ?? '—',
+                'credits'         => number_format((float) $e->credit_hours, 1),
+                'certificate'     => $e->certificate_ref,
+                'certificate_url' => CeuService::certificateUrl($e->certificate_ref),
             ]);
 
         // Event days map for mini calendar: "Y-n-j" => true
@@ -208,7 +210,7 @@ class NewsController extends Controller
                     $e->credit_hours,
                     $e->completed_on?->format('Y-m-d') ?? '',
                     $e->expires_on?->format('Y-m-d') ?? '',
-                    $e->certificate_ref ?? '',
+                    $e->certificate_ref ? CeuService::certificateUrl($e->certificate_ref) : '',
                 ]);
             }
             fclose($handle);
