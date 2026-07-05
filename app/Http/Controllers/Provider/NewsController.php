@@ -182,10 +182,33 @@ class NewsController extends Controller
         return back()->with('success', 'Event submitted for review.');
     }
 
-    public function exportTranscript(Request $request): RedirectResponse
+    public function exportTranscript(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
     {
-        // Queue a transcript export job — email delivered async
-        // (Job wiring is Prompt 3 scope; here we acknowledge the request)
-        return back()->with('success', 'Transcript export queued — check your email shortly.');
+        $user    = $request->user();
+        $entries = CeuEntry::where('practitioner_id', $user->id)
+            ->orderByDesc('completed_on')
+            ->get();
+
+        $filename = 'ceu-transcript-' . now()->format('Y-m-d') . '.csv';
+
+        return response()->streamDownload(function () use ($entries, $user) {
+            $handle = fopen('php://output', 'w');
+            // Header row
+            fputcsv($handle, ['Practitioner', 'Course', 'Provider', 'Credits', 'Completed On', 'Expires On', 'Certificate Ref']);
+            foreach ($entries as $e) {
+                fputcsv($handle, [
+                    $user->display_name ?? $user->name ?? $user->id,
+                    $e->title,
+                    $e->provider_name ?? '',
+                    $e->credit_hours,
+                    $e->completed_on?->format('Y-m-d') ?? '',
+                    $e->expires_on?->format('Y-m-d') ?? '',
+                    $e->certificate_ref ?? '',
+                ]);
+            }
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
+        ]);
     }
 }

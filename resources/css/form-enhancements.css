@@ -23,6 +23,22 @@
   display: none !important;
 }
 
+/* §1.1b  Error state on date fields — mirror is-error from the hidden original
+          to the visible altInput. Two selectors cover both DOM orders flatpickr uses:
+          (a) altInput inserted immediately after the original
+          (b) original directly before a sibling flatpickr-alt-field              */
+.flatpickr-input.is-error + .flatpickr-alt-field,
+.flatpickr-input.is-error ~ .flatpickr-alt-field {
+  border-color: var(--red) !important;
+  outline-color: var(--red) !important;
+}
+
+/* Direct class on altInput (set by JS mirror in FormEnhancerPlugin) */
+.flatpickr-alt-field.is-error {
+  border-color: var(--red) !important;
+  outline-color: var(--red) !important;
+}
+
 /* §1.2  The visible alt-input (already has .form-input from our JS).
          Adds the calendar icon and right-padding. */
 .flatpickr-alt-field {

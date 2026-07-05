@@ -295,9 +295,24 @@
       </template>
       <template #footer>
         <button class="btn btn-outline" @click="modals.detail = false">Close</button>
-        <button v-if="detailEvent" class="btn btn-primary" @click="handleRegister(detailEvent); modals.detail = false">
-          {{ detailEvent?.is_free ? 'Register Free' : 'Register Now' }}
-        </button>
+        <template v-if="detailEvent">
+          <!-- Already registered: offer to cancel -->
+          <button
+            v-if="registeredIds.has(detailEvent.id)"
+            class="btn btn-outline"
+            @click="modals.detail = false; openCancelModal(detailEvent)"
+          >
+            <AegisIcon name="x" :size="13" /> Cancel Registration
+          </button>
+          <!-- Not registered: offer to register -->
+          <button
+            v-else
+            class="btn btn-primary"
+            @click="handleRegister(detailEvent); modals.detail = false"
+          >
+            {{ detailEvent.is_free ? 'Register Free' : 'Register Now' }}
+          </button>
+        </template>
       </template>
     </AegisModal>
 
@@ -473,9 +488,19 @@
               <td>{{ row.date }}</td>
               <td style="text-align:center;font-weight:700">{{ row.credits }}</td>
               <td style="text-align:center">
-                <button class="btn-icon" data-tooltip="Download certificate" @click="toast.success('Downloading certificate')">
+                <a
+                  v-if="row.certificate"
+                  :href="`/storage/${row.certificate}`"
+                  target="_blank"
+                  rel="noopener"
+                  class="btn-icon"
+                  data-tooltip="Download certificate"
+                >
                   <AegisIcon name="download" :size="14" />
-                </button>
+                </a>
+                <span v-else class="btn-icon" style="opacity:0.35;cursor:default" data-tooltip="No certificate on file">
+                  <AegisIcon name="download" :size="14" />
+                </span>
               </td>
             </tr>
           </tbody>
@@ -500,10 +525,8 @@ import { required, maxLength, minValue, numeric, url as vUrl,
          helpers, minLength }                                  from '@vuelidate/validators'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { useToast } from '@/composables/useToast'
-import { useConfirm } from '@/composables/useConfirm'
 
 const toast = useToast()
-const { confirmAction } = useConfirm()
 
 // ── Props (stubs — real data wired in Prompt 2) ─────────────────────────
 const props = defineProps({
@@ -556,6 +579,12 @@ const visibleEvents = computed(() => {
     list.sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))
   } else if (sortMode.value === 'price-asc') {
     list.sort((a, b) => (a.is_free ? 0 : 50) - (b.is_free ? 0 : 50))
+  } else if (sortMode.value === 'popular') {
+    list.sort((a, b) => {
+      const countA = a.rsvps_json ? Object.keys(a.rsvps_json).length : 0
+      const countB = b.rsvps_json ? Object.keys(b.rsvps_json).length : 0
+      return countB - countA
+    })
   } else if (sortMode.value === 'ceu') {
     list.sort((a, b) => (b.ceu_credits ?? 0) - (a.ceu_credits ?? 0))
   }
@@ -661,19 +690,17 @@ function openCancelModal(ev) {
 
 function confirmCancel() {
   if (!pendingEvent.value) return
-  confirmAction(`Cancel registration for "${pendingEvent.value.title}"?`, () => {
-    router.delete(route('provider.news.events.cancel', { event: pendingEvent.value.id }), {
-      preserveScroll: true,
-      onSuccess: () => {
-        registeredIds.value.delete(pendingEvent.value.id)
-        modals.cancelReg = false
-        toast.info('Registration cancelled')
-      },
-      onError: () => {
-        modals.cancelReg = false
-        toast.error('Cancellation failed.')
-      },
-    })
+  router.delete(route('provider.news.events.cancel', { event: pendingEvent.value.id }), {
+    preserveScroll: true,
+    onSuccess: () => {
+      registeredIds.value.delete(pendingEvent.value.id)
+      modals.cancelReg = false
+      toast.info('Registration cancelled')
+    },
+    onError: () => {
+      modals.cancelReg = false
+      toast.error('Cancellation failed.')
+    },
   })
 }
 
@@ -710,11 +737,9 @@ async function submitEvent() {
 
 // ── Export transcript ────────────────────────────────────────────────────
 function exportTranscript() {
-  router.post(route('provider.news.events.export-transcript'), {}, {
-    preserveScroll: true,
-    onSuccess: () => toast.success('Transcript export queued — you will receive an email with the link shortly.'),
-    onError: () => toast.error('Export failed.'),
-  })
+  // GET route returns a streamed CSV download — use direct navigation, not Inertia POST
+  window.location.href = route('provider.news.events.export-transcript')
+  toast.success('Transcript downloading — check your downloads folder.')
 }
 
 // ── Format helpers ───────────────────────────────────────────────────────

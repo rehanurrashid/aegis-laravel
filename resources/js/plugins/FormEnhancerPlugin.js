@@ -51,10 +51,26 @@ const FLATPICKR_CONFIG = {
     fp.altInput?.classList.add('form-input', 'flatpickr-alt-field')
     fp.altInput?.removeAttribute('readonly')
     _fpSetWidths(fp)
+
+    // Mirror is-error class from the hidden original input to the visible altInput.
+    // Vue's :class binding targets fp.input (hidden); flatpickr renders fp.altInput
+    // as the visible field — Vue never touches it, so red border never appeared.
+    // MutationObserver on fp.input's class list syncs is-error to fp.altInput.
+    if (fp.altInput && fp.input) {
+      const syncError = () => fp.altInput.classList.toggle('is-error', fp.input.classList.contains('is-error'))
+      fp._aegisErrorObserver = new MutationObserver(syncError)
+      fp._aegisErrorObserver.observe(fp.input, { attributes: true, attributeFilter: ['class'] })
+      syncError() // sync immediately if is-error already set at init time
+    }
   },
   onOpen(_, __, fp) {
     // Re-apply after DOM re-attach — flatpickr may re-inject inline widths
     _fpSetWidths(fp)
+  },
+
+  onDestroy(_, __, fp) {
+    fp._aegisErrorObserver?.disconnect()
+    fp._aegisErrorObserver = null
   },
 }
 
