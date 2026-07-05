@@ -11,197 +11,214 @@ class NewsSeeder extends Seeder
     public function run(): void
     {
         $now = now();
-        $sarahId = 'p_sarah';
+        $sarahId  = 'p_sarah';
+        $davidId  = 'p_david';
+        $mariaId  = 'p_maria';
+        $marcusId = 'cs_marcus';
+        $adminId  = 'admin_root';
 
-        // ── news_posts ───────────────────────────────────────────────────────
+        // ── news_posts ────────────────────────────────────────────────────────
         $posts = [
-            // 1. Pinned platform announcement
+            // 1. PLATFORM — pinned welcome (admin)
             [
-                'id'              => 'np_announcement_launch',
-                'author_id'       => 'admin_root',
-                'title'           => 'Welcome to the Aegis Integrative Network',
-                'body'            => 'We are thrilled to launch the Aegis platform — a first-of-its-kind continuity planning system for mental health practitioners. Your plan, your vault, your network — all in one place.',
-                'post_type'       => 'platform',
-                'role_visibility' => 'all',
-                'audience'        => 'all',
-                'published'       => 1,
-                'pinned'          => 1,
-                'tags'            => json_encode(['Announcement', 'Platform']),
-                'links'           => json_encode([['label' => 'Learn more about Aegis', 'url' => 'https://aegis.devlet.tech']]),
-                'poll_question'   => null,
-                'poll_options'    => null,
-                'poll_closes_at'  => null,
-                'published_at'    => $now->copy()->subMonths(6)->toDateTimeString(),
-                'created_at'      => $now->copy()->subMonths(6)->toDateTimeString(),
-                'updated_at'      => $now->copy()->subMonths(6)->toDateTimeString(),
+                'id' => 'np_platform_welcome', 'author_id' => $adminId,
+                'post_type' => 'platform', 'role_visibility' => 'all', 'audience' => 'all',
+                'published' => 1, 'pinned' => 1,
+                'title' => 'Welcome to Aegis — Your Practice Continuity Command Center',
+                'body' => "We're thrilled to launch Aegis, the first platform built specifically for mental health practice continuity.\n\nThis feed is your community hub — share insights, ask questions, post resources, and stay informed. Admin updates will always be pinned at the top.\n\nTo get started: complete your continuity plan, designate your steward, and fill your vault. Questions? Use the Support tab anytime.",
+                'tags' => json_encode(['Announcement', 'Platform', 'Welcome']),
+                'links' => json_encode([['label' => 'Complete your continuity plan', 'url' => 'https://aegis.devlet.tech/provider/continuity-plan']]),
+                'media' => null, 'poll_question' => null, 'poll_options' => null, 'poll_closes_at' => null,
+                'published_at' => $now->copy()->subMonths(6)->toDateTimeString(),
+                'created_at'   => $now->copy()->subMonths(6)->toDateTimeString(),
+                'updated_at'   => $now->copy()->subMonths(6)->toDateTimeString(),
             ],
-            // 2. Provider post (self-post for p_sarah)
+            // 2. PLATFORM — feature update
             [
-                'id'              => 'np_sarah_post',
-                'author_id'       => 'p_sarah',
-                'title'           => 'Tips for Trauma-Informed Supervision During Clinical Transitions',
-                'body'            => "After 12 years in the field, I've learned that the most overlooked element of clinical transitions is how they affect supervisee wellbeing.\n\nWhen a practitioner is suddenly unavailable, the ripple effects on supervisees can be profound — especially those working with trauma populations. Here are three strategies I've found invaluable:\n\n1. Establish a clear chain of supervisory coverage in your continuity plan.\n2. Brief your supervisees annually on what happens during a continuity event.\n3. Designate a peer supervisor they can reach immediately.",
-                'post_type'       => 'provider',
-                'role_visibility' => 'all',
-                'audience'        => 'all',
-                'published'       => 1,
-                'pinned'          => 0,
-                'tags'            => json_encode(['Supervision', 'TraumaInformedCare', 'ClinicalTransitions']),
-                'links'           => null,
-                'poll_question'   => null,
-                'poll_options'    => null,
-                'poll_closes_at'  => null,
-                'published_at'    => $now->copy()->subDays(12)->toDateTimeString(),
-                'created_at'      => $now->copy()->subDays(12)->toDateTimeString(),
-                'updated_at'      => $now->copy()->subDays(10)->toDateTimeString(),
+                'id' => 'np_platform_update', 'author_id' => $adminId,
+                'post_type' => 'platform', 'role_visibility' => 'all', 'audience' => 'all',
+                'published' => 1, 'pinned' => 0,
+                'title' => 'Platform Update: Vault Search, CEU Tracker & Faster Load Times',
+                'body' => "This week's release brings three major improvements:\n\n• **Vault Search** — full-text search across all uploaded documents\n• **CEU Tracker** — log credits, track deadlines, export your transcript\n• **Performance** — 40% faster page loads on mobile\n\nAs always, your feedback shapes our roadmap. Use the Support tab to submit requests.",
+                'tags' => json_encode(['Platform', 'Updates', 'NewFeature']),
+                'links' => json_encode([['label' => 'Read full release notes', 'url' => 'https://aegis.devlet.tech/changelog']]),
+                'media' => null, 'poll_question' => null, 'poll_options' => null, 'poll_closes_at' => null,
+                'published_at' => $now->copy()->subDays(4)->toDateTimeString(),
+                'created_at'   => $now->copy()->subDays(4)->toDateTimeString(),
+                'updated_at'   => $now->copy()->subDays(4)->toDateTimeString(),
             ],
-            // 3. Poll post
+            // 3. PROVIDER — long post with image
             [
-                'id'              => 'np_poll_ethics',
-                'author_id'       => 'admin_root',
-                'title'           => 'Poll: What is your biggest challenge with continuity planning?',
-                'body'            => 'We want to hear from practitioners about the most significant barriers to maintaining an active continuity plan. Your responses help us prioritize platform improvements.',
-                'post_type'       => 'poll',
-                'role_visibility' => 'practitioner',
-                'audience'        => 'providers',
-                'published'       => 1,
-                'pinned'          => 0,
-                'tags'            => json_encode(['ContinuityPlanning', 'PracticeResilience']),
-                'links'           => null,
-                'poll_question'   => 'What is your biggest continuity planning challenge?',
-                'poll_options'    => json_encode([
+                'id' => 'np_sarah_supervision', 'author_id' => $sarahId,
+                'post_type' => 'provider', 'role_visibility' => 'all', 'audience' => 'all',
+                'published' => 1, 'pinned' => 0,
+                'title' => 'Tips for Trauma-Informed Supervision During Clinical Transitions',
+                'body' => "After 12 years in the field, I've learned that the most overlooked element of clinical transitions is how they affect supervisee wellbeing.\n\nWhen a practitioner is suddenly unavailable, the ripple effects on supervisees can be profound — especially those working with trauma populations. Here are three strategies I've found invaluable:\n\n1. Establish a clear chain of supervisory coverage in your continuity plan.\n2. Brief your supervisees annually on what happens during a continuity event.\n3. Designate a peer supervisor they can reach immediately.\n\nI'd love to hear what others are doing. Has anyone built a supervisee briefing template they're willing to share?",
+                'tags' => json_encode(['Supervision', 'TraumaInformedCare', 'ClinicalTransitions']),
+                'links' => null,
+                'media' => json_encode([
+                    ['type' => 'image', 'url' => 'https://images.unsplash.com/photo-1573497491765-dccce02b29df?w=800&q=80', 'thumb' => 'https://images.unsplash.com/photo-1573497491765-dccce02b29df?w=400&q=60', 'name' => 'Clinical supervision session'],
+                ]),
+                'poll_question' => null, 'poll_options' => null, 'poll_closes_at' => null,
+                'published_at' => $now->copy()->subDays(12)->toDateTimeString(),
+                'created_at'   => $now->copy()->subDays(12)->toDateTimeString(),
+                'updated_at'   => $now->copy()->subDays(10)->toDateTimeString(),
+            ],
+            // 4. POLL — active with votes
+            [
+                'id' => 'np_poll_challenges', 'author_id' => $adminId,
+                'post_type' => 'poll', 'role_visibility' => 'all', 'audience' => 'all',
+                'published' => 1, 'pinned' => 0,
+                'title' => 'Poll: What is your biggest continuity planning challenge?',
+                'body' => 'We want to understand the barriers preventing practitioners from maintaining active continuity plans. Your response helps us prioritize platform improvements.',
+                'tags' => json_encode(['ContinuityPlanning', 'PracticeResilience']),
+                'links' => null, 'media' => null,
+                'poll_question' => 'What is your biggest continuity planning challenge?',
+                'poll_options' => json_encode([
                     ['key' => 'time_constraints', 'label' => 'Not enough time to complete the plan'],
-                    ['key' => 'cost_concerns',    'label' => 'Cost of maintaining the platform'],
+                    ['key' => 'cost_concerns',    'label' => 'Cost concerns'],
                     ['key' => 'finding_steward',  'label' => 'Difficulty finding a qualified steward'],
                     ['key' => 'tech_complexity',  'label' => 'Platform complexity'],
                 ]),
-                'poll_closes_at'  => $now->copy()->addDays(14)->toDateTimeString(),
-                'published_at'    => $now->copy()->subDays(5)->toDateTimeString(),
-                'created_at'      => $now->copy()->subDays(5)->toDateTimeString(),
-                'updated_at'      => $now->copy()->subDays(5)->toDateTimeString(),
+                'poll_closes_at' => $now->copy()->addDays(14)->toDateTimeString(),
+                'published_at' => $now->copy()->subDays(5)->toDateTimeString(),
+                'created_at'   => $now->copy()->subDays(5)->toDateTimeString(),
+                'updated_at'   => $now->copy()->subDays(5)->toDateTimeString(),
             ],
-            // 4. Resource post
+            // 5. QUESTION — community question
             [
-                'id'              => 'np_resource_checklist',
-                'author_id'       => 'cs_marcus',
-                'title'           => 'New Resource: Checklist for Activating a Continuity Plan',
-                'body'            => "Based on my experience responding to practitioner incidents, I've developed a step-by-step activation checklist that covers everything from client notification to vault access.\n\nDownload it below and adapt it to your practice.",
-                'post_type'       => 'resource',
-                'role_visibility' => 'all',
-                'audience'        => 'all',
-                'published'       => 1,
-                'pinned'          => 0,
-                'tags'            => json_encode(['ContinuityPlanning', 'Resources', 'Checklist']),
-                'links'           => json_encode([
+                'id' => 'np_question_malpractice', 'author_id' => $davidId,
+                'post_type' => 'question', 'role_visibility' => 'all', 'audience' => 'all',
+                'published' => 1, 'pinned' => 0,
+                'title' => 'Does your malpractice policy cover continuity events?',
+                'body' => "I've been reviewing my malpractice coverage and realized I'm unclear on whether my policy covers liability during a continuity activation — specifically when my CS is seeing clients on my behalf.\n\nHas anyone navigated this? Would love to know what questions to ask my insurer. I'm with HPSO currently.",
+                'tags' => json_encode(['Malpractice', 'Insurance', 'RiskManagement']),
+                'links' => null, 'media' => null,
+                'poll_question' => null, 'poll_options' => null, 'poll_closes_at' => null,
+                'published_at' => $now->copy()->subDays(3)->toDateTimeString(),
+                'created_at'   => $now->copy()->subDays(3)->toDateTimeString(),
+                'updated_at'   => $now->copy()->subDays(3)->toDateTimeString(),
+            ],
+            // 6. RESOURCE — with link and image
+            [
+                'id' => 'np_resource_checklist', 'author_id' => $marcusId,
+                'post_type' => 'resource', 'role_visibility' => 'all', 'audience' => 'all',
+                'published' => 1, 'pinned' => 0,
+                'title' => 'Checklist: Activating a Continuity Plan — Step by Step',
+                'body' => "Based on my experience responding to practitioner incidents, I've developed a step-by-step activation checklist that covers everything from client notification to vault access.\n\nIt's broken into three phases:\n• Phase 1: Immediate (0–24 hrs) — vault access, client contact, licensing board notification\n• Phase 2: Short-term (1–7 days) — referral coordination, insurance notification\n• Phase 3: Recovery (7–30 days) — records transfer, practice wind-down or handoff\n\nFeel free to download and adapt it for your practice.",
+                'tags' => json_encode(['ContinuityPlanning', 'Resources', 'Checklist', 'Activation']),
+                'links' => json_encode([
                     ['label' => 'Download Activation Checklist (PDF)', 'url' => 'https://aegis.devlet.tech/resources/activation-checklist.pdf'],
-                    ['label' => 'View NASW Continuity Standards', 'url' => 'https://www.socialworkers.org'],
+                    ['label' => 'NASW Continuity Standards Reference', 'url' => 'https://www.socialworkers.org'],
                 ]),
-                'poll_question'   => null,
-                'poll_options'    => null,
-                'poll_closes_at'  => null,
-                'published_at'    => $now->copy()->subDays(18)->toDateTimeString(),
-                'created_at'      => $now->copy()->subDays(18)->toDateTimeString(),
-                'updated_at'      => $now->copy()->subDays(18)->toDateTimeString(),
+                'media' => json_encode([
+                    ['type' => 'image', 'url' => 'https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=800&q=80', 'thumb' => 'https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=400&q=60', 'name' => 'Continuity checklist preview'],
+                ]),
+                'poll_question' => null, 'poll_options' => null, 'poll_closes_at' => null,
+                'published_at' => $now->copy()->subDays(18)->toDateTimeString(),
+                'created_at'   => $now->copy()->subDays(18)->toDateTimeString(),
+                'updated_at'   => $now->copy()->subDays(18)->toDateTimeString(),
             ],
-            // 5. Question post
+            // 7. MILESTONE — achievement
             [
-                'id'              => 'np_question_malpractice',
-                'author_id'       => 'p_david',
-                'title'           => 'Does your malpractice policy cover continuity events?',
-                'body'            => "I've been reviewing my malpractice coverage and realized I'm unclear on whether my policy covers liability during a continuity activation — specifically when my CS is seeing clients on my behalf.\n\nHas anyone navigated this? Would love to know what questions to ask my insurer.",
-                'post_type'       => 'question',
-                'role_visibility' => 'all',
-                'audience'        => 'all',
-                'published'       => 1,
-                'pinned'          => 0,
-                'tags'            => json_encode(['Malpractice', 'Insurance', 'RiskManagement']),
-                'links'           => null,
-                'poll_question'   => null,
-                'poll_options'    => null,
-                'poll_closes_at'  => null,
-                'published_at'    => $now->copy()->subDays(3)->toDateTimeString(),
-                'created_at'      => $now->copy()->subDays(3)->toDateTimeString(),
-                'updated_at'      => $now->copy()->subDays(3)->toDateTimeString(),
+                'id' => 'np_milestone_100', 'author_id' => $adminId,
+                'post_type' => 'milestone', 'role_visibility' => 'all', 'audience' => 'all',
+                'published' => 1, 'pinned' => 0,
+                'title' => '🎉 Aegis Reaches 100 Verified Practitioners',
+                'body' => "We are proud to announce that Aegis has reached 100 verified practitioners across California, Texas, and New York.\n\nThis milestone reflects the growing recognition that practice continuity is not optional — it's a professional and ethical responsibility.\n\nThank you to every practitioner who joined early and trusted us with something this important.",
+                'tags' => json_encode(['Milestone', 'Community', 'Growth']),
+                'links' => null,
+                'media' => json_encode([
+                    ['type' => 'image', 'url' => 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&q=80', 'thumb' => 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=400&q=60', 'name' => 'Team celebrating milestone'],
+                ]),
+                'poll_question' => null, 'poll_options' => null, 'poll_closes_at' => null,
+                'published_at' => $now->copy()->subDays(7)->toDateTimeString(),
+                'created_at'   => $now->copy()->subDays(7)->toDateTimeString(),
+                'updated_at'   => $now->copy()->subDays(7)->toDateTimeString(),
             ],
-            // 6. Milestone post
+            // 8. EVENT ANNOUNCEMENT post (different from news_events — just a post type)
             [
-                'id'              => 'np_milestone_100',
-                'author_id'       => 'admin_root',
-                'title'           => '🎉 Aegis Reaches 100 Verified Practitioners',
-                'body'            => "We are proud to announce that Aegis has reached 100 verified practitioners across California, Texas, and New York.\n\nThis milestone reflects the growing recognition that practice continuity is not optional — it's a professional responsibility. Thank you for being part of this community.",
-                'post_type'       => 'milestone',
-                'role_visibility' => 'all',
-                'audience'        => 'all',
-                'published'       => 1,
-                'pinned'          => 0,
-                'tags'            => json_encode(['Milestone', 'Community']),
-                'links'           => null,
-                'poll_question'   => null,
-                'poll_options'    => null,
-                'poll_closes_at'  => null,
-                'published_at'    => $now->copy()->subDays(7)->toDateTimeString(),
-                'created_at'      => $now->copy()->subDays(7)->toDateTimeString(),
-                'updated_at'      => $now->copy()->subDays(7)->toDateTimeString(),
+                'id' => 'np_event_announce', 'author_id' => $adminId,
+                'post_type' => 'event', 'role_visibility' => 'all', 'audience' => 'all',
+                'published' => 1, 'pinned' => 0,
+                'title' => 'Live Q&A: Ethics in Telehealth — This Thursday',
+                'body' => "Join us Thursday, July 10 at 10:00 AM PT for a live 90-minute session with NASW faculty.\n\nTopics covered:\n• Ethical boundaries in remote therapy settings\n• HIPAA-compliant video platform selection\n• Crisis protocol in telehealth\n• Documentation requirements\n\n1.5 CEUs awarded. Free for all Aegis members.",
+                'tags' => json_encode(['Telehealth', 'Ethics', 'CEU', 'LiveEvent']),
+                'links' => json_encode([['label' => 'Register Free on Zoom', 'url' => 'https://zoom.us/j/ethics-live']]),
+                'media' => null, 'poll_question' => null, 'poll_options' => null, 'poll_closes_at' => null,
+                'published_at' => $now->copy()->subDays(2)->toDateTimeString(),
+                'created_at'   => $now->copy()->subDays(2)->toDateTimeString(),
+                'updated_at'   => $now->copy()->subDays(2)->toDateTimeString(),
             ],
-            // 7. Event announcement post
+            // 9. POLL — providers only, best practice
             [
-                'id'              => 'np_event_announce',
-                'author_id'       => 'admin_root',
-                'title'           => 'Upcoming: Ethics in Telehealth — Live Q&A',
-                'body'            => "Join us for a live 90-minute session with NASW faculty covering ethical boundaries in remote therapy, HIPAA considerations, and crisis protocol.\n\n1.5 CEUs awarded. Free for all Aegis members.",
-                'post_type'       => 'event',
-                'role_visibility' => 'all',
-                'audience'        => 'all',
-                'published'       => 1,
-                'pinned'          => 0,
-                'tags'            => json_encode(['Telehealth', 'Ethics', 'CEU']),
-                'links'           => json_encode([['label' => 'Register for Free', 'url' => 'https://zoom.us/j/ethics-live']]),
-                'poll_question'   => null,
-                'poll_options'    => null,
-                'poll_closes_at'  => null,
-                'published_at'    => $now->copy()->subDays(2)->toDateTimeString(),
-                'created_at'      => $now->copy()->subDays(2)->toDateTimeString(),
-                'updated_at'      => $now->copy()->subDays(2)->toDateTimeString(),
+                'id' => 'np_poll_supervision', 'author_id' => $sarahId,
+                'post_type' => 'poll', 'role_visibility' => 'practitioner', 'audience' => 'providers',
+                'published' => 1, 'pinned' => 0,
+                'title' => 'Quick Poll: How often do you review your continuity plan?',
+                'body' => 'Curious where practitioners stand on plan review frequency. There\'s no wrong answer!',
+                'tags' => json_encode(['ContinuityPlanning', 'BestPractices']),
+                'links' => null, 'media' => null,
+                'poll_question' => 'How often do you review your continuity plan?',
+                'poll_options' => json_encode([
+                    ['key' => 'annually',   'label' => 'Annually'],
+                    ['key' => 'biannual',   'label' => 'Every 6 months'],
+                    ['key' => 'quarterly',  'label' => 'Quarterly'],
+                    ['key' => 'never',      'label' => "Honestly, I haven't yet"],
+                ]),
+                'poll_closes_at' => $now->copy()->addDays(7)->toDateTimeString(),
+                'published_at' => $now->copy()->subDays(1)->toDateTimeString(),
+                'created_at'   => $now->copy()->subDays(1)->toDateTimeString(),
+                'updated_at'   => $now->copy()->subDays(1)->toDateTimeString(),
             ],
-            // 8. Older post for scroll/pagination coverage
+            // 10. QUESTION — with multiple images
             [
-                'id'              => 'np_older_boundaries',
-                'author_id'       => 'p_maria',
-                'title'           => 'Managing Professional Boundaries in Telehealth',
-                'body'            => "The shift to telehealth has created new boundary challenges that in-person practice didn't present. Here are the key boundary areas I discuss with every supervisee:\n\n• Session environment (home office vs. bedroom)\n• Appearance and professional presentation\n• Technical interruptions and their management\n• Emergency protocols when client is remote\n\nI'd love to hear how others are handling these in their practices.",
-                'post_type'       => 'provider',
-                'role_visibility' => 'all',
-                'audience'        => 'all',
-                'published'       => 1,
-                'pinned'          => 0,
-                'tags'            => json_encode(['Telehealth', 'Boundaries', 'BestPractices']),
-                'links'           => null,
-                'poll_question'   => null,
-                'poll_options'    => null,
-                'poll_closes_at'  => null,
-                'published_at'    => $now->copy()->subDays(25)->toDateTimeString(),
-                'created_at'      => $now->copy()->subDays(25)->toDateTimeString(),
-                'updated_at'      => $now->copy()->subDays(25)->toDateTimeString(),
+                'id' => 'np_question_telehealth', 'author_id' => $mariaId,
+                'post_type' => 'question', 'role_visibility' => 'all', 'audience' => 'all',
+                'published' => 1, 'pinned' => 0,
+                'title' => 'Managing Professional Boundaries in Telehealth',
+                'body' => "The shift to telehealth has created new boundary challenges that in-person practice didn't present.\n\nHere are the key boundary areas I discuss with every supervisee:\n• Session environment (home office vs. bedroom)\n• Appearance and professional presentation\n• Technical interruptions and their management\n• Emergency protocols when client is remote\n\nI'd love to hear how others are handling these in their practices — especially those working with high-acuity clients.",
+                'tags' => json_encode(['Telehealth', 'Boundaries', 'BestPractices', 'Supervision']),
+                'links' => null,
+                'media' => json_encode([
+                    ['type' => 'image', 'url' => 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&q=80', 'thumb' => 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&q=60', 'name' => 'Remote therapy setup'],
+                    ['type' => 'image', 'url' => 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=800&q=80', 'thumb' => 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=400&q=60', 'name' => 'Technology in therapy'],
+                ]),
+                'poll_question' => null, 'poll_options' => null, 'poll_closes_at' => null,
+                'published_at' => $now->copy()->subDays(25)->toDateTimeString(),
+                'created_at'   => $now->copy()->subDays(25)->toDateTimeString(),
+                'updated_at'   => $now->copy()->subDays(25)->toDateTimeString(),
             ],
-            // 9. Draft (not visible on feed — tests published=0)
+            // 11. RESOURCE — stewards only
             [
-                'id'              => 'np_draft_unpublished',
-                'author_id'       => 'p_maria',
-                'title'           => 'Upcoming Webinar: Couples Therapy Best Practices 2026',
-                'body'            => 'Draft content pending review...',
-                'post_type'       => 'provider',
-                'role_visibility' => 'all',
-                'audience'        => 'all',
-                'published'       => 0,
-                'pinned'          => 0,
-                'tags'            => null,
-                'links'           => null,
-                'poll_question'   => null,
-                'poll_options'    => null,
-                'poll_closes_at'  => null,
-                'published_at'    => null,
-                'created_at'      => $now->copy()->subDays(2)->toDateTimeString(),
-                'updated_at'      => $now->copy()->subDays(1)->toDateTimeString(),
+                'id' => 'np_resource_cs_guide', 'author_id' => $marcusId,
+                'post_type' => 'resource', 'role_visibility' => 'continuity_steward', 'audience' => 'stewards',
+                'published' => 1, 'pinned' => 0,
+                'title' => 'CS Field Guide: First 72 Hours of an Activation',
+                'body' => "A field guide for continuity stewards responding to an unexpected practitioner absence.\n\nThe first 72 hours are the most critical. This guide walks through exactly what to do, in order, with templates and scripts for each step.\n\nKeep this bookmarked — you'll want it fast if you ever need it.",
+                'tags' => json_encode(['ContinuityPlanning', 'StewardGuide', 'Activation', 'Resources']),
+                'links' => json_encode([
+                    ['label' => 'CS Field Guide PDF', 'url' => 'https://aegis.devlet.tech/resources/cs-field-guide.pdf'],
+                    ['label' => 'Client Notification Script Templates', 'url' => 'https://aegis.devlet.tech/resources/notification-scripts.docx'],
+                ]),
+                'media' => null, 'poll_question' => null, 'poll_options' => null, 'poll_closes_at' => null,
+                'published_at' => $now->copy()->subDays(20)->toDateTimeString(),
+                'created_at'   => $now->copy()->subDays(20)->toDateTimeString(),
+                'updated_at'   => $now->copy()->subDays(20)->toDateTimeString(),
+            ],
+            // 12. MILESTONE — personal
+            [
+                'id' => 'np_milestone_sarah', 'author_id' => $sarahId,
+                'post_type' => 'milestone', 'role_visibility' => 'all', 'audience' => 'all',
+                'published' => 1, 'pinned' => 0,
+                'title' => '10 Years Licensed — Reflecting on Practice Sustainability',
+                'body' => "This week marks my 10th anniversary as a licensed clinical social worker. I've been reflecting on what I wish I knew at year one.\n\nTop of the list: practice continuity planning. I didn't have a plan until year 7. That gap was a risk I didn't fully understand.\n\nIf you're in your early years — please don't wait. A basic plan takes 2 hours. The peace of mind is worth every minute.",
+                'tags' => json_encode(['Milestone', 'PracticeWisdom', 'ContinuityPlanning']),
+                'links' => null, 'media' => null,
+                'poll_question' => null, 'poll_options' => null, 'poll_closes_at' => null,
+                'published_at' => $now->copy()->subDays(9)->toDateTimeString(),
+                'created_at'   => $now->copy()->subDays(9)->toDateTimeString(),
+                'updated_at'   => $now->copy()->subDays(9)->toDateTimeString(),
             ],
         ];
 
@@ -210,20 +227,21 @@ class NewsSeeder extends Seeder
             DB::table('news_posts')->updateOrInsert(['id' => $p['id']], $p);
         }
 
-        // ── news_comments ────────────────────────────────────────────────────
-        // Clear and re-insert (UUIDs change each seed run without deterministic IDs)
-        DB::table('news_comments')->whereIn('post_id', [
-            'np_sarah_post', 'np_resource_checklist', 'np_question_malpractice', 'np_poll_ethics',
-        ])->delete();
+        // ── comments ─────────────────────────────────────────────────────────
+        DB::table('news_comments')->whereIn('post_id', array_column($posts, 'id'))->delete();
 
         $comments = [
-            ['post_id' => 'np_sarah_post',         'author_id' => 'p_david',    'body' => 'Really valuable insights, Sarah. The point about supervisee wellbeing resonates deeply.', 'created_at' => $now->copy()->subDays(11)],
-            ['post_id' => 'np_sarah_post',         'author_id' => 'p_maria',    'body' => 'Thank you for sharing this. I\'ve bookmarked it for our next group supervision session.', 'created_at' => $now->copy()->subDays(10)],
-            ['post_id' => 'np_sarah_post',         'author_id' => 'cs_marcus',  'body' => 'As a CS, I see the impact of this gap constantly. This framework is exactly what practitioners need to share with their supervisees.', 'created_at' => $now->copy()->subDays(9)],
-            ['post_id' => 'np_resource_checklist', 'author_id' => 'cs_priya',   'body' => 'Marcus, this checklist is incredibly thorough. I\'ve been waiting for something like this.', 'created_at' => $now->copy()->subDays(17)],
-            ['post_id' => 'np_resource_checklist', 'author_id' => 'p_sarah',    'body' => 'Saving this for my annual continuity plan review. Thank you!', 'created_at' => $now->copy()->subDays(16)],
-            ['post_id' => 'np_question_malpractice','author_id' => 'cs_marcus', 'body' => 'Great question. My understanding is that most malpractice policies do cover this if the CS is properly designated in the plan and the policy. Worth calling your carrier directly.', 'created_at' => $now->copy()->subDays(2)],
-            ['post_id' => 'np_poll_ethics',        'author_id' => 'p_david',    'body' => 'Voted time constraints — it\'s always that for me.', 'created_at' => $now->copy()->subDays(4)],
+            ['post_id' => 'np_sarah_supervision',   'author_id' => $davidId,  'body' => 'Really valuable insights. The point about supervisee wellbeing resonates — I had two supervisees in crisis during a continuity event last year. The parallel process was intense.'],
+            ['post_id' => 'np_sarah_supervision',   'author_id' => $mariaId,  'body' => 'Thank you for sharing this. I\'ve bookmarked it for our next group supervision session.'],
+            ['post_id' => 'np_sarah_supervision',   'author_id' => $marcusId, 'body' => 'As a CS, I see the impact of this gap constantly. Practitioners who\'ve briefed their supervisees make activation so much smoother.'],
+            ['post_id' => 'np_question_malpractice','author_id' => $marcusId, 'body' => 'Great question. Most malpractice policies DO cover this if the CS is properly designated in the plan. Call your carrier, mention "continuity of care coverage" and "designated successor." HPSO specifically has a provision for this.'],
+            ['post_id' => 'np_question_malpractice','author_id' => $sarahId,  'body' => 'I asked HPSO exactly this question six months ago. They confirmed coverage for designated stewards. The key word in your policy is "covered activities undertaken by licensed designees." Worth a 15-min call.'],
+            ['post_id' => 'np_resource_checklist',  'author_id' => $sarahId,  'body' => 'Saving this immediately. The Phase 1 / Phase 2 / Phase 3 breakdown is exactly what I was looking for.'],
+            ['post_id' => 'np_resource_checklist',  'author_id' => $mariaId,  'body' => 'Marcus this is outstanding. Is it okay if I adapt this for our group practice?'],
+            ['post_id' => 'np_poll_challenges',     'author_id' => $davidId,  'body' => 'Voted time constraints — between clinical hours, documentation, and CE requirements, finding time to review the plan keeps slipping.'],
+            ['post_id' => 'np_milestone_100',       'author_id' => $sarahId,  'body' => 'Congratulations to the whole team! Proud to be one of the early practitioners.'],
+            ['post_id' => 'np_question_telehealth', 'author_id' => $davidId,  'body' => "Great list Maria. I'd add: session start/end rituals are even more important virtually — they help hold the therapeutic frame when the physical container isn't there."],
+            ['post_id' => 'np_question_telehealth', 'author_id' => $sarahId,  'body' => 'The emergency protocol piece is underrated. I built a simple "crisis card" my clients keep visible during sessions — location, nearest ER, local crisis line. Changed everything for me.'],
         ];
 
         foreach ($comments as $c) {
@@ -232,137 +250,98 @@ class NewsSeeder extends Seeder
                 'post_id'    => $c['post_id'],
                 'author_id'  => $c['author_id'],
                 'body'       => $c['body'],
-                'created_at' => $c['created_at']->toDateTimeString(),
-                'updated_at' => $c['created_at']->toDateTimeString(),
+                'created_at' => $now->copy()->subHours(rand(1, 240))->toDateTimeString(),
+                'updated_at' => $now->copy()->subHours(rand(1, 240))->toDateTimeString(),
                 'deleted_at' => null,
             ]);
         }
 
-        // ── news_reactions ───────────────────────────────────────────────────
-        // column: reaction (not reaction_type)
+        // ── reactions ─────────────────────────────────────────────────────────
         DB::table('news_reactions')->whereIn('post_id', array_column($posts, 'id'))->delete();
 
         $reactions = [
-            ['post_id' => 'np_sarah_post',          'user_id' => 'p_david',    'reaction' => 'like'],
-            ['post_id' => 'np_sarah_post',          'user_id' => 'p_maria',    'reaction' => 'like'],
-            ['post_id' => 'np_sarah_post',          'user_id' => 'cs_marcus',  'reaction' => 'like'],
-            ['post_id' => 'np_resource_checklist',  'user_id' => 'cs_priya',   'reaction' => 'like'],
-            ['post_id' => 'np_resource_checklist',  'user_id' => 'p_sarah',    'reaction' => 'like'],
-            ['post_id' => 'np_resource_checklist',  'user_id' => 'p_david',    'reaction' => 'save'],
-            ['post_id' => 'np_announcement_launch', 'user_id' => 'p_sarah',    'reaction' => 'like'],
-            ['post_id' => 'np_milestone_100',       'user_id' => 'p_sarah',    'reaction' => 'like'],
-            ['post_id' => 'np_milestone_100',       'user_id' => 'p_david',    'reaction' => 'like'],
-            ['post_id' => 'np_event_announce',      'user_id' => 'p_sarah',    'reaction' => 'save'],
-            ['post_id' => 'np_question_malpractice','user_id' => 'p_sarah',    'reaction' => 'like'],
+            ['post_id' => 'np_platform_welcome',   'user_id' => $sarahId,  'reaction' => 'like'],
+            ['post_id' => 'np_platform_welcome',   'user_id' => $davidId,  'reaction' => 'like'],
+            ['post_id' => 'np_platform_welcome',   'user_id' => $mariaId,  'reaction' => 'like'],
+            ['post_id' => 'np_sarah_supervision',  'user_id' => $davidId,  'reaction' => 'like'],
+            ['post_id' => 'np_sarah_supervision',  'user_id' => $mariaId,  'reaction' => 'like'],
+            ['post_id' => 'np_sarah_supervision',  'user_id' => $marcusId, 'reaction' => 'like'],
+            ['post_id' => 'np_sarah_supervision',  'user_id' => $davidId,  'reaction' => 'save'],
+            ['post_id' => 'np_resource_checklist', 'user_id' => $sarahId,  'reaction' => 'like'],
+            ['post_id' => 'np_resource_checklist', 'user_id' => $mariaId,  'reaction' => 'like'],
+            ['post_id' => 'np_resource_checklist', 'user_id' => $sarahId,  'reaction' => 'save'],
+            ['post_id' => 'np_milestone_100',      'user_id' => $sarahId,  'reaction' => 'like'],
+            ['post_id' => 'np_milestone_100',      'user_id' => $davidId,  'reaction' => 'like'],
+            ['post_id' => 'np_milestone_sarah',    'user_id' => $davidId,  'reaction' => 'like'],
+            ['post_id' => 'np_milestone_sarah',    'user_id' => $marcusId, 'reaction' => 'like'],
+            ['post_id' => 'np_question_telehealth','user_id' => $sarahId,  'reaction' => 'like'],
+            ['post_id' => 'np_event_announce',     'user_id' => $sarahId,  'reaction' => 'save'],
+            ['post_id' => 'np_platform_update',    'user_id' => $sarahId,  'reaction' => 'like'],
+            ['post_id' => 'np_platform_update',    'user_id' => $davidId,  'reaction' => 'like'],
         ];
 
         foreach ($reactions as $r) {
-            DB::table('news_reactions')->insert([
-                'id'         => 'nr_' . Str::lower(Str::random(12)),
-                'post_id'    => $r['post_id'],
-                'user_id'    => $r['user_id'],
-                'reaction'   => $r['reaction'],
-                'created_at' => $now->copy()->subDays(rand(1, 10))->toDateTimeString(),
-            ]);
+            try {
+                DB::table('news_reactions')->insert([
+                    'id' => 'nr_' . Str::lower(Str::random(12)),
+                    'post_id' => $r['post_id'], 'user_id' => $r['user_id'],
+                    'reaction' => $r['reaction'],
+                    'created_at' => $now->copy()->subHours(rand(1, 200))->toDateTimeString(),
+                ]);
+            } catch (\Throwable) {} // skip duplicates
         }
 
-        // ── news_poll_votes ──────────────────────────────────────────────────
-        DB::table('news_poll_votes')->where('post_id', 'np_poll_ethics')->delete();
-        DB::table('news_poll_votes')->insert([
-            ['id' => 'nv_' . Str::lower(Str::random(12)), 'post_id' => 'np_poll_ethics', 'user_id' => 'p_sarah', 'option_key' => 'time_constraints', 'created_at' => $now->copy()->subDays(4)->toDateTimeString()],
-            ['id' => 'nv_' . Str::lower(Str::random(12)), 'post_id' => 'np_poll_ethics', 'user_id' => 'p_david', 'option_key' => 'cost_concerns',    'created_at' => $now->copy()->subDays(3)->toDateTimeString()],
-            ['id' => 'nv_' . Str::lower(Str::random(12)), 'post_id' => 'np_poll_ethics', 'user_id' => 'p_maria', 'option_key' => 'finding_steward',  'created_at' => $now->copy()->subDays(2)->toDateTimeString()],
-        ]);
-
-        // ── news_trending_topics ─────────────────────────────────────────────
-        DB::table('news_trending_topics')->truncate();
-        $topics = [
-            ['ContinuityPlanning', 42],
-            ['TraumaInformedCare', 31],
-            ['PracticeResilience', 28],
-            ['Telehealth',         24],
-            ['ClinicalSupervision',19],
+        // ── poll votes ────────────────────────────────────────────────────────
+        DB::table('news_poll_votes')->whereIn('post_id', ['np_poll_challenges', 'np_poll_supervision'])->delete();
+        $votes = [
+            ['post_id' => 'np_poll_challenges', 'user_id' => $sarahId,  'option_key' => 'time_constraints'],
+            ['post_id' => 'np_poll_challenges', 'user_id' => $davidId,  'option_key' => 'cost_concerns'],
+            ['post_id' => 'np_poll_challenges', 'user_id' => $mariaId,  'option_key' => 'finding_steward'],
+            ['post_id' => 'np_poll_supervision','user_id' => $marcusId, 'option_key' => 'annually'],
         ];
-        foreach ($topics as [$topic, $score]) {
-            DB::table('news_trending_topics')->insert([
-                'id'         => (string) \Illuminate\Support\Str::uuid(),
-                'topic'      => '#' . $topic,
-                'score'      => $score,
-                'created_at' => $now->toDateTimeString(),
-                'updated_at' => $now->toDateTimeString(),
+        foreach ($votes as $v) {
+            DB::table('news_poll_votes')->insert([
+                'id' => 'nv_' . Str::lower(Str::random(12)),
+                'post_id' => $v['post_id'], 'user_id' => $v['user_id'],
+                'option_key' => $v['option_key'],
+                'created_at' => $now->copy()->subDays(rand(1, 5))->toDateTimeString(),
             ]);
         }
 
-        // ── news_library_items ───────────────────────────────────────────────
+        // ── trending topics ───────────────────────────────────────────────────
+        DB::table('news_trending_topics')->truncate();
+        foreach ([
+            ['#ContinuityPlanning', 42], ['#TraumaInformedCare', 31],
+            ['#PracticeResilience', 28], ['#Telehealth', 24], ['#ClinicalSupervision', 19],
+        ] as [$topic, $score]) {
+            DB::table('news_trending_topics')->insert([
+                'id' => (string) \Illuminate\Support\Str::uuid(), 'topic' => $topic, 'score' => $score,
+                'created_at' => $now->toDateTimeString(), 'updated_at' => $now->toDateTimeString(),
+            ]);
+        }
+
+        // ── news_library_items ────────────────────────────────────────────────
         $library = [
-            ['id' => 'nl_licensing_guide',    'title' => 'State-by-State Licensing Board Notification Requirements', 'category' => 'compliance', 'file_ref' => 'library/licensing_board_guide.pdf',       'role_visibility' => 'all',               'sort_order' => 1],
-            ['id' => 'nl_hipaa_templates',    'title' => 'HIPAA-Compliant Client Notification Templates',            'category' => 'templates',  'file_ref' => 'library/hipaa_notification_templates.docx','role_visibility' => 'practitioner',      'sort_order' => 2],
-            ['id' => 'nl_cs_checklist',       'title' => 'CS Incident Activation Checklist',                         'category' => 'operations', 'file_ref' => 'library/cs_activation_checklist.pdf',     'role_visibility' => 'continuity_steward','sort_order' => 3],
+            ['id' => 'nl_licensing_guide',  'title' => 'State-by-State Licensing Board Notification Requirements', 'category' => 'compliance', 'file_ref' => 'library/licensing_board_guide.pdf',        'role_visibility' => 'all',               'sort_order' => 1],
+            ['id' => 'nl_hipaa_templates',  'title' => 'HIPAA-Compliant Client Notification Templates',            'category' => 'templates',  'file_ref' => 'library/hipaa_notification_templates.docx', 'role_visibility' => 'practitioner',      'sort_order' => 2],
+            ['id' => 'nl_cs_checklist',     'title' => 'CS Incident Activation Checklist',                         'category' => 'operations', 'file_ref' => 'library/cs_activation_checklist.pdf',      'role_visibility' => 'continuity_steward','sort_order' => 3],
         ];
         foreach ($library as $l) {
             DB::table('news_library_items')->updateOrInsert(['id' => $l['id']], array_merge($l, [
-                'published'  => 1,
-                'url'        => null,
+                'published' => 1, 'url' => null,
                 'created_at' => $now->copy()->subMonths(3)->toDateTimeString(),
                 'updated_at' => $now->copy()->subMonths(3)->toDateTimeString(),
                 'deleted_at' => null,
             ]));
         }
 
-        // ── news_events ──────────────────────────────────────────────────────
+        // ── news_events ───────────────────────────────────────────────────────
         $events = [
-            [
-                'id' => 'ne_webinar_continuity', 'title' => 'Aegis Platform Webinar — Getting Started with Continuity Planning',
-                'description' => 'Join our monthly onboarding webinar. Ideal for newly licensed practitioners and those updating their plans for 2026.',
-                'location' => 'Virtual — Zoom', 'category' => 'webinar', 'ceu_credits' => 1.5, 'is_free' => 1, 'price_cents' => 0,
-                'rsvp_url' => 'https://zoom.us/j/aegis-demo',
-                'rsvps_json' => json_encode([$sarahId => ['status' => 'going', 'at' => $now->copy()->subDays(3)->toIso8601String()]]),
-                'organizer' => "Aegis / MA'AT Practice Firm", 'status' => 'approved', 'role_visibility' => 'all', 'published' => 1,
-                'starts_at' => $now->copy()->addDays(7)->setTime(14, 0)->toDateTimeString(),
-                'ends_at'   => $now->copy()->addDays(7)->setTime(15, 30)->toDateTimeString(),
-                'created_at'=> $now->copy()->subDays(10)->toDateTimeString(), 'updated_at' => $now->copy()->subDays(3)->toDateTimeString(),
-            ],
-            [
-                'id' => 'ne_today_ethics', 'title' => 'Ethics in Telehealth — Live Q&A with NASW Faculty',
-                'description' => 'A live 90-minute session covering ethical boundaries in remote therapy.',
-                'location' => 'Virtual — Zoom', 'category' => 'webinar', 'ceu_credits' => 1.5, 'is_free' => 1, 'price_cents' => 0,
-                'rsvp_url' => 'https://zoom.us/j/ethics-live', 'rsvps_json' => json_encode([]),
-                'organizer' => 'NASW California', 'status' => 'approved', 'role_visibility' => 'all', 'published' => 1,
-                'starts_at' => $now->copy()->setTime(10, 0)->toDateTimeString(),
-                'ends_at'   => $now->copy()->setTime(11, 30)->toDateTimeString(),
-                'created_at'=> $now->copy()->subDays(5)->toDateTimeString(), 'updated_at' => $now->copy()->subDays(1)->toDateTimeString(),
-            ],
-            [
-                'id' => 'ne_trauma_workshop', 'title' => 'Trauma-Informed Supervision Workshop — Advanced Practicum',
-                'description' => 'An intensive day-long workshop for licensed clinical supervisors. 6 CEU credits awarded.',
-                'location' => 'Los Angeles, CA — Marriott Downtown', 'category' => 'workshop', 'ceu_credits' => 6.0, 'is_free' => 0, 'price_cents' => 19900,
-                'rsvp_url' => null,
-                'rsvps_json' => json_encode([$sarahId => ['status' => 'going', 'at' => $now->copy()->subDays(5)->toIso8601String()]]),
-                'organizer' => 'SoCal Trauma Collective', 'status' => 'approved', 'role_visibility' => 'all', 'published' => 1,
-                'starts_at' => $now->copy()->addDays(1)->setTime(9, 0)->toDateTimeString(),
-                'ends_at'   => $now->copy()->addDays(1)->setTime(17, 0)->toDateTimeString(),
-                'created_at'=> $now->copy()->subDays(20)->toDateTimeString(), 'updated_at' => $now->copy()->subDays(5)->toDateTimeString(),
-            ],
-            [
-                'id' => 'ne_mental_health_summit', 'title' => 'Integrative Mental Health Summit 2026',
-                'description' => 'A three-day conference for psychologists, LMFTs, LCSWs, and LPCCs.',
-                'location' => 'San Francisco, CA — Moscone Center', 'category' => 'conference', 'ceu_credits' => 12.0, 'is_free' => 0, 'price_cents' => 49900,
-                'rsvp_url' => null, 'rsvps_json' => json_encode([]),
-                'organizer' => 'CAMFT', 'status' => 'approved', 'role_visibility' => 'all', 'published' => 1,
-                'starts_at' => $now->copy()->addDays(5)->setTime(8, 30)->toDateTimeString(),
-                'ends_at'   => $now->copy()->addDays(7)->setTime(17, 0)->toDateTimeString(),
-                'created_at'=> $now->copy()->subMonths(2)->toDateTimeString(), 'updated_at' => $now->copy()->subDays(1)->toDateTimeString(),
-            ],
-            [
-                'id' => 'ne_networking_evening', 'title' => 'Aegis Practitioner Networking — Bay Area Chapter',
-                'description' => 'An informal evening mixer for Aegis members in the Bay Area.',
-                'location' => 'San Francisco, CA — The Interval at Long Now', 'category' => 'networking', 'ceu_credits' => 0, 'is_free' => 1, 'price_cents' => 0,
-                'rsvp_url' => null, 'rsvps_json' => json_encode([]),
-                'organizer' => 'Aegis Community', 'status' => 'approved', 'role_visibility' => 'practitioner', 'published' => 1,
-                'starts_at' => $now->copy()->addDays(14)->setTime(18, 30)->toDateTimeString(),
-                'ends_at'   => $now->copy()->addDays(14)->setTime(21, 0)->toDateTimeString(),
-                'created_at'=> $now->copy()->subDays(7)->toDateTimeString(), 'updated_at' => $now->copy()->subDays(7)->toDateTimeString(),
-            ],
+            ['id' => 'ne_webinar_continuity', 'title' => 'Aegis Platform Webinar — Getting Started', 'description' => 'Monthly onboarding webinar. Ideal for newly licensed practitioners.', 'location' => 'Virtual — Zoom', 'category' => 'webinar', 'ceu_credits' => 1.5, 'is_free' => 1, 'price_cents' => 0, 'rsvp_url' => 'https://zoom.us/j/aegis-demo', 'rsvps_json' => json_encode([$sarahId => ['status' => 'going', 'at' => $now->copy()->subDays(3)->toIso8601String()]]), 'organizer' => "Aegis / MA'AT Practice Firm", 'status' => 'approved', 'role_visibility' => 'all', 'published' => 1, 'starts_at' => $now->copy()->addDays(7)->setTime(14, 0)->toDateTimeString(), 'ends_at' => $now->copy()->addDays(7)->setTime(15, 30)->toDateTimeString(), 'created_at' => $now->copy()->subDays(10)->toDateTimeString(), 'updated_at' => $now->copy()->subDays(3)->toDateTimeString()],
+            ['id' => 'ne_today_ethics', 'title' => 'Ethics in Telehealth — Live Q&A with NASW Faculty', 'description' => 'A live 90-minute session covering ethical boundaries in remote therapy, HIPAA considerations, and crisis protocol. Q&A with licensed NASW faculty.', 'location' => 'Virtual — Zoom', 'category' => 'webinar', 'ceu_credits' => 1.5, 'is_free' => 1, 'price_cents' => 0, 'rsvp_url' => null, 'rsvps_json' => json_encode([]), 'organizer' => 'NASW California', 'status' => 'approved', 'role_visibility' => 'all', 'published' => 1, 'starts_at' => $now->copy()->setTime(10, 0)->toDateTimeString(), 'ends_at' => $now->copy()->setTime(11, 30)->toDateTimeString(), 'created_at' => $now->copy()->subDays(5)->toDateTimeString(), 'updated_at' => $now->copy()->subDays(1)->toDateTimeString()],
+            ['id' => 'ne_trauma_workshop', 'title' => 'Trauma-Informed Supervision Workshop', 'description' => 'An intensive day-long workshop for licensed clinical supervisors. 6 CEU credits awarded.', 'location' => 'Los Angeles, CA — Marriott Downtown', 'category' => 'workshop', 'ceu_credits' => 6.0, 'is_free' => 0, 'price_cents' => 19900, 'rsvp_url' => null, 'rsvps_json' => json_encode([$sarahId => ['status' => 'going', 'at' => $now->copy()->subDays(5)->toIso8601String()]]), 'organizer' => 'SoCal Trauma Collective', 'status' => 'approved', 'role_visibility' => 'all', 'published' => 1, 'starts_at' => $now->copy()->addDays(1)->setTime(9, 0)->toDateTimeString(), 'ends_at' => $now->copy()->addDays(1)->setTime(17, 0)->toDateTimeString(), 'created_at' => $now->copy()->subDays(20)->toDateTimeString(), 'updated_at' => $now->copy()->subDays(5)->toDateTimeString()],
+            ['id' => 'ne_summit_2026', 'title' => 'Integrative Mental Health Summit 2026', 'description' => 'A three-day conference for psychologists, LMFTs, LCSWs, and LPCCs.', 'location' => 'San Francisco, CA — Moscone Center', 'category' => 'conference', 'ceu_credits' => 12.0, 'is_free' => 0, 'price_cents' => 49900, 'rsvp_url' => null, 'rsvps_json' => json_encode([]), 'organizer' => 'CAMFT', 'status' => 'approved', 'role_visibility' => 'all', 'published' => 1, 'starts_at' => $now->copy()->addDays(5)->setTime(8, 30)->toDateTimeString(), 'ends_at' => $now->copy()->addDays(7)->setTime(17, 0)->toDateTimeString(), 'created_at' => $now->copy()->subMonths(2)->toDateTimeString(), 'updated_at' => $now->copy()->subDays(1)->toDateTimeString()],
+            ['id' => 'ne_networking_bay', 'title' => 'Aegis Practitioner Networking — Bay Area Chapter', 'description' => 'An informal evening mixer for Aegis members in the Bay Area.', 'location' => 'San Francisco, CA', 'category' => 'networking', 'ceu_credits' => 0, 'is_free' => 1, 'price_cents' => 0, 'rsvp_url' => null, 'rsvps_json' => json_encode([]), 'organizer' => 'Aegis Community', 'status' => 'approved', 'role_visibility' => 'practitioner', 'published' => 1, 'starts_at' => $now->copy()->addDays(14)->setTime(18, 30)->toDateTimeString(), 'ends_at' => $now->copy()->addDays(14)->setTime(21, 0)->toDateTimeString(), 'created_at' => $now->copy()->subDays(7)->toDateTimeString(), 'updated_at' => $now->copy()->subDays(7)->toDateTimeString()],
         ];
 
         foreach ($events as $ev) {

@@ -24,6 +24,8 @@ class CreateNewsPostRequest extends FormRequest
             'pinned'          => ['nullable', 'boolean'],
             'tags'            => ['nullable', 'string', 'max:500'],  // comma-separated, split in service
             'links'           => ['nullable', 'array'],
+            'media'           => ['nullable', 'array'],
+            'media.*'         => ['nullable', 'array'],
             'poll_question'   => ['nullable', 'string', 'max:500'],
             'poll_options'    => ['nullable', 'array'],
             'poll_closes_at'  => ['nullable', 'date'],

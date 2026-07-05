@@ -231,7 +231,7 @@ const navSections = computed(() => {
         ],
         'Explore': [
           { key: 'news',   href: r('provider.news.index'),   icon: 'megaphone', label: 'News & Resources' },
-          { key: 'events', href: r('provider.news.events'),  icon: 'calendar',  label: 'Events' },
+          { key: 'events', href: r('provider.events.index'), icon: 'calendar',  label: 'Events' },
         ],
         'Account': [
           { key: 'settings', href: r('provider.settings.index'), icon: 'settings',    label: 'Settings' },

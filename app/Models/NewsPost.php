@@ -21,7 +21,7 @@ class NewsPost extends Model
     protected $fillable = [
         'id', 'author_id', 'title', 'body', 'post_type',
         'role_visibility', 'audience', 'published', 'pinned', 'published_at',
-        'tags', 'links', 'poll_question', 'poll_options', 'poll_closes_at',
+        'tags', 'links', 'media', 'poll_question', 'poll_options', 'poll_closes_at',
     ];
 
     protected $casts = [
@@ -31,6 +31,7 @@ class NewsPost extends Model
         'poll_closes_at' => 'datetime',
         'tags'           => 'array',
         'links'          => 'array',
+        'media'          => 'array',
         'poll_options'   => 'array',
     ];
 

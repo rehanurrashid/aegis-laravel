@@ -120,11 +120,14 @@ class NewsService
             })->get(['post_type']);
 
         $countByType = [
-            'all'      => $allPublished->count(),
-            'platform' => $allPublished->where('post_type', 'platform')->count(),
-            'provider' => $allPublished->whereIn('post_type', ['provider', 'post', 'question', 'resource', 'milestone'])->count(),
-            'event'    => $allPublished->whereIn('post_type', ['event', 'announcement'])->count(),
-            'resource' => $allPublished->where('post_type', 'resource')->count(),
+            'all'       => $allPublished->count(),
+            'platform'  => $allPublished->whereIn('post_type', ['platform', 'announcement'])->count(),
+            'provider'  => $allPublished->whereIn('post_type', ['provider', 'post'])->count(),
+            'question'  => $allPublished->where('post_type', 'question')->count(),
+            'resource'  => $allPublished->where('post_type', 'resource')->count(),
+            'poll'      => $allPublished->where('post_type', 'poll')->count(),
+            'milestone' => $allPublished->where('post_type', 'milestone')->count(),
+            'event'     => $allPublished->whereIn('post_type', ['event'])->count(),
         ];
 
         return [
@@ -166,6 +169,7 @@ class NewsService
             'is_pinned'        => (bool) $p->pinned,
             'tags'             => $p->tags ?? [],
             'links'            => $p->links ?? [],
+            'media'            => $p->media ?? [],
             'poll_question'    => $p->poll_question,
             'poll_options'     => $pollOptions,
             'poll_closes_at'   => $p->poll_closes_at?->toIso8601String(),
@@ -235,6 +239,7 @@ class NewsService
             'links'           => $data['links'] ?? null,
             'poll_question'   => $data['poll_question'] ?? null,
             'poll_options'    => $data['poll_options'] ?? null,
+            'media'           => $data['media'] ?? null,
             'poll_closes_at'  => $data['poll_closes_at'] ?? null,
             'published'       => 1,
             'pinned'          => (int) ($data['pinned'] ?? 0),
