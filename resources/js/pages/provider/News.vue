@@ -422,6 +422,7 @@
       <div class="form-group">
         <label class="form-label">Content <span class="required">*</span></label>
         <textarea class="form-textarea" v-model="createForm.body" rows="6" maxlength="2000"
+                  :class="{ 'is-error': fieldError('createForm.body') }"
                   placeholder="Share your update, question, or resource…"
                   @blur="v$.createForm.body.$touch()" />
         <div v-if="fieldError('createForm.body')" class="form-error">{{ fieldError('createForm.body') }}</div>
@@ -449,6 +450,7 @@
       <div class="form-group">
         <label class="form-label">Content <span class="required">*</span></label>
         <textarea class="form-textarea" v-model="editForm.body" rows="6" maxlength="2000"
+                  :class="{ 'is-error': fieldError('editForm.body') }"
                   @blur="v$.editForm.body.$touch()" />
         <div v-if="fieldError('editForm.body')" class="form-error">{{ fieldError('editForm.body') }}</div>
         <div class="form-hint">{{ editForm.body.length }} / 2000</div>

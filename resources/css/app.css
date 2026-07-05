@@ -219,7 +219,24 @@ body {
 .auth-subtitle { font-size: 0.88rem; color: var(--text-3); line-height: 1.55; margin: 0; }
 .auth-form { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.25rem; }
 .btn-block { width: 100%; justify-content: center; }
-.form-input.is-error { border-color: var(--red); outline-color: var(--red); }
+/* ── is-error — global error state for ALL form field types ──────────────
+   Applies red border + red focus ring. Used by every page with validation.
+   Covers input, select, textarea. Never touch _shared.css.
+   ────────────────────────────────────────────────────────────────────── */
+.form-input.is-error,
+.form-control.is-error,
+.form-select.is-error,
+.form-textarea.is-error {
+    border-color: var(--red) !important;
+    box-shadow: var(--focus-ring-red);
+}
+.form-input.is-error:focus,
+.form-control.is-error:focus,
+.form-select.is-error:focus,
+.form-textarea.is-error:focus {
+    border-color: var(--red) !important;
+    box-shadow: var(--focus-ring-red);
+}
 .form-label-row {
     display: flex;
     align-items: baseline;
