@@ -84,7 +84,7 @@
               placeholder="Search events, topics, speakers..."
             >
           </div>
-          <select v-model="categoryFilter" class="form-select evt-toolbar-select" aria-label="Filter by category" data-no-enhance>
+          <select v-model="categoryFilter" class="form-select evt-toolbar-select" aria-label="Filter by category">
             <option value="all">All categories</option>
             <option value="webinar">Webinars</option>
             <option value="conference">Conferences</option>
@@ -92,7 +92,7 @@
             <option value="networking">Networking</option>
             <option value="workshop">Workshops</option>
           </select>
-          <select v-model="sortMode" class="form-select evt-toolbar-select" aria-label="Sort events" data-no-enhance>
+          <select v-model="sortMode" class="form-select evt-toolbar-select" aria-label="Sort events">
             <option value="date">Soonest first</option>
             <option value="popular">Most popular</option>
             <option value="price-asc">Price: low to high</option>
@@ -449,13 +449,11 @@
         <div v-if="fieldError('title')" class="form-error">{{ fieldError('title') }}</div>
       </div>
       <div class="form-row form-row-2">
-        <div class="form-group">
+        <div class="form-group" :class="{ 'is-error': fieldError('type') }">
           <label class="form-label">Event Type <span class="required">*</span></label>
           <select
             v-model="submitForm.type"
             class="form-select"
-            :class="{ 'is-error': fieldError('type') }"
-            data-no-enhance
             @change="v$.type.$touch()"
           >
             <option value="">Select type…</option>
@@ -534,11 +532,11 @@
       <div class="tabs-segmented" style="margin-bottom:18px" role="tablist">
         <button type="button" class="tab-pill" role="tab"
           :class="{ active: ceuTab === 'transcript' }" @click="ceuTab = 'transcript'">
-          <AegisIcon name="list" :size="12" /> Transcript
+          <AegisIcon name="file-text" :size="12" /> Transcript
         </button>
         <button type="button" class="tab-pill" role="tab"
           :class="{ active: ceuTab === 'log' }" @click="ceuTab = 'log'">
-          <AegisIcon name="plus-circle" :size="12" /> Log CEU
+          <AegisIcon name="plus" :size="12" /> Log CEU
         </button>
       </div>
 

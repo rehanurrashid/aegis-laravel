@@ -60,10 +60,10 @@ class RosterController extends Controller
         return back()->with('success', 'Roster updated.');
     }
 
-    public function deleteCeu(Request $request, CeuEntry $entry): RedirectResponse
+    public function deleteCeu(Request $request, CeuEntry $ceu): RedirectResponse
     {
-        abort_unless($entry->practitioner_id === $request->user()?->id, 403);
-        $this->ceu->delete($entry);
+        abort_unless($ceu->practitioner_id === $request->user()?->id, 403);
+        $this->ceu->delete($ceu);
         return back()->with('success', 'CEU entry removed.');
     }
 }
