@@ -15,7 +15,7 @@
       quiet
     >
       <template #actions>
-        <a :href="route('activity.index', { module: 'events' })" class="btn-hero-ghost is-on-light">
+        <a :href="route('provider.activity', { event_type: 'event' })" class="btn-hero-ghost is-on-light">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
         <button class="btn-hero-solid is-on-light" @click="modals.submitEvent = true">

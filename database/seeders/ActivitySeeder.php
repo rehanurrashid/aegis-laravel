@@ -1109,6 +1109,57 @@ class ActivitySeeder extends Seeder
         );
 
 
+        // ── p_sarah — Events (event_type = 'event') ───────────────────────────
+        $act('p_sarah', 'provider', 'event',
+            'Registered for Aegis Platform Webinar — Getting Started with Continuity Planning',
+            'info',
+            'You registered for the free webinar on July 11, 2026, 2:00 PM. Confirmation sent to your email.',
+            'event', 'registered',
+            null, null, null,
+            $read,
+            now()->subDays(3)->toDateTimeString()
+        );
+
+        $act('p_sarah', 'provider', 'event',
+            'Registered for Trauma-Informed Supervision Workshop — Advanced Practicum',
+            'info',
+            'You registered for the workshop on ' . now()->addDays(1)->format('M j, Y') . '. $199 payment processed.',
+            'event', 'registered',
+            null, null, null,
+            $read,
+            now()->subDays(5)->toDateTimeString()
+        );
+
+        $act('p_sarah', 'provider', 'event',
+            'RSVP confirmed — Telehealth Best Practices 2025 (Recorded Webinar)',
+            'info',
+            'Your registration for the recorded webinar was confirmed. Access the recording anytime via the Events page.',
+            'event', 'registered',
+            null, null, null,
+            $read,
+            now()->subMonths(2)->subDays(1)->toDateTimeString()
+        );
+
+        $act('p_sarah', 'provider', 'event',
+            'Reminder: Integrative Mental Health Summit 2026 starts in 5 days',
+            'warning',
+            'The Integrative Mental Health Summit begins ' . now()->addDays(5)->format('M j, Y') . ' at Moscone Center, San Francisco. Ensure your travel is arranged.',
+            'event', 'reminder',
+            null, null, null,
+            $unread,
+            now()->subDays(2)->toDateTimeString()
+        );
+
+        $act('p_sarah', 'provider', 'event',
+            'Community event submitted for review — Perinatal Mental Health Workshop',
+            'info',
+            'Your event submission is under admin review. You will be notified once approved or if changes are needed.',
+            'event', 'submitted',
+            null, null, null,
+            $unread,
+            now()->subDays(1)->toDateTimeString()
+        );
+
         // ══════════════════════════════════════════════════════════════════════
         // INSERT ALL
         // ══════════════════════════════════════════════════════════════════════

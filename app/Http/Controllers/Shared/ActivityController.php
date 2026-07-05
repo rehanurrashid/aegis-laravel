@@ -96,6 +96,7 @@ class ActivityController extends Controller
             ['key' => 'payment',      'label' => 'Financial',     'icon' => 'credit-card'],
             ['key' => 'account',      'label' => 'Account',       'icon' => 'log-in'],
             ['key' => 'referral',     'label' => 'Referrals',     'icon' => 'refresh-cw'],
+            ['key' => 'event',        'label' => 'Events',        'icon' => 'calendar'],
         ];
 
         $baseTotal = min((clone $baseQuery)->count(), 500);
