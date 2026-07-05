@@ -15,6 +15,29 @@
 import flatpickr from 'flatpickr'
 import TomSelect from 'tom-select'
 
+// Helper — sets all flatpickr inline widths to our compact 280px (8px padding each side = 264px inner)
+// Called in both onReady (initial render) and onOpen (after DOM re-attach)
+function _fpSetWidths(fp) {
+  const CAL   = 280
+  const INNER = 264  // CAL - 8px padding × 2
+  if (fp.calendarContainer) {
+    fp.calendarContainer.style.width    = CAL + 'px'
+    fp.calendarContainer.style.maxWidth = CAL + 'px'
+  }
+  if (fp.daysContainer) {
+    fp.daysContainer.style.width = INNER + 'px'
+    fp.daysContainer.querySelectorAll('.dayContainer').forEach(c => {
+      c.style.width    = INNER + 'px'
+      c.style.minWidth = INNER + 'px'
+      c.style.maxWidth = INNER + 'px'
+    })
+  }
+  const rC = fp.calendarContainer?.querySelector('.flatpickr-rContainer')
+  if (rC) rC.style.width = INNER + 'px'
+  const iC = fp.calendarContainer?.querySelector('.flatpickr-innerContainer')
+  if (iC) iC.style.width = INNER + 'px'
+}
+
 // ─── Configs ──────────────────────────────────────────────────────────────────
 const FLATPICKR_CONFIG = {
   dateFormat:    'Y-m-d',
@@ -23,35 +46,15 @@ const FLATPICKR_CONFIG = {
   allowInput:    true,
   disableMobile: false,
   appendTo:      document.body,
-  // 42px day cells (slightly larger than flatpickr default 39px)
-  // 42 × 7 = 294px dayContainer + 12px padding each side = 318px calendar
+  // 280px calendar, 8px side padding → 264px inner, calc(264/7) ≈ 37px cells
   onReady(_, __, fp) {
     fp.altInput?.classList.add('form-input', 'flatpickr-alt-field')
     fp.altInput?.removeAttribute('readonly')
-    // Patch the inline-style widths flatpickr already wrote to the DOM
-    if (fp.daysContainer) {
-      const DAY = 42
-      const total = DAY * 7  // 294
-      fp.daysContainer.style.width = total + 'px'
-      fp.daysContainer.querySelectorAll('.dayContainer').forEach(c => {
-        c.style.width    = total + 'px'
-        c.style.minWidth = total + 'px'
-        c.style.maxWidth = total + 'px'
-      })
-      // Also stretch rContainer and innerContainer so right cells don't clip
-      const rContainer = fp.calendarContainer?.querySelector('.flatpickr-rContainer')
-      if (rContainer) {
-        rContainer.style.width = total + 'px'
-      }
-      const innerContainer = fp.calendarContainer?.querySelector('.flatpickr-innerContainer')
-      if (innerContainer) {
-        innerContainer.style.width = total + 'px'
-      }
-      if (fp.calendarContainer) {
-        fp.calendarContainer.style.width    = (total + 24) + 'px'
-        fp.calendarContainer.style.maxWidth = (total + 24) + 'px'
-      }
-    }
+    _fpSetWidths(fp)
+  },
+  onOpen(_, __, fp) {
+    // Re-apply after DOM re-attach — flatpickr may re-inject inline widths
+    _fpSetWidths(fp)
   },
 }
 
