@@ -219,7 +219,7 @@ class NewsService
         $event->category       = strtolower($data['type'] ?? 'training');
         $event->starts_at      = $data['date'] ?? null;
         $event->organizer      = $data['organizer'] ?? null;
-        $event->rsvp_url       = $data['url'] ?? null;
+        $event->rsvp_url       = $data['external_url'] ?? null;
         $event->is_free        = ($data['price_cents'] ?? 0) === 0;
         $event->price_cents    = (int) ($data['price_cents'] ?? 0);
         $event->ceu_credits    = (float) ($data['ceu'] ?? 0);

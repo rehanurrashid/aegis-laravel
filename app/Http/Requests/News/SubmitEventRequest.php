@@ -23,7 +23,7 @@ class SubmitEventRequest extends FormRequest
             'location'    => ['nullable', 'string', 'max:191'],
             'price_cents' => ['nullable', 'integer', 'min:0'],
             'ceu'         => ['nullable', 'numeric', 'min:0', 'max:99'],
-            'url'         => ['nullable', 'url', 'max:500'],
+            'external_url' => ['nullable', 'url', 'max:500'],
             'organizer'   => ['nullable', 'string', 'max:191'],
         ];
     }

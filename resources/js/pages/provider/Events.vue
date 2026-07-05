@@ -162,19 +162,33 @@
 
             <!-- Actions -->
             <div class="evt-actions">
-              <button
-                class="evt-btn evt-btn-primary"
-                :class="{ 'is-registered': registeredIds.has(ev.id) }"
-                @click="handleRegister(ev)"
-              >
-                <template v-if="registeredIds.has(ev.id)">
-                  <AegisIcon name="check" :size="13" /> Registered
-                </template>
-                <template v-else>
-                  {{ ev.is_free ? 'Register Free' : 'Register Now' }}
-                </template>
-              </button>
-              <button class="evt-btn evt-btn-secondary" @click="openDetail(ev)">View Details</button>
+              <!-- External event: direct link, no in-app RSVP -->
+              <template v-if="ev.is_external">
+                <a
+                  :href="ev.external_url"
+                  target="_blank"
+                  rel="noopener"
+                  class="evt-btn evt-btn-primary"
+                >
+                  <AegisIcon name="external-link" :size="13" /> View Event
+                </a>
+              </template>
+              <!-- Internal event: in-app RSVP flow -->
+              <template v-else>
+                <button
+                  class="evt-btn evt-btn-primary"
+                  :class="{ 'is-registered': registeredIds.has(ev.id) }"
+                  @click="handleRegister(ev)"
+                >
+                  <template v-if="registeredIds.has(ev.id)">
+                    <AegisIcon name="check" :size="13" /> Registered
+                  </template>
+                  <template v-else>
+                    {{ ev.is_free ? 'Register Free' : 'Register Now' }}
+                  </template>
+                </button>
+              </template>
+              <button class="evt-btn evt-btn-secondary" @click="openDetail(ev)">Details</button>
             </div>
           </div>
         </div>
@@ -278,33 +292,90 @@
     <!-- EVENT DETAIL MODAL -->
     <AegisModal v-model="modals.detail" title="Event Details" size="lg">
       <template v-if="detailEvent">
+
+        <!-- Eyebrow + title -->
         <div class="evt-detail-heading">
-          <div class="evt-detail-eyebrow">Aegis Event</div>
-          <div class="evt-detail-title">{{ detailEvent.title }}</div>
+          <div class="evt-detail-eyebrow-row">
+            <span class="evt-category" :class="evtCategory(detailEvent)">{{ evtCategoryLabel(detailEvent) }}</span>
+            <span v-if="detailEvent.is_external" class="evt-external-badge">
+              <AegisIcon name="external-link" :size="11" /> External Event
+            </span>
+          </div>
+          <div class="evt-detail-title" style="margin-top:10px">{{ detailEvent.title }}</div>
+          <div v-if="detailEvent.organizer" class="evt-detail-organizer">
+            <AegisIcon name="users" :size="13" /> {{ detailEvent.organizer }}
+          </div>
         </div>
+
+        <!-- Key meta chips -->
         <div class="evt-detail-meta">
-          <div class="evt-detail-chip"><strong>{{ fmtFullDate(detailEvent.starts_at) }}</strong></div>
-          <div v-if="detailEvent.location" class="evt-detail-chip"><strong>{{ detailEvent.location }}</strong></div>
-          <div v-if="detailEvent.ceu_credits > 0" class="evt-detail-chip"><strong>{{ fmtCeu(detailEvent.ceu_credits) }} CEU{{ detailEvent.ceu_credits === 1 ? '' : 's' }}</strong></div>
-          <div class="evt-detail-chip"><strong>{{ detailEvent.is_free ? 'Free' : 'Paid' }}</strong></div>
+          <div class="evt-detail-chip">
+            <AegisIcon name="calendar" :size="13" />
+            <strong>{{ fmtFullDate(detailEvent.starts_at) }}</strong>
+          </div>
+          <div v-if="detailEvent.ends_at" class="evt-detail-chip">
+            <AegisIcon name="clock" :size="13" />
+            <strong>Ends {{ fmtFullDate(detailEvent.ends_at) }}</strong>
+          </div>
+          <div v-if="detailEvent.location" class="evt-detail-chip">
+            <AegisIcon :name="detailEvent.location?.toLowerCase().includes('online') || detailEvent.location?.toLowerCase().includes('virtual') || detailEvent.location?.toLowerCase().includes('zoom') ? 'monitor' : 'map-pin'" :size="13" />
+            <strong>{{ detailEvent.location }}</strong>
+          </div>
+          <div v-if="detailEvent.ceu_credits > 0" class="evt-detail-chip is-ceu">
+            <AegisIcon name="award" :size="13" />
+            <strong>{{ fmtCeu(detailEvent.ceu_credits) }} CEU Credit{{ detailEvent.ceu_credits === 1 ? '' : 's' }}</strong>
+          </div>
+          <div class="evt-detail-chip" :class="detailEvent.is_free ? 'is-free' : 'is-paid'">
+            <AegisIcon :name="detailEvent.is_free ? 'check-circle' : 'dollar'" :size="13" />
+            <strong>{{ detailEvent.is_free ? 'Free' : '$' + ((detailEvent.price_cents ?? 0) / 100).toFixed(2) }}</strong>
+          </div>
+          <div v-if="detailEvent.attendee_count > 0" class="evt-detail-chip">
+            <AegisIcon name="users" :size="13" />
+            <strong>{{ detailEvent.attendee_count }} registered</strong>
+          </div>
         </div>
-        <p v-if="detailEvent.description" class="evt-detail-desc">{{ detailEvent.description }}</p>
-        <div v-if="detailEvent.rsvp_url" class="evt-detail-link">
-          <a :href="detailEvent.rsvp_url" target="_blank" rel="noopener">Event details &amp; RSVP →</a>
+
+        <!-- Description -->
+        <p v-if="detailEvent.description" class="evt-detail-desc" style="white-space:pre-line">{{ detailEvent.description }}</p>
+
+        <!-- External link (reference only — not for RSVP) -->
+        <div v-if="detailEvent.external_url" class="evt-detail-external">
+          <AegisIcon name="external-link" :size="13" />
+          <a :href="detailEvent.external_url" target="_blank" rel="noopener">
+            View on external site →
+          </a>
+          <span class="evt-detail-external-note">Registration handled on the organizer's platform.</span>
         </div>
+
+        <!-- Registration status banner (internal events) -->
+        <div v-if="!detailEvent.is_external && registeredIds.has(detailEvent.id)" class="evt-detail-registered-banner">
+          <AegisIcon name="check-circle" :size="16" />
+          You're registered for this event. A confirmation was sent to your email.
+        </div>
+
       </template>
       <template #footer>
         <button class="btn btn-outline" @click="modals.detail = false">Close</button>
         <template v-if="detailEvent">
-          <!-- Already registered: offer to cancel -->
+          <!-- External event: open external site -->
+          <a
+            v-if="detailEvent.is_external"
+            :href="detailEvent.external_url"
+            target="_blank"
+            rel="noopener"
+            class="btn btn-primary"
+          >
+            <AegisIcon name="external-link" :size="13" /> Register on Site
+          </a>
+          <!-- Internal: already registered → cancel -->
           <button
-            v-if="registeredIds.has(detailEvent.id)"
+            v-else-if="registeredIds.has(detailEvent.id)"
             class="btn btn-outline"
             @click="modals.detail = false; openCancelModal(detailEvent)"
           >
             <AegisIcon name="x" :size="13" /> Cancel Registration
           </button>
-          <!-- Not registered: offer to register -->
+          <!-- Internal: not registered → register -->
           <button
             v-else
             class="btn btn-primary"
@@ -436,16 +507,16 @@
         <div v-if="fieldError('description')" class="form-error">{{ fieldError('description') }}</div>
       </div>
       <div class="form-group">
-        <label class="form-label">Registration URL</label>
+        <label class="form-label">External Event URL</label>
         <input
-          v-model="submitForm.url"
+          v-model="submitForm.external_url"
           type="url"
           class="form-input"
-          :class="{ 'is-error': fieldError('url') }"
-          placeholder="https://…"
-          @blur="v$.url.$touch()"
+          :class="{ 'is-error': fieldError('external_url') }"
+          placeholder="https://… (only if event is hosted outside Aegis)"
+          @blur="v$.external_url.$touch()"
         />
-        <div v-if="fieldError('url')" class="form-error">{{ fieldError('url') }}</div>
+        <div v-if="fieldError('external_url')" class="form-error">{{ fieldError('external_url') }}</div>
       </div>
       <div class="form-group">
         <label class="form-label">Organizer / Sponsor</label>
@@ -608,7 +679,7 @@ const detailEvent  = ref(null)
 const regForm = reactive({ email: '', notes: '' })
 const submitForm = reactive({
   title: '', type: '', date: '', price_cents: 0, ceu: 0,
-  location: '', description: '', url: '', organizer: '',
+  location: '', description: '', external_url: '', organizer: '',
 })
 
 // Dollar display for submit form price
@@ -630,7 +701,7 @@ const submitRules = computed(() => ({
     required: helpers.withMessage('Description is required.', required),
     max:      helpers.withMessage('Description must be 2000 characters or less.', maxLength(2000)),
   },
-  url:         {
+  external_url: {
     validUrl: helpers.withMessage('Enter a valid URL (https://…).', (v) => !v || /^https?:\/\/.+/.test(v)),
   },
   ceu:         { min: helpers.withMessage('CEU credits cannot be negative.', minValue(0)) },
@@ -1037,13 +1108,15 @@ function changeCalMonth(dir) {
 
 /* ── Modal detail extras ─────────────────────────────────────────── */
 .evt-detail-heading  { margin-bottom: 14px; }
+.evt-detail-eyebrow-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .evt-detail-eyebrow  { font-size: 10px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--text-4); margin-bottom: 6px; }
 .evt-detail-title    { font-family: var(--font-serif); font-size: 19px; font-weight: 700; color: var(--text); line-height: 1.35; }
-.evt-detail-desc     { font-size: 13px; color: var(--text-2); line-height: 1.65; margin: 0 0 12px; }
-.evt-detail-link     { font-size: 12px; color: var(--gold-dark); font-weight: 700; }
-.evt-detail-link a   { color: inherit; text-decoration: none; }
-.evt-detail-link a:hover { text-decoration: underline; }
-.evt-detail-meta     { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; }
+.evt-detail-organizer {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--text-3); font-weight: 500; margin-top: 6px;
+}
+.evt-detail-desc     { font-size: 13px; color: var(--text-2); line-height: 1.65; margin: 0 0 16px; }
+.evt-detail-meta     { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
 .evt-detail-chip {
   display: inline-flex; align-items: center; gap: 6px;
   background: var(--surface-2); border: 1px solid var(--border);
@@ -1051,6 +1124,36 @@ function changeCalMonth(dir) {
   font-size: 12px; color: var(--text-2);
 }
 .evt-detail-chip strong { color: var(--text); font-weight: 700; }
+.evt-detail-chip.is-ceu  { background: var(--badge-bg-gold); border-color: var(--gold); color: var(--gold-dark); }
+.evt-detail-chip.is-ceu strong { color: var(--gold-dark); }
+.evt-detail-chip.is-free { background: var(--green-light); border-color: var(--green); color: var(--green-dark); }
+.evt-detail-chip.is-free strong { color: var(--green-dark); }
+.evt-detail-chip.is-paid { background: var(--surface-2); color: var(--text-2); }
+
+.evt-detail-external {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 12px; color: var(--gold-dark); font-weight: 600;
+  background: var(--badge-bg-gold); border: 1px solid var(--gold);
+  border-radius: var(--radius); padding: 10px 14px; margin-bottom: 14px;
+}
+.evt-detail-external a { color: var(--gold-dark); text-decoration: none; font-weight: 700; }
+.evt-detail-external a:hover { text-decoration: underline; }
+.evt-detail-external-note { font-size: 11px; color: var(--text-3); font-weight: 400; }
+
+.evt-external-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+  padding: 3px 8px; border-radius: var(--radius-full);
+  background: var(--blue-light); color: var(--blue-dark);
+}
+
+.evt-detail-registered-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--green-light); border: 1px solid var(--green);
+  border-radius: var(--radius); padding: 12px 16px;
+  font-size: 13px; font-weight: 600; color: var(--green-dark);
+  margin-bottom: 4px;
+}
 
 /* ── Responsive ─────────────────────────────────────────────────── */
 @media (max-width: 1100px) {

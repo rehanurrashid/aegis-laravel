@@ -124,8 +124,11 @@ class NewsController extends Controller
 
         return Inertia::render('provider/Events', [
             'events'            => $allEvents->map(fn($e) => array_merge($e->toArray(), [
-                'ceu_credits' => (float) $e->ceu_credits,
-                'is_free'     => (bool) $e->is_free,
+                'ceu_credits'    => (float) $e->ceu_credits,
+                'is_free'        => (bool) $e->is_free,
+                'external_url'   => $e->rsvp_url,
+                'attendee_count' => count($e->rsvps_json ?? []),
+                'is_external'    => !empty($e->rsvp_url),
             ]))->values(),
             'countTotal'        => $upcomingAll->count(),
             'registeredCount'   => $registeredCount,
@@ -133,7 +136,9 @@ class NewsController extends Controller
             'ceuRows'           => $ceuRows,
             'ceuTranscript'     => $ceuTranscript->values(),
             'myEvents'          => $myEvents->map(fn($e) => array_merge($e->toArray(), [
-                'ceu_credits' => (float) $e->ceu_credits,
+                'ceu_credits'  => (float) $e->ceu_credits,
+                'external_url' => $e->rsvp_url,
+                'is_external'  => !empty($e->rsvp_url),
             ]))->values(),
             'registeredEventIds'=> $registeredIds,
             'eventDays'         => $eventDays,
