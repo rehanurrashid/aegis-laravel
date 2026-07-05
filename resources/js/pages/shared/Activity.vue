@@ -393,6 +393,7 @@ const quickFilters = [
   { key: 'messages',  label: 'Messages',     icon: 'message-square',  filter: { event_type: 'message' } },
   { key: 'support',   label: 'Support',      icon: 'life-buoy',       filter: { event_type: 'support' } },
   { key: 'tasks',     label: 'Tasks',        icon: 'check-circle',    filter: { event_type: 'task' } },
+  { key: 'events',    label: 'Events',       icon: 'calendar',        filter: { event_type: 'event' } },
   { key: 'unread',    label: 'Unread',       icon: 'bell',            filter: { unread: '1' } },
 ]
 

@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Enums\ActivitySeverity;
 use App\Events\News\EventRsvpReceived;
+use App\Events\News\EventSubmitted;
 use App\Events\News\NewsCommented;
 use App\Events\News\NewsPostPublished;
 use App\Models\NewsComment;
@@ -42,6 +43,22 @@ class NewsService
             'created_at'      => now(),
         ]);
 
+        // Actor log
+        $this->activity->log(
+            $author->id,
+            'provider',
+            'event',
+            ActivitySeverity::Info,
+            'news_post_published',
+            'Post published',
+            "You published \"{$post->title}\" to the Aegis news feed.",
+            NewsPost::class,
+            $post->id,
+            null,
+            'log',
+            $author->id,
+        );
+
         event(new NewsPostPublished($post));
         return $post;
     }
@@ -68,18 +85,41 @@ class NewsService
             'created_at' => now(),
         ]);
 
-        event(new NewsCommented($comment));
+        // Actor log
+        $this->activity->log(
+            $author->id,
+            'provider',
+            'event',
+            ActivitySeverity::Info,
+            'news_comment_posted',
+            'Comment posted',
+            "You commented on \"{$post->title}\".",
+            NewsComment::class,
+            $comment->id,
+            $post->author_id,
+            'log',
+            $author->id,
+        );
 
+        // Notification to post author (if different from commenter)
         if ($post->author_id && $post->author_id !== $author->id) {
             $this->activity->log(
-                $post->author_id, 'provider', 'message', ActivitySeverity::Info,
+                $post->author_id,
+                'provider',
+                'event',
+                ActivitySeverity::Info,
                 'news_commented',
                 "{$author->display_name} commented on your post",
                 Str::limit($body, 120),
-                'news_post', $post->id, $author->id
+                NewsComment::class,
+                $comment->id,
+                $author->id,
+                'notification',
+                $author->id,
             );
         }
 
+        event(new NewsCommented($comment));
         return $comment;
     }
 
@@ -120,6 +160,22 @@ class NewsService
         $rsvps[$attendee->id] = ['status' => $status, 'at' => now()->toIso8601String()];
         $event->update(['rsvps_json' => $rsvps]);
 
+        // Actor log
+        $this->activity->log(
+            $attendee->id,
+            'provider',
+            'event',
+            ActivitySeverity::Info,
+            'event_registered',
+            'Registered for event',
+            "You registered for \"{$event->title}\".",
+            NewsEvent::class,
+            $event->id,
+            null,
+            'log',
+            $attendee->id,
+        );
+
         event(new EventRsvpReceived($event, $attendee));
         return $event->fresh();
     }
@@ -129,6 +185,23 @@ class NewsService
         $rsvps = $event->rsvps_json ?? [];
         unset($rsvps[$attendee->id]);
         $event->update(['rsvps_json' => $rsvps]);
+
+        // Actor log (silent — no email, no notification to others)
+        $this->activity->log(
+            $attendee->id,
+            'provider',
+            'event',
+            ActivitySeverity::Info,
+            'event_registration_cancelled',
+            'Event registration cancelled',
+            "You cancelled your registration for \"{$event->title}\".",
+            NewsEvent::class,
+            $event->id,
+            null,
+            'log',
+            $attendee->id,
+        );
+
         return $event->fresh();
     }
 
@@ -155,6 +228,23 @@ class NewsService
         $event->status         = 'pending';
         $event->save();
 
+        // Actor log
+        $this->activity->log(
+            $submitter->id,
+            'provider',
+            'event',
+            ActivitySeverity::Info,
+            'event_submitted',
+            'Community event submitted for review',
+            "You submitted \"{$event->title}\" for review. We'll respond within 2 business days.",
+            NewsEvent::class,
+            $event->id,
+            null,
+            'log',
+            $submitter->id,
+        );
+
+        event(new EventSubmitted($event, $submitter));
         return $event;
     }
 

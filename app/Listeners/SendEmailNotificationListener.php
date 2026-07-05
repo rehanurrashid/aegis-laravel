@@ -16,6 +16,10 @@ use App\Events\Referral\ReferralDeclined;
 use App\Events\Referral\ReferralSent;
 use App\Events\Network\ConnectionAccepted;
 use App\Events\Network\ConnectionRequestSent;
+use App\Events\News\EventRsvpReceived;
+use App\Events\News\EventSubmitted;
+use App\Events\News\NewsCommented;
+use App\Events\News\NewsPostPublished;
 use App\Events\Business\EngagementRequested;
 use App\Events\Service\ServiceRequestSubmitted;
 use App\Events\Business\ContractSigned;
@@ -110,6 +114,10 @@ class SendEmailNotificationListener
             $event instanceof ConnectionRequestSent   => $this->connectionRequestSent($event),
             $event instanceof EngagementRequested     => $this->engagementRequested($event),
             $event instanceof ServiceRequestSubmitted => $this->serviceRequestSubmitted($event),
+            $event instanceof NewsPostPublished       => [],   // fan-out to subscribers handled by ActivityFanoutListener
+            $event instanceof EventRsvpReceived       => $this->eventRsvpReceived($event),
+            $event instanceof NewsCommented           => $this->newsCommented($event),
+            $event instanceof EventSubmitted          => $this->eventSubmitted($event),
             default                                   => [],
         };
     }
@@ -462,25 +470,62 @@ class SendEmailNotificationListener
         ]];
     }
 
-    // ── T58/T59: service request ─────────────────────────────────────────────
-    private function serviceRequestSubmitted(ServiceRequestSubmitted $e): array
+    // ── T70: event RSVP confirmation ─────────────────────────────────────────
+    private function eventRsvpReceived(EventRsvpReceived $e): array
     {
-        $req = $e->request;
-        return [
-            // T58 — practitioner receives the request
-            [
-                'user_id'  => $req->practitioner_id,
-                'gate_key' => 'notify_services',
-                'template' => 'emails.gaps.58-service-inquiry-received',
-                'data'     => ['service_request_id' => $req->id],
+        $ev       = $e->event;
+        $attendee = $e->attendee;
+        return [[
+            'user_id'  => $attendee->id,
+            'gate_key' => 'notify_email',
+            'template' => 'emails.news.70-event-rsvp',
+            'data'     => [
+                'practitioner_name' => $attendee->display_name,
+                'event_title'       => $ev->title,
+                'event_date'        => $ev->starts_at?->format('l, F j, Y \a\t g:i A') ?? null,
+                'event_location'    => $ev->location,
+                'ceu_credits'       => (float) ($ev->ceu_credits ?? 0),
+                'events_url'        => rtrim(config('app.url'), '/') . '/provider/news/events',
             ],
-            // T59 — requester gets confirmation
-            [
-                'user_id'  => $req->inquirer_id,
-                'gate_key' => 'notify_services',
-                'template' => 'emails.gaps.59-service-inquiry-responded',
-                'data'     => ['service_request_id' => $req->id],
+        ]];
+    }
+
+    // ── T71: new comment on post ─────────────────────────────────────────────
+    private function newsCommented(NewsCommented $e): array
+    {
+        $comment = $e->comment;
+        $post    = $comment->post ?? \App\Models\NewsPost::find($comment->post_id);
+        if (!$post || !$post->author_id || $post->author_id === $comment->author_id) {
+            return [];
+        }
+        $commenter = $comment->author ?? \App\Models\User::find($comment->author_id);
+        return [[
+            'user_id'  => $post->author_id,
+            'gate_key' => 'notify_email',
+            'template' => 'emails.news.71-post-commented',
+            'data'     => [
+                'author_name'    => \App\Models\User::find($post->author_id)?->display_name ?? 'there',
+                'commenter_name' => $commenter?->display_name ?? 'A member',
+                'post_title'     => $post->title,
+                'comment_body'   => \Illuminate\Support\Str::limit($comment->body, 200),
+                'post_url'       => rtrim(config('app.url'), '/') . '/provider/news',
             ],
-        ];
+        ]];
+    }
+
+    // ── T72: event submission confirmation ───────────────────────────────────
+    private function eventSubmitted(EventSubmitted $e): array
+    {
+        return [[
+            'user_id'  => $e->submitter->id,
+            'gate_key' => 'notify_email',
+            'template' => 'emails.news.72-event-submitted',
+            'data'     => [
+                'submitter_name' => $e->submitter->display_name,
+                'event_title'    => $e->event->title,
+                'event_date'     => $e->event->starts_at?->format('F j, Y') ?? null,
+            ],
+        ]];
     }
 }
+

@@ -40,6 +40,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\News\NewsPostPublished::class,        Listeners\ActivityFanoutListener::class);
         Event::listen(Events\News\NewsCommented::class,            Listeners\ActivityFanoutListener::class);
         Event::listen(Events\News\EventRsvpReceived::class,        Listeners\ActivityFanoutListener::class);
+        Event::listen(Events\News\EventSubmitted::class,           Listeners\ActivityFanoutListener::class);
         Event::listen(Events\Steward\StewardResigned::class,       Listeners\ActivityFanoutListener::class);
         Event::listen(Events\Business\ContractCancelled::class,    Listeners\ActivityFanoutListener::class);
         Event::listen(Events\Business\InvoiceVoided::class,        Listeners\ActivityFanoutListener::class);
@@ -76,6 +77,9 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Admin\UserLocked::class,              Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Auth\EmailVerified::class,            Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\News\NewsPostPublished::class,        Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\News\EventRsvpReceived::class,        Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\News\NewsCommented::class,            Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\News\EventSubmitted::class,           Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Steward\StewardResigned::class,       Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Business\ContractCancelled::class,    Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Business\InvoiceVoided::class,        Listeners\SendEmailNotificationListener::class);
