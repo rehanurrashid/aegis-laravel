@@ -124,6 +124,40 @@ class NewsService
         return $event->fresh();
     }
 
+    public function cancelRsvp(User $attendee, NewsEvent $event): NewsEvent
+    {
+        $rsvps = $event->rsvps_json ?? [];
+        unset($rsvps[$attendee->id]);
+        $event->update(['rsvps_json' => $rsvps]);
+        return $event->fresh();
+    }
+
+    /**
+     * Submit a community event for admin review.
+     * Creates a new NewsEvent with status=pending (not visible on public feed until approved).
+     */
+    public function submitEvent(User $submitter, array $data): NewsEvent
+    {
+        $event = new NewsEvent();
+        $event->id             = 'ne_' . Str::lower(Str::random(12));
+        $event->title          = $data['title'];
+        $event->description    = $data['description'] ?? null;
+        $event->location       = $data['location'] ?? null;
+        $event->category       = strtolower($data['type'] ?? 'training');
+        $event->starts_at      = $data['date'] ?? null;
+        $event->organizer      = $data['organizer'] ?? null;
+        $event->rsvp_url       = $data['url'] ?? null;
+        $event->is_free        = ($data['price_cents'] ?? 0) === 0;
+        $event->price_cents    = (int) ($data['price_cents'] ?? 0);
+        $event->ceu_credits    = (float) ($data['ceu'] ?? 0);
+        $event->role_visibility = 'all';
+        $event->published      = 0;
+        $event->status         = 'pending';
+        $event->save();
+
+        return $event;
+    }
+
     public function feed(string $userRole, int $limit = 20): Collection
     {
         return NewsPost::where('published', 1)

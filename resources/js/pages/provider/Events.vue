@@ -373,12 +373,12 @@
       </div>
       <div class="form-row form-row-2">
         <div class="form-group">
-          <label class="form-label">Price</label>
-          <input v-model="submitForm.price" type="text" class="form-input" placeholder="$0 for free events" />
+          <label class="form-label">Price (USD, leave 0 for free)</label>
+          <input v-model="submitPriceDollars" type="number" min="0" step="0.01" class="form-input" placeholder="0.00" />
         </div>
         <div class="form-group">
           <label class="form-label">CEU Credits Offered</label>
-          <input v-model="submitForm.ceu" type="text" class="form-input" placeholder="e.g. 2 Ethics CEUs" />
+          <input v-model="submitForm.ceu" type="number" min="0" step="0.5" class="form-input" placeholder="0" />
         </div>
       </div>
       <div class="form-group">
@@ -406,9 +406,14 @@
     <!-- CEU TRANSCRIPT MODAL -->
     <AegisModal v-model="modals.ceu" title="My CEU Transcript — 2026" size="lg">
       <div class="stat-chips-row" style="margin-bottom:18px">
-        <AegisStatChip icon="award" value="18.5" label="Total CEUs Earned" />
-        <AegisStatChip icon="alert-circle" value="0 / 3" label="Ethics — Due Mar 1" />
-        <AegisStatChip icon="check-circle" value="6 / 6" label="Practice Mgmt" />
+        <AegisStatChip icon="award" :value="fmtCeu(props.ceuEarned)" label="Total CEUs Earned" />
+        <AegisStatChip
+          v-for="row in props.ceuRows.slice(0,2)"
+          :key="row.category"
+          icon="award"
+          :value="`${fmtCeu(row.earned_hrs)} / ${fmtCeu(row.required_hrs)}`"
+          :label="row.category.split('—')[0].trim()"
+        />
       </div>
       <div class="section-label" style="margin-bottom:8px">Completed CEUs</div>
       <div class="table-wrap">
@@ -460,14 +465,15 @@ const { confirmAction } = useConfirm()
 
 // ── Props (stubs — real data wired in Prompt 2) ─────────────────────────
 const props = defineProps({
-  events:          { type: Array,  default: () => [] },
-  countTotal:      { type: Number, default: 0 },
-  registeredCount: { type: Number, default: 0 },
-  ceuEarned:       { type: [Number, String], default: 0 },
-  ceuRows:         { type: Array,  default: () => [] },
-  myEvents:        { type: Array,  default: () => [] },
-  registeredEventIds: { type: Array, default: () => [] },
-  eventDays:       { type: Object, default: () => ({}) },
+  events:             { type: Array,  default: () => [] },
+  countTotal:         { type: Number, default: 0 },
+  registeredCount:    { type: Number, default: 0 },
+  ceuEarned:          { type: [Number, String], default: 0 },
+  ceuRows:            { type: Array,  default: () => [] },
+  ceuTranscript:      { type: Array,  default: () => [] },
+  myEvents:           { type: Array,  default: () => [] },
+  registeredEventIds: { type: Array,  default: () => [] },
+  eventDays:          { type: Object, default: () => ({}) },
 })
 
 // ── Modal state ──────────────────────────────────────────────────────────
@@ -530,8 +536,15 @@ const detailEvent  = ref(null)
 
 const regForm = reactive({ email: '', notes: '' })
 const submitForm = reactive({
-  title: '', type: '', date: '', price: '', ceu: '',
+  title: '', type: '', date: '', price_cents: 0, ceu: 0,
   location: '', description: '', url: '', organizer: '',
+})
+
+// Dollar display for submit form price
+const submitPriceDollars = ref('')
+watch(submitPriceDollars, v => {
+  const n = parseFloat(v)
+  submitForm.price_cents = isNaN(n) ? 0 : Math.round(n * 100)
 })
 
 // ── Registration ─────────────────────────────────────────────────────────
@@ -548,9 +561,8 @@ function handleRegister(ev) {
 
 function confirmRegistration() {
   if (!pendingEvent.value) return
-  router.post(route('provider.events.register', pendingEvent.value.id), {
-    email: regForm.email,
-    notes: regForm.notes,
+  router.post(route('provider.news.rsvp', { event: pendingEvent.value.id }), {
+    status: 'going',
   }, {
     preserveScroll: true,
     onSuccess: () => {
@@ -574,7 +586,7 @@ function openCancelModal(ev) {
 function confirmCancel() {
   if (!pendingEvent.value) return
   confirmAction(`Cancel registration for "${pendingEvent.value.title}"?`, () => {
-    router.delete(route('provider.events.cancel', pendingEvent.value.id), {
+    router.delete(route('provider.news.events.cancel', { event: pendingEvent.value.id }), {
       preserveScroll: true,
       onSuccess: () => {
         registeredIds.value.delete(pendingEvent.value.id)
@@ -601,12 +613,13 @@ function submitEvent() {
     toast.warning('Please fill in the required fields')
     return
   }
-  router.post(route('provider.events.submit'), { ...submitForm }, {
+  router.post(route('provider.news.events.submit'), { ...submitForm }, {
     preserveScroll: true,
     onSuccess: () => {
       modals.submitEvent = false
       toast.success("Event submitted for review — we'll respond within 2 business days.")
-      Object.keys(submitForm).forEach(k => (submitForm[k] = ''))
+      Object.keys(submitForm).forEach(k => (submitForm[k] = k === 'price_cents' || k === 'ceu' ? 0 : ''))
+      submitPriceDollars.value = ''
     },
     onError: () => toast.error('Submission failed.'),
   })
@@ -614,7 +627,7 @@ function submitEvent() {
 
 // ── Export transcript ────────────────────────────────────────────────────
 function exportTranscript() {
-  router.post(route('provider.events.export-transcript'), {}, {
+  router.post(route('provider.news.events.export-transcript'), {}, {
     preserveScroll: true,
     onSuccess: () => toast.success('Transcript export queued — you will receive an email with the link shortly.'),
     onError: () => toast.error('Export failed.'),
@@ -678,13 +691,8 @@ function evtCategoryLabel(ev) {
   return CAT_LABELS[evtCategory(ev)] ?? 'Event'
 }
 
-// ── CEU transcript rows (static for design pass) ─────────────────────────
-const ceuTranscript = [
-  { course: 'Telehealth Best Practices 2025',        type: 'Webinar',  badge: 'blue',   date: 'Nov 14, 2025', credits: '3.0' },
-  { course: 'Medicare Billing for Mental Health',    type: 'Training', badge: 'teal',   date: 'Sep 22, 2025', credits: '6.0' },
-  { course: 'ADHD Diagnosis & Treatment',            type: 'Workshop', badge: 'orange', date: 'Jul 10, 2025', credits: '4.0' },
-  { course: 'Risk Assessment in Outpatient Settings',type: 'Webinar',  badge: 'blue',   date: 'May 5, 2025',  credits: '5.5' },
-]
+// ── CEU transcript rows — from props (wired in Prompt 2) ─────────────────
+const ceuTranscript = computed(() => props.ceuTranscript ?? [])
 
 // ── Mini calendar ────────────────────────────────────────────────────────
 const today    = new Date()

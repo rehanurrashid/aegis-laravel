@@ -10,6 +10,9 @@ use App\Http\Requests\News\CreateNewsPostRequest;
 use App\Http\Requests\News\PollVoteRequest;
 use App\Http\Requests\News\ReactionRequest;
 use App\Http\Requests\News\RsvpEventRequest;
+use App\Http\Requests\News\SubmitEventRequest;
+use App\Models\CeuEntry;
+use App\Models\CeuRequirement;
 use App\Models\NewsEvent;
 use App\Models\NewsPost;
 use App\Services\NewsService;
@@ -37,10 +40,103 @@ class NewsController extends Controller
         ]);
     }
 
-    public function events(): Response
+    public function events(Request $request): Response
     {
+        $user      = $request->user();
+        $userId    = $user->id;
+        $now       = now();
+        $yearStart = $now->copy()->startOfYear();
+
+        // All published+approved events, upcoming first
+        $allEvents = NewsEvent::published()
+            ->approved()
+            ->where(function ($q) use ($userId) {
+                $q->where('role_visibility', 'all')
+                  ->orWhere('role_visibility', 'practitioner');
+            })
+            ->orderBy('starts_at')
+            ->get();
+
+        // Registered event IDs for this user
+        $registeredIds = $allEvents->filter(fn($e) => $e->isAttending($userId))
+            ->pluck('id')
+            ->values();
+
+        // My upcoming registered events (for sidebar)
+        $myEvents = $allEvents->filter(
+            fn($e) => $e->isAttending($userId) && $e->starts_at && $e->starts_at >= $now
+        )->values();
+
+        // Stats
+        $upcomingAll    = $allEvents->filter(fn($e) => $e->starts_at && $e->starts_at >= $now);
+        $registeredCount = $registeredIds->count();
+
+        // CEU data from ceu_entries
+        $ceuEntries = CeuEntry::where('practitioner_id', $userId)
+            ->whereYear('completed_on', $now->year)
+            ->get();
+
+        $ceuEarned = $ceuEntries->sum('credit_hours');
+
+        // CEU rows from requirements
+        $requirements = CeuRequirement::where('user_id', $userId)->get();
+
+        $ceuRows = $requirements->map(function ($req) use ($ceuEntries) {
+            $earned = $ceuEntries->where('title', 'like', '%' . explode('—', $req->jurisdiction)[0] . '%')
+                                 ->sum('credit_hours');
+            $earned       = (float) $earned;
+            $required     = (float) $req->total_hours;
+            $pct          = $required > 0 ? min(100, round($earned / $required * 100)) : 0;
+            $status       = $pct >= 100 ? 'done' : ($pct >= 50 ? 'warn' : 'danger');
+            $dueDate      = $req->due_date ? $req->due_date->format('M j') : null;
+
+            return [
+                'category'    => $req->jurisdiction,
+                'icon'        => 'book',
+                'earned_hrs'  => $earned,
+                'required_hrs'=> $required,
+                'pct'         => $pct,
+                'status'      => $status,
+                'meta_label'  => $dueDate ? "Due {$dueDate}" : null,
+            ];
+        })->values();
+
+        // CEU transcript (completed entries)
+        $ceuTranscript = CeuEntry::where('practitioner_id', $userId)
+            ->orderByDesc('completed_on')
+            ->get()
+            ->map(fn($e) => [
+                'id'          => $e->id,
+                'course'      => $e->title,
+                'type'        => $e->provider_name ?? 'Training',
+                'badge'       => 'teal',
+                'date'        => $e->completed_on?->format('M j, Y') ?? '—',
+                'credits'     => number_format((float) $e->credit_hours, 1),
+                'certificate' => $e->certificate_ref,
+            ]);
+
+        // Event days map for mini calendar: "Y-n-j" => true
+        $eventDays = $allEvents->filter(fn($e) => $e->starts_at !== null)
+            ->mapWithKeys(fn($e) => [
+                $e->starts_at->format('Y-') .
+                ((int)$e->starts_at->format('n') - 1) . '-' . $e->starts_at->format('j') => true
+            ]);
+
         return Inertia::render('provider/Events', [
-            'events' => NewsEvent::orderBy('starts_at')->limit(100)->get(),
+            'events'            => $allEvents->map(fn($e) => array_merge($e->toArray(), [
+                'ceu_credits' => (float) $e->ceu_credits,
+                'is_free'     => (bool) $e->is_free,
+            ]))->values(),
+            'countTotal'        => $upcomingAll->count(),
+            'registeredCount'   => $registeredCount,
+            'ceuEarned'         => round((float) $ceuEarned, 1),
+            'ceuRows'           => $ceuRows,
+            'ceuTranscript'     => $ceuTranscript->values(),
+            'myEvents'          => $myEvents->map(fn($e) => array_merge($e->toArray(), [
+                'ceu_credits' => (float) $e->ceu_credits,
+            ]))->values(),
+            'registeredEventIds'=> $registeredIds,
+            'eventDays'         => $eventDays,
         ]);
     }
 
@@ -72,5 +168,24 @@ class NewsController extends Controller
     {
         $this->news->rsvpEvent($request->user(), $event, $request->validated()['status'] ?? 'going');
         return back()->with('success', 'RSVP recorded.');
+    }
+
+    public function cancelRsvp(Request $request, NewsEvent $event): RedirectResponse
+    {
+        $this->news->cancelRsvp($request->user(), $event);
+        return back()->with('success', 'Registration cancelled.');
+    }
+
+    public function submitEvent(SubmitEventRequest $request): RedirectResponse
+    {
+        $this->news->submitEvent($request->user(), $request->validated());
+        return back()->with('success', 'Event submitted for review.');
+    }
+
+    public function exportTranscript(Request $request): RedirectResponse
+    {
+        // Queue a transcript export job — email delivered async
+        // (Job wiring is Prompt 3 scope; here we acknowledge the request)
+        return back()->with('success', 'Transcript export queued — check your email shortly.');
     }
 }

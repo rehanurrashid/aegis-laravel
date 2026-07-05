@@ -248,6 +248,9 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
         Route::post('/news/{post}/react', [NewsController::class, 'react'])->name('news.react');
         Route::post('/news/{post}/vote', [NewsController::class, 'votePoll'])->name('news.vote');
         Route::post('/news/events/{event}/rsvp', [NewsController::class, 'rsvp'])->name('news.rsvp');
+        Route::delete('/news/events/{event}/rsvp', [NewsController::class, 'cancelRsvp'])->name('news.events.cancel');
+        Route::post('/news/events/submit', [NewsController::class, 'submitEvent'])->name('news.events.submit');
+        Route::post('/news/events/export-transcript', [NewsController::class, 'exportTranscript'])->name('news.events.export-transcript');
 
         // Profile
         Route::get('/profile', [ProviderProfileController::class, 'index'])->name('profile.index');
