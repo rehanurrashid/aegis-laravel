@@ -422,10 +422,10 @@
       <div class="form-group">
         <label class="form-label">Content <span class="required">*</span></label>
         <textarea class="form-textarea" v-model="createForm.body" rows="6" maxlength="2000"
-                  :class="{ 'is-error': fieldError('createForm.body') }"
+                  :class="{ 'is-error': anyError(vCreate, createForm, 'body') }"
                   placeholder="Share your update, question, or resource…"
-                  @blur="v$.createForm.body.$touch()" />
-        <div v-if="fieldError('createForm.body')" class="form-error">{{ fieldError('createForm.body') }}</div>
+                  @blur="vCreate.body.$touch()" />
+        <div v-if="anyError(vCreate, createForm, 'body')" class="form-error">{{ anyError(vCreate, createForm, 'body') }}</div>
         <div class="form-hint">{{ createForm.body.length }} / 2000</div>
       </div>
       <div class="form-group">
@@ -435,7 +435,7 @@
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.createPost = false">Cancel</button>
-        <button type="button" class="btn btn-primary" :disabled="inertiaCreateForm.processing" @click="submitCreatePost">
+        <button type="button" class="btn btn-primary" :disabled="createForm.processing" @click="submitCreatePost">
           <AegisIcon name="send" :size="14" /> Publish Post
         </button>
       </template>
@@ -450,14 +450,14 @@
       <div class="form-group">
         <label class="form-label">Content <span class="required">*</span></label>
         <textarea class="form-textarea" v-model="editForm.body" rows="6" maxlength="2000"
-                  :class="{ 'is-error': fieldError('editForm.body') }"
-                  @blur="v$.editForm.body.$touch()" />
-        <div v-if="fieldError('editForm.body')" class="form-error">{{ fieldError('editForm.body') }}</div>
+                  :class="{ 'is-error': anyError(vEdit, editForm, 'body') }"
+                  @blur="vEdit.body.$touch()" />
+        <div v-if="anyError(vEdit, editForm, 'body')" class="form-error">{{ anyError(vEdit, editForm, 'body') }}</div>
         <div class="form-hint">{{ editForm.body.length }} / 2000</div>
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.editPost = false">Cancel</button>
-        <button type="button" class="btn btn-primary" :disabled="inertiaEditForm.processing" @click="submitEditPost">
+        <button type="button" class="btn btn-primary" :disabled="editForm.processing" @click="submitEditPost">
           <AegisIcon name="check" :size="14" /> Save Changes
         </button>
       </template>
@@ -592,11 +592,9 @@ function toggleComments(id) {
 function submitComment(post) {
   const text = (commentInputs[post.id] ?? '').trim()
   if (!text) return
-
-  const form = useForm({ body: text })
-  form.post(route('provider.news.comment', { post: post.id }), {
+  router.post(route('provider.news.comment', { post: post.id }), { body: text }, {
     preserveScroll: true,
-    preserveState: true,
+    preserveState:  true,
     onSuccess: () => {
       commentInputs[post.id] = ''
       toast.success('Comment posted')
@@ -611,12 +609,10 @@ function toggleLike(post) {
   post.is_liked   = !post.is_liked
   post.like_count = post.is_liked ? (post.like_count + 1) : Math.max(0, post.like_count - 1)
 
-  const form = useForm({ reaction_type: 'like' })
-  form.post(route('provider.news.react', { post: post.id }), {
+  router.post(route('provider.news.react', { post: post.id }), { reaction_type: 'like' }, {
     preserveScroll: true,
     preserveState:  true,
     onError: () => {
-      // rollback
       post.is_liked   = !post.is_liked
       post.like_count = post.is_liked ? (post.like_count + 1) : Math.max(0, post.like_count - 1)
     },
@@ -628,8 +624,7 @@ function toggleSave(post) {
   post.is_saved = !post.is_saved
   toast.success(post.is_saved ? 'Saved to your library' : 'Removed from saved')
 
-  const form = useForm({ reaction_type: 'save' })
-  form.post(route('provider.news.react', { post: post.id }), {
+  router.post(route('provider.news.react', { post: post.id }), { reaction_type: 'save' }, {
     preserveScroll: true,
     preserveState:  true,
     onError: () => {
@@ -672,8 +667,7 @@ function votePoll(post, opt) {
   post.my_poll_vote = opt.key
   if (opt) opt.votes = (opt.votes ?? 0) + 1
 
-  const form = useForm({ option_key: opt.key })
-  form.post(route('provider.news.vote', { post: post.id }), {
+  router.post(route('provider.news.vote', { post: post.id }), { option_key: opt.key }, {
     preserveScroll: true,
     preserveState:  true,
     onSuccess: () => toast.success('Vote recorded'),
@@ -688,10 +682,9 @@ function votePoll(post, opt) {
 // ── RSVP Event ────────────────────────────────────────────────────────────────
 function rsvpEvent(event) {
   confirmAction('RSVP for <strong>' + (event.title || 'this event') + '</strong>? You will receive a confirmation email with calendar details.', () => {
-    const form = useForm({ status: 'going' })
-    form.post(route('provider.news.rsvp', { event: event.id }), {
+    router.post(route('provider.news.rsvp', { event: event.id }), { status: 'going' }, {
       preserveScroll: true,
-      preserveState: true,
+      preserveState:  true,
       onSuccess: () => toast.success('Registered — check your email'),
       onError:   () => toast.error('Could not register for event.'),
     })
@@ -712,38 +705,9 @@ function confirmDelete(postId) {
 // ── Edit ──────────────────────────────────────────────────────────────────────
 const editTargetId = ref(null)
 
-// useForm must be at top level
-const inertiaEditForm = useForm({ title: '', body: '' })
-
-function openEdit(post) {
-  editTargetId.value    = post.id
-  inertiaEditForm.title = post.title ?? ''
-  inertiaEditForm.body  = post.body  ?? ''
-  editForm.title        = post.title ?? ''
-  editForm.body         = post.body  ?? ''
-  modals.editPost = true
-}
-
-async function submitEditPost() {
-  const ok = await v$.value.$validate()
-  if (!ok) return
-
-  inertiaEditForm.title = editForm.title
-  inertiaEditForm.body  = editForm.body
-
-  inertiaEditForm.patch(route('provider.news.update', { post: editTargetId.value }), {
-    preserveScroll: true,
-    onSuccess: () => {
-      modals.editPost = false
-      toast.success('Post updated')
-      v$.value.$reset()
-    },
-    onError: () => toast.error('Could not update post.'),
-  })
-}
-
-// ── Create ────────────────────────────────────────────────────────────────────
-const inertiaCreateForm = useForm({
+// ── useForm instances — single source of truth, bound directly to template ────
+// ONE useForm per modal. No secondary reactive() copy. v-model binds here directly.
+const createForm = useForm({
   post_type: 'provider',
   audience:  'all',
   title:     '',
@@ -751,27 +715,43 @@ const inertiaCreateForm = useForm({
   tags:      '',
 })
 
-async function submitCreatePost() {
-  const ok = await v$.value.$validate()
+const editForm = useForm({ title: '', body: '' })
+
+function openEdit(post) {
+  editTargetId.value = post.id
+  editForm.title     = post.title ?? ''
+  editForm.body      = post.body  ?? ''
+  editForm.clearErrors()
+  vEdit.value.$reset()
+  modals.editPost = true
+}
+
+async function submitEditPost() {
+  const ok = await vEdit.value.$validate()
   if (!ok) return
+  editForm.patch(route('provider.news.update', { post: editTargetId.value }), {
+    preserveScroll: true,
+    onSuccess: () => {
+      modals.editPost = false
+      toast.success('Post updated')
+      vEdit.value.$reset()
+    },
+    onError: () => toast.error('Could not update post.'),
+  })
+}
 
-  inertiaCreateForm.post_type = createForm.post_type
-  inertiaCreateForm.audience  = createForm.audience
-  inertiaCreateForm.title     = createForm.title
-  inertiaCreateForm.body      = createForm.body
-  inertiaCreateForm.tags      = createForm.tags
-
-  inertiaCreateForm.post(route('provider.news.store'), {
+async function submitCreatePost() {
+  const ok = await vCreate.value.$validate()
+  if (!ok) return
+  createForm.post(route('provider.news.store'), {
     preserveScroll: true,
     onSuccess: () => {
       modals.createPost = false
       toast.success('Post published')
+      createForm.reset()
       createForm.post_type = 'provider'
       createForm.audience  = 'all'
-      createForm.title     = ''
-      createForm.body      = ''
-      createForm.tags      = ''
-      v$.value.$reset()
+      vCreate.value.$reset()
     },
     onError: () => toast.error('Could not publish post.'),
   })
@@ -798,25 +778,27 @@ function fmtEventTime(starts, ends) {
 // ── Modal state ───────────────────────────────────────────────────────────────
 const modals = reactive({ createPost: false, editPost: false, sharePost: false })
 
-// ── Reactive form state (for vuelidate binding) ───────────────────────────────
-const createForm = reactive({ post_type: 'provider', audience: 'all', title: '', body: '', tags: '' })
-const editForm   = reactive({ title: '', body: '' })
+// ── Vuelidate — one v$ per form, flat rules (no nesting) ─────────────────────
+const createRules = { body: { required, minLength: minLength(1) } }
+const editRules   = { body: { required, minLength: minLength(1) } }
+const vCreate = useVuelidate(createRules, createForm)
+const vEdit   = useVuelidate(editRules,   editForm)
 
-// ── Vuelidate ─────────────────────────────────────────────────────────────────
-const rules = {
-  createForm: { body: { required, minLength: minLength(1) } },
-  editForm:   { body: { required, minLength: minLength(1) } },
-}
-const v$ = useVuelidate(rules, { createForm, editForm })
-
-function fieldError(path) {
-  const parts = path.split('.')
-  let node = v$.value
-  for (const p of parts) node = node?.[p]
+// Unified fieldError helper — pass the v$ instance and the field name
+function fieldError(v$Instance, field) {
+  const node = v$Instance.value?.[field]
   if (!node?.$error) return null
-  if (node.required?.$invalid) return 'This field is required.'
-  if (node.minLength?.$invalid) return 'Content cannot be empty.'
-  return null
+  return node.$errors[0]?.$message ?? 'Invalid value.'
+}
+
+// Inertia server error helper — check form.errors[field]
+function serverError(form, field) {
+  return form.errors?.[field] ?? null
+}
+
+// Combined — client error takes precedence over server error
+function anyError(v$Instance, form, field) {
+  return fieldError(v$Instance, field) || serverError(form, field) || null
 }
 </script>
 
