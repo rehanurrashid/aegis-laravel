@@ -588,7 +588,7 @@
                   </span>
                 </td>
                 <td style="text-align:center">
-                  <button class="btn-icon" data-tooltip="Delete entry" @click="deleteCeuEntry(row.id)">
+                  <button class="btn-icon" data-tooltip="Delete entry" @click="deleteCeuEntry(row.id, row.course)">
                     <AegisIcon name="trash" :size="14" />
                   </button>
                 </td>
@@ -674,9 +674,11 @@ import { useVuelidate }                                        from '@vuelidate/
 import { required, maxLength, minValue, numeric, url as vUrl,
          helpers, minLength }                                  from '@vuelidate/validators'
 import AppLayout from '@/layouts/AppLayout.vue'
-import { useToast } from '@/composables/useToast'
+import { useToast }   from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 
 const toast = useToast()
+const { confirmAction } = useConfirm()
 
 // ── Props (stubs — real data wired in Prompt 2) ─────────────────────────
 const props = defineProps({
@@ -993,12 +995,17 @@ async function submitCeuLog() {
   })
 }
 
-function deleteCeuEntry(id) {
-  router.delete(route('provider.ceus.destroy', { ceu: id }), {
-    preserveScroll: true,
-    onSuccess: () => toast.info('CEU entry removed.'),
-    onError:   () => toast.error('Could not remove entry.'),
-  })
+function deleteCeuEntry(id, courseName) {
+  confirmAction(
+    `Remove "${courseName || 'this CEU entry'}" from your transcript? This cannot be undone.`,
+    () => {
+      router.delete(route('provider.ceus.destroy', { ceu: id }), {
+        preserveScroll: true,
+        onSuccess: () => toast.info('CEU entry removed.'),
+        onError:   () => toast.error('Could not remove entry.'),
+      })
+    }
+  )
 }
 
 // ── Mini calendar ────────────────────────────────────────────────────────
