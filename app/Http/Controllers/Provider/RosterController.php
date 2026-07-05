@@ -62,8 +62,12 @@ class RosterController extends Controller
 
     public function deleteCeu(Request $request, CeuEntry $ceu): RedirectResponse
     {
-        abort_unless($ceu->practitioner_id === $request->user()?->id, 403);
-        $this->ceu->delete($ceu);
+        // Scope to the authenticated user — returns 404 if not found or not owned
+        $owned = CeuEntry::where('id', $ceu->id)
+            ->where('practitioner_id', $request->user()?->id)
+            ->firstOrFail();
+
+        $this->ceu->delete($owned);
         return back()->with('success', 'CEU entry removed.');
     }
 }
