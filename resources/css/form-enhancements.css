@@ -49,9 +49,9 @@
     0 10px 28px -4px rgba(30,28,26,0.12),
     0 0 0 1px rgba(160,129,62,0.06) !important;
   padding: 9px !important;
-  /* 31px cells × 7 = 217px dayContainer + 9px padding × 2 = 235px */
-  width: 235px !important;
-  max-width: 235px !important;
+  /* 40px cells × 7 = 280px dayContainer + 9px padding × 2 = 298px */
+  width: 298px !important;
+  max-width: 298px !important;
   box-sizing: border-box !important;
 }
 
@@ -238,16 +238,16 @@ span.flatpickr-weekday {
 
 .flatpickr-day {
   font-family: var(--font-sans) !important;
-  font-size: 10.5px !important;
+  font-size: 11.5px !important;
   font-weight: 500 !important;
   color: var(--text) !important;
   background: transparent !important;
-  /* 80% of 39px = ~31px; 7 × 31px = 217px fits inside scaled dayContainer */
+  /* 40px cells × 7 = 280px fits inside scaled dayContainer */
   border-radius: var(--radius-sm) !important;
   border: 1px solid transparent !important;
-  height: 31px !important;
-  line-height: 29px !important;
-  max-width: 31px !important;
+  height: 40px !important;
+  line-height: 38px !important;
+  max-width: 40px !important;
   margin: 0 !important;
   transition: background var(--transition), color var(--transition), border-color var(--transition) !important;
 }

@@ -31,7 +31,7 @@ const FLATPICKR_CONFIG = {
     fp.altInput?.removeAttribute('readonly')
     // Patch the inline-style widths flatpickr already wrote to the DOM
     if (fp.daysContainer) {
-      const DAY = 31
+      const DAY = 40
       const total = DAY * 7
       fp.daysContainer.style.width = total + 'px'
       fp.daysContainer.querySelectorAll('.dayContainer').forEach(c => {
