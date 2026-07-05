@@ -11,6 +11,7 @@ use App\Http\Requests\News\PollVoteRequest;
 use App\Http\Requests\News\ReactionRequest;
 use App\Http\Requests\News\RsvpEventRequest;
 use App\Http\Requests\News\SubmitEventRequest;
+use App\Http\Requests\News\UpdateNewsPostRequest;
 use App\Models\CeuEntry;
 use App\Models\CeuRequirement;
 use App\Models\NewsEvent;
@@ -28,10 +29,16 @@ class NewsController extends Controller
 
     public function index(Request $request): Response
     {
-        $role = (string) ($request->user()?->role ?? 'practitioner');
-        return Inertia::render('provider/News', [
-            'feed' => $this->news->feed($role, 30),
-        ]);
+        $user       = $request->user();
+        $filterType = $request->get('filter', 'all');
+        $tag        = $request->get('tag');
+
+        $data = $this->news->feedData($user, $filterType, $tag);
+
+        return Inertia::render('provider/News', array_merge($data, [
+            'activeFilter' => $filterType,
+            'activeTag'    => $tag ?? '',
+        ]));
     }
 
     public function library(): Response
@@ -46,9 +53,7 @@ class NewsController extends Controller
         $user      = $request->user();
         $userId    = $user->id;
         $now       = now();
-        $yearStart = $now->copy()->startOfYear();
 
-        // All published+approved events, upcoming first
         $allEvents = NewsEvent::published()
             ->approved()
             ->where(function ($q) use ($userId) {
@@ -58,51 +63,38 @@ class NewsController extends Controller
             ->orderBy('starts_at')
             ->get();
 
-        // Registered event IDs for this user
         $registeredIds = $allEvents->filter(fn($e) => $e->isAttending($userId))
             ->pluck('id')
             ->values();
 
-        // My upcoming registered events (for sidebar)
         $myEvents = $allEvents->filter(
             fn($e) => $e->isAttending($userId) && $e->starts_at && $e->starts_at >= $now
         )->values();
 
-        // Stats
-        $upcomingAll    = $allEvents->filter(fn($e) => $e->starts_at && $e->starts_at >= $now);
+        $upcomingAll     = $allEvents->filter(fn($e) => $e->starts_at && $e->starts_at >= $now);
         $registeredCount = $registeredIds->count();
 
-        // CEU data from ceu_entries
         $ceuEntries = CeuEntry::where('practitioner_id', $userId)
             ->whereYear('completed_on', $now->year)
             ->get();
-
         $ceuEarned = $ceuEntries->sum('credit_hours');
 
-        // CEU rows from requirements
         $requirements = CeuRequirement::where('user_id', $userId)->get();
-
         $ceuRows = $requirements->map(function ($req) use ($ceuEntries) {
-            $earned = $ceuEntries->where('title', 'like', '%' . explode('—', $req->jurisdiction)[0] . '%')
-                                 ->sum('credit_hours');
-            $earned       = (float) $earned;
-            $required     = (float) $req->total_hours;
-            $pct          = $required > 0 ? min(100, round($earned / $required * 100)) : 0;
-            $status       = $pct >= 100 ? 'done' : ($pct >= 50 ? 'warn' : 'danger');
-            $dueDate      = $req->due_date ? $req->due_date->format('M j') : null;
-
+            $earned   = (float) $ceuEntries->sum('credit_hours');
+            $required = (float) $req->total_hours;
+            $pct      = $required > 0 ? min(100, round($earned / $required * 100)) : 0;
             return [
-                'category'    => $req->jurisdiction,
-                'icon'        => 'book',
-                'earned_hrs'  => $earned,
-                'required_hrs'=> $required,
-                'pct'         => $pct,
-                'status'      => $status,
-                'meta_label'  => $dueDate ? "Due {$dueDate}" : null,
+                'category'     => $req->jurisdiction,
+                'icon'         => 'book',
+                'earned_hrs'   => $earned,
+                'required_hrs' => $required,
+                'pct'          => $pct,
+                'status'       => $pct >= 100 ? 'done' : ($pct >= 50 ? 'warn' : 'danger'),
+                'meta_label'   => $req->due_date ? 'Due ' . $req->due_date->format('M j') : null,
             ];
         })->values();
 
-        // CEU transcript — all entries (not year-filtered), real storage URLs
         $ceuTranscript = CeuEntry::where('practitioner_id', $userId)
             ->orderByDesc('completed_on')
             ->get()
@@ -117,7 +109,6 @@ class NewsController extends Controller
                 'certificate_url' => CeuService::certificateUrl($e->certificate_ref),
             ]);
 
-        // Event days map for mini calendar: "Y-n-j" => true
         $eventDays = $allEvents->filter(fn($e) => $e->starts_at !== null)
             ->mapWithKeys(fn($e) => [
                 $e->starts_at->format('Y-') .
@@ -125,25 +116,25 @@ class NewsController extends Controller
             ]);
 
         return Inertia::render('provider/Events', [
-            'events'            => $allEvents->map(fn($e) => array_merge($e->toArray(), [
+            'events'             => $allEvents->map(fn($e) => array_merge($e->toArray(), [
                 'ceu_credits'    => (float) $e->ceu_credits,
                 'is_free'        => (bool) $e->is_free,
                 'external_url'   => $e->rsvp_url,
                 'attendee_count' => count($e->rsvps_json ?? []),
                 'is_external'    => !empty($e->rsvp_url),
             ]))->values(),
-            'countTotal'        => $upcomingAll->count(),
-            'registeredCount'   => $registeredCount,
-            'ceuEarned'         => round((float) $ceuEarned, 1),
-            'ceuRows'           => $ceuRows,
-            'ceuTranscript'     => $ceuTranscript->values(),
-            'myEvents'          => $myEvents->map(fn($e) => array_merge($e->toArray(), [
+            'countTotal'         => $upcomingAll->count(),
+            'registeredCount'    => $registeredCount,
+            'ceuEarned'          => round((float) $ceuEarned, 1),
+            'ceuRows'            => $ceuRows,
+            'ceuTranscript'      => $ceuTranscript->values(),
+            'myEvents'           => $myEvents->map(fn($e) => array_merge($e->toArray(), [
                 'ceu_credits'  => (float) $e->ceu_credits,
                 'external_url' => $e->rsvp_url,
                 'is_external'  => !empty($e->rsvp_url),
             ]))->values(),
-            'registeredEventIds'=> $registeredIds,
-            'eventDays'         => $eventDays,
+            'registeredEventIds' => $registeredIds,
+            'eventDays'          => $eventDays,
         ]);
     }
 
@@ -151,6 +142,19 @@ class NewsController extends Controller
     {
         $this->news->publishPost($request->user(), $request->validated());
         return back()->with('success', 'Post published.');
+    }
+
+    public function updatePost(UpdateNewsPostRequest $request, NewsPost $post): RedirectResponse
+    {
+        $this->news->updatePost($post, $request->validated());
+        return back()->with('success', 'Post updated.');
+    }
+
+    public function destroyPost(Request $request, NewsPost $post): RedirectResponse
+    {
+        abort_unless($post->author_id === $request->user()?->id, 403);
+        $this->news->deletePost($post);
+        return back()->with('success', 'Post deleted.');
     }
 
     public function comment(CreateCommentRequest $request, NewsPost $post): RedirectResponse
@@ -161,6 +165,7 @@ class NewsController extends Controller
 
     public function react(ReactionRequest $request, NewsPost $post): RedirectResponse
     {
+        // ReactionRequest validates 'reaction_type'; map to service which uses 'reaction' column
         $this->news->react($request->user(), $post, $request->validated()['reaction_type']);
         return back();
     }
@@ -196,26 +201,20 @@ class NewsController extends Controller
             ->orderByDesc('completed_on')
             ->get();
 
-        $filename = 'ceu-transcript-' . now()->format('Y-m-d') . '.csv';
-
         return response()->streamDownload(function () use ($entries, $user) {
             $handle = fopen('php://output', 'w');
-            // Header row
-            fputcsv($handle, ['Practitioner', 'Course', 'Provider', 'Credits', 'Completed On', 'Expires On', 'Certificate Ref']);
+            fputcsv($handle, ['Practitioner', 'Course', 'Provider', 'Credits', 'Completed On', 'Certificate']);
             foreach ($entries as $e) {
                 fputcsv($handle, [
-                    $user->display_name ?? $user->name ?? $user->id,
+                    $user->display_name ?? $user->id,
                     $e->title,
                     $e->provider_name ?? '',
                     $e->credit_hours,
                     $e->completed_on?->format('Y-m-d') ?? '',
-                    $e->expires_on?->format('Y-m-d') ?? '',
                     $e->certificate_ref ? CeuService::certificateUrl($e->certificate_ref) : '',
                 ]);
             }
             fclose($handle);
-        }, $filename, [
-            'Content-Type' => 'text/csv',
-        ]);
+        }, 'ceu-transcript-' . now()->format('Y-m-d') . '.csv', ['Content-Type' => 'text/csv']);
     }
 }

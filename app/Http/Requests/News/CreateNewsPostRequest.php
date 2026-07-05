@@ -16,11 +16,17 @@ class CreateNewsPostRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title' => ['required', 'string', 'max:191'],
-            'body' => ['nullable', 'string'],
-            'post_type' => ['nullable', 'string', 'in:post,poll,announcement'],
+            'title'           => ['nullable', 'string', 'max:191'],
+            'body'            => ['required', 'string', 'min:1'],
+            'post_type'       => ['nullable', 'string', 'max:40'],
             'role_visibility' => ['nullable', 'string', 'max:40'],
-            'pinned' => ['nullable', 'boolean'],
+            'audience'        => ['nullable', 'string', 'max:40'],
+            'pinned'          => ['nullable', 'boolean'],
+            'tags'            => ['nullable', 'string', 'max:500'],  // comma-separated, split in service
+            'links'           => ['nullable', 'array'],
+            'poll_question'   => ['nullable', 'string', 'max:500'],
+            'poll_options'    => ['nullable', 'array'],
+            'poll_closes_at'  => ['nullable', 'date'],
         ];
     }
 }

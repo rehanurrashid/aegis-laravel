@@ -10,17 +10,16 @@ class UpdateNewsPostRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        // Only the post author may update
+        $post = $this->route('post');
+        return $post && $post->author_id === $this->user()?->id;
     }
 
     public function rules(): array
     {
         return [
-            'title' => ['sometimes', 'string', 'max:191'],
-            'body' => ['nullable', 'string'],
-            'post_type' => ['nullable', 'string', 'in:post,poll,announcement'],
-            'role_visibility' => ['nullable', 'string', 'max:40'],
-            'pinned' => ['nullable', 'boolean'],
+            'title' => ['nullable', 'string', 'max:191'],
+            'body'  => ['required', 'string', 'min:1'],
         ];
     }
 }

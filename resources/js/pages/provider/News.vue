@@ -1,7 +1,6 @@
 <!--
   pages/provider/News.vue — Provider portal News & Resources.
-  100% design parity with news.php (Prompt 1 pass).
-  Backend data wiring is Prompt 2.
+  Prompt 2: Full backend wiring. All props dynamic, all forms real.
 -->
 <template>
   <AppLayout>
@@ -10,7 +9,7 @@
     <AegisHeroBanner eyebrow="Provider Portal" title="News &amp; Resources"
                      subtitle="Updates from Aegis, insights from providers, and community discussions." quiet>
       <template #actions>
-        <a :href="route('activity.index', { module: 'news' })" class="btn-hero-ghost is-on-light">
+        <a :href="route('provider.activity')" class="btn-hero-ghost is-on-light">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
         <button type="button" class="btn-hero-solid is-on-light" @click="modals.createPost = true">
@@ -21,9 +20,9 @@
 
     <!-- STAT CHIPS -->
     <div class="stat-chips-row">
-      <AegisStatChip icon="activity" :value="countToday"      label="New Today" />
-      <AegisStatChip icon="users"    :value="countAuthors"    label="Active Authors" />
-      <AegisStatChip icon="calendar" :value="countUpcoming"   label="Upcoming Events" />
+      <AegisStatChip icon="activity" :value="countToday"    label="New Today" />
+      <AegisStatChip icon="users"    :value="countAuthors"  label="Active Authors" />
+      <AegisStatChip icon="calendar" :value="countUpcoming" label="Upcoming Events" />
     </div>
 
     <!-- TWO-COLUMN LAYOUT -->
@@ -57,18 +56,17 @@
           </div>
           <div class="news-toolbar-right">
             <label class="news-toolbar-label" for="newsSortSelect">Sort</label>
-            <select id="newsSortSelect" class="form-select form-select-sm" v-model="activeSort" @change="sortFeed" aria-label="Sort feed">
+            <select id="newsSortSelect" class="form-select form-select-sm" v-model="activeSort" aria-label="Sort feed">
               <option value="recent">Most Recent</option>
               <option value="popular">Most Popular</option>
-              <option value="trending">Trending</option>
             </select>
           </div>
         </div>
 
         <!-- Active tag filter strip -->
-        <div v-if="activeTag" class="news-active-tag">
+        <div v-if="localActiveTag" class="news-active-tag">
           <span class="news-active-tag-label">Filtered by</span>
-          <span class="news-active-tag-chip">#{{ activeTag }}</span>
+          <span class="news-active-tag-chip">#{{ localActiveTag }}</span>
           <button type="button" class="news-active-tag-clear" data-tooltip="Clear filter" @click="clearTagFilter">
             <AegisIcon name="x" :size="12" />
           </button>
@@ -77,8 +75,8 @@
         <!-- Count line -->
         <div class="news-count-line">
           <span>
-            <strong>{{ filteredPosts.length }}</strong>
-            post{{ filteredPosts.length === 1 ? '' : 's' }}{{ activeTag ? ' tagged #' + activeTag : '' }}
+            <strong>{{ displayPosts.length }}</strong>
+            post{{ displayPosts.length === 1 ? '' : 's' }}{{ localActiveTag ? ' tagged #' + localActiveTag : '' }}
           </span>
         </div>
 
@@ -87,7 +85,7 @@
 
           <!-- Empty state -->
           <AegisEmptyState
-            v-if="!filteredPosts.length"
+            v-if="!displayPosts.length"
             icon="file-text"
             title="No posts yet"
             subtitle="No posts match this filter. Try a different category or create the first one."
@@ -101,10 +99,9 @@
 
           <!-- Post cards -->
           <div
-            v-for="post in sortedPosts"
+            v-for="post in displayPosts"
             :key="post.id"
             :class="['card', 'nf-post', { 'is-pinned': post.is_pinned }]"
-            :data-post-id="post.id"
           >
             <!-- Pinned banner -->
             <div v-if="post.is_pinned" class="nf-pinned">
@@ -136,7 +133,6 @@
                 </div>
               </div>
 
-              <!-- More button: edit (self) or report (others) -->
               <button
                 v-if="post.is_self_post"
                 type="button"
@@ -157,17 +153,15 @@
             <div class="nf-body">
               <div v-if="post.title" class="nf-title">{{ post.title }}</div>
 
-              <div
-                :class="['nf-text', { 'is-collapsed': post._collapsed }]"
-              >{{ post.body }}</div>
+              <div :class="['nf-text', { 'is-collapsed': postState(post.id)._collapsed }]">{{ post.body }}</div>
               <button
                 v-if="post.body && post.body.length > 260"
                 type="button"
                 class="nf-readmore"
-                @click="toggleReadMore(post)"
+                @click="toggleReadMore(post.id)"
               >
-                {{ post._collapsed ? 'Read more' : 'Show less' }}
-                <AegisIcon :name="post._collapsed ? 'chevron-down' : 'chevron-up'" :size="11" />
+                {{ postState(post.id)._collapsed ? 'Read more' : 'Show less' }}
+                <AegisIcon :name="postState(post.id)._collapsed ? 'chevron-down' : 'chevron-up'" :size="11" />
               </button>
 
               <!-- Inline links -->
@@ -208,9 +202,9 @@
                 </div>
                 <div
                   v-for="(opt, idx) in post.poll_options"
-                  :key="idx"
+                  :key="opt.key || idx"
                   class="nf-poll-opt"
-                  @click="votePoll(post, idx)"
+                  @click="votePoll(post, opt)"
                 >
                   <span class="nf-poll-label">{{ opt.label }}</span>
                   <span class="nf-poll-track">
@@ -221,6 +215,7 @@
                 <div class="nf-poll-meta">
                   {{ pollTotal(post) }} vote{{ pollTotal(post) === 1 ? '' : 's' }}
                   <template v-if="post.poll_closes_at"> &middot; Closes {{ fmtDate(post.poll_closes_at) }}</template>
+                  <template v-if="post.my_poll_vote"> &middot; <span style="color:var(--green-dark);font-weight:700">✓ You voted</span></template>
                 </div>
               </div>
             </div>
@@ -240,7 +235,7 @@
                 type="button"
                 class="nf-act"
                 data-tooltip="Comments"
-                @click="toggleComments(post)"
+                @click="toggleComments(post.id)"
               >
                 <AegisIcon name="message-square" :size="15" />
                 <span>{{ post.comment_count }}</span>
@@ -256,7 +251,6 @@
 
               <span class="nf-act-spacer"></span>
 
-              <!-- Self: edit + delete -->
               <template v-if="post.is_self_post">
                 <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Edit post" @click="openEdit(post)">
                   <AegisIcon name="pencil" :size="13" />
@@ -266,7 +260,6 @@
                 </button>
               </template>
 
-              <!-- Others: save -->
               <button
                 v-else
                 type="button"
@@ -279,14 +272,14 @@
             </div>
 
             <!-- Comments section -->
-            <div :class="['nf-comments', { 'is-open': post._commentsOpen }]">
+            <div :class="['nf-comments', { 'is-open': postState(post.id)._commentsOpen }]">
               <div
                 v-for="c in commentsByPost[post.id] || []"
                 :key="c.id"
                 class="nf-comment"
               >
                 <div
-                  :class="['avatar', 'avatar-xs', avatarModComment(c), 'nf-avatar']"
+                  :class="['avatar', 'avatar-xs', 'avatar-gold', 'nf-avatar']"
                   :data-tooltip="'View ' + c.author_name"
                   @click="viewProfile(c.author_slug, authorKindComment(c))"
                 >{{ c.author_initials }}</div>
@@ -334,7 +327,7 @@
             <div class="card-title" style="display:flex;align-items:center;gap:6px">
               <AegisIcon name="calendar" :size="15" /> Upcoming Events
             </div>
-            <a :href="route('provider.events')" class="btn btn-outline btn-sm">View all</a>
+            <a :href="route('provider.news.events')" class="btn btn-outline btn-sm">View all</a>
           </div>
           <div class="card-body">
             <div v-if="!upcoming.length" style="font-size:12px;color:var(--text-3);text-align:center;padding:14px 0">
@@ -441,7 +434,7 @@
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.createPost = false">Cancel</button>
-        <button type="button" class="btn btn-primary" @click="submitCreatePost">
+        <button type="button" class="btn btn-primary" :disabled="inertiaCreateForm.processing" @click="submitCreatePost">
           <AegisIcon name="send" :size="14" /> Publish Post
         </button>
       </template>
@@ -462,7 +455,7 @@
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.editPost = false">Cancel</button>
-        <button type="button" class="btn btn-primary" @click="submitEditPost">
+        <button type="button" class="btn btn-primary" :disabled="inertiaEditForm.processing" @click="submitEditPost">
           <AegisIcon name="check" :size="14" /> Save Changes
         </button>
       </template>
@@ -488,16 +481,16 @@
 
 <script setup>
 import { ref, reactive, computed } from 'vue'
-import { router, useForm }         from '@inertiajs/vue3'
-import AppLayout                   from '@/layouts/AppLayout.vue'
-import { useToast }                from '@/composables/useToast'
-import { useConfirm }              from '@/composables/useConfirm'
-import { useActivity }             from '@/composables/useActivity'
-import { useProfileRoute }         from '@/composables/useProfileRoute'
-import useVuelidate                from '@vuelidate/core'
-import { required, minLength }     from '@vuelidate/validators'
+import { router, useForm, usePage as useInertiaPage } from '@inertiajs/vue3'
+import AppLayout                         from '@/layouts/AppLayout.vue'
+import { useToast }                      from '@/composables/useToast'
+import { useConfirm }                    from '@/composables/useConfirm'
+import { useActivity }                   from '@/composables/useActivity'
+import { useProfileRoute }               from '@/composables/useProfileRoute'
+import useVuelidate                      from '@vuelidate/core'
+import { required, minLength }           from '@vuelidate/validators'
 
-// ── Props (placeholders; real data wired in Prompt 2) ────────────────────────
+// ── Props (all from controller) ──────────────────────────────────────────────
 const props = defineProps({
   posts:          { type: Array,  default: () => [] },
   upcoming:       { type: Array,  default: () => [] },
@@ -507,98 +500,147 @@ const props = defineProps({
   countAuthors:   { type: Number, default: 0 },
   countUpcoming:  { type: Number, default: 0 },
   countByType:    { type: Object, default: () => ({ all: 0, platform: 0, provider: 0, event: 0, resource: 0 }) },
-  currentUser:    { type: Object, default: () => ({ id: '', name: 'You', initials: 'SJ', slug: '', role: 'practitioner' }) },
+  activeFilter:   { type: String, default: 'all' },
+  activeTag:      { type: String, default: '' },
 })
 
 // ── Composables ──────────────────────────────────────────────────────────────
-const toast               = useToast()
-const { confirmAction }   = useConfirm()
-const { timeAgo }         = useActivity()
-const { viewProfile, profileHref } = useProfileRoute()
+const toast             = useToast()
+const { confirmAction } = useConfirm()
+const { timeAgo }       = useActivity()
+const { viewProfile }   = useProfileRoute()
+const page              = useInertiaPage()
 
-// ── Current user helpers ─────────────────────────────────────────────────────
-const meInitials  = computed(() => props.currentUser?.initials ?? 'SJ')
+// ── Current user from shared props ───────────────────────────────────────────
+const meInitials  = computed(() => page.props.auth?.user?.avatar_initials ?? 'SJ')
 const meAvatarMod = 'avatar-gold'
+const meId        = computed(() => page.props.auth?.user?.id ?? '')
 
-// ── Feed state ───────────────────────────────────────────────────────────────
-// Hydrate with reactive _collapsed / _commentsOpen flags
-const localPosts = reactive(
-  props.posts.map(p => ({ ...p, _collapsed: (p.body ?? '').length > 260, _commentsOpen: false }))
-)
+// ── Per-post UI state (collapse / comments open) ─────────────────────────────
+// Stored separately so props can be replaced by Inertia without losing UI state
+const uiState = reactive({})
+function postState(id) {
+  if (!uiState[id]) {
+    const post = props.posts.find(p => p.id === id)
+    uiState[id] = {
+      _collapsed: (post?.body ?? '').length > 260,
+      _commentsOpen: false,
+    }
+  }
+  return uiState[id]
+}
 
-const activeFilter  = ref('all')
-const activeSort    = ref('recent')
-const activeTag     = ref('')
-const commentInputs = reactive({})
-const shareUrl      = ref('')
+// ── Filter / sort ─────────────────────────────────────────────────────────────
+const activeFilter   = ref(props.activeFilter)
+const localActiveTag = ref(props.activeTag)
+const activeSort     = ref('recent')
 
-const filteredPosts = computed(() => {
-  return localPosts.filter(p => {
-    const typeMatch = activeFilter.value === 'all' || p.post_type === activeFilter.value
-    const tagMatch  = !activeTag.value || (p.tags ?? []).includes(activeTag.value)
-    return typeMatch && tagMatch
-  })
-})
+function applyFilter() {
+  router.get(route('provider.news.index'), {
+    filter: activeFilter.value !== 'all' ? activeFilter.value : undefined,
+    tag:    localActiveTag.value || undefined,
+  }, { preserveScroll: true, preserveState: false })
+}
 
-const sortedPosts = computed(() => {
-  const posts = [...filteredPosts.value]
-  const pinned = posts.filter(p => p.is_pinned)
-  const rest   = posts.filter(p => !p.is_pinned)
-  if (activeSort.value === 'popular' || activeSort.value === 'trending') {
+function filterByTag(tag) {
+  localActiveTag.value = tag
+  router.get(route('provider.news.index'), {
+    filter: activeFilter.value !== 'all' ? activeFilter.value : undefined,
+    tag,
+  }, { preserveScroll: true, preserveState: false })
+}
+
+function clearTagFilter() {
+  localActiveTag.value = ''
+  router.get(route('provider.news.index'), {
+    filter: activeFilter.value !== 'all' ? activeFilter.value : undefined,
+  }, { preserveScroll: true, preserveState: false })
+}
+
+// ── Client-side sort (on top of server data) ──────────────────────────────────
+const displayPosts = computed(() => {
+  let list = [...props.posts]
+
+  // Tag filter (client-side refinement if already on page)
+  if (localActiveTag.value) {
+    list = list.filter(p => (p.tags ?? []).includes(localActiveTag.value))
+  }
+
+  const pinned = list.filter(p => p.is_pinned)
+  const rest   = list.filter(p => !p.is_pinned)
+
+  if (activeSort.value === 'popular') {
     rest.sort((a, b) => (b.like_count ?? 0) - (a.like_count ?? 0))
   }
   return [...pinned, ...rest]
 })
 
-// ── Filter / tag ─────────────────────────────────────────────────────────────
-function applyFilter()  { /* Prompt 2: router.visit with filter param */ }
-function filterByTag(tag) { activeTag.value = tag }
-function clearTagFilter() { activeTag.value = '' }
-function sortFeed()     { toast.info('Sorted: ' + activeSort.value) }
-
-// ── Read more ────────────────────────────────────────────────────────────────
-function toggleReadMore(post) { post._collapsed = !post._collapsed }
-
-// ── Comments ─────────────────────────────────────────────────────────────────
-function toggleComments(post) {
-  post._commentsOpen = !post._commentsOpen
+// ── Read more ─────────────────────────────────────────────────────────────────
+function toggleReadMore(id) {
+  postState(id)._collapsed = !postState(id)._collapsed
 }
+
+// ── Comments ──────────────────────────────────────────────────────────────────
+const commentInputs = reactive({})
+
+function toggleComments(id) {
+  postState(id)._commentsOpen = !postState(id)._commentsOpen
+}
+
 function submitComment(post) {
   const text = (commentInputs[post.id] ?? '').trim()
   if (!text) return
-  // Prompt 2: router.post — for now optimistic UI
-  const comments = props.commentsByPost[post.id] ?? []
-  comments.push({
-    id: 'tmp-' + Date.now(),
-    author_name: props.currentUser.name,
-    author_initials: props.currentUser.initials,
-    author_slug: props.currentUser.slug,
-    author_role: 'practitioner',
-    is_self: true,
-    body: text,
-    like_count: 0,
-    created_at: new Date().toISOString(),
+
+  const form = useForm({ body: text })
+  form.post(route('provider.news.comment', { post: post.id }), {
+    preserveScroll: true,
+    preserveState: true,
+    onSuccess: () => {
+      commentInputs[post.id] = ''
+      toast.success('Comment posted')
+    },
+    onError: () => toast.error('Could not post comment.'),
   })
-  commentInputs[post.id] = ''
-  post.comment_count = (post.comment_count ?? 0) + 1
-  toast.success('Comment posted')
 }
 
-// ── Like / Save ───────────────────────────────────────────────────────────────
+// ── Like ──────────────────────────────────────────────────────────────────────
 function toggleLike(post) {
-  post.is_liked = !post.is_liked
-  post.like_count = post.is_liked ? (post.like_count ?? 0) + 1 : Math.max(0, (post.like_count ?? 1) - 1)
-  // Prompt 2: router.post to toggle_like
+  // Optimistic update
+  post.is_liked   = !post.is_liked
+  post.like_count = post.is_liked ? (post.like_count + 1) : Math.max(0, post.like_count - 1)
+
+  const form = useForm({ reaction_type: 'like' })
+  form.post(route('provider.news.react', { post: post.id }), {
+    preserveScroll: true,
+    preserveState:  true,
+    onError: () => {
+      // rollback
+      post.is_liked   = !post.is_liked
+      post.like_count = post.is_liked ? (post.like_count + 1) : Math.max(0, post.like_count - 1)
+    },
+  })
 }
+
+// ── Save ──────────────────────────────────────────────────────────────────────
 function toggleSave(post) {
   post.is_saved = !post.is_saved
   toast.success(post.is_saved ? 'Saved to your library' : 'Removed from saved')
-  // Prompt 2: router.post to toggle_save
+
+  const form = useForm({ reaction_type: 'save' })
+  form.post(route('provider.news.react', { post: post.id }), {
+    preserveScroll: true,
+    preserveState:  true,
+    onError: () => {
+      post.is_saved = !post.is_saved
+      toast.error('Could not save post.')
+    },
+  })
 }
 
 // ── Share ─────────────────────────────────────────────────────────────────────
+const shareUrl = ref('')
 function sharePost(post) {
-  shareUrl.value = window.location.origin + '/news/post-' + post.id
+  shareUrl.value = window.location.origin + '/provider/news?post=' + post.id
   modals.sharePost = true
 }
 function copyShareUrl() {
@@ -621,80 +663,131 @@ function pollPct(post, idx) {
   const total = pollTotal(post) || 1
   return Math.round(((post.poll_options[idx]?.votes ?? 0) / total) * 100)
 }
-function votePoll(post, idx) {
-  if (post._voted !== undefined) { toast.info('You already voted in this poll'); return }
-  post._voted = idx
-  if (post.poll_options[idx]) post.poll_options[idx].votes = (post.poll_options[idx].votes ?? 0) + 1
-  // Prompt 2: router.post to vote_poll
-  toast.success('Vote recorded')
+function votePoll(post, opt) {
+  if (post.my_poll_vote) { toast.info('You already voted in this poll'); return }
+
+  // Optimistic
+  post.my_poll_vote = opt.key
+  if (opt) opt.votes = (opt.votes ?? 0) + 1
+
+  const form = useForm({ option_key: opt.key })
+  form.post(route('provider.news.vote', { post: post.id }), {
+    preserveScroll: true,
+    preserveState:  true,
+    onSuccess: () => toast.success('Vote recorded'),
+    onError:   () => {
+      post.my_poll_vote = null
+      if (opt) opt.votes = Math.max(0, (opt.votes ?? 1) - 1)
+      toast.error('Could not record vote.')
+    },
+  })
 }
 
 // ── RSVP Event ────────────────────────────────────────────────────────────────
 function rsvpEvent(event) {
   confirmAction('RSVP for <strong>' + (event.title || 'this event') + '</strong>? You will receive a confirmation email with calendar details.', () => {
-    toast.success('Registered — check your email')
+    const form = useForm({ status: 'going' })
+    form.post(route('provider.news.rsvp', { event: event.id }), {
+      preserveScroll: true,
+      preserveState: true,
+      onSuccess: () => toast.success('Registered — check your email'),
+      onError:   () => toast.error('Could not register for event.'),
+    })
   })
 }
 
 // ── Delete ────────────────────────────────────────────────────────────────────
 function confirmDelete(postId) {
   confirmAction('Delete this post? This action cannot be undone.', () => {
-    const idx = localPosts.findIndex(p => p.id === postId)
-    if (idx !== -1) localPosts.splice(idx, 1)
-    toast.info('Post deleted')
-    // Prompt 2: router.delete(route('provider.news.destroy', postId))
+    router.delete(route('provider.news.destroy', { post: postId }), {
+      preserveScroll: true,
+      onSuccess: () => toast.info('Post deleted'),
+      onError:   () => toast.error('Could not delete post.'),
+    })
   })
 }
 
 // ── Edit ──────────────────────────────────────────────────────────────────────
 const editTargetId = ref(null)
+
+// useForm must be at top level
+const inertiaEditForm = useForm({ title: '', body: '' })
+
 function openEdit(post) {
-  editTargetId.value = post.id
-  editForm.title = post.title ?? ''
-  editForm.body  = post.body  ?? ''
+  editTargetId.value    = post.id
+  inertiaEditForm.title = post.title ?? ''
+  inertiaEditForm.body  = post.body  ?? ''
+  editForm.title        = post.title ?? ''
+  editForm.body         = post.body  ?? ''
   modals.editPost = true
 }
+
 async function submitEditPost() {
   const ok = await v$.value.$validate()
   if (!ok) return
-  const idx = localPosts.findIndex(p => p.id === editTargetId.value)
-  if (idx !== -1) {
-    localPosts[idx].title = editForm.title
-    localPosts[idx].body  = editForm.body
-  }
-  modals.editPost = false
-  toast.success('Post updated')
-  // Prompt 2: router.patch(route('provider.news.update', editTargetId.value), editForm)
+
+  inertiaEditForm.title = editForm.title
+  inertiaEditForm.body  = editForm.body
+
+  inertiaEditForm.patch(route('provider.news.update', { post: editTargetId.value }), {
+    preserveScroll: true,
+    onSuccess: () => {
+      modals.editPost = false
+      toast.success('Post updated')
+      v$.value.$reset()
+    },
+    onError: () => toast.error('Could not update post.'),
+  })
 }
 
 // ── Create ────────────────────────────────────────────────────────────────────
+const inertiaCreateForm = useForm({
+  post_type: 'provider',
+  audience:  'all',
+  title:     '',
+  body:      '',
+  tags:      '',
+})
+
 async function submitCreatePost() {
   const ok = await v$.value.$validate()
   if (!ok) return
-  modals.createPost = false
-  toast.success('Post published')
-  createForm.title     = ''
-  createForm.body      = ''
-  createForm.tags      = ''
-  createForm.post_type = 'provider'
-  createForm.audience  = 'all'
-  v$.value.$reset()
-  // Prompt 2: router.post(route('provider.news.store'), createForm)
+
+  inertiaCreateForm.post_type = createForm.post_type
+  inertiaCreateForm.audience  = createForm.audience
+  inertiaCreateForm.title     = createForm.title
+  inertiaCreateForm.body      = createForm.body
+  inertiaCreateForm.tags      = createForm.tags
+
+  inertiaCreateForm.post(route('provider.news.store'), {
+    preserveScroll: true,
+    onSuccess: () => {
+      modals.createPost = false
+      toast.success('Post published')
+      createForm.post_type = 'provider'
+      createForm.audience  = 'all'
+      createForm.title     = ''
+      createForm.body      = ''
+      createForm.tags      = ''
+      v$.value.$reset()
+    },
+    onError: () => toast.error('Could not publish post.'),
+  })
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const TYPE_LABELS = {
   platform: 'Platform', provider: 'Provider', compliance: 'Compliance',
-  event: 'Event', resource: 'Resource', milestone: 'Milestone', question: 'Question',
+  event: 'Event', resource: 'Resource', milestone: 'Milestone',
+  question: 'Question', post: 'Post', poll: 'Poll', announcement: 'Announcement',
 }
-function typeLabel(t)        { return TYPE_LABELS[t] ?? t }
-function authorKind(post)    { return post.author_role === 'practitioner' ? 'provider' : 'steward' }
-function authorKindComment(c){ return c.author_role === 'practitioner' ? 'provider' : 'steward' }
-function avatarMod(post)     { return 'avatar-' + (post.author_avatar_mod ?? 'gold') }
-function avatarModComment(c) { return 'avatar-' + (c.author_avatar_mod ?? 'gold') }
-function fmtDate(iso)        { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }
-function fmtEventMon(iso)    { return new Date(iso).toLocaleString('en-US', { month: 'short' }).toUpperCase() }
-function fmtEventDay(iso)    { return new Date(iso).getDate() }
+function typeLabel(t)         { return TYPE_LABELS[t] ?? t }
+function authorKind(post)     { return post.author_role === 'practitioner' ? 'provider' : 'steward' }
+function authorKindComment(c) { return c.author_role === 'practitioner' ? 'provider' : 'steward' }
+function avatarMod(post)      { return 'avatar-' + (post.author_avatar_mod ?? 'gold') }
+function fmtDate(iso)         { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }
+function fmtEventMon(iso)     { return new Date(iso).toLocaleString('en-US', { month: 'short' }).toUpperCase() }
+function fmtEventDay(iso)     { return new Date(iso).getDate() }
 function fmtEventTime(starts, ends) {
   const fmt = (d) => new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
   return fmt(starts) + (ends ? ' – ' + fmt(ends) : '')
@@ -703,7 +796,7 @@ function fmtEventTime(starts, ends) {
 // ── Modal state ───────────────────────────────────────────────────────────────
 const modals = reactive({ createPost: false, editPost: false, sharePost: false })
 
-// ── Form state ────────────────────────────────────────────────────────────────
+// ── Reactive form state (for vuelidate binding) ───────────────────────────────
 const createForm = reactive({ post_type: 'provider', audience: 'all', title: '', body: '', tags: '' })
 const editForm   = reactive({ title: '', body: '' })
 
@@ -728,7 +821,6 @@ function fieldError(path) {
 <style scoped>
 /* ─── All classes below are NOT in _shared.css — page-local only ───────── */
 
-/* Two-column layout */
 .news-layout {
   display: grid;
   grid-template-columns: 1fr 300px;
@@ -737,10 +829,8 @@ function fieldError(path) {
 }
 @media (max-width: 1100px) { .news-layout { grid-template-columns: 1fr; } }
 
-/* Feed stack */
 .news-feed { display: flex; flex-direction: column; gap: 14px; }
 
-/* Toolbar */
 .news-toolbar {
   display: flex; align-items: center; justify-content: space-between;
   gap: 14px; margin-bottom: 12px; flex-wrap: wrap;
@@ -762,7 +852,6 @@ function fieldError(path) {
   .news-toolbar .form-select-sm { flex: 1; min-width: 0; }
 }
 
-/* Count line */
 .news-count-line {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 10px; padding: 0 2px;
@@ -770,7 +859,6 @@ function fieldError(path) {
 }
 .news-count-line strong { color: var(--text); font-weight: 700; }
 
-/* Active tag strip */
 .news-active-tag {
   display: flex; align-items: center; gap: 8px;
   padding: 9px 12px; margin-bottom: 10px;
@@ -796,7 +884,6 @@ function fieldError(path) {
 }
 .news-active-tag-clear:hover { background: var(--surface); }
 
-/* Create CTA */
 .news-create-cta {
   display: flex; align-items: center; gap: 12px;
   width: 100%; padding: 14px 18px; margin-bottom: 14px;
@@ -808,7 +895,6 @@ function fieldError(path) {
 .news-create-cta-text { flex: 1; font-size: 14px; font-weight: 600; color: var(--text-3); }
 .news-create-cta-tools { display: flex; align-items: center; gap: 6px; color: var(--text-4); flex-shrink: 0; }
 
-/* Post card */
 .nf-post { overflow: hidden; }
 .nf-post.is-pinned { border-color: var(--fade-gold); }
 
@@ -845,11 +931,14 @@ function fieldError(path) {
 .nf-meta-sep { width: 3px; height: 3px; border-radius: var(--radius-full); background: var(--text-4); }
 .nf-t-platform   .nf-type-dot { background: var(--blue-dark); }
 .nf-t-provider   .nf-type-dot { background: var(--gold-dark); }
+.nf-t-post       .nf-type-dot { background: var(--gold-dark); }
 .nf-t-compliance .nf-type-dot { background: var(--orange-dark); }
 .nf-t-event      .nf-type-dot { background: var(--green-dark); }
+.nf-t-announcement .nf-type-dot { background: var(--green-dark); }
 .nf-t-resource   .nf-type-dot { background: var(--purple-dark); }
 .nf-t-milestone  .nf-type-dot { background: var(--gold-dark); }
 .nf-t-question   .nf-type-dot { background: var(--text-4); }
+.nf-t-poll       .nf-type-dot { background: var(--blue-dark); }
 .nf-more { flex-shrink: 0; }
 
 .nf-body { padding: 12px 18px 4px; }
@@ -864,7 +953,6 @@ function fieldError(path) {
 }
 .nf-readmore:hover { text-decoration: underline; }
 
-/* Links */
 .nf-links { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
 .nf-link {
   display: flex; align-items: center; gap: 10px;
@@ -878,7 +966,6 @@ function fieldError(path) {
 .nf-link-label { flex: 1; min-width: 0; font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nf-link-go { color: var(--text-4); flex-shrink: 0; display: flex; }
 
-/* Tags */
 .nf-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .nf-tag {
   font-family: var(--font-sans); font-size: 11px; font-weight: 600;
@@ -887,7 +974,6 @@ function fieldError(path) {
 }
 .nf-tag:hover { color: var(--gold-dark); }
 
-/* Poll */
 .nf-poll { margin-top: 14px; padding: 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); }
 .nf-poll-q { display: flex; align-items: center; gap: 7px; font-family: var(--font-sans); font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 12px; }
 .nf-poll-opt { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; cursor: pointer; }
@@ -898,7 +984,6 @@ function fieldError(path) {
 .nf-poll-pct { font-family: var(--font-sans); font-size: 12px; font-weight: 700; color: var(--text-3); width: 36px; text-align: right; flex-shrink: 0; }
 .nf-poll-meta { font-size: 11px; color: var(--text-4); margin-top: 11px; font-weight: 600; }
 
-/* Actions row */
 .nf-actions {
   display: flex; align-items: center; gap: 4px;
   padding: 10px 12px; margin-top: 14px;
@@ -920,7 +1005,6 @@ function fieldError(path) {
 .nf-act.is-saved:hover { background: var(--badge-bg-gold); }
 .nf-act-spacer { flex: 1; }
 
-/* Comments */
 .nf-comments { display: none; border-top: 1px solid var(--border); padding: 14px 18px; background: var(--surface-2); }
 .nf-comments.is-open { display: block; }
 .nf-comment { display: flex; gap: 9px; margin-bottom: 12px; }
@@ -934,11 +1018,9 @@ function fieldError(path) {
 .nf-comment-form { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
 .nf-comment-form .form-input { flex: 1; min-height: 36px; padding: 8px 13px; }
 
-/* Sidebar */
 .news-sidebar { display: flex; flex-direction: column; gap: 12px; }
 .nsc-card .card-body { padding: 4px 14px 6px; }
 
-/* Upcoming Events */
 .ne-event {
   display: grid; grid-template-columns: 40px 1fr 16px;
   gap: 14px; align-items: center;
@@ -975,7 +1057,6 @@ function fieldError(path) {
 }
 .ne-event:hover .ne-go { opacity: 1; transform: translateX(0); }
 
-/* Trending Topics */
 .nt-row {
   display: flex; align-items: center; justify-content: space-between;
   padding: 9px 6px; border-bottom: 1px solid var(--border);

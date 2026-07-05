@@ -245,6 +245,8 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
         Route::get('/news/library', [NewsController::class, 'library'])->name('news.library');
         Route::get('/news/events', [NewsController::class, 'events'])->name('news.events');
         Route::post('/news', [NewsController::class, 'storePost'])->name('news.store');
+        Route::patch('/news/{post}', [NewsController::class, 'updatePost'])->name('news.update');
+        Route::delete('/news/{post}', [NewsController::class, 'destroyPost'])->name('news.destroy');
         Route::post('/news/{post}/comment', [NewsController::class, 'comment'])->name('news.comment');
         Route::post('/news/{post}/react', [NewsController::class, 'react'])->name('news.react');
         Route::post('/news/{post}/vote', [NewsController::class, 'votePoll'])->name('news.vote');
