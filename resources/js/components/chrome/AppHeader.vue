@@ -176,7 +176,11 @@
           <div class="ep-profile-info">
             <div class="ep-profile-name">{{ cleanName }}</div>
             <div class="ep-profile-role">
-              <span class="ep-role-dot" :class="{ emergency: hasEmergency }" aria-hidden="true"></span>
+              <span
+                class="avail-status-dot avail-status-dot--sm"
+                :class="hasEmergency ? 'avail-status-dot--emergency' : `avail-status-dot--${messagingStatus}`"
+                aria-hidden="true"
+              ></span>
               {{ roleShort }}
             </div>
           </div>
@@ -259,8 +263,9 @@ const ui   = useUiStore()
 const page = usePage()
 
 // ── Auth from shared props ─────────────────────────────────────────────
-const user   = computed(() => page.props.auth?.user   ?? null)
-const portal = computed(() => page.props.auth?.portal ?? 'provider')
+const user            = computed(() => page.props.auth?.user   ?? null)
+const portal          = computed(() => page.props.auth?.portal ?? 'provider')
+const messagingStatus = computed(() => page.props.auth?.user?.messaging_status ?? 'available')
 
 // ── Name / initials ────────────────────────────────────────────────────
 const cleanName = computed(() => {
@@ -458,8 +463,7 @@ onBeforeUnmount(() => {
 }
 .ep-profile-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; line-height: 1.2; }
 .ep-profile-role { font-size: 11px; color: var(--text-3); white-space: nowrap; display: flex; align-items: center; gap: 4px; }
-.ep-role-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
-.ep-role-dot.emergency { background: var(--emergency); animation: dot-pulse 1.5s ease infinite; }
+/* ep-role-dot replaced by avail-status-dot--sm — see Messages.vue for the shared class definitions */
 .ep-profile-caret { display: inline-flex; align-items: center; color: var(--text-4); transition: transform var(--transition), color .18s ease; flex-shrink: 0; }
 .ep-profile-btn:hover .ep-profile-caret { color: var(--text-2); }
 .ep-profile-btn.open .ep-profile-caret  { transform: rotate(180deg); color: var(--gold-dark); }

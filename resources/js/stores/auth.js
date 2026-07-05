@@ -12,10 +12,11 @@ import { computed } from 'vue'
 export const useAuthStore = defineStore('auth', () => {
     const page = usePage()
 
-    const user   = computed(() => page.props.auth?.user ?? null)
-    const portal = computed(() => page.props.auth?.portal ?? null)
-    const tier   = computed(() => page.props.auth?.tier ?? null)
-    const roles  = computed(() => page.props.auth?.roles ?? [])
+    const user               = computed(() => page.props.auth?.user ?? null)
+    const portal             = computed(() => page.props.auth?.portal ?? null)
+    const tier               = computed(() => page.props.auth?.tier ?? null)
+    const roles              = computed(() => page.props.auth?.roles ?? [])
+    const availabilityStatus = computed(() => user.value?.messaging_status ?? 'available')
 
     // Portal predicates — mirror Provider/CS/SS/BP/Admin enum
     const isPractitioner      = computed(() => portal.value === 'provider')
@@ -44,6 +45,7 @@ export const useAuthStore = defineStore('auth', () => {
         isBusinessPartner, isAdmin,
         isAccessTier, isPracticeTier,
         isAgency, isFreelancer,
+        availabilityStatus,
         hasRole,
     }
 })

@@ -1613,7 +1613,7 @@ function useTemplate(body) {
 }
 .msg-presence-dot--available { background: var(--green, #22c55e); }
 .msg-presence-dot--busy      { background: var(--orange, #f97316); }
-.msg-presence-dot--away      { background: var(--surface-3); }
+.msg-presence-dot--away      { background: var(--blue); }
 
 .msg-contact-name-row {
   display: flex;
@@ -2276,23 +2276,8 @@ a.mip-name:hover { color: var(--gold-dark); }
   .msg-pane.is-contacts { max-height: 50vh; }
 }
 
-/* ── Availability status dots ─────────────────────── */
+/* avail-status-dot classes are global — defined in resources/css/app.css */
 .avail-row { gap: 12px; }
-.avail-status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: var(--radius-full);
-  border: none;
-  flex-shrink: 0;
-  display: inline-block;
-  transition: background var(--transition-fast);
-}
-.avail-status-dot--available { background: var(--green, #22c55e); }
-.avail-status-dot--busy      { background: var(--orange, #f97316); }
-.avail-status-dot--away      {
-  background: transparent;
-  border: 1.5px solid var(--border-dark);
-}
 
 .avail-dot {
   width: 12px;
@@ -2308,10 +2293,7 @@ a.mip-name:hover { color: var(--gold-dark); }
 .avail-dot--busy {
   background: var(--orange, #f97316);
 }
-.avail-dot--away {
-  background: transparent;
-  border: 1.5px solid var(--border-dark);
-}
+.avail-dot--away      { background: var(--blue); }
 
 /* ── Pending file chip in compose bar ─────────────── */
 .msg-attach-chip {

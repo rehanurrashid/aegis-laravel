@@ -32,7 +32,14 @@
       <div class="sidebar-brand-meta">
         <span v-if="portal === 'business_partner'" class="sidebar-portal-badge">BP Portal</span>
         <span v-if="portal === 'provider' && servicesMode" class="sidebar-portal-badge sidebar-portal-badge--services">Clinical Services</span>
-        <span class="sidebar-role-badge" :class="{ emergency: hasEmergency }">{{ roleLabel }}</span>
+        <span class="sidebar-role-badge" :class="{ emergency: hasEmergency }">
+          <span
+            class="avail-status-dot avail-status-dot--sm"
+            :class="`avail-status-dot--${messagingStatus}`"
+            aria-hidden="true"
+          ></span>
+          {{ roleLabel }}
+        </span>
         <div v-if="portal === 'provider' && isAccessTier" class="sidebar-access-pill">
           <span>Continuity Access</span>
           <Link :href="r('provider.settings.index') + '?tab=subscription&upgrade=1'" class="sidebar-access-upgrade">Upgrade ↗</Link>
@@ -124,7 +131,8 @@ const unreadMsgs      = computed(() => page.props.unreadMessages ?? 0)
 const openJobs        = computed(() => page.props.openJobPostings  ?? 0)
 const pendingReferrals = computed(() => page.props.pendingReferrals ?? 0)
 
-const isAccessTier = computed(() => page.props.auth?.tier === 'access')
+const isAccessTier     = computed(() => page.props.auth?.tier === 'access')
+const messagingStatus  = computed(() => page.props.auth?.user?.messaging_status ?? 'available')
 const servicesMode = computed(() => !!user.value?.services_mode)
 const bpType       = computed(() => user.value?.bp_type ?? 'agency')
 
@@ -488,18 +496,7 @@ onBeforeUnmount(() => {
   padding: 3px 7px !important;
   line-height: 1.4 !important;
 }
-.sidebar-role-badge::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: var(--green);
-  flex-shrink: 0;
-}
-.sidebar-role-badge.emergency::before {
-  background: var(--emergency);
-  animation: dot-pulse 1.5s ease infinite;
-}
+/* Status dot is now an avail-status-dot--sm span injected by the template */
 .sidebar-access-pill {
   display: inline-flex;
   align-items: center;

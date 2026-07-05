@@ -14,6 +14,7 @@ use App\Models\BpJob;
 use App\Models\CriticalIncident;
 use App\Models\Message;
 use App\Models\MessageThread;
+use App\Models\UserMeta;
 use App\Models\Referral;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -122,9 +123,12 @@ class HandleInertiaRequests extends Middleware
                     'slug'            => $user->slug ?? null,
                     'avatar_initials' => $user->avatar_initials ?? null,
                     'avatar_url'      => $user->avatar_url ?? null,
-                    'services_mode'   => (bool) ($user->services_mode ?? false),
-                    'two_factor'      => (bool) ($user->two_factor_enabled ?? false),
-                    'verified'        => (bool) ($user->verified ?? false),
+                    'services_mode'      => (bool) ($user->services_mode ?? false),
+                    'two_factor'         => (bool) ($user->two_factor_enabled ?? false),
+                    'verified'           => (bool) ($user->verified ?? false),
+                    'messaging_status'   => UserMeta::where('user_id', $user->id)
+                                               ->where('meta_key', 'messaging_status')
+                                               ->value('meta_value') ?? 'available',
                 ] : null,
                 'portal' => $user
                     ? ($user->role instanceof UserRole

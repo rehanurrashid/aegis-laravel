@@ -584,3 +584,30 @@ body {
   .hero-banner.is-quiet .hero-badges,
   .hero-banner.is-quiet > .hero-meta { flex-wrap: wrap; overflow-x: visible; }
 }
+
+/* ── Availability status dots — GLOBAL (used in AppSidebar, AppHeader, Messages) ──
+   These MUST be global (not scoped) so chrome components inherit them.
+   avail-status-dot: 10px base size (Messages header button)
+   avail-status-dot--sm: 6px compact size (sidebar role badge, header profile pill)
+   ────────────────────────────────────────────────────────────────────────────── */
+.avail-status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  transition: background var(--transition);
+}
+.avail-status-dot--sm        { width: 6px; height: 6px; }
+.avail-status-dot--available { background: var(--green); }
+.avail-status-dot--busy      { background: var(--orange); }
+.avail-status-dot--away      { background: var(--blue); }
+.avail-status-dot--emergency {
+  background: var(--emergency);
+  animation: avail-dot-pulse 1.5s ease infinite;
+}
+
+@keyframes avail-dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(160,45,34,0.4); }
+  50%       { box-shadow: 0 0 0 4px rgba(160,45,34,0); }
+}
