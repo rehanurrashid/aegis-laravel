@@ -18,6 +18,7 @@ Convert one legacy PHP page into a Vue 3 + Inertia component with 100% design pa
 - **AegisDropzone emits:** `@files` (array) and `@rejected`. Never `@file-selected`.
 - **Ziggy:** `route()` is a global (ZiggyVue). Import in app.js is `from 'ziggy-js'`.
 - **Composables:** `useToast()`, `useConfirm()` (callback: `confirmAction(msg, fn)`), `useActivity()` (`timeAgo`, `severityClass`, `iconForEventType`), `useMessageButton()` (`openConversation(id)`, `loading`), `useProfileRoute()` (`viewProfile(slug, kind)`, `profileHref(slug, kind)` where kind ∈ provider|cs|ss|business).
+- **Client-side validation (MANDATORY):** Every form with a submit action must use Vuelidate (`@vuelidate/core` + `@vuelidate/validators`). See AEGIS_VUE_RULES.md Section 14 for the full pattern. Required fields emit `@blur` → `v$.field.$touch()`. Submit handler calls `await v$.value.$validate()` and returns early if invalid. Errors render via `fieldError(field)` helper (client error beats server error). Same `.form-error` class for both. Never rely on browser native validation alone. Never submit without `v$.$validate()` first.
 
 ---
 
@@ -272,6 +273,12 @@ grep -c "<script setup>" $PAGE  # 1
 grep -c "</script>"      $PAGE  # 1
 grep -c "<template>"     $PAGE  # 1
 grep -c "</template>"    $PAGE  # 1
+# Client-side validation gate — every form with a submit must use Vuelidate
+grep -c "useVuelidate"   $PAGE   # ≥ 1 if page has any write form
+grep -c 'v\$\.\|v\$\.value\.' $PAGE  # ≥ 1 (vuelidate used in template/script)
+grep -c 'fieldError\|form-error' $PAGE  # ≥ 1 per required field
+grep -c '\$touch'        $PAGE   # ≥ 1 (blur handlers present)
+grep -c '\$validate'     $PAGE   # ≥ 1 (submit handler validates before post)
 # Modal pairing (local AegisModal + centralized modal mounts == v-model keys used)
 M=$(grep -cE "<AegisModal|<[A-Z][A-Za-z]+Modal " $PAGE); V=$(grep -c 'v-model="modals\.' $PAGE)
 echo "modals:$M vmodels:$V"; test $M -eq $V && echo OK || echo MISMATCH

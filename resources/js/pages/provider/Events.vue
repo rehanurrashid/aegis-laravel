@@ -352,23 +352,46 @@
       </div>
       <div class="form-group">
         <label class="form-label">Event Title <span class="required">*</span></label>
-        <input v-model="submitForm.title" type="text" class="form-input" placeholder="e.g. CBT for Anxiety Disorders — Advanced Workshop" />
+        <input
+          v-model="submitForm.title"
+          type="text"
+          class="form-input"
+          :class="{ 'is-error': fieldError('title') }"
+          placeholder="e.g. CBT for Anxiety Disorders — Advanced Workshop"
+          @blur="v$.title.$touch()"
+        />
+        <div v-if="fieldError('title')" class="form-error">{{ fieldError('title') }}</div>
       </div>
       <div class="form-row form-row-2">
         <div class="form-group">
           <label class="form-label">Event Type <span class="required">*</span></label>
-          <select v-model="submitForm.type" class="form-select">
+          <select
+            v-model="submitForm.type"
+            class="form-select"
+            :class="{ 'is-error': fieldError('type') }"
+            data-no-enhance
+            @change="v$.type.$touch()"
+          >
             <option value="">Select type…</option>
-            <option>Webinar</option>
-            <option>Conference</option>
-            <option>CEU Training</option>
-            <option>Networking</option>
-            <option>Workshop</option>
+            <option value="webinar">Webinar</option>
+            <option value="conference">Conference</option>
+            <option value="training">CEU Training</option>
+            <option value="networking">Networking</option>
+            <option value="workshop">Workshop</option>
           </select>
+          <div v-if="fieldError('type')" class="form-error">{{ fieldError('type') }}</div>
         </div>
         <div class="form-group">
           <label class="form-label">Event Date <span class="required">*</span></label>
-          <input v-model="submitForm.date" type="date" class="form-input" />
+          <input
+            ref="submitDateRef"
+            v-model="submitForm.date"
+            type="date"
+            class="form-input"
+            :class="{ 'is-error': fieldError('date') }"
+            @change="onSubmitDateChange"
+          />
+          <div v-if="fieldError('date')" class="form-error">{{ fieldError('date') }}</div>
         </div>
       </div>
       <div class="form-row form-row-2">
@@ -387,11 +410,27 @@
       </div>
       <div class="form-group">
         <label class="form-label">Description <span class="required">*</span></label>
-        <textarea v-model="submitForm.description" class="form-textarea" rows="4" placeholder="Describe the event, target audience, learning objectives…"></textarea>
+        <textarea
+          v-model="submitForm.description"
+          class="form-textarea"
+          :class="{ 'is-error': fieldError('description') }"
+          rows="4"
+          placeholder="Describe the event, target audience, learning objectives…"
+          @blur="v$.description.$touch()"
+        ></textarea>
+        <div v-if="fieldError('description')" class="form-error">{{ fieldError('description') }}</div>
       </div>
       <div class="form-group">
         <label class="form-label">Registration URL</label>
-        <input v-model="submitForm.url" type="url" class="form-input" placeholder="https://…" />
+        <input
+          v-model="submitForm.url"
+          type="url"
+          class="form-input"
+          :class="{ 'is-error': fieldError('url') }"
+          placeholder="https://…"
+          @blur="v$.url.$touch()"
+        />
+        <div v-if="fieldError('url')" class="form-error">{{ fieldError('url') }}</div>
       </div>
       <div class="form-group">
         <label class="form-label">Organizer / Sponsor</label>
@@ -456,6 +495,9 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
+import { useVuelidate }                                        from '@vuelidate/core'
+import { required, maxLength, minValue, numeric, url as vUrl,
+         helpers, minLength }                                  from '@vuelidate/validators'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
@@ -547,6 +589,40 @@ watch(submitPriceDollars, v => {
   submitForm.price_cents = isNaN(n) ? 0 : Math.round(n * 100)
 })
 
+// ── Vuelidate — submit form (mirrors SubmitEventRequest rules) ────────────
+const submitRules = computed(() => ({
+  title:       {
+    required: helpers.withMessage('Event title is required.', required),
+    max:      helpers.withMessage('Title must be 191 characters or less.', maxLength(191)),
+  },
+  type:        { required: helpers.withMessage('Please select an event type.', required) },
+  date:        { required: helpers.withMessage('Event date is required.', required) },
+  description: {
+    required: helpers.withMessage('Description is required.', required),
+    max:      helpers.withMessage('Description must be 2000 characters or less.', maxLength(2000)),
+  },
+  url:         {
+    validUrl: helpers.withMessage('Enter a valid URL (https://…).', (v) => !v || /^https?:\/\/.+/.test(v)),
+  },
+  ceu:         { min: helpers.withMessage('CEU credits cannot be negative.', minValue(0)) },
+  price_cents: { min: helpers.withMessage('Price cannot be negative.', minValue(0)) },
+}))
+
+const v$ = useVuelidate(submitRules, submitForm)
+
+// Unified error helper — client error wins while editing
+function fieldError(field) {
+  if (v$.value[field]?.$error) return v$.value[field].$errors[0]?.$message
+  return null
+}
+
+// Date input ref for flatpickr sync
+const submitDateRef = ref(null)
+function onSubmitDateChange(e) {
+  submitForm.date = e.target.value || ''
+  v$.value.date.$touch()
+}
+
 // ── Registration ─────────────────────────────────────────────────────────
 function handleRegister(ev) {
   if (registeredIds.value.has(ev.id)) {
@@ -608,9 +684,10 @@ function openDetail(ev) {
 }
 
 // ── Submit event ─────────────────────────────────────────────────────────
-function submitEvent() {
-  if (!submitForm.title.trim() || !submitForm.description.trim()) {
-    toast.warning('Please fill in the required fields')
+async function submitEvent() {
+  const valid = await v$.value.$validate()
+  if (!valid) {
+    toast.error('Please fix the highlighted fields.')
     return
   }
   router.post(route('provider.news.events.submit'), { ...submitForm }, {
@@ -620,8 +697,14 @@ function submitEvent() {
       toast.success("Event submitted for review — we'll respond within 2 business days.")
       Object.keys(submitForm).forEach(k => (submitForm[k] = k === 'price_cents' || k === 'ceu' ? 0 : ''))
       submitPriceDollars.value = ''
+      if (submitDateRef.value?._flatpickr) submitDateRef.value._flatpickr.clear()
+      v$.value.$reset()
     },
-    onError: () => toast.error('Submission failed.'),
+    onError: (errors) => {
+      modals.submitEvent = false
+      const first = Object.values(errors)[0]
+      toast.error(first || 'Submission failed — please check the form.')
+    },
   })
 }
 
