@@ -40,8 +40,8 @@ const FLATPICKR_CONFIG = {
         c.style.maxWidth = total + 'px'
       })
       if (fp.calendarContainer) {
-        fp.calendarContainer.style.width    = (total + 18) + 'px'
-        fp.calendarContainer.style.maxWidth = (total + 18) + 'px'
+        fp.calendarContainer.style.width    = (total + 24) + 'px'
+        fp.calendarContainer.style.maxWidth = (total + 24) + 'px'
       }
     }
   },

@@ -48,11 +48,12 @@
     0 4px 6px -1px rgba(30,28,26,0.08),
     0 10px 28px -4px rgba(30,28,26,0.12),
     0 0 0 1px rgba(160,129,62,0.06) !important;
-  padding: 9px !important;
-  /* 40px cells × 7 = 280px dayContainer + 9px padding × 2 = 298px */
-  width: 298px !important;
-  max-width: 298px !important;
+  padding: 12px !important;
+  /* 40px cells × 7 = 280px dayContainer + 12px padding × 2 = 304px */
+  width: 304px !important;
+  max-width: 304px !important;
   box-sizing: border-box !important;
+  overflow: visible !important;
 }
 
 /* Remove the triangular pointer arrow — doesn't fit flat card design */
@@ -209,7 +210,8 @@
 
 .flatpickr-weekdaycontainer {
   display: flex !important;
-  justify-content: space-around !important;
+  justify-content: flex-start !important;
+  width: 280px !important;
 }
 
 span.flatpickr-weekday {
@@ -221,8 +223,12 @@ span.flatpickr-weekday {
   text-transform: uppercase !important;
   letter-spacing: 0.07em !important;
   text-align: center !important;
-  flex: 1 !important;
+  width: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+  flex: none !important;
   line-height: 22px !important;
+  box-sizing: border-box !important;
 }
 
 /* §1.8  Day cells grid — let flatpickr control the widths (set via JS inline styles) */
@@ -238,16 +244,18 @@ span.flatpickr-weekday {
 
 .flatpickr-day {
   font-family: var(--font-sans) !important;
-  font-size: 11.5px !important;
+  font-size: 12px !important;
   font-weight: 500 !important;
   color: var(--text) !important;
   background: transparent !important;
+  box-sizing: border-box !important;
   /* 40px cells × 7 = 280px fits inside scaled dayContainer */
   border-radius: var(--radius-sm) !important;
   border: 1px solid transparent !important;
   height: 40px !important;
   line-height: 38px !important;
   max-width: 40px !important;
+  width: 40px !important;
   margin: 0 !important;
   transition: background var(--transition), color var(--transition), border-color var(--transition) !important;
 }
