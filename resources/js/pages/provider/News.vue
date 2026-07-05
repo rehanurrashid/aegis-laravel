@@ -12,6 +12,9 @@
         <a :href="route('provider.activity')" class="btn-hero-ghost is-on-light">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
+        <button type="button" class="btn-hero-ghost is-on-light" @click="openMyLibrary">
+          <AegisIcon name="bookmark" :size="14" /> My Library
+        </button>
         <button type="button" class="btn-hero-solid is-on-light" @click="modals.createPost = true">
           <AegisIcon name="pencil" :size="14" /> Create Post
         </button>
@@ -395,44 +398,102 @@
 
     <!-- Create Post -->
     <AegisModal v-model="modals.createPost" size="lg" title="Create Post">
-      <div class="form-group">
-        <label class="form-label">Post Type</label>
-        <select class="form-select" v-model="createForm.post_type">
-          <option value="provider">General Post</option>
-          <option value="question">Ask Community</option>
-          <option value="resource">Share Resource</option>
-          <option value="milestone">Milestone</option>
-          <option value="event">Announce Event</option>
-        </select>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Post Type <span class="required">*</span></label>
+          <select class="form-select" v-model="createForm.post_type">
+            <option value="provider">General Post</option>
+            <option value="question">Ask Community</option>
+            <option value="resource">Share Resource</option>
+            <option value="milestone">Milestone</option>
+            <option value="event">Announce Event</option>
+            <option value="poll">Poll / Quiz</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Audience</label>
+          <select class="form-select" v-model="createForm.audience">
+            <option value="all">All members</option>
+            <option value="providers">Providers only</option>
+            <option value="stewards">Stewards only</option>
+            <option value="business_partners">Business partners only</option>
+          </select>
+        </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Audience</label>
-        <select class="form-select" v-model="createForm.audience">
-          <option value="all">All members</option>
-          <option value="providers">Providers only</option>
-          <option value="stewards">Stewards only</option>
-          <option value="business_partners">Business partners only</option>
-        </select>
-      </div>
+
       <div class="form-group">
         <label class="form-label">Title <span style="color:var(--text-4);font-weight:600">(optional)</span></label>
         <input type="text" class="form-input" v-model="createForm.title"
-               placeholder="Give your post a clear headline" maxlength="160" />
+               :placeholder="createTitlePlaceholder" maxlength="160" />
       </div>
+
       <div class="form-group">
-        <label class="form-label">Content <span class="required">*</span></label>
-        <textarea class="form-textarea" v-model="createForm.body" rows="6" maxlength="2000"
+        <label class="form-label">
+          {{ createForm.post_type === 'poll' ? 'Context / Description' : 'Content' }}
+          <span v-if="createForm.post_type !== 'poll'" class="required">*</span>
+          <span v-else style="color:var(--text-4);font-weight:600"> (optional)</span>
+        </label>
+        <textarea class="form-textarea" v-model="createForm.body" rows="4" maxlength="2000"
                   :class="{ 'is-error': anyError(vCreate, createForm, 'body') }"
-                  placeholder="Share your update, question, or resource…"
+                  :placeholder="createBodyPlaceholder"
                   @blur="vCreate.body.$touch()" />
         <div v-if="anyError(vCreate, createForm, 'body')" class="form-error">{{ anyError(vCreate, createForm, 'body') }}</div>
         <div class="form-hint">{{ createForm.body.length }} / 2000</div>
       </div>
+
+      <!-- Poll builder — shown only when post_type === poll -->
+      <template v-if="createForm.post_type === 'poll'">
+        <div class="form-group">
+          <label class="form-label">Poll Question <span class="required">*</span></label>
+          <input type="text" class="form-input"
+                 :class="{ 'is-error': anyError(vCreate, createForm, 'poll_question') }"
+                 v-model="createForm.poll_question"
+                 placeholder="What would you like to ask the community?"
+                 maxlength="300"
+                 @blur="vCreate.poll_question?.$touch()" />
+          <div v-if="anyError(vCreate, createForm, 'poll_question')" class="form-error">{{ anyError(vCreate, createForm, 'poll_question') }}</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Answer Options <span class="required">*</span> <span style="color:var(--text-4);font-weight:600">(2–4 options)</span></label>
+          <div class="poll-options-builder">
+            <div v-for="(opt, idx) in pollOptions" :key="idx" class="poll-option-row">
+              <span class="poll-option-num">{{ idx + 1 }}</span>
+              <input type="text" class="form-input" v-model="opt.label"
+                     :placeholder="'Option ' + (idx + 1)"
+                     maxlength="120" />
+              <button v-if="pollOptions.length > 2" type="button" class="btn-icon btn-icon-sm btn-icon-danger"
+                      data-tooltip="Remove option" @click="removePollOption(idx)">
+                <AegisIcon name="x" :size="13" />
+              </button>
+            </div>
+            <button v-if="pollOptions.length < 4" type="button" class="btn btn-outline btn-sm"
+                    style="margin-top:8px" @click="addPollOption">
+              <AegisIcon name="plus" :size="13" /> Add Option
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Poll Closes <span style="color:var(--text-4);font-weight:600">(optional)</span></label>
+          <input type="date" class="form-input" v-model="createForm.poll_closes_at"
+                 :min="new Date().toISOString().split('T')[0]" />
+        </div>
+      </template>
+
+      <!-- Resource-specific fields -->
+      <template v-if="createForm.post_type === 'resource'">
+        <div class="form-group">
+          <label class="form-label">Resource Link <span style="color:var(--text-4);font-weight:600">(optional)</span></label>
+          <input type="url" class="form-input" v-model="createForm.resource_url"
+                 placeholder="https://…" />
+        </div>
+      </template>
+
       <div class="form-group">
         <label class="form-label">Tags <span style="color:var(--text-4);font-weight:600">(comma-separated)</span></label>
         <input type="text" class="form-input" v-model="createForm.tags"
                placeholder="e.g. Telehealth, Compliance, Workflow" />
       </div>
+
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.createPost = false">Cancel</button>
         <button type="button" class="btn btn-primary" :disabled="createForm.processing" @click="submitCreatePost">
@@ -475,6 +536,92 @@
         <button type="button" class="btn btn-primary" @click="copyShareUrl">
           <AegisIcon name="copy" :size="14" /> Copy Link
         </button>
+      </template>
+    </AegisModal>
+
+    <!-- My Library Modal — Saved + Reported posts -->
+    <AegisModal v-model="modals.myLibrary" size="lg" title="My Library">
+      <!-- Tab pills -->
+      <div class="tabs-segmented" style="margin-bottom:16px">
+        <button type="button" :class="['tab-pill', { active: libraryTab === 'saved' }]"
+                @click="libraryTab = 'saved'">
+          <AegisIcon name="bookmark" :size="12" />
+          Saved
+          <span v-if="librarySaved.length" class="badge-pill">{{ librarySaved.length }}</span>
+        </button>
+        <button type="button" :class="['tab-pill', { active: libraryTab === 'reported' }]"
+                @click="libraryTab = 'reported'">
+          <AegisIcon name="flag-2" :size="12" />
+          Reported
+          <span v-if="libraryReported.length" class="badge-pill">{{ libraryReported.length }}</span>
+        </button>
+      </div>
+
+      <!-- Loading state -->
+      <div v-if="libraryLoading" style="text-align:center;padding:32px 0;color:var(--text-4);font-size:13px">
+        Loading…
+      </div>
+
+      <!-- Saved tab -->
+      <template v-else-if="libraryTab === 'saved'">
+        <AegisEmptyState v-if="!librarySaved.length"
+          icon="bookmark" title="No saved posts"
+          subtitle="Save posts from the feed to access them here." />
+        <div v-else class="lib-table">
+          <div class="lib-table-head">
+            <span class="lib-col-title">Post</span>
+            <span class="lib-col-type">Type</span>
+            <span class="lib-col-author">Author</span>
+            <span class="lib-col-actions"></span>
+          </div>
+          <div v-for="p in librarySaved" :key="p.id" class="lib-table-row">
+            <div class="lib-col-title">
+              <div class="lib-post-title">{{ p.title || p.body?.slice(0,60) || '(no content)' }}</div>
+              <div class="lib-post-body">{{ p.body?.slice(0,80) }}{{ p.body?.length > 80 ? '…' : '' }}</div>
+            </div>
+            <span class="lib-col-type">
+              <span :class="['badge', typeBadgeClass(p.post_type)]">{{ typeLabel(p.post_type) }}</span>
+            </span>
+            <span class="lib-col-author">{{ p.author_name }}</span>
+            <span class="lib-col-actions">
+              <button type="button" class="btn-icon btn-icon-sm btn-icon-danger"
+                      data-tooltip="Unsave"
+                      @click="unsaveFromLibrary(p)">
+                <AegisIcon name="bookmark" :size="13" />
+              </button>
+            </span>
+          </div>
+        </div>
+      </template>
+
+      <!-- Reported tab -->
+      <template v-else-if="libraryTab === 'reported'">
+        <AegisEmptyState v-if="!libraryReported.length"
+          icon="flag-2" title="No reported posts"
+          subtitle="Posts you've flagged for review will appear here." />
+        <div v-else class="lib-table">
+          <div class="lib-table-head">
+            <span class="lib-col-title">Post</span>
+            <span class="lib-col-type">Type</span>
+            <span class="lib-col-author">Author</span>
+            <span class="lib-col-date">Reported</span>
+          </div>
+          <div v-for="p in libraryReported" :key="p.id" class="lib-table-row">
+            <div class="lib-col-title">
+              <div class="lib-post-title">{{ p.title || '(untitled)' }}</div>
+              <div class="lib-post-body">{{ p.body }}</div>
+            </div>
+            <span class="lib-col-type">
+              <span :class="['badge', typeBadgeClass(p.post_type)]">{{ typeLabel(p.post_type) }}</span>
+            </span>
+            <span class="lib-col-author">{{ p.author_name }}</span>
+            <span class="lib-col-date" style="font-size:11px;color:var(--text-4)">{{ fmtDate(p.reported_at) }}</span>
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="modals.myLibrary = false">Close</button>
       </template>
     </AegisModal>
 
@@ -645,13 +792,6 @@ function copyShareUrl() {
   toast.success('Link copied to clipboard')
 }
 
-// ── Report ────────────────────────────────────────────────────────────────────
-function reportPost(postId) {
-  confirmAction('Report this post for review by the Aegis Trust & Safety team?', () => {
-    toast.info('Reported — our team will review shortly')
-  })
-}
-
 // ── Poll ──────────────────────────────────────────────────────────────────────
 function pollTotal(post) {
   return (post.poll_options ?? []).reduce((s, o) => s + (o.votes ?? 0), 0) || 0
@@ -662,11 +802,8 @@ function pollPct(post, idx) {
 }
 function votePoll(post, opt) {
   if (post.my_poll_vote) { toast.info('You already voted in this poll'); return }
-
-  // Optimistic
   post.my_poll_vote = opt.key
   if (opt) opt.votes = (opt.votes ?? 0) + 1
-
   router.post(route('provider.news.vote', { post: post.id }), { option_key: opt.key }, {
     preserveScroll: true,
     preserveState:  true,
@@ -705,14 +842,109 @@ function confirmDelete(postId) {
 // ── Edit ──────────────────────────────────────────────────────────────────────
 const editTargetId = ref(null)
 
+// ── Report — now wires to backend reaction ────────────────────────────────────
+function reportPost(postId) {
+  confirmAction('Report this post for review by the Aegis Trust & Safety team?', () => {
+    router.post(route('provider.news.react', { post: postId }), { reaction_type: 'report' }, {
+      preserveScroll: true,
+      preserveState:  true,
+      onSuccess: () => toast.info('Reported — our team will review shortly'),
+      onError:   () => toast.error('Could not submit report.'),
+    })
+  })
+}
+
+// ── Poll builder state ────────────────────────────────────────────────────────
+const pollOptions = reactive([
+  { label: '' },
+  { label: '' },
+])
+function addPollOption()       { if (pollOptions.length < 4) pollOptions.push({ label: '' }) }
+function removePollOption(idx) { pollOptions.splice(idx, 1) }
+
+// ── Create form placeholders by type ─────────────────────────────────────────
+const createTitlePlaceholder = computed(() => {
+  const map = {
+    provider:  'Give your post a clear headline',
+    question:  'What would you like to ask?',
+    resource:  'Name of the resource or guide',
+    milestone: 'Celebrate your achievement',
+    event:     'Event name and date',
+    poll:      'Poll title (optional)',
+  }
+  return map[createForm.post_type] ?? 'Give your post a clear headline'
+})
+const createBodyPlaceholder = computed(() => {
+  const map = {
+    provider:  'Share your update, insight, or experience…',
+    question:  'Describe your question or situation in detail…',
+    resource:  'Briefly describe what this resource covers and who it helps…',
+    milestone: 'Tell the community what you accomplished…',
+    event:     'Event details — date, location, what to expect…',
+    poll:      'Add context for your poll (optional)…',
+  }
+  return map[createForm.post_type] ?? 'Share something with the Aegis community…'
+})
+
+// ── My Library — saved / reported posts ──────────────────────────────────────
+const libraryTab      = ref('saved')
+const libraryLoading  = ref(false)
+const librarySaved    = ref([])
+const libraryReported = ref([])
+
+async function openMyLibrary() {
+  modals.myLibrary = true
+  libraryLoading.value = true
+  try {
+    const res = await fetch(route('provider.news.my-library'), {
+      headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin',
+    })
+    const data = await res.json()
+    librarySaved.value    = data.saved    ?? []
+    libraryReported.value = data.reported ?? []
+  } catch {
+    toast.error('Could not load library.')
+  } finally {
+    libraryLoading.value = false
+  }
+}
+
+function unsaveFromLibrary(post) {
+  router.post(route('provider.news.react', { post: post.id }), { reaction_type: 'save' }, {
+    preserveScroll: true,
+    preserveState:  true,
+    onSuccess: () => {
+      librarySaved.value = librarySaved.value.filter(p => p.id !== post.id)
+      toast.success('Removed from saved')
+    },
+    onError: () => toast.error('Could not unsave.'),
+  })
+}
+
+function typeBadgeClass(t) {
+  const map = {
+    platform: 'badge-blue', provider: 'badge-gold', post: 'badge-gold',
+    event: 'badge-green', announcement: 'badge-green',
+    resource: 'badge-purple', milestone: 'badge-gold',
+    question: 'badge-gray', poll: 'badge-blue',
+  }
+  return map[t] ?? 'badge-gray'
+}
+
+// ── Modal state ───────────────────────────────────────────────────────────────
+const modals = reactive({ createPost: false, editPost: false, sharePost: false, myLibrary: false })
+
 // ── useForm instances — single source of truth, bound directly to template ────
-// ONE useForm per modal. No secondary reactive() copy. v-model binds here directly.
 const createForm = useForm({
-  post_type: 'provider',
-  audience:  'all',
-  title:     '',
-  body:      '',
-  tags:      '',
+  post_type:      'provider',
+  audience:       'all',
+  title:          '',
+  body:           '',
+  tags:           '',
+  poll_question:  '',
+  poll_closes_at: '',
+  resource_url:   '',
 })
 
 const editForm = useForm({ title: '', body: '' })
@@ -743,6 +975,22 @@ async function submitEditPost() {
 async function submitCreatePost() {
   const ok = await vCreate.value.$validate()
   if (!ok) return
+
+  // Attach poll options if poll type
+  if (createForm.post_type === 'poll') {
+    const validOpts = pollOptions.filter(o => o.label.trim())
+    if (validOpts.length < 2) {
+      toast.error('Add at least 2 poll options.')
+      return
+    }
+    createForm.poll_options = validOpts.map((o, i) => ({ key: String(i), label: o.label.trim() }))
+  }
+
+  // Attach resource link as links array
+  if (createForm.post_type === 'resource' && createForm.resource_url) {
+    createForm.links = [{ label: 'View Resource', url: createForm.resource_url }]
+  }
+
   createForm.post(route('provider.news.store'), {
     preserveScroll: true,
     onSuccess: () => {
@@ -751,6 +999,7 @@ async function submitCreatePost() {
       createForm.reset()
       createForm.post_type = 'provider'
       createForm.audience  = 'all'
+      pollOptions.splice(0, pollOptions.length, { label: '' }, { label: '' })
       vCreate.value.$reset()
     },
     onError: () => toast.error('Could not publish post.'),
@@ -759,7 +1008,7 @@ async function submitCreatePost() {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const TYPE_LABELS = {
-  platform: 'Platform', provider: 'Provider', compliance: 'Compliance',
+  platform: 'Platform', provider: 'General Post', compliance: 'Compliance',
   event: 'Event', resource: 'Resource', milestone: 'Milestone',
   question: 'Question', post: 'Post', poll: 'Poll', announcement: 'Announcement',
 }
@@ -775,28 +1024,27 @@ function fmtEventTime(starts, ends) {
   return fmt(starts) + (ends ? ' – ' + fmt(ends) : '')
 }
 
-// ── Modal state ───────────────────────────────────────────────────────────────
-const modals = reactive({ createPost: false, editPost: false, sharePost: false })
-
-// ── Vuelidate — one v$ per form, flat rules (no nesting) ─────────────────────
-const createRules = { body: { required, minLength: minLength(1) } }
-const editRules   = { body: { required, minLength: minLength(1) } }
+// ── Vuelidate — one v$ per form, flat rules ───────────────────────────────────
+const createRules = computed(() => ({
+  body: createForm.post_type === 'poll'
+    ? {}
+    : { required, minLength: minLength(1) },
+  poll_question: createForm.post_type === 'poll'
+    ? { required, minLength: minLength(3) }
+    : {},
+}))
+const editRules = { body: { required, minLength: minLength(1) } }
 const vCreate = useVuelidate(createRules, createForm)
 const vEdit   = useVuelidate(editRules,   editForm)
 
-// Unified fieldError helper — pass the v$ instance and the field name
 function fieldError(v$Instance, field) {
   const node = v$Instance.value?.[field]
   if (!node?.$error) return null
   return node.$errors[0]?.$message ?? 'Invalid value.'
 }
-
-// Inertia server error helper — check form.errors[field]
 function serverError(form, field) {
   return form.errors?.[field] ?? null
 }
-
-// Combined — client error takes precedence over server error
 function anyError(v$Instance, form, field) {
   return fieldError(v$Instance, field) || serverError(form, field) || null
 }
@@ -1052,4 +1300,49 @@ function anyError(v$Instance, form, field) {
 .nt-tag { font-size: 13px; font-weight: 700; color: var(--gold-dark); transition: opacity var(--transition); }
 .nt-row:hover .nt-tag { opacity: 0.85; }
 .nt-count { font-size: 11px; color: var(--text-4); font-weight: 600; }
+/* ── Poll Options Builder ────────────────────────────────── */
+.poll-options-builder { display: flex; flex-direction: column; gap: 8px; }
+.poll-option-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.poll-option-num {
+  width: 22px; height: 22px; border-radius: var(--radius-full);
+  background: var(--badge-bg-gold); color: var(--gold-dark);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; flex-shrink: 0;
+}
+.poll-option-row .form-input { flex: 1; }
+
+/* ── My Library table ────────────────────────────────────── */
+.lib-table { display: flex; flex-direction: column; gap: 0; }
+.lib-table-head, .lib-table-row {
+  display: grid;
+  grid-template-columns: 1fr 90px 120px 36px;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+}
+.lib-table-head {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-4);
+  background: var(--surface-2); border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+}
+.lib-table-row {
+  border-bottom: 1px solid var(--border);
+  transition: background var(--transition);
+}
+.lib-table-row:last-child { border-bottom: none; }
+.lib-table-row:hover { background: var(--surface-2); }
+.lib-post-title {
+  font-size: 13px; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lib-post-body {
+  font-size: 11px; color: var(--text-4); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lib-col-type, .lib-col-author, .lib-col-date, .lib-col-actions {
+  font-size: 12px; color: var(--text-3);
+}
 </style>

@@ -243,6 +243,7 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
         // News & Events
         Route::get('/news', [NewsController::class, 'index'])->name('news.index');
         Route::get('/news/library', [NewsController::class, 'library'])->name('news.library');
+        Route::get('/news/my-library', [NewsController::class, 'myLibrary'])->name('news.my-library');
         Route::get('/news/events', [NewsController::class, 'events'])->name('news.events');
         Route::post('/news', [NewsController::class, 'storePost'])->name('news.store');
         Route::patch('/news/{post}', [NewsController::class, 'updatePost'])->name('news.update');

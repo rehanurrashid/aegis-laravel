@@ -414,4 +414,46 @@ class NewsService
             ->limit($limit)
             ->get();
     }
+
+    /**
+     * My Library data — saved posts and reported posts for the current user.
+     * Returned as plain arrays for JSON endpoint (consumed by modal via fetch).
+     */
+    public function myLibraryData(User $user): array
+    {
+        $userId = $user->id;
+
+        $savedReactions = NewsReaction::where('user_id', $userId)
+            ->where('reaction', 'save')
+            ->with(['post.author', 'post.reactions', 'post.comments'])
+            ->orderByDesc('created_at')
+            ->get();
+
+        $reportedReactions = NewsReaction::where('user_id', $userId)
+            ->where('reaction', 'report')
+            ->with(['post.author'])
+            ->orderByDesc('created_at')
+            ->get();
+
+        $saved = $savedReactions
+            ->filter(fn($r) => $r->post && $r->post->published)
+            ->map(fn($r) => $this->shapePost($r->post, $userId))
+            ->values()
+            ->toArray();
+
+        $reported = $reportedReactions
+            ->filter(fn($r) => $r->post !== null)
+            ->map(fn($r) => [
+                'id'          => $r->post->id,
+                'title'       => $r->post->title,
+                'body'        => Str::limit($r->post->body ?? '', 120),
+                'post_type'   => $r->post->post_type,
+                'author_name' => $r->post->author?->display_name ?? 'Unknown',
+                'reported_at' => $r->created_at?->toIso8601String(),
+            ])
+            ->values()
+            ->toArray();
+
+        return compact('saved', 'reported');
+    }
 }

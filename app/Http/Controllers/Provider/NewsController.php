@@ -48,6 +48,14 @@ class NewsController extends Controller
         ]);
     }
 
+    /** Returns saved + reported posts for the current user — consumed as JSON by the My Library modal. */
+    public function myLibrary(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $user = $request->user();
+        $data = $this->news->myLibraryData($user);
+        return response()->json($data);
+    }
+
     public function events(Request $request): Response
     {
         $user      = $request->user();
