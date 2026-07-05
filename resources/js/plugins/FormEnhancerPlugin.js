@@ -23,22 +23,30 @@ const FLATPICKR_CONFIG = {
   allowInput:    true,
   disableMobile: false,
   appendTo:      document.body,
-  // 31px day cells (≈80% of default 39px) — flatpickr uses this to compute
-  // dayContainer width inline, so calendar stays compact without CSS fighting JS
-  // 31 × 7 = 217px dayContainer + 9px padding each side = 235px calendar
+  // 42px day cells (slightly larger than flatpickr default 39px)
+  // 42 × 7 = 294px dayContainer + 12px padding each side = 318px calendar
   onReady(_, __, fp) {
     fp.altInput?.classList.add('form-input', 'flatpickr-alt-field')
     fp.altInput?.removeAttribute('readonly')
     // Patch the inline-style widths flatpickr already wrote to the DOM
     if (fp.daysContainer) {
-      const DAY = 40
-      const total = DAY * 7
+      const DAY = 42
+      const total = DAY * 7  // 294
       fp.daysContainer.style.width = total + 'px'
       fp.daysContainer.querySelectorAll('.dayContainer').forEach(c => {
         c.style.width    = total + 'px'
         c.style.minWidth = total + 'px'
         c.style.maxWidth = total + 'px'
       })
+      // Also stretch rContainer and innerContainer so right cells don't clip
+      const rContainer = fp.calendarContainer?.querySelector('.flatpickr-rContainer')
+      if (rContainer) {
+        rContainer.style.width = total + 'px'
+      }
+      const innerContainer = fp.calendarContainer?.querySelector('.flatpickr-innerContainer')
+      if (innerContainer) {
+        innerContainer.style.width = total + 'px'
+      }
       if (fp.calendarContainer) {
         fp.calendarContainer.style.width    = (total + 24) + 'px'
         fp.calendarContainer.style.maxWidth = (total + 24) + 'px'

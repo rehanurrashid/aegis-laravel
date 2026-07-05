@@ -49,9 +49,9 @@
     0 10px 28px -4px rgba(30,28,26,0.12),
     0 0 0 1px rgba(160,129,62,0.06) !important;
   padding: 12px !important;
-  /* 40px cells × 7 = 280px dayContainer + 12px padding × 2 = 304px */
-  width: 304px !important;
-  max-width: 304px !important;
+  /* 42px cells × 7 = 294px dayContainer + 12px padding × 2 = 318px */
+  width: 318px !important;
+  max-width: 318px !important;
   box-sizing: border-box !important;
   overflow: visible !important;
 }
@@ -211,7 +211,7 @@
 .flatpickr-weekdaycontainer {
   display: flex !important;
   justify-content: flex-start !important;
-  width: 280px !important;
+  width: 294px !important;
 }
 
 span.flatpickr-weekday {
@@ -223,9 +223,9 @@ span.flatpickr-weekday {
   text-transform: uppercase !important;
   letter-spacing: 0.07em !important;
   text-align: center !important;
-  width: 40px !important;
-  min-width: 40px !important;
-  max-width: 40px !important;
+  width: 42px !important;
+  min-width: 42px !important;
+  max-width: 42px !important;
   flex: none !important;
   line-height: 22px !important;
   box-sizing: border-box !important;
@@ -234,6 +234,16 @@ span.flatpickr-weekday {
 /* §1.8  Day cells grid — let flatpickr control the widths (set via JS inline styles) */
 .flatpickr-days {
   border: none !important;
+  width: 294px !important;
+}
+
+/* Force rContainer and innerContainer to match day grid width so right edge doesn't clip */
+.flatpickr-rContainer {
+  width: 294px !important;
+}
+
+.flatpickr-innerContainer {
+  width: 294px !important;
 }
 
 .dayContainer {
@@ -249,13 +259,13 @@ span.flatpickr-weekday {
   color: var(--text) !important;
   background: transparent !important;
   box-sizing: border-box !important;
-  /* 40px cells × 7 = 280px fits inside scaled dayContainer */
+  /* 42px cells × 7 = 294px fits inside scaled dayContainer */
   border-radius: var(--radius-sm) !important;
   border: 1px solid transparent !important;
-  height: 40px !important;
-  line-height: 38px !important;
-  max-width: 40px !important;
-  width: 40px !important;
+  height: 42px !important;
+  line-height: 40px !important;
+  max-width: 42px !important;
+  width: 42px !important;
   margin: 0 !important;
   transition: background var(--transition), color var(--transition), border-color var(--transition) !important;
 }
@@ -289,15 +299,21 @@ span.flatpickr-weekday {
   font-weight: 700 !important;
 }
 
-/* Disabled / out-of-month days */
+/* Disabled days — faded, no interaction */
 .flatpickr-day.flatpickr-disabled,
-.flatpickr-day.flatpickr-disabled:hover,
-.flatpickr-day.prevMonthDay,
-.flatpickr-day.nextMonthDay {
+.flatpickr-day.flatpickr-disabled:hover {
   color: var(--text-4) !important;
   background: transparent !important;
   border-color: transparent !important;
-  opacity: 0.45 !important;
+  opacity: 0.35 !important;
+  cursor: default !important;
+}
+
+/* Other-month days — hidden but preserve grid spacing */
+.flatpickr-day.prevMonthDay,
+.flatpickr-day.nextMonthDay {
+  visibility: hidden !important;
+  pointer-events: none !important;
   cursor: default !important;
 }
 
