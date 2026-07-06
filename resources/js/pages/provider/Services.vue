@@ -208,6 +208,11 @@
     ══════════════════════════════════════════ -->
     <div v-show="activeTab === 'requests'">
 
+      <div class="page-note">
+        <AegisIcon name="users" :size="14" />
+        <span>Other practitioners on the network have requested access to your listed services. Review, accept, counter-propose, or dismiss each request below.</span>
+      </div>
+
       <div v-if="newRequests.length" class="alert alert-info" style="margin-bottom:20px;">
         <div class="alert-icon"><AegisIcon name="info" :size="16" /></div>
         <div class="alert-content">
@@ -394,7 +399,85 @@
     </div>
 
     <!-- ══════════════════════════════════════════
-         TAB 4: SETTINGS
+         TAB 4: MY OUTGOING REQUESTS
+    ══════════════════════════════════════════ -->
+    <div v-show="activeTab === 'outgoing'">
+
+      <div class="page-note">
+        <AegisIcon name="send" :size="14" />
+        <span>These are service requests you have sent to other practitioners. Track their status, and withdraw any pending request if your needs have changed.</span>
+      </div>
+
+      <div class="svc-toolbar">
+        <div class="search-wrap">
+          <AegisIcon name="search" :size="15" />
+          <input v-model="outgoingSearch" type="text" class="form-control" placeholder="Search provider or service…">
+        </div>
+      </div>
+
+      <div v-if="!filteredOutgoing.length" class="empty-state-wrap">
+        <AegisEmptyState icon="send" title="No outgoing requests" message="Requests you send to other providers will appear here." />
+      </div>
+
+      <div v-else class="card card-flush">
+        <div class="card-body">
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Provider</th>
+                  <th>Service</th>
+                  <th>Type</th>
+                  <th>Date Sent</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="r in filteredOutgoing" :key="r.id">
+                  <td>
+                    <div class="td-provider">
+                      <div class="avatar avatar-sm">{{ r.provider_avatar || '?' }}</div>
+                      <div>
+                        <a v-if="r.provider_slug" :href="route('public.provider', { slug: r.provider_slug })" class="td-name link-name">{{ r.provider_name }}</a>
+                        <div v-else class="td-name">{{ r.provider_name }}</div>
+                        <div class="td-cred">{{ r.provider_detail }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>{{ r.service_title }}</td>
+                  <td>{{ r.request_type }}</td>
+                  <td>
+                    <div>{{ r.sent_date_label }}</div>
+                    <div class="td-sub">{{ r.time_label }}</div>
+                  </td>
+                  <td>
+                    <AegisBadge :label="statusLabel(r.status)" :variant="statusVariant(r.status)" />
+                    <div v-if="r.response_note" class="td-sub" style="margin-top:4px;">{{ r.response_note }}</div>
+                  </td>
+                  <td>
+                    <div class="req-actions">
+                      <button
+                        v-if="r.status === 'new'"
+                        class="btn-icon"
+                        data-tooltip="Withdraw Request"
+                        @click.stop="withdrawOutgoingRequest(r.id)"
+                      >
+                        <AegisIcon name="x" :size="14" />
+                      </button>
+                      <span v-else class="td-sub">—</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         TAB 5: SETTINGS
     ══════════════════════════════════════════ -->
     <div v-show="activeTab === 'settings'">
 
@@ -1137,7 +1220,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { Head } from '@inertiajs/vue3'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
@@ -1158,6 +1241,7 @@ const props = defineProps({
   servicesMode:      { type: Boolean, default: false },
   heroRating:        { type: String,  default: '—' },
   filters:           { type: Object, default: () => ({}) },
+  outgoingRequests:  { type: Array,  default: () => [] },
 })
 
 // ── Composables ───────────────────────────────────────────────────────────
@@ -1166,12 +1250,18 @@ const { confirmAction } = useConfirm()
 const { openConversation, loading: msgLoading } = useMessageButton()
 
 // ── Tab state ─────────────────────────────────────────────────────────────
+const VALID_TABS = ['listings','requests','outgoing','bookings','settings']
 const activeTab = ref('listings')
+onMounted(() => {
+  const tab = new URLSearchParams(window.location.search).get('tab')
+  if (tab && VALID_TABS.includes(tab)) activeTab.value = tab
+})
 
 const tabs = computed(() => [
   { key: 'listings',  label: 'My Listings',           icon: 'grid',     count: props.listings.length },
   { key: 'requests',  label: 'Service Requests',       icon: 'clock',    count: newRequests.value.length },
   { key: 'bookings',  label: 'Bookings & Sessions',    icon: 'calendar', count: props.bookings.length },
+  { key: 'outgoing',  label: 'My Requests',             icon: 'send',     count: pendingOutgoing.value.length || null },
   { key: 'settings',  label: 'Settings',               icon: 'settings', count: null },
 ])
 
@@ -1242,7 +1332,17 @@ watch(listingStatusFilter, doSearch)
 
 // ── Requests tab ──────────────────────────────────────────────────────────
 const newRequests     = computed(() => props.serviceRequests.filter(r => r.status === 'new'))
-const historyRequests = computed(() => props.serviceRequests.filter(r => r.status !== 'new'))
+const historyRequests   = computed(() => props.serviceRequests.filter(r => r.status !== 'new'))
+const pendingOutgoing   = computed(() => props.outgoingRequests.filter(r => r.status === 'new'))
+const outgoingSearch    = ref('')
+const filteredOutgoing  = computed(() => {
+  const q = outgoingSearch.value.toLowerCase()
+  if (!q) return props.outgoingRequests
+  return props.outgoingRequests.filter(r =>
+    r.provider_name.toLowerCase().includes(q) ||
+    r.service_title.toLowerCase().includes(q)
+  )
+})
 
 // ── Bookings tab ──────────────────────────────────────────────────────────
 const bookingSearch        = ref('')
@@ -1434,6 +1534,20 @@ function submitAccept() {
   }, {
     preserveScroll: true,
     onSuccess: () => { modals.accept = false; toast.success('Request accepted — agreement sent.') },
+  })
+}
+
+function withdrawOutgoingRequest(id) {
+  confirmAction({
+    title: 'Withdraw Request',
+    message: 'Withdraw this service request? The provider will be notified.',
+    btnLabel: 'Withdraw',
+    type: 'danger',
+  }, () => {
+    router.delete(route('provider.services.request.withdraw', { serviceRequest: id }), {
+      preserveScroll: true,
+      onSuccess: () => toast.info('Request withdrawn.'),
+    })
   })
 }
 
@@ -1633,6 +1747,22 @@ function statusVariant(s) {
 
 <style scoped>
 /* ── TOOLBAR ── */
+.page-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+.page-note .aegis-icon { flex-shrink: 0; margin-top: 1px; color: var(--gold); }
+
 .svc-toolbar {
   display: grid;
   grid-template-columns: repeat(12, 1fr);

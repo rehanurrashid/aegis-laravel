@@ -173,6 +173,11 @@
             </div>
           </div>
         </div>
+        <div class="svc-request-strip-footer">
+          <a :href="route('provider.services.index') + '?tab=outgoing'" class="svc-request-strip-link">
+            <AegisIcon name="arrow-right" :size="12" /> View all in My Requests
+          </a>
+        </div>
       </div>
 
       <!-- ═══ SERVICES PANEL (services_mode only) ═══ -->
@@ -1245,5 +1250,8 @@ function copyShareLink() {
 .svc-request-strip-note { font-size: 12px; color: var(--text-2); margin-top: 4px; line-height: 1.5; max-width: 360px; }
 .svc-request-strip-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
 .svc-request-strip-response { font-size: 11px; color: var(--text-2); display: flex; align-items: center; gap: 4px; max-width: 260px; text-align: right; }
+.svc-request-strip-footer { padding: 10px 16px 4px; border-top: 1px solid var(--border); margin-top: 4px; }
+.svc-request-strip-link { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--gold-dark); text-decoration: none; }
+.svc-request-strip-link:hover { text-decoration: underline; }
 .svc-request-strip-response-date { font-size: 10px; color: var(--text-4); }
 </style>

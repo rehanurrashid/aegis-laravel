@@ -30,6 +30,9 @@ class ServicesController extends Controller
             'serviceRequests'  => $this->services->getRequestsForPractitioner($user->id)
                                     ->map(fn($r) => $this->services->shapeRequest($r))
                                     ->values(),
+            'outgoingRequests' => $this->services->getRequestsSentByPractitioner($user->id)
+                                    ->map(fn($r) => $this->services->shapeOutgoingRequest($r))
+                                    ->values(),
             'bookings'         => $this->services->getSessionsForPractitioner($user->id)
                                     ->map(fn($s) => $this->services->shapeSession($s))
                                     ->values(),
@@ -107,6 +110,12 @@ class ServicesController extends Controller
         $this->authorize('manage', $service);
         $this->services->declineRequest($serviceRequest, $request->input('reason'));
         return back()->with('success', 'Request declined.');
+    }
+
+    public function withdrawRequest(Request $request, ServiceRequest $serviceRequest): RedirectResponse
+    {
+        $this->services->withdrawRequest($serviceRequest, $request->user()->id);
+        return back()->with('success', 'Request withdrawn.');
     }
 
     public function cancelSession(Request $request, ServiceSession $session): RedirectResponse

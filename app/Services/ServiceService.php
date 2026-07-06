@@ -426,6 +426,52 @@ class ServiceService
             ->get();
     }
 
+    public function getRequestsSentByPractitioner(string $inquirerId): Collection
+    {
+        return ServiceRequest::where('inquirer_id', $inquirerId)
+            ->with(['service', 'practitioner'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+
+    public function shapeOutgoingRequest(ServiceRequest $r): array
+    {
+        $practitioner = $r->practitioner;
+        $service      = $r->service;
+        $status       = $r->status instanceof \App\Enums\ServiceRequestStatus
+            ? $r->status->value
+            : (string) ($r->status ?? 'new');
+
+        return [
+            'id'               => $r->id,
+            'service_id'       => $r->service_id,
+            'practitioner_id'  => $r->practitioner_id,
+            'provider_name'    => $practitioner?->display_name ?? 'Unknown',
+            'provider_slug'    => $practitioner?->slug ?? '',
+            'provider_avatar'  => $practitioner?->avatar_initials ?? '',
+            'provider_detail'  => $practitioner?->credentials ?? '',
+            'service_title'    => $service?->title ?? 'Appointment Request',
+            'request_type'     => ucfirst(str_replace('_', ' ', $service?->category ?? '')),
+            'sent_date_label'  => $r->created_at?->format('M j, Y') ?? '',
+            'time_label'       => $r->created_at?->diffForHumans() ?? '',
+            'status'           => $status,
+            'message'          => $r->message ?? '',
+            'response_note'    => $r->response_note ?? '',
+            'responded_at'     => $r->responded_at?->format('M j, Y') ?? '',
+        ];
+    }
+
+    public function withdrawRequest(ServiceRequest $r, string $inquirerId): void
+    {
+        if ($r->inquirer_id !== $inquirerId) {
+            abort(403, 'You cannot withdraw this request.');
+        }
+        if ($r->status instanceof \App\Enums\ServiceRequestStatus && $r->status !== \App\Enums\ServiceRequestStatus::New) {
+            abort(422, 'Only pending requests can be withdrawn.');
+        }
+        $r->update(['status' => \App\Enums\ServiceRequestStatus::Withdrawn->value]);
+    }
+
     public function getSessionsForPractitioner(string $practitionerId): Collection
     {
         return ServiceSession::where('practitioner_id', $practitionerId)
