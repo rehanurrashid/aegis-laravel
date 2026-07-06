@@ -1,185 +1,1569 @@
 <!--
-  pages/provider/Services.vue — services offered (Practice tier only).
+  pages/provider/Services.vue — Provider Integrative Services marketplace.
+  100% parity with services.php. 4 tabs: Listings / Requests / Bookings / Settings.
+  Design pass only — backend props stubbed for Prompt 2.
 -->
 <template>
   <AppLayout>
+    <Head title="My Services — Aegis" />
+
+    <!-- ── HERO ──────────────────────────────────────────────────── -->
     <AegisHeroBanner
-      eyebrow="My Practice"
+      eyebrow="Provider Services"
       title="My Services"
-      subtitle="Services you offer to clients and the network."
+      subtitle="Offer supervision, consultation, training, and practice continuity services &amp; more to other providers on the Aegis network."
+      quiet
     >
+      <template #meta>
+        <span class="hero-meta-item">
+          <AegisIcon name="clock" :size="14" />
+          Services Mode: Active
+        </span>
+        <span class="hero-meta-item">
+          <AegisIcon name="arrow-right" :size="14" />
+          Discoverable in Provider Search
+        </span>
+        <span class="hero-meta-item">
+          <AegisIcon name="star" :size="14" />
+          4.8 / 5.0 Rating
+        </span>
+      </template>
       <template #actions>
-        <button type="button" class="btn btn-primary" @click="openModal('serviceModal')">
-          <AegisIcon name="plus" :size="14" />
-          <span>Add service</span>
+        <a :href="route('activity.index', { module: 'services' })" class="btn-hero-ghost is-on-light">
+          <AegisIcon name="activity" :size="14" /> Activity
+        </a>
+        <button type="button" class="btn-hero-solid is-on-light" @click="modals.create = true">
+          <AegisIcon name="plus" :size="14" /> Add New Service
         </button>
       </template>
     </AegisHeroBanner>
 
+    <!-- ── STAT CHIPS ────────────────────────────────────────────── -->
     <div class="stat-chips-row">
-      <AegisStatChip icon="briefcase-rx" :value="services.length" label="Services offered" />
-      <AegisStatChip icon="users" :value="totalActiveClients" label="Active clients" bg-color="var(--icon-bg-blue)" icon-color="var(--blue-dark)" />
+      <AegisStatChip icon="grid" :value="stats.active_listings" label="Active Listings" />
+      <AegisStatChip icon="bell" :value="stats.pending_requests" label="Pending Requests" />
+      <AegisStatChip icon="calendar" :value="stats.sessions" label="Sessions This Month" />
+      <AegisStatChip icon="dollar" :value="stats.revenue_label" label="Revenue This Month" />
     </div>
 
-    <div v-if="services.length" class="services-grid">
-      <AegisCard v-for="s in services" :key="s.id">
-        <template #actions>
-          <button type="button" class="btn btn-icon btn-ghost btn-sm" data-tip="Edit" @click="edit(s)">
-            <AegisIcon name="pencil" :size="13" />
+    <!-- ── TABS ──────────────────────────────────────────────────── -->
+    <div class="tabs-segmented">
+      <button
+        v-for="tab in tabs"
+        :key="tab.key"
+        class="tab-pill"
+        :class="{ active: activeTab === tab.key }"
+        @click="activeTab = tab.key"
+      >
+        <AegisIcon :name="tab.icon" :size="12" />
+        {{ tab.label }}
+        <span v-if="tab.count != null" class="badge-pill" :class="{ alert: tab.key === 'requests' && stats.pending_requests > 0 }">
+          {{ tab.count }}
+        </span>
+      </button>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         TAB 1: MY LISTINGS
+    ══════════════════════════════════════════ -->
+    <div v-show="activeTab === 'listings'">
+
+      <!-- Toolbar -->
+      <div class="svc-toolbar">
+        <div class="search-wrap">
+          <AegisIcon name="search" :size="15" />
+          <input
+            v-model="listingSearch"
+            type="text"
+            class="form-control"
+            placeholder="Search your service listings…"
+          >
+        </div>
+        <select v-model="listingTypeFilter" class="form-select">
+          <option value="">All Types</option>
+          <option>Clinical Supervision</option>
+          <option>Consultation</option>
+          <option>Training / Workshop</option>
+          <option>Professional Coaching</option>
+          <option>Practice Continuity Services</option>
+          <option>Other</option>
+        </select>
+        <select v-model="listingStatusFilter" class="form-select">
+          <option value="">All Statuses</option>
+          <option>Active</option>
+          <option>Draft</option>
+          <option>Paused</option>
+          <option>Archived</option>
+        </select>
+      </div>
+
+      <!-- Service Cards Grid -->
+      <div class="services-grid">
+        <div
+          v-for="s in filteredListings"
+          :key="s.id"
+          class="card"
+          @click="setActiveService(s)"
+        >
+          <div class="card-header" style="align-items:flex-start;">
+            <div class="svc-type-icon">
+              <AegisIcon :name="s.type_icon || 'briefcase'" :size="22" />
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div class="card-title">{{ s.title }}</div>
+              <div class="card-subtitle">{{ s.service_type }}</div>
+            </div>
+            <AegisBadge
+              :label="s.status === 'active' ? 'Active' : s.status === 'paused' ? 'Paused' : 'Draft'"
+              :variant="s.status === 'active' ? 'green' : s.status === 'paused' ? 'gold' : 'neutral'"
+            />
+          </div>
+          <div class="card-body">
+            <div class="svc-description">{{ s.description }}</div>
+            <div v-if="s.meta?.length" class="svc-meta-row">
+              <div v-for="(m, i) in s.meta" :key="i" class="svc-meta-item">
+                <AegisIcon :name="m.icon || 'check'" :size="13" />
+                {{ m.text }}
+              </div>
+            </div>
+            <div class="svc-price-row">
+              <div class="svc-price">{{ s.price }}</div>
+              <div v-if="s.price_unit" class="svc-price-unit">{{ s.price_unit }}</div>
+              <div v-if="s.price_note" class="svc-price-note">{{ s.price_note }}</div>
+            </div>
+          </div>
+          <div v-if="s.metrics?.length" class="svc-card-metrics">
+            <div v-for="(mt, i) in s.metrics" :key="i" class="svc-metric">
+              <div class="svc-metric-val">{{ mt.val }}</div>
+              <div class="svc-metric-label">{{ mt.label }}</div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <template v-if="s.status === 'draft'">
+              <button class="btn-icon" data-tooltip="Edit Draft" @click.stop="modals.edit = true">
+                <AegisIcon name="pencil" :size="14" />
+              </button>
+              <button class="btn-icon" data-tooltip="Publish" @click.stop="modals.publish = true">
+                <AegisIcon name="check" :size="14" />
+              </button>
+              <button
+                class="btn-icon btn-icon-danger"
+                data-tooltip="Delete Draft"
+                @click.stop="confirmAction({ title: 'Delete Draft', btnLabel: 'Delete', type: 'danger' }, () => deleteServiceFromCard())"
+              >
+                <AegisIcon name="trash" :size="14" />
+              </button>
+            </template>
+            <template v-else>
+              <button class="btn-icon" data-tooltip="Edit Listing" @click.stop="modals.edit = true">
+                <AegisIcon name="pencil" :size="14" />
+              </button>
+              <button class="btn-icon" data-tooltip="Preview" @click.stop="openPreview(s)">
+                <AegisIcon name="eye" :size="14" />
+              </button>
+              <button class="btn-icon" data-tooltip="View Bookings" @click.stop="activeTab = 'bookings'">
+                <AegisIcon name="calendar" :size="14" />
+              </button>
+              <button v-if="s.status === 'paused'" class="btn-icon" data-tooltip="Resume Listing" @click.stop="resumeService()">
+                <AegisIcon name="arrow-right" :size="14" />
+              </button>
+              <button v-else class="btn-icon" data-tooltip="Pause Listing" @click.stop="modals.pause = true">
+                <AegisIcon name="pause" :size="14" />
+              </button>
+            </template>
+          </div>
+        </div>
+
+        <!-- Add New Card -->
+        <div class="upload-zone" style="min-height:280px;border-radius:var(--radius-lg);cursor:pointer;" @click="modals.create = true">
+          <div class="upload-zone-icon"><AegisIcon name="plus" :size="28" /></div>
+          <div class="upload-zone-title">Add New Service</div>
+          <div class="upload-zone-sub">Supervision, consultation, training, coaching &amp; more</div>
+        </div>
+      </div>
+
+      <!-- Empty state when no listings match filter -->
+      <AegisEmptyState
+        v-if="!filteredListings.length && listings.length"
+        icon="search"
+        title="No listings match your filters"
+        subtitle="Try adjusting your search or filter criteria."
+      />
+      <AegisEmptyState
+        v-else-if="!listings.length"
+        icon="briefcase"
+        title="No Service Listings Yet"
+        subtitle="Add your first service to start receiving requests from providers on the network."
+      >
+        <template #action>
+          <button class="btn btn-primary" @click="modals.create = true">
+            <AegisIcon name="plus" :size="13" /> Add New Service
           </button>
         </template>
-        <div class="service-card-head">
-          <div class="service-card-title">{{ s.title }}</div>
-          <div class="service-card-rate">{{ rateLabel(s) }}</div>
-        </div>
-        <p class="service-card-desc">{{ s.description }}</p>
-        <div class="service-card-meta">
-          <AegisBadge v-if="s.category" :label="s.category" variant="blue" />
-          <AegisBadge v-if="!s.is_public" label="Hidden from public profile" variant="neutral" />
-        </div>
-      </AegisCard>
+      </AegisEmptyState>
     </div>
 
-    <AegisEmptyState v-else icon="briefcase-rx" title="No services yet" description="Add a service so clients and your network can find what you offer.">
-      <template #action>
-        <button type="button" class="btn btn-primary" @click="openModal('serviceModal')">Add service</button>
-      </template>
-    </AegisEmptyState>
+    <!-- ══════════════════════════════════════════
+         TAB 2: SERVICE REQUESTS
+    ══════════════════════════════════════════ -->
+    <div v-show="activeTab === 'requests'">
 
-    <AegisModal
-      :model-value="isOpen('serviceModal').value"
-      :title="form.id ? 'Edit service' : 'Add service'"
-      size="md"
-      @update:model-value="(v) => !v && close()"
-    >
-      <form @submit.prevent="save">
+      <div v-if="newRequests.length" class="alert alert-info" style="margin-bottom:20px;">
+        <div class="alert-icon"><AegisIcon name="info" :size="16" /></div>
+        <div class="alert-content">
+          You have <strong>{{ newRequests.length }} pending service request{{ newRequests.length === 1 ? '' : 's' }}</strong> that need a response. Requests auto-expire after 72 hours if not accepted.
+        </div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">
+          Pending Requests
+          <span class="section-badge">{{ newRequests.length }}</span>
+        </div>
+      </div>
+
+      <div class="requests-list">
+        <AegisEmptyState
+          v-if="!newRequests.length"
+          icon="inbox"
+          title="No Pending Requests"
+          subtitle="New service requests from providers will appear here."
+        />
+        <div
+          v-for="r in newRequests"
+          :key="r.id"
+          class="card request-card new"
+          style="padding:16px 20px;display:flex;align-items:center;flex-wrap:wrap;gap:16px;"
+          @click="setActiveRequest(r)"
+        >
+          <div class="avatar avatar-md">{{ r.requester_avatar || initials(r.requester_name) }}</div>
+          <div class="req-info">
+            <div class="req-name">{{ r.requester_name }}</div>
+            <div class="req-detail">{{ r.requester_detail }}</div>
+          </div>
+          <div class="req-service">
+            <div class="req-service-name">{{ r.service_title }}</div>
+            <div class="req-service-type">{{ r.request_type }}</div>
+          </div>
+          <div style="min-width:120px;color:var(--text-3);font-size:12px;font-weight:600;">
+            <div style="font-weight:700;font-size:13px;color:var(--text);margin-bottom:2px;">Requested date</div>
+            {{ r.requested_date_label }}
+          </div>
+          <div class="req-date">{{ r.time_label }}</div>
+          <div class="req-actions">
+            <button
+              class="btn-icon"
+              :data-tooltip="`Message ${r.requester_name}`"
+              :disabled="msgLoading === r.requester_id"
+              @click.stop="openConversation(r.requester_id)"
+            >
+              <AegisIcon name="message" :size="14" />
+            </button>
+            <button class="btn-icon" data-tooltip="Counter Propose" @click.stop="modals.counter = true">
+              <AegisIcon name="refresh" :size="14" />
+            </button>
+            <button
+              class="btn-icon"
+              data-tooltip="Dismiss"
+              @click.stop="confirmAction({ title: 'Dismiss Request', btnLabel: 'Dismiss', type: 'danger' }, () => dismissRequest(r.id))"
+            >
+              <AegisIcon name="x" :size="14" />
+            </button>
+            <button class="btn btn-primary btn-sm" @click.stop="modals.accept = true">
+              <AegisIcon name="check" :size="13" /> Accept
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- History Table -->
+      <div class="section-header" style="margin-top:8px;">
+        <div class="section-title">Activity</div>
+      </div>
+      <div class="card card-flush">
+        <div class="card-body">
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Provider</th>
+                  <th>Service</th>
+                  <th>Type</th>
+                  <th>Date Requested</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="!historyRequests.length">
+                  <td colspan="5" style="text-align:center;color:var(--text-4);padding:24px;">No history yet.</td>
+                </tr>
+                <tr v-for="r in historyRequests" :key="r.id">
+                  <td>
+                    <div class="td-provider">
+                      <div class="avatar avatar-sm">{{ r.requester_avatar || '?' }}</div>
+                      <div>
+                        <div class="td-name">{{ r.requester_name }}</div>
+                        <div class="td-cred">{{ r.requester_detail }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>{{ r.service_title }}</td>
+                  <td>{{ r.request_type }}</td>
+                  <td>{{ r.requested_date_label }}</td>
+                  <td><AegisBadge :label="statusLabel(r.status)" :variant="statusVariant(r.status)" /></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         TAB 3: BOOKINGS & SESSIONS
+    ══════════════════════════════════════════ -->
+    <div v-show="activeTab === 'bookings'">
+
+      <div class="svc-toolbar">
+        <div class="search-wrap">
+          <AegisIcon name="search" :size="15" />
+          <input v-model="bookingSearch" type="text" class="form-control" placeholder="Search sessions or providers…">
+        </div>
+        <select v-model="bookingServiceFilter" class="form-select">
+          <option value="">All Services</option>
+          <option>Individual Supervision</option>
+          <option>Group Supervision</option>
+          <option>Consultation</option>
+          <option>Training / Workshop</option>
+          <option>Practice Continuity Services</option>
+        </select>
+        <select v-model="bookingDateRange" class="form-select">
+          <option value="this_month">This Month</option>
+          <option value="last_month">Last Month</option>
+          <option value="last_60">Last 60 Days</option>
+          <option value="last_90">Last 90 Days</option>
+          <option value="this_year">This Year</option>
+          <option value="all">All Time</option>
+        </select>
+      </div>
+
+      <div class="card card-flush">
+        <div class="card-header">
+          <div class="card-title" style="display:flex;align-items:center;gap:8px;">
+            <AegisIcon name="calendar" :size="16" />
+            Sessions — {{ bookingPeriodLabel }}
+          </div>
+          <div style="display:flex;gap:8px;">
+            <AegisBadge :label="`${stats.sessions} sessions`" variant="gold" />
+            <AegisBadge :label="stats.revenue_label + ' earned'" variant="green" />
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Provider</th>
+                  <th>Service</th>
+                  <th>Date &amp; Time</th>
+                  <th>Duration</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="!bookings.length">
+                  <td colspan="7" style="text-align:center;color:var(--text-4);padding:24px;">No sessions found.</td>
+                </tr>
+                <tr v-for="b in bookings" :key="b.id" @click="setActiveBooking(b)">
+                  <td>
+                    <div class="td-provider">
+                      <div class="avatar avatar-sm">{{ b.provider_avatar || initials(b.provider_name) }}</div>
+                      <div>
+                        <div class="td-name">{{ b.provider_name }}</div>
+                        <div class="td-cred">{{ b.provider_credentials }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>{{ b.service_title }}</td>
+                  <td>{{ b.datetime_label }}</td>
+                  <td>{{ b.duration_label }}</td>
+                  <td style="font-weight:700;">{{ b.amount }}</td>
+                  <td><AegisBadge :label="statusLabel(b.status)" :variant="statusVariant(b.status)" /></td>
+                  <td>
+                    <button
+                      v-if="b.status === 'upcoming'"
+                      class="btn-icon"
+                      data-tooltip="Cancel Session"
+                      @click.stop="modals.cancelSession = true"
+                    >
+                      <AegisIcon name="x" :size="14" />
+                    </button>
+                    <button
+                      v-else
+                      class="btn-icon"
+                      data-tooltip="View Notes"
+                      @click.stop="modals.sessionNotes = true"
+                    >
+                      <AegisIcon name="file-text" :size="14" />
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <div class="pager-info">Showing <strong>{{ bookings.length }}</strong> of {{ stats.sessions }} sessions</div>
+            <nav class="pager-nav" aria-label="Pagination">
+              <button class="pager-btn" :disabled="bookingPage === 1" aria-label="Previous page" @click="bookingPage--">‹</button>
+              <button
+                v-for="p in bookingPageCount"
+                :key="p"
+                class="pager-btn"
+                :class="{ 'is-active': bookingPage === p }"
+                :aria-current="bookingPage === p ? 'page' : undefined"
+                @click="bookingPage = p"
+              >{{ p }}</button>
+              <button class="pager-btn" :disabled="bookingPage === bookingPageCount" aria-label="Next page" @click="bookingPage++">›</button>
+            </nav>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         TAB 4: SETTINGS
+    ══════════════════════════════════════════ -->
+    <div v-show="activeTab === 'settings'">
+
+      <ProfileCompletionStrip :pct="props.profileCompletion ?? 78" />
+
+      <div class="settings-grid">
+
+        <!-- Services Settings (links to Account Settings) -->
+        <div class="card" style="grid-column:1/-1;">
+          <div class="card-header">
+            <div class="card-title-group">
+              <div style="width:36px;height:36px;border-radius:var(--radius);background:var(--badge-bg-gold);color:var(--gold-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <AegisIcon name="settings" :size="16" />
+              </div>
+              <div>
+                <div class="card-title">Services Settings</div>
+                <div class="card-subtitle">Visibility, booking preferences, and payment — managed in Account Settings</div>
+              </div>
+            </div>
+            <a :href="route('provider.settings', { tab: 'services-mode' })" class="btn btn-primary btn-sm">
+              <AegisIcon name="settings" :size="13" /> Open Settings
+            </a>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div class="setting-row" style="padding:14px 20px;border-bottom:1px solid var(--border);">
+              <div class="setting-info">
+                <div class="setting-label" style="display:flex;align-items:center;gap:7px;">
+                  <AegisIcon name="eye" :size="14" /> Visibility &amp; Mode
+                </div>
+                <div class="setting-desc">Services Mode · Show in search · Accept requests · Show pricing</div>
+              </div>
+              <a :href="route('provider.settings', { tab: 'services-mode' })" class="btn btn-outline btn-sm">
+                <AegisIcon name="chevron-right" :size="13" /> Edit
+              </a>
+            </div>
+            <div class="setting-row" style="padding:14px 20px;border-bottom:1px solid var(--border);">
+              <div class="setting-info">
+                <div class="setting-label" style="display:flex;align-items:center;gap:7px;">
+                  <AegisIcon name="calendar" :size="14" /> Booking Preferences
+                </div>
+                <div class="setting-desc">Manual approval · Request expiry · Buffer between sessions</div>
+              </div>
+              <a :href="route('provider.settings', { tab: 'services-mode' })" class="btn btn-outline btn-sm">
+                <AegisIcon name="chevron-right" :size="13" /> Edit
+              </a>
+            </div>
+            <div class="setting-row" style="padding:14px 20px;">
+              <div class="setting-info">
+                <div class="setting-label" style="display:flex;align-items:center;gap:7px;">
+                  <AegisIcon name="credit-card" :size="14" /> Payment &amp; Rates
+                </div>
+                <div class="setting-desc">Hourly rate · Payment method · Sliding scale</div>
+              </div>
+              <a :href="route('provider.settings', { tab: 'services-mode' })" class="btn btn-outline btn-sm">
+                <AegisIcon name="chevron-right" :size="13" /> Edit
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Services Profile Bio -->
+        <div class="card" style="grid-column:1/-1;">
+          <div class="card-header is-settings">
+            <div>
+              <div class="card-title" style="display:flex;align-items:center;gap:8px;">
+                <AegisIcon name="user" :size="16" />
+                Services Profile
+              </div>
+              <div class="card-subtitle">This appears on your Services tab in provider search results</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="form-row" style="margin-bottom:16px;">
+              <div class="form-group">
+                <label class="form-label">Services Headline</label>
+                <input v-model="profileForm.headline" class="form-input" type="text" placeholder="e.g. Board-Approved Clinical Supervisor | Trauma &amp; DBT Specialist">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Years of Experience</label>
+                <input v-model.number="profileForm.years_experience" class="form-input" type="number" placeholder="14">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Services Bio</label>
+              <textarea v-model="profileForm.bio" class="form-input"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Specialties (shown as tags)</label>
+              <div class="chip-list">
+                <span v-for="(sp, i) in profileForm.specialties" :key="i" class="chip gold">
+                  {{ sp }}
+                  <button class="chip-remove" @click="removeSpecialty(i)">
+                    <AegisIcon name="x" :size="10" />
+                  </button>
+                </span>
+                <input
+                  v-model="newSpecialty"
+                  type="text"
+                  class="form-control"
+                  style="width:auto;min-width:140px;display:inline-flex;"
+                  placeholder="Add specialty…"
+                  @keydown.enter.prevent="addSpecialty"
+                >
+                <button type="button" class="btn btn-outline btn-sm" @click="addSpecialty">
+                  <AegisIcon name="plus" :size="12" /> Add
+                </button>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px;">
+              <button class="btn btn-outline btn-sm" @click="resetProfile">Cancel</button>
+              <button class="btn btn-primary btn-sm" @click="saveProfile">
+                <AegisIcon name="check" :size="13" /> Save Profile
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         MODALS
+    ══════════════════════════════════════════════════════ -->
+
+    <!-- Create Service Modal -->
+    <AegisModal v-model="modals.create" title="Create New Service Listing" size="lg">
+      <div class="modal-section-label">Service Type</div>
+      <div class="pricing-options">
+        <div
+          v-for="opt in serviceTypeOptions"
+          :key="opt.key"
+          class="pricing-opt"
+          :class="{ selected: createForm.service_type === opt.key }"
+          @click="createForm.service_type = opt.key"
+        >
+          <div class="pricing-opt-label">
+            <AegisIcon :name="opt.icon" :size="14" /> {{ opt.label }}
+          </div>
+          <div class="pricing-opt-desc">{{ opt.desc }}</div>
+        </div>
+      </div>
+
+      <div class="modal-section-label">Service Details</div>
+      <div class="form-group">
+        <label class="form-label">Service Name <span style="color:var(--red);">*</span></label>
+        <input
+          v-model="createForm.title"
+          class="form-input"
+          :class="{ 'is-invalid': createV$.title.$error }"
+          type="text"
+          placeholder="e.g. Individual Clinical Supervision for Pre-Licensed Therapists"
+          @blur="createV$.title.$touch()"
+        >
+        <div v-if="createV$.title.$error" class="form-error">{{ createFieldError('title') }}</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description <span style="color:var(--red);">*</span></label>
+        <textarea
+          v-model="createForm.description"
+          class="form-input"
+          :class="{ 'is-invalid': createV$.description.$error }"
+          placeholder="Describe what you offer, who it's for, your approach, and any requirements…"
+          @blur="createV$.description.$touch()"
+        ></textarea>
+        <div v-if="createV$.description.$error" class="form-error">{{ createFieldError('description') }}</div>
+      </div>
+      <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Title <span class="req">*</span></label>
-          <input v-model="form.title" required class="form-input" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Description</label>
-          <textarea v-model="form.description" class="form-input" rows="4"></textarea>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Rate (dollars)</label>
-            <input v-model.number="form.rate_input" type="number" min="0" step="1" class="form-input" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Price type</label>
-            <select v-model="form.price_type" class="form-input">
-              <option value="fixed">Fixed price</option>
-              <option value="hourly">Hourly rate</option>
-              <option value="session">Per session</option>
-              <option value="inquiry">Contact for pricing</option>
-            </select>
+          <label class="form-label">Session Duration</label>
+          <select v-model="createForm.duration" class="form-select">
+            <option>30 minutes</option>
+            <option>45 minutes</option>
+            <option>50 minutes</option>
+            <option value="60 minutes" selected>60 minutes</option>
+            <option>75 minutes</option>
+            <option>90 minutes</option>
+            <option>2 hours</option>
+            <option>2.5 hours</option>
+            <option>3 hours</option>
+            <option value="custom">Custom…</option>
+          </select>
+          <div v-if="createForm.duration === 'custom'" style="margin-top:8px;">
+            <input v-model="createForm.duration_custom" class="form-input" type="text" placeholder="e.g. 4 hours, 6 sessions × 2hr, etc.">
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Category</label>
-          <input v-model="form.category" class="form-input" placeholder="e.g. Supervision, Consultation" />
+          <label class="form-label">Format</label>
+          <select v-model="createForm.format" class="form-select">
+            <option>Virtual only</option>
+            <option>In-person only</option>
+            <option>Virtual &amp; In-person</option>
+          </select>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Duration (minutes)</label>
-            <input v-model.number="form.duration_min" type="number" min="5" step="5" class="form-input" placeholder="60" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Format</label>
-            <select v-model="form.format" class="form-input">
-              <option value="telehealth">Telehealth</option>
-              <option value="in_person">In-person</option>
-              <option value="both">Telehealth or In-Person</option>
-            </select>
-          </div>
+      </div>
+
+      <div class="modal-section-label">Pricing</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Rate ($) <span style="color:var(--red);">*</span></label>
+          <input
+            v-model.number="createForm.rate"
+            class="form-input"
+            :class="{ 'is-invalid': createV$.rate.$error }"
+            type="number"
+            placeholder="150"
+            @blur="createV$.rate.$touch()"
+          >
+          <div v-if="createV$.rate.$error" class="form-error">{{ createFieldError('rate') }}</div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Availability</label>
-            <select v-model="form.availability" class="form-input">
-              <option value="open">Open</option>
-              <option value="limited">Limited</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Availability label</label>
-            <input v-model="form.availability_label" class="form-input" placeholder="e.g. Slots Available, By Request" />
-          </div>
+        <div class="form-group">
+          <label class="form-label">Per</label>
+          <select v-model="createForm.rate_per" class="form-select">
+            <option>Session</option>
+            <option>Hour</option>
+            <option>Package</option>
+            <option>Month</option>
+          </select>
         </div>
-        <AegisToggle v-model="form.is_public" label="Show on my public profile" description="When off, this service is only visible to you." />
-      </form>
+      </div>
+      <div class="setting-row" style="padding:8px 0;">
+        <div class="setting-info">
+          <div class="setting-label">Sliding Scale Available</div>
+        </div>
+        <AegisToggle v-model="createForm.sliding_scale" />
+      </div>
+
+      <div class="modal-section-label">Availability</div>
+      <div class="avail-grid" style="margin-bottom:14px;">
+        <div
+          v-for="day in availabilityDays"
+          :key="day.key"
+          class="avail-day"
+          :class="{ on: createForm.availability_days.includes(day.key) }"
+          @click="toggleAvailDay(day.key)"
+        >
+          <div class="day-name">{{ day.label }}</div>
+          <div class="day-slots">{{ createForm.availability_days.includes(day.key) ? day.slots : 'Off' }}</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Specialties / Tags</label>
+        <input v-model="createForm.tags" class="form-input" type="text" placeholder="e.g. Trauma, DBT, EMDR, Child Therapy (comma separated)">
+      </div>
+
+      <div class="modal-section-label">Capacity &amp; Requirements</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Max Clients</label>
+          <input v-model.number="createForm.max_clients" class="form-input" type="number" placeholder="Leave blank for unlimited">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Credentials Required</label>
+          <select v-model="createForm.credentials_required" class="form-select">
+            <option>None</option>
+            <option>Pre-licensed only</option>
+            <option>Licensed only</option>
+            <option>Any license level</option>
+          </select>
+        </div>
+      </div>
+
       <template #footer>
-        <button type="button" class="btn btn-outline" @click="close">Cancel</button>
-        <button type="button" class="btn btn-primary" :disabled="form.processing" @click="save">
-          {{ form.processing ? 'Saving…' : 'Save' }}
+        <button class="btn btn-outline" @click="modals.create = false">Cancel</button>
+        <button class="btn btn-outline" @click="submitCreate('draft')">Save as Draft</button>
+        <button class="btn btn-primary" @click="submitCreate('active')">
+          <AegisIcon name="check" :size="14" /> Publish Listing
         </button>
       </template>
     </AegisModal>
+
+    <!-- Edit Service Modal -->
+    <AegisModal v-model="modals.edit" title="Edit Service Listing" size="lg">
+      <div class="form-group">
+        <label class="form-label">Service Name <span style="color:var(--red);">*</span></label>
+        <input
+          v-model="editForm.title"
+          class="form-input"
+          :class="{ 'is-invalid': editV$.title.$error }"
+          type="text"
+          @blur="editV$.title.$touch()"
+        >
+        <div v-if="editV$.title.$error" class="form-error">{{ editFieldError('title') }}</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea v-model="editForm.description" class="form-input"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Rate ($)</label>
+          <input v-model.number="editForm.rate" class="form-input" type="number">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Session Duration</label>
+          <select v-model="editForm.duration" class="form-select">
+            <option>30 minutes</option>
+            <option>45 minutes</option>
+            <option>50 minutes</option>
+            <option>60 minutes</option>
+            <option>75 minutes</option>
+            <option>90 minutes</option>
+            <option>2 hours</option>
+            <option>2.5 hours</option>
+            <option>3 hours</option>
+            <option value="custom">Custom…</option>
+          </select>
+          <div v-if="editForm.duration === 'custom'" style="margin-top:8px;">
+            <input v-model="editForm.duration_custom" class="form-input" type="text" placeholder="e.g. 4 hours, 6 sessions × 2hr, etc.">
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Service Status</label>
+        <select v-model="editForm.status" class="form-select">
+          <option value="active">Active</option>
+          <option value="paused">Paused</option>
+          <option value="draft">Draft</option>
+          <option value="archived">Archived</option>
+        </select>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.edit = false">Cancel</button>
+        <button class="btn btn-danger" @click="deleteListing">
+          <AegisIcon name="trash" :size="14" /> Delete Listing
+        </button>
+        <button class="btn btn-primary" @click="submitEdit">
+          <AegisIcon name="check" :size="14" /> Save Changes
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- Accept Request Modal -->
+    <AegisModal v-model="modals.accept" title="Accept Service Request" size="sm">
+      <div class="alert alert-success" style="margin-bottom:18px;">
+        <AegisIcon name="check" :size="16" />
+        <span>Accepting will auto-generate a Service Agreement for both parties to sign digitally.</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm Session Date &amp; Time</label>
+        <input v-model="acceptForm.datetime" class="form-input" type="datetime-local">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Session Format</label>
+        <select v-model="acceptForm.format" class="form-select">
+          <option>Virtual (Telehealth)</option>
+          <option>In-person</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Note to Provider (optional)</label>
+        <textarea v-model="acceptForm.note" class="form-input" style="min-height:70px;" placeholder="Any intake info, prep instructions, or a welcome message…"></textarea>
+      </div>
+      <div class="setting-row" style="padding:6px 0;">
+        <div class="setting-info">
+          <div class="setting-label">Set as recurring (ongoing relationship)</div>
+        </div>
+        <AegisToggle v-model="acceptForm.recurring" />
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.accept = false">Cancel</button>
+        <button class="btn btn-primary" @click="submitAccept">
+          <AegisIcon name="check" :size="14" /> Accept &amp; Send Agreement
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- Counter Propose Modal -->
+    <AegisModal v-model="modals.counter" title="Counter Propose" size="sm">
+      <div class="form-group">
+        <label class="form-label">Proposed Date &amp; Time</label>
+        <input v-model="counterForm.datetime" class="form-input" type="datetime-local">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Message to Provider <span style="color:var(--red);">*</span></label>
+        <textarea
+          v-model="counterForm.message"
+          class="form-input"
+          :class="{ 'is-invalid': counterV$.message.$error }"
+          placeholder="Explain your counter-proposal, alternative times, or any questions you have…"
+          @blur="counterV$.message.$touch()"
+        ></textarea>
+        <div v-if="counterV$.message.$error" class="form-error">{{ counterFieldError('message') }}</div>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.counter = false">Cancel</button>
+        <button class="btn btn-primary" @click="submitCounter">
+          <AegisIcon name="send" :size="14" /> Send Counter Proposal
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- Preview Listing Modal -->
+    <AegisModal v-model="modals.preview" title="Listing Preview" size="md">
+      <p style="font-size:13px;font-weight:600;color:var(--text-3);margin-bottom:14px;">This is how your listing appears to other providers in search.</p>
+      <div style="border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
+        <div style="padding:20px;background:var(--surface-2);display:flex;gap:14px;align-items:flex-start;">
+          <div class="avatar avatar-lg">DR</div>
+          <div>
+            <div style="font-family:var(--font-serif);font-weight:700;font-size:15px;color:var(--text);margin-bottom:3px;">Dr. Sarah Reynolds, PhD, LCSW</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text-3);margin-bottom:8px;">Clinical Psychologist · Houston, TX</div>
+            <div class="chip-list">
+              <span class="chip gold">Trauma</span>
+              <span class="chip gold">DBT</span>
+              <span class="chip">EMDR</span>
+              <span class="chip">Complex PTSD</span>
+            </div>
+          </div>
+          <AegisBadge label="Available" variant="green" style="flex-shrink:0;" />
+        </div>
+        <div style="padding:18px 20px;">
+          <div style="font-family:var(--font-serif);font-weight:700;font-size:15px;color:var(--text);margin-bottom:6px;">{{ previewData.title }}</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text-2);line-height:1.55;margin-bottom:14px;">{{ previewData.description }}</div>
+          <div class="svc-meta-row">
+            <div class="svc-meta-item"><AegisIcon name="clock" :size="13" />50 min</div>
+            <div class="svc-meta-item"><AegisIcon name="star" :size="13" />4.9★ (38 reviews)</div>
+            <div class="svc-meta-item">Virtual only</div>
+          </div>
+          <div class="svc-price-row" style="margin-top:14px;justify-content:space-between;">
+            <div>
+              <span style="font-family:var(--font-serif);font-weight:700;font-size:22px;color:var(--text);">{{ previewData.price }}</span>
+              <span style="font-size:12px;font-weight:600;color:var(--text-3);"> / {{ previewData.price_unit }}</span>
+            </div>
+            <button class="btn btn-primary btn-sm"><AegisIcon name="send" :size="13" /> Request Service</button>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.preview = false">Close</button>
+        <button class="btn btn-primary" @click="modals.preview = false; modals.edit = true">
+          <AegisIcon name="pencil" :size="14" /> Edit Listing
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- Manage Group Modal -->
+    <AegisModal v-model="modals.manageGroup" title="Manage Group — Group Supervision" size="md">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:600;color:var(--text-2);">3 of 6 spots filled · Bi-weekly Monday · 90 min</div>
+        <AegisBadge label="Active" variant="green" />
+      </div>
+
+      <div class="modal-section-label" style="margin-top:0;">Enrolled Providers</div>
+      <div class="list-group" style="margin-bottom:14px;">
+        <div v-for="member in groupMembers" :key="member.id" class="list-group-item">
+          <div class="avatar avatar-sm">{{ member.initials }}</div>
+          <div class="roster-info">
+            <div class="roster-name">{{ member.name }}</div>
+            <div class="roster-meta">{{ member.meta }}</div>
+          </div>
+          <AegisBadge label="Active" variant="green" />
+          <button
+            class="btn-icon"
+            :data-tooltip="`Message ${member.first_name}`"
+            :disabled="msgLoading === member.id"
+            @click="openConversation(member.id)"
+          >
+            <AegisIcon name="message" :size="14" />
+          </button>
+          <button
+            class="btn-icon btn-icon-danger"
+            :data-tooltip="`Remove ${member.first_name} from group`"
+            @click="confirmAction({ title: 'Remove Provider', btnLabel: 'Remove', type: 'danger' }, () => toast.info('Provider removed from group'))"
+          >
+            <AegisIcon name="trash" :size="14" />
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-section-label">Open Spots ({{ 6 - groupMembers.length }} remaining)</div>
+      <div class="alert alert-info">
+        <AegisIcon name="info" :size="16" />
+        <span>This group is discoverable in provider search. Providers can request to join and you'll approve each request manually.</span>
+      </div>
+
+      <div class="form-group" style="margin-top:14px;">
+        <label class="form-label">Group Announcement (optional)</label>
+        <textarea v-model="groupAnnouncement" class="form-input" style="min-height:70px;" placeholder="Send a message to all group members at once…"></textarea>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.manageGroup = false">Close</button>
+        <button class="btn btn-outline" @click="sendGroupAnnouncement">
+          <AegisIcon name="send" :size="13" /> Send Announcement
+        </button>
+        <button class="btn btn-primary" @click="modals.manageGroup = false; modals.edit = true">
+          <AegisIcon name="pencil" :size="14" /> Edit Group Settings
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- Publish Listing Modal -->
+    <AegisModal v-model="modals.publish" title="Publish Listing" size="sm">
+      <div class="alert alert-success" style="margin-bottom:16px;">
+        <AegisIcon name="check" :size="16" />
+        <span>Your listing will be visible to providers in search immediately after publishing.</span>
+      </div>
+      <div class="setting-row" style="padding:6px 0;">
+        <div class="setting-info">
+          <div class="setting-label">Notify matching providers</div>
+          <div class="setting-desc">Send a discovery alert to providers who match your specialty tags</div>
+        </div>
+        <AegisToggle v-model="publishForm.notify" />
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.publish = false">Cancel</button>
+        <button class="btn btn-primary" @click="submitPublish">
+          <AegisIcon name="check" :size="14" /> Publish Now
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- Reactivate Listing Modal -->
+    <AegisModal v-model="modals.reactivate" title="Reactivate Listing" size="sm">
+      <div class="alert alert-gold" style="margin-bottom:16px;">
+        <AegisIcon name="alert-triangle" :size="16" />
+        <span>This listing was paused. Reactivating will make it discoverable in provider search again.</span>
+      </div>
+      <div class="setting-row" style="padding:6px 0;">
+        <div class="setting-info">
+          <div class="setting-label">Restore previous availability</div>
+          <div class="setting-desc">Re-enable your saved availability schedule for this listing</div>
+        </div>
+        <AegisToggle v-model="reactivateForm.restore_avail" />
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.reactivate = false">Cancel</button>
+        <button class="btn btn-primary" @click="submitReactivate">
+          <AegisIcon name="check" :size="14" /> Reactivate
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- Pause Listing Modal -->
+    <AegisModal v-model="modals.pause" title="Pause Listing" size="sm">
+      <div class="alert alert-warning" style="margin-bottom:16px;">
+        <AegisIcon name="alert-triangle" :size="16" />
+        <span>Pausing will hide this listing from provider search. Existing bookings and relationships are not affected.</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason for pausing (optional)</label>
+        <select v-model="pauseForm.reason" class="form-select">
+          <option value="">Select reason…</option>
+          <option>At capacity — not accepting new clients</option>
+          <option>Temporarily unavailable</option>
+          <option>Updating listing details</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.pause = false">Keep Active</button>
+        <button class="btn btn-danger" @click="submitPause">
+          <AegisIcon name="pause" :size="14" /> Pause Listing
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- Cancel Session Modal -->
+    <AegisModal v-model="modals.cancelSession" title="Cancel Session" size="sm">
+      <div class="alert alert-warning" style="margin-bottom:16px;">
+        <AegisIcon name="alert-triangle" :size="16" />
+        <span>Cancelling will notify the provider immediately. This session is <strong>{{ activeBooking?.datetime_label }} — {{ activeBooking?.provider_name }}</strong>.</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason for cancellation <span style="color:var(--red);">*</span></label>
+        <select
+          v-model="cancelSessionForm.reason"
+          class="form-select"
+          :class="{ 'is-invalid': cancelV$.reason.$error }"
+          @blur="cancelV$.reason.$touch()"
+        >
+          <option value="">Select reason…</option>
+          <option>Provider unavailable — schedule conflict</option>
+          <option>Provider requested cancellation</option>
+          <option>Emergency or illness</option>
+          <option>Rescheduling to a different time</option>
+          <option>Ending the relationship</option>
+          <option>Other</option>
+        </select>
+        <div v-if="cancelV$.reason.$error" class="form-error">{{ cancelFieldError('reason') }}</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Note to provider (optional)</label>
+        <textarea v-model="cancelSessionForm.note" class="form-input" style="min-height:70px;" placeholder="Let them know what happened and any next steps…"></textarea>
+      </div>
+      <div class="setting-row" style="padding:6px 0;">
+        <div class="setting-info">
+          <div class="setting-label">Offer to reschedule</div>
+          <div class="setting-desc">Include a link so they can book another time</div>
+        </div>
+        <AegisToggle v-model="cancelSessionForm.offer_reschedule" />
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.cancelSession = false">Keep Session</button>
+        <button class="btn btn-danger" @click="submitCancelSession">
+          <AegisIcon name="x" :size="14" /> Cancel Session
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- Session Notes Modal -->
+    <AegisModal v-model="modals.sessionNotes" title="Session Notes" size="md">
+      <div style="margin-bottom:16px;">
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px;">{{ activeBooking?.provider_name }}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text-3);">{{ activeBooking?.service_title }} · {{ activeBooking?.datetime_label }} · {{ activeBooking?.duration_label }} · {{ activeBooking?.amount }}</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Session Summary</label>
+        <textarea v-model="notesForm.summary" class="form-input" style="min-height:100px;" placeholder="Key topics covered, progress notes, follow-up items…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Action Items for Next Session</label>
+        <textarea v-model="notesForm.action_items" class="form-input" style="min-height:70px;" placeholder="Tasks, readings, or goals to revisit…"></textarea>
+      </div>
+      <div class="setting-row" style="padding:6px 0;">
+        <div class="setting-info">
+          <div class="setting-label">Share summary with supervisee</div>
+          <div class="setting-desc">They'll receive a copy of these notes via Aegis messaging</div>
+        </div>
+        <AegisToggle v-model="notesForm.share_with_supervisee" />
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.sessionNotes = false">Cancel</button>
+        <button class="btn btn-primary" @click="submitNotes">
+          <AegisIcon name="check" :size="14" /> Save Notes
+        </button>
+      </template>
+    </AegisModal>
+
   </AppLayout>
 </template>
 
 <script setup>
-import { computed, watch } from 'vue'
-import { useForm } from '@inertiajs/vue3'
+import { ref, reactive, computed } from 'vue'
+import { Head } from '@inertiajs/vue3'
+import { router } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
-import AegisCard from '@/components/ui/AegisCard.vue'
-import AegisBadge from '@/components/ui/AegisBadge.vue'
-import AegisEmptyState from '@/components/ui/AegisEmptyState.vue'
 import AegisToggle from '@/components/ui/AegisToggle.vue'
-import { useModal } from '@/composables/useModal'
+import ProfileCompletionStrip from '@/components/features/ProfileCompletionStrip.vue'
 import { useToast } from '@/composables/useToast'
-import { usePricingStore } from '@/stores/pricing'
+import { useConfirm } from '@/composables/useConfirm'
+import { useMessageButton } from '@/composables/useMessageButton'
+import useVuelidate from '@vuelidate/core'
+import { required, minLength } from '@vuelidate/validators'
 
+// ── Props (stubbed for Prompt 2) ──────────────────────────────────────────
 const props = defineProps({
-  services: { type: Array, default: () => [] },
-  totalActiveClients: { type: Number, default: 0 },
+  listings:          { type: Array,  default: () => [] },
+  serviceRequests:   { type: Array,  default: () => [] },
+  bookings:          { type: Array,  default: () => [] },
+  stats:             { type: Object, default: () => ({ active_listings: 0, pending_requests: 0, sessions: 0, revenue_label: '$0' }) },
+  profileCompletion: { type: Number, default: 78 },
 })
 
-const { openModal, closeModal, isOpen } = useModal()
+// ── Composables ───────────────────────────────────────────────────────────
 const toast = useToast()
-const pricing = usePricingStore()
+const { confirmAction } = useConfirm()
+const { openConversation, loading: msgLoading } = useMessageButton()
 
-const form = useForm({
-  id: null, title: '', description: '', category: '', rate_input: null, price_cents: null,
-  price_type: 'session', duration_min: 60, format: 'telehealth',
-  availability: 'open', availability_label: '', is_public: true,
+// ── Tab state ─────────────────────────────────────────────────────────────
+const activeTab = ref('listings')
+
+const tabs = computed(() => [
+  { key: 'listings',  label: 'My Listings',           icon: 'grid',     count: props.listings.length },
+  { key: 'requests',  label: 'Service Requests',       icon: 'clock',    count: newRequests.value.length },
+  { key: 'bookings',  label: 'Bookings & Sessions',    icon: 'calendar', count: props.bookings.length },
+  { key: 'settings',  label: 'Settings',               icon: 'settings', count: null },
+])
+
+// ── Modal state ───────────────────────────────────────────────────────────
+const modals = reactive({
+  create: false, edit: false, accept: false, counter: false,
+  preview: false, manageGroup: false, publish: false, reactivate: false,
+  pause: false, cancelSession: false, sessionNotes: false,
 })
 
-// Keep cents on the model in sync with dollar input.
-watch(() => form.rate_input, (v) => { form.price_cents = v != null ? Math.round(Number(v) * 100) : null })
+// ── Active item tracking ──────────────────────────────────────────────────
+const activeService  = ref(null)
+const activeRequest  = ref(null)
+const activeBooking  = ref(null)
 
-function rateLabel(s) {
-  if (!s.price_cents) return s.price_type === 'inquiry' ? 'Contact for pricing' : '—'
-  const unit = { fixed: '', hourly: '/hr', session: '/session', inquiry: '' }[s.price_type] ?? ''
-  return `${pricing.formatCents(s.price_cents)}${unit}`
+function setActiveService(s)  { activeService.value = s }
+function setActiveRequest(r)  { activeRequest.value = r }
+function setActiveBooking(b)  { activeBooking.value = b }
+
+// ── Listings tab ──────────────────────────────────────────────────────────
+const listingSearch       = ref('')
+const listingTypeFilter   = ref('')
+const listingStatusFilter = ref('')
+
+const filteredListings = computed(() => {
+  return props.listings.filter(s => {
+    const q = listingSearch.value.toLowerCase()
+    if (q && !s.title?.toLowerCase().includes(q) && !s.service_type?.toLowerCase().includes(q)) return false
+    if (listingTypeFilter.value && s.service_type !== listingTypeFilter.value) return false
+    if (listingStatusFilter.value && s.status !== listingStatusFilter.value.toLowerCase()) return false
+    return true
+  })
+})
+
+// ── Requests tab ──────────────────────────────────────────────────────────
+const newRequests     = computed(() => props.serviceRequests.filter(r => r.status === 'new'))
+const historyRequests = computed(() => props.serviceRequests.filter(r => r.status !== 'new'))
+
+// ── Bookings tab ──────────────────────────────────────────────────────────
+const bookingSearch        = ref('')
+const bookingServiceFilter = ref('')
+const bookingDateRange     = ref('this_month')
+const bookingPage          = ref(1)
+const bookingPageCount     = computed(() => Math.max(1, Math.ceil(props.bookings.length / 10)))
+
+const bookingPeriodLabel = computed(() => {
+  const map = { this_month: 'This Month', last_month: 'Last Month', last_60: 'Last 60 Days', last_90: 'Last 90 Days', this_year: 'This Year', all: 'All Time' }
+  return map[bookingDateRange.value] ?? 'This Month'
+})
+
+// ── Preview modal ─────────────────────────────────────────────────────────
+const previewData = reactive({ title: '', description: '', price: '', price_unit: '' })
+
+function openPreview(s) {
+  previewData.title       = s.title
+  previewData.description = s.description
+  previewData.price       = s.price
+  previewData.price_unit  = s.price_unit?.replace(/^\/\s*/, '') ?? 'session'
+  modals.preview = true
 }
 
-function edit(s) {
-  form.id           = s.id
-  form.title        = s.title
-  form.description  = s.description
-  form.category     = s.category
-  form.rate_input   = s.price_cents ? s.price_cents / 100 : null
-  form.price_type   = s.price_type
-  form.duration_min = s.duration_min
-  form.format       = s.format
-  form.availability       = s.availability ?? 'open'
-  form.availability_label = s.availability_label ?? ''
-  form.is_public    = !!s.is_public
-  openModal('serviceModal')
+// ── Service type options ──────────────────────────────────────────────────
+const serviceTypeOptions = [
+  { key: 'supervision',        label: 'Supervision',         icon: 'graduation-cap', desc: 'Individual or group' },
+  { key: 'consultation',       label: 'Consultation',        icon: 'message',        desc: 'Case or peer' },
+  { key: 'training',           label: 'Training',            icon: 'book-open',      desc: 'Workshop or series' },
+  { key: 'coaching',           label: 'Coaching',            icon: 'leaf',           desc: 'Practice or career' },
+  { key: 'practice_continuity',label: 'Practice Continuity', icon: 'shield',         desc: 'Continuity Steward / succession' },
+  { key: 'other',              label: 'Other',               icon: 'sparkles',       desc: 'Custom service' },
+]
+
+// ── Availability days ─────────────────────────────────────────────────────
+const availabilityDays = [
+  { key: 'mon', label: 'Mon', slots: '4 slots' },
+  { key: 'tue', label: 'Tue', slots: '4 slots' },
+  { key: 'wed', label: 'Wed', slots: '2 slots' },
+  { key: 'thu', label: 'Thu', slots: '4 slots' },
+  { key: 'fri', label: 'Fri', slots: '3 slots' },
+  { key: 'sat', label: 'Sat', slots: '2 slots' },
+  { key: 'sun', label: 'Sun', slots: '2 slots' },
+]
+
+// ── Create form + validation ──────────────────────────────────────────────
+const createForm = reactive({
+  service_type: 'supervision', title: '', description: '', duration: '60 minutes',
+  duration_custom: '', format: 'Virtual only', rate: null, rate_per: 'Session',
+  sliding_scale: false, availability_days: ['tue','wed','thu','fri'],
+  tags: '', max_clients: null, credentials_required: 'None',
+})
+
+const createRules = {
+  title:       { required },
+  description: { required },
+  rate:        { required },
+}
+const createV$ = useVuelidate(createRules, createForm)
+
+function createFieldError(field) {
+  const e = createV$.value[field].$errors[0]
+  return e?.$message ?? ''
 }
 
-function close() { closeModal('serviceModal'); setTimeout(() => form.reset(), 200) }
-
-function save() {
-  const url = form.id
-    ? route('provider.services.update', { service: form.id })
-    : route('provider.services.store')
-  const method = form.id ? 'put' : 'post'
-  form[method](url, {
+async function submitCreate(status) {
+  const ok = await createV$.value.$validate()
+  if (!ok) return
+  router.post(route('provider.services.store'), { ...createForm, status }, {
     preserveScroll: true,
-    onSuccess: () => { toast.success('Service saved.'); close() },
+    onSuccess: () => {
+      modals.create = false
+      toast.success(status === 'active' ? 'Listing published!' : 'Saved as draft.')
+    },
   })
 }
+
+function toggleAvailDay(key) {
+  const idx = createForm.availability_days.indexOf(key)
+  if (idx === -1) createForm.availability_days.push(key)
+  else createForm.availability_days.splice(idx, 1)
+}
+
+// ── Edit form + validation ────────────────────────────────────────────────
+const editForm = reactive({
+  title: '', description: '', rate: null, duration: '60 minutes',
+  duration_custom: '', status: 'active',
+})
+
+const editRules = { title: { required } }
+const editV$ = useVuelidate(editRules, editForm)
+
+function editFieldError(field) {
+  const e = editV$.value[field].$errors[0]
+  return e?.$message ?? ''
+}
+
+async function submitEdit() {
+  const ok = await editV$.value.$validate()
+  if (!ok) return
+  router.put(route('provider.services.update', { service: activeService.value?.id }), editForm, {
+    preserveScroll: true,
+    onSuccess: () => { modals.edit = false; toast.success('Changes saved!') },
+  })
+}
+
+function deleteListing() {
+  confirmAction({ title: 'Delete Listing', btnLabel: 'Delete', type: 'danger' }, () => {
+    router.delete(route('provider.services.destroy', { service: activeService.value?.id }), {
+      preserveScroll: true,
+      onSuccess: () => { modals.edit = false; toast.info('Listing deleted.') },
+    })
+  })
+}
+
+function deleteServiceFromCard() {
+  router.delete(route('provider.services.destroy', { service: activeService.value?.id }), {
+    preserveScroll: true,
+    onSuccess: () => toast.info('Service deleted.'),
+  })
+}
+
+function resumeService() {
+  router.patch(route('provider.services.update', { service: activeService.value?.id }), { status: 'active' }, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Listing resumed.'),
+  })
+}
+
+// ── Accept form ───────────────────────────────────────────────────────────
+const acceptForm = reactive({ datetime: '', format: 'Virtual (Telehealth)', note: '', recurring: true })
+
+function submitAccept() {
+  router.post(route('provider.service-requests.accept', { request: activeRequest.value?.id }), acceptForm, {
+    preserveScroll: true,
+    onSuccess: () => { modals.accept = false; toast.success('Request accepted — agreement sent.') },
+  })
+}
+
+function dismissRequest(id) {
+  router.patch(route('provider.service-requests.dismiss', { request: id }), {}, {
+    preserveScroll: true,
+    onSuccess: () => toast.info('Request dismissed.'),
+  })
+}
+
+// ── Counter form + validation ─────────────────────────────────────────────
+const counterForm = reactive({ datetime: '', message: '' })
+const counterRules = { message: { required } }
+const counterV$ = useVuelidate(counterRules, counterForm)
+function counterFieldError(field) { return counterV$.value[field].$errors[0]?.$message ?? '' }
+
+async function submitCounter() {
+  const ok = await counterV$.value.$validate()
+  if (!ok) return
+  toast.success('Counter proposal sent!')
+  modals.counter = false
+}
+
+// ── Publish form ──────────────────────────────────────────────────────────
+const publishForm = reactive({ notify: true })
+
+function submitPublish() {
+  router.patch(route('provider.services.publish', { service: activeService.value?.id }), publishForm, {
+    preserveScroll: true,
+    onSuccess: () => { modals.publish = false; toast.success('Listing published!') },
+  })
+}
+
+// ── Reactivate form ───────────────────────────────────────────────────────
+const reactivateForm = reactive({ restore_avail: true })
+
+function submitReactivate() {
+  router.patch(route('provider.services.publish', { service: activeService.value?.id }), reactivateForm, {
+    preserveScroll: true,
+    onSuccess: () => { modals.reactivate = false; toast.success('Listing reactivated!') },
+  })
+}
+
+// ── Pause form ────────────────────────────────────────────────────────────
+const pauseForm = reactive({ reason: '' })
+
+function submitPause() {
+  router.patch(route('provider.services.update', { service: activeService.value?.id }), { status: 'paused', pause_reason: pauseForm.reason }, {
+    preserveScroll: true,
+    onSuccess: () => { modals.pause = false; toast.warning('Listing paused.') },
+  })
+}
+
+// ── Cancel session form + validation ──────────────────────────────────────
+const cancelSessionForm = reactive({ reason: '', note: '', offer_reschedule: true })
+const cancelRules = { reason: { required } }
+const cancelV$ = useVuelidate(cancelRules, cancelSessionForm)
+function cancelFieldError(field) { return cancelV$.value[field].$errors[0]?.$message ?? '' }
+
+async function submitCancelSession() {
+  const ok = await cancelV$.value.$validate()
+  if (!ok) return
+  router.post(route('provider.bookings.cancel', { booking: activeBooking.value?.id }), cancelSessionForm, {
+    preserveScroll: true,
+    onSuccess: () => { modals.cancelSession = false; toast.warning(`Session cancelled — ${activeBooking.value?.provider_name} notified.`) },
+  })
+}
+
+// ── Session notes form ────────────────────────────────────────────────────
+const notesForm = reactive({ summary: '', action_items: '', share_with_supervisee: false })
+
+function submitNotes() {
+  router.post(route('provider.bookings.notes', { booking: activeBooking.value?.id }), notesForm, {
+    preserveScroll: true,
+    onSuccess: () => { modals.sessionNotes = false; toast.success('Notes saved.') },
+  })
+}
+
+// ── Group management ──────────────────────────────────────────────────────
+const groupMembers = ref([
+  { id: 1, initials: 'AM', name: 'Dr. Aisha Morales, LCSW',  first_name: 'Aisha',  meta: 'Enrolled since May 2025 · Trauma Therapist' },
+  { id: 2, initials: 'KL', name: 'Keisha Lewis, LMFT',        first_name: 'Keisha', meta: 'Enrolled since Apr 2025 · Family Therapist' },
+  { id: 3, initials: 'MN', name: 'Marcus Nguyen, LCSW',       first_name: 'Marcus', meta: 'Enrolled since Jun 2025 · Trauma Therapist' },
+])
+const groupAnnouncement = ref('')
+
+function sendGroupAnnouncement() {
+  toast.success('Announcement sent to all members.')
+  groupAnnouncement.value = ''
+}
+
+// ── Settings / Profile ────────────────────────────────────────────────────
+const profileForm = reactive({
+  headline: 'Board-Approved Clinical Supervisor | Trauma & DBT Specialist',
+  years_experience: 14,
+  bio: 'I offer clinical supervision, peer consultation, and specialized training to support therapists in building confidence and competence. My approach is collaborative, strengths-based, and rooted in evidence-based practice.',
+  specialties: ['Trauma', 'DBT', 'Complex PTSD', 'Personality Disorders'],
+})
+const newSpecialty = ref('')
+
+function addSpecialty() {
+  const v = newSpecialty.value.trim()
+  if (!v) return
+  profileForm.specialties.push(v)
+  newSpecialty.value = ''
+  toast.success('Specialty added.', 1500)
+}
+
+function removeSpecialty(i) {
+  profileForm.specialties.splice(i, 1)
+}
+
+function saveProfile() {
+  router.post(route('provider.services.profile'), profileForm, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Profile saved!'),
+  })
+}
+
+function resetProfile() {
+  toast.info('Changes discarded.')
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function initials(name) {
+  return (name || '').split(' ').slice(0, 2).map(p => p[0] ?? '').join('').toUpperCase() || '?'
+}
+
+function statusLabel(s) {
+  return { completed: 'Completed', upcoming: 'Upcoming', cancelled: 'Cancelled', accepted: 'Accepted', declined: 'Declined', pending: 'Pending', new: 'New' }[s] ?? s
+}
+
+function statusVariant(s) {
+  return { completed: 'green', upcoming: 'blue', cancelled: 'neutral', accepted: 'green', declined: 'neutral', pending: 'gold', new: 'gold' }[s] ?? 'neutral'
+}
 </script>
+
+<style scoped>
+/* ── TOOLBAR ── */
+.svc-toolbar {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+  align-items: center;
+}
+.svc-toolbar .search-wrap {
+  grid-column: span 6;
+  position: relative;
+  min-width: 0;
+}
+.svc-toolbar > .form-select { grid-column: span 3; min-width: 0; }
+.svc-toolbar .search-wrap :deep(svg),
+.svc-toolbar .search-wrap .aegis-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-4);
+  pointer-events: none;
+}
+.svc-toolbar .search-wrap .form-control { padding-left: 38px; width: 100%; }
+@media (max-width: 720px) {
+  .svc-toolbar { grid-template-columns: 1fr; }
+  .svc-toolbar .search-wrap,
+  .svc-toolbar > .form-select { grid-column: 1 / -1; }
+}
+
+/* ── SERVICE CARDS GRID ── */
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.svc-type-icon {
+  width: 48px; height: 48px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  background: var(--badge-bg-gold);
+  color: var(--gold-dark);
+}
+.svc-description {
+  font-size: 13px; color: var(--text-2); line-height: 1.55;
+  margin-bottom: 14px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.svc-meta-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.svc-meta-item {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12px; color: var(--text-3); font-weight: 600;
+}
+.svc-price-row {
+  display: flex; align-items: baseline; gap: 6px;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+}
+.svc-price { font-family: var(--font-serif); font-size: 22px; font-weight: 700; color: var(--text); }
+.svc-price-unit { font-size: 12px; color: var(--text-3); font-weight: 600; }
+.svc-price-note { font-size: 11px; color: var(--text-4); margin-left: auto; font-weight: 600; }
+.svc-card-metrics {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 1px; background: var(--border);
+  border-top: 1px solid var(--border);
+}
+.svc-metric { background: var(--surface-2); padding: 10px 14px; text-align: center; }
+.svc-metric-val { font-family: var(--font-serif); font-size: 16px; font-weight: 700; color: var(--text); }
+.svc-metric-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-4); margin-top: 2px; }
+
+/* ── TAB BADGE RED ALERT ── */
+.badge-pill.alert { background: var(--red); color: #fff; }
+
+/* ── REQUESTS LIST ── */
+.requests-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 22px; }
+.request-card.new { border-left: 3px solid var(--gold-dark); }
+.req-info { flex: 1; min-width: 180px; }
+.req-name { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.req-detail { font-size: 12px; color: var(--text-3); font-weight: 600; }
+.req-service { flex: 1; min-width: 160px; }
+.req-service-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.req-service-type { font-size: 10px; color: var(--text-4); text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700; }
+.req-date { font-size: 12px; color: var(--text-3); min-width: 100px; text-align: right; flex-shrink: 0; font-weight: 600; }
+.req-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ── TABLE / CARD FLUSH ── */
+.card-flush .card-body { padding: 0; }
+.card-flush .table-wrap { border: none; border-radius: 0; box-shadow: none; }
+.card-flush .pager { padding-left: 16px; padding-right: 16px; }
+.td-provider { display: flex; align-items: center; gap: 10px; }
+.td-name { font-weight: 700; color: var(--text); font-size: 13px; }
+.td-cred { font-size: 11px; color: var(--text-3); font-weight: 600; }
+
+/* ── TABLE CONTRAST ── */
+.table-wrap { border-color: var(--border-dark); box-shadow: var(--shadow); background: var(--surface); }
+.table-wrap .table thead tr { background: var(--surface-3); }
+.table-wrap .table thead th {
+  color: var(--text); font-weight: 700; font-size: 11px;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  border-bottom: 1px solid var(--border-dark); padding: 11px 14px;
+}
+.table-wrap .table tbody tr { background: var(--surface); }
+.table-wrap .table tbody tr:hover { background: var(--badge-bg-gold); }
+.table-wrap .table tbody td { border-bottom: 1px solid var(--border); color: var(--text); }
+.table-wrap .table tbody tr:last-child td { border-bottom: none; }
+
+/* ── SETTINGS ── */
+.settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 22px; }
+.card .card-header.is-settings { background: var(--surface-2); }
+
+/* ── AVAILABILITY GRID ── */
+.avail-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.avail-day {
+  text-align: center; padding: 8px 4px;
+  border-radius: var(--radius-sm); border: 1.5px solid var(--border);
+  cursor: pointer; transition: background var(--transition);
+  background: var(--surface);
+}
+.avail-day:hover         { background: var(--badge-bg-gold); }
+.avail-day .day-name { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-4); margin-bottom: 4px; }
+.avail-day .day-slots { font-size: 11px; color: var(--text-3); font-weight: 600; }
+.avail-day.on            { background: var(--badge-bg-gold); }
+.avail-day.on .day-name  { color: var(--gold-dark); }
+.avail-day.on .day-slots { color: var(--gold-dark); font-weight: 700; }
+
+/* ── PRICING OPTIONS ── */
+.pricing-options { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 14px; }
+.pricing-opt {
+  border: 1.5px solid var(--border); border-radius: var(--radius);
+  padding: 12px; text-align: center; cursor: pointer;
+  transition: background var(--transition); background: var(--surface);
+}
+.pricing-opt:hover    { background: var(--badge-bg-gold); }
+.pricing-opt.selected { background: var(--badge-bg-gold); }
+.pricing-opt-label { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; display: inline-flex; align-items: center; gap: 6px; }
+.pricing-opt.selected .pricing-opt-label { color: var(--gold-dark); }
+.pricing-opt-desc  { font-size: 11px; color: var(--text-3); font-weight: 600; }
+
+/* ── ROSTER ── */
+.roster-info { flex: 1; min-width: 0; }
+.roster-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.roster-meta { font-size: 11px; color: var(--text-3); font-weight: 600; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .services-grid { grid-template-columns: 1fr; }
+  .settings-grid { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .avail-grid { grid-template-columns: repeat(4,1fr); }
+  .pricing-options { grid-template-columns: 1fr 1fr; }
+}
+</style>

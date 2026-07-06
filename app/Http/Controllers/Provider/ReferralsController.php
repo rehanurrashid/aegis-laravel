@@ -24,8 +24,8 @@ class ReferralsController extends Controller
 
         // ── All referrals for this user ──────────────────────────────
         $allForUser = Referral::with([
-                'sender:id,display_name,credentials,slug,avatar_path',
-                'recipient:id,display_name,credentials,slug,avatar_path',
+                'sender:id,display_name,credentials,slug,avatar_path,specialty,location,avatar_initials',
+                'recipient:id,display_name,credentials,slug,avatar_path,specialty,location,avatar_initials',
                 'meta',
             ])
             ->where(function ($q) use ($user) {
@@ -34,7 +34,20 @@ class ReferralsController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
-        $serialize = function (Referral $r) use ($user) {
+        // IDs of users this provider is actively connected to — used in $serialize for is_connected flag
+        $networkIds = \App\Models\NetworkConnection::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->pluck('connected_user_id')
+            ->merge(
+                \App\Models\NetworkConnection::where('connected_user_id', $user->id)
+                    ->where('status', 'active')
+                    ->pluck('user_id')
+            )
+            ->unique()
+            ->values()
+            ->all();
+
+        $serialize = function (Referral $r) use ($user, $networkIds) {
             $status = $r->status instanceof \BackedEnum ? $r->status->value : (string) $r->status;
             $isSender = $r->sender_id === $user->id;
             return [
@@ -60,6 +73,19 @@ class ReferralsController extends Controller
                 'counterpart_avatar'      => $isSender
                     ? $r->recipient?->avatar_path
                     : $r->sender?->avatar_path,
+                'counterpart_initials'    => $isSender
+                    ? ($r->recipient?->avatar_initials ?? strtoupper(substr($r->recipient?->display_name ?? '', 0, 2)))
+                    : ($r->sender?->avatar_initials    ?? strtoupper(substr($r->sender?->display_name    ?? '', 0, 2))),
+                'counterpart_specialty'   => $isSender
+                    ? $r->recipient?->specialty
+                    : $r->sender?->specialty,
+                'counterpart_location'    => $isSender
+                    ? $r->recipient?->location
+                    : $r->sender?->location,
+                'counterpart_is_connected' => in_array(
+                    $isSender ? $r->recipient_id : $r->sender_id,
+                    $networkIds, true
+                ),
                 'client_initials'         => $r->meta->firstWhere('meta_key', 'client_initials')?->meta_value,
                 'client_age_band'         => $r->meta->firstWhere('meta_key', 'client_age_range')?->meta_value
                                          ?? $r->meta->firstWhere('meta_key', 'client_age_band')?->meta_value,

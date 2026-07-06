@@ -271,7 +271,7 @@
             </template>
             <template v-else-if="val(r.status)==='declined'">
               <button class="rfc-act" type="button" data-tooltip="View details" aria-label="View details" style="display:inline-flex;align-items:center;justify-content:center" @click="openDetail(r)"><AegisIcon name="search" :size="14" /></button>
-              <button class="rfc-cta" type="button" style="display:inline-flex;align-items:center;gap:4px" @click="openModal('referralModal')"><AegisIcon name="refresh-cw" :size="14" /> Re-refer</button>
+              <button class="rfc-cta" type="button" style="display:inline-flex;align-items:center;gap:4px" @click="openReferralFor(r)"><AegisIcon name="refresh-cw" :size="14" /> Re-refer</button>
             </template>
             <template v-else>
               <button class="rfc-act" type="button" data-tooltip="Follow up" :disabled="msgLoading === r.counterpart_user_id" @click="openConversation(r.counterpart_user_id)"><AegisIcon name="message" :size="14" /></button>
@@ -504,7 +504,7 @@
               <td style="white-space:nowrap">
                 <div style="display:flex;gap:4px">
                   <button class="btn-icon btn-icon-sm" data-tooltip="View" style="display:inline-flex;align-items:center;justify-content:center" @click="openArchiveDetail(r)"><AegisIcon name="eye" :size="14" /></button>
-                  <button v-if="!r.responded_at || val(r.status)==='declined'" class="btn-icon btn-icon-sm" data-tooltip="Re-refer" style="display:inline-flex;align-items:center;justify-content:center" @click="openModal('referralModal')"><AegisIcon name="refresh-cw" :size="12" /></button>
+                  <button v-if="!r.responded_at || val(r.status)==='declined'" class="btn-icon btn-icon-sm" data-tooltip="Re-refer" style="display:inline-flex;align-items:center;justify-content:center" @click="openReferralFor(r)"><AegisIcon name="refresh-cw" :size="12" /></button>
                 </div>
               </td>
             </tr>
@@ -528,7 +528,7 @@
       Calling openModal('referralModal') here sets ui.activeModal which the
       child reads reactively. No extra wiring needed.
     -->
-    <ReferralModal :roster="roster" :network="network" />
+    <ReferralModal :roster="roster" :network="network" :preselected-recipient="referralPreselect" />
 
     <!-- REFERRAL DETAIL -->
     <AegisModal
@@ -801,7 +801,7 @@
           v-if="activeArchive && (val(activeArchive.status) === 'declined' || !activeArchive.responded_at)"
           class="btn btn-primary"
           style="display:inline-flex;align-items:center;gap:6px"
-          @click="modals.archiveDetail=false;openModal('referralModal')"
+          @click="modals.archiveDetail=false;openReferralFor(activeArchive)"
         >
           <AegisIcon name="refresh-cw" :size="14" />Re-refer
         </button>
@@ -853,6 +853,34 @@ const modals = reactive({
   cancel:        false,
   complete:      false,
   archiveDetail: false,
+})
+
+// ── Referral modal preselect ────────────────────────────────────────────
+const referralPreselect = ref(null)
+
+// Build recipient object from a referral row and open modal
+function openReferralFor(r) {
+  if (r?.counterpart_slug) {
+    referralPreselect.value = {
+      id:           r.counterpart_user_id ?? null,
+      display_name: r.counterpart_name ?? '',
+      credentials:  r.counterpart_credentials ?? null,
+      slug:         r.counterpart_slug,
+      initials:     r.counterpart_initials ?? '',
+      avatar_url:   r.counterpart_avatar ?? null,
+      specialty:    r.counterpart_specialty ?? '',
+      location:     r.counterpart_location ?? '',
+      is_connected: r.counterpart_is_connected ?? false,
+    }
+  } else {
+    referralPreselect.value = null
+  }
+  openModal('referralModal')
+}
+
+// Reset on modal close
+watch(isOpen('referralModal'), (open) => {
+  if (!open) referralPreselect.value = null
 })
 
 // ── Active record IDs (never full objects in refs) ─────────────────────
