@@ -656,6 +656,31 @@
         </div>
       </template>
       <div class="form-group">
+        <label class="form-label">Photo / Video <span style="color:var(--text-4);font-weight:600">(optional, up to 4)</span></label>
+        <ul v-if="editExistingMedia.length" class="adz-file-list" style="margin-bottom:8px">
+          <li v-for="(m, i) in editExistingMedia" :key="i" class="adz-file-item" @click.stop>
+            <div class="adz-file-icon">
+              <AegisIcon :name="m.type === 'video' ? 'video' : 'image'" :size="15" />
+            </div>
+            <div class="adz-file-info">
+              <span class="adz-file-name">{{ m.name || (m.type === 'video' ? 'Video' : 'Image') }}</span>
+              <span class="adz-file-size" style="color:var(--green-dark);font-weight:600">Saved</span>
+            </div>
+            <button type="button" class="adz-file-remove" data-tooltip="Remove" @click.stop="editExistingMedia.splice(i, 1)">
+              <AegisIcon name="x" :size="12" />
+            </button>
+          </li>
+        </ul>
+        <AegisDropzone
+          v-if="editExistingMedia.length < 4"
+          multiple
+          accept="image/*,video/*"
+          hint="JPG, PNG, GIF, MP4 — max 20 MB each"
+          :max-size-mb="20"
+          @files="editMediaFiles = $event.slice(0, 4 - editExistingMedia.length)"
+        />
+      </div>
+      <div class="form-group">
         <label class="form-label">Tags <span style="color:var(--text-4);font-weight:600">(comma-separated)</span></label>
         <input type="text" class="form-input" v-model="editForm.tags"
                placeholder="e.g. Telehealth, Compliance, Workflow" />
@@ -1016,8 +1041,10 @@ function confirmDelete(postId) {
 }
 
 // ── edit ─────────────────────────────────────────────────────────────────────
-const editTargetId = ref(null)
+const editTargetId    = ref(null)
 const editPollOptions = reactive([{ label: '' }, { label: '' }])
+const editExistingMedia = ref([])   // media already saved on the post (shown as removable pills)
+const editMediaFiles    = ref([])   // new File objects added during edit
 
 // editForm holds ALL post-type fields so template can bind them
 const editForm = useForm({
@@ -1063,6 +1090,10 @@ function openEdit(post) {
     editPollOptions.push({ label: '' }, { label: '' })
   }
 
+  // Populate existing media for display/removal in edit modal
+  editExistingMedia.value = (post.media ?? []).map(m => ({ ...m }))
+  editMediaFiles.value    = []
+
   editForm.clearErrors()
   vEdit.value.$reset()
   modals.editPost = true
@@ -1072,18 +1103,53 @@ async function submitEditPost() {
   const ok = await vEdit.value.$validate()
   if (!ok) return
 
-  // Build poll_options from editable list
   if (editForm.post_type === 'question') {
     const valid = editPollOptions.filter(o => o.label.trim())
     if (valid.length < 2) { toast.error('Add at least 2 poll options.'); return }
     editForm.poll_options = valid.map((o, i) => ({ key: String(i), label: o.label.trim() }))
   }
 
-  editForm.patch(route('provider.news.update', { post: editTargetId.value }), {
+  // Resolve new files as base64, then merge with kept existing media
+  let newMedia = []
+  if (editMediaFiles.value.length) {
+    newMedia = await Promise.all(
+      editMediaFiles.value.slice(0, Math.max(0, 4 - editExistingMedia.value.length)).map(f =>
+        new Promise(resolve => {
+          if (f.type.startsWith('image/')) {
+            const reader = new FileReader()
+            reader.onload = e => resolve({ type: 'image', name: f.name, url: e.target.result })
+            reader.readAsDataURL(f)
+          } else {
+            resolve({ type: 'video', name: f.name, url: '' })
+          }
+        })
+      )
+    )
+  }
+  editForm.media = [...editExistingMedia.value, ...newMedia]
+
+  const targetId = editTargetId.value
+
+  editForm.patch(route('provider.news.update', { post: targetId }), {
     preserveScroll: true,
     onSuccess: () => {
+      // Update the post in localPosts immediately so media/changes show without reload
+      const idx = localPosts.value.findIndex(p => p.id === targetId)
+      if (idx !== -1) {
+        localPosts.value[idx] = {
+          ...localPosts.value[idx],
+          title:          editForm.title || null,
+          body:           editForm.body  || null,
+          tags:           editForm.tags ? editForm.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+          poll_question:  editForm.poll_question || null,
+          poll_closes_at: editForm.poll_closes_at || null,
+          poll_options:   editForm.poll_options ?? localPosts.value[idx].poll_options,
+          media:          editForm.media,
+        }
+      }
       modals.editPost = false
       toast.success('Post updated')
+      editMediaFiles.value = []
       vEdit.value.$reset()
     },
     onError: () => toast.error('Could not update post.'),
