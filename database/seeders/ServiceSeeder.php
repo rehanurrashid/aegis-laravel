@@ -65,5 +65,29 @@ class ServiceSeeder extends Seeder
                 'updated_at' => $now->copy()->subWeeks(1)->toDateTimeString(),
             ], $s));
         }
+
+        // ── Services Profile meta for p_sarah ────────────────────────────
+        $serviceMeta = [
+            ['meta_key' => 'service_bio',         'meta_value' => 'I offer clinical supervision, peer consultation, and specialized training to support therapists in building confidence and competence. My approach is collaborative, strengths-based, and rooted in evidence-based practice.'],
+            ['meta_key' => 'service_headline',     'meta_value' => 'Board-Approved Clinical Supervisor | Trauma & DBT Specialist'],
+            ['meta_key' => 'service_specialties',  'meta_value' => json_encode(['Trauma', 'DBT', 'Complex PTSD', 'Personality Disorders'])],
+            ['meta_key' => 'years_experience',     'meta_value' => '14'],
+        ];
+        foreach ($serviceMeta as $m) {
+            $exists = DB::table('user_meta')
+                ->where('user_id', 'p_sarah')
+                ->where('meta_key', $m['meta_key'])
+                ->exists();
+            if (!$exists) {
+                DB::table('user_meta')->insert([
+                    'id'         => 'um_' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(12)),
+                    'user_id'    => 'p_sarah',
+                    'meta_key'   => $m['meta_key'],
+                    'meta_value' => $m['meta_value'],
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+            }
+        }
     }
 }
