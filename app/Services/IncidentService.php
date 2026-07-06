@@ -48,6 +48,15 @@ class IncidentService
             'status'            => 'reported',
         ]);
 
+        // Actor log
+        $this->activity->log(
+            $reporter->id, $reporter->role?->value === 'support_steward' ? 'support_steward' : 'provider',
+            'incident', ActivitySeverity::Critical,
+            'incident_reported', 'Critical incident reported',
+            "You reported a critical incident: {$data['incident_type']}.",
+            CriticalIncident::class, $incident->id, $plan->practitioner_id, 'log', $reporter->id,
+        );
+
         event(new IncidentReported($incident));
 
         // UNGATED notification — bypasses notify_* prefs
@@ -74,6 +83,14 @@ class IncidentService
             'verified_by_id'     => $cs->id,
             'verified_at'        => now(),
         ]);
+
+        $this->activity->log(
+            $cs->id, 'continuity_steward',
+            'incident', ActivitySeverity::Critical,
+            'incident_verified', 'Critical incident verified',
+            "You verified the critical incident.",
+            CriticalIncident::class, $incident->id, $incident->practitioner_id, 'log', $cs->id,
+        );
 
         event(new IncidentVerified($incident->fresh()));
         IncidentNotificationJob::dispatch($incident->id, 'verified');
@@ -172,6 +189,14 @@ class IncidentService
             'closed_at'          => now(),
             'summary'            => $summary,
         ]);
+
+        $this->activity->log(
+            $closer->id, $closer->role?->value === 'continuity_steward' ? 'continuity_steward' : 'provider',
+            'incident', ActivitySeverity::Info,
+            'incident_closed', 'Critical incident closed',
+            "You closed the critical incident.",
+            CriticalIncident::class, $incident->id, $incident->practitioner_id, 'log', $closer->id,
+        );
 
         event(new IncidentClosed($incident->fresh()));
 

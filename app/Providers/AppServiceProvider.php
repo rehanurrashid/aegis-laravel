@@ -99,6 +99,48 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Network\ConnectionRequestSent::class, Listeners\ActivityFanoutListener::class);
         Event::listen(Events\Network\ConnectionRequestSent::class, Listeners\SendEmailNotificationListener::class);
 
+        // Auth security events
+        Event::listen(Events\Auth\MfaEnabled::class,            Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Auth\MfaDisabled::class,           Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Auth\NewDeviceLogin::class,        Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Auth\AccountClosed::class,         Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Auth\UserLoggedIn::class,          Listeners\ActivityFanoutListener::class);
+
+        // Plan events
+        Event::listen(Events\Plan\PlanReadyForCs::class,        Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Plan\PlanReadyForSs::class,        Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Plan\PlanVersionUpdated::class,    Listeners\SendEmailNotificationListener::class);
+
+        // Vault events
+        Event::listen(Events\Plan\VaultItemShared::class,       Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Plan\VaultUnsealed::class,         Listeners\SendEmailNotificationListener::class);
+
+        // Subscription / account events
+        Event::listen(Events\Account\SubscriptionCancelled::class,   Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Account\SubscriptionTierChanged::class,  Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Account\MaatAddonChanged::class,         Listeners\SendEmailNotificationListener::class);
+
+        // Document events
+        Event::listen(Events\Document\DocumentRequested::class,        Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Document\DocumentReleaseRequested::class, Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Document\DocumentUpdated::class,          Listeners\SendEmailNotificationListener::class);
+
+        // Messaging
+        Event::listen(Events\Messages\MessageSent::class,       Listeners\SendEmailNotificationListener::class);
+
+        // Contract milestones
+        Event::listen(Events\Business\MilestoneSubmitted::class, Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\MilestoneApproved::class,  Listeners\SendEmailNotificationListener::class);
+
+        // Service request response
+        Event::listen(Events\Service\ServiceRequestResponded::class, Listeners\SendEmailNotificationListener::class);
+
+        // Steward role change
+        Event::listen(Events\Steward\StewardRoleChangeRequested::class, Listeners\SendEmailNotificationListener::class);
+
+        // Incident escalation (through SendIncidentAlertsListener — ungated)
+        Event::listen(Events\Incident\IncidentEscalated::class,  Listeners\SendIncidentAlertsListener::class);
+
         // ── BP engagement requests (hire / quote / consultation) ──────────────
         Event::listen(Events\Business\EngagementRequested::class,  Listeners\SendEmailNotificationListener::class);
 

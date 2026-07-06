@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\ActivitySeverity;
 use App\Models\BpTaxDocument;
+use App\Services\ActivityService;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
@@ -17,6 +19,8 @@ use RuntimeException;
  */
 class TaxDocumentService
 {
+    public function __construct(private ActivityService $activity) {}
+
     /** BP uploads their W-9 or other tax form. */
     public function upload(User $bp, string $docType, string $storagePath, ?int $year = null): BpTaxDocument
     {
@@ -24,7 +28,7 @@ class TaxDocumentService
             throw new RuntimeException("Invalid doc_type: {$docType}");
         }
 
-        return BpTaxDocument::create([
+        $doc = BpTaxDocument::create([
             'id'           => 'td_' . Str::lower(Str::random(12)),
             'bp_id'        => $bp->id,
             'doc_type'     => $docType,
@@ -33,12 +37,21 @@ class TaxDocumentService
             'year'         => $year,
             'created_at'   => now(),
         ]);
+
+        $this->activity->log(
+            $bp->id, 'business_partner', 'account', ActivitySeverity::Info,
+            'tax_document_uploaded', 'Tax document uploaded',
+            "You uploaded a {$docType} document.",
+            BpTaxDocument::class, $doc->id, null, 'log', $bp->id,
+        );
+
+        return $doc;
     }
 
     /** Admin issues a 1099 for a BP at year end. */
     public function issue1099(User $bp, int $year, string $downloadUrl): BpTaxDocument
     {
-        return BpTaxDocument::create([
+        $doc = BpTaxDocument::create([
             'id'           => 'td_' . Str::lower(Str::random(12)),
             'bp_id'        => $bp->id,
             'doc_type'     => '1099',
@@ -47,6 +60,15 @@ class TaxDocumentService
             'year'         => $year,
             'created_at'   => now(),
         ]);
+
+        $this->activity->log(
+            $bp->id, 'business_partner', 'account', ActivitySeverity::Info,
+            'tax_1099_issued', '1099 available for download',
+            "Your {$year} 1099 form is now available.",
+            BpTaxDocument::class, $doc->id, null, 'notification', null,
+        );
+
+        return $doc;
     }
 
     public function verify(BpTaxDocument $doc): BpTaxDocument

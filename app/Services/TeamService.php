@@ -77,12 +77,20 @@ class TeamService
             'created_at'      => now(),
         ]);
 
+        // Notify agency (notification)
         $this->activity->log(
             $invite->agency_id, 'business_partner', 'account', ActivitySeverity::Info,
             'team_member_joined',
             "{$member->display_name} joined your team",
             "Role: {$invite->permission_role}",
-            'bp_team_member', $teamMember->id, $member->id
+            BpTeamMember::class, $teamMember->id, $member->id, 'notification', $member->id
+        );
+        // Actor log for the member
+        $this->activity->log(
+            $member->id, 'business_partner', 'account', ActivitySeverity::Info,
+            'team_invite_accepted', 'Joined a Business Partner team',
+            "You joined {$invite->agency?->display_name ?? 'an agency'} as {$invite->permission_role}.",
+            BpTeamMember::class, $teamMember->id, $invite->agency_id, 'log', $member->id
         );
 
         return $teamMember;
@@ -91,6 +99,14 @@ class TeamService
     public function declineInvite(BpTeamInvitation $invite): BpTeamInvitation
     {
         $invite->update(['status' => 'declined', 'declined_at' => now()]);
+        // Notify agency
+        $this->activity->log(
+            $invite->agency_id, 'business_partner', 'account', ActivitySeverity::Info,
+            'team_invite_declined',
+            "Team invite declined",
+            "The invitation to {$invite->email} was declined.",
+            BpTeamInvitation::class, $invite->id, null, 'notification', null
+        );
         return $invite->fresh();
     }
 
@@ -111,6 +127,12 @@ class TeamService
 
     public function remove(BpTeamMember $member): bool
     {
+        $this->activity->log(
+            $member->agency_id, 'business_partner', 'account', ActivitySeverity::Info,
+            'team_member_removed', 'Team member removed',
+            "A team member has been removed from your team.",
+            BpTeamMember::class, $member->id, $member->member_id, 'log', $member->agency_id
+        );
         return (bool) $member->delete();
     }
 

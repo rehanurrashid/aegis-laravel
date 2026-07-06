@@ -48,6 +48,14 @@ class VaultService
             'created_at'      => now(),
         ]);
 
+        $this->activity->log(
+            $practitioner->id, 'provider',
+            'vault', ActivitySeverity::Info,
+            'vault_item_uploaded', 'Vault item uploaded',
+            "You uploaded \"{$item->title}\" to the {$zone} vault zone.",
+            VaultItem::class, $item->id, null, 'log', $practitioner->id,
+        );
+
         return $item;
     }
 
@@ -111,8 +119,10 @@ class VaultService
                 'vault_shared',
                 "{$sharer->display_name} shared a vault item with you",
                 $item->title,
-                'vault_item',
+                VaultItem::class,
                 $item->id,
+                $sharer->id,
+                'notification',
                 $sharer->id
             );
         }

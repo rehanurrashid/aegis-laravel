@@ -91,6 +91,14 @@ class BpJobService
             'internal_notes'        => $data['internal_notes'] ?? $job->internal_notes,
             'status'                => $data['status'],
         ]);
+
+        $this->activity->log(
+            $job->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
+            'job_updated', "Posting updated: {$job->title}",
+            'You updated the details of this job posting.',
+            'bp_job', $job->id, null, 'log', $job->practitioner_id
+        );
+
         return $job->fresh();
     }
 
@@ -140,6 +148,14 @@ class BpJobService
     public function fill(BpJob $job): BpJob
     {
         $job->update(['status' => 'filled']);
+
+        $this->activity->log(
+            $job->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
+            'job_filled', "Posting marked filled: {$job->title}",
+            'This posting has been marked as filled.',
+            'bp_job', $job->id, null, 'log', $job->practitioner_id
+        );
+
         return $job->fresh();
     }
 

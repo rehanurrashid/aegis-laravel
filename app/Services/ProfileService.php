@@ -8,12 +8,26 @@ use App\Models\NetworkConnection;
 use App\Models\User;
 use Illuminate\Support\Str;
 
+use App\Enums\ActivitySeverity;
+use App\Services\ActivityService;
+
 class ProfileService
 {
+    public function __construct(private ActivityService $activity) {}
+
     public function updateBasic(User $user, array $data): User
     {
         $allowed = ['display_name', 'phone', 'title', 'organization', 'location', 'bio', 'about_me', 'avatar_initials'];
         $user->update(array_intersect_key($data, array_flip($allowed)));
+
+        $this->activity->log(
+            $user->id, $user->role?->portal() ?? 'provider',
+            'account', ActivitySeverity::Info,
+            'profile_updated', 'Profile updated',
+            'You updated your basic profile information.',
+            null, null, null, 'log', $user->id,
+        );
+
         return $user->fresh();
     }
 

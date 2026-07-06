@@ -18,6 +18,26 @@ use App\Events\Network\ConnectionAccepted;
 use App\Events\Network\ConnectionRequestSent;
 use App\Events\News\EventRsvpReceived;
 use App\Events\News\EventSubmitted;
+use App\Events\Auth\MfaEnabled;
+use App\Events\Auth\MfaDisabled;
+use App\Events\Auth\NewDeviceLogin;
+use App\Events\Auth\AccountClosed;
+use App\Events\Plan\PlanReadyForCs;
+use App\Events\Plan\PlanReadyForSs;
+use App\Events\Plan\PlanVersionUpdated;
+use App\Events\Plan\VaultItemShared;
+use App\Events\Plan\VaultUnsealed;
+use App\Events\Account\SubscriptionCancelled;
+use App\Events\Account\SubscriptionTierChanged;
+use App\Events\Account\MaatAddonChanged;
+use App\Events\Document\DocumentRequested;
+use App\Events\Document\DocumentReleaseRequested;
+use App\Events\Document\DocumentUpdated;
+use App\Events\Messages\MessageSent;
+use App\Events\Business\MilestoneSubmitted;
+use App\Events\Business\MilestoneApproved;
+use App\Events\Service\ServiceRequestResponded;
+use App\Events\Steward\StewardRoleChangeRequested;
 use App\Events\News\NewsCommented;
 use App\Events\News\NewsPostPublished;
 use App\Events\Business\EngagementRequested;
@@ -118,6 +138,26 @@ class SendEmailNotificationListener
             $event instanceof EventRsvpReceived       => $this->eventRsvpReceived($event),
             $event instanceof NewsCommented           => $this->newsCommented($event),
             $event instanceof EventSubmitted          => $this->eventSubmitted($event),
+            $event instanceof MfaEnabled              => $this->mfaEnabled($event),
+            $event instanceof MfaDisabled             => $this->mfaDisabled($event),
+            $event instanceof NewDeviceLogin          => $this->newDeviceLogin($event),
+            $event instanceof AccountClosed           => $this->accountClosed($event),
+            $event instanceof PlanReadyForCs          => $this->planReadyForCs($event),
+            $event instanceof PlanReadyForSs          => $this->planReadyForSs($event),
+            $event instanceof PlanVersionUpdated      => $this->planVersionUpdated($event),
+            $event instanceof VaultItemShared         => $this->vaultItemShared($event),
+            $event instanceof VaultUnsealed           => $this->vaultUnsealed($event),
+            $event instanceof SubscriptionCancelled   => $this->subscriptionCancelled($event),
+            $event instanceof SubscriptionTierChanged => $this->subscriptionTierChanged($event),
+            $event instanceof MaatAddonChanged        => $this->maatAddonChanged($event),
+            $event instanceof DocumentRequested       => $this->documentRequested($event),
+            $event instanceof DocumentReleaseRequested => $this->documentReleaseRequested($event),
+            $event instanceof DocumentUpdated         => $this->documentUpdated($event),
+            $event instanceof MessageSent             => $this->messageSent($event),
+            $event instanceof MilestoneSubmitted      => $this->milestoneSubmitted($event),
+            $event instanceof MilestoneApproved       => $this->milestoneApproved($event),
+            $event instanceof ServiceRequestResponded => $this->serviceRequestResponded($event),
+            $event instanceof StewardRoleChangeRequested => $this->stewardRoleChangeRequested($event),
             default                                   => [],
         };
     }
@@ -527,5 +567,282 @@ class SendEmailNotificationListener
             ],
         ]];
     }
-}
 
+    // ── MFA / Auth security ──────────────────────────────────────────────────
+    private function mfaEnabled(MfaEnabled $e): array {
+        return [[
+            'user_id'  => $e->user->id,
+            'gate_key' => 'notify_email',
+            'template' => 'emails.auth.05-mfa-enabled',
+            'data'     => ['user_name' => $e->user->display_name],
+        ]];
+    }
+
+    private function mfaDisabled(MfaDisabled $e): array {
+        return [[
+            'user_id'  => $e->user->id,
+            'gate_key' => 'notify_email',
+            'template' => 'emails.auth.06-mfa-disabled',
+            'data'     => ['user_name' => $e->user->display_name],
+        ]];
+    }
+
+    private function newDeviceLogin(NewDeviceLogin $e): array {
+        return [[
+            'user_id'  => $e->user->id,
+            'gate_key' => 'notify_email',
+            'template' => 'emails.auth.07-new-device-login',
+            'data'     => [
+                'user_name'   => $e->user->display_name,
+                'device'      => $e->device ?? 'Unknown device',
+                'ip_address'  => $e->ipAddress ?? null,
+                'logged_in_at'=> now()->format('F j, Y \a\t g:i A T'),
+            ],
+        ]];
+    }
+
+    private function accountClosed(AccountClosed $e): array {
+        return [[
+            'user_id'  => $e->user->id,
+            'gate_key' => 'notify_email',
+            'template' => 'emails.auth.09-account-closure',
+            'data'     => ['user_name' => $e->user->display_name],
+        ]];
+    }
+
+    // ── Plan ready ───────────────────────────────────────────────────────────
+    private function planReadyForCs(PlanReadyForCs $e): array {
+        return [[
+            'user_id'  => $e->steward->id,
+            'gate_key' => 'notify_steward',
+            'template' => 'emails.plan.11-plan-ready-cs',
+            'data'     => [
+                'steward_name'      => $e->steward->display_name,
+                'practitioner_name' => $e->plan->practitioner?->display_name ?? 'Your practitioner',
+                'plan_url'          => rtrim(config('app.url'), '/') . '/continuity-steward/plan',
+            ],
+        ]];
+    }
+
+    private function planReadyForSs(PlanReadyForSs $e): array {
+        return [[
+            'user_id'  => $e->steward->id,
+            'gate_key' => 'notify_steward',
+            'template' => 'emails.plan.11-plan-ready-ss',
+            'data'     => [
+                'steward_name'      => $e->steward->display_name,
+                'practitioner_name' => $e->plan->practitioner?->display_name ?? 'Your practitioner',
+                'plan_url'          => rtrim(config('app.url'), '/') . '/support-steward/plan',
+            ],
+        ]];
+    }
+
+    private function planVersionUpdated(PlanVersionUpdated $e): array {
+        // Notify assigned stewards that the plan changed
+        $stewards = \App\Models\PlanSteward::where('plan_id', $e->plan->id)
+            ->where('status', 'active')
+            ->with('steward')
+            ->get();
+        return $stewards->map(fn($ps) => [
+            'user_id'  => $ps->steward_id,
+            'gate_key' => 'notify_plan',
+            'template' => 'emails.plan.16-plan-version-updated',
+            'data'     => [
+                'steward_name'      => $ps->steward?->display_name ?? 'Steward',
+                'practitioner_name' => $e->plan->practitioner?->display_name ?? 'Your practitioner',
+                'change_summary'    => $e->changeSummary ?? 'The continuity plan has been updated.',
+                'plan_url'          => rtrim(config('app.url'), '/') . '/provider/plan',
+            ],
+        ])->values()->toArray();
+    }
+
+    // ── Vault ────────────────────────────────────────────────────────────────
+    private function vaultItemShared(VaultItemShared $e): array {
+        return array_map(fn($sid) => [
+            'user_id'  => $sid,
+            'gate_key' => 'notify_vault',
+            'template' => 'emails.gaps.63-vault-item-shared',
+            'data'     => [
+                'steward_name' => \App\Models\User::find($sid)?->display_name ?? 'Steward',
+                'sharer_name'  => $e->sharer->display_name,
+                'item_title'   => $e->item->title,
+                'vault_url'    => rtrim(config('app.url'), '/') . '/continuity-steward/vault',
+            ],
+        ], $e->stewardIds ?? []);
+    }
+
+    private function vaultUnsealed(VaultUnsealed $e): array {
+        // Notify the practitioner that vault is now accessible
+        return [[
+            'user_id'  => $e->plan->practitioner_id,
+            'gate_key' => 'notify_vault',
+            'template' => 'emails.incident.28-vault-unlocked',
+            'data'     => [
+                'practitioner_name' => $e->plan->practitioner?->display_name ?? 'Practitioner',
+                'incident_id'       => $e->incident->id,
+            ],
+        ]];
+    }
+
+    // ── Subscription / account ───────────────────────────────────────────────
+    private function subscriptionCancelled(SubscriptionCancelled $e): array {
+        return [[
+            'user_id'  => $e->user->id,
+            'gate_key' => 'notify_email',
+            'template' => 'emails.gaps.68-subscription-cancelled',
+            'data'     => [
+                'user_name'    => $e->user->display_name,
+                'cancelled_at' => now()->format('F j, Y'),
+            ],
+        ]];
+    }
+
+    private function subscriptionTierChanged(SubscriptionTierChanged $e): array {
+        $template = ($e->direction ?? 'upgrade') === 'upgrade'
+            ? 'emails.admin.51-plan-upgraded'
+            : 'emails.admin.52-plan-downgraded';
+        return [[
+            'user_id'  => $e->user->id,
+            'gate_key' => 'notify_email',
+            'template' => $template,
+            'data'     => [
+                'user_name' => $e->user->display_name,
+                'new_tier'  => $e->tier ?? 'updated',
+            ],
+        ]];
+    }
+
+    private function maatAddonChanged(MaatAddonChanged $e): array {
+        return [[
+            'user_id'  => $e->user->id,
+            'gate_key' => 'notify_email',
+            'template' => 'emails.gaps.69-maat-addon-change',
+            'data'     => [
+                'user_name' => $e->user->display_name,
+                'enabled'   => $e->enabled ?? true,
+            ],
+        ]];
+    }
+
+    // ── Documents ────────────────────────────────────────────────────────────
+    private function documentRequested(DocumentRequested $e): array {
+        return [[
+            'user_id'  => $e->plan->practitioner_id,
+            'gate_key' => 'notify_plan',
+            'template' => 'emails.gaps.60-document-requested',
+            'data'     => [
+                'practitioner_name' => $e->plan->practitioner?->display_name ?? 'Practitioner',
+                'requester_name'    => $e->requester->display_name,
+                'document_title'    => $e->document->title ?? 'Document',
+            ],
+        ]];
+    }
+
+    private function documentReleaseRequested(DocumentReleaseRequested $e): array {
+        return [[
+            'user_id'  => $e->document->practitioner_id ?? $e->document->owner_id ?? null,
+            'gate_key' => 'notify_plan',
+            'template' => 'emails.gaps.61-document-release-requested',
+            'data'     => [
+                'requester_name' => $e->requester->display_name,
+                'document_title' => $e->document->title ?? 'Document',
+            ],
+        ]];
+    }
+
+    private function documentUpdated(DocumentUpdated $e): array {
+        // Notify assigned stewards
+        $stewards = \App\Models\PlanSteward::where('plan_id', $e->document->plan_id ?? null)
+            ->where('status', 'active')->get();
+        if ($stewards->isEmpty()) return [];
+        return $stewards->map(fn($ps) => [
+            'user_id'  => $ps->steward_id,
+            'gate_key' => 'notify_plan',
+            'template' => 'emails.gaps.64-document-updated',
+            'data'     => [
+                'document_title' => $e->document->title ?? 'Document',
+                'updater_name'   => $e->updater->display_name,
+            ],
+        ])->values()->toArray();
+    }
+
+    // ── Messages ─────────────────────────────────────────────────────────────
+    private function messageSent(MessageSent $e): array {
+        // Notify all thread participants except sender
+        $thread = $e->thread;
+        $sender = $e->sender;
+        $participants = \App\Models\MessageParticipant::where('thread_id', $thread->id)
+            ->where('user_id', '!=', $sender->id)
+            ->get();
+        return $participants->map(fn($p) => [
+            'user_id'  => $p->user_id,
+            'gate_key' => 'notify_message',
+            'template' => 'emails.messages.new-message',
+            'data'     => [
+                'recipient_name' => \App\Models\User::find($p->user_id)?->display_name ?? 'Member',
+                'sender_name'    => $sender->display_name,
+                'message_body'   => \Illuminate\Support\Str::limit($e->message->body ?? '', 200),
+                'thread_url'     => rtrim(config('app.url'), '/') . '/provider/messages',
+            ],
+        ])->values()->toArray();
+    }
+
+    // ── Milestones ───────────────────────────────────────────────────────────
+    private function milestoneSubmitted(MilestoneSubmitted $e): array {
+        $contract = $e->milestone->contract ?? \App\Models\BpContract::find($e->milestone->contract_id);
+        if (!$contract) return [];
+        return [[
+            'user_id'  => $contract->practitioner_id,
+            'gate_key' => 'notify_payment',
+            'template' => 'emails.bp.36-milestone-submitted',
+            'data'     => [
+                'practitioner_name' => $contract->practitioner?->display_name ?? 'Practitioner',
+                'bp_name'           => $contract->bp?->display_name ?? 'Business Partner',
+                'milestone_title'   => $e->milestone->title,
+                'contract_url'      => rtrim(config('app.url'), '/') . '/provider/contracts/' . $contract->id,
+            ],
+        ]];
+    }
+
+    private function milestoneApproved(MilestoneApproved $e): array {
+        $contract = $e->milestone->contract ?? \App\Models\BpContract::find($e->milestone->contract_id);
+        if (!$contract) return [];
+        return [[
+            'user_id'  => $contract->bp_id,
+            'gate_key' => 'notify_payment',
+            'template' => 'emails.bp.37-milestone-approved',
+            'data'     => [
+                'bp_name'          => $contract->bp?->display_name ?? 'Business Partner',
+                'milestone_title'  => $e->milestone->title,
+                'contract_url'     => rtrim(config('app.url'), '/') . '/business-partner/contracts/' . $contract->id,
+            ],
+        ]];
+    }
+
+    // ── Service request responded ─────────────────────────────────────────────
+    private function serviceRequestResponded(ServiceRequestResponded $e): array {
+        return [[
+            'user_id'  => $e->request->provider_id ?? $e->request->practitioner_id,
+            'gate_key' => 'notify_email',
+            'template' => 'emails.gaps.59-service-inquiry-responded',
+            'data'     => [
+                'provider_name'  => \App\Models\User::find($e->request->provider_id ?? $e->request->practitioner_id)?->display_name ?? 'Provider',
+                'response_status'=> $e->status ?? 'responded',
+            ],
+        ]];
+    }
+
+    // ── Steward role change ───────────────────────────────────────────────────
+    private function stewardRoleChangeRequested(StewardRoleChangeRequested $e): array {
+        return [[
+            'user_id'  => $e->steward->steward_id,
+            'gate_key' => 'notify_steward',
+            'template' => 'emails.steward.23-cs-role-change',
+            'data'     => [
+                'steward_name'   => $e->steward->steward?->display_name ?? 'Steward',
+                'requested_role' => $e->requestedRole ?? 'updated role',
+                'note'           => $e->requestNote ?? null,
+            ],
+        ]];
+    }
+}

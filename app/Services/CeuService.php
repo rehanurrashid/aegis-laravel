@@ -52,11 +52,28 @@ class CeuService
         $updates = array_intersect_key($data, array_flip($allowed));
         $updates['certificate_ref'] = $certRef;
         $ceu->update($updates);
+
+        $this->activity->log(
+            $ceu->practitioner_id, 'provider',
+            'event', ActivitySeverity::Info,
+            'ceu_updated', 'CEU entry updated',
+            "You updated the CEU entry for \"{$ceu->title}\".",
+            CeuEntry::class, $ceu->id, null, 'log', $ceu->practitioner_id,
+        );
+
         return $ceu->fresh();
     }
 
     public function delete(CeuEntry $ceu): bool
     {
+        $this->activity->log(
+            $ceu->practitioner_id, 'provider',
+            'event', ActivitySeverity::Info,
+            'ceu_deleted', 'CEU entry deleted',
+            "You deleted the CEU entry for \"{$ceu->title}\".",
+            CeuEntry::class, $ceu->id, null, 'log', $ceu->practitioner_id,
+        );
+
         if ($ceu->certificate_ref) {
             Storage::disk('public')->delete($ceu->certificate_ref);
         }

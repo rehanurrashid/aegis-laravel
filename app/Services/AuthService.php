@@ -120,6 +120,14 @@ class AuthService
             'last_login_at'      => now(),
         ])->save();
 
+        $this->activity->log(
+            $user->id, $user->role?->portal() ?? 'provider',
+            'account', ActivitySeverity::Info,
+            'user_logged_in', 'Signed in',
+            "You signed in to Aegis.",
+            null, null, null, 'log', $user->id,
+        );
+
         event(new UserLoggedIn($user, $device));
         return $user;
     }
@@ -338,6 +346,14 @@ class AuthService
         }
 
         $user->forceFill(['two_factor_enabled' => true])->save();
+        $this->activity->log(
+            $user->id, $user->role?->portal() ?? 'provider',
+            'account', ActivitySeverity::Info,
+            'mfa_enabled', 'Two-factor authentication enabled',
+            "You enabled two-factor authentication on your account.",
+            null, null, null, 'log', $user->id,
+        );
+
         event(new MfaEnabled($user));
         return true;
     }
@@ -348,6 +364,14 @@ class AuthService
             return false;
         }
         $user->forceFill(['two_factor_enabled' => false])->save();
+        $this->activity->log(
+            $user->id, $user->role?->portal() ?? 'provider',
+            'account', ActivitySeverity::Warning,
+            'mfa_disabled', 'Two-factor authentication disabled',
+            "You disabled two-factor authentication on your account.",
+            null, null, null, 'log', $user->id,
+        );
+
         event(new MfaDisabled($user));
         return true;
     }
