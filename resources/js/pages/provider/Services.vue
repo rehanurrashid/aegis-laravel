@@ -259,7 +259,7 @@
             >
               <AegisIcon name="message" :size="14" />
             </button>
-            <button class="btn-icon" data-tooltip="Counter Propose" @click.stop="modals.counter = true">
+            <button class="btn-icon" data-tooltip="Counter Propose" @click.stop="setActiveRequest(r); modals.counter = true">
               <AegisIcon name="refresh" :size="14" />
             </button>
             <button
@@ -269,7 +269,7 @@
             >
               <AegisIcon name="x" :size="14" />
             </button>
-            <button class="btn btn-primary btn-sm" @click.stop="modals.accept = true">
+            <button class="btn btn-primary btn-sm" @click.stop="setActiveRequest(r); modals.accept = true">
               <AegisIcon name="check" :size="13" /> Accept
             </button>
           </div>
@@ -396,7 +396,7 @@
                       v-if="b.status === 'upcoming'"
                       class="btn-icon"
                       data-tooltip="Cancel Session"
-                      @click.stop="modals.cancelSession = true"
+                      @click.stop="setActiveBooking(b); modals.cancelSession = true"
                     >
                       <AegisIcon name="x" :size="14" />
                     </button>
@@ -404,7 +404,7 @@
                       v-else
                       class="btn-icon"
                       data-tooltip="View Notes"
-                      @click.stop="modals.sessionNotes = true"
+                      @click.stop="setActiveBooking(b); modals.sessionNotes = true"
                     >
                       <AegisIcon name="file-text" :size="14" />
                     </button>
@@ -704,6 +704,23 @@
 
     <!-- Edit Service Modal -->
     <AegisModal v-model="modals.edit" title="Edit Service Listing" size="lg">
+      <div class="modal-section-label">Service Type</div>
+      <div class="pricing-options">
+        <div
+          v-for="opt in serviceTypeOptions"
+          :key="opt.key"
+          class="pricing-opt"
+          :class="{ selected: editForm.category === opt.key }"
+          @click="editForm.category = opt.key"
+        >
+          <div class="pricing-opt-label">
+            <AegisIcon :name="opt.icon" :size="14" /> {{ opt.label }}
+          </div>
+          <div class="pricing-opt-desc">{{ opt.desc }}</div>
+        </div>
+      </div>
+
+      <div class="modal-section-label">Service Details</div>
       <div class="form-group">
         <label class="form-label">Service Name <span style="color:var(--red);">*</span></label>
         <input
@@ -717,13 +734,9 @@
       </div>
       <div class="form-group">
         <label class="form-label">Description</label>
-        <textarea v-model="editForm.description" class="form-input"></textarea>
+        <textarea v-model="editForm.description" class="form-input" style="min-height:90px;"></textarea>
       </div>
       <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Rate ($)</label>
-          <input v-model.number="editDollars" class="form-input" type="number">
-        </div>
         <div class="form-group">
           <label class="form-label">Session Duration</label>
           <select v-model.number="editForm.duration_min" class="form-select">
@@ -738,9 +751,49 @@
             <option :value="180">3 hours</option>
           </select>
         </div>
+        <div class="form-group">
+          <label class="form-label">Format</label>
+          <select v-model="editForm.format" class="form-select">
+            <option value="telehealth">Virtual only</option>
+            <option value="in_person">In-person only</option>
+            <option value="both">Virtual &amp; In-person</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-section-label">Pricing</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Rate ($)</label>
+          <input v-model.number="editDollars" class="form-input" type="number" placeholder="150">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Per</label>
+          <select v-model="editForm.price_type" class="form-select">
+            <option value="session">Session</option>
+            <option value="hourly">Hour</option>
+            <option value="fixed">Package / Fixed</option>
+            <option value="inquiry">Contact for pricing</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-section-label">Availability &amp; Status</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Availability</label>
+          <select v-model="editForm.availability" class="form-select">
+            <option value="open">Open — accepting requests</option>
+            <option value="limited">Limited availability</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Availability Label (optional)</label>
+          <input v-model="editForm.availability_label" class="form-input" type="text" placeholder="e.g. 3 spots left">
+        </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Service Status</label>
+        <label class="form-label">Listing Status</label>
         <select v-model="editForm.status" class="form-select">
           <option value="active">Active</option>
           <option value="paused">Paused</option>
@@ -748,6 +801,7 @@
           <option value="archived">Archived</option>
         </select>
       </div>
+
       <template #footer>
         <button class="btn btn-outline" @click="modals.edit = false">Cancel</button>
         <button class="btn btn-danger" @click="deleteListing">
@@ -1110,15 +1164,18 @@ const activeRequest  = ref(null)
 const activeBooking  = ref(null)
 
 function setActiveService(s)  {
-  activeService.value = s
-  editForm.title       = s.title ?? ''
-  editForm.description = s.description ?? ''
-  editForm.price_cents = s.price_cents ?? null
-  editForm.price_type  = s.price_type ?? 'session'
-  editForm.duration_min= s.duration_min ?? null
-  editForm.format      = s.format ?? 'telehealth'
-  editForm.status      = s.status ?? 'active'
-  editDollars.value    = s.price_cents ? s.price_cents / 100 : null
+  activeService.value           = s
+  editForm.title                = s.title ?? ''
+  editForm.description          = s.description ?? ''
+  editForm.category             = s.category ?? 'supervision'
+  editForm.price_cents          = s.price_cents ?? null
+  editForm.price_type           = s.price_type ?? 'session'
+  editForm.duration_min         = s.duration_min ?? null
+  editForm.format               = s.format ?? 'telehealth'
+  editForm.availability         = s.availability ?? 'open'
+  editForm.availability_label   = s.availability_label ?? ''
+  editForm.status               = s.status ?? 'active'
+  editDollars.value             = s.price_cents ? s.price_cents / 100 : null
 }
 function setActiveRequest(r)  { activeRequest.value = r }
 function setActiveBooking(b)  { activeBooking.value = b }
@@ -1226,8 +1283,11 @@ async function submitCreate(status) {
 // ── Edit form + validation ────────────────────────────────────────────────
 const editDollars = ref(null)
 const editForm = reactive({
-  title: '', description: '', price_cents: null, price_type: 'session',
-  duration_min: null, format: 'telehealth', status: 'active',
+  title: '', description: '', category: 'supervision',
+  price_cents: null, price_type: 'session',
+  duration_min: null, format: 'telehealth',
+  availability: 'open', availability_label: '',
+  status: 'active',
 })
 watch(editDollars, (v) => { editForm.price_cents = v != null ? Math.round(Number(v) * 100) : null })
 
@@ -1242,15 +1302,23 @@ function editFieldError(field) {
 async function submitEdit() {
   const ok = await editV$.value.$validate()
   if (!ok) return
-  router.put(route('provider.services.update', { service: activeService.value?.id }), editForm, {
+  if (!activeService.value?.id) { toast.error('No service selected.'); return }
+  router.put(route('provider.services.update', { service: activeService.value.id }), {
+    title: editForm.title, description: editForm.description,
+    category: editForm.category, price_cents: editForm.price_cents,
+    price_type: editForm.price_type, duration_min: editForm.duration_min,
+    format: editForm.format, availability: editForm.availability,
+    availability_label: editForm.availability_label, status: editForm.status,
+  }, {
     preserveScroll: true,
     onSuccess: () => { modals.edit = false; toast.success('Changes saved!') },
   })
 }
 
 function deleteListing() {
+  if (!activeService.value?.id) { toast.error('No service selected.'); return }
   confirmAction({ title: 'Delete Listing', btnLabel: 'Delete', type: 'danger' }, () => {
-    router.delete(route('provider.services.destroy', { service: activeService.value?.id }), {
+    router.delete(route('provider.services.destroy', { service: activeService.value.id }), {
       preserveScroll: true,
       onSuccess: () => { modals.edit = false; toast.info('Listing deleted.') },
     })
@@ -1258,14 +1326,16 @@ function deleteListing() {
 }
 
 function deleteServiceFromCard() {
-  router.delete(route('provider.services.destroy', { service: activeService.value?.id }), {
+  if (!activeService.value?.id) { toast.error('No service selected.'); return }
+  router.delete(route('provider.services.destroy', { service: activeService.value.id }), {
     preserveScroll: true,
     onSuccess: () => toast.info('Service deleted.'),
   })
 }
 
 function resumeService() {
-  router.patch(route('provider.services.update', { service: activeService.value?.id }), { status: 'active' }, {
+  if (!activeService.value?.id) return
+  router.put(route('provider.services.update', { service: activeService.value.id }), { status: 'active' }, {
     preserveScroll: true,
     onSuccess: () => toast.success('Listing resumed.'),
   })
@@ -1275,14 +1345,19 @@ function resumeService() {
 const acceptForm = reactive({ datetime: '', format: 'Virtual (Telehealth)', note: '', recurring: true })
 
 function submitAccept() {
-  router.post(route('provider.services.request.accept', { service: activeRequest.value?.service_id, serviceRequest: activeRequest.value?.id }), acceptForm, {
+  if (!activeRequest.value?.service_id || !activeRequest.value?.id) {
+    toast.error('No request selected.'); return
+  }
+  router.post(route('provider.services.request.accept', { service: activeRequest.value.service_id, serviceRequest: activeRequest.value.id }), acceptForm, {
     preserveScroll: true,
     onSuccess: () => { modals.accept = false; toast.success('Request accepted — agreement sent.') },
   })
 }
 
 function dismissRequest(id) {
-  router.patch(route('provider.services.request.decline', { service: activeService.value?.id, serviceRequest: id }), {}, {
+  const req = props.serviceRequests.find(r => r.id === id)
+  if (!req?.service_id) { toast.error('Cannot dismiss: request data missing.'); return }
+  router.post(route('provider.services.request.decline', { service: req.service_id, serviceRequest: id }), { reason: 'Dismissed by practitioner' }, {
     preserveScroll: true,
     onSuccess: () => toast.info('Request dismissed.'),
   })
@@ -1305,7 +1380,8 @@ async function submitCounter() {
 const publishForm = reactive({ notify: true })
 
 function submitPublish() {
-  router.patch(route('provider.services.update', { service: activeService.value?.id }), publishForm, {
+  if (!activeService.value?.id) { toast.error('No service selected.'); return }
+  router.put(route('provider.services.update', { service: activeService.value.id }), { status: 'active' }, {
     preserveScroll: true,
     onSuccess: () => { modals.publish = false; toast.success('Listing published!') },
   })
@@ -1315,7 +1391,8 @@ function submitPublish() {
 const reactivateForm = reactive({ restore_avail: true })
 
 function submitReactivate() {
-  router.patch(route('provider.services.update', { service: activeService.value?.id }), reactivateForm, {
+  if (!activeService.value?.id) return
+  router.put(route('provider.services.update', { service: activeService.value.id }), { status: 'active' }, {
     preserveScroll: true,
     onSuccess: () => { modals.reactivate = false; toast.success('Listing reactivated!') },
   })
@@ -1325,7 +1402,8 @@ function submitReactivate() {
 const pauseForm = reactive({ reason: '' })
 
 function submitPause() {
-  router.patch(route('provider.services.update', { service: activeService.value?.id }), { status: 'paused', pause_reason: pauseForm.reason }, {
+  if (!activeService.value?.id) return
+  router.put(route('provider.services.update', { service: activeService.value.id }), { status: 'paused', pause_reason: pauseForm.reason }, {
     preserveScroll: true,
     onSuccess: () => { modals.pause = false; toast.warning('Listing paused.') },
   })
@@ -1340,7 +1418,8 @@ function cancelFieldError(field) { return cancelV$.value[field].$errors[0]?.$mes
 async function submitCancelSession() {
   const ok = await cancelV$.value.$validate()
   if (!ok) return
-  router.post(route('provider.services.session.cancel', { session: activeBooking.value?.id }), cancelSessionForm, {
+  if (!activeBooking.value?.id) { toast.error('No session selected.'); return }
+  router.post(route('provider.services.session.cancel', { session: activeBooking.value.id }), cancelSessionForm, {
     preserveScroll: true,
     onSuccess: () => { modals.cancelSession = false; toast.warning(`Session cancelled — ${activeBooking.value?.provider_name} notified.`) },
   })
@@ -1350,7 +1429,8 @@ async function submitCancelSession() {
 const notesForm = reactive({ summary: '', action_items: '', share_with_supervisee: false })
 
 function submitNotes() {
-  router.post(route('provider.services.session.notes', { session: activeBooking.value?.id }), notesForm, {
+  if (!activeBooking.value?.id) { toast.error('No session selected.'); return }
+  router.post(route('provider.services.session.notes', { session: activeBooking.value.id }), notesForm, {
     preserveScroll: true,
     onSuccess: () => { modals.sessionNotes = false; toast.success('Notes saved.') },
   })
@@ -1437,6 +1517,9 @@ function statusVariant(s) {
   min-width: 0;
 }
 .svc-toolbar > .form-select { grid-column: span 3; min-width: 0; }
+.svc-toolbar :deep(.ts-wrapper) { min-width: 0; width: 100%; overflow: visible !important; }
+.svc-toolbar :deep(.ts-wrapper .ts-control) { width: 100%; }
+.svc-toolbar :deep(.ts-dropdown) { min-width: 160px; width: auto; }
 .svc-toolbar .search-wrap :deep(svg),
 .svc-toolbar .search-wrap .aegis-icon {
   position: absolute;
@@ -1497,6 +1580,13 @@ function statusVariant(s) {
 .svc-metric-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-4); margin-top: 2px; }
 
 /* ── TAB BADGE RED ALERT ── */
+.badge-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 100px;
+  font-size: 10px; font-weight: 700; line-height: 1;
+  background: var(--surface-3); color: var(--text-3);
+}
 .badge-pill.alert { background: var(--red); color: #fff; }
 
 /* ── REQUESTS LIST ── */
@@ -1510,6 +1600,9 @@ function statusVariant(s) {
 .req-service-type { font-size: 10px; color: var(--text-4); text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700; }
 .req-date { font-size: 12px; color: var(--text-3); min-width: 100px; text-align: right; flex-shrink: 0; font-weight: 600; }
 .req-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ── CARD FOOTER ── */
+.card-footer { display: flex; gap: 6px; align-items: center; }
 
 /* ── TABLE / CARD FLUSH ── */
 .card-flush .card-body { padding: 0; }
