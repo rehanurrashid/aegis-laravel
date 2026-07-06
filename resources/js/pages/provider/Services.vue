@@ -29,7 +29,7 @@
         </span>
       </template>
       <template #actions>
-        <a :href="route('activity.index', { module: 'services' })" class="btn-hero-ghost is-on-light">
+        <a :href="route('provider.activity') + '?module=services'" class="btn-hero-ghost is-on-light">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
         <button type="button" class="btn-hero-solid is-on-light" @click="modals.create = true">
@@ -453,7 +453,7 @@
                 <div class="card-subtitle">Visibility, booking preferences, and payment — managed in Account Settings</div>
               </div>
             </div>
-            <a :href="route('settings.index') + '?tab=services-mode'" class="btn btn-primary btn-sm">
+            <a :href="'/provider/settings?tab=services-mode'" class="btn btn-primary btn-sm">
               <AegisIcon name="settings" :size="13" /> Open Settings
             </a>
           </div>
@@ -465,7 +465,7 @@
                 </div>
                 <div class="setting-desc">Services Mode · Show in search · Accept requests · Show pricing</div>
               </div>
-              <a :href="route('settings.index') + '?tab=services-mode'" class="btn btn-outline btn-sm">
+              <a :href="'/provider/settings?tab=services-mode'" class="btn btn-outline btn-sm">
                 <AegisIcon name="chevron-right" :size="13" /> Edit
               </a>
             </div>
@@ -476,7 +476,7 @@
                 </div>
                 <div class="setting-desc">Manual approval · Request expiry · Buffer between sessions</div>
               </div>
-              <a :href="route('settings.index') + '?tab=services-mode'" class="btn btn-outline btn-sm">
+              <a :href="'/provider/settings?tab=services-mode'" class="btn btn-outline btn-sm">
                 <AegisIcon name="chevron-right" :size="13" /> Edit
               </a>
             </div>
@@ -487,7 +487,7 @@
                 </div>
                 <div class="setting-desc">Hourly rate · Payment method · Sliding scale</div>
               </div>
-              <a :href="route('settings.index') + '?tab=services-mode'" class="btn btn-outline btn-sm">
+              <a :href="'/provider/settings?tab=services-mode'" class="btn btn-outline btn-sm">
                 <AegisIcon name="chevron-right" :size="13" /> Edit
               </a>
             </div>
@@ -1269,14 +1269,14 @@ function resumeService() {
 const acceptForm = reactive({ datetime: '', format: 'Virtual (Telehealth)', note: '', recurring: true })
 
 function submitAccept() {
-  router.post(route('provider.service-requests.accept', { request: activeRequest.value?.id }), acceptForm, {
+  router.post(route('provider.services.request.accept', { service: activeService.value?.id ?? activeRequest.value?.service_id, serviceRequest: activeRequest.value?.id }), acceptForm, {
     preserveScroll: true,
     onSuccess: () => { modals.accept = false; toast.success('Request accepted — agreement sent.') },
   })
 }
 
 function dismissRequest(id) {
-  router.patch(route('provider.service-requests.dismiss', { request: id }), {}, {
+  router.patch(route('provider.services.request.decline', { service: activeService.value?.id, serviceRequest: id }), {}, {
     preserveScroll: true,
     onSuccess: () => toast.info('Request dismissed.'),
   })
@@ -1299,7 +1299,7 @@ async function submitCounter() {
 const publishForm = reactive({ notify: true })
 
 function submitPublish() {
-  router.patch(route('provider.services.publish', { service: activeService.value?.id }), publishForm, {
+  router.patch(route('provider.services.update', { service: activeService.value?.id }), publishForm, {
     preserveScroll: true,
     onSuccess: () => { modals.publish = false; toast.success('Listing published!') },
   })
@@ -1309,7 +1309,7 @@ function submitPublish() {
 const reactivateForm = reactive({ restore_avail: true })
 
 function submitReactivate() {
-  router.patch(route('provider.services.publish', { service: activeService.value?.id }), reactivateForm, {
+  router.patch(route('provider.services.update', { service: activeService.value?.id }), reactivateForm, {
     preserveScroll: true,
     onSuccess: () => { modals.reactivate = false; toast.success('Listing reactivated!') },
   })
@@ -1334,7 +1334,7 @@ function cancelFieldError(field) { return cancelV$.value[field].$errors[0]?.$mes
 async function submitCancelSession() {
   const ok = await cancelV$.value.$validate()
   if (!ok) return
-  router.post(route('provider.bookings.cancel', { booking: activeBooking.value?.id }), cancelSessionForm, {
+  router.post(route('provider.services.update', { service: activeBooking.value?.service_id ?? '_' }), cancelSessionForm, {
     preserveScroll: true,
     onSuccess: () => { modals.cancelSession = false; toast.warning(`Session cancelled — ${activeBooking.value?.provider_name} notified.`) },
   })
@@ -1344,7 +1344,7 @@ async function submitCancelSession() {
 const notesForm = reactive({ summary: '', action_items: '', share_with_supervisee: false })
 
 function submitNotes() {
-  router.post(route('provider.bookings.notes', { booking: activeBooking.value?.id }), notesForm, {
+  router.post(route('provider.services.update', { service: activeBooking.value?.service_id ?? '_' }), notesForm, {
     preserveScroll: true,
     onSuccess: () => { modals.sessionNotes = false; toast.success('Notes saved.') },
   })
@@ -1385,7 +1385,7 @@ function removeSpecialty(i) {
 }
 
 function saveProfile() {
-  router.post(route('provider.services.profile'), profileForm, {
+  router.post(route('provider.profile.services'), profileForm, {
     preserveScroll: true,
     onSuccess: () => toast.success('Profile saved!'),
   })
