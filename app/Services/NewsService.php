@@ -294,11 +294,26 @@ class NewsService
         }
 
         $post->update($update);
+
+        $this->activity->log(
+            $post->author_id, 'provider', 'event', ActivitySeverity::Info,
+            'news_post_updated', 'Post updated',
+            'You edited a post on the Aegis news feed.',
+            NewsPost::class, $post->id, null, 'log', $post->author_id,
+        );
+
         return $post->fresh();
     }
 
     public function deletePost(NewsPost $post): bool
     {
+        $this->activity->log(
+            $post->author_id, 'provider', 'event', ActivitySeverity::Info,
+            'news_post_deleted', 'Post deleted',
+            'You deleted a post from the Aegis news feed.',
+            NewsPost::class, $post->id, null, 'log', $post->author_id,
+        );
+
         return (bool) $post->delete();
     }
 
@@ -335,6 +350,14 @@ class NewsService
     public function deleteComment(User $user, NewsComment $comment): bool
     {
         abort_unless($comment->author_id === $user->id, 403);
+
+        $this->activity->log(
+            $user->id, 'provider', 'event', ActivitySeverity::Info,
+            'news_comment_deleted', 'Comment deleted',
+            'You deleted a comment from a news post.',
+            NewsComment::class, $comment->id, null, 'log', $user->id,
+        );
+
         return (bool) $comment->delete();
     }
 
@@ -342,6 +365,14 @@ class NewsService
     {
         abort_unless($comment->author_id === $user->id, 403);
         $comment->update(['body' => trim($body)]);
+
+        $this->activity->log(
+            $user->id, 'provider', 'event', ActivitySeverity::Info,
+            'news_comment_updated', 'Comment edited',
+            'You edited a comment on a news post.',
+            NewsComment::class, $comment->id, null, 'log', $user->id,
+        );
+
         return $comment->fresh();
     }
 
@@ -358,13 +389,25 @@ class NewsService
             return $existing;
         }
 
-        return NewsReaction::create([
+        $reaction = NewsReaction::create([
             'id'         => 'nr_' . Str::lower(Str::random(12)),
             'post_id'    => $post->id,
             'user_id'    => $user->id,
-            'reaction'   => $reactionType,   // column is 'reaction' not 'reaction_type'
+            'reaction'   => $reactionType,
             'created_at' => now(),
         ]);
+
+        // Log saves to actor history; likes and reports are silent
+        if ($reactionType === 'save') {
+            $this->activity->log(
+                $user->id, 'provider', 'event', ActivitySeverity::Info,
+                'news_post_saved', 'Post saved to library',
+                "You saved \"" . Str::limit($post->title ?? $post->body ?? 'a post', 60) . "\" to your library.",
+                NewsPost::class, $post->id, null, 'log', $user->id,
+            );
+        }
+
+        return $reaction;
     }
 
     public function unreact(User $user, NewsPost $post): bool
@@ -376,7 +419,7 @@ class NewsService
 
     public function votePoll(User $user, NewsPost $post, string $optionKey): NewsPollVote
     {
-        return NewsPollVote::updateOrCreate(
+        $vote = NewsPollVote::updateOrCreate(
             ['post_id' => $post->id, 'user_id' => $user->id],
             [
                 'id'         => 'nv_' . Str::lower(Str::random(12)),
@@ -384,6 +427,26 @@ class NewsService
                 'created_at' => now(),
             ]
         );
+
+        // Actor log
+        $this->activity->log(
+            $user->id, 'provider', 'event', ActivitySeverity::Info,
+            'news_poll_voted', 'Poll response submitted',
+            "You voted in the poll: \"" . Str::limit($post->poll_question ?? $post->title ?? 'Community poll', 80) . "\".",
+            NewsPost::class, $post->id, null, 'log', $user->id,
+        );
+
+        // Notify post author (if not self)
+        if ($post->author_id && $post->author_id !== $user->id) {
+            $this->activity->log(
+                $post->author_id, 'provider', 'event', ActivitySeverity::Info,
+                'news_poll_received_vote', 'Someone voted in your poll',
+                "{$user->display_name} responded to your poll.",
+                NewsPost::class, $post->id, $user->id, 'notification', $user->id,
+            );
+        }
+
+        return $vote;
     }
 
     public function rsvpEvent(User $attendee, NewsEvent $event, string $status = 'going'): NewsEvent
