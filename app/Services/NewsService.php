@@ -49,7 +49,12 @@ class NewsService
             ->orderByDesc('published_at');
 
         if ($filterType && $filterType !== 'all') {
-            $query->where('post_type', $filterType);
+            if ($filterType === 'question') {
+                // 'question' filter catches both 'question' and legacy 'poll' post_type values
+                $query->whereIn('post_type', ['question', 'poll']);
+            } else {
+                $query->where('post_type', $filterType);
+            }
         }
 
         $posts = $query->limit(30)->get();
@@ -123,7 +128,7 @@ class NewsService
             'all'       => $allPublished->count(),
             'platform'  => $allPublished->whereIn('post_type', ['platform', 'announcement'])->count(),
             'provider'  => $allPublished->whereIn('post_type', ['provider', 'post'])->count(),
-            'question'  => $allPublished->where('post_type', 'question')->count(),
+            'question'  => $allPublished->whereIn('post_type', ['question', 'poll'])->count(),
             'resource'  => $allPublished->where('post_type', 'resource')->count(),
             'poll'      => $allPublished->where('post_type', 'poll')->count(),
             'milestone' => $allPublished->where('post_type', 'milestone')->count(),

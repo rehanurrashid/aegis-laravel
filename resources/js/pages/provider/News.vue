@@ -972,11 +972,17 @@ const editRules = computed(() => ({
 }))
 const vEdit = useVuelidate(editRules, editForm)
 
+// Normalize legacy 'poll' type → 'question' for the unified quiz/poll type
+function normalizePostType(t) {
+  return t === 'poll' ? 'question' : (t || 'provider')
+}
+
 function openEdit(post) {
   editTargetId.value    = post.id
   editForm.title        = post.title ?? ''
   editForm.body         = post.body  ?? ''
-  editForm.post_type    = post.post_type ?? 'provider'
+  // Normalize 'poll' → 'question' (they are the same type in the UI)
+  editForm.post_type    = normalizePostType(post.post_type)
   editForm.poll_question = post.poll_question ?? ''
   editForm.poll_closes_at = post.poll_closes_at ? post.poll_closes_at.split('T')[0] : ''
   editForm.tags = (post.tags ?? []).join(', ')
@@ -1127,7 +1133,7 @@ function unsaveFromLibrary(p) {
 const TYPE_LABELS = {
   platform: 'Platform', provider: 'General Post', post: 'Post',
   event: 'Event', announcement: 'Announcement', resource: 'Resource',
-  milestone: 'Milestone', question: 'Question', poll: 'Poll', compliance: 'Compliance',
+  milestone: 'Milestone', question: 'Community Q&A / Poll', poll: 'Poll', compliance: 'Compliance',
 }
 function typeLabel(t)         { return TYPE_LABELS[t] ?? t }
 function typeBadgeClass(t) {

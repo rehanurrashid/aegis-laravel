@@ -67,7 +67,7 @@ class NewsSeeder extends Seeder
             // 4. POLL — active with votes
             [
                 'id' => 'np_poll_challenges', 'author_id' => $adminId,
-                'post_type' => 'poll', 'role_visibility' => 'all', 'audience' => 'all',
+                'post_type' => 'question', 'role_visibility' => 'all', 'audience' => 'all',
                 'published' => 1, 'pinned' => 0,
                 'title' => 'Poll: What is your biggest continuity planning challenge?',
                 'body' => 'We want to understand the barriers preventing practitioners from maintaining active continuity plans. Your response helps us prioritize platform improvements.',
@@ -153,7 +153,7 @@ class NewsSeeder extends Seeder
             // 9. POLL — providers only, best practice
             [
                 'id' => 'np_poll_supervision', 'author_id' => $sarahId,
-                'post_type' => 'poll', 'role_visibility' => 'practitioner', 'audience' => 'providers',
+                'post_type' => 'question', 'role_visibility' => 'practitioner', 'audience' => 'providers',
                 'published' => 1, 'pinned' => 0,
                 'title' => 'Quick Poll: How often do you review your continuity plan?',
                 'body' => 'Curious where practitioners stand on plan review frequency. There\'s no wrong answer!',
