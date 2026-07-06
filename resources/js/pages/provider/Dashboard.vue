@@ -988,7 +988,6 @@ const props = defineProps({
   recentActivity:     { type: Array,   default: () => [] },
   upcomingCEUs:       { type: Array,   default: () => [] },
   credentials:        { type: Array,   default: () => [] },
-  insurancePolicies:  { type: Array,   default: () => [] },
   incomingReferrals:  { type: Array,   default: () => [] },
   referralRoster:     { type: Array,   default: () => [] },
   referralNetwork:    { type: Array,   default: () => [] },
@@ -1058,25 +1057,42 @@ const credCriticalCount = computed(() => props.credentials.filter(credIsCritical
 const attentionItems = computed(() => {
   const items = []
 
-  // 1. Expiring credentials (critical < 30 days, warn < 60 days)
-  const expiringCreds = props.credentials.filter(c =>
+  // Split credentials into licenses and insurance policies
+  const expiringAll = props.credentials.filter(c =>
     c.days_remaining !== null && c.days_remaining !== undefined && c.days_remaining < 60
-  ).slice(0, 2) // cap at 2 to avoid overflow
+  )
+  const expiringLicenses   = expiringAll.filter(c => !c.is_insurance).slice(0, 2)
+  const expiringInsurance  = expiringAll.filter(c =>  c.is_insurance).slice(0, 2)
 
-  for (const c of expiringCreds) {
-    const isCrit = c.days_remaining < 30
+  // 1a. Expiring licenses
+  for (const c of expiringLicenses) {
+    const isCrit  = c.days_remaining < 30
     const daysStr = c.days_remaining < 1 ? 'Expired' : `${c.days_remaining} days left`
     items.push({
       key:    'cred-' + c.id,
       level:  isCrit ? 'crit' : 'warn',
-      title:  c.name ?? c.credential_type ?? 'Credential expiring',
+      title:  c.name ?? c.cred_type ?? 'License expiring',
       detail: `Expires <strong>${formatDate(c.expires_on)}</strong> · ${daysStr}`,
-      cta:    isCrit ? 'Update Now' : 'Review',
-      action: () => openCredModal('add-insurance'),
+      cta:    isCrit ? 'Renew Now' : 'Review',
+      action: () => openRenewLicense(c),
     })
   }
 
-  // 2. Annual plan review due
+  // 1b. Expiring insurance / liability policies
+  for (const c of expiringInsurance) {
+    const isCrit  = c.days_remaining < 30
+    const daysStr = c.days_remaining < 1 ? 'Expired' : `${c.days_remaining} days left`
+    items.push({
+      key:    'ins-' + c.id,
+      level:  isCrit ? 'crit' : 'warn',
+      title:  c.name ?? c.cred_type ?? 'Liability policy expiring',
+      detail: `Expires <strong>${formatDate(c.expires_on)}</strong> · ${daysStr}`,
+      cta:    isCrit ? 'Update Now' : 'Review',
+      action: () => openRenewInsurance(c),
+    })
+  }
+
+  // 2. Annual plan review due within 60 days (or overdue)
   if (props.plan && props.reviewDays !== null) {
     const days = props.reviewDays
     if (days <= 60) {
@@ -1098,24 +1114,20 @@ const attentionItems = computed(() => {
   const now = new Date()
   const urgentCeus = (props.ceuRequirements ?? []).filter(r => {
     if (!r.due_date) return false
-    const due = new Date(r.due_date)
-    const daysUntil = Math.ceil((due - now) / 86400000)
+    const daysUntil = Math.ceil((new Date(r.due_date) - now) / 86400000)
     return daysUntil <= 90
   })
 
   for (const req of urgentCeus.slice(0, 2)) {
-    const due = new Date(req.due_date)
-    const daysUntil = Math.ceil((due - now) / 86400000)
+    const daysUntil   = Math.ceil((new Date(req.due_date) - now) / 86400000)
     const hoursLogged = props.stats?.ceus_total ?? 0
     const hoursNeeded = Math.max(0, (req.total_hours ?? 0) - hoursLogged)
-    const label = req.jurisdiction ?? 'CEU requirement'
+    const label       = req.jurisdiction ?? 'CEU requirement'
     items.push({
       key:    'ceu-' + req.id,
       level:  daysUntil < 30 ? 'crit' : 'warn',
-      title:  hoursNeeded > 0 ? `${hoursNeeded} CEU hrs needed` : `${label} — on track`,
-      detail: hoursNeeded > 0
-        ? `${label} · Due <strong>${formatDate(req.due_date)}</strong>`
-        : `Due <strong>${formatDate(req.due_date)}</strong>`,
+      title:  hoursNeeded > 0 ? `${hoursNeeded} CEU hrs needed — ${label}` : `${label} — on track`,
+      detail: `Due <strong>${formatDate(req.due_date)}</strong>${hoursNeeded > 0 ? ` · ${hoursNeeded} hrs remaining` : ' · hours complete'}`,
       cta:    'Add CEU',
       action: () => { modals.ceu = true },
     })
