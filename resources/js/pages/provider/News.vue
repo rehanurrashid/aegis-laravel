@@ -524,10 +524,10 @@
           <span v-else style="color:var(--text-4);font-weight:600"> (optional)</span>
         </label>
         <textarea class="form-textarea" v-model="createForm.body" rows="4" maxlength="2000"
-                  :class="{ 'is-error': anyError(vCreate, createForm, 'body') }"
+                  :class="{ 'is-error': createFieldError('body') }"
                   :placeholder="createBodyPlaceholder"
                   @blur="vCreate.body?.$touch()" />
-        <div v-if="anyError(vCreate, createForm, 'body')" class="form-error">{{ anyError(vCreate, createForm, 'body') }}</div>
+        <div v-if="createFieldError('body')" class="form-error">{{ createFieldError('body') }}</div>
         <div class="form-hint">{{ createForm.body.length }} / 2000</div>
       </div>
 
@@ -536,11 +536,11 @@
         <div class="form-group">
           <label class="form-label">Poll Question <span class="required">*</span></label>
           <input type="text" class="form-input"
-                 :class="{ 'is-error': anyError(vCreate, createForm, 'poll_question') }"
+                 :class="{ 'is-error': createFieldError('poll_question') }"
                  v-model="createForm.poll_question"
                  placeholder="What would you like to ask?" maxlength="300"
                  @blur="vCreate.poll_question?.$touch()" />
-          <div v-if="anyError(vCreate, createForm, 'poll_question')" class="form-error">{{ anyError(vCreate, createForm, 'poll_question') }}</div>
+          <div v-if="createFieldError('poll_question')" class="form-error">{{ createFieldError('poll_question') }}</div>
         </div>
         <div class="form-group">
           <label class="form-label">Options <span class="required">*</span> <span style="color:var(--text-4);font-weight:600">(2–4)</span></label>
@@ -622,16 +622,19 @@
           <span v-else style="color:var(--text-4);font-weight:600"> (optional)</span>
         </label>
         <textarea class="form-textarea" v-model="editForm.body" rows="5" maxlength="2000"
-                  :class="{ 'is-error': anyError(vEdit, editForm, 'body') }"
+                  :class="{ 'is-error': editFieldError('body') }"
                   @blur="vEdit.body?.$touch()" />
-        <div v-if="anyError(vEdit, editForm, 'body')" class="form-error">{{ anyError(vEdit, editForm, 'body') }}</div>
+        <div v-if="editFieldError('body')" class="form-error">{{ editFieldError('body') }}</div>
         <div class="form-hint">{{ editForm.body.length }} / 2000</div>
       </div>
       <template v-if="editForm.post_type === 'question'">
         <div class="form-group">
           <label class="form-label">Poll Question <span class="required">*</span></label>
           <input type="text" class="form-input" v-model="editForm.poll_question"
-                 placeholder="What would you like to ask?" maxlength="300" />
+                 :class="{ 'is-error': editFieldError('poll_question') }"
+                 placeholder="What would you like to ask?" maxlength="300"
+                 @blur="vEdit.poll_question?.$touch()" />
+          <div v-if="editFieldError('poll_question')" class="form-error">{{ editFieldError('poll_question') }}</div>
         </div>
         <div class="form-group">
           <label class="form-label">Options <span class="required">*</span> <span style="color:var(--text-4);font-weight:600">(2–4)</span></label>
@@ -1234,14 +1237,25 @@ const createBodyPlaceholder = computed(() => {
 // ── modal state ──────────────────────────────────────────────────────────────
 const modals = reactive({ createPost: false, editPost: false, sharePost: false, myLibrary: false, postDetail: false, eventDetail: false, eventRegisterConfirm: false, eventCancelConfirm: false })
 
-// ── vuelidate helpers ────────────────────────────────────────────────────────
-function fieldError(v$i, field) {
-  const node = v$i.value?.[field]
-  if (!node?.$error) return null
-  return node.$errors[0]?.$message ?? 'Invalid value.'
+// ── vuelidate helpers ─────────────────────────────────────────────────────────
+// Pattern mirrors Events.vue: fieldError uses .value internally on named v$ instances.
+// Two helpers: one for create form, one for edit form.
+function createFieldError(field) {
+  if (vCreate.value[field]?.$error) return vCreate.value[field].$errors[0]?.$message ?? 'Invalid.'
+  if (createForm.errors?.[field])   return createForm.errors[field]
+  return null
 }
-function serverError(form, field) { return form.errors?.[field] ?? null }
-function anyError(v$i, form, field) { return fieldError(v$i, field) || serverError(form, field) || null }
+function editFieldError(field) {
+  if (vEdit.value[field]?.$error)   return vEdit.value[field].$errors[0]?.$message ?? 'Invalid.'
+  if (editForm.errors?.[field])     return editForm.errors[field]
+  return null
+}
+// Generic for any passed v$ + form (used internally only, NOT from template)
+function anyError(v$ref, form, field) {
+  const node = v$ref?.value?.[field] ?? v$ref?.[field]
+  if (node?.$error) return node.$errors[0]?.$message ?? 'Invalid.'
+  return form.errors?.[field] ?? null
+}
 </script>
 
 <style scoped>

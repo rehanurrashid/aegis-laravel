@@ -87,14 +87,21 @@ class NewsService
             ->limit(3)
             ->get()
             ->map(fn($e) => [
-                'id'          => $e->id,
-                'title'       => $e->title,
-                'starts_at'   => $e->starts_at?->toIso8601String(),
-                'ends_at'     => $e->ends_at?->toIso8601String(),
-                'location'    => $e->location,
-                'ceu_credits' => (float) $e->ceu_credits,
-                'is_free'     => (bool) $e->is_free,
-                'is_attending'=> $e->isAttending($userId),
+                'id'             => $e->id,
+                'title'          => $e->title,
+                'description'    => $e->description,
+                'category'       => $e->category,
+                'organizer'      => $e->organizer,
+                'location'       => $e->location,
+                'starts_at'      => $e->starts_at?->toIso8601String(),
+                'ends_at'        => $e->ends_at?->toIso8601String(),
+                'ceu_credits'    => (float) $e->ceu_credits,
+                'is_free'        => (bool) $e->is_free,
+                'price_cents'    => (int) $e->price_cents,
+                'rsvp_url'       => $e->rsvp_url,
+                'is_external'    => !empty($e->rsvp_url),
+                'attendee_count' => count($e->rsvps_json ?? []),
+                'is_attending'   => $e->isAttending($userId),
             ])->values();
 
         // Trending topics
