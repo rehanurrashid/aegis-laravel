@@ -57,7 +57,7 @@
       >
         <AegisIcon :name="tab.icon" :size="12" />
         {{ tab.label }}
-        <span v-if="tab.count != null" class="badge-pill" :class="{ alert: tab.key === 'requests' && (stats?.pending_requests ?? 0) > 0 }">
+        <span v-if="tab.count != null" class="badge-pill">
           {{ tab.count }}
         </span>
       </button>
@@ -1587,7 +1587,7 @@ function statusVariant(s) {
   font-size: 10px; font-weight: 700; line-height: 1;
   background: var(--surface-3); color: var(--text-3);
 }
-.badge-pill.alert { background: var(--red); color: #fff; }
+
 
 /* ── REQUESTS LIST ── */
 .requests-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 22px; }
