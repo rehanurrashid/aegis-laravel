@@ -1690,6 +1690,8 @@ function statusVariant(s) {
 .card-flush .pager { padding-left: 16px; padding-right: 16px; }
 .td-provider { display: flex; align-items: center; gap: 10px; }
 .td-name { font-weight: 700; color: var(--text); font-size: 13px; }
+a.link-name, .req-name.link-name { color: var(--gold-dark); text-decoration: none; font-weight: 700; }
+a.link-name:hover, .req-name.link-name:hover { text-decoration: underline; }
 .td-cred { font-size: 11px; color: var(--text-3); font-weight: 600; }
 
 /* ── TABLE CONTRAST ── */
