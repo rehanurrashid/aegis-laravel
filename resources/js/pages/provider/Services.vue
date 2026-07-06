@@ -1405,7 +1405,17 @@ function submitAccept() {
   if (!activeRequest.value?.service_id || !activeRequest.value?.id) {
     toast.error('No request selected.'); return
   }
-  router.post(route('provider.services.request.accept', { service: activeRequest.value.service_id, serviceRequest: activeRequest.value.id }), acceptForm, {
+  if (!acceptForm.session_date) {
+    toast.error('Please select a session date.'); return
+  }
+  router.post(route('provider.services.request.accept', { service: activeRequest.value.service_id, serviceRequest: activeRequest.value.id }), {
+    session_date: acceptForm.session_date,
+    session_time: acceptForm.session_time,
+    timezone:     acceptForm.timezone,
+    format:       acceptForm.format,
+    note:         acceptForm.note,
+    recurring:    acceptForm.recurring,
+  }, {
     preserveScroll: true,
     onSuccess: () => { modals.accept = false; toast.success('Request accepted — agreement sent.') },
   })

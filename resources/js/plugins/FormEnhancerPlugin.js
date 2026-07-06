@@ -68,6 +68,15 @@ const FLATPICKR_CONFIG = {
     _fpSetWidths(fp)
   },
 
+  onChange(selectedDates, dateStr, fp) {
+    // Flatpickr writes to fp.input's DOM value but doesn't fire a native
+    // 'input' event — Vue's v-model never sees the change. Dispatch one manually.
+    if (fp.input) {
+      fp.input.dispatchEvent(new Event('input', { bubbles: true }))
+      fp.input.dispatchEvent(new Event('change', { bubbles: true }))
+    }
+  },
+
   onDestroy(_, __, fp) {
     fp._aegisErrorObserver?.disconnect()
     fp._aegisErrorObserver = null
