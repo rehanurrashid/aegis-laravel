@@ -281,48 +281,6 @@
         </div>
       </div>
 
-      <!-- History Table -->
-      <div class="section-header" style="margin-top:8px;">
-        <div class="section-title">Activity</div>
-      </div>
-      <div class="card card-flush">
-        <div class="card-body">
-          <div class="table-wrap">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Provider</th>
-                  <th>Service</th>
-                  <th>Type</th>
-                  <th>Date Requested</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="!historyRequests.length">
-                  <td colspan="5" style="text-align:center;color:var(--text-4);padding:24px;">No history yet.</td>
-                </tr>
-                <tr v-for="r in historyRequests" :key="r.id">
-                  <td>
-                    <div class="td-provider">
-                      <div class="avatar avatar-sm">{{ r.requester_avatar || '?' }}</div>
-                      <div>
-                        <a v-if="r.requester_slug" :href="route('public.provider', { slug: r.requester_slug })" class="td-name link-name">{{ r.requester_name }}</a>
-                      <div v-else class="td-name">{{ r.requester_name }}</div>
-                        <div class="td-cred">{{ r.requester_detail }}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>{{ r.service_title }}</td>
-                  <td>{{ r.request_type }}</td>
-                  <td>{{ r.requested_date_label }}</td>
-                  <td><AegisBadge :label="statusLabel(r.status)" :variant="statusVariant(r.status)" /></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- ══════════════════════════════════════════
