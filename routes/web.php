@@ -250,6 +250,8 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
         Route::patch('/news/{post}', [NewsController::class, 'updatePost'])->name('news.update');
         Route::delete('/news/{post}', [NewsController::class, 'destroyPost'])->name('news.destroy');
         Route::post('/news/{post}/comment', [NewsController::class, 'comment'])->name('news.comment');
+        Route::patch('/news/comments/{comment}', [NewsController::class, 'updateComment'])->name('news.comment.update');
+        Route::delete('/news/comments/{comment}', [NewsController::class, 'deleteComment'])->name('news.comment.delete');
         Route::post('/news/{post}/react', [NewsController::class, 'react'])->name('news.react');
         Route::post('/news/{post}/vote', [NewsController::class, 'votePoll'])->name('news.vote');
         Route::post('/news/events/{event}/rsvp', [NewsController::class, 'rsvp'])->name('news.rsvp');

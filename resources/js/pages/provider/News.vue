@@ -174,12 +174,12 @@
                     <span class="nf-poll-fill" :style="{ width: pollPct(post, idx) + '%' }"></span>
                   </span>
                   <span class="nf-poll-pct">{{ pollPct(post, idx) }}%</span>
-                  <AegisIcon v-if="post.my_poll_vote === (opt.key || String(idx))" name="check" :size="12" style="color:var(--green-dark);flex-shrink:0" />
+                  <AegisIcon v-if="post.my_poll_vote === (opt.key || String(idx))" name="check" :size="12" class="nf-voted-icon" />
                 </div>
                 <div class="nf-poll-meta">
                   {{ pollTotal(post) }} vote{{ pollTotal(post) === 1 ? '' : 's' }}
                   <template v-if="post.poll_closes_at"> &middot; Closes {{ fmtDate(post.poll_closes_at) }}</template>
-                  <template v-if="post.my_poll_vote"> &middot; <span style="color:var(--green-dark);font-weight:700">✓ You voted</span></template>
+                  <template v-if="post.my_poll_vote"> &middot; <span class="nf-voted-label">✓ You voted</span></template>
                 </div>
               </div>
 
@@ -234,7 +234,7 @@
 
             <!-- Comments section -->
             <div :class="['nf-comments', { 'is-open': postState(post.id)._commentsOpen }]">
-              <div v-for="c in commentsByPost[post.id] || []" :key="c.id" class="nf-comment">
+              <div v-for="c in localComments[post.id] || []" :key="c.id" class="nf-comment">
                 <div :class="['avatar', 'avatar-xs', 'avatar-gold', 'nf-avatar']"
                      :data-tooltip="'View ' + c.author_name"
                      @click="viewProfile(c.author_slug, authorKindComment(c))">{{ c.author_initials }}</div>
@@ -242,8 +242,24 @@
                   <div class="nf-comment-top">
                     <span class="nf-comment-author" @click="viewProfile(c.author_slug, authorKindComment(c))">{{ c.author_name }}</span>
                     <span v-if="c.is_self" class="nf-self">You</span>
+                    <div v-if="c.is_self" class="nf-comment-actions">
+                      <button type="button" class="nf-comment-act" data-tooltip="Edit comment"
+                              @click="startEditComment(c)"><AegisIcon name="edit-2" :size="11" /></button>
+                      <button type="button" class="nf-comment-act nf-comment-act--danger" data-tooltip="Delete comment"
+                              @click="deleteComment(post, c)"><AegisIcon name="trash-2" :size="11" /></button>
+                    </div>
                   </div>
-                  <div class="nf-comment-body">{{ c.body }}</div>
+                  <template v-if="editingCommentId === c.id">
+                    <input type="text" class="form-input form-input-sm nf-comment-edit-input"
+                           v-model="editingCommentBody"
+                           @keydown.enter.prevent="saveEditComment(post, c)"
+                           @keydown.escape.prevent="cancelEditComment" />
+                    <div class="nf-comment-edit-actions">
+                      <button type="button" class="btn btn-primary btn-sm" @click="saveEditComment(post, c)">Save</button>
+                      <button type="button" class="btn btn-outline btn-sm" @click="cancelEditComment">Cancel</button>
+                    </div>
+                  </template>
+                  <div v-else class="nf-comment-body">{{ c.body }}</div>
                   <div class="nf-comment-meta">
                     {{ timeAgo(c.created_at) }}
                     <template v-if="c.like_count > 0"> &middot; {{ c.like_count }} like{{ c.like_count === 1 ? '' : 's' }}</template>
@@ -272,13 +288,13 @@
         <!-- Upcoming Events — keeps card, links to /events -->
         <div class="card nsc-card">
           <div class="card-header">
-            <div class="card-title" style="display:flex;align-items:center;gap:6px">
+            <div class="card-title nf-card-title-row">
               <AegisIcon name="calendar" :size="15" /> Upcoming Events
             </div>
             <a :href="route('provider.events.index')" class="btn btn-outline btn-sm">View all</a>
           </div>
           <div class="card-body">
-            <div v-if="!upcoming.length" style="font-size:12px;color:var(--text-3);text-align:center;padding:14px 0">
+            <div v-if="!upcoming.length" class="nf-empty-hint">
               No upcoming events
             </div>
             <div v-for="e in upcoming" :key="e.id" class="ne-event" @click="openEventDetail(e)">
@@ -311,12 +327,12 @@
         <!-- Trending Topics -->
         <div class="card nsc-card">
           <div class="card-header">
-            <div class="card-title" style="display:flex;align-items:center;gap:6px">
+            <div class="card-title nf-card-title-row">
               <AegisIcon name="chart-trend" :size="15" /> Trending Topics
             </div>
           </div>
           <div class="card-body">
-            <div v-if="!trending.length" style="font-size:12px;color:var(--text-3);text-align:center;padding:14px 0">No trends yet</div>
+            <div v-if="!trending.length" class="nf-empty-hint">No trends yet</div>
             <div v-for="t in trending" :key="t.tag" class="nt-row" @click="filterByTag(t.tag)">
               <span class="nt-tag">#{{ t.tag }}</span>
               <span class="nt-count">{{ t.post_count }} posts</span>
@@ -339,7 +355,7 @@
             {{ detailPost.author_initials }}
           </div>
           <div>
-            <div style="font-size:14px;font-weight:700;color:var(--text)">{{ detailPost.author_name }}</div>
+            <div class="nf-detail-author-name">{{ detailPost.author_name }}</div>
             <div :class="['nf-meta', 'nf-t-' + detailPost.post_type, 'pd-post-meta']">
               <span class="nf-type"><span class="nf-type-dot"></span>{{ typeLabel(detailPost.post_type) }}</span>
               <span class="nf-meta-sep"></span>
@@ -368,11 +384,11 @@
             <span class="nf-poll-label">{{ opt.label }}</span>
             <span class="nf-poll-track"><span class="nf-poll-fill" :style="{ width: pollPct(detailPost, idx) + '%' }"></span></span>
             <span class="nf-poll-pct">{{ pollPct(detailPost, idx) }}%</span>
-            <AegisIcon v-if="detailPost.my_poll_vote === (opt.key || String(idx))" name="check" :size="12" style="color:var(--green-dark)" />
+            <AegisIcon v-if="detailPost.my_poll_vote === (opt.key || String(idx))" name="check" :size="12" class="nf-voted-icon" />
           </div>
           <div class="nf-poll-meta">
             {{ pollTotal(detailPost) }} vote{{ pollTotal(detailPost) === 1 ? '' : 's' }}
-            <template v-if="detailPost.my_poll_vote"> &middot; <span style="color:var(--green-dark);font-weight:700">✓ You voted</span></template>
+            <template v-if="detailPost.my_poll_vote"> &middot; <span class="nf-voted-label">✓ You voted</span></template>
           </div>
         </div>
 
@@ -412,16 +428,32 @@
         <!-- Comments in detail modal -->
         <div class="pd-comments">
           <div class="pd-comment-count">
-            {{ (commentsByPost[detailPost.id] || []).length }} Comment{{ (commentsByPost[detailPost.id] || []).length === 1 ? '' : 's' }}
+            {{ (localComments[detailPost.id] || []).length }} Comment{{ (localComments[detailPost.id] || []).length === 1 ? '' : 's' }}
           </div>
-          <div v-for="c in commentsByPost[detailPost.id] || []" :key="c.id" class="nf-comment">
+          <div v-for="c in localComments[detailPost.id] || []" :key="c.id" class="nf-comment">
             <div :class="['avatar', 'avatar-xs', 'avatar-gold']">{{ c.author_initials }}</div>
             <div class="nf-comment-main">
               <div class="nf-comment-top">
                 <span class="nf-comment-author">{{ c.author_name }}</span>
                 <span v-if="c.is_self" class="nf-self">You</span>
+                <div v-if="c.is_self" class="nf-comment-actions">
+                  <button type="button" class="nf-comment-act" data-tooltip="Edit comment"
+                          @click="startEditComment(c)"><AegisIcon name="edit-2" :size="11" /></button>
+                  <button type="button" class="nf-comment-act nf-comment-act--danger" data-tooltip="Delete comment"
+                          @click="deleteComment(detailPost, c)"><AegisIcon name="trash-2" :size="11" /></button>
+                </div>
               </div>
-              <div class="nf-comment-body">{{ c.body }}</div>
+              <template v-if="editingCommentId === c.id">
+                <input type="text" class="form-input form-input-sm nf-comment-edit-input"
+                       v-model="editingCommentBody"
+                       @keydown.enter.prevent="saveEditComment(detailPost, c)"
+                       @keydown.escape.prevent="cancelEditComment" />
+                <div class="nf-comment-edit-actions">
+                  <button type="button" class="btn btn-primary btn-sm" @click="saveEditComment(detailPost, c)">Save</button>
+                  <button type="button" class="btn btn-outline btn-sm" @click="cancelEditComment">Cancel</button>
+                </div>
+              </template>
+              <div v-else class="nf-comment-body">{{ c.body }}</div>
               <div class="nf-comment-meta">{{ timeAgo(c.created_at) }}</div>
             </div>
           </div>
@@ -513,7 +545,7 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">Title <span style="color:var(--text-4);font-weight:600">(optional)</span></label>
+        <label class="form-label">Title <span class="form-label-hint">(optional)</span></label>
         <input type="text" class="form-input" v-model="createForm.title"
                :placeholder="createTitlePlaceholder" maxlength="160" />
       </div>
@@ -522,7 +554,7 @@
         <label class="form-label">
           {{ createForm.post_type === 'question' ? 'Context / Description' : 'Content' }}
           <span v-if="createForm.post_type !== 'question'" class="required">*</span>
-          <span v-else style="color:var(--text-4);font-weight:600"> (optional)</span>
+          <span v-else class="form-label-hint"> (optional)</span>
         </label>
         <textarea class="form-textarea" v-model="createForm.body" rows="4" maxlength="2000"
                   :class="{ 'is-error': createFieldError('body') }"
@@ -544,7 +576,7 @@
           <div v-if="createFieldError('poll_question')" class="form-error">{{ createFieldError('poll_question') }}</div>
         </div>
         <div class="form-group">
-          <label class="form-label">Options <span class="required">*</span> <span style="color:var(--text-4);font-weight:600">(2–4)</span></label>
+          <label class="form-label">Options <span class="required">*</span> <span class="form-label-hint">(2–4)</span></label>
           <div class="poll-options-builder">
             <div v-for="(opt, idx) in pollOptions" :key="idx" class="poll-option-row">
               <span class="poll-option-num">{{ idx + 1 }}</span>
@@ -560,7 +592,7 @@
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Poll Closes <span style="color:var(--text-4);font-weight:600">(optional)</span></label>
+          <label class="form-label">Poll Closes <span class="form-label-hint">(optional)</span></label>
           <input type="date" class="form-input" v-model="createForm.poll_closes_at" :min="new Date().toISOString().split('T')[0]" />
         </div>
       </template>
@@ -568,14 +600,14 @@
       <!-- Resource link -->
       <template v-if="createForm.post_type === 'resource'">
         <div class="form-group">
-          <label class="form-label">Resource URL <span style="color:var(--text-4);font-weight:600">(optional)</span></label>
+          <label class="form-label">Resource URL <span class="form-label-hint">(optional)</span></label>
           <input type="url" class="form-input" v-model="createForm.resource_url" placeholder="https://…" />
         </div>
       </template>
 
       <!-- Media upload — AegisDropzone (canonical file input component) -->
       <div class="form-group">
-        <label class="form-label">Photo / Video <span style="color:var(--text-4);font-weight:600">(optional, up to 4)</span></label>
+        <label class="form-label">Photo / Video <span class="form-label-hint">(optional, up to 4)</span></label>
         <AegisDropzone
           accept="image/*,video/*"
           hint="JPG, PNG, GIF, MP4 — max 20 MB each"
@@ -586,7 +618,7 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">Tags <span style="color:var(--text-4);font-weight:600">(comma-separated)</span></label>
+        <label class="form-label">Tags <span class="form-label-hint">(comma-separated)</span></label>
         <input type="text" class="form-input" v-model="createForm.tags" placeholder="e.g. Telehealth, Compliance, Workflow" />
       </div>
 
@@ -601,7 +633,7 @@
     <!-- Edit Post Modal — fully post-type aware -->
     <AegisModal v-model="modals.editPost" size="lg" :title="'Edit — ' + typeLabel(editForm.post_type || 'provider')">
       <div class="form-group">
-        <label class="form-label">Title <span style="color:var(--text-4);font-weight:600">(optional)</span></label>
+        <label class="form-label">Title <span class="form-label-hint">(optional)</span></label>
         <input type="text" class="form-input" v-model="editForm.title" maxlength="160"
                :placeholder="editForm.post_type === 'question' ? 'Question or quiz title' : 'Post headline'" />
       </div>
@@ -609,7 +641,7 @@
         <label class="form-label">
           {{ editForm.post_type === 'question' ? 'Context / Description' : 'Content' }}
           <span v-if="editForm.post_type !== 'question'" class="required">*</span>
-          <span v-else style="color:var(--text-4);font-weight:600"> (optional)</span>
+          <span v-else class="form-label-hint"> (optional)</span>
         </label>
         <textarea class="form-textarea" v-model="editForm.body" rows="5" maxlength="2000"
                   :class="{ 'is-error': editFieldError('body') }"
@@ -627,7 +659,7 @@
           <div v-if="editFieldError('poll_question')" class="form-error">{{ editFieldError('poll_question') }}</div>
         </div>
         <div class="form-group">
-          <label class="form-label">Options <span class="required">*</span> <span style="color:var(--text-4);font-weight:600">(2–4)</span></label>
+          <label class="form-label">Options <span class="required">*</span> <span class="form-label-hint">(2–4)</span></label>
           <div class="poll-options-builder">
             <div v-for="(opt, idx) in editPollOptions" :key="idx" class="poll-option-row">
               <span class="poll-option-num">{{ idx + 1 }}</span>
@@ -644,19 +676,19 @@
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Poll Closes <span style="color:var(--text-4);font-weight:600">(optional)</span></label>
+          <label class="form-label">Poll Closes <span class="form-label-hint">(optional)</span></label>
           <input type="date" class="form-input" v-model="editForm.poll_closes_at"
                  :min="new Date().toISOString().split('T')[0]" />
         </div>
       </template>
       <template v-if="editForm.post_type === 'resource'">
         <div class="form-group">
-          <label class="form-label">Resource URL <span style="color:var(--text-4);font-weight:600">(optional)</span></label>
+          <label class="form-label">Resource URL <span class="form-label-hint">(optional)</span></label>
           <input type="url" class="form-input" v-model="editForm.resource_url" placeholder="https://…" />
         </div>
       </template>
       <div class="form-group">
-        <label class="form-label">Photo / Video <span style="color:var(--text-4);font-weight:600">(optional, up to 4)</span></label>
+        <label class="form-label">Photo / Video <span class="form-label-hint">(optional, up to 4)</span></label>
         <ul v-if="editExistingMedia.length" class="em-list">
           <li v-for="(m, i) in editExistingMedia" :key="i" class="em-item" @click.stop>
             <div class="em-thumb">
@@ -683,7 +715,7 @@
         />
       </div>
       <div class="form-group">
-        <label class="form-label">Tags <span style="color:var(--text-4);font-weight:600">(comma-separated)</span></label>
+        <label class="form-label">Tags <span class="form-label-hint">(comma-separated)</span></label>
         <input type="text" class="form-input" v-model="editForm.tags"
                placeholder="e.g. Telehealth, Compliance, Workflow" />
       </div>
@@ -905,6 +937,10 @@ const localPosts = ref([...props.posts])
 // Sync when Inertia reloads props after a server round-trip (replaces optimistic entries with real data)
 watch(() => props.posts, (fresh) => { localPosts.value = [...fresh] })
 
+// Local reactive comments — optimistic updates land here; synced from props on Inertia reload
+const localComments = ref({ ...props.commentsByPost })
+watch(() => props.commentsByPost, (fresh) => { localComments.value = { ...fresh } })
+
 const displayPosts = computed(() => {
   let list = [...localPosts.value]
   if (localActiveTag.value) {
@@ -925,11 +961,79 @@ function toggleComments(id) { postState(id)._commentsOpen = !postState(id)._comm
 function submitComment(post) {
   const text = (commentInputs[post.id] ?? '').trim()
   if (!text) return
-  router.post(route('provider.news.comment', { post: post.id }), { body: text }, {
+  // Optimistic append
+  const optimisticComment = {
+    id:              '_c_' + Date.now(),
+    body:            text,
+    created_at:      new Date().toISOString(),
+    author_name:     page.props.auth?.user?.name ?? 'You',
+    author_initials: page.props.auth?.user?.avatar_initials ?? meInitials.value,
+    author_slug:     page.props.auth?.user?.slug ?? null,
+    author_role:     'practitioner',
+    author_avatar_mod: 'gold',
+    is_self:         true,
+    like_count:      0,
+  }
+  if (!localComments.value[post.id]) localComments.value[post.id] = []
+  localComments.value[post.id] = [...localComments.value[post.id], optimisticComment]
+  // Update comment count on the post card
+  const lp = localPosts.value.find(p => p.id === post.id)
+  if (lp) lp.comment_count = (lp.comment_count ?? 0) + 1
+  const prevText = text
+  commentInputs[post.id] = ''
+  router.post(route('provider.news.comment', { post: post.id }), { body: prevText }, {
     preserveScroll: true, preserveState: true,
-    onSuccess: () => { commentInputs[post.id] = ''; toast.success('Comment posted') },
-    onError:   () => toast.error('Could not post comment.'),
+    onError: () => {
+      // Roll back optimistic comment
+      localComments.value[post.id] = (localComments.value[post.id] ?? []).filter(c => c.id !== optimisticComment.id)
+      if (lp) lp.comment_count = Math.max(0, (lp.comment_count ?? 1) - 1)
+      commentInputs[post.id] = prevText
+      toast.error('Could not post comment.')
+    },
   })
+}
+
+// ── comment edit / delete ────────────────────────────────────────────────────
+const editingCommentId   = ref(null)
+const editingCommentBody = ref('')
+
+function startEditComment(c) {
+  editingCommentId.value   = c.id
+  editingCommentBody.value = c.body
+}
+function cancelEditComment() {
+  editingCommentId.value   = null
+  editingCommentBody.value = ''
+}
+function saveEditComment(post, c) {
+  const body = editingCommentBody.value.trim()
+  if (!body) return
+  const prev = c.body
+  c.body = body
+  cancelEditComment()
+  router.patch(route('provider.news.comment.update', { comment: c.id }), { body }, {
+    preserveScroll: true, preserveState: true,
+    onError: () => { c.body = prev; toast.error('Could not update comment.') },
+  })
+}
+function deleteComment(post, c) {
+  confirmAction(
+    { title: 'Delete comment?', message: 'This cannot be undone.', confirmLabel: 'Delete', destructive: true },
+    () => {
+      localComments.value[post.id] = (localComments.value[post.id] ?? []).filter(x => x.id !== c.id)
+      const lp = localPosts.value.find(p => p.id === post.id)
+      if (lp) lp.comment_count = Math.max(0, (lp.comment_count ?? 1) - 1)
+      router.delete(route('provider.news.comment.delete', { comment: c.id }), {
+        preserveScroll: true, preserveState: true,
+        onError: () => {
+          if (!localComments.value[post.id]) localComments.value[post.id] = []
+          localComments.value[post.id] = [...localComments.value[post.id], c]
+          if (lp) lp.comment_count = (lp.comment_count ?? 0) + 1
+          toast.error('Could not delete comment.')
+        },
+      })
+    }
+  )
 }
 
 // ── like ─────────────────────────────────────────────────────────────────────
@@ -1381,8 +1485,8 @@ const TYPE_LABELS = {
 }
 function typeLabel(t)         { return TYPE_LABELS[t] ?? t }
 function typeBadgeClass(t) {
-  const m = { platform:'badge-blue', provider:'badge-gold', post:'badge-gold', event:'badge-green', announcement:'badge-green', resource:'badge-purple', milestone:'badge-gold', question:'badge-gray', poll:'badge-blue' }
-  return m[t] ?? 'badge-gray'
+  const m = { platform:'badge--blue', provider:'badge--gold', post:'badge--gold', event:'badge--green', announcement:'badge--green', resource:'badge--purple', milestone:'badge--gold', question:'badge--grey', poll:'badge--blue' }
+  return m[t] ?? 'badge--grey'
 }
 function authorKind(post)     { return post.author_role === 'practitioner' ? 'provider' : 'steward' }
 function authorKindComment(c) { return c.author_role === 'practitioner' ? 'provider' : 'steward' }
@@ -1505,6 +1609,12 @@ function anyError(v$ref, form, field) {
 .nf-poll-opt { display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer;padding:6px 8px;border-radius:var(--radius-sm);transition:background var(--transition); }
 .nf-poll-opt:hover:not(.is-disabled) { background:var(--surface-3); }
 .nf-poll-opt.is-voted { background:var(--green-light); }
+.nf-voted-label { color:var(--green-dark); font-weight:700; }
+.nf-voted-icon  { color:var(--green-dark); flex-shrink:0; }
+.nf-card-title-row { display:flex; align-items:center; gap:6px; }
+.nf-empty-hint { font-size:12px; color:var(--text-3); text-align:center; padding:14px 0; }
+.nf-detail-author-name { font-size:14px; font-weight:700; color:var(--text); }
+.form-label-hint { color:var(--text-4); font-weight:600; }
 .nf-poll-opt.is-disabled { cursor:default; }
 .nf-poll-opt:last-of-type { margin-bottom:0; }
 .nf-poll-label { font-size:12px;font-weight:600;color:var(--text-2);width:132px;flex-shrink:0; }
@@ -1717,4 +1827,17 @@ function anyError(v$ref, form, field) {
 .evt-category.workshop   { background:var(--orange-light); color:var(--orange-dark); }
 .evt-category.networking { background:var(--green-light);  color:var(--green-dark); }
 .evt-category.training   { background:var(--teal-light);   color:var(--teal-dark); }
+.nf-comment-actions { display:flex; align-items:center; gap:2px; margin-left:auto; opacity:0; transition:opacity var(--transition); }
+.nf-comment:hover .nf-comment-actions { opacity:1; }
+.nf-comment-act {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:20px; height:20px; border-radius:var(--radius-sm);
+  border:none; background:transparent; color:var(--text-4);
+  cursor:pointer; transition:background var(--transition), color var(--transition);
+}
+.nf-comment-act:hover { background:var(--surface-3, var(--surface-2)); color:var(--text); }
+.nf-comment-act--danger:hover { background:var(--red-light); color:var(--red-dark); }
+.nf-comment-edit-input { margin-top:4px; }
+.nf-comment-edit-actions { display:flex; gap:6px; margin-top:6px; }
+
 </style>

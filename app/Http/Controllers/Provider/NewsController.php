@@ -171,6 +171,19 @@ class NewsController extends Controller
         return back()->with('success', 'Comment added.');
     }
 
+    public function deleteComment(Request $request, \App\Models\NewsComment $comment): RedirectResponse
+    {
+        $this->news->deleteComment($request->user(), $comment);
+        return back()->with('success', 'Comment deleted.');
+    }
+
+    public function updateComment(Request $request, \App\Models\NewsComment $comment): RedirectResponse
+    {
+        $request->validate(['body' => ['required', 'string', 'min:1', 'max:1000']]);
+        $this->news->updateComment($request->user(), $comment, $request->input('body'));
+        return back()->with('success', 'Comment updated.');
+    }
+
     public function react(ReactionRequest $request, NewsPost $post): RedirectResponse
     {
         // ReactionRequest validates 'reaction_type'; map to service which uses 'reaction' column

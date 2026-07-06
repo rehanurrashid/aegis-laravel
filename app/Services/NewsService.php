@@ -332,6 +332,19 @@ class NewsService
         return $comment;
     }
 
+    public function deleteComment(User $user, NewsComment $comment): bool
+    {
+        abort_unless($comment->author_id === $user->id, 403);
+        return (bool) $comment->delete();
+    }
+
+    public function updateComment(User $user, NewsComment $comment, string $body): NewsComment
+    {
+        abort_unless($comment->author_id === $user->id, 403);
+        $comment->update(['body' => trim($body)]);
+        return $comment->fresh();
+    }
+
     public function react(User $user, NewsPost $post, string $reactionType): NewsReaction
     {
         // Check if already reacted with same type → toggle off
