@@ -1216,7 +1216,12 @@ function setActiveService(s)  {
   editForm.status               = s.status ?? 'active'
   editDollars.value             = s.price_cents ? s.price_cents / 100 : null
 }
-function setActiveRequest(r)  { activeRequest.value = r }
+function setActiveRequest(r)  {
+  activeRequest.value = r
+  acceptForm.session_date = r?.preferred_date ?? ''
+  if (r?.preferred_time)     acceptForm.session_time = r.preferred_time
+  if (r?.preferred_timezone) acceptForm.timezone     = r.preferred_timezone
+}
 function setActiveBooking(b)  { activeBooking.value = b }
 
 // ── Listings tab — backend-driven search/filter ───────────────────────────
