@@ -164,7 +164,7 @@
               <button class="btn-icon" data-tooltip="View Bookings" @click.stop="activeTab = 'bookings'">
                 <AegisIcon name="calendar" :size="14" />
               </button>
-              <button v-if="s.status === 'paused'" class="btn-icon" data-tooltip="Resume Listing" @click.stop="setActiveService(s); resumeService()">
+              <button v-if="s.status === 'paused'" class="btn-icon" data-tooltip="Resume Listing" @click.stop="setActiveService(s); confirmAction({ title: 'Resume Listing', message: 'Resume this listing and make it visible to clients again?', btnLabel: 'Resume', type: 'primary' }, () => resumeService())">
                 <AegisIcon name="arrow-right" :size="14" />
               </button>
               <button v-else class="btn-icon" data-tooltip="Pause Listing" @click.stop="setActiveService(s); modals.pause = true">
@@ -270,7 +270,7 @@
             <button
               class="btn-icon"
               data-tooltip="Dismiss"
-              @click.stop="confirmAction({ title: 'Dismiss Request', btnLabel: 'Dismiss', type: 'danger' }, () => dismissRequest(r.id))"
+              @click.stop="setActiveRequest(r); dismissForm.reason = ''; dismissForm.otherReason = ''; modals.dismiss = true"
             >
               <AegisIcon name="x" :size="14" />
             </button>
@@ -1082,6 +1082,27 @@
       </template>
     </AegisModal>
 
+    <!-- Dismiss Request Modal -->
+    <AegisModal v-model="modals.dismiss" title="Dismiss Request" size="sm">
+      <div class="form-group">
+        <label class="form-label">Reason for dismissing</label>
+        <select v-model="dismissForm.reason" class="form-select">
+          <option value="">Select a reason…</option>
+          <option v-for="r in DISMISS_REASONS" :key="r" :value="r">{{ r }}</option>
+        </select>
+      </div>
+      <div v-if="dismissForm.reason === 'Other'" class="form-group" style="margin-top:12px;">
+        <label class="form-label">Please specify</label>
+        <textarea v-model="dismissForm.otherReason" class="form-control" rows="3" placeholder="Briefly describe your reason…" />
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.dismiss = false">Cancel</button>
+        <button class="btn btn-danger" :disabled="!dismissForm.reason" @click="submitDismiss">
+          <AegisIcon name="x" :size="14" /> Dismiss Request
+        </button>
+      </template>
+    </AegisModal>
+
     <!-- Cancel Session Modal -->
     <AegisModal v-model="modals.cancelSession" title="Cancel Session" size="sm">
       <div class="alert alert-warning" style="margin-bottom:16px;">
@@ -1201,6 +1222,7 @@ const modals = reactive({
   create: false, edit: false, accept: false, counter: false,
   preview: false, manageGroup: false, publish: false, reactivate: false,
   pause: false, cancelSession: false, sessionNotes: false,
+  dismiss: false,
 })
 
 // ── Active item tracking ──────────────────────────────────────────────────
@@ -1454,6 +1476,30 @@ function submitAccept() {
   }, {
     preserveScroll: true,
     onSuccess: () => { modals.accept = false; toast.success('Request accepted — agreement sent.') },
+  })
+}
+
+const dismissForm = reactive({ reason: '', otherReason: '' })
+const DISMISS_REASONS = [
+  'Scheduling conflict',
+  'Outside my scope of practice',
+  'Client is not a good fit',
+  'Already at full capacity',
+  'Request is incomplete or unclear',
+  'Other',
+  'Prefer not to say',
+]
+
+function submitDismiss() {
+  if (!activeRequest.value?.id) return
+  const req = activeRequest.value
+  if (!req?.service_id) { toast.error('Cannot dismiss: request data missing.'); return }
+  const reason = dismissForm.reason === 'Other'
+    ? (dismissForm.otherReason.trim() || 'Other')
+    : (dismissForm.reason || 'Dismissed by practitioner')
+  router.post(route('provider.services.request.decline', { service: req.service_id, serviceRequest: req.id }), { reason }, {
+    preserveScroll: true,
+    onSuccess: () => { modals.dismiss = false; toast.info('Request dismissed.') },
   })
 }
 
