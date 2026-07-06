@@ -30,7 +30,7 @@ class UserSeeder extends Seeder
                 'slug'             => 'sarah-johnson-lpc',
                 'practitioner_public' => 1,
                 'tier'             => 'practice',
-                'services_mode'    => 0,
+                'services_mode'    => 1,
                 'maat_addon'       => 1,
                 'two_factor_enabled' => 1,
                 'verified'         => 1,

@@ -394,6 +394,7 @@ const quickFilters = [
   { key: 'support',   label: 'Support',      icon: 'life-buoy',       filter: { event_type: 'support' } },
   { key: 'tasks',     label: 'Tasks',        icon: 'check-circle',    filter: { event_type: 'task' } },
   { key: 'events',    label: 'Events',       icon: 'calendar',        filter: { event_type: 'event' } },
+  { key: 'news',      label: 'News',         icon: 'megaphone',       filter: { event_type: 'news' } },
   { key: 'unread',    label: 'Unread',       icon: 'bell',            filter: { unread: '1' } },
 ]
 

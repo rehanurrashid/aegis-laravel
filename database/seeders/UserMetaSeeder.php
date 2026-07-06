@@ -21,6 +21,7 @@ class UserMetaSeeder extends Seeder
             ['credentials_list',    json_encode(['Licensed Professional Counselor (LPC)', 'Licensed Marriage and Family Therapist (LMFT)', 'EMDR Certified']), 'json'],
             ['years_in_business',   '12',                                                                                   'int'],
             ['accepting_clients',   '1',                                                                                    'boolean'],
+            ['services_mode_enabled', '1',                                                                                  'boolean'],
             ['session_fee_cents',   '18000',                                                                                'int'],
             ['insurance_accepted',  json_encode(['Aetna', 'Blue Cross', 'Cigna', 'United Healthcare']),                    'json'],
             ['languages',           json_encode(['English', 'Spanish']),                                                    'json'],

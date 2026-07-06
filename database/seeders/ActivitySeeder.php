@@ -151,6 +151,58 @@ class ActivitySeeder extends Seeder
         );
 
 
+
+        // ── News activity events for p_sarah ──────────────────────────────────
+        $act('p_sarah', 'provider', 'news',
+            'You published a post: "Tips for Trauma-Informed Supervision"',
+            'info',
+            'Your post was published to the Aegis community feed.',
+            'news', 'news_post_published',
+            'NewsPost', 'np_sarah_supervision',
+            null, $read,
+            now()->subDays(12)->toDateTimeString()
+        );
+
+        $act('p_sarah', 'provider', 'news',
+            'David Okafor commented on your post',
+            'info',
+            'Really valuable insights. The point about supervisee wellbeing resonates deeply.',
+            'news', 'news_commented',
+            'NewsPost', 'np_sarah_supervision',
+            null, $unread,
+            now()->subDays(11)->toDateTimeString()
+        );
+
+        $act('p_sarah', 'provider', 'news',
+            'You voted in the community poll',
+            'info',
+            'You selected "Not enough time to complete the plan" in the continuity planning poll.',
+            'news', 'poll_voted',
+            'NewsPost', 'np_poll_challenges',
+            null, $read,
+            now()->subDays(4)->toDateTimeString()
+        );
+
+        $act('p_sarah', 'provider', 'news',
+            'Platform Update: Vault Search, CEU Tracker & Faster Load Times',
+            'info',
+            'Aegis has released enhanced vault features and a new CEU progress tracker.',
+            'news', 'announcement',
+            'NewsPost', 'np_platform_update',
+            null, $unread,
+            now()->subDays(4)->toDateTimeString()
+        );
+
+        $act('p_sarah', 'provider', 'news',
+            'Marcus Williams shared a resource: Activation Checklist',
+            'info',
+            'A step-by-step activation checklist has been shared on the news feed.',
+            'news', 'news_post_published',
+            'NewsPost', 'np_resource_checklist',
+            null, $unread,
+            now()->subDays(18)->toDateTimeString()
+        );
+
         // ══════════════════════════════════════════════════════════════════════
         // p_david — Provider portal
         // ══════════════════════════════════════════════════════════════════════
@@ -203,17 +255,29 @@ class ActivitySeeder extends Seeder
             now()->subDays(1)->toDateTimeString()
         );
 
-        // News announcement
+
+        // ── News activity events for p_david ─────────────────────────────────
+        $act('p_david', 'provider', 'news',
+            'You commented on Sarah Johnson\'s post',
+            'info',
+            'Your comment was posted on "Tips for Trauma-Informed Supervision During Clinical Transitions".',
+            'news', 'news_comment_posted',
+            'NewsPost', 'np_sarah_supervision',
+            null, $read,
+            now()->subDays(11)->toDateTimeString()
+        );
+
         $act('p_david', 'provider', 'news',
             'Platform Announcement: New Vault Features Available',
             'info',
             'Aegis has released enhanced vault features including zone-level access controls.',
             'news', 'announcement',
             null, null,
-            null,
-            $unread,
+            null, $unread,
             now()->subDays(5)->toDateTimeString()
         );
+
+
 
 
         // ══════════════════════════════════════════════════════════════════════

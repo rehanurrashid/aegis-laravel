@@ -10,7 +10,7 @@
     <AegisHeroBanner eyebrow="Provider Portal" title="News &amp; Resources"
                      subtitle="Updates from Aegis, insights from providers, and community discussions." quiet>
       <template #actions>
-        <a :href="route('provider.activity')" class="btn-hero-ghost is-on-light">
+        <a :href="route('provider.activity') + '?event_type=news'" class="btn-hero-ghost is-on-light">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
         <button type="button" class="btn-hero-ghost is-on-light" @click="openMyLibrary">
@@ -56,7 +56,7 @@
               <option value="provider">Posts{{ countByType.provider ? ' (' + countByType.provider + ')' : '' }}</option>
               <option value="question">Questions{{ countByType.question ? ' (' + countByType.question + ')' : '' }}</option>
               <option value="resource">Resources{{ countByType.resource ? ' (' + countByType.resource + ')' : '' }}</option>
-              <option value="poll">Polls{{ countByType.poll ? ' (' + countByType.poll + ')' : '' }}</option>
+              <option value="question">Questions{{ countByType.question ? ' (' + countByType.question + ')' : '' }}</option>
               <option value="milestone">Milestones</option>
             </select>
           </div>
@@ -159,7 +159,7 @@
               </div>
 
               <!-- Poll -->
-              <div v-if="post.post_type === 'poll' && post.poll_question && post.poll_options && post.poll_options.length"
+              <div v-if="(post.post_type === 'poll' || post.post_type === 'question') && post.poll_question && post.poll_options && post.poll_options.length"
                    class="nf-poll">
                 <div class="nf-poll-q">
                   <AegisIcon name="bar-chart" :size="14" />
@@ -339,7 +339,7 @@
           </div>
           <div>
             <div style="font-size:14px;font-weight:700;color:var(--text)">{{ detailPost.author_name }}</div>
-            <div :class="['nf-meta', 'nf-t-' + detailPost.post_type]" style="margin-top:2px">
+            <div :class="['nf-meta', 'nf-t-' + detailPost.post_type, 'pd-post-meta']">
               <span class="nf-type"><span class="nf-type-dot"></span>{{ typeLabel(detailPost.post_type) }}</span>
               <span class="nf-meta-sep"></span>
               <span>{{ timeAgo(detailPost.created_at) }}</span>
@@ -355,10 +355,10 @@
         </div>
 
         <!-- Body -->
-        <div class="pd-body" style="white-space:pre-wrap;font-size:14px;line-height:1.7;color:var(--text-2);margin:16px 0">{{ detailPost.body }}</div>
+        <div class="pd-body">{{ detailPost.body }}</div>
 
         <!-- Poll -->
-        <div v-if="detailPost.post_type === 'poll' && detailPost.poll_question" class="nf-poll">
+        <div v-if="(detailPost.post_type === 'poll' || detailPost.post_type === 'question') && detailPost.poll_question" class="nf-poll">
           <div class="nf-poll-q"><AegisIcon name="bar-chart" :size="14" /> {{ detailPost.poll_question }}</div>
           <div v-for="(opt, idx) in detailPost.poll_options" :key="opt.key || idx"
                class="nf-poll-opt"
@@ -376,7 +376,7 @@
         </div>
 
         <!-- Links -->
-        <div v-if="detailPost.links && detailPost.links.length" class="nf-links" style="margin-top:12px">
+        <div v-if="detailPost.links && detailPost.links.length" class="nf-links pd-section">
           <a v-for="lnk in detailPost.links" :key="lnk.url" :href="lnk.url" class="nf-link" target="_blank" rel="noopener">
             <span class="nf-link-ic"><AegisIcon name="link" :size="14" /></span>
             <span class="nf-link-label">{{ lnk.label || lnk.url }}</span>
@@ -385,7 +385,7 @@
         </div>
 
         <!-- Tags -->
-        <div v-if="detailPost.tags && detailPost.tags.length" class="nf-tags" style="margin-top:12px">
+        <div v-if="detailPost.tags && detailPost.tags.length" class="nf-tags pd-section">
           <button v-for="tag in detailPost.tags" :key="tag" type="button" class="nf-tag" @click="modals.postDetail=false;filterByTag(tag)">#{{ tag }}</button>
         </div>
 
@@ -410,10 +410,10 @@
 
         <!-- Comments in detail modal -->
         <div class="pd-comments">
-          <div style="font-size:12px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">
+          <div class="pd-comment-count">
             {{ (commentsByPost[detailPost.id] || []).length }} Comment{{ (commentsByPost[detailPost.id] || []).length === 1 ? '' : 's' }}
           </div>
-          <div v-for="c in commentsByPost[detailPost.id] || []" :key="c.id" class="nf-comment" style="margin-bottom:12px">
+          <div v-for="c in commentsByPost[detailPost.id] || []" :key="c.id" class="nf-comment">
             <div :class="['avatar', 'avatar-xs', 'avatar-gold']">{{ c.author_initials }}</div>
             <div class="nf-comment-main">
               <div class="nf-comment-top">
@@ -424,7 +424,7 @@
               <div class="nf-comment-meta">{{ timeAgo(c.created_at) }}</div>
             </div>
           </div>
-          <div class="nf-comment-form" style="margin-top:8px">
+          <div class="nf-comment-form">
             <div :class="['avatar', 'avatar-xs', meAvatarMod]">{{ meInitials }}</div>
             <input type="text" class="form-input form-input-sm" placeholder="Write a comment…"
                    v-model="commentInputs[detailPost.id]"
@@ -448,12 +448,12 @@
           <div class="evt-detail-eyebrow-row">
             <span class="evt-category" :class="detailEvent.category">{{ detailEvent.category }}</span>
           </div>
-          <div class="evt-detail-title" style="margin-top:10px;font-family:var(--font-serif);font-size:22px;font-weight:700">{{ detailEvent.title }}</div>
-          <div v-if="detailEvent.organizer" style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-3);margin-top:6px">
+          <div class="evt-detail-title">{{ detailEvent.title }}</div>
+          <div v-if="detailEvent.organizer" class="evt-organizer">
             <AegisIcon name="users" :size="13" /> {{ detailEvent.organizer }}
           </div>
         </div>
-        <div class="evt-detail-meta" style="display:flex;flex-wrap:wrap;gap:8px;margin:16px 0">
+        <div class="evt-detail-meta">
           <div class="evt-detail-chip"><AegisIcon name="calendar" :size="13" /> <strong>{{ fmtFullEventDate(detailEvent.starts_at) }}</strong></div>
           <div v-if="detailEvent.ends_at" class="evt-detail-chip"><AegisIcon name="clock" :size="13" /> <strong>Ends {{ fmtEventTime(detailEvent.starts_at, detailEvent.ends_at) }}</strong></div>
           <div v-if="detailEvent.location" class="evt-detail-chip"><AegisIcon name="map-pin" :size="13" /> <strong>{{ detailEvent.location }}</strong></div>
@@ -463,8 +463,8 @@
             <strong>{{ detailEvent.is_free ? 'Free' : '$' + ((detailEvent.price_cents ?? 0) / 100).toFixed(2) }}</strong>
           </div>
         </div>
-        <p v-if="detailEvent.description" style="font-size:14px;line-height:1.7;color:var(--text-2);white-space:pre-line">{{ detailEvent.description }}</p>
-        <div v-if="detailEvent.is_attending" class="evt-detail-registered-banner" style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:var(--green-light);border:1px solid var(--green);border-radius:var(--radius);margin-top:16px;font-size:13px;color:var(--green-dark);font-weight:600">
+        <p v-if="detailEvent.description" class="evt-desc-text">{{ detailEvent.description }}</p>
+        <div v-if="detailEvent.is_attending" class="evt-detail-registered-banner">
           <AegisIcon name="check-circle" :size="16" /> You're registered for this event.
         </div>
       </template>
@@ -491,11 +491,10 @@
           <label class="form-label">Post Type <span class="required">*</span></label>
           <select class="form-select" v-model="createForm.post_type">
             <option value="provider">General Post</option>
-            <option value="question">Ask Community</option>
+            <option value="question">Ask Community / Quiz</option>
             <option value="resource">Share Resource</option>
             <option value="milestone">Milestone</option>
             <option value="event">Announce Event</option>
-            <option value="poll">Poll / Quiz</option>
           </select>
         </div>
         <div class="form-group">
@@ -517,20 +516,20 @@
 
       <div class="form-group">
         <label class="form-label">
-          {{ createForm.post_type === 'poll' ? 'Context / Description' : 'Content' }}
-          <span v-if="createForm.post_type !== 'poll'" class="required">*</span>
+          {{ createForm.post_type === 'question' ? 'Context / Description' : 'Content' }}
+          <span v-if="createForm.post_type !== 'question'" class="required">*</span>
           <span v-else style="color:var(--text-4);font-weight:600"> (optional)</span>
         </label>
         <textarea class="form-textarea" v-model="createForm.body" rows="4" maxlength="2000"
                   :class="{ 'is-error': anyError(vCreate, createForm, 'body') }"
                   :placeholder="createBodyPlaceholder"
-                  @blur="vCreate.body.$touch()" />
+                  @blur="vCreate.body?.$touch()" />
         <div v-if="anyError(vCreate, createForm, 'body')" class="form-error">{{ anyError(vCreate, createForm, 'body') }}</div>
         <div class="form-hint">{{ createForm.body.length }} / 2000</div>
       </div>
 
-      <!-- Poll builder -->
-      <template v-if="createForm.post_type === 'poll'">
+      <!-- Poll / Quiz builder — shown for 'question' type -->
+      <template v-if="createForm.post_type === 'question'">
         <div class="form-group">
           <label class="form-label">Poll Question <span class="required">*</span></label>
           <input type="text" class="form-input"
@@ -551,7 +550,7 @@
                 <AegisIcon name="x" :size="13" />
               </button>
             </div>
-            <button v-if="pollOptions.length < 4" type="button" class="btn btn-outline btn-sm" style="margin-top:8px" @click="addPollOption">
+            <button v-if="pollOptions.length < 4" type="button" class="btn btn-outline btn-sm poll-add-btn" @click="addPollOption">
               <AegisIcon name="plus" :size="13" /> Add Option
             </button>
           </div>
@@ -606,19 +605,64 @@
       </template>
     </AegisModal>
 
-    <!-- Edit Post Modal -->
-    <AegisModal v-model="modals.editPost" size="lg" title="Edit Post">
+    <!-- Edit Post Modal — fully post-type aware -->
+    <AegisModal v-model="modals.editPost" size="lg" :title="'Edit — ' + typeLabel(editForm.post_type || 'provider')">
       <div class="form-group">
-        <label class="form-label">Title</label>
-        <input type="text" class="form-input" v-model="editForm.title" maxlength="160" />
+        <label class="form-label">Title <span style="color:var(--text-4);font-weight:600">(optional)</span></label>
+        <input type="text" class="form-input" v-model="editForm.title" maxlength="160"
+               :placeholder="editForm.post_type === 'question' ? 'Question or quiz title' : 'Post headline'" />
       </div>
       <div class="form-group">
-        <label class="form-label">Content <span class="required">*</span></label>
-        <textarea class="form-textarea" v-model="editForm.body" rows="6" maxlength="2000"
+        <label class="form-label">
+          {{ editForm.post_type === 'question' ? 'Context / Description' : 'Content' }}
+          <span v-if="editForm.post_type !== 'question'" class="required">*</span>
+          <span v-else style="color:var(--text-4);font-weight:600"> (optional)</span>
+        </label>
+        <textarea class="form-textarea" v-model="editForm.body" rows="5" maxlength="2000"
                   :class="{ 'is-error': anyError(vEdit, editForm, 'body') }"
-                  @blur="vEdit.body.$touch()" />
+                  @blur="vEdit.body?.$touch()" />
         <div v-if="anyError(vEdit, editForm, 'body')" class="form-error">{{ anyError(vEdit, editForm, 'body') }}</div>
         <div class="form-hint">{{ editForm.body.length }} / 2000</div>
+      </div>
+      <template v-if="editForm.post_type === 'question'">
+        <div class="form-group">
+          <label class="form-label">Poll Question <span class="required">*</span></label>
+          <input type="text" class="form-input" v-model="editForm.poll_question"
+                 placeholder="What would you like to ask?" maxlength="300" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Options <span class="required">*</span> <span style="color:var(--text-4);font-weight:600">(2–4)</span></label>
+          <div class="poll-options-builder">
+            <div v-for="(opt, idx) in editPollOptions" :key="idx" class="poll-option-row">
+              <span class="poll-option-num">{{ idx + 1 }}</span>
+              <input type="text" class="form-input" v-model="opt.label" :placeholder="'Option ' + (idx + 1)" maxlength="120" />
+              <button v-if="editPollOptions.length > 2" type="button" class="btn-icon btn-icon-sm btn-icon-danger"
+                      data-tooltip="Remove" @click="editPollOptions.splice(idx, 1)">
+                <AegisIcon name="x" :size="13" />
+              </button>
+            </div>
+            <button v-if="editPollOptions.length < 4" type="button" class="btn btn-outline btn-sm poll-add-btn"
+                    @click="editPollOptions.push({ label: '' })">
+              <AegisIcon name="plus" :size="13" /> Add Option
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Poll Closes <span style="color:var(--text-4);font-weight:600">(optional)</span></label>
+          <input type="date" class="form-input" v-model="editForm.poll_closes_at"
+                 :min="new Date().toISOString().split('T')[0]" />
+        </div>
+      </template>
+      <template v-if="editForm.post_type === 'resource'">
+        <div class="form-group">
+          <label class="form-label">Resource URL <span style="color:var(--text-4);font-weight:600">(optional)</span></label>
+          <input type="url" class="form-input" v-model="editForm.resource_url" placeholder="https://…" />
+        </div>
+      </template>
+      <div class="form-group">
+        <label class="form-label">Tags <span style="color:var(--text-4);font-weight:600">(comma-separated)</span></label>
+        <input type="text" class="form-input" v-model="editForm.tags"
+               placeholder="e.g. Telehealth, Compliance, Workflow" />
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.editPost = false">Cancel</button>
@@ -627,6 +671,7 @@
         </button>
       </template>
     </AegisModal>
+
 
     <!-- Share Modal -->
     <AegisModal v-model="modals.sharePost" size="sm" title="Share Post">
@@ -645,7 +690,7 @@
 
     <!-- My Library Modal -->
     <AegisModal v-model="modals.myLibrary" size="lg" title="My Library">
-      <div class="tabs-segmented" style="margin-bottom:16px">
+      <div class="tabs-segmented">
         <button type="button" :class="['tab-pill', { active: libraryTab === 'saved' }]" @click="libraryTab = 'saved'">
           <AegisIcon name="bookmark" :size="12" /> Saved
           <span v-if="librarySaved.length" class="badge-pill">{{ librarySaved.length }}</span>
@@ -709,7 +754,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { router, useForm, usePage as useInertiaPage } from '@inertiajs/vue3'
 import AppLayout       from '@/layouts/AppLayout.vue'
 import { useToast }    from '@/composables/useToast'
@@ -911,26 +956,65 @@ function confirmDelete(postId) {
 }
 
 // ── edit ─────────────────────────────────────────────────────────────────────
-const editTargetId    = ref(null)
-const editForm        = useForm({ title: '', body: '' })
-const editRules       = { body: { required, minLength: minLength(1) } }
-const vEdit           = useVuelidate(editRules, editForm)
+const editTargetId = ref(null)
+const editPollOptions = reactive([{ label: '' }, { label: '' }])
+
+// editForm holds ALL post-type fields so template can bind them
+const editForm = useForm({
+  title: '', body: '', post_type: 'provider',
+  poll_question: '', poll_closes_at: '', poll_options: null,
+  tags: '', resource_url: '',
+})
+
+const editRules = computed(() => ({
+  body:          editForm.post_type === 'question' ? {} : { required, minLength: minLength(1) },
+  poll_question: editForm.post_type === 'question' ? { required, minLength: minLength(3) } : {},
+}))
+const vEdit = useVuelidate(editRules, editForm)
 
 function openEdit(post) {
-  editTargetId.value = post.id
-  editForm.title     = post.title ?? ''
-  editForm.body      = post.body  ?? ''
+  editTargetId.value    = post.id
+  editForm.title        = post.title ?? ''
+  editForm.body         = post.body  ?? ''
+  editForm.post_type    = post.post_type ?? 'provider'
+  editForm.poll_question = post.poll_question ?? ''
+  editForm.poll_closes_at = post.poll_closes_at ? post.poll_closes_at.split('T')[0] : ''
+  editForm.tags = (post.tags ?? []).join(', ')
+  editForm.resource_url = (post.links && post.links[0]?.url) ? post.links[0].url : ''
+
+  // Populate editable poll options from existing data
+  const opts = post.poll_options ?? []
+  editPollOptions.splice(0, editPollOptions.length)
+  if (opts.length >= 2) {
+    opts.forEach(o => editPollOptions.push({ label: o.label || '' }))
+  } else {
+    editPollOptions.push({ label: '' }, { label: '' })
+  }
+
   editForm.clearErrors()
   vEdit.value.$reset()
   modals.editPost = true
 }
+
 async function submitEditPost() {
   const ok = await vEdit.value.$validate()
   if (!ok) return
+
+  // Build poll_options from editable list
+  if (editForm.post_type === 'question') {
+    const valid = editPollOptions.filter(o => o.label.trim())
+    if (valid.length < 2) { toast.error('Add at least 2 poll options.'); return }
+    editForm.poll_options = valid.map((o, i) => ({ key: String(i), label: o.label.trim() }))
+  }
+
   editForm.patch(route('provider.news.update', { post: editTargetId.value }), {
     preserveScroll: true,
-    onSuccess: () => { modals.editPost = false; toast.success('Post updated'); vEdit.value.$reset() },
-    onError:   () => toast.error('Could not update post.'),
+    onSuccess: () => {
+      modals.editPost = false
+      toast.success('Post updated')
+      vEdit.value.$reset()
+    },
+    onError: () => toast.error('Could not update post.'),
   })
 }
 
@@ -968,19 +1052,24 @@ const createForm = useForm({
 })
 
 const createRules = computed(() => ({
-  body:          createForm.post_type === 'poll' ? {} : { required, minLength: minLength(1) },
-  poll_question: createForm.post_type === 'poll' ? { required, minLength: minLength(3) } : {},
+  body:          createForm.post_type === 'question' ? {} : { required, minLength: minLength(1) },
+  poll_question: createForm.post_type === 'question' ? { required, minLength: minLength(3) } : {},
 }))
 const vCreate = useVuelidate(createRules, createForm)
+
+// Reset validation when post type changes so stale errors don't persist
+watch(() => createForm.post_type, () => vCreate.value.$reset())
+watch(() => editForm.post_type,   () => vEdit.value.$reset())
 
 async function submitCreatePost() {
   const ok = await vCreate.value.$validate()
   if (!ok) return
 
-  if (createForm.post_type === 'poll') {
+  if (createForm.post_type === 'question') {
     const validOpts = pollOptions.filter(o => o.label.trim())
     if (validOpts.length < 2) { toast.error('Add at least 2 poll options.'); return }
     createForm.poll_options = validOpts.map((o, i) => ({ key: String(i), label: o.label.trim() }))
+    createForm.post_type = 'question'
   }
   if (createForm.post_type === 'resource' && createForm.resource_url) {
     createForm.links = [{ label: 'View Resource', url: createForm.resource_url }]
@@ -1061,10 +1150,10 @@ function fmtFullEventDate(iso) {
 
 // type-specific placeholders
 const createTitlePlaceholder = computed(() => {
-  return { provider: 'Give your post a clear headline', question: 'What would you like to ask?', resource: 'Name of the resource or guide', milestone: 'Celebrate your achievement', event: 'Event name and date', poll: 'Poll title (optional)' }[createForm.post_type] ?? 'Give your post a clear headline'
+  return { provider: 'Give your post a clear headline', question: 'Your question or quiz title (optional)', resource: 'Name of the resource or guide', milestone: 'Celebrate your achievement', event: 'Event name and date' }[createForm.post_type] ?? 'Give your post a clear headline'
 })
 const createBodyPlaceholder = computed(() => {
-  return { provider: 'Share your update, insight, or experience…', question: 'Describe your question in detail…', resource: 'Briefly describe what this resource covers…', milestone: 'Tell the community what you accomplished…', event: 'Event details — date, location, what to expect…', poll: 'Add context for your poll (optional)…' }[createForm.post_type] ?? 'Share something with the Aegis community…'
+  return { provider: 'Share your update, insight, or experience…', question: 'Add context or background for your question / quiz (optional)…', resource: 'Briefly describe what this resource covers…', milestone: 'Tell the community what you accomplished…', event: 'Event details — date, location, what to expect…' }[createForm.post_type] ?? 'Share something with the Aegis community…'
 })
 
 // ── modal state ──────────────────────────────────────────────────────────────
@@ -1251,4 +1340,22 @@ function anyError(v$i, form, field) { return fieldError(v$i, field) || serverErr
 /* Utilities */
 .sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
 @media (max-width:600px) { .news-toolbar { flex-direction:column;align-items:stretch; } .news-toolbar-left,.news-toolbar-right { width:100%; } .news-toolbar .form-select-sm { flex:1;min-width:0; } }
+
+/* ── Gaps fix — all layout via CSS, no inline styles ── */
+.pd-post-meta { margin-top:2px; }
+.pd-section { margin-top:12px; }
+.pd-comments .nf-comment { margin-bottom:12px; }
+.pd-comments .nf-comment-form { margin-top:8px; }
+.pd-body { white-space:pre-wrap;font-size:14px;line-height:1.7;color:var(--text-2);margin:16px 0; }
+.pd-comment-count { font-size:12px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px; }
+.evt-organizer { display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-3);margin-top:6px; }
+.evt-detail-title { font-family:var(--font-serif);font-size:22px;font-weight:700;color:var(--text);margin-top:10px;line-height:1.3; }
+.evt-detail-meta { display:flex;flex-wrap:wrap;gap:8px;margin:16px 0; }
+.evt-detail-registered-banner { display:flex;align-items:center;gap:8px;padding:12px 16px;background:var(--green-light);border:1px solid var(--green);border-radius:var(--radius);margin-top:16px;font-size:13px;color:var(--green-dark);font-weight:600; }
+.evt-desc-text { font-size:14px;line-height:1.7;color:var(--text-2);white-space:pre-line;margin:0; }
+/* Add Option button — compact and centered */
+.poll-add-btn { margin-top:8px;align-self:center;width:auto; }
+.poll-options-builder { display:flex;flex-direction:column;gap:8px;align-items:stretch; }
+/* tabs-segmented spacing */
+.tabs-segmented { margin-bottom:16px; }
 </style>

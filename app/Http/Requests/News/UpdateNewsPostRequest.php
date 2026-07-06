@@ -10,7 +10,6 @@ class UpdateNewsPostRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        // Only the post author may update
         $post = $this->route('post');
         return $post && $post->author_id === $this->user()?->id;
     }
@@ -18,8 +17,14 @@ class UpdateNewsPostRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title' => ['nullable', 'string', 'max:191'],
-            'body'  => ['required', 'string', 'min:1'],
+            'title'           => ['nullable', 'string', 'max:191'],
+            'body'            => ['nullable', 'string'],
+            'tags'            => ['nullable', 'string', 'max:500'],
+            'links'           => ['nullable', 'array'],
+            'poll_question'   => ['nullable', 'string', 'max:500'],
+            'poll_options'    => ['nullable', 'array'],
+            'poll_closes_at'  => ['nullable', 'date'],
+            'resource_url'    => ['nullable', 'url', 'max:500'],
         ];
     }
 }

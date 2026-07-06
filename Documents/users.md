@@ -4,7 +4,7 @@ All seed users share the same password. Here's the full list:
 
 | ID | Email | Role | Notes |
 |---|---|---|---|
-| `p_sarah` | `sarah@demo.aegis` | Practitioner | Practice tier, 2FA enabled |
+| `p_sarah` | `sarah@demo.aegis` | Practitioner | Practice tier, 2FA enabled , services mode |
 | `p_david` | `david@demo.aegis` | Practitioner | Access tier |
 | `p_maria` | `maria@demo.aegis` | Practitioner | Practice tier, services mode |
 | `p_access_only` | `jordan@demo.aegis` | Practitioner | Access tier, unverified |

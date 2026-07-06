@@ -260,10 +260,28 @@ class NewsService
 
     public function updatePost(NewsPost $post, array $data): NewsPost
     {
-        $post->update([
+        $update = [
             'title' => $data['title'] ?? $post->title,
-            'body'  => $data['body'],
-        ]);
+            'body'  => $data['body'] ?? $post->body,
+        ];
+
+        if (array_key_exists('poll_question', $data)) {
+            $update['poll_question'] = $data['poll_question'];
+        }
+        if (array_key_exists('poll_options', $data)) {
+            $update['poll_options'] = $data['poll_options'];
+        }
+        if (array_key_exists('poll_closes_at', $data)) {
+            $update['poll_closes_at'] = $data['poll_closes_at'] ?: null;
+        }
+        if (!empty($data['tags'])) {
+            $update['tags'] = array_values(array_filter(array_map('trim', explode(',', (string)$data['tags']))));
+        }
+        if (!empty($data['resource_url'])) {
+            $update['links'] = [['label' => 'View Resource', 'url' => $data['resource_url']]];
+        }
+
+        $post->update($update);
         return $post->fresh();
     }
 
