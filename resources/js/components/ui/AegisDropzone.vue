@@ -52,8 +52,9 @@
     <!-- File pills — rendered below the zone -->
     <ul v-if="files.length" class="adz-file-list">
       <li v-for="(f, i) in files" :key="f.name + f.size + i" class="adz-file-item" @click.stop>
-        <div class="adz-file-icon">
-          <AegisIcon :name="iconFor(f)" :size="15" />
+        <div :class="['adz-file-icon', { 'adz-file-icon--thumb': previews[f.name + f.size] }]">
+          <img v-if="previews[f.name + f.size]" :src="previews[f.name + f.size]" :alt="f.name" class="adz-file-thumb" />
+          <AegisIcon v-else :name="iconFor(f)" :size="16" />
         </div>
         <div class="adz-file-info">
           <span class="adz-file-name">{{ f.name }}</span>
@@ -96,6 +97,7 @@ const dragging   = ref(false)
 const fileInput  = ref(null)
 const files      = ref([])
 const rejections = ref([])
+const previews   = ref({}) // key: name+size → base64 DataURL for image files
 
 function onDragOver()  { if (!props.disabled) dragging.value = true }
 function onDragLeave() { dragging.value = false }
@@ -104,8 +106,19 @@ function onZoneClick() { if (!props.disabled) fileInput.value?.click() }
 function onChange(e)   { process(Array.from(e.target.files ?? [])); e.target.value = '' }
 
 function remove(i) {
+  const f = files.value[i]
+  if (f) delete previews.value[f.name + f.size]
   files.value.splice(i, 1)
   emit('files', [...files.value])
+}
+
+function readPreview(f) {
+  if (!f.type.startsWith('image/')) return
+  const key = f.name + f.size
+  if (previews.value[key]) return
+  const reader = new FileReader()
+  reader.onload = e => { previews.value = { ...previews.value, [key]: e.target.result } }
+  reader.readAsDataURL(f)
 }
 
 function process(incoming) {
@@ -125,13 +138,13 @@ function process(incoming) {
   }
 
   if (props.multiple) {
-    // Append, skip exact duplicates by name+size
     const seen = new Set(files.value.map(f => f.name + f.size))
     for (const f of accepted) {
-      if (!seen.has(f.name + f.size)) { files.value.push(f); seen.add(f.name + f.size) }
+      if (!seen.has(f.name + f.size)) { files.value.push(f); seen.add(f.name + f.size); readPreview(f) }
     }
   } else {
     files.value = [accepted[0]]
+    readPreview(accepted[0])
   }
 
   emit('files', [...files.value])
@@ -163,30 +176,54 @@ function sizeLabel(b) {
 .adz-file-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: 12px;
+  padding: 6px 10px 6px 6px;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  transition: border-color var(--transition);
+  transition: border-color var(--transition), background var(--transition);
+  min-height: 52px;
 }
-.adz-file-item:hover { border-color: var(--border-dark); }
+.adz-file-item:hover { border-color: var(--border-dark); background: var(--surface); }
 
 .adz-file-icon {
-  width: 30px; height: 30px;
-  border-radius: var(--radius-sm);
+  width: 40px; height: 40px;
+  border-radius: calc(var(--radius-sm) - 1px);
   background: var(--badge-bg-gold);
   color: var(--gold-dark);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
-.adz-file-info  { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+/* Thumb variant — same size as regular icon cell, image fills it */
+.adz-file-icon--thumb {
+  width: 40px; height: 40px;
+  border-radius: calc(var(--radius-sm) - 1px);
+  background: var(--surface-2);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+}
+.adz-file-thumb {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  flex-shrink: 0;
+}
+
+.adz-file-info  { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .adz-file-name  { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .adz-file-size  { font-size: 10px; color: var(--text-4); font-weight: 500; }
+.adz-file-saved {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; font-weight: 600; color: var(--green-dark);
+}
 
 .adz-file-remove {
-  width: 22px; height: 22px;
+  width: 24px; height: 24px;
   border-radius: var(--radius-full);
   border: 1px solid var(--border);
   background: var(--surface);

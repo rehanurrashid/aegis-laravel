@@ -657,16 +657,18 @@
       </template>
       <div class="form-group">
         <label class="form-label">Photo / Video <span style="color:var(--text-4);font-weight:600">(optional, up to 4)</span></label>
-        <ul v-if="editExistingMedia.length" class="adz-file-list" style="margin-bottom:8px">
-          <li v-for="(m, i) in editExistingMedia" :key="i" class="adz-file-item" @click.stop>
-            <div class="adz-file-icon">
-              <AegisIcon :name="m.type === 'video' ? 'video' : 'image'" :size="15" />
+        <ul v-if="editExistingMedia.length" class="em-list">
+          <li v-for="(m, i) in editExistingMedia" :key="i" class="em-item" @click.stop>
+            <div class="em-thumb">
+              <img v-if="m.type === 'image' && m.url" :src="m.url" :alt="m.name" class="em-thumb-img" />
+              <AegisIcon v-else-if="m.type === 'video'" name="video" :size="16" />
+              <AegisIcon v-else name="camera" :size="16" />
             </div>
-            <div class="adz-file-info">
-              <span class="adz-file-name">{{ m.name || (m.type === 'video' ? 'Video' : 'Image') }}</span>
-              <span class="adz-file-size" style="color:var(--green-dark);font-weight:600">Saved</span>
+            <div class="em-info">
+              <span class="em-name">{{ m.name || (m.type === 'video' ? 'Video' : 'Image') }}</span>
+              <span class="em-saved"><AegisIcon name="check" :size="9" /> Saved</span>
             </div>
-            <button type="button" class="adz-file-remove" data-tooltip="Remove" @click.stop="editExistingMedia.splice(i, 1)">
+            <button type="button" class="em-remove" data-tooltip="Remove" @click.stop="editExistingMedia.splice(i, 1)">
               <AegisIcon name="x" :size="12" />
             </button>
           </li>
@@ -711,59 +713,114 @@
 
     <!-- My Library Modal -->
     <AegisModal v-model="modals.myLibrary" size="lg" title="My Library">
-      <div class="tabs-segmented">
-        <button type="button" :class="['tab-pill', { active: libraryTab === 'saved' }]" @click="libraryTab = 'saved'">
-          <AegisIcon name="bookmark" :size="12" :filled="libraryTab === 'saved'" /> Saved
-          <span v-if="librarySaved.length" class="badge-pill">{{ librarySaved.length }}</span>
+      <!-- Tabs -->
+      <div class="lib-tabs">
+        <button type="button" :class="['lib-tab', { 'is-active': libraryTab === 'saved' }]"
+                @click="libraryTab = 'saved'; libPage.value = 1">
+          <AegisIcon name="bookmark" :size="13" :filled="libraryTab === 'saved'" />
+          Saved
+          <span v-if="librarySaved.length" class="lib-tab-count">{{ librarySaved.length }}</span>
         </button>
-        <button type="button" :class="['tab-pill', { active: libraryTab === 'reported' }]" @click="libraryTab = 'reported'">
-          <AegisIcon name="flag-2" :size="12" /> Reported
-          <span v-if="libraryReported.length" class="badge-pill">{{ libraryReported.length }}</span>
+        <button type="button" :class="['lib-tab', { 'is-active': libraryTab === 'reported' }]"
+                @click="libraryTab = 'reported'; libPage.value = 1">
+          <AegisIcon name="flag-2" :size="13" />
+          Reported
+          <span v-if="libraryReported.length" class="lib-tab-count lib-tab-count--red">{{ libraryReported.length }}</span>
         </button>
       </div>
 
-      <div v-if="libraryLoading" style="text-align:center;padding:32px 0;color:var(--text-4);font-size:13px">Loading…</div>
-
-      <template v-else-if="libraryTab === 'saved'">
-        <AegisEmptyState v-if="!librarySaved.length" icon="bookmark" title="No saved posts"
-          subtitle="Tap the bookmark icon on any post to save it here." />
-        <div v-else class="lib-table">
-          <div class="lib-table-head">
-            <span>Post</span><span>Type</span><span>Author</span><span></span>
-          </div>
-          <div v-for="p in librarySaved" :key="p.id" class="lib-table-row">
-            <div>
-              <div class="lib-post-title lib-post-clickable" @click="openPostFromLibrary(p)">
-                {{ p.title || p.body?.slice(0, 55) || '(no content)' }}{{ (!p.title && p.body?.length > 55) ? '…' : '' }}
-              </div>
-              <div class="lib-post-body">{{ p.body?.slice(0, 70) }}{{ p.body?.length > 70 ? '…' : '' }}</div>
-            </div>
-            <span><span :class="['badge', typeBadgeClass(p.post_type)]">{{ typeLabel(p.post_type) }}</span></span>
-            <span style="font-size:12px;color:var(--text-3)">{{ p.author_name }}</span>
-            <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Unsave" @click="unsaveFromLibrary(p)">
-              <AegisIcon name="bookmark" :size="13" />
-            </button>
-          </div>
-        </div>
-      </template>
+      <!-- Loading -->
+      <div v-if="libraryLoading" class="lib-loading">
+        <AegisIcon name="loader" :size="18" /> Loading…
+      </div>
 
       <template v-else>
-        <AegisEmptyState v-if="!libraryReported.length" icon="flag-2" title="No reported posts"
-          subtitle="Posts you've flagged for review appear here." />
-        <div v-else class="lib-table">
-          <div class="lib-table-head">
-            <span>Post</span><span>Type</span><span>Author</span><span>Reported</span>
-          </div>
-          <div v-for="p in libraryReported" :key="p.id" class="lib-table-row">
-            <div>
-              <div class="lib-post-title">{{ p.title || '(untitled)' }}</div>
-              <div class="lib-post-body">{{ p.body }}</div>
+        <!-- ── Saved tab ── -->
+        <template v-if="libraryTab === 'saved'">
+          <AegisEmptyState v-if="!librarySaved.length" icon="bookmark" title="No saved posts"
+            subtitle="Tap the bookmark icon on any post to save it here." />
+          <template v-else>
+            <table class="lib-tbl">
+              <thead>
+                <tr>
+                  <th class="lib-th lib-th--post">Post</th>
+                  <th class="lib-th lib-th--type">Type</th>
+                  <th class="lib-th lib-th--author">Author</th>
+                  <th class="lib-th lib-th--action"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="p in libSavedPage" :key="p.id" class="lib-tr" @click="openPostFromLibrary(p)">
+                  <td class="lib-td lib-td--post">
+                    <span class="lib-title">{{ p.title || p.body?.slice(0, 60) || '(no content)' }}{{ (!p.title && (p.body?.length ?? 0) > 60) ? '…' : '' }}</span>
+                    <span class="lib-snippet">{{ p.body?.slice(0, 80) }}{{ (p.body?.length ?? 0) > 80 ? '…' : '' }}</span>
+                  </td>
+                  <td class="lib-td lib-td--type">
+                    <span :class="['badge', typeBadgeClass(p.post_type)]">{{ typeLabel(p.post_type) }}</span>
+                  </td>
+                  <td class="lib-td lib-td--author">{{ p.author_name }}</td>
+                  <td class="lib-td lib-td--action" @click.stop>
+                    <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Unsave"
+                            @click="unsaveFromLibrary(p)">
+                      <AegisIcon name="bookmark" :size="13" />
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <!-- Pagination -->
+            <div v-if="libSavedPages > 1" class="lib-pagination">
+              <button type="button" class="lib-page-btn" :disabled="libPage === 1" @click="libPage--">
+                <AegisIcon name="chevron-left" :size="14" />
+              </button>
+              <span class="lib-page-info">{{ libPage }} / {{ libSavedPages }}</span>
+              <button type="button" class="lib-page-btn" :disabled="libPage === libSavedPages" @click="libPage++">
+                <AegisIcon name="chevron-right" :size="14" />
+              </button>
             </div>
-            <span><span :class="['badge', typeBadgeClass(p.post_type)]">{{ typeLabel(p.post_type) }}</span></span>
-            <span style="font-size:12px;color:var(--text-3)">{{ p.author_name }}</span>
-            <span style="font-size:11px;color:var(--text-4)">{{ fmtDate(p.reported_at) }}</span>
-          </div>
-        </div>
+          </template>
+        </template>
+
+        <!-- ── Reported tab ── -->
+        <template v-else>
+          <AegisEmptyState v-if="!libraryReported.length" icon="flag-2" title="No reported posts"
+            subtitle="Posts you've flagged for review appear here." />
+          <template v-else>
+            <table class="lib-tbl">
+              <thead>
+                <tr>
+                  <th class="lib-th lib-th--post">Post</th>
+                  <th class="lib-th lib-th--type">Type</th>
+                  <th class="lib-th lib-th--author">Author</th>
+                  <th class="lib-th lib-th--date">Reported</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="p in libReportedPage" :key="p.id" class="lib-tr lib-tr--static">
+                  <td class="lib-td lib-td--post">
+                    <span class="lib-title">{{ p.title || p.body?.slice(0, 60) || '(no content)' }}{{ (!p.title && (p.body?.length ?? 0) > 60) ? '…' : '' }}</span>
+                    <span class="lib-snippet">{{ p.body?.slice(0, 80) }}{{ (p.body?.length ?? 0) > 80 ? '…' : '' }}</span>
+                  </td>
+                  <td class="lib-td lib-td--type">
+                    <span :class="['badge', typeBadgeClass(p.post_type)]">{{ typeLabel(p.post_type) }}</span>
+                  </td>
+                  <td class="lib-td lib-td--author">{{ p.author_name }}</td>
+                  <td class="lib-td lib-td--date">{{ fmtDate(p.reported_at) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <!-- Pagination -->
+            <div v-if="libReportedPages > 1" class="lib-pagination">
+              <button type="button" class="lib-page-btn" :disabled="libPage === 1" @click="libPage--">
+                <AegisIcon name="chevron-left" :size="14" />
+              </button>
+              <span class="lib-page-info">{{ libPage }} / {{ libReportedPages }}</span>
+              <button type="button" class="lib-page-btn" :disabled="libPage === libReportedPages" @click="libPage++">
+                <AegisIcon name="chevron-right" :size="14" />
+              </button>
+            </div>
+          </template>
+        </template>
       </template>
 
       <template #footer>
@@ -1285,8 +1342,16 @@ const libraryTab      = ref('saved')
 const libraryLoading  = ref(false)
 const librarySaved    = ref([])
 const libraryReported = ref([])
+const libPage         = ref(1)
+const LIB_PER_PAGE    = 5
+
+const libSavedPages   = computed(() => Math.ceil(librarySaved.value.length / LIB_PER_PAGE) || 1)
+const libReportedPages = computed(() => Math.ceil(libraryReported.value.length / LIB_PER_PAGE) || 1)
+const libSavedPage    = computed(() => librarySaved.value.slice((libPage.value - 1) * LIB_PER_PAGE, libPage.value * LIB_PER_PAGE))
+const libReportedPage = computed(() => libraryReported.value.slice((libPage.value - 1) * LIB_PER_PAGE, libPage.value * LIB_PER_PAGE))
 
 async function openMyLibrary() {
+  libPage.value = 1
   modals.myLibrary = true
   libraryLoading.value = true
   try {
@@ -1295,7 +1360,7 @@ async function openMyLibrary() {
       credentials: 'same-origin',
     })
     const data = await res.json()
-    librarySaved.value    = data.saved    ?? []
+    librarySaved.value    = (data.saved ?? []).filter(p => p.post_type !== 'event')
     libraryReported.value = data.reported ?? []
   } catch { toast.error('Could not load library.') }
   finally  { libraryLoading.value = false }
@@ -1518,15 +1583,81 @@ function anyError(v$ref, form, field) {
 .poll-option-num { width:22px;height:22px;border-radius:var(--radius-full);background:var(--badge-bg-gold);color:var(--gold-dark);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0; }
 .poll-option-row .form-input { flex:1; }
 /* Library */
-.lib-table { display:flex;flex-direction:column;gap:0; }
-.lib-table-head { display:grid;grid-template-columns:1fr 90px 110px 36px;gap:10px;align-items:center;padding:8px 12px;font-family:var(--font-sans);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-4);background:var(--surface-2);border-radius:var(--radius-sm);margin-bottom:4px; }
-.lib-table-row { display:grid;grid-template-columns:1fr 90px 110px 36px;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);transition:background var(--transition); }
-.lib-table-row:last-child { border-bottom:none; }
-.lib-table-row:hover { background:var(--surface-2); }
-.lib-post-title { font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
-.lib-post-clickable { cursor:pointer;transition:color var(--transition); }
-.lib-post-clickable:hover { color:var(--gold-dark); }
-.lib-post-body { font-size:11px;color:var(--text-4);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+/* ── Edit-modal existing media pills ─────────────────────────────────────── */
+.em-list { list-style:none; margin:0 0 8px; padding:0; display:flex; flex-direction:column; gap:6px; }
+.em-item {
+  display:flex; flex-direction:row; align-items:center; gap:10px;
+  padding:6px 10px 6px 6px;
+  background:var(--surface-2); border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  transition:border-color var(--transition), background var(--transition);
+}
+.em-item:hover { border-color:var(--border-dark); background:var(--surface); }
+.em-thumb {
+  flex-shrink:0; width:40px; height:40px;
+  border-radius:calc(var(--radius-sm) - 1px);
+  background:var(--badge-bg-gold); color:var(--gold-dark);
+  overflow:hidden; display:flex; align-items:center; justify-content:center;
+}
+.em-thumb-img { width:40px; height:40px; object-fit:cover; display:block; }
+.em-info { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.em-name { font-size:12px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.em-saved { display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:600; color:var(--green-dark); }
+.em-remove {
+  flex-shrink:0; width:24px; height:24px;
+  border-radius:var(--radius-full); border:1px solid var(--border);
+  background:var(--surface); color:var(--text-4);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:background var(--transition), color var(--transition), border-color var(--transition);
+}
+.em-remove:hover { background:var(--red-light); color:var(--red-dark); border-color:var(--soft-red); }
+
+/* ── Library tabs ─────────────────────────────────────────────────────────── */
+.lib-tabs { display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:20px; }
+.lib-tab { display:inline-flex;align-items:center;gap:6px;padding:8px 14px;font-size:13px;font-weight:600;color:var(--text-3);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color var(--transition),border-color var(--transition); }
+.lib-tab:hover { color:var(--text); }
+.lib-tab.is-active { color:var(--gold-dark);border-bottom-color:var(--gold-dark); }
+.lib-tab-count { display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;font-size:10px;font-weight:700;border-radius:99px;background:var(--surface-3,var(--surface-2));color:var(--text-3); }
+.lib-tab-count--red { background:var(--red-light);color:var(--red-dark); }
+
+/* ── Library loading ──────────────────────────────────────────────────────── */
+.lib-loading { display:flex;align-items:center;justify-content:center;gap:8px;padding:40px 0;font-size:13px;color:var(--text-4); }
+
+/* ── Library table ────────────────────────────────────────────────────────── */
+.lib-tbl { width:100%;border-collapse:collapse;table-layout:fixed; }
+.lib-th { padding:8px 12px;font-family:var(--font-sans);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-4);background:var(--surface-2);text-align:left;white-space:nowrap; }
+.lib-th:first-child { border-radius:var(--radius-sm) 0 0 var(--radius-sm); }
+.lib-th:last-child  { border-radius:0 var(--radius-sm) var(--radius-sm) 0; }
+.lib-th--post   { width:auto; }
+.lib-th--type   { width:110px; }
+.lib-th--author { width:130px; }
+.lib-th--action { width:44px; }
+.lib-th--date   { width:90px; }
+
+.lib-tr { border-bottom:1px solid var(--border);cursor:pointer;transition:background var(--transition); }
+.lib-tr:last-child { border-bottom:none; }
+.lib-tr:hover { background:var(--surface-2); }
+.lib-tr--static { cursor:default; }
+.lib-tr--static:hover { background:none; }
+
+.lib-td { padding:12px 12px;vertical-align:middle; }
+.lib-td--post { min-width:0; }
+.lib-td--type { white-space:nowrap; }
+.lib-td--author { font-size:12px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.lib-td--action { text-align:center; }
+.lib-td--date { font-size:11px;color:var(--text-4);white-space:nowrap; }
+
+.lib-title { display:block;font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color var(--transition); }
+.lib-tr:hover .lib-title { color:var(--gold-dark); }
+.lib-tr--static:hover .lib-title { color:var(--text); }
+.lib-snippet { display:block;font-size:11px;color:var(--text-4);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+
+/* ── Library pagination ───────────────────────────────────────────────────── */
+.lib-pagination { display:flex;align-items:center;justify-content:center;gap:10px;padding:14px 0 2px; }
+.lib-page-btn { display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);color:var(--text-3);cursor:pointer;transition:background var(--transition),border-color var(--transition),color var(--transition); }
+.lib-page-btn:hover:not(:disabled) { background:var(--surface-2);border-color:var(--border-dark);color:var(--text); }
+.lib-page-btn:disabled { opacity:.4;cursor:default; }
+.lib-page-info { font-size:12px;font-weight:600;color:var(--text-3);min-width:50px;text-align:center; }
 /* Utilities */
 
 @media (max-width:600px) { .news-toolbar { flex-direction:column;align-items:stretch; } .news-toolbar-left,.news-toolbar-right { width:100%; } .news-toolbar .form-select-sm { flex:1;min-width:0; } }
