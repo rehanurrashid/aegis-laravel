@@ -176,19 +176,25 @@ class ServiceService
             ->where('status', 'new')
             ->count();
 
+        $monthEnd = $now->copy()->endOfMonth();
+
+        // All sessions scheduled in this calendar month (past + upcoming)
         $sessionsThisMonth = ServiceSession::where('practitioner_id', $user->id)
-            ->whereBetween('scheduled_at', [$monthStart, $now])
+            ->whereBetween('scheduled_at', [$monthStart, $monthEnd])
             ->count();
 
         $revenueThisMonth = ServiceSession::where('practitioner_id', $user->id)
             ->where('status', ServiceSessionStatus::Completed->value)
-            ->whereBetween('completed_at', [$monthStart, $now])
+            ->whereBetween('completed_at', [$monthStart, $monthEnd])
             ->sum('amount_cents');
+
+        $totalSessions = ServiceSession::where('practitioner_id', $user->id)->count();
 
         return [
             'active_listings'  => $activeListings,
             'pending_requests' => $pendingRequests,
             'sessions'         => $sessionsThisMonth,
+            'total_sessions'   => $totalSessions,
             'revenue_label'    => '$' . number_format($revenueThisMonth / 100, 0),
         ];
     }

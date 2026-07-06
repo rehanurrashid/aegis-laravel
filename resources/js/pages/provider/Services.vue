@@ -238,7 +238,12 @@
         >
           <div class="avatar avatar-md">{{ r.requester_avatar || initials(r.requester_name) }}</div>
           <div class="req-info">
-            <div class="req-name">{{ r.requester_name }}</div>
+            <component
+            :is="r.requester_slug ? 'a' : 'div'"
+            :href="r.requester_slug ? route('public.provider', { slug: r.requester_slug }) : undefined"
+            class="req-name"
+            :class="{ 'link-name': r.requester_slug }"
+          >{{ r.requester_name }}</component>
             <div class="req-detail">{{ r.requester_detail }}</div>
           </div>
           <div class="req-service">
@@ -302,7 +307,8 @@
                     <div class="td-provider">
                       <div class="avatar avatar-sm">{{ r.requester_avatar || '?' }}</div>
                       <div>
-                        <div class="td-name">{{ r.requester_name }}</div>
+                        <a v-if="r.requester_slug" :href="route('public.provider', { slug: r.requester_slug })" class="td-name link-name">{{ r.requester_name }}</a>
+                      <div v-else class="td-name">{{ r.requester_name }}</div>
                         <div class="td-cred">{{ r.requester_detail }}</div>
                       </div>
                     </div>
@@ -354,7 +360,7 @@
             Sessions — {{ bookingPeriodLabel }}
           </div>
           <div style="display:flex;gap:8px;">
-            <AegisBadge :label="`${stats?.sessions ?? 0} sessions`" variant="gold" />
+            <AegisBadge :label="`${stats?.sessions ?? 0} this month`" variant="gold" />
             <AegisBadge :label="(stats?.revenue_label ?? '$0') + ' earned'" variant="green" />
           </div>
         </div>
@@ -366,6 +372,7 @@
                   <th>Provider</th>
                   <th>Service</th>
                   <th>Date &amp; Time</th>
+                  <th>Timezone</th>
                   <th>Duration</th>
                   <th>Amount</th>
                   <th>Status</th>
@@ -381,13 +388,15 @@
                     <div class="td-provider">
                       <div class="avatar avatar-sm">{{ b.provider_avatar || initials(b.provider_name) }}</div>
                       <div>
-                        <div class="td-name">{{ b.provider_name }}</div>
+                        <a v-if="b.provider_slug" :href="route('public.provider', { slug: b.provider_slug })" class="td-name link-name">{{ b.provider_name }}</a>
+                        <div v-else class="td-name">{{ b.provider_name }}</div>
                         <div class="td-cred">{{ b.provider_credentials }}</div>
                       </div>
                     </div>
                   </td>
                   <td>{{ b.service_title }}</td>
                   <td>{{ b.datetime_label }}</td>
+                  <td style="font-size:11px;font-weight:600;color:var(--text-3);">{{ b.timezone ? b.timezone.replace('America/','').replace('_',' ') : '—' }}</td>
                   <td>{{ b.duration_label }}</td>
                   <td style="font-weight:700;">{{ b.amount }}</td>
                   <td><AegisBadge :label="statusLabel(b.status)" :variant="statusVariant(b.status)" /></td>
@@ -413,21 +422,15 @@
               </tbody>
             </table>
           </div>
-          <div class="pager">
-            <div class="pager-info">Showing <strong>{{ bookings.length }}</strong> of {{ stats?.sessions ?? 0 }} sessions</div>
-            <nav class="pager-nav" aria-label="Pagination">
-              <button class="pager-btn" :disabled="bookingPage === 1" aria-label="Previous page" @click="bookingPage--">‹</button>
-              <button
-                v-for="p in bookingPageCount"
-                :key="p"
-                class="pager-btn"
-                :class="{ 'is-active': bookingPage === p }"
-                :aria-current="bookingPage === p ? 'page' : undefined"
-                @click="bookingPage = p"
-              >{{ p }}</button>
-              <button class="pager-btn" :disabled="bookingPage === bookingPageCount" aria-label="Next page" @click="bookingPage++">›</button>
-            </nav>
-          </div>
+          <AegisPagination
+            :current-page="bookingPage"
+            :total-pages="bookingPageCount"
+            :total="stats?.total_sessions ?? bookings.length"
+            :from="bookings.length ? (bookingPage - 1) * 10 + 1 : 0"
+            :to="Math.min(bookingPage * 10, stats?.total_sessions ?? bookings.length)"
+            :show-meta="true"
+            @change="bookingPage = $event"
+          />
         </div>
       </div>
     </div>
@@ -436,8 +439,6 @@
          TAB 4: SETTINGS
     ══════════════════════════════════════════ -->
     <div v-show="activeTab === 'settings'">
-
-      <ProfileCompletionStrip :pct="props.profileCompletion ?? 78" />
 
       <div class="settings-grid">
 
@@ -801,9 +802,6 @@
 
       <template #footer>
         <button class="btn btn-outline" @click="modals.edit = false">Cancel</button>
-        <button class="btn btn-danger" @click="deleteListing">
-          <AegisIcon name="trash" :size="14" /> Delete Listing
-        </button>
         <button class="btn btn-primary" @click="submitEdit">
           <AegisIcon name="check" :size="14" /> Save Changes
         </button>
@@ -816,9 +814,37 @@
         <AegisIcon name="check" :size="16" />
         <span>Accepting will auto-generate a Service Agreement for both parties to sign digitally.</span>
       </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Session Date <span style="color:var(--red);">*</span></label>
+          <input v-model="acceptForm.session_date" class="form-input" type="date" :min="todayDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Session Time</label>
+          <select v-model="acceptForm.session_time" class="form-select">
+            <option value="09:00">9:00 AM</option>
+            <option value="10:00">10:00 AM</option>
+            <option value="11:00">11:00 AM</option>
+            <option value="12:00">12:00 PM</option>
+            <option value="13:00">1:00 PM</option>
+            <option value="14:00">2:00 PM</option>
+            <option value="15:00">3:00 PM</option>
+            <option value="16:00">4:00 PM</option>
+            <option value="17:00">5:00 PM</option>
+            <option value="18:00">6:00 PM</option>
+          </select>
+        </div>
+      </div>
       <div class="form-group">
-        <label class="form-label">Confirm Session Date &amp; Time</label>
-        <input v-model="acceptForm.datetime" class="form-input" type="datetime-local">
+        <label class="form-label">Timezone</label>
+        <select v-model="acceptForm.timezone" class="form-select">
+          <option value="America/New_York">Eastern Time (ET)</option>
+          <option value="America/Chicago">Central Time (CT)</option>
+          <option value="America/Denver">Mountain Time (MT)</option>
+          <option value="America/Los_Angeles">Pacific Time (PT)</option>
+          <option value="America/Anchorage">Alaska Time (AKT)</option>
+          <option value="Pacific/Honolulu">Hawaii Time (HST)</option>
+        </select>
       </div>
       <div class="form-group">
         <label class="form-label">Session Format</label>
@@ -847,9 +873,25 @@
 
     <!-- Counter Propose Modal -->
     <AegisModal v-model="modals.counter" title="Counter Propose" size="sm">
-      <div class="form-group">
-        <label class="form-label">Proposed Date &amp; Time</label>
-        <input v-model="counterForm.datetime" class="form-input" type="datetime-local">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Proposed Date</label>
+          <input v-model="counterForm.proposed_date" class="form-input" type="date" :min="todayDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Proposed Time</label>
+          <select v-model="counterForm.proposed_time" class="form-select">
+            <option value="09:00">9:00 AM</option>
+            <option value="10:00">10:00 AM</option>
+            <option value="11:00">11:00 AM</option>
+            <option value="12:00">12:00 PM</option>
+            <option value="13:00">1:00 PM</option>
+            <option value="14:00">2:00 PM</option>
+            <option value="15:00">3:00 PM</option>
+            <option value="16:00">4:00 PM</option>
+            <option value="17:00">5:00 PM</option>
+          </select>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Message to Provider <span style="color:var(--red);">*</span></label>
@@ -1094,7 +1136,7 @@
       <div class="setting-row" style="padding:6px 0;">
         <div class="setting-info">
           <div class="setting-label">Share summary with supervisee</div>
-          <div class="setting-desc">They'll receive a copy of these notes via Aegis messaging</div>
+          <div class="setting-desc">They'll receive a read-only copy via Aegis messaging. Notes are otherwise private to you.</div>
         </div>
         <AegisToggle v-model="notesForm.share_with_supervisee" />
       </div>
@@ -1115,7 +1157,6 @@ import { Head } from '@inertiajs/vue3'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AegisToggle from '@/components/ui/AegisToggle.vue'
-import ProfileCompletionStrip from '@/components/features/ProfileCompletionStrip.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useMessageButton } from '@/composables/useMessageButton'
@@ -1127,7 +1168,7 @@ const props = defineProps({
   listings:          { type: Array,  default: () => [] },
   serviceRequests:   { type: Array,  default: () => [] },
   bookings:          { type: Array,  default: () => [] },
-  stats:             { type: Object, default: () => ({ active_listings: 0, pending_requests: 0, sessions: 0, revenue_label: '$0' }) },
+  stats:             { type: Object, default: () => ({ active_listings: 0, pending_requests: 0, sessions: 0, total_sessions: 0, revenue_label: '$0' }) },
   profileCompletion: { type: Number, default: 0 },
   servicesMode:      { type: Boolean, default: false },
   heroRating:        { type: String,  default: '—' },
@@ -1261,7 +1302,7 @@ watch(createDollars, (v) => { createForm.price_cents = v != null ? Math.round(Nu
 const createRules = {
   title:       { required },
   description: { required },
-  price_cents: { required },
+  // price_cents not required for draft
 }
 const createV$ = useVuelidate(createRules, createForm)
 
@@ -1271,8 +1312,10 @@ function createFieldError(field) {
 }
 
 async function submitCreate(status) {
-  const ok = await createV$.value.$validate()
-  if (!ok) return
+  if (status === 'active') {
+    const ok = await createV$.value.$validate()
+    if (!ok) return
+  }
   router.post(route('provider.services.store'), {
     title: createForm.title, description: createForm.description,
     category: createForm.category, price_cents: createForm.price_cents,
@@ -1355,7 +1398,8 @@ function resumeService() {
 }
 
 // ── Accept form ───────────────────────────────────────────────────────────
-const acceptForm = reactive({ datetime: '', format: 'Virtual (Telehealth)', note: '', recurring: true })
+const acceptForm = reactive({ session_date: '', session_time: '10:00', timezone: 'America/New_York', format: 'Virtual (Telehealth)', note: '', recurring: true })
+const todayDate = new Date().toISOString().split('T')[0]
 
 function submitAccept() {
   if (!activeRequest.value?.service_id || !activeRequest.value?.id) {
@@ -1377,7 +1421,7 @@ function dismissRequest(id) {
 }
 
 // ── Counter form + validation ─────────────────────────────────────────────
-const counterForm = reactive({ datetime: '', message: '' })
+const counterForm = reactive({ proposed_date: '', proposed_time: '10:00', message: '' })
 const counterRules = { message: { required } }
 const counterV$ = useVuelidate(counterRules, counterForm)
 function counterFieldError(field) { return counterV$.value[field].$errors[0]?.$message ?? '' }
@@ -1385,8 +1429,25 @@ function counterFieldError(field) { return counterV$.value[field].$errors[0]?.$m
 async function submitCounter() {
   const ok = await counterV$.value.$validate()
   if (!ok) return
-  toast.success('Counter proposal sent!')
-  modals.counter = false
+  if (!activeRequest.value?.service_id || !activeRequest.value?.id) {
+    toast.error('No request selected.'); return
+  }
+  router.post(route('provider.services.request.decline', {
+    service: activeRequest.value.service_id,
+    serviceRequest: activeRequest.value.id,
+  }), {
+    reason: `Counter proposal for ${counterForm.proposed_date} at ${counterForm.proposed_time} — ${counterForm.message}`,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      modals.counter = false
+      toast.success('Counter proposal sent.')
+      counterForm.proposed_date = ''
+      counterForm.proposed_time = '10:00'
+      counterForm.message = ''
+      counterV$.value.$reset()
+    },
+  })
 }
 
 // ── Publish form ──────────────────────────────────────────────────────────
@@ -1491,9 +1552,14 @@ function removeSpecialty(i) {
 }
 
 function saveProfile() {
-  router.put(route('provider.profile.services'), { services: profileForm.specialties }, {
+  router.put(route('provider.profile.services'), {
+    services:         profileForm.specialties,
+    service_bio:      profileForm.bio,
+    service_headline: profileForm.headline,
+    years_experience: profileForm.years_experience,
+  }, {
     preserveScroll: true,
-    onSuccess: () => toast.success('Profile saved!'),
+    onSuccess: () => toast.success('Services profile saved!'),
   })
 }
 
