@@ -40,10 +40,10 @@
 
     <!-- ── STAT CHIPS ────────────────────────────────────────────── -->
     <div class="stat-chips-row">
-      <AegisStatChip icon="grid" :value="stats.active_listings" label="Active Listings" />
-      <AegisStatChip icon="bell" :value="stats.pending_requests" label="Pending Requests" />
-      <AegisStatChip icon="calendar" :value="stats.sessions" label="Sessions This Month" />
-      <AegisStatChip icon="dollar" :value="stats.revenue_label" label="Revenue This Month" />
+      <AegisStatChip icon="grid" :value="stats?.active_listings ?? 0" label="Active Listings" />
+      <AegisStatChip icon="bell" :value="stats?.pending_requests ?? 0" label="Pending Requests" />
+      <AegisStatChip icon="calendar" :value="stats?.sessions ?? 0" label="Sessions This Month" />
+      <AegisStatChip icon="dollar" :value="stats?.revenue_label ?? '$0'" label="Revenue This Month" />
     </div>
 
     <!-- ── TABS ──────────────────────────────────────────────────── -->
@@ -57,7 +57,7 @@
       >
         <AegisIcon :name="tab.icon" :size="12" />
         {{ tab.label }}
-        <span v-if="tab.count != null" class="badge-pill" :class="{ alert: tab.key === 'requests' && stats.pending_requests > 0 }">
+        <span v-if="tab.count != null" class="badge-pill" :class="{ alert: tab.key === 'requests' && (stats?.pending_requests ?? 0) > 0 }">
           {{ tab.count }}
         </span>
       </button>
@@ -354,8 +354,8 @@
             Sessions — {{ bookingPeriodLabel }}
           </div>
           <div style="display:flex;gap:8px;">
-            <AegisBadge :label="`${stats.sessions} sessions`" variant="gold" />
-            <AegisBadge :label="stats.revenue_label + ' earned'" variant="green" />
+            <AegisBadge :label="`${stats?.sessions ?? 0} sessions`" variant="gold" />
+            <AegisBadge :label="(stats?.revenue_label ?? '$0') + ' earned'" variant="green" />
           </div>
         </div>
         <div class="card-body">
@@ -414,7 +414,7 @@
             </table>
           </div>
           <div class="pager">
-            <div class="pager-info">Showing <strong>{{ bookings.length }}</strong> of {{ stats.sessions }} sessions</div>
+            <div class="pager-info">Showing <strong>{{ bookings.length }}</strong> of {{ stats?.sessions ?? 0 }} sessions</div>
             <nav class="pager-nav" aria-label="Pagination">
               <button class="pager-btn" :disabled="bookingPage === 1" aria-label="Previous page" @click="bookingPage--">‹</button>
               <button
@@ -453,7 +453,7 @@
                 <div class="card-subtitle">Visibility, booking preferences, and payment — managed in Account Settings</div>
               </div>
             </div>
-            <a :href="route('provider.settings', { tab: 'services-mode' })" class="btn btn-primary btn-sm">
+            <a :href="route('settings.index') + '?tab=services-mode'" class="btn btn-primary btn-sm">
               <AegisIcon name="settings" :size="13" /> Open Settings
             </a>
           </div>
@@ -465,7 +465,7 @@
                 </div>
                 <div class="setting-desc">Services Mode · Show in search · Accept requests · Show pricing</div>
               </div>
-              <a :href="route('provider.settings', { tab: 'services-mode' })" class="btn btn-outline btn-sm">
+              <a :href="route('settings.index') + '?tab=services-mode'" class="btn btn-outline btn-sm">
                 <AegisIcon name="chevron-right" :size="13" /> Edit
               </a>
             </div>
@@ -476,7 +476,7 @@
                 </div>
                 <div class="setting-desc">Manual approval · Request expiry · Buffer between sessions</div>
               </div>
-              <a :href="route('provider.settings', { tab: 'services-mode' })" class="btn btn-outline btn-sm">
+              <a :href="route('settings.index') + '?tab=services-mode'" class="btn btn-outline btn-sm">
                 <AegisIcon name="chevron-right" :size="13" /> Edit
               </a>
             </div>
@@ -487,7 +487,7 @@
                 </div>
                 <div class="setting-desc">Hourly rate · Payment method · Sliding scale</div>
               </div>
-              <a :href="route('provider.settings', { tab: 'services-mode' })" class="btn btn-outline btn-sm">
+              <a :href="route('settings.index') + '?tab=services-mode'" class="btn btn-outline btn-sm">
                 <AegisIcon name="chevron-right" :size="13" /> Edit
               </a>
             </div>

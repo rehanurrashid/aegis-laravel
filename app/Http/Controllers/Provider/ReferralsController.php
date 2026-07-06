@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\NetworkConnection;
 use App\Models\Referral;
 use App\Models\VaultItem;
+use App\Services\NetworkService;
 use App\Services\ReferralService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,7 +17,10 @@ use Inertia\Response;
 
 class ReferralsController extends Controller
 {
-    public function __construct(private ReferralService $referralService) {}
+    public function __construct(
+        private ReferralService $referralService,
+        private NetworkService  $network,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -143,28 +147,31 @@ class ReferralsController extends Controller
                 'status'      => $v->status instanceof \BackedEnum ? $v->status->value : (string)$v->status,
             ]);
 
-        // ── Clinical network for ReferralModal (practitioner connections only) ──
-        $networkConnections = NetworkConnection::where('user_id', $user->id)
-            ->where('connection_type', 'practitioner')
-            ->where('status', 'active')
-            ->with('target:id,display_name,credentials,slug,specialty,location,avatar_initials,avatar_path,practitioner_public')
-            ->get();
+        // ── Clinical network for ReferralModal — bidirectional, same as NetworkController ──
+        $allConnections = $this->network->getConnections($user->id);
 
-        $network = $networkConnections->map(function ($nc) {
-            $u = $nc->target;
-            if (!$u) return null;
-            return [
-                'id'           => $u->id,
-                'display_name' => $u->display_name,
-                'credentials'  => $u->credentials,
-                'slug'         => $u->slug,
-                'specialty'    => $u->specialty,
-                'location'     => $u->location,
-                'initials'     => $u->avatar_initials ?? strtoupper(substr($u->display_name ?? '', 0, 2)),
-                'avatar_url'   => $u->avatar_path,
-                'accepting'    => (bool) $u->practitioner_public,
-            ];
-        })->filter()->values();
+        $connType = fn($c) => $c->connection_type instanceof \BackedEnum
+            ? $c->connection_type->value : (string) $c->connection_type;
+
+        $network = $allConnections
+            ->filter(fn($c) => in_array($connType($c), ['practitioner', 'clinical']))
+            ->values()
+            ->map(function ($nc) use ($user) {
+                $u = ($nc->user_id === $user->id) ? $nc->target : $nc->owner;
+                if (!$u) return null;
+                return [
+                    'id'           => $u->id,
+                    'display_name' => $u->display_name,
+                    'credentials'  => $u->credentials,
+                    'slug'         => $u->slug,
+                    'specialty'    => $u->specialty,
+                    'location'     => $u->location,
+                    'initials'     => $u->avatar_initials ?? strtoupper(substr($u->display_name ?? '', 0, 2)),
+                    'avatar_url'   => $u->avatar_path,
+                    'accepting'    => (bool) ($u->practitioner_public ?? true),
+                    'is_connected' => true,
+                ];
+            })->filter()->values();
 
         return Inertia::render('provider/Referrals', [
             'incomingReferrals'  => $pending,
