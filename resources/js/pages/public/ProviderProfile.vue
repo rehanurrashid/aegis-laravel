@@ -213,7 +213,7 @@
                 <span v-if="svc.duration_min"><AegisIcon name="clock" :size="11" />{{ svc.duration_min }} min</span>
                 <span v-if="svc.format"><AegisIcon name="monitor" :size="11" />{{ formatLabel(svc.format) }}</span>
               </div>
-              <div class="pp-svc-card-footer" style="flex-direction:column;align-items:stretch;gap:8px">
+              <div class="pp-svc-card-footer" style="flex-direction:column;align-items:flex-start;gap:8px">
                 <span class="pp-svc-card-avail" :class="svc.availability ?? 'open'">
                   <AegisIcon name="circle-dot" :size="9" class="aegis-icon-filled" />{{ svc.availability_label || ((svc.availability ?? 'open') === 'limited' ? 'Limited Spots' : 'Slots Available') }}
                 </span>
@@ -1070,7 +1070,8 @@ function copyShareLink() {
   padding: 9px 18px;
   font-size: 12px;
   font-weight: 700;
-  align-self: flex-start;
+  align-self: center;
+  margin: 0 auto;
 }
 
 .svc-request-strip {
