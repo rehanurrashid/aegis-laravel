@@ -376,33 +376,22 @@
             <div class="dh-att-head">
               <div class="dh-att-icon"><AegisIcon name="bell" :size="14" /></div>
               <div class="dh-att-title">Needs attention</div>
-              <div class="dh-att-count">3</div>
+              <div class="dh-att-count" :class="{ crit: attentionItems.some(i => i.level === 'crit') }">{{ attentionItems.length }}</div>
             </div>
-            <div class="dh-att-list">
-              <div class="dh-att-item">
-                <div class="dh-att-bullet crit"></div>
+            <div v-if="attentionItems.length" class="dh-att-list">
+              <div v-for="item in attentionItems" :key="item.key" class="dh-att-item">
+                <div :class="['dh-att-bullet', item.level]"></div>
                 <div class="dh-att-text">
-                  <div class="dh-att-h">Professional Liability update</div>
-                  <div class="dh-att-d">Expires <strong>Mar 15</strong> · 20 days left</div>
+                  <div class="dh-att-h">{{ item.title }}</div>
+                  <div class="dh-att-d" v-html="item.detail"></div>
                 </div>
-                <button class="btn btn-primary btn-sm" @click="openCredModal('add-insurance')">Update Now</button>
+                <button :class="['btn', item.level === 'crit' ? 'btn-primary' : 'btn-outline', 'btn-sm']"
+                        @click="item.action">{{ item.cta }}</button>
               </div>
-              <div class="dh-att-item">
-                <div class="dh-att-bullet warn"></div>
-                <div class="dh-att-text">
-                  <div class="dh-att-h">Annual Continuity Plan review</div>
-                  <div class="dh-att-d">Due <strong>Jun 15</strong> · attest 8 items</div>
-                </div>
-                <button class="btn btn-outline btn-sm" @click="modals.annualReview = true">Review</button>
-              </div>
-              <div class="dh-att-item">
-                <div class="dh-att-bullet warn"></div>
-                <div class="dh-att-text">
-                  <div class="dh-att-h">12 CEU hours required</div>
-                  <div class="dh-att-d">Ethics credits by <strong>Dec 31</strong></div>
-                </div>
-                <button class="btn btn-outline btn-sm" @click="modals.ceu = true">Add CEU</button>
-              </div>
+            </div>
+            <div v-else class="dh-att-empty">
+              <AegisIcon name="check-circle" :size="16" style="color:var(--green-dark)" />
+              <span>All caught up</span>
             </div>
           </div>
 
@@ -1065,6 +1054,76 @@ function credDaysLabel (c) {
 }
 const credCriticalCount = computed(() => props.credentials.filter(credIsCritical).length)
 
+// ── Needs Attention — dynamic items ────────────────────────────────────
+const attentionItems = computed(() => {
+  const items = []
+
+  // 1. Expiring credentials (critical < 30 days, warn < 60 days)
+  const expiringCreds = props.credentials.filter(c =>
+    c.days_remaining !== null && c.days_remaining !== undefined && c.days_remaining < 60
+  ).slice(0, 2) // cap at 2 to avoid overflow
+
+  for (const c of expiringCreds) {
+    const isCrit = c.days_remaining < 30
+    const daysStr = c.days_remaining < 1 ? 'Expired' : `${c.days_remaining} days left`
+    items.push({
+      key:    'cred-' + c.id,
+      level:  isCrit ? 'crit' : 'warn',
+      title:  c.name ?? c.credential_type ?? 'Credential expiring',
+      detail: `Expires <strong>${formatDate(c.expires_on)}</strong> · ${daysStr}`,
+      cta:    isCrit ? 'Update Now' : 'Review',
+      action: () => openCredModal('add-insurance'),
+    })
+  }
+
+  // 2. Annual plan review due
+  if (props.plan && props.reviewDays !== null) {
+    const days = props.reviewDays
+    if (days <= 60) {
+      const pendingCount = Object.values(props.attest ?? {}).filter(v => !v).length
+      items.push({
+        key:    'plan-review',
+        level:  days < 0 ? 'crit' : 'warn',
+        title:  'Annual Continuity Plan review',
+        detail: days < 0
+          ? `Overdue by <strong>${Math.abs(days)} days</strong>`
+          : `Due <strong>${formatDate(props.plan?.annual_review_date)}</strong>${pendingCount > 0 ? ` · ${pendingCount} item${pendingCount > 1 ? 's' : ''} pending` : ''}`,
+        cta:    'Review',
+        action: () => { modals.annualReview = true },
+      })
+    }
+  }
+
+  // 3. CEU requirements approaching deadline (within 90 days)
+  const now = new Date()
+  const urgentCeus = (props.ceuRequirements ?? []).filter(r => {
+    if (!r.due_date) return false
+    const due = new Date(r.due_date)
+    const daysUntil = Math.ceil((due - now) / 86400000)
+    return daysUntil <= 90
+  })
+
+  for (const req of urgentCeus.slice(0, 2)) {
+    const due = new Date(req.due_date)
+    const daysUntil = Math.ceil((due - now) / 86400000)
+    const hoursLogged = props.stats?.ceus_total ?? 0
+    const hoursNeeded = Math.max(0, (req.total_hours ?? 0) - hoursLogged)
+    const label = req.jurisdiction ?? 'CEU requirement'
+    items.push({
+      key:    'ceu-' + req.id,
+      level:  daysUntil < 30 ? 'crit' : 'warn',
+      title:  hoursNeeded > 0 ? `${hoursNeeded} CEU hrs needed` : `${label} — on track`,
+      detail: hoursNeeded > 0
+        ? `${label} · Due <strong>${formatDate(req.due_date)}</strong>`
+        : `Due <strong>${formatDate(req.due_date)}</strong>`,
+      cta:    'Add CEU',
+      action: () => { modals.ceu = true },
+    })
+  }
+
+  return items
+})
+
 // ── Network tab ────────────────────────────────────────────────────────
 const nwTab = ref('clinical')
 
@@ -1445,6 +1504,8 @@ function submitServiceRequest() { modals.serviceRequest = false; toast.success('
 .dh-att-text  { flex: 1; min-width: 0; }
 .dh-att-h     { font-size: 12px; font-weight: 700; color: var(--text); }
 .dh-att-d     { font-size: 11px; color: var(--text-4); margin-top: 2px; }
+.dh-att-count.crit { background: var(--red); }
+.dh-att-empty { display: flex; align-items: center; gap: 8px; padding: 16px; font-size: 12px; color: var(--text-3); }
 
 /* ── Quick actions ── */
 .dh-quick       { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);  overflow: hidden; margin-top: 14px; padding: 16px; }
