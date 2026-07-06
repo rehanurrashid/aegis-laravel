@@ -441,48 +441,122 @@
       </template>
     </AegisModal>
 
-    <!-- Event Detail Modal (sidebar click) -->
+    <!-- Event Detail Modal — full parity with Events.vue ───────────────── -->
     <AegisModal v-model="modals.eventDetail" title="Event Details" size="lg">
       <template v-if="detailEvent">
+
+        <!-- Eyebrow + title -->
         <div class="evt-detail-heading">
           <div class="evt-detail-eyebrow-row">
-            <span class="evt-category" :class="detailEvent.category">{{ detailEvent.category }}</span>
+            <span class="evt-category" :class="evtCategory(detailEvent)">{{ evtCategoryLabel(detailEvent) }}</span>
+            <span v-if="detailEvent.rsvp_url" class="evt-external-badge">
+              <AegisIcon name="external-link" :size="11" /> External Event
+            </span>
           </div>
           <div class="evt-detail-title">{{ detailEvent.title }}</div>
-          <div v-if="detailEvent.organizer" class="evt-organizer">
+          <div v-if="detailEvent.organizer" class="evt-detail-organizer">
             <AegisIcon name="users" :size="13" /> {{ detailEvent.organizer }}
           </div>
         </div>
+
+        <!-- Key meta chips -->
         <div class="evt-detail-meta">
-          <div class="evt-detail-chip"><AegisIcon name="calendar" :size="13" /> <strong>{{ fmtFullEventDate(detailEvent.starts_at) }}</strong></div>
-          <div v-if="detailEvent.ends_at" class="evt-detail-chip"><AegisIcon name="clock" :size="13" /> <strong>Ends {{ fmtEventTime(detailEvent.starts_at, detailEvent.ends_at) }}</strong></div>
-          <div v-if="detailEvent.location" class="evt-detail-chip"><AegisIcon name="map-pin" :size="13" /> <strong>{{ detailEvent.location }}</strong></div>
-          <div v-if="detailEvent.ceu_credits > 0" class="evt-detail-chip is-ceu"><AegisIcon name="award" :size="13" /> <strong>{{ detailEvent.ceu_credits }} CEU Credits</strong></div>
+          <div class="evt-detail-chip">
+            <AegisIcon name="calendar" :size="13" />
+            <strong>{{ fmtFullEventDate(detailEvent.starts_at) }}</strong>
+          </div>
+          <div v-if="detailEvent.ends_at" class="evt-detail-chip">
+            <AegisIcon name="clock" :size="13" />
+            <strong>Ends {{ fmtEventTime(detailEvent.starts_at, detailEvent.ends_at) }}</strong>
+          </div>
+          <div v-if="detailEvent.location" class="evt-detail-chip">
+            <AegisIcon :name="detailEvent.location?.toLowerCase().includes('online') || detailEvent.location?.toLowerCase().includes('virtual') || detailEvent.location?.toLowerCase().includes('zoom') ? 'monitor' : 'map-pin'" :size="13" />
+            <strong>{{ detailEvent.location }}</strong>
+          </div>
+          <div v-if="detailEvent.ceu_credits > 0" class="evt-detail-chip is-ceu">
+            <AegisIcon name="award" :size="13" />
+            <strong>{{ fmtCeu(detailEvent.ceu_credits) }} CEU Credit{{ detailEvent.ceu_credits === 1 ? '' : 's' }}</strong>
+          </div>
           <div class="evt-detail-chip" :class="detailEvent.is_free ? 'is-free' : 'is-paid'">
             <AegisIcon :name="detailEvent.is_free ? 'check-circle' : 'dollar'" :size="13" />
             <strong>{{ detailEvent.is_free ? 'Free' : '$' + ((detailEvent.price_cents ?? 0) / 100).toFixed(2) }}</strong>
           </div>
+          <div v-if="(detailEvent.attendee_count ?? 0) > 0" class="evt-detail-chip">
+            <AegisIcon name="users" :size="13" />
+            <strong>{{ detailEvent.attendee_count }} registered</strong>
+          </div>
         </div>
-        <p v-if="detailEvent.description" class="evt-desc-text">{{ detailEvent.description }}</p>
-        <div v-if="detailEvent.is_attending" class="evt-detail-registered-banner">
-          <AegisIcon name="check-circle" :size="16" /> You're registered for this event.
+
+        <!-- Description -->
+        <p v-if="detailEvent.description" class="evt-detail-desc">{{ detailEvent.description }}</p>
+
+        <!-- External link -->
+        <div v-if="detailEvent.rsvp_url" class="evt-detail-external">
+          <AegisIcon name="external-link" :size="13" />
+          <a :href="detailEvent.rsvp_url" target="_blank" rel="noopener">View on external site →</a>
+          <span class="evt-detail-external-note">Registration handled on the organizer's platform.</span>
         </div>
+
+        <!-- Registration status banner -->
+        <div v-if="!detailEvent.rsvp_url && sidebarRegisteredIds.has(detailEvent.id)" class="evt-detail-registered-banner">
+          <AegisIcon name="check-circle" :size="16" />
+          You're registered for this event. A confirmation was sent to your email.
+        </div>
+
       </template>
       <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.eventDetail = false">Close</button>
+        <button class="btn btn-outline" @click="modals.eventDetail = false">Close</button>
         <template v-if="detailEvent">
           <a v-if="detailEvent.rsvp_url" :href="detailEvent.rsvp_url" target="_blank" rel="noopener" class="btn btn-primary">
             <AegisIcon name="external-link" :size="13" /> Register on Site
           </a>
-          <button v-else-if="detailEvent.is_attending" class="btn btn-outline" @click="cancelEventRsvp(detailEvent)">
+          <button v-else-if="sidebarRegisteredIds.has(detailEvent.id)" class="btn btn-outline"
+                  @click="modals.eventDetail = false; openEventCancelModal(detailEvent)">
             <AegisIcon name="x" :size="13" /> Cancel Registration
           </button>
-          <button v-else class="btn btn-primary" @click="doRsvpEvent(detailEvent)">
+          <button v-else class="btn btn-primary" @click="openEventRegisterModal(detailEvent); modals.eventDetail = false">
             {{ detailEvent.is_free ? 'Register Free' : 'Register Now' }}
           </button>
         </template>
       </template>
     </AegisModal>
+
+    <!-- Event Register Confirm Modal -->
+    <AegisModal v-model="modals.eventRegisterConfirm" title="Confirm Registration" size="sm">
+      <div class="evt-detail-heading" style="text-align:center">
+        <div class="evt-detail-eyebrow">You're registering for</div>
+        <div class="evt-detail-title">{{ pendingEvent?.title }}</div>
+      </div>
+      <p style="text-align:center;font-size:13px;color:var(--text-3);margin-bottom:18px">Confirmation will be emailed to you.</p>
+      <div class="form-group">
+        <label class="form-label">Preferred contact email</label>
+        <input v-model="eventRegForm.email" type="email" class="form-input" placeholder="your@email.com" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dietary restrictions or accessibility needs</label>
+        <input v-model="eventRegForm.notes" type="text" class="form-input" placeholder="Optional" />
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.eventRegisterConfirm = false">Cancel</button>
+        <button class="btn btn-primary" @click="confirmEventRegistration">Confirm Registration →</button>
+      </template>
+    </AegisModal>
+
+    <!-- Event Cancel Confirm Modal -->
+    <AegisModal v-model="modals.eventCancelConfirm" title="Cancel Registration" size="sm">
+      <div class="evt-detail-heading" style="text-align:center">
+        <div class="evt-detail-eyebrow">Are you sure?</div>
+        <div class="evt-detail-title">{{ pendingEvent?.title }}</div>
+      </div>
+      <p style="text-align:center;font-size:13px;color:var(--text-3);margin-bottom:6px">
+        Your spot will be released and you'll receive a cancellation confirmation.
+      </p>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.eventCancelConfirm = false">Keep Registration</button>
+        <button class="btn btn-danger" @click="confirmEventCancel">Yes, Cancel</button>
+      </template>
+    </AegisModal>
+
 
     <!-- Create Post Modal -->
     <AegisModal v-model="modals.createPost" size="lg" title="Create Post">
@@ -494,8 +568,7 @@
             <option value="question">Ask Community / Quiz</option>
             <option value="resource">Share Resource</option>
             <option value="milestone">Milestone</option>
-            <option value="event">Announce Event</option>
-          </select>
+                      </select>
         </div>
         <div class="form-group">
           <label class="form-label">Audience</label>
@@ -762,7 +835,7 @@ import { useConfirm }  from '@/composables/useConfirm'
 import { useActivity } from '@/composables/useActivity'
 import { useProfileRoute } from '@/composables/useProfileRoute'
 import useVuelidate    from '@vuelidate/core'
-import { required, minLength } from '@vuelidate/validators'
+import { required, minLength, helpers } from '@vuelidate/validators'
 
 const props = defineProps({
   posts:          { type: Array,  default: () => [] },
@@ -917,22 +990,76 @@ function votePoll(post, opt, idx) {
   })
 }
 
-// ── events ───────────────────────────────────────────────────────────────────
-const detailEvent = ref(null)
+// ── events — full parity with Events.vue ─────────────────────────────────────
+const detailEvent         = ref(null)
+const pendingEvent        = ref(null)
+const eventRegForm        = reactive({ email: '', notes: '' })
+const sidebarRegisteredIds = ref(new Set(
+  (props.upcoming ?? []).filter(e => e.is_attending).map(e => e.id)
+))
+
 function openEventDetail(e) { detailEvent.value = e; modals.eventDetail = true }
-function doRsvpEvent(event) {
-  router.post(route('provider.news.rsvp', { event: event.id }), { status: 'going' }, {
-    preserveScroll: true, preserveState: true,
-    onSuccess: () => { event.is_attending = true; toast.success('Registered — check your email') },
-    onError:   () => toast.error('Could not register.'),
+
+function openEventRegisterModal(ev) {
+  if (sidebarRegisteredIds.value.has(ev.id)) {
+    toast.info(`You're already registered for ${ev.title}`)
+    return
+  }
+  pendingEvent.value = ev
+  eventRegForm.email = ''
+  eventRegForm.notes = ''
+  modals.eventRegisterConfirm = true
+}
+
+function confirmEventRegistration() {
+  if (!pendingEvent.value) return
+  router.post(route('provider.news.rsvp', { event: pendingEvent.value.id }), { status: 'going' }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      sidebarRegisteredIds.value.add(pendingEvent.value.id)
+      modals.eventRegisterConfirm = false
+      toast.success(`Registered for ${pendingEvent.value.title} — check your email.`)
+    },
+    onError: () => { modals.eventRegisterConfirm = false; toast.error('Registration failed.') },
   })
 }
-function cancelEventRsvp(event) {
-  router.delete(route('provider.news.events.cancel', { event: event.id }), {
-    preserveScroll: true, preserveState: true,
-    onSuccess: () => { event.is_attending = false; toast.info('Registration cancelled') },
-    onError:   () => toast.error('Could not cancel.'),
+
+function openEventCancelModal(ev) {
+  pendingEvent.value = ev
+  modals.eventCancelConfirm = true
+}
+
+function confirmEventCancel() {
+  if (!pendingEvent.value) return
+  router.delete(route('provider.news.events.cancel', { event: pendingEvent.value.id }), {
+    preserveScroll: true,
+    onSuccess: () => {
+      sidebarRegisteredIds.value.delete(pendingEvent.value.id)
+      modals.eventCancelConfirm = false
+      toast.info('Registration cancelled')
+    },
+    onError: () => { modals.eventCancelConfirm = false; toast.error('Cancellation failed.') },
   })
+}
+
+// Category helpers — matches Events.vue exactly
+const CAT_MAP    = { webinar: 'webinar', conference: 'conference', training: 'training', networking: 'networking', workshop: 'workshop' }
+const CAT_LABELS = { webinar: 'Webinar', conference: 'Conference', training: 'CEU Training', networking: 'Networking', workshop: 'Workshop' }
+function evtCategory(ev) {
+  const c = (ev.category ?? '').toLowerCase()
+  if (CAT_MAP[c]) return c
+  const t = (ev.title ?? '').toLowerCase()
+  if (t.includes('webinar') || t.includes('office hours')) return 'webinar'
+  if (t.includes('workshop')) return 'workshop'
+  if (t.includes('summit') || t.includes('conference')) return 'conference'
+  if (t.includes('networking') || t.includes('meetup')) return 'networking'
+  return 'training'
+}
+function evtCategoryLabel(ev) { return CAT_LABELS[evtCategory(ev)] ?? 'Event' }
+function fmtCeu(n) {
+  if (n == null) return '0'
+  const v = parseFloat(n)
+  return v % 1 === 0 ? String(Math.round(v)) : String(parseFloat(v.toFixed(1)))
 }
 
 // ── post detail modal ────────────────────────────────────────────────────────
@@ -966,10 +1093,16 @@ const editForm = useForm({
   tags: '', resource_url: '',
 })
 
-const editRules = computed(() => ({
-  body:          editForm.post_type === 'question' ? {} : { required, minLength: minLength(1) },
-  poll_question: editForm.post_type === 'question' ? { required, minLength: minLength(3) } : {},
-}))
+const editRules = {
+  body:          { requiredIfNotQuiz: helpers.withMessage(
+    'Content is required.',
+    (v) => editForm.post_type === 'question' || (v && v.trim().length > 0)
+  )},
+  poll_question: { requiredIfQuiz: helpers.withMessage(
+    'Poll question is required.',
+    (v) => editForm.post_type !== 'question' || (v && v.trim().length > 0)
+  )},
+}
 const vEdit = useVuelidate(editRules, editForm)
 
 // Normalize legacy 'poll' type → 'question' for the unified quiz/poll type
@@ -1057,15 +1190,20 @@ const createForm = useForm({
   body: '', tags: '', poll_question: '', poll_closes_at: '', resource_url: '',
 })
 
-const createRules = computed(() => ({
-  body:          createForm.post_type === 'question' ? {} : { required, minLength: minLength(1) },
-  poll_question: createForm.post_type === 'question' ? { required, minLength: minLength(3) } : {},
-}))
+// Vuelidate rules — use static rules + conditional check in submit for reliability
+// (computed rules with useForm can have reactivity edge cases with TomSelect)
+const createRules = {
+  body:          { requiredIfNotQuiz: helpers.withMessage(
+    'Content is required.',
+    (v) => createForm.post_type === 'question' || (v && v.trim().length > 0)
+  )},
+  poll_question: { requiredIfQuiz: helpers.withMessage(
+    'Poll question is required.',
+    (v) => createForm.post_type !== 'question' || (v && v.trim().length > 0)
+  )},
+}
 const vCreate = useVuelidate(createRules, createForm)
 
-// Reset validation when post type changes so stale errors don't persist
-watch(() => createForm.post_type, () => vCreate.value.$reset())
-watch(() => editForm.post_type,   () => vEdit.value.$reset())
 
 async function submitCreatePost() {
   const ok = await vCreate.value.$validate()
@@ -1163,7 +1301,7 @@ const createBodyPlaceholder = computed(() => {
 })
 
 // ── modal state ──────────────────────────────────────────────────────────────
-const modals = reactive({ createPost: false, editPost: false, sharePost: false, myLibrary: false, postDetail: false, eventDetail: false })
+const modals = reactive({ createPost: false, editPost: false, sharePost: false, myLibrary: false, postDetail: false, eventDetail: false, eventRegisterConfirm: false, eventCancelConfirm: false })
 
 // ── vuelidate helpers ────────────────────────────────────────────────────────
 function fieldError(v$i, field) {
@@ -1364,4 +1502,42 @@ function anyError(v$i, form, field) { return fieldError(v$i, field) || serverErr
 .poll-options-builder { display:flex;flex-direction:column;gap:8px;align-items:stretch; }
 /* tabs-segmented spacing */
 .tabs-segmented { margin-bottom:16px; }
+
+/* ── Event detail modal CSS — full parity with Events.vue ───────────── */
+.evt-detail-heading { margin-bottom:14px; }
+.evt-detail-eyebrow-row { display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px; }
+.evt-detail-eyebrow { font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--text-4);margin-bottom:6px; }
+.evt-detail-organizer { display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-3);font-weight:500;margin-top:6px; }
+.evt-detail-desc { font-size:13px;color:var(--text-2);line-height:1.65;margin:0 0 16px; }
+.evt-detail-chip strong { color:var(--text);font-weight:700; }
+.evt-detail-chip.is-ceu strong { color:var(--gold-dark); }
+.evt-detail-chip.is-free strong { color:var(--green-dark); }
+.evt-detail-external {
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  font-size:12px;color:var(--gold-dark);font-weight:600;
+  background:var(--badge-bg-gold);border:1px solid var(--gold);
+  border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;
+}
+.evt-detail-external a { color:var(--gold-dark);text-decoration:none;font-weight:700; }
+.evt-detail-external a:hover { text-decoration:underline; }
+.evt-detail-external-note { font-size:11px;color:var(--text-3);font-weight:400; }
+.evt-external-badge {
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
+  padding:3px 8px;border-radius:var(--radius-full);
+  background:var(--blue-light);color:var(--blue-dark);
+}
+/* Category badge colors */
+.evt-category {
+  display:inline-flex;align-items:center;
+  font-family:var(--font-sans);font-size:10px;font-weight:700;
+  letter-spacing:.5px;text-transform:uppercase;
+  padding:3px 10px;border-radius:var(--radius-full);
+  background:var(--surface-3);color:var(--text-3);
+}
+.evt-category.webinar    { background:var(--blue-light);   color:var(--blue-dark); }
+.evt-category.conference { background:var(--purple-light); color:var(--purple-dark); }
+.evt-category.workshop   { background:var(--orange-light); color:var(--orange-dark); }
+.evt-category.networking { background:var(--green-light);  color:var(--green-dark); }
+.evt-category.training   { background:var(--teal-light);   color:var(--teal-dark); }
 </style>
