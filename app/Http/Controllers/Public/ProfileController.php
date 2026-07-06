@@ -92,6 +92,7 @@ class ProfileController extends Controller
                         'location'     => null,
                         'slug'         => $peer->slug,
                         'accepting'    => true,
+                        'is_connected' => true,
                         'initials'     => $initials,
                         'avatar_url'   => null,
                     ];

@@ -40,11 +40,12 @@
 
             <!-- Logged-in non-owner -->
             <template v-else-if="isLoggedIn">
-              <!-- Connected: show Refer + Schedule -->
+              <!-- Refer a Client — always visible to any authenticated provider -->
+              <button type="button" class="btn-hero-solid is-on-light" @click="openReferral">
+                <AegisIcon name="share" :size="14" /> Refer a Client
+              </button>
+              <!-- Connected: additional connection-specific actions -->
               <template v-if="isConnected">
-                <button type="button" class="btn-hero-solid is-on-light" @click="openReferral">
-                  <AegisIcon name="refresh" :size="14" /> Refer
-                </button>
               </template>
               <!-- Inbound: profile owner sent viewer a request — show Accept/Decline -->
               <template v-else-if="pm.inbound_request_id">
@@ -633,7 +634,7 @@
       <ReferralModal
         :roster="referralRoster"
         :network="networkWithProfile"
-        :preselect-slug="isOwner ? '' : (user.slug ?? '')"
+        :preselected-recipient="isOwner ? null : networkWithProfile[0] ?? null"
       />
 
       <!-- Service Request Modal -->
@@ -761,6 +762,7 @@ const networkWithProfile = computed(() => {
       location:     u.location    ?? null,
       slug:         u.slug,
       accepting:    u.practitioner_public ?? true,
+      is_connected: isConnected.value,
       initials,
       avatar_url:   u.avatar_url  ?? null,
     },
@@ -853,7 +855,7 @@ function formatNoteDate(dateStr) {
 
 // ── Actions ────────────────────────────────────────────────────────────
 
-// Open referral modal (only valid when isConnected)
+// Open referral modal — visible to any authenticated non-owner provider
 function openReferral() {
   openModal('referralModal')
 }

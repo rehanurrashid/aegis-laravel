@@ -19,6 +19,7 @@ use App\Http\Controllers\Provider\ProfileController as ProviderProfileController
 use App\Http\Controllers\Provider\ProviderCredentialController;
 use App\Http\Controllers\Provider\CeuRequirementController;
 use App\Http\Controllers\Provider\ReferralsController;
+use App\Http\Controllers\Provider\PractitionerSearchController;
 use App\Http\Controllers\Provider\ServicesController;
 use App\Http\Controllers\Provider\SettingsController as ProviderSettingsController;
 use App\Http\Controllers\Provider\ContinuityStewardController;
@@ -191,6 +192,7 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
         Route::post('/referrals/{referral}/decline', [ReferralsController::class, 'decline'])->name('referrals.decline');
         Route::post('/referrals/{referral}/cancel', [ReferralsController::class, 'cancel'])->name('referrals.cancel');
         Route::post('/referrals/{referral}/complete', [ReferralsController::class, 'complete'])->name('referrals.complete');
+        Route::get('/practitioners/search', [PractitionerSearchController::class, 'index'])->name('practitioners.search');
 
         // Services (requires Practice tier + services mode)
         Route::middleware('services.mode')->group(function () {

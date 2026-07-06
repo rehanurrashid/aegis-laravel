@@ -1064,6 +1064,7 @@
           <div class="spc-stats">{{ s.referral_count || 0 }} refs · {{ s.acceptance_rate || 0 }}% acc · {{ s.response_time_hours ? Number(s.response_time_hours).toFixed(1) : 0 }}h resp</div>
           <div class="spc-actions" @click.stop>
             <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === s.id || !s.id" @click="s.id && openConversation(s.id)"><AegisIcon name="message-square" :size="14" /></button>
+            <button v-if="s.slug" type="button" class="btn-icon" data-tooltip="Refer Client" @click="openReferralForProvider(s)"><AegisIcon name="share-tree" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Add to My Shadows" @click="addShadowDirect(s)"><AegisIcon name="user-plus" :size="14" /></button>
             <button v-if="s.slug" type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(s.slug, 'provider')"><AegisIcon name="eye" :size="14" /></button>
           </div>
@@ -1901,7 +1902,7 @@
     <ReferralModal
       :roster="referralRoster.length ? referralRoster : roster"
       :network="referralNetwork"
-      :preselect-slug="referralPreselectSlug"
+      :preselected-recipient="referralPreselectRecipient"
     />
     </div><!-- /nw-page-root -->
 
@@ -2146,21 +2147,39 @@ function openConnect(p) {
 }
 
 // ── ReferralModal — centralized via useModal ───────────────────────────────
-const referralPreselectSlug = ref('')
+const referralPreselectRecipient = ref(null)
 
 function openReferralForProvider(p) {
-  referralPreselectSlug.value = p.slug ?? ''
+  referralPreselectRecipient.value = {
+    id:           p.id,
+    display_name: p.name ?? p.display_name ?? '',
+    slug:         p.slug ?? '',
+    initials:     p.initials ?? '',
+    avatar_url:   p.avatar_url ?? null,
+    specialty:    Array.isArray(p.tags) ? p.tags.join(', ') : (p.specialty ?? ''),
+    location:     p.location ?? '',
+    is_connected: p.networkStatus === 'in-network',
+  }
   openModal('referralModal')
 }
 
 function openReferralForConnection(nc) {
-  referralPreselectSlug.value = nc.partner_slug ?? ''
+  referralPreselectRecipient.value = {
+    id:           nc.partner_id,
+    display_name: nc.partner_name ?? '',
+    slug:         nc.partner_slug ?? '',
+    initials:     nc.partner_initials ?? '',
+    avatar_url:   nc.avatar_url ?? null,
+    specialty:    nc.partner_specialty ?? '',
+    location:     nc.partner_location ?? '',
+    is_connected: true,
+  }
   openModal('referralModal')
 }
 
-// Reset slug after modal closes so it doesn't persist on re-open
+// Reset preselect after modal closes
 watch(isOpen('referralModal'), (open) => {
-  if (!open) referralPreselectSlug.value = ''
+  if (!open) referralPreselectRecipient.value = null
 })
 
 // Service Request — handled by centralized ServiceRequestModal.vue.
@@ -2818,7 +2837,16 @@ const shadowAvgRespDisplay = computed(() => {
 })
 
 function openReferralForShadow(s) {
-  referralPreselectSlug.value = s.shadow_slug ?? ''
+  referralPreselectRecipient.value = {
+    id:           s.shadow_user_id ?? null,
+    display_name: s.shadow_name ?? '',
+    slug:         s.shadow_slug ?? '',
+    initials:     s.initials ?? '',
+    avatar_url:   s.avatar_url ?? null,
+    specialty:    s.shadow_specialty ?? '',
+    location:     s.shadow_location ?? '',
+    is_connected: false,
+  }
   openModal('referralModal')
 }
 

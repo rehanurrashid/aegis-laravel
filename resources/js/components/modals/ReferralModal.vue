@@ -150,47 +150,80 @@
     <!-- ── STEP 2 — PRACTITIONER ── -->
     <section v-if="step === 2" class="rfm-step">
       <div class="form-group">
-        <label class="form-label">Search your clinical network</label>
+        <label class="form-label">Search all practitioners</label>
         <input
-          v-model="networkFilter"
+          v-model="practitionerSearch"
           type="text"
           class="form-input"
-          placeholder="Name, specialty, or location…"
+          placeholder="Search any practitioner by name…"
           autocomplete="off"
+          @input="debouncedPractitionerSearch"
         />
       </div>
 
-      <div class="rfm-list">
-        <button
-          v-for="n in filteredNetwork"
-          :key="n.slug"
-          type="button"
-          class="rfm-row"
-          :class="{ 'is-selected': form.provider_slug === n.slug, 'is-disabled': !n.accepting }"
-          :disabled="!n.accepting"
-          @click="selectNetwork(n)"
-        >
-          <div class="rfm-avatar" :style="n.avatar_url ? { backgroundImage: `url(${n.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
-            <template v-if="!n.avatar_url">{{ n.initials || initials(n.display_name) }}</template>
-          </div>
-          <div class="rfm-info">
-            <div class="rfm-name">
-              {{ n.display_name }}<span v-if="n.credentials" class="rfm-creds">, {{ n.credentials }}</span>
+      <!-- Search results (platform-wide) -->
+      <div v-if="practitionerSearch.length >= 2" class="rfm-list">
+        <div v-if="practitionerSearching" class="rfm-empty">Searching…</div>
+        <template v-else>
+          <button
+            v-for="p in practitionerResults"
+            :key="p.id"
+            type="button"
+            class="rfm-row"
+            :class="{ 'is-selected': form.provider_slug === p.slug }"
+            @click="selectNetwork(p)"
+          >
+            <div class="rfm-avatar" :style="p.avatar_url ? { backgroundImage: `url(${p.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+              <template v-if="!p.avatar_url">{{ p.initials || initials(p.display_name) }}</template>
             </div>
-            <div class="rfm-meta">{{ [n.specialty, n.location].filter(Boolean).join(' · ') }}</div>
+            <div class="rfm-info">
+              <div class="rfm-name">{{ p.display_name }}</div>
+            </div>
+            <span class="rfm-net-status" :class="p.is_connected ? 'rfm-net-status--in' : 'rfm-net-status--out'"
+                  :data-tooltip="p.is_connected ? 'In your network' : 'Not in network'">
+              <AegisIcon :name="p.is_connected ? 'user-check' : 'user-plus'" :size="13" />
+            </span>
+            <AegisIcon v-if="form.provider_slug === p.slug" name="check" :size="14" />
+          </button>
+          <div v-if="!practitionerResults.length" class="rfm-empty">
+            No practitioners found.
           </div>
-          <AegisBadge
-            :label="n.accepting ? 'Accepting' : 'Not accepting'"
-            :variant="n.accepting ? 'green' : 'neutral'"
-          />
-        </button>
-
-        <div v-if="!filteredNetwork.length" class="rfm-empty">
-          No matches in your network. Try a broader search.
-        </div>
+        </template>
       </div>
 
-      <div v-if="showErrors && !form.provider_slug" class="form-error" style="margin-top:8px">Please select a provider to refer to.</div>
+      <!-- Network connections (shown when no search query) -->
+      <template v-else>
+        <div class="form-hint" style="margin-bottom:8px">Practitioners</div>
+        <div class="rfm-list">
+          <button
+            v-for="n in filteredNetwork"
+            :key="n.slug"
+            type="button"
+            class="rfm-row"
+            :class="{ 'is-selected': form.provider_slug === n.slug }"
+            @click="selectNetwork(n)"
+          >
+            <div class="rfm-avatar" :style="n.avatar_url ? { backgroundImage: `url(${n.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
+              <template v-if="!n.avatar_url">{{ n.initials || initials(n.display_name) }}</template>
+            </div>
+            <div class="rfm-info">
+              <div class="rfm-name">
+                {{ n.display_name }}<span v-if="n.credentials" class="rfm-creds">, {{ n.credentials }}</span>
+              </div>
+              <div class="rfm-meta">{{ [n.specialty, n.location].filter(Boolean).join(' · ') }}</div>
+            </div>
+            <span class="rfm-net-status" :class="n.is_connected ? 'rfm-net-status--in' : 'rfm-net-status--out'"
+                  :data-tooltip="n.is_connected ? 'In your network' : 'Not in network'">
+              <AegisIcon :name="n.is_connected ? 'user-check' : 'user-plus'" :size="13" />
+            </span>
+          </button>
+          <div v-if="!filteredNetwork.length" class="rfm-empty">
+            No connections yet. Search above to find any practitioner.
+          </div>
+        </div>
+      </template>
+
+      <div v-if="showErrors && !form.provider_slug" class="form-error" style="margin-top:8px">Please select a practitioner to refer to.</div>
     </section>
 
     <!-- ── STEP 3 — NOTES ── -->
@@ -327,10 +360,11 @@ import AegisBadge from '@/components/ui/AegisBadge.vue'
 import AegisToggle from '@/components/ui/AegisToggle.vue'
 
 const props = defineProps({
-  modelValue:    { type: Boolean, default: undefined }, // v-model pattern (Dashboard)
-  roster:        { type: Array,   default: () => [] },
-  network:       { type: Array,   default: () => [] },
-  preselectSlug: { type: String,  default: '' },        // pre-select a practitioner on open
+  modelValue:           { type: Boolean, default: undefined }, // v-model pattern (Dashboard)
+  roster:               { type: Array,   default: () => [] },
+  network:              { type: Array,   default: () => [] },
+  preselectSlug:        { type: String,  default: '' },        // pre-select by slug (Network.vue)
+  preselectedRecipient: { type: Object,  default: null },      // pre-select by object {id, display_name, slug} (ProviderProfile.vue)
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -390,15 +424,55 @@ const filteredRoster = computed(() => {
 
 const filteredNetwork = computed(() => {
   const q = networkFilter.value.trim().toLowerCase()
-  if (!q) return props.network
-  return props.network.filter((n) =>
-    `${n.display_name} ${n.specialty ?? ''} ${n.location ?? ''}`.toLowerCase().includes(q),
-  )
+  const base = q
+    ? props.network.filter((n) =>
+        `${n.display_name} ${n.specialty ?? ''} ${n.location ?? ''}`.toLowerCase().includes(q))
+    : props.network
+
+  const pre = props.preselectedRecipient
+  if (!pre) return base
+
+  // Pin preselected at top, deduplicate from rest
+  const rest = base.filter((n) => n.slug !== pre.slug)
+  return [pre, ...rest]
 })
+
+// Search-all practitioners (any practitioner on platform, not just connections)
+const practitionerSearch  = ref('')
+const practitionerResults = ref([])
+const practitionerSearching = ref(false)
+
+let searchDebounceTimer = null
+function debouncedPractitionerSearch() {
+  clearTimeout(searchDebounceTimer)
+  if (practitionerSearch.value.length < 2) {
+    practitionerResults.value = []
+    return
+  }
+  searchDebounceTimer = setTimeout(async () => {
+    practitionerSearching.value = true
+    try {
+      const url = route('provider.practitioners.search') + '?q=' + encodeURIComponent(practitionerSearch.value)
+      const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      practitionerResults.value = await res.json()
+    } catch {
+      practitionerResults.value = []
+    } finally {
+      practitionerSearching.value = false
+    }
+  }, 300)
+}
 
 const selectedNetworkLabel = computed(() => {
   const n = props.network.find((x) => x.slug === form.provider_slug)
-  return n ? `${n.display_name}${n.credentials ? ', ' + n.credentials : ''}` : ''
+  if (n) return `${n.display_name}${n.credentials ? ', ' + n.credentials : ''}`
+  // Fallback: preselectedRecipient (e.g. opened from ProviderProfile for non-connection)
+  if (props.preselectedRecipient && form.provider_slug === props.preselectedRecipient.slug) {
+    return props.preselectedRecipient.display_name
+  }
+  // Fallback: search results
+  const s = practitionerResults.value.find((x) => x.slug === form.provider_slug)
+  return s ? s.display_name : ''
 })
 
 const canAdvance = computed(() => {
@@ -444,13 +518,16 @@ function initials(name) {
 
 function onUpdateOpen(v) { if (!v) onClose() }
 
-// When modal opens with a preselectSlug, pre-select the practitioner in the
-// background but stay on step 1 (Client) — the user must still fill client
-// info before advancing. Step 2 will show the practitioner already highlighted.
+// When modal opens, pre-select practitioner from preselectSlug or preselectedRecipient.
+// Stay on step 1 so the user still fills client info first.
 watch(referralModalOpen, (open) => {
-  if (open && props.preselectSlug) {
-    const match = props.network.find((n) => n.slug === props.preselectSlug)
-    if (match) selectNetwork(match)
+  if (open) {
+    if (props.preselectedRecipient) {
+      selectNetwork(props.preselectedRecipient)
+    } else if (props.preselectSlug) {
+      const match = props.network.find((n) => n.slug === props.preselectSlug)
+      if (match) selectNetwork(match)
+    }
   }
 })
 
@@ -464,8 +541,10 @@ function onClose() {
     step.value       = 1
     showErrors.value = false
     form.reset()
-    rosterFilter.value  = ''
-    networkFilter.value = ''
+    rosterFilter.value        = ''
+    networkFilter.value       = ''
+    practitionerSearch.value  = ''
+    practitionerResults.value = []
     source.value = props.roster.length ? 'roster' : 'manual'
   }, 200)
 }
@@ -589,6 +668,19 @@ function submit() {
 }
 .rfm-tag--active   { background: var(--badge-bg-gold); color: var(--gold-dark); }
 .rfm-tag--priority { background: var(--red-light); color: var(--red-dark); }
+
+/* Network status icon */
+.rfm-net-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+.rfm-net-status--in  { color: var(--green-dark);  background: var(--badge-bg-green); }
+.rfm-net-status--out { color: var(--text-3);       background: var(--surface-2); }
 
 /* Empty state */
 .rfm-empty {

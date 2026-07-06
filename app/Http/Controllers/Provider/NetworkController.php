@@ -142,6 +142,8 @@ class NetworkController extends Controller
             'slug'         => $c['partner_slug'],
             'specialty'    => $c['partner_specialty'],
             'location'     => $c['partner_location'],
+            'accepting'    => true,
+            'is_connected' => true,
         ])->values();
 
         // Dynamic recommendation feeds — see NetworkService::getRecommended*.
