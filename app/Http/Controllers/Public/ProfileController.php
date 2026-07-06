@@ -102,10 +102,20 @@ class ProfileController extends Controller
                 ->toArray();
         }
 
+        // Services profile bio/headline from user_meta
+        $serviceBio        = $user->meta()->where('meta_key', 'service_bio')->value('meta_value');
+        $serviceHeadline   = $user->meta()->where('meta_key', 'service_headline')->value('meta_value');
+        $serviceSpecialties= $user->meta()->where('meta_key', 'service_specialties')->value('meta_value');
+        $yearsExperience   = $user->meta()->where('meta_key', 'years_experience')->value('meta_value');
+
         return Inertia::render('public/ProviderProfile', [
-            'user'            => $user,
-            'profileMeta'     => $profileMeta,
-            'services'        => $services,
+            'user'              => $user,
+            'profileMeta'       => $profileMeta,
+            'services'          => $services,
+            'serviceBio'        => $serviceBio ?? null,
+            'serviceHeadline'   => $serviceHeadline ?? null,
+            'serviceSpecialties'=> $serviceSpecialties ? json_decode($serviceSpecialties, true) : [],
+            'yearsExperience'   => $yearsExperience ? (int) $yearsExperience : null,
             'viewerRole'      => $viewer?->role?->value ?? null,
             'isOwner'         => $isOwner,
             'isLoggedIn'      => $isLoggedIn,

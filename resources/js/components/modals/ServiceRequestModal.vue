@@ -41,22 +41,33 @@
       <input type="text" class="form-input" :value="providerLabel" readonly />
     </div>
 
-    <!-- Date + Time -->
+    <!-- Date + Time + Timezone -->
     <div class="form-row form-row-2">
       <div class="form-group">
         <label class="form-label">Preferred Date <span class="req">*</span></label>
-        <input type="date" class="form-input" v-model="form.date" />
+        <input type="date" class="form-input" v-model="form.date" :min="todayDate" />
         <div v-if="form.errors.date" class="form-error">{{ form.errors.date }}</div>
       </div>
       <div class="form-group">
         <label class="form-label">Preferred Time</label>
         <select class="form-select" v-model="form.time">
-          <option>Morning (9am–12pm)</option>
-          <option>Afternoon (12–5pm)</option>
-          <option>Evening (5–8pm)</option>
-          <option>Flexible</option>
+          <option value="Morning (9am–12pm)">Morning (9am–12pm)</option>
+          <option value="Afternoon (12–5pm)">Afternoon (12–5pm)</option>
+          <option value="Evening (5–8pm)">Evening (5–8pm)</option>
+          <option value="Flexible">Flexible — any time</option>
         </select>
       </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Your Timezone <span class="req">*</span></label>
+      <select class="form-select" v-model="form.timezone">
+        <option value="America/New_York">Eastern Time (ET) — New York, Miami</option>
+        <option value="America/Chicago">Central Time (CT) — Chicago, Dallas</option>
+        <option value="America/Denver">Mountain Time (MT) — Denver, Phoenix</option>
+        <option value="America/Los_Angeles">Pacific Time (PT) — Los Angeles, Seattle</option>
+        <option value="America/Anchorage">Alaska Time (AKT)</option>
+        <option value="Pacific/Honolulu">Hawaii Time (HST)</option>
+      </select>
     </div>
 
     <!-- Format -->
@@ -113,12 +124,15 @@ const { isOpen, closeModal } = useModal()
 const toast = useToast()
 
 const form = useForm({
-  service: '',
-  date:    '',
-  time:    'Flexible',
-  format:  'Telehealth',
-  notes:   '',
+  service:   '',
+  date:      '',
+  time:      'Flexible',
+  timezone:  Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
+  format:    'Telehealth',
+  notes:     '',
 })
+
+const todayDate = new Date().toISOString().split('T')[0]
 
 // Exposed so parent can call: modal.preselect(serviceName)
 function preselect(serviceName) {

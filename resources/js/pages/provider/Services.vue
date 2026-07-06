@@ -632,12 +632,9 @@
           <input
             v-model.number="createDollars"
             class="form-input"
-            :class="{ 'is-invalid': createV$.price_cents.$error }"
             type="number"
             placeholder="150"
-            @blur="createV$.price_cents.$touch()"
           >
-          <div v-if="createV$.price_cents.$error" class="form-error">{{ createFieldError('price_cents') }}</div>
         </div>
         <div class="form-group">
           <label class="form-label">Per</label>

@@ -1,7 +1,5 @@
 <?php
-
 declare(strict_types=1);
-
 namespace App\Models;
 
 use App\Enums\ServiceRequestStatus;
@@ -21,8 +19,9 @@ class ServiceRequest extends Model
 
     protected $fillable = [
         'id', 'service_id', 'practitioner_id', 'inquirer_id',
-        'inquirer_name', 'inquirer_email', 'message', 'status',
-        'response_note', 'responded_at',
+        'inquirer_name', 'inquirer_email', 'message',
+        'preferred_timezone', 'preferred_date', 'preferred_time',
+        'status', 'response_note', 'responded_at',
     ];
 
     protected $casts = [
@@ -33,11 +32,6 @@ class ServiceRequest extends Model
     public function service(): BelongsTo      { return $this->belongsTo(Service::class, 'service_id'); }
     public function practitioner(): BelongsTo { return $this->belongsTo(User::class, 'practitioner_id'); }
     public function inquirer(): BelongsTo     { return $this->belongsTo(User::class, 'inquirer_id'); }
-
-    public function sessions(): HasMany
-    {
-        return $this->hasMany(ServiceSession::class, 'service_request_id');
-    }
-
-    public function scopeNew($q) { return $q->where('status', ServiceRequestStatus::New->value); }
+    public function sessions(): HasMany       { return $this->hasMany(ServiceSession::class, 'service_request_id'); }
+    public function scopeNew($q)              { return $q->where('status', ServiceRequestStatus::New->value); }
 }

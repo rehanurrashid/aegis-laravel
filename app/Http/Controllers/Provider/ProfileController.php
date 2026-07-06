@@ -116,9 +116,19 @@ class ProfileController extends Controller
 
     public function updateServices(Request $request): RedirectResponse
     {
-        $data = $request->validate(['services' => 'required|array']);
-        $this->profiles->updateServices($request->user(), $data['services']);
-        return back()->with('success', 'Services updated.');
+        $data = $request->validate([
+            'services'         => 'required|array',
+            'service_bio'      => 'nullable|string|max:2000',
+            'service_headline' => 'nullable|string|max:200',
+            'years_experience' => 'nullable|integer|min:0|max:60',
+        ]);
+        $user = $request->user();
+        $this->profiles->updateServices($user, $data['services']);
+        if (isset($data['service_bio']))      $this->profiles->setMetaPublic($user, 'service_bio',      $data['service_bio']);
+        if (isset($data['service_headline'])) $this->profiles->setMetaPublic($user, 'service_headline', $data['service_headline']);
+        if (isset($data['years_experience'])) $this->profiles->setMetaPublic($user, 'years_experience', (string) $data['years_experience']);
+        $this->profiles->setMetaPublic($user, 'service_specialties', json_encode($data['services']));
+        return back()->with('success', 'Services profile updated.');
     }
 
     public function updateApproaches(Request $request): RedirectResponse

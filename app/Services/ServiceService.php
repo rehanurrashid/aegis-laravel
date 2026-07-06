@@ -116,6 +116,7 @@ class ServiceService
             'service_id'           => $r->service_id,
             'requester_id'         => $r->inquirer_id,
             'requester_name'       => $inquirer?->display_name ?? $r->inquirer_name ?? 'Unknown',
+            'requester_slug'       => $inquirer?->slug ?? '',
             'requester_avatar'     => $inquirer?->avatar_initials ?? '',
             'requester_detail'     => $inquirer?->credentials ?? '',
             'service_title'        => $service?->title ?? '',
@@ -124,6 +125,9 @@ class ServiceService
             'time_label'           => $r->created_at?->diffForHumans() ?? '',
             'status'               => $status,
             'message'              => $r->message ?? '',
+            'preferred_timezone'   => $r->preferred_timezone ?? '',
+            'preferred_date'       => $r->preferred_date ?? '',
+            'preferred_time'       => $r->preferred_time ?? '',
         ];
     }
 
@@ -132,21 +136,28 @@ class ServiceService
         $client  = $s->client;
         $service = $s->service;
         $status  = $s->status instanceof ServiceSessionStatus ? $s->status->value : (string) ($s->status ?? 'scheduled');
+        $tz      = $s->timezone ?? 'America/New_York';
 
         return [
-            'id'                   => $s->id,
-            'service_id'           => $s->service_id,
-            'service_request_id'   => $s->service_request_id,
-            'provider_name'        => $client?->display_name ?? 'Unknown',
-            'provider_avatar'      => $client?->avatar_initials ?? '',
-            'provider_credentials' => $client?->credentials ?? '',
-            'service_title'        => $service?->title ?? '',
-            'datetime_label'       => $s->scheduled_at?->format('M j, Y g:i A') ?? '—',
-            'duration_label'       => $service?->duration_min ? $service->duration_min . ' min' : '—',
-            'amount'               => $s->amount_cents ? '$' . number_format($s->amount_cents / 100, 0) : '—',
-            'status'               => $status,
-            'summary'              => $s->session_summary ?? '',
-            'action_items'         => $s->session_action_items ?? '',
+            'id'                        => $s->id,
+            'service_id'                => $s->service_id,
+            'service_request_id'        => $s->service_request_id,
+            'provider_id'               => $client?->id ?? '',
+            'provider_name'             => $client?->display_name ?? 'Unknown',
+            'provider_slug'             => $client?->slug ?? '',
+            'provider_avatar'           => $client?->avatar_initials ?? '',
+            'provider_credentials'      => $client?->credentials ?? '',
+            'service_title'             => $service?->title ?? '',
+            'datetime_label'            => $s->scheduled_at
+                ? $s->scheduled_at->setTimezone($tz)->format('M j, Y g:i A T')
+                : '—',
+            'timezone'                  => $tz,
+            'duration_label'            => $service?->duration_min ? $service->duration_min . ' min' : '—',
+            'amount'                    => $s->amount_cents ? '$' . number_format($s->amount_cents / 100, 0) : '—',
+            'status'                    => $status,
+            'summary'                   => $s->session_summary ?? '',
+            'action_items'              => $s->session_action_items ?? '',
+            'share_notes_with_client'   => (bool) ($s->share_notes_with_client ?? false),
         ];
     }
 

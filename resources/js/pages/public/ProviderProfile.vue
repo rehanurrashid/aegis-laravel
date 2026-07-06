@@ -184,9 +184,18 @@
           <span class="pp-svc-header-badge">Provider Services Mode</span>
         </div>
         <div class="pp-svc-body">
+          <div v-if="props.serviceHeadline || props.serviceBio || props.serviceSpecialties?.length" class="pp-svc-profile-meta">
+            <div v-if="props.serviceHeadline" class="pp-svc-profile-headline">{{ props.serviceHeadline }}</div>
+            <div v-if="props.yearsExperience" class="pp-svc-profile-years">
+              <AegisIcon name="award" :size="13" /> {{ props.yearsExperience }} years of experience
+            </div>
+            <div v-if="props.serviceSpecialties?.length" class="chip-list" style="margin:8px 0 4px;">
+              <span v-for="sp in props.serviceSpecialties" :key="sp" class="chip gold">{{ sp }}</span>
+            </div>
+            <p v-if="props.serviceBio" class="pp-svc-profile-bio">{{ props.serviceBio }}</p>
+          </div>
           <div class="pp-svc-intro">
-            This provider offers licensed professional services to other providers — including supervision,
-            consultation, and training. Provider-to-provider engagements, not client-facing services.
+            Provider-to-provider professional services — supervision, consultation, training, and more.
           </div>
           <div class="pp-svc-grid" style="grid-template-columns:repeat(3,1fr)">
             <div v-for="svc in servicesWithLabels" :key="svc.id" class="pp-svc-card">
@@ -723,12 +732,16 @@ import { usePricingStore } from '@/stores/pricing'
 import ConnectionRequestModal from '@/components/modals/ConnectionRequestModal.vue'
 
 const props = defineProps({
-  user:              { type: Object, required: true },
-  profileMeta:       { type: Object, default: () => ({}) },
-  services:          { type: Array,  default: () => [] },
-  referralRoster:    { type: Array,  default: () => [] },
-  referralNetwork:   { type: Array,  default: () => [] },
-  myServiceRequests: { type: Array,  default: () => [] },
+  user:               { type: Object, required: true },
+  profileMeta:        { type: Object, default: () => ({}) },
+  services:           { type: Array,  default: () => [] },
+  referralRoster:     { type: Array,  default: () => [] },
+  referralNetwork:    { type: Array,  default: () => [] },
+  myServiceRequests:  { type: Array,  default: () => [] },
+  serviceBio:         { type: String, default: null },
+  serviceHeadline:    { type: String, default: null },
+  serviceSpecialties: { type: Array,  default: () => [] },
+  yearsExperience:    { type: Number, default: null },
 })
 
 const page = usePage()
