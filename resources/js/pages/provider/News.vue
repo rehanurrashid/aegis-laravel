@@ -820,6 +820,8 @@ function clearTagFilter() {
 }
 
 const localPosts = ref([...props.posts])
+// Sync when Inertia reloads props after a server round-trip (replaces optimistic entries with real data)
+watch(() => props.posts, (fresh) => { localPosts.value = [...fresh] })
 
 const displayPosts = computed(() => {
   let list = [...localPosts.value]
@@ -903,6 +905,7 @@ function pollPct(post, idx) {
 }
 function votePoll(post, opt, idx) {
   if (post.my_poll_vote) { toast.info('You already voted in this poll'); return }
+  if (String(post.id).startsWith('_opt_')) { toast.info('Post is still saving — try again in a moment.'); return }
   const key = opt.key || String(idx)
   post.my_poll_vote = key
   if (post.poll_options?.[idx]) post.poll_options[idx].votes = (post.poll_options[idx].votes ?? 0) + 1
