@@ -204,23 +204,46 @@
           </div>
           <div class="pp-svc-grid" style="grid-template-columns:repeat(3,1fr)">
             <div v-for="svc in servicesWithLabels" :key="svc.id" class="pp-svc-card">
-              <div class="pp-svc-card-top" style="flex-direction:column;align-items:flex-start;gap:4px">
-                <div class="pp-svc-card-name">{{ svc.title }}</div>
-                <div class="pp-svc-card-price">{{ svc.rateAmount }}<span v-if="svc.rateUnit">{{ svc.rateUnit }}</span></div>
+              <!-- Card header: icon + title + price -->
+              <div class="pp-svc-card-head">
+                <div class="pp-svc-card-icon">
+                  <AegisIcon :name="svc.type_icon || 'briefcase'" :size="20" />
+                </div>
+                <div class="pp-svc-card-head-text">
+                  <div class="pp-svc-card-name">{{ svc.title }}</div>
+                  <div class="pp-svc-card-category">{{ svc.categoryLabel }}</div>
+                </div>
               </div>
+              <!-- Price -->
+              <div class="pp-svc-card-price-row">
+                <span class="pp-svc-card-price-amount">{{ svc.rateAmount }}</span>
+                <span v-if="svc.rateUnit" class="pp-svc-card-price-unit">{{ svc.rateUnit }}</span>
+              </div>
+              <!-- Description -->
               <div class="pp-svc-card-desc">{{ svc.description }}</div>
+              <!-- Meta pills -->
               <div class="pp-svc-card-meta">
-                <span v-if="svc.duration_min"><AegisIcon name="clock" :size="11" />{{ svc.duration_min }} min</span>
-                <span v-if="svc.format"><AegisIcon name="monitor" :size="11" />{{ formatLabel(svc.format) }}</span>
+                <span v-if="svc.duration_min" class="pp-svc-card-pill">
+                  <AegisIcon name="clock" :size="11" />{{ svc.duration_min }} min
+                </span>
+                <span v-if="svc.format" class="pp-svc-card-pill">
+                  <AegisIcon name="monitor" :size="11" />{{ formatLabel(svc.format) }}
+                </span>
               </div>
-              <div class="pp-svc-card-footer" style="flex-direction:column;align-items:flex-start;gap:8px">
+              <!-- Footer: avail + CTA -->
+              <div class="pp-svc-card-footer">
                 <span class="pp-svc-card-avail" :class="svc.availability ?? 'open'">
-                  <AegisIcon name="circle-dot" :size="9" class="aegis-icon-filled" />{{ svc.availability_label || ((svc.availability ?? 'open') === 'limited' ? 'Limited Spots' : 'Slots Available') }}
+                  <AegisIcon name="circle-dot" :size="9" class="aegis-icon-filled" />
+                  {{ svc.availability_label || ((svc.availability ?? 'open') === 'limited' ? 'Limited Spots' : 'Slots Available') }}
                 </span>
                 <template v-if="!isOwner">
-                  <button v-if="isLoggedIn" class="btn btn-primary pp-svc-request-btn"
-                          @click="openServiceRequest(svc.title)">Request</button>
-                  <a v-else :href="route('login')" class="btn btn-outline btn-sm" style="width:100%;text-align:center">Sign in to Request</a>
+                  <button v-if="isLoggedIn" class="pp-svc-request-btn btn btn-primary"
+                          @click="openServiceRequest(svc.title)">
+                    <AegisIcon name="send" :size="12" /> Request
+                  </button>
+                  <a v-else :href="route('login')" class="pp-svc-request-btn btn btn-outline">
+                    Sign in to Request
+                  </a>
                 </template>
               </div>
             </div>
@@ -833,15 +856,27 @@ const staticReviews = [
   { name: 'Dr. Priya Nair, PhD',  stars: 4, quote: 'Very responsive via Aegis. Occasionally hard to reach by phone, but messages always get a same-day response.', meta: 'Neuropsychologist · Connected since Oct 2024' },
 ]
 
+const categoryIconMap = {
+  supervision: 'graduation-cap', consultation: 'message', training: 'book-open',
+  coaching: 'leaf', practice_continuity: 'shield',
+}
+const categoryLabelMap = {
+  supervision: 'Supervision', consultation: 'Consultation', training: 'Training',
+  coaching: 'Coaching', practice_continuity: 'Practice Continuity',
+}
 const servicesWithLabels = computed(() => props.services.map((svc) => {
   let rateAmount = 'Contact for pricing'
   let rateUnit = ''
   if (svc.price_type !== 'inquiry' && svc.price_cents) {
     const dollars = svc.price_cents / 100
     rateAmount = Number.isInteger(dollars) ? `$${dollars}` : pricing.formatCents(svc.price_cents)
-    rateUnit = { fixed: '', hourly: '/hr', session: '/session' }[svc.price_type] ?? ''
+    rateUnit = { fixed: '', hourly: '/ hr', session: '/ session' }[svc.price_type] ?? ''
   }
-  return { ...svc, rateAmount, rateUnit }
+  return {
+    ...svc, rateAmount, rateUnit,
+    type_icon:     categoryIconMap[svc.category] ?? 'briefcase',
+    categoryLabel: categoryLabelMap[svc.category] ?? 'Service',
+  }
 }))
 
 function formatLabel(format) {
@@ -1064,14 +1099,115 @@ function copyShareLink() {
 }
 
 /* ── Service Request Button ──────────────────────────────────────────── */
+.pp-svc-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: box-shadow var(--transition), border-color var(--transition);
+}
+.pp-svc-card:hover {
+  box-shadow: 0 4px 16px rgba(30,28,26,0.09);
+  border-color: var(--gold-dark);
+}
+
+/* Icon + title header */
+.pp-svc-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 18px 0;
+}
+.pp-svc-card-icon {
+  width: 40px; height: 40px;
+  border-radius: var(--radius);
+  background: var(--badge-bg-gold);
+  color: var(--gold-dark);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.pp-svc-card-head-text { min-width: 0; }
+.pp-svc-card-name {
+  font-family: var(--font-serif);
+  font-size: 14px; font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+  margin-bottom: 2px;
+}
+.pp-svc-card-category {
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.7px;
+  color: var(--gold-dark);
+}
+
+/* Price row */
+.pp-svc-card-price-row {
+  display: flex; align-items: baseline; gap: 4px;
+  padding: 10px 18px 0;
+}
+.pp-svc-card-price-amount {
+  font-family: var(--font-serif);
+  font-size: 22px; font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+.pp-svc-card-price-unit {
+  font-size: 12px; font-weight: 600;
+  color: var(--text-3);
+}
+
+/* Description */
+.pp-svc-card-desc {
+  font-size: 12.5px; color: var(--text-2);
+  line-height: 1.6;
+  padding: 10px 18px;
+  flex: 1;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* Meta pills */
+.pp-svc-card-meta {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 0 18px 14px;
+}
+.pp-svc-card-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600; color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 3px 9px;
+  border-radius: 100px;
+}
+
+/* Footer */
+.pp-svc-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.pp-svc-card-avail {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.pp-svc-card-avail.open   { color: var(--green-dark, #2e7d32); }
+.pp-svc-card-avail.limited{ color: var(--gold-dark); }
+
 .pp-svc-request-btn {
-  width: auto;
-  min-width: 110px;
-  padding: 9px 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 16px;
   font-size: 12px;
   font-weight: 700;
-  align-self: center;
-  margin: 0 auto;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .svc-request-strip {
