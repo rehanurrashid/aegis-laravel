@@ -87,10 +87,18 @@ class ServicesController extends Controller
         return back()->with('success', 'Service archived.');
     }
 
-    public function acceptRequest(Service $service, ServiceRequest $serviceRequest): RedirectResponse
+    public function acceptRequest(Request $request, Service $service, ServiceRequest $serviceRequest): RedirectResponse
     {
         $this->authorize('manage', $service);
-        $this->services->acceptRequest($serviceRequest);
+        $data = $request->validate([
+            'session_date' => 'nullable|date',
+            'session_time' => 'nullable|string|max:10',
+            'timezone'     => 'nullable|string|max:64',
+            'format'       => 'nullable|string|max:60',
+            'note'         => 'nullable|string|max:1000',
+            'recurring'    => 'nullable|boolean',
+        ]);
+        $this->services->acceptRequest($serviceRequest, $data);
         return back()->with('success', 'Request accepted.');
     }
 

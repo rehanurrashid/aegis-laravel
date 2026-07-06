@@ -297,9 +297,32 @@ class ServiceService
         return $req;
     }
 
-    public function acceptRequest(ServiceRequest $req): ServiceRequest
+    public function acceptRequest(ServiceRequest $req, array $data = []): ServiceRequest
     {
+        // Build scheduled_at from separate date + time + timezone fields
+        $scheduledAt = null;
+        if (!empty($data['session_date'])) {
+            $time     = $data['session_time'] ?? '10:00';
+            $tz       = $data['timezone']     ?? 'America/New_York';
+            try {
+                $scheduledAt = Carbon::createFromFormat(
+                    'Y-m-d H:i',
+                    $data['session_date'] . ' ' . $time,
+                    $tz
+                )->setTimezone('UTC');
+            } catch (\Exception $e) {
+                $scheduledAt = null;
+            }
+        }
+
         $req->update(['status' => 'accepted', 'responded_at' => now()]);
+
+        // Create the session record with the chosen date/time
+        $this->bookSession($req, [
+            'scheduled_at' => $scheduledAt,
+            'timezone'     => $data['timezone'] ?? 'America/New_York',
+        ]);
+
         $service = Service::find($req->service_id);
 
         $this->activity->log(
@@ -345,6 +368,7 @@ class ServiceService
             'practitioner_id'    => $req->practitioner_id,
             'client_id'          => $req->inquirer_id,
             'scheduled_at'       => $data['session_at'] ?? $data['scheduled_at'] ?? null,
+            'timezone'           => $data['timezone'] ?? 'America/New_York',
             'status'             => 'scheduled',
             'amount_cents'       => $req->service?->price_cents ?? 0,
             'created_at'         => now(),
