@@ -20,10 +20,11 @@ class ServicesController extends Controller
 
     public function index(Request $request): Response
     {
-        $user = $request->user();
+        $user    = $request->user();
+        $filters = $request->only(['q', 'category', 'status']);
 
         return Inertia::render('Provider/Services', [
-            'listings'         => $this->services->getForPractitioner($user->id)
+            'listings'         => $this->services->getForPractitioner($user->id, $filters)
                                     ->map(fn($s) => $this->services->shapeForListing($s))
                                     ->values(),
             'serviceRequests'  => $this->services->getRequestsForPractitioner($user->id)
@@ -36,6 +37,7 @@ class ServicesController extends Controller
             'profileCompletion'=> (int) ($user->profile_completion ?? 0),
             'servicesMode'     => (bool) $user->services_mode,
             'heroRating'       => '4.8 / 5.0',
+            'filters'          => $filters,
         ]);
     }
 

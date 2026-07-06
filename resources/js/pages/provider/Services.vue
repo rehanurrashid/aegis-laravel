@@ -1134,6 +1134,7 @@ const props = defineProps({
   profileCompletion: { type: Number, default: 0 },
   servicesMode:      { type: Boolean, default: false },
   heroRating:        { type: String,  default: '—' },
+  filters:           { type: Object, default: () => ({}) },
 })
 
 // ── Composables ───────────────────────────────────────────────────────────
@@ -1180,20 +1181,35 @@ function setActiveService(s)  {
 function setActiveRequest(r)  { activeRequest.value = r }
 function setActiveBooking(b)  { activeBooking.value = b }
 
-// ── Listings tab ──────────────────────────────────────────────────────────
-const listingSearch       = ref('')
-const listingTypeFilter   = ref('')
-const listingStatusFilter = ref('')
+// ── Listings tab — backend-driven search/filter ───────────────────────────
+const listingSearch       = ref(props.filters?.q ?? '')
+const listingTypeFilter   = ref(props.filters?.category ?? '')
+const listingStatusFilter = ref(props.filters?.status ?? '')
 
-const filteredListings = computed(() => {
-  return props.listings.filter(s => {
-    const q = listingSearch.value.toLowerCase()
-    if (q && !s.title?.toLowerCase().includes(q) && !s.service_type?.toLowerCase().includes(q)) return false
-    if (listingTypeFilter.value && s.service_type !== listingTypeFilter.value) return false
-    if (listingStatusFilter.value && s.status !== listingStatusFilter.value.toLowerCase()) return false
-    return true
-  })
-})
+// Listings are already filtered by backend; expose as-is
+const filteredListings = computed(() => props.listings)
+
+let searchTimer = null
+function doSearch() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    router.visit(route('provider.services.index'), {
+      method: 'get',
+      data: {
+        q:        listingSearch.value || undefined,
+        category: listingTypeFilter.value || undefined,
+        status:   listingStatusFilter.value || undefined,
+      },
+      preserveState: true,
+      preserveScroll: true,
+      replace: true,
+    })
+  }, 350)
+}
+
+watch(listingSearch,       doSearch)
+watch(listingTypeFilter,   doSearch)
+watch(listingStatusFilter, doSearch)
 
 // ── Requests tab ──────────────────────────────────────────────────────────
 const newRequests     = computed(() => props.serviceRequests.filter(r => r.status === 'new'))
@@ -1517,8 +1533,9 @@ function statusVariant(s) {
   min-width: 0;
 }
 .svc-toolbar > .form-select { grid-column: span 3; min-width: 0; }
-.svc-toolbar :deep(.ts-wrapper) { min-width: 0; width: 100%; overflow: visible !important; }
-.svc-toolbar :deep(.ts-wrapper .ts-control) { width: 100%; }
+.svc-toolbar > :deep(.ts-wrapper) { grid-column: span 3; min-width: 0; width: 100% !important; overflow: visible !important; }
+.svc-toolbar :deep(.ts-wrapper .ts-control) { width: 100% !important; box-sizing: border-box !important; }
+.svc-toolbar :deep(.ts-wrapper .ts-dropdown) { width: 100% !important; }
 .svc-toolbar :deep(.ts-dropdown) { min-width: 160px; width: auto; }
 .svc-toolbar .search-wrap :deep(svg),
 .svc-toolbar .search-wrap .aegis-icon {

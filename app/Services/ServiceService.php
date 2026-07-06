@@ -355,12 +355,26 @@ class ServiceService
 
     // ── Queries ───────────────────────────────────────────────────────────
 
-    public function getForPractitioner(string $practitionerId): Collection
+    public function getForPractitioner(string $practitionerId, array $filters = []): Collection
     {
-        return Service::where('practitioner_id', $practitionerId)
-            ->where('status', '!=', ServiceStatus::Archived->value)
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $query = Service::where('practitioner_id', $practitionerId)
+            ->where('status', '!=', ServiceStatus::Archived->value);
+
+        if (!empty($filters['q'])) {
+            $q = $filters['q'];
+            $query->where(function ($sub) use ($q) {
+                $sub->where('title', 'like', "%{$q}%")
+                    ->orWhere('description', 'like', "%{$q}%");
+            });
+        }
+        if (!empty($filters['category'])) {
+            $query->where('category', $filters['category']);
+        }
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        return $query->orderBy('created_at', 'desc')->get();
     }
 
     public function getRequestsForPractitioner(string $practitionerId): Collection
