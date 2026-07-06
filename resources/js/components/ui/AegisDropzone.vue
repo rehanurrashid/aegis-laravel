@@ -15,6 +15,17 @@
 <template>
   <div class="adz-root" :class="{ 'adz--disabled': disabled }">
 
+    <!-- Hidden file input — lives OUTSIDE the click zone to prevent event bubbling re-open -->
+    <input
+      ref="fileInput"
+      type="file"
+      class="aegis-dropzone-input"
+      :accept="accept"
+      :multiple="multiple"
+      :disabled="disabled"
+      @change="onChange"
+    />
+
     <!-- Drop / browse zone — always rendered -->
     <div
       class="aegis-dropzone"
@@ -28,15 +39,6 @@
       @keydown.enter.prevent="onZoneClick"
       @keydown.space.prevent="onZoneClick"
     >
-      <input
-        ref="fileInput"
-        type="file"
-        class="aegis-dropzone-input"
-        :accept="accept"
-        :multiple="multiple"
-        :disabled="disabled"
-        @change="onChange"
-      />
       <div class="aegis-dropzone-content">
         <AegisIcon name="upload" :size="22" />
         <div class="aegis-dropzone-title">
@@ -49,7 +51,7 @@
 
     <!-- File pills — rendered below the zone -->
     <ul v-if="files.length" class="adz-file-list">
-      <li v-for="(f, i) in files" :key="f.name + f.size + i" class="adz-file-item">
+      <li v-for="(f, i) in files" :key="f.name + f.size + i" class="adz-file-item" @click.stop>
         <div class="adz-file-icon">
           <AegisIcon :name="iconFor(f)" :size="15" />
         </div>
@@ -153,6 +155,7 @@ function sizeLabel(b) {
 
 <style scoped>
 .adz-root      { display: flex; flex-direction: column; gap: 8px; }
+.aegis-dropzone-input { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; overflow: hidden; }
 .adz--disabled { opacity: 0.55; pointer-events: none; }
 
 .adz-file-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }

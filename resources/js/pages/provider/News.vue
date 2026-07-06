@@ -100,7 +100,7 @@
 
             <!-- Pinned banner -->
             <div v-if="post.is_pinned" class="nf-pinned">
-              <AegisIcon name="bookmark" :size="11" /> Pinned by Aegis Team
+  <AegisIcon name="bookmark" :size="11" :filled="true" /> Pinned by Aegis Team
             </div>
 
             <!-- Post head -->
@@ -205,12 +205,13 @@
               <button type="button" :class="['nf-act', { 'is-liked': post.is_liked }]"
                       :data-tooltip="post.is_liked ? 'Unlike' : 'Like'"
                       @click="toggleLike(post)">
-                <AegisIcon name="heart" :size="15" />
+                <AegisIcon name="heart" :size="15" :filled="post.is_liked" />
                 <span>{{ post.like_count }}</span>
               </button>
-              <button type="button" class="nf-act" data-tooltip="Comments"
+              <button type="button" :class="['nf-act', { 'is-commented': postState(post.id)._commentsOpen }]"
+                      data-tooltip="Comments"
                       @click="toggleComments(post.id)">
-                <AegisIcon name="message-square" :size="15" />
+                <AegisIcon name="message-square" :size="15" :filled="postState(post.id)._commentsOpen" />
                 <span>{{ post.comment_count }}</span>
               </button>
               <button type="button" class="nf-act" data-tooltip="Share" @click="sharePost(post)">
@@ -227,7 +228,7 @@
               </template>
               <button v-else type="button" :class="['nf-act', { 'is-saved': post.is_saved }]"
                       :data-tooltip="post.is_saved ? 'Unsave' : 'Save'" @click="toggleSave(post)">
-                <AegisIcon name="bookmark" :size="15" />
+                <AegisIcon name="bookmark" :size="15" :filled="post.is_saved" />
               </button>
             </div>
 
@@ -394,7 +395,7 @@
           <button type="button" :class="['nf-act', { 'is-liked': detailPost.is_liked }]"
                   :data-tooltip="detailPost.is_liked ? 'Unlike' : 'Like'"
                   @click="toggleLike(detailPost)">
-            <AegisIcon name="heart" :size="15" /><span>{{ detailPost.like_count }}</span>
+            <AegisIcon name="heart" :size="15" :filled="detailPost.is_liked" /><span>{{ detailPost.like_count }}</span>
           </button>
           <button type="button" class="nf-act" data-tooltip="Share" @click="sharePost(detailPost)">
             <AegisIcon name="share" :size="15" />
@@ -404,7 +405,7 @@
                   :class="['nf-act', { 'is-saved': detailPost.is_saved }]"
                   :data-tooltip="detailPost.is_saved ? 'Unsave' : 'Save'"
                   @click="toggleSave(detailPost)">
-            <AegisIcon name="bookmark" :size="15" />
+            <AegisIcon name="bookmark" :size="15" :filled="detailPost.is_saved" />
           </button>
         </div>
 
@@ -582,15 +583,6 @@
           :max-size-mb="20"
           @files="onMediaFiles"
         />
-        <!-- Thumbnail preview strip (shown after files are selected) -->
-        <div v-if="mediaPreview.length" class="media-preview-row">
-          <div v-for="(m, i) in mediaPreview" :key="i" class="media-preview-item">
-            <img v-if="m.type === 'image'" :src="m.dataUrl" class="media-preview-thumb" :alt="m.name" />
-            <div v-else class="media-preview-video">
-              <AegisIcon name="video" :size="18" />
-            </div>
-          </div>
-        </div>
       </div>
 
       <div class="form-group">
@@ -696,7 +688,7 @@
     <AegisModal v-model="modals.myLibrary" size="lg" title="My Library">
       <div class="tabs-segmented">
         <button type="button" :class="['tab-pill', { active: libraryTab === 'saved' }]" @click="libraryTab = 'saved'">
-          <AegisIcon name="bookmark" :size="12" /> Saved
+          <AegisIcon name="bookmark" :size="12" :filled="libraryTab === 'saved'" /> Saved
           <span v-if="librarySaved.length" class="badge-pill">{{ librarySaved.length }}</span>
         </button>
         <button type="button" :class="['tab-pill', { active: libraryTab === 'reported' }]" @click="libraryTab = 'reported'">
@@ -796,7 +788,7 @@ const meAvatarMod = 'avatar-gold'
 const uiState = reactive({})
 function postState(id) {
   if (!uiState[id]) {
-    const post = props.posts.find(p => p.id === id)
+    const post = localPosts.value.find(p => p.id === id)
     uiState[id] = { _collapsed: (post?.body ?? '').length > 260, _commentsOpen: false }
   }
   return uiState[id]
@@ -827,8 +819,10 @@ function clearTagFilter() {
   }, { preserveScroll: true, preserveState: false })
 }
 
+const localPosts = ref([...props.posts])
+
 const displayPosts = computed(() => {
-  let list = [...props.posts]
+  let list = [...localPosts.value]
   if (localActiveTag.value) {
     list = list.filter(p => (p.tags ?? []).includes(localActiveTag.value))
   }
@@ -1000,7 +994,7 @@ const detailPost = ref(null)
 function openPostDetail(post) { detailPost.value = post; modals.postDetail = true }
 function openPostFromLibrary(p) {
   modals.myLibrary = false
-  const found = props.posts.find(post => post.id === p.id)
+  const found = localPosts.value.find(post => post.id === p.id)
   if (found) { detailPost.value = found; modals.postDetail = true }
 }
 
@@ -1009,7 +1003,10 @@ function confirmDelete(postId) {
   confirmAction('Delete this post? This action cannot be undone.', () => {
     router.delete(route('provider.news.destroy', { post: postId }), {
       preserveScroll: true,
-      onSuccess: () => toast.info('Post deleted'),
+      onSuccess: () => {
+        localPosts.value = localPosts.value.filter(p => p.id !== postId)
+        toast.info('Post deleted')
+      },
       onError:   () => toast.error('Could not delete post.'),
     })
   })
@@ -1091,29 +1088,12 @@ async function submitEditPost() {
 }
 
 // ── media upload ─────────────────────────────────────────────────────────────
-// ── media upload — wired to AegisDropzone @files ─────────────────────────────
-const mediaPreview = reactive([])
+// ── media upload — AegisDropzone owns display; we just track the file array ────
+const mediaFiles = ref([])
 
 function onMediaFiles(files) {
-  // AegisDropzone emits the full current File array on every change.
-  // Limit to 4, build preview thumbnails via FileReader for image posts.
-  if (files.length > 4) {
-    toast.error('Maximum 4 media files per post.')
-    files = files.slice(0, 4)
-  }
-  // Rebuild preview array from current file list
-  mediaPreview.splice(0)
-  files.forEach(f => {
-    const isImage = f.type.startsWith('image/')
-    const isVideo = f.type.startsWith('video/')
-    if (isImage) {
-      const reader = new FileReader()
-      reader.onload = ev => mediaPreview.push({ type: 'image', name: f.name, dataUrl: ev.target.result, file: f })
-      reader.readAsDataURL(f)
-    } else if (isVideo) {
-      mediaPreview.push({ type: 'video', name: f.name, dataUrl: null, file: f })
-    }
-  })
+  mediaFiles.value = files.slice(0, 4)
+  if (files.length > 4) toast.error('Maximum 4 files per post.')
 }
 
 // ── poll builder ─────────────────────────────────────────────────────────────
@@ -1146,29 +1126,84 @@ async function submitCreatePost() {
   const ok = await vCreate.value.$validate()
   if (!ok) return
 
+  let resolvedPollOptions = null
   if (createForm.post_type === 'question') {
     const validOpts = pollOptions.filter(o => o.label.trim())
     if (validOpts.length < 2) { toast.error('Add at least 2 poll options.'); return }
-    createForm.poll_options = validOpts.map((o, i) => ({ key: String(i), label: o.label.trim() }))
-    createForm.post_type = 'question'
+    resolvedPollOptions = validOpts.map((o, i) => ({ key: String(i), label: o.label.trim(), votes: 0 }))
+    createForm.poll_options = resolvedPollOptions
   }
+
   if (createForm.post_type === 'resource' && createForm.resource_url) {
     createForm.links = [{ label: 'View Resource', url: createForm.resource_url }]
   }
-  // Media: store as URL array (base64 preview → in prod would upload to S3 first)
-  if (mediaPreview.length) {
-    createForm.media = mediaPreview.map(m => ({ type: m.type, url: m.dataUrl, name: m.name }))
+
+  // Read image files as base64 so the card can render them immediately after publish
+  let resolvedMedia = []
+  if (mediaFiles.value.length) {
+    resolvedMedia = await Promise.all(
+      mediaFiles.value.slice(0, 4).map(f => new Promise(resolve => {
+        if (f.type.startsWith('image/')) {
+          const reader = new FileReader()
+          reader.onload = e => resolve({ type: 'image', name: f.name, url: e.target.result })
+          reader.readAsDataURL(f)
+        } else {
+          resolve({ type: 'video', name: f.name, url: '' })
+        }
+      }))
+    )
+    createForm.media = resolvedMedia.map(m => ({ type: m.type, name: m.name, url: '' }))
+  }
+
+  // Snapshot before reset for the optimistic card
+  const snapshot = {
+    post_type:      createForm.post_type,
+    audience:       createForm.audience,
+    title:          createForm.title,
+    body:           createForm.body,
+    tags:           createForm.tags ? createForm.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+    poll_question:  createForm.poll_question,
+    poll_closes_at: createForm.poll_closes_at,
+    poll_options:   resolvedPollOptions,
+    media:          resolvedMedia,
+    resource_url:   createForm.resource_url,
   }
 
   createForm.post(route('provider.news.store'), {
     preserveScroll: true,
-    onSuccess: () => {
+    onSuccess: (page) => {
+      const authUser = page.props?.auth?.user ?? {}
+      const optimistic = {
+        id:            '_opt_' + Date.now(),
+        post_type:     snapshot.post_type,
+        audience:      snapshot.audience,
+        title:         snapshot.title || null,
+        body:          snapshot.body || null,
+        tags:          snapshot.tags,
+        poll_question: snapshot.poll_question || null,
+        poll_closes_at: snapshot.poll_closes_at || null,
+        poll_options:  snapshot.poll_options,
+        media:         snapshot.media,
+        links:         snapshot.post_type === 'resource' && snapshot.resource_url
+                         ? [{ label: 'View Resource', url: snapshot.resource_url }] : [],
+        author_name:   authUser.name ?? 'You',
+        author_slug:   authUser.slug ?? null,
+        is_owner:      true,
+        is_pinned:     false,
+        like_count:    0,
+        comment_count: 0,
+        my_like:       false,
+        my_poll_vote:  null,
+        created_at:    new Date().toISOString(),
+      }
+      localPosts.value.unshift(optimistic)
+
       modals.createPost = false
       toast.success('Post published')
       createForm.reset()
       createForm.post_type = 'provider'
       createForm.audience  = 'all'
-      mediaPreview.splice(0)
+      mediaFiles.value = []
       pollOptions.splice(0, pollOptions.length, { label: '' }, { label: '' })
       vCreate.value.$reset()
     },
@@ -1351,6 +1386,8 @@ function anyError(v$ref, form, field) {
 .nf-act.is-liked:hover { background:var(--red-light); }
 .nf-act.is-saved   { color:var(--gold-dark); }
 .nf-act.is-saved:hover { background:var(--badge-bg-gold); }
+.nf-act.is-commented { color:var(--blue-dark); }
+.nf-act.is-commented:hover { background:var(--blue-light); }
 .nf-act-spacer { flex:1; }
 /* Comments */
 .nf-comments { display:none;border-top:1px solid var(--border);padding:14px 18px;background:var(--surface-2); }
@@ -1406,10 +1443,6 @@ function anyError(v$ref, form, field) {
 .pd-actions { display:flex;align-items:center;gap:4px;padding:12px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin:16px 0; }
 .pd-comments { padding-top:4px; }
 /* Media upload */
-.media-preview-row { display:flex;flex-wrap:wrap;gap:8px;margin-top:10px; }
-.media-preview-item { position:relative;width:72px;height:72px;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border); }
-.media-preview-thumb { width:100%;height:100%;object-fit:cover;display:block; }
-.media-preview-video { width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--surface-3);color:var(--text-3); }
 /* Poll builder */
 .poll-options-builder { display:flex;flex-direction:column;gap:8px; }
 .poll-option-row { display:flex;align-items:center;gap:8px; }
