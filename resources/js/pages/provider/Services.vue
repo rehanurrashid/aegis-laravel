@@ -140,10 +140,10 @@
           </div>
           <div class="card-footer">
             <template v-if="s.status === 'draft'">
-              <button class="btn-icon" data-tooltip="Edit Draft" @click.stop="modals.edit = true">
+              <button class="btn-icon" data-tooltip="Edit Draft" @click.stop="setActiveService(s); modals.edit = true">
                 <AegisIcon name="pencil" :size="14" />
               </button>
-              <button class="btn-icon" data-tooltip="Publish" @click.stop="modals.publish = true">
+              <button class="btn-icon" data-tooltip="Publish" @click.stop="setActiveService(s); modals.publish = true">
                 <AegisIcon name="check" :size="14" />
               </button>
               <button
@@ -155,7 +155,7 @@
               </button>
             </template>
             <template v-else>
-              <button class="btn-icon" data-tooltip="Edit Listing" @click.stop="modals.edit = true">
+              <button class="btn-icon" data-tooltip="Edit Listing" @click.stop="setActiveService(s); modals.edit = true">
                 <AegisIcon name="pencil" :size="14" />
               </button>
               <button class="btn-icon" data-tooltip="Preview" @click.stop="openPreview(s)">
@@ -164,10 +164,10 @@
               <button class="btn-icon" data-tooltip="View Bookings" @click.stop="activeTab = 'bookings'">
                 <AegisIcon name="calendar" :size="14" />
               </button>
-              <button v-if="s.status === 'paused'" class="btn-icon" data-tooltip="Resume Listing" @click.stop="resumeService()">
+              <button v-if="s.status === 'paused'" class="btn-icon" data-tooltip="Resume Listing" @click.stop="setActiveService(s); resumeService()">
                 <AegisIcon name="arrow-right" :size="14" />
               </button>
-              <button v-else class="btn-icon" data-tooltip="Pause Listing" @click.stop="modals.pause = true">
+              <button v-else class="btn-icon" data-tooltip="Pause Listing" @click.stop="setActiveService(s); modals.pause = true">
                 <AegisIcon name="pause" :size="14" />
               </button>
             </template>
@@ -913,38 +913,44 @@
     </AegisModal>
 
     <!-- Preview Listing Modal -->
-    <AegisModal v-model="modals.preview" title="Listing Preview" size="md">
-      <p style="font-size:13px;font-weight:600;color:var(--text-3);margin-bottom:14px;">This is how your listing appears to other providers in search.</p>
-      <div style="border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
-        <div style="padding:20px;background:var(--surface-2);display:flex;gap:14px;align-items:flex-start;">
-          <div class="avatar avatar-lg">{{ $page.props.auth.user.avatar_initials }}</div>
-          <div>
-            <div style="font-family:var(--font-serif);font-weight:700;font-size:15px;color:var(--text);margin-bottom:3px;">{{ $page.props.auth.user.display_name }}</div>
-            <div style="font-size:13px;font-weight:600;color:var(--text-3);margin-bottom:8px;">{{ $page.props.auth.user.credentials ?? '' }}</div>
-            <div class="chip-list">
-              <span class="chip gold">Trauma</span>
-              <span class="chip gold">DBT</span>
-              <span class="chip">EMDR</span>
-              <span class="chip">Complex PTSD</span>
-            </div>
+    <AegisModal v-model="modals.preview" title="Listing Preview" size="sm">
+      <p class="preview-hint">This is how your listing appears to other providers in search.</p>
+      <div class="preview-svc-card">
+        <!-- Header: icon + title + category -->
+        <div class="preview-svc-head">
+          <div class="preview-svc-icon">
+            <AegisIcon :name="previewData.type_icon" :size="20" />
           </div>
-          <AegisBadge label="Available" variant="green" style="flex-shrink:0;" />
+          <div class="preview-svc-head-text">
+            <div class="preview-svc-name">{{ previewData.title }}</div>
+            <div class="preview-svc-category">{{ previewData.categoryLabel }}</div>
+          </div>
         </div>
-        <div style="padding:18px 20px;">
-          <div style="font-family:var(--font-serif);font-weight:700;font-size:15px;color:var(--text);margin-bottom:6px;">{{ previewData.title }}</div>
-          <div style="font-size:13px;font-weight:600;color:var(--text-2);line-height:1.55;margin-bottom:14px;">{{ previewData.description }}</div>
-          <div class="svc-meta-row">
-            <div class="svc-meta-item"><AegisIcon name="clock" :size="13" />50 min</div>
-            <div class="svc-meta-item"><AegisIcon name="star" :size="13" />4.9★ (38 reviews)</div>
-            <div class="svc-meta-item">Virtual only</div>
-          </div>
-          <div class="svc-price-row" style="margin-top:14px;justify-content:space-between;">
-            <div>
-              <span style="font-family:var(--font-serif);font-weight:700;font-size:22px;color:var(--text);">{{ previewData.price }}</span>
-              <span style="font-size:12px;font-weight:600;color:var(--text-3);"> / {{ previewData.price_unit }}</span>
-            </div>
-            <button class="btn btn-primary btn-sm"><AegisIcon name="send" :size="13" /> Request Service</button>
-          </div>
+        <!-- Price -->
+        <div class="preview-svc-price-row">
+          <span class="preview-svc-price-amount">{{ previewData.price }}</span>
+          <span v-if="previewData.price_unit" class="preview-svc-price-unit">/ {{ previewData.price_unit }}</span>
+        </div>
+        <!-- Description -->
+        <div class="preview-svc-desc">{{ previewData.description }}</div>
+        <!-- Meta pills -->
+        <div class="preview-svc-meta">
+          <span v-if="previewData.duration_min" class="preview-svc-pill">
+            <AegisIcon name="clock" :size="11" />{{ previewData.duration_min }} min
+          </span>
+          <span v-if="previewData.format" class="preview-svc-pill">
+            <AegisIcon name="monitor" :size="11" />{{ formatLabel(previewData.format) }}
+          </span>
+        </div>
+        <!-- Footer: availability + CTA -->
+        <div class="preview-svc-footer">
+          <span class="preview-svc-avail" :class="previewData.availability">
+            <AegisIcon name="circle-dot" :size="9" :filled="true" />
+            {{ previewData.availability_label || (previewData.availability === 'limited' ? 'Limited Spots' : 'Slots Available') }}
+          </span>
+          <button class="preview-svc-req-btn btn btn-primary">
+            <AegisIcon name="send" :size="12" /> Request
+          </button>
         </div>
       </div>
       <template #footer>
@@ -1271,13 +1277,38 @@ const bookingPeriodLabel = computed(() => {
 })
 
 // ── Preview modal ─────────────────────────────────────────────────────────
-const previewData = reactive({ title: '', description: '', price: '', price_unit: '' })
+const previewData = reactive({
+  title: '', description: '', price: '', price_unit: '',
+  type_icon: 'briefcase', category: '', categoryLabel: '',
+  duration_min: null, format: '', availability: 'open', availability_label: '',
+})
+
+const categoryLabelMap = {
+  supervision: 'Supervision', consultation: 'Consultation',
+  training: 'Training', coaching: 'Coaching',
+  practice_continuity: 'Practice Continuity', other: 'Other',
+}
+
+function formatLabel(fmt) {
+  if (!fmt) return ''
+  if (fmt === 'telehealth')  return 'Telehealth'
+  if (fmt === 'in_person')   return 'In-Person'
+  if (fmt === 'both')        return 'Telehealth or In-Person'
+  return fmt
+}
 
 function openPreview(s) {
-  previewData.title       = s.title
-  previewData.description = s.description
-  previewData.price       = s.price
-  previewData.price_unit  = s.price_unit?.replace(/^\/\s*/, '') ?? 'session'
+  previewData.title              = s.title
+  previewData.description        = s.description
+  previewData.price              = s.price
+  previewData.price_unit         = s.price_unit?.replace(/^\/\s*/, '') ?? 'session'
+  previewData.type_icon          = s.type_icon || 'briefcase'
+  previewData.category           = s.category ?? ''
+  previewData.categoryLabel      = categoryLabelMap[s.category] ?? (s.service_type ?? '')
+  previewData.duration_min       = s.duration_min ?? null
+  previewData.format             = s.format ?? ''
+  previewData.availability       = s.availability ?? 'open'
+  previewData.availability_label = s.availability_label ?? ''
   modals.preview = true
 }
 
@@ -1771,5 +1802,84 @@ a.link-name:hover, .req-name.link-name:hover { text-decoration: underline; }
 @media (max-width: 600px) {
   .avail-grid { grid-template-columns: repeat(4,1fr); }
   .pricing-options { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── PREVIEW MODAL — pp-svc-card replica ── */
+.preview-hint {
+  font-size: 12.5px; font-weight: 600; color: var(--text-3);
+  margin-bottom: 16px;
+}
+.preview-svc-card {
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.preview-svc-head {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 18px 18px 0;
+}
+.preview-svc-icon {
+  width: 40px; height: 40px;
+  border-radius: var(--radius);
+  background: var(--badge-bg-gold); color: var(--gold-dark);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.preview-svc-head-text { min-width: 0; }
+.preview-svc-name {
+  font-family: var(--font-serif);
+  font-size: 14px; font-weight: 700;
+  color: var(--text); line-height: 1.3; margin-bottom: 2px;
+}
+.preview-svc-category {
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.7px;
+  color: var(--gold-dark);
+}
+.preview-svc-price-row {
+  display: flex; align-items: baseline; gap: 4px;
+  padding: 10px 18px 0;
+}
+.preview-svc-price-amount {
+  font-family: var(--font-serif);
+  font-size: 22px; font-weight: 700;
+  color: var(--text); line-height: 1;
+}
+.preview-svc-price-unit {
+  font-size: 12px; font-weight: 600; color: var(--text-3);
+}
+.preview-svc-desc {
+  font-size: 12.5px; color: var(--text-2);
+  line-height: 1.6; padding: 10px 18px; flex: 1;
+}
+.preview-svc-meta {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 0 18px 14px;
+}
+.preview-svc-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600; color: var(--text-3);
+  background: var(--surface-2); border: 1px solid var(--border);
+  padding: 3px 9px; border-radius: 100px;
+}
+.preview-svc-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.preview-svc-avail {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.preview-svc-avail.open    { color: var(--green-dark, #2e7d32); }
+.preview-svc-avail.limited { color: var(--gold-dark); }
+.preview-svc-req-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 16px; font-size: 12px; font-weight: 700;
+  white-space: nowrap; flex-shrink: 0;
 }
 </style>

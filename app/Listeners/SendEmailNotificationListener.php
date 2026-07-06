@@ -821,6 +821,21 @@ class SendEmailNotificationListener
         ]];
     }
 
+    // ── Service request submitted ─────────────────────────────────────────────
+    private function serviceRequestSubmitted(ServiceRequestSubmitted $e): array {
+        return [[
+            'user_id'  => $e->request->practitioner_id,
+            'gate_key' => 'notify_email',
+            'template' => 'emails.gaps.58-service-inquiry-received',
+            'data'     => [
+                'practitioner_name' => \App\Models\User::find($e->request->practitioner_id)?->display_name ?? 'Practitioner',
+                'requester_name'    => $e->requester->display_name ?? 'A provider',
+                'service_title'     => $e->request->service?->title ?? 'a service',
+                'message'           => $e->request->message ?? null,
+            ],
+        ]];
+    }
+
     // ── Service request responded ─────────────────────────────────────────────
     private function serviceRequestResponded(ServiceRequestResponded $e): array {
         return [[
