@@ -185,11 +185,16 @@
         </div>
         <div class="pp-svc-body">
           <div v-if="props.serviceHeadline || props.serviceBio || props.serviceSpecialties?.length" class="pp-svc-profile-meta">
-            <div v-if="props.serviceHeadline" class="pp-svc-profile-headline">{{ props.serviceHeadline }}</div>
-            <div v-if="props.yearsExperience" class="pp-svc-profile-years">
-              <AegisIcon name="award" :size="13" /> {{ props.yearsExperience }} years of experience
+            <div class="pp-svc-profile-top">
+              <div class="pp-svc-profile-left">
+                <div v-if="props.serviceHeadline" class="pp-svc-profile-headline">{{ props.serviceHeadline }}</div>
+                <div v-if="props.yearsExperience" class="pp-svc-profile-years-badge">
+                  <AegisIcon name="award" :size="12" />
+                  {{ props.yearsExperience }} years experience
+                </div>
+              </div>
             </div>
-            <div v-if="props.serviceSpecialties?.length" class="chip-list" style="margin:8px 0 4px;">
+            <div v-if="props.serviceSpecialties?.length" class="pp-svc-profile-specialties">
               <span v-for="sp in props.serviceSpecialties" :key="sp" class="chip gold">{{ sp }}</span>
             </div>
             <p v-if="props.serviceBio" class="pp-svc-profile-bio">{{ props.serviceBio }}</p>
@@ -213,7 +218,7 @@
                   <AegisIcon name="circle-dot" :size="9" class="aegis-icon-filled" />{{ svc.availability_label || ((svc.availability ?? 'open') === 'limited' ? 'Limited Spots' : 'Slots Available') }}
                 </span>
                 <template v-if="!isOwner">
-                  <button v-if="isLoggedIn" class="btn btn-primary btn-sm" style="width:100%"
+                  <button v-if="isLoggedIn" class="btn btn-primary pp-svc-request-btn"
                           @click="openServiceRequest(svc.title)">Request</button>
                   <a v-else :href="route('login')" class="btn btn-outline btn-sm" style="width:100%;text-align:center">Sign in to Request</a>
                 </template>
@@ -1005,6 +1010,69 @@ function copyShareLink() {
 </script>
 
 <style scoped>
+/* ── Services Profile Meta ───────────────────────────────────────────── */
+.pp-svc-profile-meta {
+  border-left: 3px solid var(--gold-dark);
+  background: var(--surface-2);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+.pp-svc-profile-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.pp-svc-profile-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.pp-svc-profile-headline {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.35;
+}
+.pp-svc-profile-years-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gold-dark);
+  background: var(--badge-bg-gold);
+  padding: 3px 10px;
+  border-radius: 100px;
+  width: fit-content;
+}
+.pp-svc-profile-specialties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.pp-svc-profile-bio {
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* ── Service Request Button ──────────────────────────────────────────── */
+.pp-svc-request-btn {
+  width: auto;
+  min-width: 110px;
+  padding: 9px 18px;
+  font-size: 12px;
+  font-weight: 700;
+  align-self: flex-start;
+}
+
 .svc-request-strip {
   background: var(--surface);
   border: 1px solid var(--border);
