@@ -63,7 +63,7 @@
               </template>
               <!-- Not connected: show Connect modal -->
               <template v-else>
-                <button type="button" class="btn-hero-solid is-on-light" :disabled="connectForm.processing" @click="showConnectModal = true">
+                <button type="button" class="btn-hero-solid is-on-light" :disabled="connectForm.processing" @click="openConnectModal()">
                   <AegisIcon name="plus" :size="14" /> Connect
                 </button>
               </template>
@@ -589,12 +589,14 @@
                 You're not yet connected with {{ user.display_name }}. Add them to your clinical network to
                 unlock referral tracking, shared care coordination, and connection history.
               </p>
-              <p style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--gold-dark);font-weight:600;margin:0 0 10px">
+              <p style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--gold-dark);font-weight:600;margin:0 0 16px">
                 <AegisIcon name="clock" :size="12" /> Connection request pending
               </p>
-              <button class="btn btn-outline btn-sm btn-danger-outline" @click="cancelConnect">
-                <AegisIcon name="x" :size="13" /> Cancel Request
-              </button>
+              <div>
+                <button class="btn btn-outline btn-sm btn-danger-outline" @click="cancelConnect">
+                  <AegisIcon name="x" :size="13" /> Cancel Request
+                </button>
+              </div>
             </template>
             <!-- Not connected at all -->
             <template v-else>
@@ -602,7 +604,7 @@
                 You're not yet connected with {{ user.display_name }}. Add them to your clinical network to
                 unlock referral tracking, shared care coordination, and connection history.
               </p>
-              <button class="btn btn-outline btn-sm" @click="showConnectModal = true" :disabled="connectForm.processing">
+              <button class="btn btn-outline btn-sm" @click="openConnectModal()" :disabled="connectForm.processing">
                 <AegisIcon name="plus" :size="13" /> Connect
               </button>
             </template>
@@ -694,23 +696,13 @@
         </template>
       </AegisModal>
 
-      <!-- Connect Modal -->
-      <AegisModal v-model="showConnectModal" title="Send Connection Request" size="md">
-        <div class="form-group">
-          <label class="form-label">Message <span style="color:var(--text-4);font-weight:500">(optional)</span></label>
-          <textarea class="form-textarea" rows="3"
-            :placeholder="`Hi ${user.display_name}, I'd love to connect and build a referral relationship…`"
-            v-model="connectForm.message"
-          ></textarea>
-        </div>
-        <template #footer>
-          <button class="btn btn-outline" @click="showConnectModal = false">Cancel</button>
-          <button class="btn btn-primary" :disabled="connectForm.processing" @click="sendConnect">
-            <AegisIcon name="user-plus" :size="13" />
-            {{ connectForm.processing ? 'Sending…' : 'Send Request' }}
-          </button>
-        </template>
-      </AegisModal>
+      <!-- Centralized Connection Request Modal -->
+      <ConnectionRequestModal
+        :recipient-id="user.id"
+        :recipient-name="user.display_name"
+        :recipient-role="user.credentials ?? user.title ?? ''"
+        @sent="onConnectSent"
+      />
 
     </template>
   </PublicLayout>
@@ -727,6 +719,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useMessageButton } from '@/composables/useMessageButton'
 import { useModal } from '@/composables/useModal'
 import { usePricingStore } from '@/stores/pricing'
+import ConnectionRequestModal from '@/components/modals/ConnectionRequestModal.vue'
 
 const props = defineProps({
   user:              { type: Object, required: true },
@@ -837,10 +830,9 @@ function formatLabel(format) {
 
 // ── Modal state ────────────────────────────────────────────────────────
 const showEndorseModal = ref(false)
-const showConnectModal = ref(false)
 
 // ── Forms ──────────────────────────────────────────────────────────────
-const connectForm       = useForm({ message: '' })
+const connectForm       = useForm({})
 const cancelRequestForm = useForm({})
 
 const endorseForm = useForm({
@@ -871,13 +863,14 @@ function openServiceRequest(serviceName) {
   openModal('serviceRequestModal')
 }
 
-// Send network connect request to backend
-function sendConnect() {
-  connectForm.post(route('public.profile.connect', { user: props.user.id }), {
-    preserveScroll: true,
-    onSuccess: () => { showConnectModal.value = false; toast.success('Connection request sent.') },
-    onError: () => toast.error('Could not send connection request.'),
-  })
+// Open centralized ConnectionRequestModal
+function openConnectModal() {
+  openModal('connectionRequestModal')
+}
+
+function onConnectSent() {
+  toast.success('Connection request sent.')
+  router.reload({ only: ['pm'] })
 }
 
 // Accept inbound request from this profile owner

@@ -86,7 +86,7 @@ function initials(name) {
   if (!name) return 'BP'
   return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
 }
-const palette = ['var(--gold-dark)', 'var(--blue-dark)', 'var(--green-dark)', 'var(--orange)']
+const palette = ['var(--gold-dark)', 'var(--blue-dark)', 'var(--green-dark)', 'var(--purple-dark, #6b4fa0)']
 function avatarStyle(bp) {
   if (bp?.avatar_url) {
     return { backgroundImage: `url(${bp.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }

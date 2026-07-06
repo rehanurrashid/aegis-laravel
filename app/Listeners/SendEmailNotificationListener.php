@@ -768,18 +768,20 @@ class SendEmailNotificationListener
 
     // ── Messages ─────────────────────────────────────────────────────────────
     private function messageSent(MessageSent $e): array {
-        // Notify all thread participants except sender
+        // participant_ids is a JSON array on message_threads — no pivot table
         $thread = $e->thread;
         $sender = $e->sender;
-        $participants = \App\Models\MessageParticipant::where('thread_id', $thread->id)
-            ->where('user_id', '!=', $sender->id)
-            ->get();
-        return $participants->map(fn($p) => [
-            'user_id'  => $p->user_id,
+        $participantIds = collect($thread->participant_ids ?? [])
+            ->filter(fn($id) => $id !== $sender->id)
+            ->values();
+        if ($participantIds->isEmpty()) return [];
+        $recipients = \App\Models\User::whereIn('id', $participantIds)->get(['id', 'display_name']);
+        return $recipients->map(fn($u) => [
+            'user_id'  => $u->id,
             'gate_key' => 'notify_message',
             'template' => 'emails.messages.new-message',
             'data'     => [
-                'recipient_name' => \App\Models\User::find($p->user_id)?->display_name ?? 'Member',
+                'recipient_name' => $u->display_name ?? 'Member',
                 'sender_name'    => $sender->display_name,
                 'message_body'   => \Illuminate\Support\Str::limit($e->message->body ?? '', 200),
                 'thread_url'     => rtrim(config('app.url'), '/') . '/provider/messages',

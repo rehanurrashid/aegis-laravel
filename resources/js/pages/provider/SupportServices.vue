@@ -236,27 +236,64 @@
       <div class="section-header" style="margin-bottom:16px">
         <div class="section-title-h"><AegisIcon name="check" :size="16" /> Hired Business Partners</div>
       </div>
-      <AegisEmptyState v-if="!activeContracts.length" icon="users" title="No hired partners yet" description="Accepted proposals will appear here. Accept an application to hire a business partner." />
-      <div v-else class="jp-grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">
-        <div v-for="c in activeContracts" :key="c.id" class="jp-card" style="border-color:var(--green)" @click="openContract(c)">
-          <div class="jp-card-header">
-            <div class="jp-card-logo avatar avatar-gold" style="font-size:13px;font-weight:700;border-radius:var(--radius-sm)" :style="avatarStyle(c.bp)">
-              <template v-if="!c.bp?.avatar_url">{{ initials(c.bp?.display_name) }}</template>
+      <!-- Active / Closed sub-tabs -->
+      <div class="tabs-segmented" style="margin-bottom:16px">
+        <button :class="['tab-pill', { active: hiredSubTab === 'active' }]" @click="hiredSubTab = 'active'">
+          <AegisIcon name="dot" :size="10" :filled="true" style="color:var(--green-dark)" /> Active
+          <span v-if="activeHiredContracts.length" class="badge-pill">{{ activeHiredContracts.length }}</span>
+        </button>
+        <button :class="['tab-pill', { active: hiredSubTab === 'closed' }]" @click="hiredSubTab = 'closed'">
+          <AegisIcon name="archive" :size="12" /> Closed
+          <span v-if="closedHiredContracts.length" class="badge-pill">{{ closedHiredContracts.length }}</span>
+        </button>
+      </div>
+      <!-- Active contracts -->
+      <template v-if="hiredSubTab === 'active'">
+        <AegisEmptyState v-if="!activeHiredContracts.length" icon="users" title="No active contracts" description="Accepted proposals will appear here once a contract is active." />
+        <div v-else class="jp-grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">
+          <div v-for="c in activeHiredContracts" :key="c.id" class="jp-card" style="border-color:var(--green)" @click="openContract(c)">
+            <div class="jp-card-header">
+              <div class="jp-card-logo avatar avatar-gold" style="font-size:13px;font-weight:700;border-radius:var(--radius-sm)" :style="avatarStyle(c.bp)">
+                <template v-if="!c.bp?.avatar_url">{{ initials(c.bp?.display_name) }}</template>
+              </div>
+              <div>
+                <div class="jp-card-title">{{ c.bp?.display_name ?? 'Business Partner' }}</div>
+                <div class="jp-card-practice">{{ c.title }} · {{ bpTypeLabel(c.bp?.bp_type) }}</div>
+              </div>
             </div>
-            <div>
-              <div class="jp-card-title">{{ c.bp?.display_name ?? 'Business Partner' }}</div>
-              <div class="jp-card-practice">{{ c.title }} · {{ bpTypeLabel(c.bp?.bp_type) }}</div>
-            </div>
-          </div>
-          <div class="jp-card-footer">
-            <span class="badge badge-green"><AegisIcon name="dot" :size="8" :filled="true" /> {{ val(c.status) === 'active' ? 'Active Contract' : 'Completed' }}</span>
-            <div class="jp-card-actions" @click.stop>
-              <button class="btn-icon" data-tooltip="Message" :disabled="msgLoading === c.bp?.id" @click="openConversation(c.bp?.id)"><AegisIcon name="message-square" :size="14" /></button>
-              <button class="btn-icon" data-tooltip="View contract" @click="openContract(c)"><AegisIcon name="file-text" :size="14" /></button>
+            <div class="jp-card-footer">
+              <span class="badge badge-green"><AegisIcon name="dot" :size="8" :filled="true" /> Active Contract</span>
+              <div class="jp-card-actions" @click.stop>
+                <button class="btn-icon" data-tooltip="Message" :disabled="msgLoading === c.bp?.id" @click="openConversation(c.bp?.id)"><AegisIcon name="message-square" :size="14" /></button>
+                <button class="btn-icon" data-tooltip="View contract" @click="openContract(c)"><AegisIcon name="file-text" :size="14" /></button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </template>
+      <!-- Closed / completed contracts -->
+      <template v-else>
+        <AegisEmptyState v-if="!closedHiredContracts.length" icon="archive" title="No closed contracts yet" description="Completed and ended contracts will be kept here for your records." />
+        <div v-else class="jp-grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">
+          <div v-for="c in closedHiredContracts" :key="c.id" class="jp-card" style="opacity:0.82" @click="openContract(c)">
+            <div class="jp-card-header">
+              <div class="jp-card-logo avatar avatar-gold" style="font-size:13px;font-weight:700;border-radius:var(--radius-sm)" :style="avatarStyle(c.bp)">
+                <template v-if="!c.bp?.avatar_url">{{ initials(c.bp?.display_name) }}</template>
+              </div>
+              <div>
+                <div class="jp-card-title">{{ c.bp?.display_name ?? 'Business Partner' }}</div>
+                <div class="jp-card-practice">{{ c.title }} · {{ bpTypeLabel(c.bp?.bp_type) }}</div>
+              </div>
+            </div>
+            <div class="jp-card-footer">
+              <span class="badge badge--grey"><AegisIcon name="archive" :size="10" /> Closed</span>
+              <div class="jp-card-actions" @click.stop>
+                <button class="btn-icon" data-tooltip="View contract" @click="openContract(c)"><AegisIcon name="file-text" :size="14" /></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
     </div>
 
     <!-- ============================================================
@@ -362,7 +399,7 @@
       :proposal="activeProposal"
       :job-title="activeProposal ? jobTitle(activeProposal.job_id) : ''"
       :stats="activeProposal ? (bpStats[activeProposal.bp_id] || {}) : {}"
-      :contract-proposal-ids="activeContracts.map(c => c.proposal_id).filter(Boolean)"
+      :contract-proposal-ids="activeHiredContracts.map(c => c.proposal_id).filter(Boolean)"
       @reviewed="(p) => openStage(p, 'reviewed')"
       @shortlist="(p) => openStage(p, 'shortlisted')"
       @schedule="(p) => openSchedule(p)"
@@ -428,6 +465,8 @@ const { confirmAction } = useConfirm()
 const { openConversation, loading: msgLoading } = useMessageButton()
 
 const tab = ref('my-postings')
+const hiredSubTab = ref('active')
+
 watch(tab, () => syncFormEnhancements())
 const engagements = computed(() => Array.isArray(props.engagementRequests) ? props.engagementRequests : [])
 
@@ -444,6 +483,9 @@ function viewRequest(r) { activeEngagementRequest.value = r; showRequestDetail.v
 const postingFilter = ref('all')
 const applicationsJobFilter = ref('')
 const pipelineJobFilter = ref('')
+
+const activeHiredContracts = computed(() => props.activeContracts.filter(c => val(c.status) === 'active'))
+const closedHiredContracts = computed(() => props.activeContracts.filter(c => val(c.status) !== 'active'))
 
 const showPostJob = ref(false)
 const showTemplates = ref(false)
