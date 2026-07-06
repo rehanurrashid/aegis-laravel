@@ -572,25 +572,23 @@
         </div>
       </template>
 
-      <!-- Media upload -->
+      <!-- Media upload — AegisDropzone (canonical file input component) -->
       <div class="form-group">
         <label class="form-label">Photo / Video <span style="color:var(--text-4);font-weight:600">(optional, up to 4)</span></label>
-        <div class="media-upload-zone" @click="$refs.mediaInput.click()" @dragover.prevent @drop.prevent="onMediaDrop">
-          <AegisIcon name="camera" :size="20" style="color:var(--text-4)" />
-          <span style="font-size:13px;color:var(--text-3);margin-top:6px">Click to upload or drag & drop</span>
-          <span style="font-size:11px;color:var(--text-4)">JPG, PNG, GIF, MP4 — max 20MB each</span>
-        </div>
-        <input ref="mediaInput" type="file" accept="image/*,video/*" multiple class="sr-only"
-               @change="onMediaSelect" />
+        <AegisDropzone
+          accept="image/*,video/*"
+          hint="JPG, PNG, GIF, MP4 — max 20 MB each"
+          :multiple="true"
+          :max-size-mb="20"
+          @files="onMediaFiles"
+        />
+        <!-- Thumbnail preview strip (shown after files are selected) -->
         <div v-if="mediaPreview.length" class="media-preview-row">
           <div v-for="(m, i) in mediaPreview" :key="i" class="media-preview-item">
             <img v-if="m.type === 'image'" :src="m.dataUrl" class="media-preview-thumb" :alt="m.name" />
             <div v-else class="media-preview-video">
               <AegisIcon name="video" :size="18" />
             </div>
-            <button type="button" class="media-preview-remove" data-tooltip="Remove" @click="removeMedia(i)">
-              <AegisIcon name="x" :size="11" />
-            </button>
           </div>
         </div>
       </div>
@@ -763,6 +761,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { router, useForm, usePage as useInertiaPage } from '@inertiajs/vue3'
 import EventDetailModal from '@/components/modals/EventDetailModal.vue'
+import AegisDropzone    from '@/components/ui/AegisDropzone.vue'
 import AppLayout       from '@/layouts/AppLayout.vue'
 import { useToast }    from '@/composables/useToast'
 import { useConfirm }  from '@/composables/useConfirm'
@@ -1092,26 +1091,30 @@ async function submitEditPost() {
 }
 
 // ── media upload ─────────────────────────────────────────────────────────────
+// ── media upload — wired to AegisDropzone @files ─────────────────────────────
 const mediaPreview = reactive([])
-function onMediaSelect(e) {
-  const files = Array.from(e.target.files ?? [])
-  files.forEach(f => addMediaFile(f))
-  e.target.value = ''
+
+function onMediaFiles(files) {
+  // AegisDropzone emits the full current File array on every change.
+  // Limit to 4, build preview thumbnails via FileReader for image posts.
+  if (files.length > 4) {
+    toast.error('Maximum 4 media files per post.')
+    files = files.slice(0, 4)
+  }
+  // Rebuild preview array from current file list
+  mediaPreview.splice(0)
+  files.forEach(f => {
+    const isImage = f.type.startsWith('image/')
+    const isVideo = f.type.startsWith('video/')
+    if (isImage) {
+      const reader = new FileReader()
+      reader.onload = ev => mediaPreview.push({ type: 'image', name: f.name, dataUrl: ev.target.result, file: f })
+      reader.readAsDataURL(f)
+    } else if (isVideo) {
+      mediaPreview.push({ type: 'video', name: f.name, dataUrl: null, file: f })
+    }
+  })
 }
-function onMediaDrop(e) {
-  const files = Array.from(e.dataTransfer?.files ?? [])
-  files.forEach(f => addMediaFile(f))
-}
-function addMediaFile(f) {
-  if (mediaPreview.length >= 4) { toast.error('Maximum 4 media files per post.'); return }
-  const isImage = f.type.startsWith('image/')
-  const isVideo = f.type.startsWith('video/')
-  if (!isImage && !isVideo) { toast.error('Only images and videos are supported.'); return }
-  const reader = new FileReader()
-  reader.onload = e => mediaPreview.push({ type: isImage ? 'image' : 'video', name: f.name, dataUrl: e.target.result, file: f })
-  reader.readAsDataURL(f)
-}
-function removeMedia(idx) { mediaPreview.splice(idx, 1) }
 
 // ── poll builder ─────────────────────────────────────────────────────────────
 const pollOptions = reactive([{ label: '' }, { label: '' }])
@@ -1403,14 +1406,10 @@ function anyError(v$ref, form, field) {
 .pd-actions { display:flex;align-items:center;gap:4px;padding:12px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin:16px 0; }
 .pd-comments { padding-top:4px; }
 /* Media upload */
-.media-upload-zone { display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;border:2px dashed var(--border-dark);border-radius:var(--radius);cursor:pointer;transition:border-color var(--transition),background var(--transition);gap:4px; }
-.media-upload-zone:hover { border-color:var(--soft-gold);background:var(--badge-bg-gold); }
 .media-preview-row { display:flex;flex-wrap:wrap;gap:8px;margin-top:10px; }
 .media-preview-item { position:relative;width:72px;height:72px;border-radius:var(--radius-sm);overflow:hidden;border:1px solid var(--border); }
 .media-preview-thumb { width:100%;height:100%;object-fit:cover;display:block; }
 .media-preview-video { width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--surface-3);color:var(--text-3); }
-.media-preview-remove { position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:var(--radius-full);background:rgba(0,0,0,.55);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0; }
-.media-preview-remove:hover { background:var(--red); }
 /* Poll builder */
 .poll-options-builder { display:flex;flex-direction:column;gap:8px; }
 .poll-option-row { display:flex;align-items:center;gap:8px; }
@@ -1427,7 +1426,7 @@ function anyError(v$ref, form, field) {
 .lib-post-clickable:hover { color:var(--gold-dark); }
 .lib-post-body { font-size:11px;color:var(--text-4);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
 /* Utilities */
-.sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+
 @media (max-width:600px) { .news-toolbar { flex-direction:column;align-items:stretch; } .news-toolbar-left,.news-toolbar-right { width:100%; } .news-toolbar .form-select-sm { flex:1;min-width:0; } }
 
 /* ── Gaps fix — all layout via CSS, no inline styles ── */
