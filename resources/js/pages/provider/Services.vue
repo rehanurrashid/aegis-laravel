@@ -1638,6 +1638,9 @@ function statusVariant(s) {
   gap: 16px;
   margin-bottom: 22px;
 }
+/* push metrics + footer to bottom */
+.services-grid .card { display: flex; flex-direction: column; }
+.services-grid .card .card-body { flex: 1; }
 .svc-type-icon {
   width: 48px; height: 48px;
   border-radius: var(--radius-sm);
