@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Events\Service\ServiceRequestSubmitted;
-use App\Events\Service\ServiceRequestResponded;
-
 use App\Enums\ActivitySeverity;
+use App\Enums\ServiceStatus;
+use App\Enums\ServiceSessionStatus;
+use App\Enums\UserTier;
 use App\Models\Service;
 use App\Models\ServiceRequest;
 use App\Models\ServiceSession;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -20,58 +21,237 @@ class ServiceService
 {
     public function __construct(private ActivityService $activity) {}
 
+    // ── Helpers ───────────────────────────────────────────────────────────
+
+    private function typeIcon(string $category): string
+    {
+        return match ($category) {
+            'supervision'         => 'graduation-cap',
+            'consultation'        => 'message',
+            'training'            => 'book-open',
+            'coaching'            => 'leaf',
+            'practice_continuity' => 'shield',
+            default               => 'briefcase',
+        };
+    }
+
+    private function formatPrice(Service $s): array
+    {
+        $type = $s->price_type instanceof \App\Enums\ServicePriceType
+            ? $s->price_type->value
+            : (string) ($s->price_type ?? 'inquiry');
+
+        if (!$s->price_cents || $type === 'inquiry') {
+            return ['price' => 'Contact for pricing', 'price_unit' => '', 'price_note' => ''];
+        }
+        $dollars = '$' . number_format($s->price_cents / 100, 0);
+        $unit    = match ($type) {
+            'hourly'  => '/ hr',
+            'session' => '/ session',
+            default   => '',
+        };
+        return ['price' => $dollars, 'price_unit' => $unit, 'price_note' => ''];
+    }
+
+    // ── Shaping for Vue ───────────────────────────────────────────────────
+
+    public function shapeForListing(Service $s): array
+    {
+        $priceData = $this->formatPrice($s);
+        $category  = $s->category ?? 'other';
+        $status    = $s->status instanceof ServiceStatus ? $s->status->value : (string) ($s->status ?? 'active');
+
+        $meta = [];
+        if ($s->duration_min) {
+            $meta[] = ['icon' => 'clock',   'text' => $s->duration_min . ' min'];
+        }
+        if ($s->format) {
+            $meta[] = ['icon' => 'monitor', 'text' => match ($s->format) {
+                'telehealth' => 'Virtual', 'in_person' => 'In-person', 'both' => 'Virtual & In-person', default => $s->format,
+            }];
+        }
+        if ($s->availability) {
+            $meta[] = ['icon' => 'calendar', 'text' => $s->availability_label ?: ucfirst($s->availability)];
+        }
+
+        $sessionCount    = ServiceSession::where('service_id', $s->id)->count();
+        $completedCount  = ServiceSession::where('service_id', $s->id)->where('status', ServiceSessionStatus::Completed->value)->count();
+        $pendingRequests = ServiceRequest::where('service_id', $s->id)->where('status', 'new')->count();
+
+        return [
+            'id'           => $s->id,
+            'title'        => $s->title,
+            'service_type' => ucfirst(str_replace('_', ' ', $category)),
+            'type_icon'    => $this->typeIcon($category),
+            'description'  => $s->description ?? '',
+            'status'       => $status,
+            'meta'         => $meta,
+            'price'        => $priceData['price'],
+            'price_unit'   => $priceData['price_unit'],
+            'price_note'   => $priceData['price_note'],
+            'price_cents'  => $s->price_cents,
+            'price_type'   => $s->price_type instanceof \App\Enums\ServicePriceType ? $s->price_type->value : ($s->price_type ?? 'inquiry'),
+            'duration_min' => $s->duration_min,
+            'format'       => $s->format,
+            'is_public'    => (bool) $s->is_public,
+            'category'     => $category,
+            'metrics'      => [
+                ['val' => (string) $sessionCount,    'label' => 'Sessions'],
+                ['val' => (string) $completedCount,  'label' => 'Completed'],
+                ['val' => (string) $pendingRequests, 'label' => 'Requests'],
+            ],
+        ];
+    }
+
+    public function shapeRequest(ServiceRequest $r): array
+    {
+        $inquirer = $r->inquirer;
+        $service  = $r->service;
+        $status   = $r->status instanceof \App\Enums\ServiceRequestStatus
+            ? $r->status->value
+            : (string) ($r->status ?? 'new');
+
+        return [
+            'id'                   => $r->id,
+            'service_id'           => $r->service_id,
+            'requester_id'         => $r->inquirer_id,
+            'requester_name'       => $inquirer?->display_name ?? $r->inquirer_name ?? 'Unknown',
+            'requester_avatar'     => $inquirer?->avatar_initials ?? '',
+            'requester_detail'     => $inquirer?->credentials ?? '',
+            'service_title'        => $service?->title ?? '',
+            'request_type'         => ucfirst(str_replace('_', ' ', $service?->category ?? '')),
+            'requested_date_label' => $r->created_at?->format('M j, Y') ?? '',
+            'time_label'           => $r->created_at?->diffForHumans() ?? '',
+            'status'               => $status,
+            'message'              => $r->message ?? '',
+        ];
+    }
+
+    public function shapeSession(ServiceSession $s): array
+    {
+        $client  = $s->client;
+        $service = $s->service;
+        $status  = $s->status instanceof ServiceSessionStatus ? $s->status->value : (string) ($s->status ?? 'scheduled');
+
+        return [
+            'id'                   => $s->id,
+            'service_id'           => $s->service_id,
+            'service_request_id'   => $s->service_request_id,
+            'provider_name'        => $client?->display_name ?? 'Unknown',
+            'provider_avatar'      => $client?->avatar_initials ?? '',
+            'provider_credentials' => $client?->credentials ?? '',
+            'service_title'        => $service?->title ?? '',
+            'datetime_label'       => $s->scheduled_at?->format('M j, Y g:i A') ?? '—',
+            'duration_label'       => $service?->duration_min ? $service->duration_min . ' min' : '—',
+            'amount'               => $s->amount_cents ? '$' . number_format($s->amount_cents / 100, 0) : '—',
+            'status'               => $status,
+            'summary'              => $s->session_summary ?? '',
+            'action_items'         => $s->session_action_items ?? '',
+        ];
+    }
+
+    // ── Stats ─────────────────────────────────────────────────────────────
+
+    public function statsForPractitioner(User $user): array
+    {
+        $now        = Carbon::now();
+        $monthStart = $now->copy()->startOfMonth();
+
+        $activeListings = Service::where('practitioner_id', $user->id)
+            ->where('status', ServiceStatus::Active->value)
+            ->count();
+
+        $pendingRequests = ServiceRequest::where('practitioner_id', $user->id)
+            ->where('status', 'new')
+            ->count();
+
+        $sessionsThisMonth = ServiceSession::where('practitioner_id', $user->id)
+            ->whereBetween('scheduled_at', [$monthStart, $now])
+            ->count();
+
+        $revenueThisMonth = ServiceSession::where('practitioner_id', $user->id)
+            ->where('status', ServiceSessionStatus::Completed->value)
+            ->whereBetween('completed_at', [$monthStart, $now])
+            ->sum('amount_cents');
+
+        return [
+            'active_listings'  => $activeListings,
+            'pending_requests' => $pendingRequests,
+            'sessions'         => $sessionsThisMonth,
+            'revenue_label'    => '$' . number_format($revenueThisMonth / 100, 0),
+        ];
+    }
+
+    // ── CRUD ─────────────────────────────────────────────────────────────
+
     public function create(User $practitioner, array $data): Service
     {
-        if ($practitioner->tier !== 'practice' || !$practitioner->services_mode) {
+        $tierVal = $practitioner->tier instanceof UserTier
+            ? $practitioner->tier->value
+            : (string) $practitioner->tier;
+
+        if ($tierVal !== 'practice' || !$practitioner->services_mode) {
             throw new RuntimeException('Services Mode requires the Practice tier.');
         }
 
+        $status = $data['status'] ?? 'active';
+
         return Service::create([
-            'id'              => 'ps_' . Str::lower(Str::random(12)),
-            'practitioner_id' => $practitioner->id,
-            'title'           => $data['title'],
-            'description'     => $data['description'] ?? null,
-            'category'        => $data['category'] ?? null,
-            'price_cents'     => $data['price_cents'] ?? 0,
-            'price_type'      => $data['price_type'] ?? 'inquiry',
-            'duration_min'    => $data['duration_min'] ?? null,
-            'format'          => $data['format'] ?? null,
+            'id'                 => 'ps_' . Str::lower(Str::random(12)),
+            'practitioner_id'    => $practitioner->id,
+            'title'              => $data['title'],
+            'description'        => $data['description'] ?? null,
+            'category'           => $data['category'] ?? null,
+            'price_cents'        => $data['price_cents'] ?? 0,
+            'price_type'         => $data['price_type'] ?? 'inquiry',
+            'duration_min'       => $data['duration_min'] ?? null,
+            'format'             => $data['format'] ?? null,
             'availability'       => $data['availability'] ?? 'open',
             'availability_label' => $data['availability_label'] ?? null,
-            'is_public'       => $data['is_public'] ?? true,
-            'status'          => 'active',
-            'created_at'      => now(),
+            'is_public'          => $data['is_public'] ?? true,
+            'status'             => $status,
+            'created_at'         => now(),
         ]);
     }
 
     public function update(Service $service, array $data): Service
     {
-        $allowed = ['title', 'description', 'category', 'price_cents', 'price_type', 'duration_min', 'format', 'availability', 'availability_label', 'status', 'is_public'];
+        $allowed = [
+            'title', 'description', 'category', 'price_cents', 'price_type',
+            'duration_min', 'format', 'availability', 'availability_label',
+            'status', 'is_public',
+        ];
         $service->update(array_intersect_key($data, array_flip($allowed)));
         return $service->fresh();
     }
 
     public function activate(Service $service): Service
     {
-        $service->update(['status' => 'active']);
+        $service->update(['status' => ServiceStatus::Active->value]);
         return $service->fresh();
     }
 
     public function deactivate(Service $service): Service
     {
-        $service->update(['status' => 'inactive']);
+        $service->update(['status' => ServiceStatus::Inactive->value]);
         return $service->fresh();
     }
 
     public function archive(Service $service): Service
     {
-        $service->update(['status' => 'archived']);
+        $service->update(['status' => ServiceStatus::Archived->value]);
         return $service->fresh();
     }
 
+    // ── Requests ──────────────────────────────────────────────────────────
+
     public function submitRequest(Service $service, User $requester, array $data): ServiceRequest
     {
-        if ($service->status !== 'active') {
+        $svcStatus = $service->status instanceof ServiceStatus
+            ? $service->status->value
+            : (string) $service->status;
+
+        if ($svcStatus !== 'active') {
             throw new RuntimeException('This service is not currently available.');
         }
         if ($service->practitioner_id === $requester->id) {
@@ -93,10 +273,9 @@ class ServiceService
             'service_request_received',
             "{$requester->display_name} requested your service: {$service->title}",
             $data['message'] ?? 'Tap to review.',
-            'service_request', $req->id, $requester->id
+            'service_request', $req->id, $requester->id,
+            'notification', $requester->id
         );
-
-        event(new ServiceRequestSubmitted($req, $requester));
 
         return $req;
     }
@@ -104,18 +283,16 @@ class ServiceService
     public function acceptRequest(ServiceRequest $req): ServiceRequest
     {
         $req->update(['status' => 'accepted', 'responded_at' => now()]);
-        $requester = User::find($req->inquirer_id);
         $service = Service::find($req->service_id);
 
         $this->activity->log(
             $req->inquirer_id, 'provider', 'referral', ActivitySeverity::Info,
             'service_request_accepted',
-            "Your service request was accepted",
-            "{$service->title}",
-            'service_request', $req->id, $req->practitioner_id
+            'Your service request was accepted',
+            $service?->title ?? '',
+            'service_request', $req->id, $req->practitioner_id,
+            'notification', $req->practitioner_id
         );
-
-        event(new ServiceRequestResponded($req->fresh(), 'accepted'));
 
         return $req->fresh();
     }
@@ -123,23 +300,24 @@ class ServiceService
     public function declineRequest(ServiceRequest $req, ?string $reason = null): ServiceRequest
     {
         $req->update([
-            'status' => 'declined',
-            'responded_at' => now(),
+            'status'        => 'declined',
+            'responded_at'  => now(),
             'response_note' => $reason,
         ]);
 
         $this->activity->log(
             $req->inquirer_id, 'provider', 'referral', ActivitySeverity::Info,
             'service_request_declined',
-            "Your service request was declined",
+            'Your service request was declined',
             $reason ?? 'No reason given.',
-            'service_request', $req->id, $req->practitioner_id
+            'service_request', $req->id, $req->practitioner_id,
+            'notification', $req->practitioner_id
         );
-
-        event(new ServiceRequestResponded($req->fresh(), 'declined'));
 
         return $req->fresh();
     }
+
+    // ── Sessions ──────────────────────────────────────────────────────────
 
     public function bookSession(ServiceRequest $req, array $data): ServiceSession
     {
@@ -151,23 +329,61 @@ class ServiceService
             'client_id'          => $req->inquirer_id,
             'scheduled_at'       => $data['session_at'] ?? $data['scheduled_at'] ?? null,
             'status'             => 'scheduled',
+            'amount_cents'       => $req->service?->price_cents ?? 0,
             'created_at'         => now(),
         ]);
     }
 
+    public function cancelSession(ServiceSession $session, array $data): ServiceSession
+    {
+        $session->update([
+            'status'        => ServiceSessionStatus::Cancelled->value,
+            'cancel_reason' => $data['reason'] ?? null,
+        ]);
+        return $session->fresh();
+    }
+
+    public function saveSessionNotes(ServiceSession $session, array $data): ServiceSession
+    {
+        $session->update([
+            'session_summary'         => $data['summary'] ?? null,
+            'session_action_items'    => $data['action_items'] ?? null,
+            'share_notes_with_client' => $data['share_with_supervisee'] ?? false,
+        ]);
+        return $session->fresh();
+    }
+
+    // ── Queries ───────────────────────────────────────────────────────────
+
     public function getForPractitioner(string $practitionerId): Collection
     {
         return Service::where('practitioner_id', $practitionerId)
-            ->whereIn('status', ['active', 'inactive'])
+            ->where('status', '!=', ServiceStatus::Archived->value)
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+
+    public function getRequestsForPractitioner(string $practitionerId): Collection
+    {
+        return ServiceRequest::where('practitioner_id', $practitionerId)
+            ->with(['service', 'inquirer'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+
+    public function getSessionsForPractitioner(string $practitionerId): Collection
+    {
+        return ServiceSession::where('practitioner_id', $practitionerId)
+            ->with(['service', 'client'])
+            ->orderBy('scheduled_at', 'desc')
             ->get();
     }
 
     public function findProviders(array $filters = []): Collection
     {
-        $query = Service::where('status', 'active');
+        $query = Service::where('status', ServiceStatus::Active->value)->where('is_public', 1);
         if (!empty($filters['category'])) $query->where('category', $filters['category']);
         if (!empty($filters['max_price_cents'])) $query->where('price_cents', '<=', $filters['max_price_cents']);
-
         return $query->limit($filters['limit'] ?? 50)->get();
     }
 }

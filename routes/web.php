@@ -202,6 +202,8 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
             Route::delete('/services/{service}', [ServicesController::class, 'destroy'])->name('services.destroy');
             Route::post('/services/{service}/requests/{serviceRequest}/accept', [ServicesController::class, 'acceptRequest'])->name('services.request.accept');
             Route::post('/services/{service}/requests/{serviceRequest}/decline', [ServicesController::class, 'declineRequest'])->name('services.request.decline');
+            Route::post('/services/sessions/{session}/cancel', [ServicesController::class, 'cancelSession'])->name('services.session.cancel');
+            Route::post('/services/sessions/{session}/notes', [ServicesController::class, 'saveSessionNotes'])->name('services.session.notes');
         });
 
         // Support Requests (Job Postings)

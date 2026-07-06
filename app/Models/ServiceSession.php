@@ -21,13 +21,15 @@ class ServiceSession extends Model
     protected $fillable = [
         'id', 'service_request_id', 'service_id', 'practitioner_id', 'client_id',
         'status', 'scheduled_at', 'completed_at', 'amount_cents',
+        'session_summary', 'session_action_items', 'share_notes_with_client', 'cancel_reason',
     ];
 
     protected $casts = [
-        'status'       => ServiceSessionStatus::class,
-        'scheduled_at' => 'datetime',
-        'completed_at' => 'datetime',
-        'amount_cents' => 'integer',
+        'status'                  => ServiceSessionStatus::class,
+        'scheduled_at'            => 'datetime',
+        'completed_at'            => 'datetime',
+        'amount_cents'            => 'integer',
+        'share_notes_with_client' => 'boolean',
     ];
 
     public function serviceRequest(): BelongsTo

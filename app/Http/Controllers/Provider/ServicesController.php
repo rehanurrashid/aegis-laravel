@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Provider;
 use App\Http\Controllers\Controller;
 use App\Models\Service;
 use App\Models\ServiceRequest;
+use App\Models\ServiceSession;
 use App\Services\ServiceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,26 +21,38 @@ class ServicesController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
+
         return Inertia::render('Provider/Services', [
-            'myServices'       => $this->services->getForPractitioner($user->id),
-            'incomingRequests' => ServiceRequest::where('practitioner_id', $user->id)->where('status', 'pending')->get(),
-            'findProviders'    => $this->services->findProviders(['limit' => 20]),
+            'listings'         => $this->services->getForPractitioner($user->id)
+                                    ->map(fn($s) => $this->services->shapeForListing($s))
+                                    ->values(),
+            'serviceRequests'  => $this->services->getRequestsForPractitioner($user->id)
+                                    ->map(fn($r) => $this->services->shapeRequest($r))
+                                    ->values(),
+            'bookings'         => $this->services->getSessionsForPractitioner($user->id)
+                                    ->map(fn($s) => $this->services->shapeSession($s))
+                                    ->values(),
+            'stats'            => $this->services->statsForPractitioner($user),
+            'profileCompletion'=> (int) ($user->profile_completion ?? 0),
+            'servicesMode'     => (bool) $user->services_mode,
+            'heroRating'       => '4.8 / 5.0',
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'title'        => 'required|string|max:200',
-            'description'  => 'nullable|string|max:5000',
-            'category'     => 'nullable|string|max:100',
-            'price_cents'  => 'nullable|integer|min:0',
-            'price_type'   => 'nullable|string|in:fixed,hourly,session,inquiry',
-            'duration_min' => 'nullable|integer|min:5|max:480',
-            'format'       => 'nullable|string|in:telehealth,in_person,both',
-            'availability' => 'nullable|string|in:open,limited',
+            'title'              => 'required|string|max:200',
+            'description'        => 'nullable|string|max:5000',
+            'category'           => 'nullable|string|max:100',
+            'price_cents'        => 'nullable|integer|min:0',
+            'price_type'         => 'nullable|string|in:fixed,hourly,session,inquiry',
+            'duration_min'       => 'nullable|integer|min:5|max:480',
+            'format'             => 'nullable|string|in:telehealth,in_person,both',
+            'availability'       => 'nullable|string|in:open,limited',
             'availability_label' => 'nullable|string|max:60',
-            'is_public'    => 'nullable|boolean',
+            'is_public'          => 'nullable|boolean',
+            'status'             => 'nullable|string|in:active,draft',
         ]);
         $this->services->create($request->user(), $data);
         return back()->with('success', 'Service created.');
@@ -49,16 +62,17 @@ class ServicesController extends Controller
     {
         $this->authorize('manage', $service);
         $data = $request->validate([
-            'title'        => 'nullable|string|max:200',
-            'description'  => 'nullable|string|max:5000',
-            'category'     => 'nullable|string|max:100',
-            'price_cents'  => 'nullable|integer|min:0',
-            'price_type'   => 'nullable|string|in:fixed,hourly,session,inquiry',
-            'duration_min' => 'nullable|integer|min:5|max:480',
-            'format'       => 'nullable|string|in:telehealth,in_person,both',
-            'availability' => 'nullable|string|in:open,limited',
+            'title'              => 'nullable|string|max:200',
+            'description'        => 'nullable|string|max:5000',
+            'category'           => 'nullable|string|max:100',
+            'price_cents'        => 'nullable|integer|min:0',
+            'price_type'         => 'nullable|string|in:fixed,hourly,session,inquiry',
+            'duration_min'       => 'nullable|integer|min:5|max:480',
+            'format'             => 'nullable|string|in:telehealth,in_person,both',
+            'availability'       => 'nullable|string|in:open,limited',
             'availability_label' => 'nullable|string|max:60',
-            'is_public'    => 'nullable|boolean',
+            'status'             => 'nullable|string|in:active,inactive,draft,paused,archived',
+            'is_public'          => 'nullable|boolean',
         ]);
         $this->services->update($service, $data);
         return back()->with('success', 'Service updated.');
@@ -83,5 +97,29 @@ class ServicesController extends Controller
         $this->authorize('manage', $service);
         $this->services->declineRequest($serviceRequest, $request->input('reason'));
         return back()->with('success', 'Request declined.');
+    }
+
+    public function cancelSession(Request $request, ServiceSession $session): RedirectResponse
+    {
+        $this->authorize('manage', $session->service);
+        $data = $request->validate([
+            'reason'           => 'required|string|max:255',
+            'note'             => 'nullable|string|max:1000',
+            'offer_reschedule' => 'nullable|boolean',
+        ]);
+        $this->services->cancelSession($session, $data);
+        return back()->with('success', 'Session cancelled.');
+    }
+
+    public function saveSessionNotes(Request $request, ServiceSession $session): RedirectResponse
+    {
+        $this->authorize('manage', $session->service);
+        $data = $request->validate([
+            'summary'               => 'nullable|string|max:5000',
+            'action_items'          => 'nullable|string|max:2000',
+            'share_with_supervisee' => 'nullable|boolean',
+        ]);
+        $this->services->saveSessionNotes($session, $data);
+        return back()->with('success', 'Notes saved.');
     }
 }

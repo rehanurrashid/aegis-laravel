@@ -17,15 +17,15 @@
       <template #meta>
         <span class="hero-meta-item">
           <AegisIcon name="clock" :size="14" />
-          Services Mode: Active
+          Services Mode: {{ props.servicesMode ? 'Active' : 'Inactive' }}
         </span>
-        <span class="hero-meta-item">
+        <span v-if="props.servicesMode" class="hero-meta-item">
           <AegisIcon name="arrow-right" :size="14" />
           Discoverable in Provider Search
         </span>
-        <span class="hero-meta-item">
+        <span v-if="props.heroRating !== '—'" class="hero-meta-item">
           <AegisIcon name="star" :size="14" />
-          4.8 / 5.0 Rating
+          {{ props.heroRating }} Rating
         </span>
       </template>
       <template #actions>
@@ -566,8 +566,8 @@
           v-for="opt in serviceTypeOptions"
           :key="opt.key"
           class="pricing-opt"
-          :class="{ selected: createForm.service_type === opt.key }"
-          @click="createForm.service_type = opt.key"
+          :class="{ selected: createForm.category === opt.key }"
+          @click="createForm.category = opt.key"
         >
           <div class="pricing-opt-label">
             <AegisIcon :name="opt.icon" :size="14" /> {{ opt.label }}
@@ -603,28 +603,24 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Session Duration</label>
-          <select v-model="createForm.duration" class="form-select">
-            <option>30 minutes</option>
-            <option>45 minutes</option>
-            <option>50 minutes</option>
-            <option value="60 minutes" selected>60 minutes</option>
-            <option>75 minutes</option>
-            <option>90 minutes</option>
-            <option>2 hours</option>
-            <option>2.5 hours</option>
-            <option>3 hours</option>
-            <option value="custom">Custom…</option>
+          <select v-model.number="createForm.duration_min" class="form-select">
+            <option :value="30">30 minutes</option>
+            <option :value="45">45 minutes</option>
+            <option :value="50">50 minutes</option>
+            <option :value="60">60 minutes</option>
+            <option :value="75">75 minutes</option>
+            <option :value="90">90 minutes</option>
+            <option :value="120">2 hours</option>
+            <option :value="150">2.5 hours</option>
+            <option :value="180">3 hours</option>
           </select>
-          <div v-if="createForm.duration === 'custom'" style="margin-top:8px;">
-            <input v-model="createForm.duration_custom" class="form-input" type="text" placeholder="e.g. 4 hours, 6 sessions × 2hr, etc.">
-          </div>
         </div>
         <div class="form-group">
           <label class="form-label">Format</label>
           <select v-model="createForm.format" class="form-select">
-            <option>Virtual only</option>
-            <option>In-person only</option>
-            <option>Virtual &amp; In-person</option>
+            <option value="telehealth">Virtual only</option>
+            <option value="in_person">In-person only</option>
+            <option value="both">Virtual &amp; In-person</option>
           </select>
         </div>
       </div>
@@ -634,22 +630,22 @@
         <div class="form-group">
           <label class="form-label">Rate ($) <span style="color:var(--red);">*</span></label>
           <input
-            v-model.number="createForm.rate"
+            v-model.number="createDollars"
             class="form-input"
-            :class="{ 'is-invalid': createV$.rate.$error }"
+            :class="{ 'is-invalid': createV$.price_cents.$error }"
             type="number"
             placeholder="150"
-            @blur="createV$.rate.$touch()"
+            @blur="createV$.price_cents.$touch()"
           >
-          <div v-if="createV$.rate.$error" class="form-error">{{ createFieldError('rate') }}</div>
+          <div v-if="createV$.price_cents.$error" class="form-error">{{ createFieldError('price_cents') }}</div>
         </div>
         <div class="form-group">
           <label class="form-label">Per</label>
-          <select v-model="createForm.rate_per" class="form-select">
-            <option>Session</option>
-            <option>Hour</option>
-            <option>Package</option>
-            <option>Month</option>
+          <select v-model="createForm.price_type" class="form-select">
+            <option value="session">Session</option>
+            <option value="hourly">Hour</option>
+            <option value="fixed">Package / Fixed</option>
+            <option value="inquiry">Contact for pricing</option>
           </select>
         </div>
       </div>
@@ -661,16 +657,17 @@
       </div>
 
       <div class="modal-section-label">Availability</div>
-      <div class="avail-grid" style="margin-bottom:14px;">
-        <div
-          v-for="day in availabilityDays"
-          :key="day.key"
-          class="avail-day"
-          :class="{ on: createForm.availability_days.includes(day.key) }"
-          @click="toggleAvailDay(day.key)"
-        >
-          <div class="day-name">{{ day.label }}</div>
-          <div class="day-slots">{{ createForm.availability_days.includes(day.key) ? day.slots : 'Off' }}</div>
+      <div class="form-row" style="margin-bottom:14px;">
+        <div class="form-group">
+          <label class="form-label">Availability</label>
+          <select v-model="createForm.availability" class="form-select">
+            <option value="open">Open — accepting requests</option>
+            <option value="limited">Limited availability</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Availability Label (optional)</label>
+          <input v-model="createForm.availability_label" class="form-input" type="text" placeholder="e.g. 3 spots left, By Request">
         </div>
       </div>
 
@@ -725,25 +722,21 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Rate ($)</label>
-          <input v-model.number="editForm.rate" class="form-input" type="number">
+          <input v-model.number="editDollars" class="form-input" type="number">
         </div>
         <div class="form-group">
           <label class="form-label">Session Duration</label>
-          <select v-model="editForm.duration" class="form-select">
-            <option>30 minutes</option>
-            <option>45 minutes</option>
-            <option>50 minutes</option>
-            <option>60 minutes</option>
-            <option>75 minutes</option>
-            <option>90 minutes</option>
-            <option>2 hours</option>
-            <option>2.5 hours</option>
-            <option>3 hours</option>
-            <option value="custom">Custom…</option>
+          <select v-model.number="editForm.duration_min" class="form-select">
+            <option :value="30">30 minutes</option>
+            <option :value="45">45 minutes</option>
+            <option :value="50">50 minutes</option>
+            <option :value="60">60 minutes</option>
+            <option :value="75">75 minutes</option>
+            <option :value="90">90 minutes</option>
+            <option :value="120">2 hours</option>
+            <option :value="150">2.5 hours</option>
+            <option :value="180">3 hours</option>
           </select>
-          <div v-if="editForm.duration === 'custom'" style="margin-top:8px;">
-            <input v-model="editForm.duration_custom" class="form-input" type="text" placeholder="e.g. 4 hours, 6 sessions × 2hr, etc.">
-          </div>
         </div>
       </div>
       <div class="form-group">
@@ -831,10 +824,10 @@
       <p style="font-size:13px;font-weight:600;color:var(--text-3);margin-bottom:14px;">This is how your listing appears to other providers in search.</p>
       <div style="border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
         <div style="padding:20px;background:var(--surface-2);display:flex;gap:14px;align-items:flex-start;">
-          <div class="avatar avatar-lg">DR</div>
+          <div class="avatar avatar-lg">{{ $page.props.auth.user.avatar_initials }}</div>
           <div>
-            <div style="font-family:var(--font-serif);font-weight:700;font-size:15px;color:var(--text);margin-bottom:3px;">Dr. Sarah Reynolds, PhD, LCSW</div>
-            <div style="font-size:13px;font-weight:600;color:var(--text-3);margin-bottom:8px;">Clinical Psychologist · Houston, TX</div>
+            <div style="font-family:var(--font-serif);font-weight:700;font-size:15px;color:var(--text);margin-bottom:3px;">{{ $page.props.auth.user.display_name }}</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text-3);margin-bottom:8px;">{{ $page.props.auth.user.credentials ?? '' }}</div>
             <div class="chip-list">
               <span class="chip gold">Trauma</span>
               <span class="chip gold">DBT</span>
@@ -1066,7 +1059,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { Head } from '@inertiajs/vue3'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
@@ -1084,7 +1077,9 @@ const props = defineProps({
   serviceRequests:   { type: Array,  default: () => [] },
   bookings:          { type: Array,  default: () => [] },
   stats:             { type: Object, default: () => ({ active_listings: 0, pending_requests: 0, sessions: 0, revenue_label: '$0' }) },
-  profileCompletion: { type: Number, default: 78 },
+  profileCompletion: { type: Number, default: 0 },
+  servicesMode:      { type: Boolean, default: false },
+  heroRating:        { type: String,  default: '—' },
 })
 
 // ── Composables ───────────────────────────────────────────────────────────
@@ -1114,7 +1109,17 @@ const activeService  = ref(null)
 const activeRequest  = ref(null)
 const activeBooking  = ref(null)
 
-function setActiveService(s)  { activeService.value = s }
+function setActiveService(s)  {
+  activeService.value = s
+  editForm.title       = s.title ?? ''
+  editForm.description = s.description ?? ''
+  editForm.price_cents = s.price_cents ?? null
+  editForm.price_type  = s.price_type ?? 'session'
+  editForm.duration_min= s.duration_min ?? null
+  editForm.format      = s.format ?? 'telehealth'
+  editForm.status      = s.status ?? 'active'
+  editDollars.value    = s.price_cents ? s.price_cents / 100 : null
+}
 function setActiveRequest(r)  { activeRequest.value = r }
 function setActiveBooking(b)  { activeBooking.value = b }
 
@@ -1170,29 +1175,23 @@ const serviceTypeOptions = [
   { key: 'other',              label: 'Other',               icon: 'sparkles',       desc: 'Custom service' },
 ]
 
-// ── Availability days ─────────────────────────────────────────────────────
-const availabilityDays = [
-  { key: 'mon', label: 'Mon', slots: '4 slots' },
-  { key: 'tue', label: 'Tue', slots: '4 slots' },
-  { key: 'wed', label: 'Wed', slots: '2 slots' },
-  { key: 'thu', label: 'Thu', slots: '4 slots' },
-  { key: 'fri', label: 'Fri', slots: '3 slots' },
-  { key: 'sat', label: 'Sat', slots: '2 slots' },
-  { key: 'sun', label: 'Sun', slots: '2 slots' },
-]
+
 
 // ── Create form + validation ──────────────────────────────────────────────
+const createDollars = ref(null)
 const createForm = reactive({
-  service_type: 'supervision', title: '', description: '', duration: '60 minutes',
-  duration_custom: '', format: 'Virtual only', rate: null, rate_per: 'Session',
-  sliding_scale: false, availability_days: ['tue','wed','thu','fri'],
-  tags: '', max_clients: null, credentials_required: 'None',
+  category: 'supervision', title: '', description: '',
+  duration_min: 60, format: 'telehealth', price_cents: null,
+  price_type: 'session', sliding_scale: false,
+  availability: 'open', availability_label: '',
+  is_public: true,
 })
+watch(createDollars, (v) => { createForm.price_cents = v != null ? Math.round(Number(v) * 100) : null })
 
 const createRules = {
   title:       { required },
   description: { required },
-  rate:        { required },
+  price_cents: { required },
 }
 const createV$ = useVuelidate(createRules, createForm)
 
@@ -1204,26 +1203,33 @@ function createFieldError(field) {
 async function submitCreate(status) {
   const ok = await createV$.value.$validate()
   if (!ok) return
-  router.post(route('provider.services.store'), { ...createForm, status }, {
+  router.post(route('provider.services.store'), {
+    title: createForm.title, description: createForm.description,
+    category: createForm.category, price_cents: createForm.price_cents,
+    price_type: createForm.price_type, duration_min: createForm.duration_min,
+    format: createForm.format, availability: createForm.availability,
+    availability_label: createForm.availability_label, is_public: createForm.is_public,
+    status,
+  }, {
     preserveScroll: true,
     onSuccess: () => {
       modals.create = false
       toast.success(status === 'active' ? 'Listing published!' : 'Saved as draft.')
+      createV$.value.$reset()
+      createDollars.value = null
     },
   })
 }
 
-function toggleAvailDay(key) {
-  const idx = createForm.availability_days.indexOf(key)
-  if (idx === -1) createForm.availability_days.push(key)
-  else createForm.availability_days.splice(idx, 1)
-}
+
 
 // ── Edit form + validation ────────────────────────────────────────────────
+const editDollars = ref(null)
 const editForm = reactive({
-  title: '', description: '', rate: null, duration: '60 minutes',
-  duration_custom: '', status: 'active',
+  title: '', description: '', price_cents: null, price_type: 'session',
+  duration_min: null, format: 'telehealth', status: 'active',
 })
+watch(editDollars, (v) => { editForm.price_cents = v != null ? Math.round(Number(v) * 100) : null })
 
 const editRules = { title: { required } }
 const editV$ = useVuelidate(editRules, editForm)
@@ -1269,7 +1275,7 @@ function resumeService() {
 const acceptForm = reactive({ datetime: '', format: 'Virtual (Telehealth)', note: '', recurring: true })
 
 function submitAccept() {
-  router.post(route('provider.services.request.accept', { service: activeService.value?.id ?? activeRequest.value?.service_id, serviceRequest: activeRequest.value?.id }), acceptForm, {
+  router.post(route('provider.services.request.accept', { service: activeRequest.value?.service_id, serviceRequest: activeRequest.value?.id }), acceptForm, {
     preserveScroll: true,
     onSuccess: () => { modals.accept = false; toast.success('Request accepted — agreement sent.') },
   })
@@ -1334,7 +1340,7 @@ function cancelFieldError(field) { return cancelV$.value[field].$errors[0]?.$mes
 async function submitCancelSession() {
   const ok = await cancelV$.value.$validate()
   if (!ok) return
-  router.post(route('provider.services.update', { service: activeBooking.value?.service_id ?? '_' }), cancelSessionForm, {
+  router.post(route('provider.services.session.cancel', { session: activeBooking.value?.id }), cancelSessionForm, {
     preserveScroll: true,
     onSuccess: () => { modals.cancelSession = false; toast.warning(`Session cancelled — ${activeBooking.value?.provider_name} notified.`) },
   })
@@ -1344,18 +1350,25 @@ async function submitCancelSession() {
 const notesForm = reactive({ summary: '', action_items: '', share_with_supervisee: false })
 
 function submitNotes() {
-  router.post(route('provider.services.update', { service: activeBooking.value?.service_id ?? '_' }), notesForm, {
+  router.post(route('provider.services.session.notes', { session: activeBooking.value?.id }), notesForm, {
     preserveScroll: true,
     onSuccess: () => { modals.sessionNotes = false; toast.success('Notes saved.') },
   })
 }
 
 // ── Group management ──────────────────────────────────────────────────────
-const groupMembers = ref([
-  { id: 1, initials: 'AM', name: 'Dr. Aisha Morales, LCSW',  first_name: 'Aisha',  meta: 'Enrolled since May 2025 · Trauma Therapist' },
-  { id: 2, initials: 'KL', name: 'Keisha Lewis, LMFT',        first_name: 'Keisha', meta: 'Enrolled since Apr 2025 · Family Therapist' },
-  { id: 3, initials: 'MN', name: 'Marcus Nguyen, LCSW',       first_name: 'Marcus', meta: 'Enrolled since Jun 2025 · Trauma Therapist' },
-])
+const groupMembers = computed(() => {
+  if (!activeService.value) return []
+  return props.bookings
+    .filter(b => b.service_id === activeService.value?.id && b.status === 'scheduled')
+    .map(b => ({
+      id:         b.id,
+      initials:   initials(b.provider_name),
+      name:       b.provider_name,
+      first_name: (b.provider_name ?? '').split(' ')[0],
+      meta:       b.service_title,
+    }))
+})
 const groupAnnouncement = ref('')
 
 function sendGroupAnnouncement() {
@@ -1385,7 +1398,7 @@ function removeSpecialty(i) {
 }
 
 function saveProfile() {
-  router.post(route('provider.profile.services'), profileForm, {
+  router.put(route('provider.profile.services'), { services: profileForm.specialties }, {
     preserveScroll: true,
     onSuccess: () => toast.success('Profile saved!'),
   })
