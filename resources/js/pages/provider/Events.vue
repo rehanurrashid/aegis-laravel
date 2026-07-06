@@ -290,102 +290,14 @@
     <!-- ══ MODALS ═════════════════════════════════════════════════════ -->
 
     <!-- EVENT DETAIL MODAL -->
-    <AegisModal v-model="modals.detail" title="Event Details" size="lg">
-      <template v-if="detailEvent">
-
-        <!-- Eyebrow + title -->
-        <div class="evt-detail-heading">
-          <div class="evt-detail-eyebrow-row">
-            <span class="evt-category" :class="evtCategory(detailEvent)">{{ evtCategoryLabel(detailEvent) }}</span>
-            <span v-if="detailEvent.is_external" class="evt-external-badge">
-              <AegisIcon name="external-link" :size="11" /> External Event
-            </span>
-          </div>
-          <div class="evt-detail-title" style="margin-top:10px">{{ detailEvent.title }}</div>
-          <div v-if="detailEvent.organizer" class="evt-detail-organizer">
-            <AegisIcon name="users" :size="13" /> {{ detailEvent.organizer }}
-          </div>
-        </div>
-
-        <!-- Key meta chips -->
-        <div class="evt-detail-meta">
-          <div class="evt-detail-chip">
-            <AegisIcon name="calendar" :size="13" />
-            <strong>{{ fmtFullDate(detailEvent.starts_at) }}</strong>
-          </div>
-          <div v-if="detailEvent.ends_at" class="evt-detail-chip">
-            <AegisIcon name="clock" :size="13" />
-            <strong>Ends {{ fmtFullDate(detailEvent.ends_at) }}</strong>
-          </div>
-          <div v-if="detailEvent.location" class="evt-detail-chip">
-            <AegisIcon :name="detailEvent.location?.toLowerCase().includes('online') || detailEvent.location?.toLowerCase().includes('virtual') || detailEvent.location?.toLowerCase().includes('zoom') ? 'monitor' : 'map-pin'" :size="13" />
-            <strong>{{ detailEvent.location }}</strong>
-          </div>
-          <div v-if="detailEvent.ceu_credits > 0" class="evt-detail-chip is-ceu">
-            <AegisIcon name="award" :size="13" />
-            <strong>{{ fmtCeu(detailEvent.ceu_credits) }} CEU Credit{{ detailEvent.ceu_credits === 1 ? '' : 's' }}</strong>
-          </div>
-          <div class="evt-detail-chip" :class="detailEvent.is_free ? 'is-free' : 'is-paid'">
-            <AegisIcon :name="detailEvent.is_free ? 'check-circle' : 'dollar'" :size="13" />
-            <strong>{{ detailEvent.is_free ? 'Free' : '$' + ((detailEvent.price_cents ?? 0) / 100).toFixed(2) }}</strong>
-          </div>
-          <div v-if="detailEvent.attendee_count > 0" class="evt-detail-chip">
-            <AegisIcon name="users" :size="13" />
-            <strong>{{ detailEvent.attendee_count }} registered</strong>
-          </div>
-        </div>
-
-        <!-- Description -->
-        <p v-if="detailEvent.description" class="evt-detail-desc" style="white-space:pre-line">{{ detailEvent.description }}</p>
-
-        <!-- External link (reference only — not for RSVP) -->
-        <div v-if="detailEvent.external_url" class="evt-detail-external">
-          <AegisIcon name="external-link" :size="13" />
-          <a :href="detailEvent.external_url" target="_blank" rel="noopener">
-            View on external site →
-          </a>
-          <span class="evt-detail-external-note">Registration handled on the organizer's platform.</span>
-        </div>
-
-        <!-- Registration status banner (internal events) -->
-        <div v-if="!detailEvent.is_external && registeredIds.has(detailEvent.id)" class="evt-detail-registered-banner">
-          <AegisIcon name="check-circle" :size="16" />
-          You're registered for this event. A confirmation was sent to your email.
-        </div>
-
-      </template>
-      <template #footer>
-        <button class="btn btn-outline" @click="modals.detail = false">Close</button>
-        <template v-if="detailEvent">
-          <!-- External event: open external site -->
-          <a
-            v-if="detailEvent.is_external"
-            :href="detailEvent.external_url"
-            target="_blank"
-            rel="noopener"
-            class="btn btn-primary"
-          >
-            <AegisIcon name="external-link" :size="13" /> Register on Site
-          </a>
-          <!-- Internal: already registered → cancel -->
-          <button
-            v-else-if="registeredIds.has(detailEvent.id)"
-            class="btn btn-outline"
-            @click="modals.detail = false; openCancelModal(detailEvent)"
-          >
-            <AegisIcon name="x" :size="13" /> Cancel Registration
-          </button>
-          <!-- Internal: not registered → register -->
-          <button
-            v-else
-            class="btn btn-primary"
-            @click="handleRegister(detailEvent); modals.detail = false"
-          >
-            {{ detailEvent.is_free ? 'Register Free' : 'Register Now' }}
-          </button>
-        </template>
-      </template>
-    </AegisModal>
+    <!-- Event Detail Modal — uses centralized EventDetailModal component -->
+    <EventDetailModal
+      v-model="modals.detail"
+      :event="detailEvent"
+      :is-registered="detailEvent ? registeredIds.has(detailEvent.id) : false"
+      @register="handleRegister"
+      @cancel="openCancelModal"
+    />
 
     <!-- REGISTER CONFIRM MODAL -->
     <AegisModal v-model="modals.registerConfirm" title="Confirm Registration" size="sm">
@@ -673,6 +585,7 @@ import AegisDropzone from '@/components/ui/AegisDropzone.vue'
 import { useVuelidate }                                        from '@vuelidate/core'
 import { required, maxLength, minValue, numeric, url as vUrl,
          helpers, minLength }                                  from '@vuelidate/validators'
+import EventDetailModal from '@/components/modals/EventDetailModal.vue'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { useToast }   from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
