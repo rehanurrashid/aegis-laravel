@@ -121,14 +121,25 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watch, onMounted } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AegisToast from '@/components/ui/AegisToast.vue'
 import { useUiStore } from '@/stores/ui'
+import { useToast } from '@/composables/useToast'
 
 const page             = usePage()
 const ui               = useUiStore()
+const pubToast         = useToast()
+
+const doFlash = (flash) => {
+  if (flash?.success) pubToast.success(flash.success)
+  if (flash?.error)   pubToast.error(flash.error)
+  if (flash?.info)    pubToast.info(flash.info)
+  if (flash?.warning) pubToast.warning(flash.warning)
+}
+watch(() => page.props.flash, doFlash, { deep: true })
+onMounted(() => doFlash(page.props.flash))
 // isVerifiedMember: viewer is logged in, email-verified, AND has active sub
 // Falls back to checking page.props.isVerifiedMember (set by ProfileController)
 // OR derives from auth.user.verified + subscription state from shared props

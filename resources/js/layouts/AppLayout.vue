@@ -60,7 +60,7 @@
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount } from 'vue'
+import { onMounted, onBeforeUnmount, watch } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
@@ -84,11 +84,18 @@ const notifications = useNotificationStore()
 const page  = usePage()
 
 // Fire flash toasts on every Inertia page load (covers post-login redirect).
+// onMounted handles initial load; watch handles SPA navigations where layout stays mounted.
+const fireFlashToasts = (flash) => {
+  if (flash?.success) toast.success(flash.success)
+  if (flash?.error)   toast.error(flash.error)
+  if (flash?.info)    toast.info(flash.info)
+  if (flash?.warning) toast.warning(flash.warning)
+}
+
+watch(() => page.props.flash, fireFlashToasts, { deep: true })
+
 onMounted(() => {
-  if (page.props.flash?.success) toast.success(page.props.flash.success)
-  if (page.props.flash?.error)   toast.error(page.props.flash.error)
-  if (page.props.flash?.info)    toast.info(page.props.flash.info)
-  if (page.props.flash?.warning) toast.warning(page.props.flash.warning)
+  fireFlashToasts(page.props.flash)
 
   if (auth.user?.id) {
     notifications.listenForIncident(auth.user.id)
