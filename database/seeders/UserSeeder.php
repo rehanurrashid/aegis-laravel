@@ -57,6 +57,8 @@ class UserSeeder extends Seeder
                 'practitioner_public' => 1,
                 'tier'             => 'access',
                 'services_mode'    => 0,
+                'stripe_connected' => 1,
+                'stripe_account_id'=> 'acct_demo_david',
                 'verified'         => 1,
                 'last_login_at'    => $now->copy()->subDays(1),
                 'created_at'       => $now->copy()->subMonths(4),

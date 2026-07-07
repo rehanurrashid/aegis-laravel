@@ -195,6 +195,9 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
         Route::get('/practitioners/search', [PractitionerSearchController::class, 'index'])->name('practitioners.search');
 
         // Services (requires Practice tier + services mode)
+        // Session complete — no services.mode required; ANY authenticated provider can confirm a session they booked as client
+        Route::post('/services/sessions/{session}/complete', [ServicesController::class, 'completeSession'])->name('services.session.complete');
+
         Route::middleware('services.mode')->group(function () {
             Route::get('/services', [ServicesController::class, 'index'])->name('services.index');
             Route::post('/services', [ServicesController::class, 'store'])->name('services.store');
@@ -204,7 +207,6 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
             Route::post('/services/{service}/requests/{serviceRequest}/decline', [ServicesController::class, 'declineRequest'])->name('services.request.decline');
             Route::delete('/services/requests/{serviceRequest}/withdraw', [ServicesController::class, 'withdrawRequest'])->name('services.request.withdraw');
             Route::post('/services/sessions/{session}/cancel', [ServicesController::class, 'cancelSession'])->name('services.session.cancel');
-            Route::post('/services/sessions/{session}/complete', [ServicesController::class, 'completeSession'])->name('services.session.complete');
             Route::post('/services/sessions/{session}/notes', [ServicesController::class, 'saveSessionNotes'])->name('services.session.notes');
         });
 

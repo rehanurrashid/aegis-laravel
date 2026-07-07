@@ -197,6 +197,99 @@ class ServiceSeeder extends Seeder
 
         DB::table('service_sessions')->updateOrInsert(['id' => 'ss_sarah_client_1'], $clientSessionRow);
 
+        // ── p_david payment method (needed for completeSession to record payment_method_id) ──
+        DB::table('practitioner_payment_methods')->updateOrInsert(
+            ['id' => 'ppm_david_visa'],
+            [
+                'id'              => 'ppm_david_visa',
+                'practitioner_id' => 'p_david',
+                'label'           => 'Visa ending 4444',
+                'brand'           => 'visa',
+                'last4'           => '4444',
+                'stripe_pm_id'    => 'pm_demo_david_visa',
+                'is_default'      => 1,
+                'created_at'      => $now->copy()->subMonths(4)->toDateTimeString(),
+                'updated_at'      => $now->copy()->subMonths(4)->toDateTimeString(),
+            ]
+        );
+
+        // ── PractitionerPayment rows for completed sessions ──────────────
+        // These represent payments david (client) made to sarah (practitioner) for completed sessions.
+        // In production these are created by ServiceService::completeSession(); seeded here for demo history.
+        $hasPpTransfer = Schema::hasColumn('practitioner_payments', 'stripe_transfer_id');
+
+        $completedPayments = [
+            [
+                'id'                   => 'pp_ss_july_1',
+                'session_id'           => 'ss_july_1',
+                'practitioner_id'      => 'p_sarah',
+                'payment_method_id'    => 'ppm_david_visa',
+                'kind'                 => 'service_session',
+                'amount_cents'         => 15000,
+                'currency'             => 'USD',
+                'status'               => 'paid',
+                'payment_method_label' => 'Visa ending 4444',
+                'stripe_charge_id'     => 'ch_demo_july_1',
+                'paid_at'              => $now->copy()->subDays(5)->setTime(11, 0)->toDateTimeString(),
+                'created_at'           => $now->copy()->subDays(5)->setTime(11, 0)->toDateTimeString(),
+                'updated_at'           => $now->copy()->subDays(5)->setTime(11, 0)->toDateTimeString(),
+            ],
+            [
+                'id'                   => 'pp_ss_july_2',
+                'session_id'           => 'ss_july_2',
+                'practitioner_id'      => 'p_sarah',
+                'payment_method_id'    => 'ppm_david_visa',
+                'kind'                 => 'service_session',
+                'amount_cents'         => 20000,
+                'currency'             => 'USD',
+                'status'               => 'paid',
+                'payment_method_label' => 'Visa ending 4444',
+                'stripe_charge_id'     => 'ch_demo_july_2',
+                'paid_at'              => $now->copy()->subDays(2)->setTime(15, 0)->toDateTimeString(),
+                'created_at'           => $now->copy()->subDays(2)->setTime(15, 0)->toDateTimeString(),
+                'updated_at'           => $now->copy()->subDays(2)->setTime(15, 0)->toDateTimeString(),
+            ],
+            [
+                'id'                   => 'pp_ss_prev_1',
+                'session_id'           => 'ss_prev_1',
+                'practitioner_id'      => 'p_sarah',
+                'payment_method_id'    => 'ppm_david_visa',
+                'kind'                 => 'service_session',
+                'amount_cents'         => 15000,
+                'currency'             => 'USD',
+                'status'               => 'paid',
+                'payment_method_label' => 'Visa ending 4444',
+                'stripe_charge_id'     => 'ch_demo_prev_1',
+                'paid_at'              => $now->copy()->subWeeks(5)->setTime(11, 0)->toDateTimeString(),
+                'created_at'           => $now->copy()->subWeeks(5)->setTime(11, 0)->toDateTimeString(),
+                'updated_at'           => $now->copy()->subWeeks(5)->setTime(11, 0)->toDateTimeString(),
+            ],
+            [
+                'id'                   => 'pp_ss_prev_2',
+                'session_id'           => 'ss_prev_2',
+                'practitioner_id'      => 'p_sarah',
+                'payment_method_id'    => 'ppm_david_visa',
+                'kind'                 => 'service_session',
+                'amount_cents'         => 15000,
+                'currency'             => 'USD',
+                'status'               => 'paid',
+                'payment_method_label' => 'Visa ending 4444',
+                'stripe_charge_id'     => 'ch_demo_prev_2',
+                'paid_at'              => $now->copy()->subWeeks(7)->setTime(11, 0)->toDateTimeString(),
+                'created_at'           => $now->copy()->subWeeks(7)->setTime(11, 0)->toDateTimeString(),
+                'updated_at'           => $now->copy()->subWeeks(7)->setTime(11, 0)->toDateTimeString(),
+            ],
+        ];
+
+        foreach ($completedPayments as $pp) {
+            $row = $pp;
+            unset($row['session_id']); // not a real column — just for our reference
+            if ($hasPpTransfer) {
+                $row['stripe_transfer_id'] = 'tr_demo_' . substr($pp['id'], -6);
+            }
+            DB::table('practitioner_payments')->updateOrInsert(['id' => $pp['id']], $row);
+        }
+
         // ── Services Profile meta for p_sarah (updateOrInsert to fix corrupted rows) ──
         $metas = [
             ['service_bio',         'I offer clinical supervision, peer consultation, and specialized training to support therapists in building confidence and competence. My approach is collaborative, strengths-based, and rooted in evidence-based practice.', 'string'],
