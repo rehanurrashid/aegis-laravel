@@ -327,11 +327,11 @@ function goBack() {
 .ob-panel-left-footer p { font-size:11px; color:rgba(255,255,255,0.45); line-height:1.5; }
 
 /* Plan summary panel (left side) */
-.ob-plan-summary-panel { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); border-radius:var(--radius); padding:14px 16px; margin-top:4px; }
+.ob-plan-summary-panel { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); border-radius:var(--radius); padding:14px 16px; margin-top:4px; position:relative; z-index:2; }
 .ob-psp-label { font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:rgba(255,255,255,0.5); margin-bottom:4px; }
 .ob-psp-name { font-family:var(--font-serif); font-size:14px; font-weight:700; color:var(--text-inverted); margin-bottom:2px; }
 .ob-psp-price { font-size:12px; color:var(--gold-light); margin-bottom:8px; }
-.ob-psp-change { background:none; border:none; font-size:12px; color:rgba(255,255,255,0.55); text-decoration:underline; cursor:pointer; padding:0; font-family:var(--font-sans); }
+.ob-psp-change { background:none; border:none; font-size:12px; color:rgba(255,255,255,0.55); text-decoration:underline; cursor:pointer; padding:0; font-family:var(--font-sans); position:relative; z-index:2; display:block; }
 .ob-psp-change:hover { color:var(--gold-light); }
 
 /* ── RIGHT ── */
