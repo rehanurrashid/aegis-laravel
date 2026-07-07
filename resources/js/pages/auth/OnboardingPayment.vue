@@ -365,7 +365,7 @@ function goBack() {
 /* Buttons */
 .ob-btn-full { width:100%; padding:12px 22px; border-radius:var(--radius-full); font-size:13px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
 
-.ob-secure-note { display:flex; align-items:center; justify-content:center; gap:6px; font-size:11px; color:var(--text-4); }
+.ob-secure-note { display:flex; align-items:center; justify-content:center; gap:6px; font-size:11px; color:var(--text-4); margin-top:16px; }
 
 /* Responsive */
 @media (max-width:900px) { .ob-panel-left { width:36%; padding:36px 32px; } }

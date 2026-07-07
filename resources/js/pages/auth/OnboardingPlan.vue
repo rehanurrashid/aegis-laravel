@@ -456,6 +456,6 @@ function submit() {
 .ob-checkbox-label small { display:block; font-size:11px; color:var(--text-4); margin-top:2px; }
 .ob-combo-callout { display:flex; align-items:center; gap:8px; background:rgba(196,169,106,0.08); border:1px solid rgba(196,169,106,0.25); border-radius:var(--radius-sm); padding:10px 14px; font-size:12px; color:var(--text-2); margin-bottom:16px; }
 .ob-btn-full { width:100%; padding:12px 22px; border-radius:var(--radius-full); font-size:13px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
-.ob-secure-note { display:flex; align-items:center; justify-content:center; gap:6px; font-size:12px; color:var(--text-4); margin-top:12px; }
+.ob-secure-note { display:flex; align-items:center; justify-content:center; gap:6px; font-size:12px; color:var(--text-4); margin-top:16px; }
 @media (max-width:720px) { .ob-layout { flex-direction:column; height:auto; min-height:100vh; overflow:visible; } .ob-panel-left { width:100%; height:auto; padding:32px 28px; } .ob-panel-right { height:auto; overflow:visible; } .ob-panel-right-inner { padding:32px 24px; } .ob-plan-grid { grid-template-columns:1fr; } }
 </style>
