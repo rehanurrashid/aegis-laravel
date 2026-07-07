@@ -329,11 +329,12 @@ class ServiceService
         ]);
 
         // Actor log — requester's own history
+        $practitionerName = $service->practitioner?->display_name ?? 'the practitioner';
         $this->activity->log(
             $requester->id, 'provider', 'referral', ActivitySeverity::Info,
             'service_request_sent',
             "You requested: {$service->title}",
-            "Request sent to {$service->practitioner?->display_name ?? 'the practitioner'}.",
+            "Request sent to {$practitionerName}.",
             'service_request', $req->id, $service->practitioner_id,
             'log', $requester->id
         );
