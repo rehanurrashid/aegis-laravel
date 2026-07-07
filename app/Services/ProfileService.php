@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\NetworkConnection;
 use App\Models\User;
+use App\Models\Referral;
 use Illuminate\Support\Str;
 
 use App\Enums\ActivitySeverity;
@@ -204,13 +205,30 @@ class ProfileService
         $languages   = $raw['languages']           ?? ['English'];
         $insurance   = $raw['insurance_panels']    ?? ['BCBS', 'Aetna', 'Cigna', 'United', 'Medicare'];
 
-        // Stats
+        // Stats — computed from real data with meta fallbacks
+        $sentCount      = $user->referralsSent()->count();
+        $acceptedCount  = $user->referralsSent()->where('status', 'accepted')->count();
+        $receivedCount  = $user->referralsReceived()->count();
+        $totalReferrals = $sentCount + $receivedCount;
+
+        $calcAcceptance = $sentCount > 0
+            ? round(($acceptedCount / $sentCount) * 100) . '%'
+            : ($raw['acceptance_rate'] ?? '—');
+
+        // Mutual connections: network connections the viewer also shares (approximated as total active connections for the profile user)
+        $activeConnections = NetworkConnection::where(function ($q) use ($user) {
+            $q->where('user_id', $user->id)->orWhere('connected_user_id', $user->id);
+        })->where('status', 'active')->count();
+
+        $acceptingClients = $raw['accepting_clients'] ?? true;
+        $clientSlots = $acceptingClients ? 'Open' : 'Closed';
+
         $stats = [
-            'avg_response'        => $raw['avg_response']       ?? '1.8h',
-            'referrals_exchanged' => (int) ($raw['referrals_exchanged'] ?? 14),
-            'acceptance_rate'     => $raw['acceptance_rate']    ?? '92%',
-            'mutual_connections'  => (int) ($raw['mutual_connections'] ?? 7),
-            'client_slots'        => $raw['client_slots']       ?? 'New',
+            'avg_response'        => $raw['avg_response']       ?? '—',
+            'referrals_exchanged' => $totalReferrals > 0 ? $totalReferrals : (int) ($raw['referrals_exchanged'] ?? 0),
+            'acceptance_rate'     => $sentCount > 0 ? $calcAcceptance : ($raw['acceptance_rate'] ?? '—'),
+            'mutual_connections'  => $activeConnections > 0 ? $activeConnections : (int) ($raw['mutual_connections'] ?? 0),
+            'client_slots'        => $clientSlots,
         ];
 
         // Schedule

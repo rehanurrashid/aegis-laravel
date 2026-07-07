@@ -237,9 +237,9 @@
               </div>
               <!-- Footer: avail + CTA -->
               <div class="pp-svc-card-footer">
-                <span class="pp-svc-card-avail" :class="svc.availability ?? 'open'">
-                  <AegisIcon name="circle-dot" :size="9" class="aegis-icon-filled" />
-                  {{ svc.availability_label || ((svc.availability ?? 'open') === 'limited' ? 'Limited Spots' : 'Slots Available') }}
+                <span class="pp-svc-avail-pill" :class="[svc.availability ?? 'open']">
+                  <span class="pp-svc-avail-dot"></span>
+                  {{ svc.availability_label || ((svc.availability ?? 'open') === 'limited' ? 'Limited Spots' : (svc.availability === 'closed' ? 'Not Accepting' : 'Slots Available')) }}
                 </span>
                 <template v-if="!isOwner">
                   <button v-if="isLoggedIn" class="pp-svc-request-btn btn btn-primary"
@@ -1196,13 +1196,38 @@ function copyShareLink() {
   border-top: 1px solid var(--border);
   background: var(--surface-2);
 }
-.pp-svc-card-avail {
-  display: inline-flex; align-items: center; gap: 5px;
+.pp-svc-card-avail { display: none; }
+.pp-svc-avail-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
   font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.5px;
+  text-transform: uppercase; letter-spacing: 0.4px;
+  border: 1px solid transparent;
 }
-.pp-svc-card-avail.open   { color: var(--green-dark, #2e7d32); }
-.pp-svc-card-avail.limited{ color: var(--gold-dark); }
+.pp-svc-avail-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.pp-svc-avail-pill.open {
+  background: rgba(46,125,50,0.08);
+  border-color: rgba(46,125,50,0.2);
+  color: var(--green-dark, #2e7d32);
+}
+.pp-svc-avail-pill.open .pp-svc-avail-dot { background: var(--green-dark, #2e7d32); }
+.pp-svc-avail-pill.limited {
+  background: rgba(160,129,62,0.1);
+  border-color: rgba(160,129,62,0.25);
+  color: var(--gold-dark);
+}
+.pp-svc-avail-pill.limited .pp-svc-avail-dot { background: var(--gold-dark); }
+.pp-svc-avail-pill.closed {
+  background: var(--surface-3);
+  border-color: var(--border);
+  color: var(--text-3);
+}
+.pp-svc-avail-pill.closed .pp-svc-avail-dot { background: var(--text-4); }
 
 .pp-svc-request-btn {
   display: inline-flex;
