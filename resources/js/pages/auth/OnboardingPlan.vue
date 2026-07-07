@@ -423,7 +423,7 @@ function switchAccount() { router.post(route('logout')) }
 .ob-step-eyebrow { font-size:10px; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; color:var(--gold-dark); margin-bottom:8px; }
 .ob-step-title { font-family:var(--font-serif); font-size:clamp(22px,2vw + 0.6rem,28px); font-weight:700; color:var(--text); line-height:1.25; margin-bottom:8px; }
 .ob-step-subtitle { font-size:13px; color:var(--text-2); line-height:1.55; }
-.ob-billing-toggle { display:flex; width:fit-content; align-items:center; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-full); padding:4px; gap:0; margin-bottom:20px; }
+.ob-billing-toggle { display:flex; width:fit-content; align-items:center; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-full); padding:4px; gap:0; margin-bottom:20px; margin-left:auto; margin-right:auto; }
 .ob-billing-btn { background:transparent; border:none; font-family:var(--font-sans); font-size:12px; font-weight:600; padding:7px 18px; border-radius:var(--radius-full); cursor:pointer; color:var(--text-2); transition:all var(--transition); display:flex; align-items:center; gap:6px; }
 .ob-billing-btn.active { background:var(--gold-dark); color:var(--text-inverted); }
 .ob-save-badge { font-size:10px; font-weight:700; color:var(--gold-dark); }

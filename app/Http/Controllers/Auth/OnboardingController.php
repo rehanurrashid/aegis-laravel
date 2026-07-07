@@ -243,7 +243,8 @@ class OnboardingController extends Controller
         }
 
         if ($active) {
-            return redirect()->route($this->dashboardRoute($user));
+            return redirect()->route($this->dashboardRoute($user))
+                ->with('success', 'Your plan is already active. Welcome to your dashboard!');
         }
 
         return null;

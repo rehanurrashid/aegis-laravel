@@ -186,7 +186,11 @@ const toast = useToast()
 const { openConversation, loading: msgLoading } = useMessageButton()
 
 // Derive auth state from Inertia shared props — zero dependency on controller passing them
-const authUser   = computed(() => page.props.auth?.user ?? null)
+const authUser         = computed(() => page.props.auth?.user ?? null)
+const isVerifiedMember = computed(() => {
+  if (page.props.isVerifiedMember !== undefined) return !!page.props.isVerifiedMember
+  return !!(authUser.value?.verified)
+})
 const isLoggedIn = computed(() => !!authUser.value)
 const isOwner    = computed(() => isVerifiedMember.value && authUser.value?.id === props.user?.id)
 
