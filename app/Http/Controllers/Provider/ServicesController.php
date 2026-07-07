@@ -21,6 +21,7 @@ class ServicesController extends Controller
     public function index(Request $request): Response
     {
         $user    = $request->user();
+        $user->loadMissing('meta');
         $filters = $request->only(['q', 'category', 'status']);
 
         return Inertia::render('Provider/Services', [
@@ -41,6 +42,12 @@ class ServicesController extends Controller
             'servicesMode'     => (bool) $user->services_mode,
             'heroRating'       => '4.8 / 5.0',
             'filters'          => $filters,
+            'serviceProfile'   => [
+                'headline'         => optional($user->meta->firstWhere('meta_key', 'service_headline'))->typed_value ?? '',
+                'bio'              => optional($user->meta->firstWhere('meta_key', 'service_bio'))->typed_value ?? '',
+                'years_experience' => (int) (optional($user->meta->firstWhere('meta_key', 'years_experience'))->typed_value ?? 0),
+                'specialties'      => json_decode(optional($user->meta->firstWhere('meta_key', 'service_specialties'))->typed_value ?? '[]', true) ?: [],
+            ],
         ]);
     }
 

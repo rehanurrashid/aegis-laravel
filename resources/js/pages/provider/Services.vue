@@ -1326,6 +1326,7 @@ const props = defineProps({
   heroRating:        { type: String,  default: '—' },
   filters:           { type: Object, default: () => ({}) },
   outgoingRequests:  { type: Array,  default: () => [] },
+  serviceProfile:    { type: Object, default: () => ({ headline: '', bio: '', years_experience: 0, specialties: [] }) },
 })
 
 // ── Composables ───────────────────────────────────────────────────────────
@@ -1795,10 +1796,10 @@ function sendGroupAnnouncement() {
 
 // ── Settings / Profile ────────────────────────────────────────────────────
 const profileForm = reactive({
-  headline: 'Board-Approved Clinical Supervisor | Trauma & DBT Specialist',
-  years_experience: 14,
-  bio: 'I offer clinical supervision, peer consultation, and specialized training to support therapists in building confidence and competence. My approach is collaborative, strengths-based, and rooted in evidence-based practice.',
-  specialties: ['Trauma', 'DBT', 'Complex PTSD', 'Personality Disorders'],
+  headline:         props.serviceProfile?.headline ?? '',
+  years_experience: props.serviceProfile?.years_experience ?? 0,
+  bio:              props.serviceProfile?.bio ?? '',
+  specialties:      [...(props.serviceProfile?.specialties ?? [])],
 })
 const newSpecialty = ref('')
 
@@ -1827,6 +1828,10 @@ function saveProfile() {
 }
 
 function resetProfile() {
+  profileForm.headline         = props.serviceProfile?.headline ?? ''
+  profileForm.years_experience = props.serviceProfile?.years_experience ?? 0
+  profileForm.bio              = props.serviceProfile?.bio ?? ''
+  profileForm.specialties      = [...(props.serviceProfile?.specialties ?? [])]
   toast.info('Changes discarded.')
 }
 
