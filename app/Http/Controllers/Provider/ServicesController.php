@@ -48,6 +48,9 @@ class ServicesController extends Controller
                 'years_experience' => (int) (optional($user->meta->firstWhere('meta_key', 'years_experience'))->typed_value ?? 0),
                 'specialties'      => json_decode(optional($user->meta->firstWhere('meta_key', 'service_specialties'))->typed_value ?? '[]', true) ?: [],
             ],
+            'clientSessions'   => $this->services->getSessionsAsClient($user->id)
+                                    ->map(fn($s) => $this->services->shapeClientSession($s))
+                                    ->values(),
         ]);
     }
 
@@ -151,8 +154,8 @@ class ServicesController extends Controller
 
     public function completeSession(Request $request, ServiceSession $session): RedirectResponse
     {
-        $this->authorize('manage', $session->service);
+        // Guard is inside ServiceService: only the client (inquirer) can confirm completion
         $this->services->completeSession($session, $request->user()->id);
-        return back()->with('success', 'Session marked complete. Payout is pending.');
+        return back()->with('success', 'Session confirmed. Payment sent to the provider.');
     }
 }

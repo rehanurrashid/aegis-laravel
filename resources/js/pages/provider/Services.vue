@@ -365,49 +365,29 @@
                   <td><AegisBadge :label="statusLabel(b.status)" :variant="statusVariant(b.status)" /></td>
                   <td>
                     <div class="req-actions">
-                      <template v-if="b.status === 'scheduled'">
-                        <button
-                          class="btn-icon"
-                          data-tooltip="Mark Complete"
-                          @click.stop="setActiveBooking(b); modals.completeSession = true"
-                        >
-                          <AegisIcon name="check" :size="14" />
-                        </button>
-                        <button
-                          class="btn-icon"
-                          data-tooltip="Session Notes"
-                          @click.stop="setActiveBooking(b); modals.sessionNotes = true"
-                        >
-                          <AegisIcon name="file-text" :size="14" />
-                        </button>
-                        <button
-                          class="btn-icon"
-                          data-tooltip="Cancel Session"
-                          @click.stop="setActiveBooking(b); modals.cancelSession = true"
-                        >
-                          <AegisIcon name="x" :size="14" />
-                        </button>
-                      </template>
-                      <template v-else-if="b.status === 'completed'">
-                        <button
-                          class="btn-icon"
-                          data-tooltip="Session Notes"
-                          @click.stop="setActiveBooking(b); modals.sessionNotes = true"
-                        >
-                          <AegisIcon name="file-text" :size="14" />
-                        </button>
-                        <a
-                          v-if="b.amount_cents > 0"
-                          :href="route('provider.finances.index')"
-                          class="btn-icon"
-                          data-tooltip="View in Finances"
-                        >
-                          <AegisIcon name="dollar-sign" :size="14" />
-                        </a>
-                      </template>
-                      <template v-else>
-                        <span class="td-sub">—</span>
-                      </template>
+                      <button
+                        class="btn-icon"
+                        data-tooltip="Session Notes"
+                        @click.stop="setActiveBooking(b); modals.sessionNotes = true"
+                      >
+                        <AegisIcon name="file-text" :size="14" />
+                      </button>
+                      <button
+                        v-if="b.status === 'scheduled'"
+                        class="btn-icon"
+                        data-tooltip="Cancel Session"
+                        @click.stop="setActiveBooking(b); modals.cancelSession = true"
+                      >
+                        <AegisIcon name="x" :size="14" />
+                      </button>
+                      <a
+                        v-if="b.status === 'completed' && b.amount_cents > 0"
+                        :href="route('provider.finances.index')"
+                        class="btn-icon"
+                        data-tooltip="View in Finances"
+                      >
+                        <AegisIcon name="dollar-sign" :size="14" />
+                      </a>
                     </div>
                   </td>
                 </tr>
@@ -436,6 +416,58 @@
         <AegisIcon name="send" :size="14" />
         <span>These are service requests you have sent to other practitioners. Track their status, and withdraw any pending request if your needs have changed.</span>
       </div>
+
+      <!-- Active Sessions: sessions where current user is the client -->
+      <template v-if="clientSessions.filter(s => s.status === 'scheduled').length">
+        <div class="section-header" style="margin-top:4px;">
+          <div class="section-title">Active Sessions</div>
+          <div class="section-subtitle">Sessions you have booked with other providers — confirm completion to release payment.</div>
+        </div>
+        <div class="card card-flush" style="margin-bottom:24px;">
+          <div class="card-body">
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Provider</th>
+                    <th>Service</th>
+                    <th>Scheduled</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="cs in clientSessions.filter(s => s.status === 'scheduled')" :key="cs.id">
+                    <td>
+                      <div class="td-provider">
+                        <div class="avatar avatar-sm">{{ cs.practitioner_avatar || '?' }}</div>
+                        <div>
+                          <a v-if="cs.practitioner_slug" :href="route('public.provider', { slug: cs.practitioner_slug })" class="td-name link-name">{{ cs.practitioner_name }}</a>
+                          <div v-else class="td-name">{{ cs.practitioner_name }}</div>
+                          <div class="td-cred">{{ cs.practitioner_detail }}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>{{ cs.service_title }}</td>
+                    <td>{{ cs.datetime_label }}</td>
+                    <td style="font-weight:700;">{{ cs.amount }}</td>
+                    <td><AegisBadge label="Scheduled" variant="blue" /></td>
+                    <td>
+                      <button
+                        class="btn btn-success btn-sm"
+                        @click.stop="activeClientSession = cs; modals.completeSession = true"
+                      >
+                        <AegisIcon name="check" :size="13" /> Confirm &amp; Pay
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </template>
 
       <div class="svc-toolbar">
         <div class="search-wrap">
@@ -1152,61 +1184,63 @@
       </template>
     </AegisModal>
 
-    <!-- Complete Session Modal -->
-    <AegisModal v-model="modals.completeSession" title="Mark Session Complete" size="md">
-      <template v-if="activeBooking">
+    <!-- Confirm Session & Release Payment Modal (CLIENT side) -->
+    <AegisModal v-model="modals.completeSession" title="Confirm Session &amp; Release Payment" size="md">
+      <template v-if="activeClientSession">
 
-        <!-- Session Summary -->
+        <div class="page-note" style="margin-bottom:14px;">
+          <AegisIcon name="info" :size="14" />
+          <span>By confirming, you acknowledge the session took place and authorize payment to the provider.</span>
+        </div>
+
         <div class="complete-session-summary">
           <div class="complete-session-row">
             <span class="complete-session-label">Provider</span>
-            <span class="complete-session-value">{{ activeBooking.provider_name }}</span>
+            <span class="complete-session-value">{{ activeClientSession.practitioner_name }}</span>
           </div>
           <div class="complete-session-row">
             <span class="complete-session-label">Service</span>
-            <span class="complete-session-value">{{ activeBooking.service_title }}</span>
+            <span class="complete-session-value">{{ activeClientSession.service_title }}</span>
           </div>
           <div class="complete-session-row">
             <span class="complete-session-label">Scheduled</span>
-            <span class="complete-session-value">{{ activeBooking.datetime_label }}</span>
+            <span class="complete-session-value">{{ activeClientSession.datetime_label }}</span>
           </div>
-          <div v-if="activeBooking.amount_cents > 0" class="complete-session-row">
-            <span class="complete-session-label">Amount</span>
-            <span class="complete-session-value complete-session-amount">{{ activeBooking.amount }}</span>
+          <div v-if="activeClientSession.amount_cents > 0" class="complete-session-row">
+            <span class="complete-session-label">You will pay</span>
+            <span class="complete-session-value complete-session-amount">{{ activeClientSession.amount }}</span>
           </div>
         </div>
 
-        <!-- Payout Status Block -->
-        <div v-if="activeBooking.amount_cents > 0" class="complete-session-payout">
-          <div v-if="activeBooking.practitioner_stripe_connected" class="payout-status payout-status--ready">
+        <div v-if="activeClientSession.amount_cents > 0" class="complete-session-payout">
+          <div v-if="activeClientSession.practitioner_stripe_connected" class="payout-status payout-status--ready">
             <AegisIcon name="check-circle" :size="15" />
             <div>
-              <div class="payout-status-title">Stripe Connect linked</div>
-              <div class="payout-status-desc">Funds will be transferred immediately to your connected account ({{ activeBooking.practitioner_stripe_account || 'on file' }}).</div>
+              <div class="payout-status-title">Payment will be sent immediately</div>
+              <div class="payout-status-desc">{{ activeClientSession.practitioner_name }} has a connected Stripe account. Funds transfer on confirmation.</div>
             </div>
           </div>
           <div v-else class="payout-status payout-status--warn">
             <AegisIcon name="alert-triangle" :size="15" />
             <div>
-              <div class="payout-status-title">No Stripe Connect account</div>
-              <div class="payout-status-desc">The payout will be recorded as pending. Connect your Stripe account in <a :href="route('provider.finances.index')" class="link-inline">Finances</a> to receive it.</div>
+              <div class="payout-status-title">Provider payout pending</div>
+              <div class="payout-status-desc">{{ activeClientSession.practitioner_name }} has not connected a Stripe account yet. Your payment will be held and released once they do.</div>
             </div>
           </div>
         </div>
 
         <p class="complete-session-confirm-text">
-          Marking this session complete is permanent. The other practitioner will be notified and this session will move to your completed history.
+          This action is permanent. The session will be marked complete and the provider will be notified.
         </p>
       </template>
 
       <template #footer>
         <button class="btn btn-outline" @click="modals.completeSession = false">Cancel</button>
         <button class="btn btn-success" @click="submitCompleteSession">
-          <AegisIcon name="check" :size="14" /> Mark Complete &amp; Release Payment
+          <AegisIcon name="check" :size="14" /> Confirm &amp; Release Payment
         </button>
       </template>
     </AegisModal>
-
     <!-- Dismiss Request Modal -->
     <AegisModal v-model="modals.dismiss" title="Dismiss Request" size="sm">
       <div class="form-group">
@@ -1327,6 +1361,7 @@ const props = defineProps({
   filters:           { type: Object, default: () => ({}) },
   outgoingRequests:  { type: Array,  default: () => [] },
   serviceProfile:    { type: Object, default: () => ({ headline: '', bio: '', years_experience: 0, specialties: [] }) },
+  clientSessions:    { type: Array,  default: () => [] },
 })
 
 // ── Composables ───────────────────────────────────────────────────────────
@@ -1362,6 +1397,7 @@ const modals = reactive({
 const activeService  = ref(null)
 const activeRequest  = ref(null)
 const activeBooking  = ref(null)
+const activeClientSession = ref(null)
 
 function setActiveService(s)  {
   activeService.value           = s
@@ -1623,16 +1659,18 @@ function submitAccept() {
 }
 
 function submitCompleteSession() {
-  if (!activeBooking.value?.id) return
-  router.post(route('provider.services.session.complete', { session: activeBooking.value.id }), {}, {
+  if (!activeClientSession.value?.id) return
+  router.post(route('provider.services.session.complete', { session: activeClientSession.value.id }), {}, {
     preserveScroll: true,
     onSuccess: () => {
       modals.completeSession = false
-      const hasConnect = activeBooking.value?.practitioner_stripe_connected
+      const hasConnect = activeClientSession.value?.practitioner_stripe_connected
+      const name = activeClientSession.value?.practitioner_name ?? 'the provider'
       toast.success(hasConnect
-        ? 'Session complete. Payout initiated to your Stripe account.'
-        : 'Session complete. Connect your Stripe account in Finances to receive payouts.'
+        ? 'Session confirmed. Payment sent to ' + name + '.'
+        : 'Session confirmed. Payment will release once ' + name + ' connects their Stripe account.'
       )
+      activeClientSession.value = null
     },
   })
 }

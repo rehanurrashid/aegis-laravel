@@ -410,10 +410,14 @@ class ServiceService
      * Stub: actual Stripe Connect transfer is triggered via PayoutService
      * once Connect is fully configured; for now we record the row as pending.
      */
+    /**
+     * Called by the CLIENT (inquirer) to confirm the session happened and release payment.
+     * Charges the client's default payment method, transfers to practitioner's Stripe Connect account.
+     */
     public function completeSession(ServiceSession $session, string $actorId): ServiceSession
     {
-        if ($session->practitioner_id !== $actorId) {
-            abort(403, 'Only the listing owner can mark a session complete.');
+        if ($session->client_id !== $actorId) {
+            abort(403, 'Only the client who booked this session can confirm completion.');
         }
 
         if ($session->status instanceof ServiceSessionStatus && $session->status !== ServiceSessionStatus::Scheduled) {
@@ -425,51 +429,55 @@ class ServiceService
             'completed_at' => now(),
         ]);
 
-        $client      = User::find($session->client_id);
-        $service     = Service::find($session->service_id);
+        $client       = User::find($session->client_id);
+        $service      = Service::find($session->service_id);
         $practitioner = User::find($session->practitioner_id);
 
-        // Record payment row and attempt immediate Stripe Connect transfer
+        // Charge client -> transfer to practitioner via Stripe Connect
         if ($session->amount_cents > 0 && $practitioner) {
+            $clientPm = \App\Models\PractitionerPaymentMethod::where('practitioner_id', $session->client_id)
+                ->where('is_default', 1)->first();
+
             $payment = PractitionerPayment::create([
                 'id'                   => 'pp_' . Str::lower(Str::random(12)),
                 'practitioner_id'      => $session->practitioner_id,
-                'payment_method_id'    => null,
+                'payment_method_id'    => $clientPm?->id,
                 'kind'                 => PractitionerPaymentKind::ServiceSession->value,
                 'amount_cents'         => $session->amount_cents,
                 'currency'             => 'USD',
                 'status'               => PractitionerPaymentStatus::Pending->value,
-                'payment_method_label' => 'Service Session — ' . ($service?->title ?? 'Session'),
+                'payment_method_label' => $clientPm?->label ?? (($client?->display_name ?? 'Client') . ' payment method'),
                 'stripe_charge_id'     => null,
                 'paid_at'              => null,
             ]);
 
-            // Attempt Stripe Connect transfer (safe — stubs if not configured)
             try {
                 $this->payouts->releaseServiceSessionPayout($payment, $practitioner);
             } catch (\Throwable) {
-                // Transfer failure logged inside PayoutService; session still completes
+                // Failure logged inside PayoutService; session still completes
             }
         }
 
-        $payoutNote = ($practitioner?->stripe_connected && $practitioner?->stripe_account_id)
-            ? 'Payout initiated to your Stripe account.'
-            : 'No Stripe Connect account detected — payout is pending until you connect your account in Finances.';
+        $payoutStatus = ($practitioner?->stripe_connected && $practitioner?->stripe_account_id)
+            ? 'Payment initiated to provider Stripe account.'
+            : 'Payment pending - provider has not connected Stripe account yet.';
 
+        // Notify practitioner
         $this->activity->log(
             $session->practitioner_id, 'provider', 'payment', ActivitySeverity::Info,
             'session_completed',
-            'Session marked complete',
-            ($service?->title ?? 'Session') . ' — ' . ($client?->display_name ?? 'Client') . '. ' . $payoutNote,
+            ($client?->display_name ?? 'A client') . ' confirmed your session complete',
+            ($service?->title ?? 'Session') . '. ' . $payoutStatus,
             'service_session', $session->id, $session->client_id,
-            'log', $session->practitioner_id
+            'notification', $session->practitioner_id
         );
 
+        // Notify client
         $this->activity->log(
-            $session->client_id, 'provider', 'referral', ActivitySeverity::Info,
-            'session_completed',
-            'Your session has been marked complete',
-            $service?->title ?? 'Session',
+            $session->client_id, 'provider', 'payment', ActivitySeverity::Info,
+            'session_payment_sent',
+            'Session confirmed and payment sent',
+            '$' . number_format($session->amount_cents / 100, 2) . ' for ' . ($service?->title ?? 'session') . ' with ' . ($practitioner?->display_name ?? 'provider') . '.',
             'service_session', $session->id, $session->practitioner_id,
             'notification', $session->client_id
         );
@@ -477,7 +485,42 @@ class ServiceService
         return $session->fresh();
     }
 
-    // ── Queries ───────────────────────────────────────────────────────────
+    public function getSessionsAsClient(string $clientId): Collection
+    {
+        return ServiceSession::where('client_id', $clientId)
+            ->with(['service', 'practitioner'])
+            ->orderBy('scheduled_at', 'desc')
+            ->get();
+    }
+
+    public function shapeClientSession(ServiceSession $s): array
+    {
+        $practitioner = $s->practitioner;
+        $service      = $s->service;
+        $status       = $s->status instanceof ServiceSessionStatus
+            ? $s->status->value
+            : (string) ($s->status ?? 'scheduled');
+        $tz = $s->timezone ?? 'America/New_York';
+
+        return [
+            'id'                            => $s->id,
+            'service_id'                    => $s->service_id,
+            'service_request_id'            => $s->service_request_id,
+            'practitioner_id'               => $s->practitioner_id,
+            'practitioner_name'             => $practitioner?->display_name ?? 'Unknown',
+            'practitioner_slug'             => $practitioner?->slug ?? '',
+            'practitioner_avatar'           => $practitioner?->avatar_initials ?? '',
+            'practitioner_detail'           => $practitioner?->credentials ?? '',
+            'service_title'                 => $service?->title ?? 'Session',
+            'request_type'                  => ucfirst(str_replace('_', ' ', $service?->category ?? '')),
+            'datetime_label'                => $s->scheduled_at?->setTimezone($tz)->format('M j, Y g:i A T') ?? 'TBD',
+            'duration_label'                => isset($service->duration_min) ? $service->duration_min . ' min' : 'TBD',
+            'amount'                        => $s->amount_cents ? '$' . number_format($s->amount_cents / 100, 2) : 'Free',
+            'amount_cents'                  => $s->amount_cents ?? 0,
+            'status'                        => $status,
+            'practitioner_stripe_connected' => (bool) ($practitioner?->stripe_connected ?? false),
+        ];
+    }
 
     public function getForPractitioner(string $practitionerId, array $filters = []): Collection
     {
