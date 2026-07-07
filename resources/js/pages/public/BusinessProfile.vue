@@ -460,6 +460,28 @@ const props = defineProps({
 })
 
 const page = usePage()
+
+const authUser         = computed(() => page.props.auth?.user ?? null)
+const isVerifiedMember = computed(() => {
+  if (page.props.isVerifiedMember !== undefined) return !!page.props.isVerifiedMember
+  return !!(authUser.value?.verified)
+})
+
+const memberCtaLabel = computed(() => {
+  if (!isLoggedIn)               return 'Sign In'
+  if (!authUser.value?.verified) return 'Verify Email'
+  return 'Activate Plan'
+})
+const memberCtaRoute = computed(() => {
+  if (!isLoggedIn)               return route('login')
+  if (!authUser.value?.verified) return route('verification.notice')
+  return route('onboarding.plan')
+})
+const memberCtaIcon = computed(() => {
+  if (!isLoggedIn)               return 'lock'
+  if (!authUser.value?.verified) return 'check-circle'
+  return 'credit-card'
+})
 const toast = useToast()
 const { confirmAction } = useConfirm()
 const { openConversation, loading: msgLoading } = useMessageButton()

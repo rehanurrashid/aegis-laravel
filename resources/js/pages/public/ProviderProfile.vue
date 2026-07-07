@@ -39,7 +39,7 @@
             </template>
 
             <!-- Logged-in non-owner -->
-            <template v-else-if="isLoggedIn">
+            <template v-else-if="isVerifiedMember">
               <!-- Refer a Client — always visible to any authenticated provider -->
               <button type="button" class="btn-hero-solid is-on-light" @click="openReferral">
                 <AegisIcon name="share" :size="14" /> Refer a Client
@@ -1215,7 +1215,7 @@ function copyShareLink() {
 .pp-svc-card-footer {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   padding: 12px 18px;
 }
