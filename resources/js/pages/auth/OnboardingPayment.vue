@@ -93,7 +93,7 @@
           :disabled="!stripeReady || submitting"
           @click="submit"
         >
-          <AegisIcon v-if="submitting" name="loader" :size="14" />
+          <AegisIcon v-if="submitting" name="refresh-cw" :size="14" class="ob-spin" />
           <AegisIcon v-else name="lock" :size="14" />
           {{ submitting ? 'Processing…' : `Subscribe — ${planDisplayPrice}` }}
         </button>

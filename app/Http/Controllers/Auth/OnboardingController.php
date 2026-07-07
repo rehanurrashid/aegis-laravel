@@ -158,6 +158,15 @@ class OnboardingController extends Controller
         $pmId    = $data['payment_method_id'];
         $priceId = $data['price_id'];
 
+        // Ensure user exists as a Stripe customer first (Cashier requirement).
+        // createOrGetStripeCustomer() is idempotent — safe to call every time.
+        if (!$user->hasStripeId()) {
+            $user->createAsStripeCustomer([
+                'name'  => $user->display_name,
+                'email' => $user->email,
+            ]);
+        }
+
         // Attach card as default payment method (Cashier)
         $user->updateDefaultPaymentMethod($pmId);
 
