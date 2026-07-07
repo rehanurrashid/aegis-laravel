@@ -44,7 +44,7 @@
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Share" aria-label="Share"><AegisIcon name="link" :size="14" /></button>
             </template>
             <template v-else>
-              <a :href="route('login')" class="btn-hero-solid is-on-light"><AegisIcon name="briefcase" :size="14" /> Sign In</a>
+              <a ::href="memberCtaRoute" class="btn-hero-solid is-on-light"><AegisIcon name="briefcase" :size="14" /> Sign In</a>
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Share" aria-label="Share"><AegisIcon name="link" :size="14" /></button>
             </template>
           </div>
@@ -69,7 +69,7 @@
       </div>
 
       <!-- ═══ ENGAGEMENT ACTIVITY TRACKER (below hero, logged-in non-owner) ═══ -->
-      <div v-if="isLoggedIn && !isOwner && allEngagements.length" class="bp-eng-tracker">
+      <div v-if="isVerifiedMember && !isOwner && allEngagements.length" class="bp-eng-tracker">
         <div class="bp-eng-tracker-head">
           <span class="bp-eng-tracker-label"><AegisIcon name="clock" :size="12" /> Your pending requests</span>
           <span>{{ allEngagements.length }} pending</span>
@@ -98,7 +98,7 @@
               <div class="pp-svc-card-footer">
                 <span :class="['pp-svc-card-avail', action.avail]"><AegisIcon name="circle-dot" :size="9" class="aegis-icon-filled" />{{ action.availLabel }}</span>
                 <button v-if="isLoggedIn" :class="['btn', action.btnClass, 'btn-sm']" @click="action.handler">{{ action.btnLabel }}</button>
-                <a v-else :href="route('login')" :class="['btn', action.btnClass, 'btn-sm']">Sign in</a>
+                <a v-else :href="memberCtaRoute" :class="['btn', action.btnClass, 'btn-sm']">{{ memberCtaLabel }}</a>
               </div>
             </div>
           </div>
@@ -150,7 +150,7 @@
             <a :href="route('bp.profile.index')" class="btn btn-outline btn-sm">Edit profile</a>
           </div>
 
-          <div v-if="isLoggedIn && !isOwner" class="pp-section">
+          <div v-if="isVerifiedMember && !isOwner" class="pp-section">
             <div class="pp-section-title"><AegisIcon name="bar-chart" :size="13" class="aegis-icon-gold-dark" /> Engagement Track Record</div>
             <div class="pp-metric-grid">
               <div class="pp-metric-tile green"><div class="pp-metric-tile-val">{{ pmStats.jobs_completed ?? 42 }}</div><div class="pp-metric-tile-lbl">Total Projects</div></div>
@@ -164,7 +164,7 @@
           <div v-else-if="!isLoggedIn" class="pp-section">
             <div class="pp-section-title"><AegisIcon name="lock" :size="13" class="aegis-icon-gold-dark" /> Engagement Track Record</div>
             <p style="font-size:12px;color:var(--text-3);line-height:1.6;margin:0 0 10px">On-time delivery rate, repeat-client stats, and engagement details are visible to signed-in network members.</p>
-            <a :href="route('login')" class="btn btn-outline btn-sm">Sign in to view</a>
+            <a :href="memberCtaRoute" class="btn btn-outline btn-sm">{{ memberCtaLabel }} to view</a>
           </div>
 
           <div class="pp-section">
@@ -186,7 +186,7 @@
             <div v-else style="font-size:13px;color:var(--text-3);padding:12px 0">No reviews yet.</div>
             <div style="display:flex;align-items:center;justify-content:space-between;padding-top:14px;font-size:12px;color:var(--text-3)">
               <span>Client Rating: <strong style="color:var(--gold-dark)">{{ displayRating ? displayRating + '/5.0' : 'No ratings yet' }}</strong>{{ reviewCount ? ' from ' + reviewCount + ' reviews' : '' }}</span>
-              <button v-if="isLoggedIn && !isOwner" class="btn btn-outline btn-sm" @click="openLeaveReviewModal"><AegisIcon name="plus" :size="13" /> Leave Review</button>
+              <button v-if="isVerifiedMember && !isOwner" class="btn btn-outline btn-sm" @click="openLeaveReviewModal"><AegisIcon name="plus" :size="13" /> Leave Review</button>
             </div>
           </div>
 
@@ -201,7 +201,7 @@
             <div v-if="user.location" class="pp-info-row"><span class="pp-info-label">Location</span><span class="pp-info-val">{{ user.location }}</span></div>
             <div v-if="isLoggedIn && user.email" class="pp-info-row"><span class="pp-info-label">Email</span><span class="pp-info-val"><a :href="'mailto:'+user.email">{{ user.email }}</a></span></div>
             <div v-if="isLoggedIn && user.phone" class="pp-info-row"><span class="pp-info-label">Phone</span><span class="pp-info-val">{{ user.phone }}</span></div>
-            <div v-if="!isLoggedIn" class="pp-info-row"><span class="pp-info-label">Contact Details</span><span class="pp-info-val" style="font-weight:600;color:var(--text-3)"><a :href="route('login')" class="pp-ext-link" style="padding:3px 8px">Sign in to view</a></span></div>
+            <div v-if="!isLoggedIn" class="pp-info-row"><span class="pp-info-label">Contact Details</span><span class="pp-info-val" style="font-weight:600;color:var(--text-3)"><a :href="memberCtaRoute" class="pp-ext-link" style="padding:3px 8px">{{ memberCtaLabel }} to view</a></span></div>
             <div class="pp-info-row"><span class="pp-info-label">Service Hours</span><span class="pp-info-val">{{ pmContact.service_hours ?? 'Mon-Fri 9 AM - 5 PM EST' }}</span></div>
             <div class="pp-info-row"><span class="pp-info-label">Response SLA</span><span class="pp-info-val" style="color:var(--green-dark)">{{ pmContact.response_sla ?? ('Within ' + (pmStats.response_time ?? '24h')) }}</span></div>
             <div class="pp-info-row" style="border-bottom:none"><span class="pp-info-label">Preferred Channel</span><span class="pp-info-val">{{ pmContact.best_channel ?? 'Aegis Message' }}</span></div>
@@ -237,7 +237,7 @@
             <div style="display:flex;gap:5px;flex-wrap:wrap"><span class="tag-chip">English</span><span class="tag-chip">Spanish</span></div>
           </div>
 
-          <div v-if="isLoggedIn && !isOwner && isConnected" class="pp-section">
+          <div v-if="isVerifiedMember && !isOwner && isConnected" class="pp-section">
             <div class="pp-section-title"><AegisIcon name="link" :size="13" class="aegis-icon-gold-dark" /> Connection Info</div>
             <div class="pp-info-row"><span class="pp-info-label">Status</span><span class="pp-info-val" style="color:var(--green-dark)">Connected</span></div>
             <div class="pp-info-row"><span class="pp-info-label">Active Contracts</span><span class="pp-info-val">{{ bpStats.active_contracts || 0 }}</span></div>
@@ -262,7 +262,7 @@
             </div>
           </div>
 
-          <div v-else-if="isLoggedIn && !isOwner" class="pp-section">
+          <div v-else-if="isVerifiedMember && !isOwner" class="pp-section">
             <div class="pp-section-title"><AegisIcon name="user-plus" :size="13" class="aegis-icon-gold-dark" /> Connect</div>
             <p style="font-size:13px;color:var(--text-2);margin:0 0 12px">Add {{ businessName }} to your network to message them and track engagements.</p>
             <button class="btn btn-primary btn-sm" @click="showConnectModal = true"><AegisIcon name="user-plus" :size="13" /> Send Connection Request</button>
@@ -271,7 +271,7 @@
           <div v-else-if="!isLoggedIn" class="pp-section">
             <div class="pp-section-title"><AegisIcon name="lock" :size="13" class="aegis-icon-gold-dark" /> Connection &amp; Contract Info</div>
             <p style="font-size:12px;color:var(--text-3);line-height:1.6;margin:0 0 10px">See active contracts, NDA/BAA status, and connection history with this partner.</p>
-            <a :href="route('login')" class="btn btn-outline btn-sm">Sign in to view</a>
+            <a :href="memberCtaRoute" class="btn btn-outline btn-sm">{{ memberCtaLabel }} to view</a>
           </div>
 
           <div v-if="isOwner" class="pp-section">
@@ -288,7 +288,7 @@
     </div>
 
     <!-- MODALS (logged-in non-owner only) -->
-    <template v-if="isLoggedIn && !isOwner">
+    <template v-if="isVerifiedMember && !isOwner">
 
       <!-- Hire Modal -->
       <!-- Connect Modal -->

@@ -149,7 +149,7 @@
       </div>
 
       <!-- ═══ MY SERVICE REQUESTS (viewer strip) ═══ -->
-      <div v-if="isLoggedIn && !isOwner && myServiceRequests.length" class="svc-request-strip">
+      <div v-if="isVerifiedMember && !isOwner && myServiceRequests.length" class="svc-request-strip">
         <div class="svc-request-strip-title">
           <AegisIcon name="clipboard" :size="13" class="aegis-icon-gold-dark" />
           Your Service Requests to {{ user.display_name }}
@@ -242,12 +242,13 @@
                   {{ svc.availability_label || ((svc.availability ?? 'open') === 'limited' ? 'Limited Spots' : (svc.availability === 'closed' ? 'Not Accepting' : 'Slots Available')) }}
                 </span>
                 <template v-if="!isOwner">
-                  <button v-if="isLoggedIn" class="pp-svc-request-btn btn btn-primary"
+                  <button v-if="isVerifiedMember" class="pp-svc-request-btn btn btn-primary"
                           @click="openServiceRequest(svc.title)">
                     <AegisIcon name="send" :size="12" /> Request
                   </button>
-                  <a v-else :href="route('login')" class="pp-svc-request-btn btn btn-outline">
-                    Sign in to Request
+                  <a v-else :href="memberCtaRoute" class="pp-svc-request-btn btn btn-outline">
+                    <AegisIcon :name="memberCtaIcon" :size="12" />
+                    {{ memberCtaLabel === 'Sign In' ? 'Sign in to Request' : memberCtaLabel }}
                   </a>
                 </template>
               </div>
@@ -441,7 +442,7 @@
             </template>
             <div style="display:flex;align-items:center;justify-content:space-between;padding-top:14px;font-size:12px;color:var(--text-3)">
               <span>Overall Peer Rating: <strong style="color:var(--gold-dark)">{{ computedRating }}/5.0</strong> from {{ computedReviewCount }} review{{ computedReviewCount !== 1 ? 's' : '' }}</span>
-              <button v-if="isLoggedIn && !isOwner" class="btn btn-outline btn-sm" @click="showEndorseModal = true">
+              <button v-if="isVerifiedMember && !isOwner" class="btn btn-outline btn-sm" @click="showEndorseModal = true">
                 <AegisIcon name="plus" :size="13" /> Endorse This Practitioner
               </button>
             </div>
@@ -483,7 +484,10 @@
               <div class="pp-info-row">
                 <span class="pp-info-label">Contact Details</span>
                 <span class="pp-info-val" style="font-weight:600;color:var(--text-3)">
-                  <a :href="route('login')" class="pp-ext-link" style="padding:3px 8px">Sign in to view</a>
+                  <a :href="memberCtaRoute" class="pp-ext-link" style="padding:3px 8px">
+                    <AegisIcon :name="memberCtaIcon" :size="11" />
+                    {{ memberCtaLabel }}
+                  </a>
                 </span>
               </div>
             </template>
@@ -591,7 +595,7 @@
           </div>
 
           <!-- Logged-in: Connection Info -->
-          <div v-if="isLoggedIn && !isOwner && pm.connection" class="pp-section">
+          <div v-if="isVerifiedMember && !isOwner && pm.connection" class="pp-section">
             <div class="pp-section-title">
               <AegisIcon name="link" :size="13" class="aegis-icon-gold-dark" /> Connection Info
             </div>
@@ -608,7 +612,7 @@
           </div>
 
           <!-- Logged-in but not connected (no connection record) -->
-          <div v-else-if="isLoggedIn && !isOwner && !pm.connection" class="pp-section">
+          <div v-else-if="isVerifiedMember && !isOwner && !pm.connection" class="pp-section">
             <div class="pp-section-title">
               <AegisIcon name="link" :size="13" class="aegis-icon-gold-dark" /> Network Connection
             </div>
@@ -661,7 +665,10 @@
             <p style="font-size:12px;color:var(--text-3);line-height:1.6;margin:0 0 10px">
               See when you connected, your interaction history, and mutual connections in your network.
             </p>
-            <a :href="route('login')" class="btn btn-outline btn-sm">Sign in to view</a>
+            <a :href="memberCtaRoute" class="btn btn-outline btn-sm">
+              <AegisIcon :name="memberCtaIcon" :size="12" />
+              {{ memberCtaLabel }}
+            </a>
           </div>
 
         </div>
@@ -670,7 +677,7 @@
     </div><!-- /public-profile-wrap -->
 
     <!-- ═══ MODALS (logged-in non-owner only) ═══ -->
-    <template v-if="isLoggedIn && !isOwner">
+    <template v-if="isVerifiedMember && !isOwner">
 
       <!-- Centralized Referral Modal -->
       <ReferralModal
@@ -786,9 +793,27 @@ const svcModalRef = ref(null)
 const pricing = usePricingStore()
 
 // Derive auth state from Inertia shared props
-const authUser   = computed(() => page.props.auth?.user ?? null)
-const isLoggedIn = computed(() => !!authUser.value)
-const isOwner    = computed(() => isLoggedIn.value && authUser.value?.id === props.user?.id)
+const authUser         = computed(() => page.props.auth?.user ?? null)
+const isLoggedIn       = computed(() => !!authUser.value)
+const isVerifiedMember = computed(() => !!page.props.isVerifiedMember)
+const isOwner          = computed(() => isVerifiedMember.value && authUser.value?.id === props.user?.id)
+
+// Smart CTA for non-member states
+const memberCtaLabel = computed(() => {
+  if (!isLoggedIn.value)       return 'Sign In'
+  if (!authUser.value.verified) return 'Verify Email'
+  return 'Activate Plan'
+})
+const memberCtaRoute = computed(() => {
+  if (!isLoggedIn.value)        return route('login')
+  if (!authUser.value.verified) return route('verification.notice')
+  return route('onboarding.plan')
+})
+const memberCtaIcon = computed(() => {
+  if (!isLoggedIn.value)        return 'lock'
+  if (!authUser.value.verified) return 'check-circle'
+  return 'credit-card'
+})
 
 // Ensure the viewed practitioner is always available as a selectable network entry
 // even if the viewer hasn't connected with them yet (they're on their public profile,

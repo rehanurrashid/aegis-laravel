@@ -38,7 +38,7 @@
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Share" aria-label="Share"><AegisIcon name="link" :size="14" /></button>
             </template>
             <template v-else>
-              <a :href="route('login')" class="btn-hero-solid is-on-light"><AegisIcon name="briefcase" :size="14" /> Sign In</a>
+              <a ::href="memberCtaRoute" class="btn-hero-solid is-on-light"><AegisIcon name="briefcase" :size="14" /> Sign In</a>
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Share" aria-label="Share"><AegisIcon name="link" :size="14" /></button>
             </template>
           </div>
@@ -68,7 +68,7 @@
         </div>
         <template v-if="!isOwner">
           <button v-if="isLoggedIn" class="btn btn-primary btn-sm" @click="openReserveSlotModal">Reserve a Slot</button>
-          <a v-else :href="route('login')" class="btn btn-primary btn-sm">Reserve a Slot</a>
+          <a v-else ::href="memberCtaRoute" class="btn btn-primary btn-sm">Reserve a Slot</a>
         </template>
       </div>
 
@@ -144,7 +144,7 @@
           <div v-else class="pp-section">
             <div class="pp-section-title"><AegisIcon name="lock" :size="13" class="aegis-icon-gold-dark" /> Performance Metrics</div>
             <p style="font-size:12px;color:var(--text-3);line-height:1.6;margin:0 0 10px">SLA performance, incident handling stats, and audit compliance are visible to verified Aegis network members.</p>
-            <a :href="route('login')" class="btn btn-outline btn-sm">Sign in to view</a>
+            <a :href="memberCtaRoute" class="btn btn-outline btn-sm">{{ memberCtaLabel }} to view</a>
           </div>
 
           <div class="pp-section">
@@ -161,7 +161,7 @@
             </div>
             <div style="display:flex;align-items:center;justify-content:space-between;padding-top:14px;font-size:12px;color:var(--text-3)">
               Steward Rating: <strong style="color:var(--gold-dark)">{{ pm.rating ?? '4.9' }}/5.0</strong> from {{ pm.review_count ?? 38 }} practitioners
-              <button v-if="isLoggedIn && !isOwner" class="btn btn-outline btn-sm" @click="openEndorseModal"><AegisIcon name="plus" :size="13" /> Endorse</button>
+              <button v-if="isVerifiedMember && !isOwner" class="btn btn-outline btn-sm" @click="openEndorseModal"><AegisIcon name="plus" :size="13" /> Endorse</button>
             </div>
           </div>
 
@@ -176,7 +176,7 @@
             <div v-if="user.location" class="pp-info-row"><span class="pp-info-label">Location</span><span class="pp-info-val">{{ user.location }}</span></div>
             <div v-if="isLoggedIn && user.email" class="pp-info-row"><span class="pp-info-label">Email</span><span class="pp-info-val"><a :href="'mailto:'+user.email">{{ user.email }}</a></span></div>
             <div v-if="isLoggedIn && user.phone" class="pp-info-row"><span class="pp-info-label">24/7 Phone</span><span class="pp-info-val">{{ user.phone }}</span></div>
-            <div v-if="!isLoggedIn" class="pp-info-row"><span class="pp-info-label">Contact Details</span><span class="pp-info-val" style="font-weight:600;color:var(--text-3)"><a :href="route('login')" class="pp-ext-link" style="padding:3px 8px">Sign in to view</a></span></div>
+            <div v-if="!isLoggedIn" class="pp-info-row"><span class="pp-info-label">Contact Details</span><span class="pp-info-val" style="font-weight:600;color:var(--text-3)"><a :href="memberCtaRoute" class="pp-ext-link" style="padding:3px 8px">{{ memberCtaLabel }} to view</a></span></div>
             <div class="pp-info-row"><span class="pp-info-label">Best Channel</span><span class="pp-info-val">{{ pmContact.best_channel ?? 'Aegis Message' }}</span></div>
             <div class="pp-info-row" style="border-bottom:none"><span class="pp-info-label">Response SLA</span><span class="pp-info-val" style="color:var(--green-dark)">{{ pmContact.response_sla ?? 'Within 4 business hours' }}</span></div>
           </div>
@@ -222,7 +222,7 @@
             </div>
           </div>
 
-          <div v-if="isLoggedIn && !isOwner" class="pp-section">
+          <div v-if="isVerifiedMember && !isOwner" class="pp-section">
             <div class="pp-section-title"><AegisIcon name="link" :size="13" class="aegis-icon-gold-dark" /> Connection Info</div>
             <div class="pp-info-row"><span class="pp-info-label">Connected Since</span><span class="pp-info-val">{{ pmConn.connected_since ?? 'January 2024' }}</span></div>
             <div class="pp-info-row"><span class="pp-info-label">Connection Type</span><span class="pp-info-val">{{ pmConn.connection_type ?? 'Designated Steward' }}</span></div>
@@ -236,7 +236,7 @@
           <div v-else-if="!isLoggedIn" class="pp-section">
             <div class="pp-section-title"><AegisIcon name="lock" :size="13" class="aegis-icon-gold-dark" /> Connection Info</div>
             <p style="font-size:12px;color:var(--text-3);line-height:1.6;margin:0 0 10px">See when this Steward joined Aegis, your designation status, and your shared engagement history.</p>
-            <a :href="route('login')" class="btn btn-outline btn-sm">Sign in to view</a>
+            <a :href="memberCtaRoute" class="btn btn-outline btn-sm">{{ memberCtaLabel }} to view</a>
           </div>
 
           <div v-if="isOwner" class="pp-section">
@@ -253,7 +253,7 @@
     </div>
 
     <!-- ═══ MODALS ═══ -->
-    <template v-if="isLoggedIn && !isOwner">
+    <template v-if="isVerifiedMember && !isOwner">
 
       <!-- Inquire Modal -->
       <AegisModal v-model="showInquireModal" title="Inquire About Availability" subtitle="Confirm capacity and SLA fit before formally designating" size="md">
@@ -405,7 +405,7 @@ const { openConversation, loading: msgLoading } = useMessageButton()
 // Derive auth state from Inertia shared props — zero dependency on controller passing them
 const authUser   = computed(() => page.props.auth?.user ?? null)
 const isLoggedIn = computed(() => !!authUser.value)
-const isOwner    = computed(() => isLoggedIn.value && authUser.value?.id === props.user?.id)
+const isOwner    = computed(() => isVerifiedMember.value && authUser.value?.id === props.user?.id)
 
 const pm         = computed(() => props.user.profile_meta ?? {})
 const pmStats    = computed(() => pm.value.stats ?? {})

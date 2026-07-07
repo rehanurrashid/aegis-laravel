@@ -188,7 +188,7 @@ const { openConversation, loading: msgLoading } = useMessageButton()
 // Derive auth state from Inertia shared props — zero dependency on controller passing them
 const authUser   = computed(() => page.props.auth?.user ?? null)
 const isLoggedIn = computed(() => !!authUser.value)
-const isOwner    = computed(() => isLoggedIn.value && authUser.value?.id === props.user?.id)
+const isOwner    = computed(() => isVerifiedMember.value && authUser.value?.id === props.user?.id)
 
 const pm      = computed(() => props.user.profile_meta ?? {})
 const pmStats = computed(() => pm.value.stats ?? {})

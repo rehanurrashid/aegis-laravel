@@ -6,7 +6,7 @@
 -->
 <template>
   <!-- Logged-in: full portal chrome -->
-  <AppLayout v-if="isLoggedIn">
+  <AppLayout v-if="isVerifiedMember">
     <slot />
   </AppLayout>
 
@@ -102,9 +102,19 @@ import { computed } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 
-const page      = usePage()
-const isLoggedIn = computed(() => !!page.props.auth?.user)
-const year       = new Date().getFullYear()
+const page             = usePage()
+// isVerifiedMember: viewer is logged in, email-verified, AND has active sub
+// Falls back to checking page.props.isVerifiedMember (set by ProfileController)
+// OR derives from auth.user.verified + subscription state from shared props
+const isVerifiedMember = computed(() => {
+  // Use explicit prop if provided by controller (profile pages)
+  if (page.props.isVerifiedMember !== undefined) return !!page.props.isVerifiedMember
+  // Fallback: check auth.user.verified from shared props
+  const user = page.props.auth?.user
+  return !!user?.verified
+})
+const isLoggedIn       = computed(() => !!page.props.auth?.user)
+const year             = new Date().getFullYear()
 </script>
 
 <style scoped>
