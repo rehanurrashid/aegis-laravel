@@ -93,8 +93,8 @@ function goBack() { router.visit(route('onboarding.intent')) }
 .ob-panel-left-footer { position:relative; z-index:1; }
 .ob-panel-left-footer p { font-size:11px; color:rgba(255,255,255,0.38); line-height:1.5; }
 .ob-panel-right { flex:1; display:flex; flex-direction:column; overflow-y:auto; background-color:var(--surface); }
-.ob-panel-right-inner { flex:1; display:flex; flex-direction:column; justify-content:center; padding:clamp(40px,5vh,64px) clamp(40px,5vw,72px); min-height:100vh; max-width:520px; width:100%; margin:0 auto; }
-.ob-step-header { margin-bottom:28px; }
+.ob-panel-right-inner { flex:1; display:flex; flex-direction:column; justify-content:center; padding:clamp(32px,5vh,64px) clamp(28px,5vw,72px); max-width:480px; width:100%; margin:0 auto; }
+.ob-step-header { margin-bottom:24px; }
 .ob-step-eyebrow { font-size:10px; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; color:var(--gold-dark); margin-bottom:8px; }
 .ob-step-title { font-family:var(--font-serif); font-size:clamp(22px,2vw + 0.6rem,30px); font-weight:700; color:var(--text); line-height:1.22; margin-bottom:8px; }
 .ob-step-subtitle { font-size:13px; color:var(--text-2); line-height:1.55; }

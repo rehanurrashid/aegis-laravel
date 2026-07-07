@@ -222,7 +222,7 @@
         <!-- CTA -->
         <button
           type="button"
-          class="btn btn-primary ob-btn-full ob-auth-btn"
+          class="btn btn-primary ob-btn-full"
           :disabled="!canProceed || form.processing"
           @click="submit"
         >
@@ -443,7 +443,7 @@ function submit() {
 .ob-plan-btn { width:100%; margin-top:auto; }
 .ob-cs-plan-card { border:1px solid var(--gold); border-radius:var(--radius-lg); padding:24px; background:rgba(196,169,106,0.04); margin-bottom:20px; }
 .ob-maat-addon { background:rgba(196,169,106,0.04); border:1px solid rgba(196,169,106,0.2); border-radius:var(--radius-lg); padding:16px 18px; margin-bottom:16px; transition:opacity var(--transition); }
-.ob-maat-addon--locked { opacity:0.65; pointer-events:none; }
+.ob-maat-addon--locked { opacity:0.55; }
 .ob-maat-header { display:flex; align-items:flex-start; gap:12px; margin-bottom:8px; }
 .ob-maat-icon { width:36px; height:36px; background:var(--gold-dark); border-radius:var(--radius-full); display:flex; align-items:center; justify-content:center; color:var(--text-inverted); flex-shrink:0; }
 .ob-maat-title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:3px; }
@@ -455,15 +455,7 @@ function submit() {
 .ob-checkbox-label { font-size:12px; color:var(--text); line-height:1.5; }
 .ob-checkbox-label small { display:block; font-size:11px; color:var(--text-4); margin-top:2px; }
 .ob-combo-callout { display:flex; align-items:center; gap:8px; background:rgba(196,169,106,0.08); border:1px solid rgba(196,169,106,0.25); border-radius:var(--radius-sm); padding:10px 14px; font-size:12px; color:var(--text-2); margin-bottom:16px; }
-.ob-btn-full { width:100%; margin-bottom:14px; }
+.ob-btn-full { width:100%; padding:12px 22px; border-radius:var(--radius-full); font-size:13px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
 .ob-secure-note { display:flex; align-items:center; justify-content:center; gap:6px; font-size:12px; color:var(--text-4); }
 @media (max-width:720px) { .ob-layout { flex-direction:column; height:auto; min-height:100vh; overflow:visible; } .ob-panel-left { width:100%; height:auto; padding:32px 28px; } .ob-panel-right { height:auto; overflow:visible; } .ob-panel-right-inner { padding:32px 24px; } .ob-plan-grid { grid-template-columns:1fr; } }
-.ob-auth-btn {
-  width: 100%;
-  padding: 12px 22px;
-  border-radius: var(--radius-full);
-  font-size: 13px;
-  font-weight: 700;
-  margin-top: 4px;
-}
 </style>

@@ -239,10 +239,10 @@
             </div>
             <div class="ob-invite-gate-body">
               <p>Support Steward accounts are <strong>invitation-only</strong> — there is no public signup.</p>
-              <p class="ob-gate-para">Support Stewards are part of a Practitioner's operational team, handling administrative, monitoring, and coordination tasks under their authorization.</p>
-              <p class="ob-gate-para">For HIPAA compliance and audit integrity, the practitioner who's bringing you on must define your role and access permissions before your account can be created.</p>
-              <p class="ob-gate-para"><strong>Expecting an invitation?</strong> Check your email (including spam). If you haven't received one, ask your practitioner to send it from their Support Stewards page.</p>
-              <p class="ob-gate-para"><strong>Looking for a different role?</strong> If you're an independent professional serving multiple practitioners, you're likely looking for the <a href="#" class="ob-gate-link" @click.prevent="selectRole('continuity_steward'); currentStep = 0">Continuity Steward</a> role.</p>
+              <p style="margin-top: 12px;">Support Stewards are part of a Practitioner's operational team, handling administrative, monitoring, and coordination tasks under their authorization.</p>
+              <p style="margin-top: 12px;">For HIPAA compliance and audit integrity, the practitioner who's bringing you on must define your role and access permissions before your account can be created.</p>
+              <p style="margin-top: 12px;"><strong>Expecting an invitation?</strong> Check your email (including spam). If you haven't received one, ask your practitioner to send it from their Support Stewards page.</p>
+              <p style="margin-top: 12px;"><strong>Looking for a different role?</strong> If you're an independent professional serving multiple practitioners, you're likely looking for the <a href="#" class="ob-gate-link" @click.prevent="selectRole('continuity_steward'); currentStep = 0">Continuity Steward</a> role.</p>
             </div>
           </div>
 
@@ -805,5 +805,4 @@ const wwsSections = [
   .ob-panel-right { height:auto; overflow:visible; }
   .ob-panel-right-inner { padding:32px 24px; }
 }
-.ob-gate-para { margin-top:12px; }
 </style>

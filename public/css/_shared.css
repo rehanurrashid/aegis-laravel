@@ -2428,6 +2428,10 @@ p {
 .form-control.is-invalid,
 .form-select.is-invalid,
 .form-textarea.is-invalid,
+.form-input.is-invalid,
+.form-control.is-invalid,
+.form-select.is-invalid,
+.form-textarea.is-invalid,
 .form-input.is-error,
 .form-control.is-error,
 .form-select.is-error,
@@ -5045,7 +5049,7 @@ body.theme-gold-dark {
 .form-input.is-invalid,
 .form-control.is-invalid,
 .form-select.is-invalid,
-.form-textarea.is-invalid { border-color: var(--red) !important; box-shadow: none !important; }
+.form-textarea.is-invalid { border-color: var(--red); box-shadow: var(--focus-ring-red); }
 
 
 /* ══════════════════════════════════════════════════════════════════

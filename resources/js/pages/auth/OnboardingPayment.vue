@@ -318,7 +318,7 @@ function goBack() {
 .ob-panel-left-content { position:relative; z-index:1; flex:1; display:flex; flex-direction:column; justify-content:center; padding:clamp(12px,2.5vh,40px) 0; min-height:0; overflow:hidden; }
 .ob-panel-left-eyebrow { font-size:10px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.65); margin-bottom:clamp(8px,1.5vh,16px); }
 .ob-panel-left-title { font-family:var(--font-serif); font-size:clamp(22px,2.2vw + 0.6rem,34px); font-weight:700; color:var(--text-inverted); line-height:1.22; margin-bottom:clamp(10px,1.8vh,20px); }
-.ob-panel-left-body { font-size:13.5px; color:rgba(255,255,255,0.78); line-height:1.65; max-width:340px; margin-bottom:24px; }
+.ob-panel-left-body { font-size:13px; color:rgba(255,255,255,0.78); line-height:1.65; max-width:340px; margin-bottom:24px; }
 .ob-progress-track { margin-top:clamp(14px,2.4vh,32px); display:flex; gap:5px; align-items:center; }
 .ob-progress-pip { height:3px; flex:1; border-radius:var(--radius-sm); background:rgba(255,255,255,0.2); transition:all var(--transition); }
 .ob-progress-pip.active { background:var(--gold-light); }
@@ -328,10 +328,10 @@ function goBack() {
 
 /* Plan summary panel (left side) */
 .ob-plan-summary-panel { background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); border-radius:var(--radius); padding:14px 16px; margin-top:4px; }
-.ob-psp-label { font-size:9.5px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:rgba(255,255,255,0.5); margin-bottom:4px; }
+.ob-psp-label { font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:rgba(255,255,255,0.5); margin-bottom:4px; }
 .ob-psp-name { font-family:var(--font-serif); font-size:14px; font-weight:700; color:var(--text-inverted); margin-bottom:2px; }
-.ob-psp-price { font-size:12.5px; color:var(--gold-light); margin-bottom:8px; }
-.ob-psp-change { background:none; border:none; font-size:11.5px; color:rgba(255,255,255,0.55); text-decoration:underline; cursor:pointer; padding:0; font-family:var(--font-sans); }
+.ob-psp-price { font-size:12px; color:var(--gold-light); margin-bottom:8px; }
+.ob-psp-change { background:none; border:none; font-size:12px; color:rgba(255,255,255,0.55); text-decoration:underline; cursor:pointer; padding:0; font-family:var(--font-sans); }
 .ob-psp-change:hover { color:var(--gold-light); }
 
 /* ── RIGHT ── */
@@ -344,12 +344,12 @@ function goBack() {
 .ob-step-header { margin-bottom:20px; }
 .ob-step-eyebrow { font-size:10px; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; color:var(--gold-dark); margin-bottom:8px; }
 .ob-step-title { font-family:var(--font-serif); font-size:clamp(22px,2vw + 0.6rem,28px); font-weight:700; color:var(--text); line-height:1.25; margin-bottom:8px; }
-.ob-step-subtitle { font-size:13.5px; color:var(--text-2); line-height:1.55; }
+.ob-step-subtitle { font-size:13px; color:var(--text-2); line-height:1.55; }
 
 /* Plan recap */
 .ob-plan-recap { display:flex; justify-content:space-between; align-items:center; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius); padding:14px 18px; margin-bottom:20px; }
 .ob-plan-recap-name { font-family:var(--font-serif); font-size:14px; font-weight:700; color:var(--text); margin-bottom:2px; }
-.ob-plan-recap-detail { font-size:11.5px; color:var(--text-2); }
+.ob-plan-recap-detail { font-size:12px; color:var(--text-2); }
 .ob-plan-recap-price { font-family:var(--font-serif); font-size:15px; font-weight:700; color:var(--gold-dark); }
 
 /* Error */
@@ -358,16 +358,12 @@ function goBack() {
 /* Stripe Payment Element */
 .ob-payment-element-wrap { margin-bottom:20px; }
 .ob-payment-element { min-height:160px; }
-.ob-stripe-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:40px 20px; color:var(--text-2); font-size:12.5px; }
-.ob-stripe-spinner { width:24px; height:24px; border:2px solid var(--border); border-top-color:var(--gold); border-radius:50%; animation:spin 0.8s linear infinite; }
+.ob-stripe-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:40px 20px; color:var(--text-2); font-size:12px; }
+.ob-stripe-spinner { width:24px; height:24px; border:2px solid var(--border); border-top-color:var(--gold); border-radius:var(--radius-full); animation:spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Buttons */
-.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:11px 22px; font-family:var(--font-sans); font-size:13px; font-weight:700; border-radius:var(--radius-full); border:1.5px solid transparent; cursor:pointer; transition:all var(--transition); -webkit-appearance:none; outline:none; }
-.btn-primary { background:var(--primary); color:var(--text-inverted); border-color:var(--primary); }
-.btn-primary:hover:not(:disabled) { background:var(--primary-mid); border-color:var(--primary-mid); }
-.btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
-.ob-btn-full { width:100%; margin-bottom:12px; }
+.ob-btn-full { width:100%; padding:12px 22px; border-radius:var(--radius-full); font-size:13px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
 
 .ob-secure-note { display:flex; align-items:center; justify-content:center; gap:6px; font-size:11px; color:var(--text-4); }
 

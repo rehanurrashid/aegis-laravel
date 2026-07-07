@@ -667,7 +667,7 @@ async function submitReset() {
   gap: 9px;
   background: var(--red-light);
   border: 1px solid rgba(224,92,92,0.2);
-  border-left: 2px solid var(--red);
+  border-left:2px solid var(--red);
   border-radius: var(--radius-sm);
   padding: 12px 14px;
   margin-bottom: 20px;
@@ -735,7 +735,7 @@ async function submitReset() {
   justify-content: center;
   gap: 8px;
   padding: 10px 14px;
-  border: 1px solid var(--border);
+  border:1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface);
   font-family: var(--font-sans);
@@ -783,6 +783,8 @@ async function submitReset() {
    form-label-link is applied to a <button> here — strip browser defaults
    so it renders identically to the PHP <a class="forgot-link">
 ────────────────────────────────────────────────────────────────────── */
+.btn-block { width: 100%; }
+
 button.form-label-link {
   background: none;
   border: none;
@@ -805,7 +807,7 @@ button.form-label-link {
   padding: 12px 22px;
   font-size: 13px;
   font-weight: 700;
-  border: 1px solid var(--primary);
+  border:1px solid var(--primary);
 }
 
 .signin-view .btn-primary:hover:not(:disabled) {
@@ -822,15 +824,10 @@ button.form-label-link {
   padding: 12px 22px;
   font-size: 13px;
   font-weight: 700;
-  border: 1px solid var(--border-dark);
+  border:1px solid var(--border-dark);
 }
 
-.signin-view .btn-outline:hover {
-  border-color: var(--gold);
-  color: var(--gold-dark);
-  background: transparent;
-}
-
+.signin-view 
 /* Reset hint */
 .signin-reset-hint {
   text-align: center;
@@ -861,7 +858,7 @@ button.form-label-link {
 
 .signin-success-title {
   font-family: var(--font-serif);
-  font-size:22px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--text);
   margin-bottom: 8px;
@@ -943,4 +940,5 @@ button.form-label-link {
     grid-template-columns: 1fr;
   }
 }
+.signin-back-btn { margin-top:20px; }
 </style>
