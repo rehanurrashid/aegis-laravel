@@ -494,7 +494,7 @@
               <div class="spc-actions" @click.stop>
                 <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === p.id" @click="openConversation(p.id)"><AegisIcon name="message-square" :size="14" /></button>
                 <button type="button" class="btn-icon" data-tooltip="Refer Client" @click="openReferralForProvider(p)"><AegisIcon name="share-tree" :size="14" /></button>
-                <button type="button" class="btn-icon" data-tooltip="Request Service" @click="openSvcRequest('Services', p)"><AegisIcon name="briefcase-rx" :size="14" /></button>
+                <button v-if="p.has_services" type="button" class="btn-icon" data-tooltip="Request Service" @click="openSvcRequest('Services', p)"><AegisIcon name="briefcase-rx" :size="14" /></button>
                 <button
                   v-if="p.networkStatus === 'pending-received'"
                   type="button" class="btn-icon" data-tooltip="Accept connection request"
