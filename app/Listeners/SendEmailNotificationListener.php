@@ -156,6 +156,8 @@ class SendEmailNotificationListener
             $event instanceof MessageSent             => $this->messageSent($event),
             $event instanceof MilestoneSubmitted      => $this->milestoneSubmitted($event),
             $event instanceof MilestoneApproved       => $this->milestoneApproved($event),
+            $event instanceof ProposalSubmitted       => $this->proposalSubmittedBp($event),
+            $event instanceof ProposalWithdrawn       => $this->proposalWithdrawnBp($event),
             $event instanceof ServiceRequestResponded => $this->serviceRequestResponded($event),
             $event instanceof StewardRoleChangeRequested => $this->stewardRoleChangeRequested($event),
             default                                   => [],
@@ -346,10 +348,34 @@ class SendEmailNotificationListener
 
     private function payoutReleased(PayoutReleased $e): array
     {
-        $recipientId = $e->payout instanceof BpPayout ? $e->payout->bp_id : $e->payout->cs_id;
-        return [['user_id' => $recipientId, 'gate_key' => 'notify_payment',
-                 'template' => 'emails.business.48-payout-released',
-                 'data' => ['payout_id' => $e->payout->id]]];
+        $payout = $e->payout;
+        $recipientId = $payout instanceof BpPayout ? $payout->bp_id : $payout->cs_id;
+
+        $result = [[
+            // Recipient (BP/CS) — payout notification
+            'user_id'  => $recipientId,
+            'gate_key' => 'notify_payment',
+            'template' => 'emails.business.48-payout-released',
+            'data'     => ['payout_id' => $payout->id],
+        ]];
+
+        // Provider confirmation (only for BP payouts that have a provider_id)
+        if ($payout instanceof BpPayout && !empty($payout->provider_id)) {
+            $amount = '$' . number_format(($payout->amount_cents ?? 0) / 100, 2);
+            $bpName = \App\Models\User::find($recipientId)?->display_name ?? 'Business Partner';
+            $result[] = [
+                'user_id'  => $payout->provider_id,
+                'gate_key' => 'notify_payment',
+                'template' => 'emails.business.48-payout-released',
+                'data'     => [
+                    'payout_id'    => $payout->id,
+                    'payout_amount'=> $amount,
+                    'bp_name'      => $bpName,
+                ],
+            ];
+        }
+
+        return $result;
     }
 
     private function ticketCreated(TicketCreated $e): array
@@ -819,6 +845,50 @@ class SendEmailNotificationListener
                 'contract_url'     => rtrim(config('app.url'), '/') . '/business-partner/contracts/' . $contract->id,
             ],
         ]];
+    }
+
+    // ── Proposal submitted (BP confirmation) ─────────────────────────────────
+    private function proposalSubmittedBp(\App\Events\Business\ProposalSubmitted $e): array
+    {
+        $job = \App\Models\BpJob::find($e->proposal->job_id);
+        if (!$job) return [];
+        return [
+            // Confirmation to BP (actor)
+            [
+                'user_id'  => $e->proposal->bp_id,
+                'gate_key' => 'notify_payment',
+                'template' => 'emails.bp.32-support-request-received',
+                'data'     => [
+                    'proposal_id'       => $e->proposal->id,
+                    'proposal_title'    => $job->title,
+                    'practitioner_name' => \App\Models\User::find($job->practitioner_id)?->display_name ?? 'Practitioner',
+                    'submitted_at'      => $e->proposal->submitted_at?->toFormattedDateString() ?? now()->toFormattedDateString(),
+                ],
+            ],
+        ];
+    }
+
+    // ── Proposal withdrawn (provider notification) ─────────────────────────────
+    private function proposalWithdrawnBp(\App\Events\Business\ProposalWithdrawn $e): array
+    {
+        $job = \App\Models\BpJob::find($e->proposal->job_id);
+        if (!$job) return [];
+        return [
+            // Notify the provider that a BP withdrew
+            [
+                'user_id'  => $job->practitioner_id,
+                'gate_key' => 'notify_payment',
+                'template' => 'emails.bp.34-proposal-declined',  // reuse decline template (closest match)
+                'data'     => [
+                    'proposal_id'       => $e->proposal->id,
+                    'proposal_title'    => $job->title,
+                    'bp_name'           => $e->actor->display_name,
+                    'practitioner_name' => \App\Models\User::find($job->practitioner_id)?->display_name ?? 'Practitioner',
+                    'decline_reason'    => $e->actor->display_name . ' has withdrawn their proposal.',
+                    'declined_at'       => now()->toFormattedDateString(),
+                ],
+            ],
+        ];
     }
 
     // ── Service request submitted ─────────────────────────────────────────────

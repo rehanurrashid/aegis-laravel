@@ -129,8 +129,10 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Messages\MessageSent::class,       Listeners\SendEmailNotificationListener::class);
 
         // Contract milestones
-        Event::listen(Events\Business\MilestoneSubmitted::class, Listeners\SendEmailNotificationListener::class);
-        Event::listen(Events\Business\MilestoneApproved::class,  Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\MilestoneSubmitted::class,  Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\MilestoneApproved::class,   Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\ProposalSubmitted::class,   Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\ProposalWithdrawn::class,   Listeners\SendEmailNotificationListener::class);
 
         // Service request response
         Event::listen(Events\Service\ServiceRequestResponded::class, Listeners\SendEmailNotificationListener::class);

@@ -267,6 +267,9 @@ class PayoutService
 
         $this->logPaymentActivity($provider, $bp, $payout, $contract->title, $contract->total_value_cents, $result);
 
+        // Fire PayoutReleased → SendEmailNotificationListener sends bp/40-payout-released to BP
+        event(new PayoutReleased($payout->fresh()));
+
         return $payout;
     }
 
@@ -317,6 +320,9 @@ class PayoutService
         ]);
 
         $this->logPaymentActivity($provider, $bp, $payout, $milestone->title, $milestone->amount_cents, $result, 'milestone');
+
+        // Fire PayoutReleased → SendEmailNotificationListener sends bp/40-payout-released to BP
+        event(new PayoutReleased($payout->fresh()));
 
         return $payout;
     }

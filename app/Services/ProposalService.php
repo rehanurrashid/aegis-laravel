@@ -227,6 +227,24 @@ class ProposalService
             'log', $job->practitioner_id
         );
 
+        // Notification → BP when shortlisted or scheduled for interview
+        if (in_array($stage, ['shortlisted', 'interview'], true)) {
+            $notifTitle = $stage === 'interview'
+                ? 'You have been scheduled for an interview'
+                : 'You have been shortlisted';
+            $notifDesc  = $stage === 'interview'
+                ? 'For "' . $job->title . '". Check your messages for scheduling details.'
+                : 'Your application for "' . $job->title . '" has been shortlisted.';
+            $this->activity->log(
+                $proposal->bp_id, 'business_partner', 'job_postings', ActivitySeverity::Info,
+                'proposal_stage_updated',
+                $notifTitle,
+                $notifDesc,
+                'bp_proposal', $proposal->id, $job->practitioner_id,
+                'notification', $job->practitioner_id
+            );
+        }
+
         return $proposal->fresh();
     }
 
@@ -239,6 +257,34 @@ class ProposalService
     public function withdraw(BpProposal $proposal): BpProposal
     {
         $proposal->update(['status' => 'withdrawn']);
+
+        $job = BpJob::find($proposal->job_id);
+        $bp  = User::find($proposal->bp_id);
+
+        // Actor log — BP's own history
+        $this->activity->log(
+            $proposal->bp_id, 'business_partner', 'job_postings', ActivitySeverity::Info,
+            'proposal_withdrawn',
+            'Proposal withdrawn: ' . ($job?->title ?? 'Job posting'),
+            'Your proposal has been withdrawn successfully.',
+            'bp_proposal', $proposal->id, null,
+            'log', $proposal->bp_id
+        );
+
+        // Notification → provider
+        if ($job) {
+            $this->activity->log(
+                $job->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
+                'proposal_withdrawn',
+                ($bp?->display_name ?? 'A Business Partner') . ' withdrew their proposal',
+                'Their application for "' . $job->title . '" has been withdrawn.',
+                'bp_proposal', $proposal->id, $proposal->bp_id,
+                'notification', $proposal->bp_id
+            );
+        }
+
+        event(new \App\Events\Business\ProposalWithdrawn($proposal->fresh(), $bp ?? User::findOrFail($proposal->bp_id)));
+
         return $proposal->fresh();
     }
 

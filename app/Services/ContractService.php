@@ -82,6 +82,17 @@ class ContractService
             'notification', $signer->id
         );
 
+        // Email the other party on every signature (first sign + fully executed)
+        // ContractSigned is only fired when both sign; use SendEmailJob directly for mid-sign
+        if (!$fullyExecuted) {
+            \App\Jobs\SendEmailJob::dispatch(
+                'emails.gaps.66-contract-signed',
+                ['contract_id' => $contract->id, 'user_id' => $otherId],
+                $otherId
+            )->onQueue('email');
+        }
+        // When fully executed, ContractSigned event already fires above and handles both parties
+
         return $fresh;
     }
 
