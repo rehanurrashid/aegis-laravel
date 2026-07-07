@@ -12,6 +12,9 @@ use App\Models\Service;
 use App\Models\ServiceRequest;
 use App\Models\ServiceSession;
 use App\Models\User;
+use App\Models\PractitionerPayment;
+use App\Enums\PractitionerPaymentKind;
+use App\Enums\PractitionerPaymentStatus;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
@@ -154,6 +157,7 @@ class ServiceService
             'timezone'                  => $tz,
             'duration_label'            => $service?->duration_min ? $service->duration_min . ' min' : '—',
             'amount'                    => $s->amount_cents ? '$' . number_format($s->amount_cents / 100, 0) : '—',
+            'amount_cents'              => $s->amount_cents ?? 0,
             'status'                    => $status,
             'summary'                   => $s->session_summary ?? '',
             'action_items'              => $s->session_action_items ?? '',
@@ -391,6 +395,67 @@ class ServiceService
             'session_action_items'    => $data['action_items'] ?? null,
             'share_notes_with_client' => $data['share_with_supervisee'] ?? false,
         ]);
+        return $session->fresh();
+    }
+
+    /**
+     * Mark a session completed (practitioner-only).
+     * Records a PractitionerPayment row for the inquirer (client) side.
+     * Stub: actual Stripe Connect transfer is triggered via PayoutService
+     * once Connect is fully configured; for now we record the row as pending.
+     */
+    public function completeSession(ServiceSession $session, string $actorId): ServiceSession
+    {
+        if ($session->practitioner_id !== $actorId) {
+            abort(403, 'Only the listing owner can mark a session complete.');
+        }
+
+        if ($session->status instanceof ServiceSessionStatus && $session->status !== ServiceSessionStatus::Scheduled) {
+            abort(422, 'Only scheduled sessions can be marked complete.');
+        }
+
+        $session->update([
+            'status'       => ServiceSessionStatus::Completed->value,
+            'completed_at' => now(),
+        ]);
+
+        // Record payment row so Finances page reflects the earning
+        if ($session->amount_cents > 0) {
+            PractitionerPayment::create([
+                'id'               => 'pp_' . Str::lower(Str::random(12)),
+                'practitioner_id'  => $session->practitioner_id,
+                'payment_method_id'=> null,
+                'kind'             => PractitionerPaymentKind::ServiceSession->value,
+                'amount_cents'     => $session->amount_cents,
+                'currency'         => 'USD',
+                'status'           => PractitionerPaymentStatus::Pending->value,
+                'payment_method_label' => 'Service Session',
+                'stripe_charge_id' => null,
+                'paid_at'          => null,
+            ]);
+        }
+
+        $client  = User::find($session->client_id);
+        $service = Service::find($session->service_id);
+
+        $this->activity->log(
+            $session->practitioner_id, 'provider', 'payment', ActivitySeverity::Info,
+            'session_completed',
+            'Session marked complete',
+            ($service?->title ?? 'Session') . ' — ' . ($client?->display_name ?? 'Client') . '. Payout pending.',
+            'service_session', $session->id, $session->client_id,
+            'log', $session->practitioner_id
+        );
+
+        $this->activity->log(
+            $session->client_id, 'provider', 'referral', ActivitySeverity::Info,
+            'session_completed',
+            'Your session has been marked complete',
+            $service?->title ?? 'Session',
+            'service_session', $session->id, $session->practitioner_id,
+            'notification', $session->client_id
+        );
+
         return $session->fresh();
     }
 

@@ -24,9 +24,30 @@ class FinancesController extends Controller
             'subscription'    => $this->subscriptions->getStatus($user),
             'paymentMethods'  => method_exists($user, 'paymentMethods') ? $user->paymentMethods() : [],
             'invoiceHistory'  => PractitionerPayment::where('practitioner_id', $user->id)
-                                    ->orderByDesc('paid_at')->limit(50)->get(),
+                                    ->orderByDesc('created_at')->limit(50)->get()
+                                    ->map(fn($p) => [
+                                        'id'           => $p->id,
+                                        'kind'         => $p->kind instanceof \App\Enums\PractitionerPaymentKind ? $p->kind->value : (string) $p->kind,
+                                        'kind_label'   => $p->kind instanceof \App\Enums\PractitionerPaymentKind ? $p->kind->label() : (string) $p->kind,
+                                        'amount'       => '$' . number_format($p->amount_cents / 100, 2),
+                                        'amount_cents' => $p->amount_cents,
+                                        'status'       => $p->status instanceof \App\Enums\PractitionerPaymentStatus ? $p->status->value : (string) $p->status,
+                                        'status_label' => $p->status instanceof \App\Enums\PractitionerPaymentStatus ? $p->status->label() : (string) $p->status,
+                                        'method'       => $p->payment_method_label ?? '—',
+                                        'date'         => $p->paid_at?->format('M j, Y') ?? $p->created_at?->format('M j, Y') ?? '—',
+                                    ])->values(),
             'csServiceFees'   => BpInvoice::where('practitioner_id', $user->id)
                                     ->orderByDesc('issued_at')->limit(50)->get(),
+            'serviceEarnings' => PractitionerPayment::where('practitioner_id', $user->id)
+                                    ->where('kind', \App\Enums\PractitionerPaymentKind::ServiceSession->value)
+                                    ->orderByDesc('created_at')->limit(50)->get()
+                                    ->map(fn($p) => [
+                                        'id'           => $p->id,
+                                        'amount'       => '$' . number_format($p->amount_cents / 100, 2),
+                                        'amount_cents' => $p->amount_cents,
+                                        'status'       => $p->status instanceof \App\Enums\PractitionerPaymentStatus ? $p->status->value : (string) $p->status,
+                                        'date'         => $p->created_at?->format('M j, Y') ?? '—',
+                                    ])->values(),
         ]);
     }
 

@@ -141,4 +141,11 @@ class ServicesController extends Controller
         $this->services->saveSessionNotes($session, $data);
         return back()->with('success', 'Notes saved.');
     }
+
+    public function completeSession(Request $request, ServiceSession $session): RedirectResponse
+    {
+        $this->authorize('manage', $session->service);
+        $this->services->completeSession($session, $request->user()->id);
+        return back()->with('success', 'Session marked complete. Payout is pending.');
+    }
 }

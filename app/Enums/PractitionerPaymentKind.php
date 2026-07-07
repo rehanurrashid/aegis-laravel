@@ -10,16 +10,18 @@ enum PractitionerPaymentKind: string
     case MaatAddon    = 'maat_addon';
     case CsFee        = 'cs_fee';
     case BpInvoice    = 'bp_invoice';
-    case Refund       = 'refund';
+    case Refund          = 'refund';
+    case ServiceSession  = 'service_session';
 
     public function label(): string
     {
         return match ($this) {
-            self::Subscription => 'Subscription',
-            self::MaatAddon    => 'MAAT Add-on',
-            self::CsFee        => 'CS Fee',
-            self::BpInvoice    => 'BP Invoice',
-            self::Refund       => 'Refund',
+            self::Subscription    => 'Subscription',
+            self::MaatAddon       => 'MAAT Add-on',
+            self::CsFee           => 'CS Fee',
+            self::BpInvoice       => 'BP Invoice',
+            self::Refund          => 'Refund',
+            self::ServiceSession  => 'Service Session',
         };
     }
 }

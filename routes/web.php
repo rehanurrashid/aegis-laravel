@@ -204,6 +204,7 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
             Route::post('/services/{service}/requests/{serviceRequest}/decline', [ServicesController::class, 'declineRequest'])->name('services.request.decline');
             Route::delete('/services/requests/{serviceRequest}/withdraw', [ServicesController::class, 'withdrawRequest'])->name('services.request.withdraw');
             Route::post('/services/sessions/{session}/cancel', [ServicesController::class, 'cancelSession'])->name('services.session.cancel');
+            Route::post('/services/sessions/{session}/complete', [ServicesController::class, 'completeSession'])->name('services.session.complete');
             Route::post('/services/sessions/{session}/notes', [ServicesController::class, 'saveSessionNotes'])->name('services.session.notes');
         });
 

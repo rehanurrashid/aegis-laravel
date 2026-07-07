@@ -364,22 +364,51 @@
                   <td style="font-weight:700;">{{ b.amount }}</td>
                   <td><AegisBadge :label="statusLabel(b.status)" :variant="statusVariant(b.status)" /></td>
                   <td>
-                    <button
-                      v-if="b.status === 'upcoming'"
-                      class="btn-icon"
-                      data-tooltip="Cancel Session"
-                      @click.stop="setActiveBooking(b); modals.cancelSession = true"
-                    >
-                      <AegisIcon name="x" :size="14" />
-                    </button>
-                    <button
-                      v-else
-                      class="btn-icon"
-                      data-tooltip="View Notes"
-                      @click.stop="setActiveBooking(b); modals.sessionNotes = true"
-                    >
-                      <AegisIcon name="file-text" :size="14" />
-                    </button>
+                    <div class="req-actions">
+                      <template v-if="b.status === 'scheduled'">
+                        <button
+                          class="btn-icon"
+                          data-tooltip="Mark Complete"
+                          @click.stop="completeSession(b.id)"
+                        >
+                          <AegisIcon name="check" :size="14" />
+                        </button>
+                        <button
+                          class="btn-icon"
+                          data-tooltip="Session Notes"
+                          @click.stop="setActiveBooking(b); modals.sessionNotes = true"
+                        >
+                          <AegisIcon name="file-text" :size="14" />
+                        </button>
+                        <button
+                          class="btn-icon"
+                          data-tooltip="Cancel Session"
+                          @click.stop="setActiveBooking(b); modals.cancelSession = true"
+                        >
+                          <AegisIcon name="x" :size="14" />
+                        </button>
+                      </template>
+                      <template v-else-if="b.status === 'completed'">
+                        <button
+                          class="btn-icon"
+                          data-tooltip="Session Notes"
+                          @click.stop="setActiveBooking(b); modals.sessionNotes = true"
+                        >
+                          <AegisIcon name="file-text" :size="14" />
+                        </button>
+                        <a
+                          v-if="b.amount_cents > 0"
+                          :href="route('provider.finances.index')"
+                          class="btn-icon"
+                          data-tooltip="View in Finances"
+                        >
+                          <AegisIcon name="dollar-sign" :size="14" />
+                        </a>
+                      </template>
+                      <template v-else>
+                        <span class="td-sub">—</span>
+                      </template>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -1534,6 +1563,20 @@ function submitAccept() {
   }, {
     preserveScroll: true,
     onSuccess: () => { modals.accept = false; toast.success('Request accepted — agreement sent.') },
+  })
+}
+
+function completeSession(id) {
+  confirmAction({
+    title: 'Mark Session Complete',
+    message: 'Mark this session as complete? A payment record will be created and will appear in Finances.',
+    btnLabel: 'Mark Complete',
+    type: 'primary',
+  }, () => {
+    router.post(route('provider.services.session.complete', { session: id }), {}, {
+      preserveScroll: true,
+      onSuccess: () => toast.success('Session marked complete. Payout is pending — view in Finances.'),
+    })
   })
 }
 
