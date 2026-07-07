@@ -217,7 +217,7 @@ class ProfileController extends Controller
         ]);
     }
 
-    public function supportSteward(Request $request, string $slug): Response
+    public function supportSteward(Request $request, string $slug): Response|\Illuminate\Http\RedirectResponse
     {
         $user         = $this->profiles->getPublicProfile($slug);
         $rawViewer    = Auth::user();
