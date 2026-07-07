@@ -196,31 +196,108 @@ onMounted(async () => {
       appearance: {
         theme: 'flat',
         variables: {
-          colorPrimary:       '#c4a96a',
-          colorBackground:    '#ffffff',
-          colorText:          '#1e1c1a',
-          colorDanger:        '#e05c5c',
-          fontFamily:         'Inter, Helvetica Neue, Arial, sans-serif',
-          spacingUnit:        '4px',
-          borderRadius:       '8px',
-          fontSizeBase:       '13px',
+          // Aegis brand tokens (hex — Stripe API does not accept CSS vars)
+          colorPrimary:         '#a0813e',  // --gold-dark
+          colorBackground:      '#ffffff',  // --surface
+          colorText:            '#1e1c1a',  // --text
+          colorTextSecondary:   '#6b6560',  // --text-2
+          colorTextPlaceholder: '#b5afa8',  // --text-4
+          colorDanger:          '#c85c42',  // --red (Aegis brand red)
+          colorSuccess:         '#3a7d5c',  // --green
+          fontFamily:           'Inter, Helvetica Neue, Arial, sans-serif',
+          spacingUnit:          '4px',
+          borderRadius:         '8px',
+          fontSizeBase:         '13px',
+          fontWeightNormal:     '500',
+          fontWeightMedium:     '600',
+          fontWeightBold:       '700',
         },
         rules: {
+          // Base input — 1px border, no shadow
           '.Input': {
-            border:      '1px solid #e4dfd7',
-            boxShadow:   'none',
-            padding:     '10px 14px',
+            border:           '1px solid #e4dfd7',
+            boxShadow:        'none',
+            padding:          '9px 13px',
+            fontSize:         '13px',
+            color:            '#1e1c1a',
+            backgroundColor:  '#ffffff',
           },
+          // Focus — gold-dark border, no ring
           '.Input:focus': {
-            border:      '1px solid #c4a96a',
-            boxShadow:   'none',
-            outline:     'none',
+            border:           '1px solid #a0813e',
+            boxShadow:        'none',
+            outline:          'none',
           },
+          // Error — Aegis red, 1px, no shadow
+          '.Input--invalid': {
+            border:           '1px solid #c85c42',
+            boxShadow:        'none',
+            color:            '#1e1c1a',
+          },
+          '.Input--invalid:focus': {
+            border:           '1px solid #c85c42',
+            boxShadow:        'none',
+          },
+          // Error message text
+          '.Error': {
+            fontSize:         '11px',
+            color:            '#c85c42',
+            marginTop:        '4px',
+          },
+          // Labels
           '.Label': {
-            fontWeight:  '600',
-            fontSize:    '12px',
-            color:       '#3d3a36',
-            marginBottom:'4px',
+            fontWeight:       '600',
+            fontSize:         '12px',
+            color:            '#3d3a36',
+            marginBottom:     '5px',
+            letterSpacing:    '0',
+          },
+          // Dropdown / select — Aegis surface style
+          '.DropdownItem': {
+            fontSize:         '13px',
+            color:            '#1e1c1a',
+            backgroundColor:  '#ffffff',
+            padding:          '8px 13px',
+          },
+          '.DropdownItem:hover': {
+            backgroundColor:  '#f5f2ed',
+            color:            '#a0813e',
+          },
+          '.DropdownItem--highlight': {
+            backgroundColor:  '#f5f2ed',
+            color:            '#a0813e',
+          },
+          // Tab buttons (payment method selector)
+          '.Tab': {
+            border:           '1px solid #e4dfd7',
+            boxShadow:        'none',
+            backgroundColor:  '#ffffff',
+            fontSize:         '13px',
+            fontWeight:       '600',
+            color:            '#6b6560',
+          },
+          '.Tab:hover': {
+            border:           '1px solid #a0813e',
+            color:            '#1e1c1a',
+            boxShadow:        'none',
+          },
+          '.Tab--selected': {
+            border:           '1px solid #a0813e',
+            color:            '#1e1c1a',
+            backgroundColor:  '#fdf9f3',
+            boxShadow:        'none',
+          },
+          '.Tab--selected:focus': {
+            boxShadow:        'none',
+            outline:          'none',
+          },
+          // Checkbox
+          '.Checkbox': {
+            border:           '1px solid #cec8be',
+          },
+          '.Checkbox--checked': {
+            backgroundColor:  '#a0813e',
+            border:           '1px solid #a0813e',
           },
         },
       },
