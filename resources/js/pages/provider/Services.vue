@@ -149,7 +149,7 @@
               <button
                 class="btn-icon btn-icon-danger"
                 data-tooltip="Delete Draft"
-                @click.stop="confirmAction({ title: 'Delete Draft', btnLabel: 'Delete', type: 'danger' }, () => deleteServiceFromCard())"
+                @click.stop="setActiveService(s); confirmAction({ title: 'Delete Draft', message: 'This will permanently delete \'' + s.title + '\'. This cannot be undone.', btnLabel: 'Delete', type: 'danger' }, () => deleteServiceFromCard())"
               >
                 <AegisIcon name="trash" :size="14" />
               </button>
