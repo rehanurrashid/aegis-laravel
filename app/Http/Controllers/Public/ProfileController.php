@@ -223,15 +223,41 @@ class ProfileController extends Controller
         $rawViewer    = Auth::user();
         $viewer       = $this->effectiveViewer($rawViewer);
 
-        abort_if(! $user || $user->role !== UserRole::SupportSteward, 404);
+        // SS profile not found or wrong role → 404
+        if (! $user || $user->role !== UserRole::SupportSteward) {
+            abort(404);
+        }
 
         // SS profiles are relationship-gated: only owner or linked Provider
-        // Use rawViewer for ownership/relationship check (so even unverified owner can still see)
-        $invitedById = $user->invited_by_id ?? null;
+        $invitedById            = $user->invited_by_id ?? null;
         $viewerIsLinkedProvider = $rawViewer && $invitedById && $rawViewer->id === $invitedById;
-        $isOwner = $rawViewer && $rawViewer->id === $user->id;
+        $isOwner                = $rawViewer && $rawViewer->id === $user->id;
 
-        abort_if(! $isOwner && ! $viewerIsLinkedProvider, 404);
+        if (! $isOwner && ! $viewerIsLinkedProvider) {
+            // Redirect with alert instead of hard 404
+            if ($rawViewer) {
+                // Logged-in user with no access → send to their dashboard
+                $role = $rawViewer->role instanceof \App\Enums\UserRole
+                    ? $rawViewer->role->value
+                    : (string) $rawViewer->role;
+
+                $dashboard = match ($role) {
+                    'practitioner'       => 'provider.dashboard',
+                    'continuity_steward' => 'cs.dashboard',
+                    'support_steward'    => 'ss.dashboard',
+                    'business_partner'   => 'bp.dashboard',
+                    'admin'              => 'admin.dashboard',
+                    default              => 'home',
+                };
+
+                return redirect()->route($dashboard)
+                    ->with('error', 'This Support Steward profile is private and only accessible to their linked Practitioner Partner.');
+            }
+
+            // Anonymous → send to login with message
+            return redirect()->route('login')
+                ->with('error', 'This Support Steward profile is private. Please sign in with an authorised account to view it.');
+        }
 
         $isLoggedIn = (bool) $viewer;
         $profileMeta = $this->profiles->buildProfileMeta($user, $viewer);
