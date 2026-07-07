@@ -1218,7 +1218,7 @@ function copyShareLink() {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 12px 0;
+  padding: 12px 5px;
   border-top: 1px solid var(--border);
   margin-top: auto;
 }
@@ -1280,7 +1280,7 @@ function copyShareLink() {
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  padding: 12px 0;
+  padding: 12px 5px;
   border-top: 1px solid var(--border);
 }
 .svc-request-strip-row:first-of-type { border-top: none; padding-top: 0; }
