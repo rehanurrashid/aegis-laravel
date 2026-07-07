@@ -167,7 +167,7 @@ class OnboardingController extends Controller
         // Handle add-ons
         foreach ($data['addons'] ?? [] as $addon) {
             match ($addon) {
-                'maat' => $this->subscriptionService->addMaatAddon($user),
+                'maat' => $this->subscriptionService->toggleMaatAddon($user, true),
                 default => null,
             };
         }
