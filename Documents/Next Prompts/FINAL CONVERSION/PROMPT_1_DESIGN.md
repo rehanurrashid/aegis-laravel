@@ -223,17 +223,85 @@ const modals = reactive({ /* one key per modal */ })
 19. **Tooltips** — `data-tooltip="…"` only. Never `title=`.
 20. **Icon + text alignment** — any element with an `AegisIcon` next to text is `display:flex`/`inline-flex` + `align-items:center` + `gap`.
 21. **If `_shared.css` has it, use it.** No local duplicates, no `!important`, no dead CSS. Locals that collide → rename page-scoped. Locals that duplicate → delete.
-22. **Client-side validation (MANDATORY on every write form).** Use Vuelidate (`@vuelidate/core` + `@vuelidate/validators`). Pattern:
-    - `const rules = computed(() => ({ … }))` — computed so rules can react to form intent (e.g. draft vs publish have different required fields)
-    - `const v$ = useVuelidate(rules, form)`
-    - Every required field: `@blur="v$.field.$touch()"` on the input
-    - Error class on input: `:class="{ 'is-error': fieldError('field') }"` — always `is-error`, never `is-invalid`
-    - Error message: `<div v-if="fieldError('field')" class="form-error">{{ fieldError('field') }}</div>`
-    - Unified `fieldError(field)` helper: Vuelidate error wins while editing; falls back to `form.errors.field` (Inertia server errors) — same element, same class for both
-    - Submit handler: `const ok = await v$.value.$validate(); if (!ok) { toast.error(…); return }`
-    - Modal close / form reset: always call `v$.value.$reset()` alongside `form.reset()`
-    - Multi-intent forms (draft vs publish): use a `submitIntent` ref; set it before `$validate()`; rules computed off it via `nextTick()`
-    - Client rules must pair with server FormRequest rules: `required` → `required`, `max:200` → `maxLength(200)`, `nullable` → no `required`, `in:x,y` → custom validator checking allowed values
+22. **Client-side validation — MANDATORY on every write form. Zero exceptions.**
+
+    **The complete canonical pattern — copy this exactly:**
+
+    ```vue
+    <!-- Template: every validated input needs ALL THREE of these -->
+    <div class="form-group">
+      <label class="form-label" for="field-id">Label</label>
+      <input
+        id="field-id"
+        v-model="form.field"
+        type="text"
+        class="form-input"
+        :class="{ 'is-error': fieldError('field') }"
+        @blur="v$.field.$touch()"
+      />
+      <div v-if="fieldError('field')" class="form-error">{{ fieldError('field') }}</div>
+    </div>
+    ```
+
+    **The three required attributes on every validated input — all three, every time:**
+    - `:class="{ 'is-error': fieldError('field') }"` — turns border red when invalid. NEVER `:class="{ 'is-error': form.errors.field }"` — that only catches server errors, not client Vuelidate errors.
+    - `@blur="v$.field.$touch()"` — marks field dirty on blur so error shows immediately on tab-away.
+    - `<div v-if="fieldError('field')" class="form-error">` — error message below the field.
+
+    **The canonical fieldError helper — always use this exact pattern:**
+    ```js
+    function fieldError(field) {
+      if (v$.value[field]?.$error) return v$.value[field].$errors[0]?.$message
+      if (form.errors[field]) return form.errors[field]
+      return null
+    }
+    ```
+    Vuelidate client error wins first. Inertia server error is the fallback. Never check `form.errors` directly in `:class` — always go through `fieldError()`.
+
+    **Script setup pattern:**
+    ```js
+    import { useVuelidate } from '@vuelidate/core'
+    import { required, email, minLength, sameAs, helpers } from '@vuelidate/validators'
+
+    const rules = computed(() => ({
+      field: {
+        required: helpers.withMessage('Field is required.', required),
+        // mirror every FormRequest rule here
+      },
+    }))
+    const v$ = useVuelidate(rules, form)
+    ```
+
+    **Submit handler — validate before every post:**
+    ```js
+    async function submit() {
+      const valid = await v$.value.$validate()
+      if (!valid) { toast.error('Please fix the highlighted fields.'); return }
+      form.post(route('route.name'), {
+        onError: () => toast.error('Server error message.'),
+        onFinish: () => { form.reset('password'); v$.value.$reset() },
+      })
+    }
+    ```
+
+    **Reset on modal close or form clear:**
+    ```js
+    function closeModal() {
+      modals.example = false
+      form.reset()
+      v$.value.$reset()
+    }
+    ```
+
+    **Hard rules:**
+    - `:class` ALWAYS uses `fieldError('field')`, NEVER `form.errors.field` directly
+    - Error state class is ALWAYS `is-error`, NEVER `is-invalid`
+    - `@blur` + `$touch()` on EVERY required field — no exceptions
+    - `$validate()` fires in EVERY submit handler before `form.post()`
+    - `$reset()` fires on EVERY modal close / form reset alongside `form.reset()`
+    - `rules` is ALWAYS a `computed()` — never a plain object
+    - Every Vuelidate rule must use `helpers.withMessage()` so the user sees a real sentence, not a code string
+    - Client rules must mirror server FormRequest: `required` → `required`, `max:200` → `maxLength(200)`, `nullable` → omit `required`, `in:x,y` → custom validator
 
 ### Button/link/icon wiring (every clickable element gets a real target)
 
@@ -301,6 +369,11 @@ grep -c '\$touch'        $PAGE   # ≥ 1 (blur handlers present)
 grep -c '\$validate'     $PAGE   # ≥ 1 (submit handler validates before post)
 grep -c 'is-error'       $PAGE   # ≥ 1 per validated field (never is-invalid)
 grep -c '\$reset'        $PAGE   # ≥ 1 (reset called on modal close)
+# Critical: is-error binding must use fieldError(), never form.errors directly
+grep -c "is-error.*form\.errors" $PAGE  # 0 — VIOLATION if non-zero
+# Every input with @blur must have matching :class is-error and form-error div
+BLUR=$(grep -c "@blur" $PAGE); ERR=$(grep -c "is-error" $PAGE)
+echo "blur=$BLUR is-error=$ERR"; test $BLUR -le $ERR && echo "OK" || echo "MISMATCH — missing :class or form-error"
 # Modal pairing (local AegisModal + centralized modal mounts == v-model keys used)
 M=$(grep -cE "<AegisModal|<[A-Z][A-Za-z]+Modal " $PAGE); V=$(grep -c 'v-model="modals\.' $PAGE)
 echo "modals:$M vmodels:$V"; test $M -eq $V && echo OK || echo MISMATCH
