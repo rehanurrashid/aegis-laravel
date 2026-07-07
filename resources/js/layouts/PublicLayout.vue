@@ -45,6 +45,17 @@
       <slot />
     </main>
 
+    <!-- Toast stack — same as AppLayout so toasts work for anonymous visitors -->
+    <div class="toast-container">
+      <AegisToast
+        v-for="t in ui.toastQueue"
+        :key="t.id"
+        :message="t.message"
+        :level="t.level"
+        @dismiss="ui.dismissToast(t.id)"
+      />
+    </div>
+
     <footer class="pub-footer">
       <div class="pub-footer-inner">
 
@@ -96,8 +107,11 @@
 import { computed } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
+import AegisToast from '@/components/ui/AegisToast.vue'
+import { useUiStore } from '@/stores/ui'
 
 const page             = usePage()
+const ui               = useUiStore()
 // isVerifiedMember: viewer is logged in, email-verified, AND has active sub
 // Falls back to checking page.props.isVerifiedMember (set by ProfileController)
 // OR derives from auth.user.verified + subscription state from shared props
