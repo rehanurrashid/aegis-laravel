@@ -43,9 +43,14 @@
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" data-tooltip="Message" :disabled="msgLoading === user.id" @click="openConversation(user.id)"><AegisIcon name="message" :size="14" /></button>
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Share" aria-label="Share"><AegisIcon name="link" :size="14" /></button>
             </template>
+            <!-- Non-member: smart CTA + share only -->
             <template v-else>
-              <a ::href="memberCtaRoute" class="btn-hero-solid is-on-light"><AegisIcon name="briefcase" :size="14" /> Sign In</a>
-              <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Share" aria-label="Share"><AegisIcon name="link" :size="14" /></button>
+              <a :href="memberCtaRoute" class="btn-hero-solid is-on-light">
+                <AegisIcon :name="memberCtaIcon" :size="14" /> {{ memberCtaLabel }}
+              </a>
+              <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Share profile link" aria-label="Share">
+                <AegisIcon name="link" :size="14" />
+              </button>
             </template>
           </div>
         </div>
@@ -97,8 +102,10 @@
               <div class="pp-svc-card-desc">{{ action.desc }}</div>
               <div class="pp-svc-card-footer">
                 <span :class="['pp-svc-card-avail', action.avail]"><AegisIcon name="circle-dot" :size="9" class="aegis-icon-filled" />{{ action.availLabel }}</span>
-                <button v-if="isLoggedIn" :class="['btn', action.btnClass, 'btn-sm']" @click="action.handler">{{ action.btnLabel }}</button>
-                <a v-else :href="memberCtaRoute" :class="['btn', action.btnClass, 'btn-sm']">{{ memberCtaLabel }}</a>
+                <button v-if="isVerifiedMember" :class="['btn', action.btnClass, 'btn-sm']" @click="action.handler">{{ action.btnLabel }}</button>
+                <a v-else :href="memberCtaRoute" :class="['btn', action.btnClass, 'btn-sm']">
+                  <AegisIcon :name="memberCtaIcon" :size="11" /> {{ memberCtaLabel }}
+                </a>
               </div>
             </div>
           </div>

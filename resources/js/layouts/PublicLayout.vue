@@ -86,12 +86,7 @@
 
       </div>
 
-      <!-- Bottom bar -->
-      <div class="pub-footer-bar">
-        <span>Powered by <strong>Devlet LLC</strong></span>
-        <span class="pub-footer-bar-sep" aria-hidden="true">·</span>
-        <span>HIPAA-aligned infrastructure</span>
-      </div>
+
     </footer>
 
   </div>
@@ -333,21 +328,6 @@ const year             = new Date().getFullYear()
 
 .pub-footer-link:hover { color: var(--gold-dark); }
 
-/* Bottom bar */
-.pub-footer-bar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 0.85rem 2rem;
-  border-top: 1px solid var(--border);
-  font-size: 0.75rem;
-  color: var(--text-4);
-  background: var(--bg-2, var(--bg));
-}
-
-.pub-footer-bar strong { color: var(--text-3); font-weight: 600; }
-.pub-footer-bar-sep { color: var(--border-strong, var(--text-4)); }
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
@@ -357,6 +337,5 @@ const year             = new Date().getFullYear()
   .pub-footer-inner { flex-direction: column; gap: 1.5rem; }
   .pub-footer-brand-col { flex: none; }
   .pub-footer-links-wrap { justify-content: flex-start; gap: 1.5rem; flex-wrap: wrap; }
-  .pub-footer-bar { flex-direction: column; gap: 4px; text-align: center; }
 }
 </style>

@@ -81,13 +81,13 @@
               </button>
             </template>
 
-            <!-- Anonymous -->
+            <!-- Non-member: smart CTA + share only -->
             <template v-else>
-              <a :href="route('login')" class="btn-hero-solid is-on-light">
-                <AegisIcon name="message" :size="14" /> Sign In
+              <a :href="memberCtaRoute" class="btn-hero-solid is-on-light">
+                <AegisIcon :name="memberCtaIcon" :size="14" /> {{ memberCtaLabel }}
               </a>
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only"
-                      @click="copyShareLink" data-tooltip="Share" aria-label="Share">
+                      @click="copyShareLink" data-tooltip="Share profile link" aria-label="Share">
                 <AegisIcon name="link" :size="14" />
               </button>
             </template>
@@ -1214,10 +1214,10 @@ function copyShareLink() {
 /* Footer */
 .pp-svc-card-footer {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 0px 18px;
+  gap: 10px;
+  padding: 12px 18px;
 }
 .pp-svc-card-avail { display: none; }
 .pp-svc-avail-pill {
@@ -1255,12 +1255,13 @@ function copyShareLink() {
 .pp-svc-request-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
-  padding: 7px 16px;
+  padding: 7px 20px;
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
-  flex-shrink: 0;
+  width: 100%;
 }
 
 .svc-request-strip {

@@ -31,15 +31,18 @@
               <a :href="route('cs.profile.index')" class="btn-hero-solid is-on-light"><AegisIcon name="pencil" :size="14" /> Edit</a>
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Copy link" aria-label="Copy link"><AegisIcon name="link" :size="14" /></button>
             </template>
-            <template v-else-if="isLoggedIn">
+            <template v-else-if="isVerifiedMember">
               <button type="button" class="btn-hero-solid is-on-light" @click="openInquireModal"><AegisIcon name="briefcase" :size="14" /> Inquire</button>
               <button type="button" class="btn-hero-ghost is-on-light" @click="openDesignateModal"><AegisIcon name="shield" :size="14" /> Designate</button>
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" data-tooltip="Message" :disabled="msgLoading === user.id" @click="openConversation(user.id)"><AegisIcon name="message" :size="14" /></button>
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Share" aria-label="Share"><AegisIcon name="link" :size="14" /></button>
             </template>
+            <!-- Non-member: smart CTA + share only -->
             <template v-else>
-              <a ::href="memberCtaRoute" class="btn-hero-solid is-on-light"><AegisIcon name="briefcase" :size="14" /> Sign In</a>
-              <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Share" aria-label="Share"><AegisIcon name="link" :size="14" /></button>
+              <a :href="memberCtaRoute" class="btn-hero-solid is-on-light">
+                <AegisIcon :name="memberCtaIcon" :size="14" /> {{ memberCtaLabel }}
+              </a>
+              <button type="button" class="btn-hero-ghost is-on-light is-icon-only" @click="copyShareLink" data-tooltip="Share profile link" aria-label="Share"><AegisIcon name="link" :size="14" /></button>
             </template>
           </div>
         </div>
@@ -68,7 +71,7 @@
         </div>
         <template v-if="!isOwner">
           <button v-if="isLoggedIn" class="btn btn-primary btn-sm" @click="openReserveSlotModal">Reserve a Slot</button>
-          <a v-else ::href="memberCtaRoute" class="btn btn-primary btn-sm">Reserve a Slot</a>
+          <a v-else :href="memberCtaRoute" class="btn btn-outline btn-sm"><AegisIcon :name="memberCtaIcon" :size="12" /> {{ memberCtaLabel }}</a>
         </template>
       </div>
 
