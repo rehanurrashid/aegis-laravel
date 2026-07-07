@@ -183,9 +183,9 @@ function resolveStripePrice() {
 onMounted(async () => {
   try {
     // Load Stripe.js — expects window.Stripe to be available via CDN script
-    // in app.blade.php: <script src="https://js.stripe.com/v3/"></script>
+    // in app.blade.php: <script src="https://js.stripe.com/v3/"><\/script>
     if (typeof window.Stripe === 'undefined') {
-      throw new Error('Stripe.js not loaded. Add <script src="https://js.stripe.com/v3/"> to app.blade.php.')
+      throw new Error('Stripe.js not loaded. Add Stripe CDN script tag to app.blade.php.')
     }
 
     stripe = window.Stripe(props.stripeKey)
