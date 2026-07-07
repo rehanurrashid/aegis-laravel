@@ -68,7 +68,7 @@
                   <AegisIcon name="plus" :size="14" /> Connect
                 </button>
               </template>
-              <button v-if="user.services_mode" type="button" class="btn-hero-ghost is-on-light" @click="openServiceRequest('Appointment')">
+              <button v-if="user.services_mode && services.length" type="button" class="btn-hero-ghost is-on-light" @click="openServiceRequest('Appointment')">
                 <AegisIcon name="calendar" :size="14" /> Schedule
               </button>
               <button type="button" class="btn-hero-ghost is-on-light is-icon-only" data-tooltip="Message"
