@@ -249,14 +249,53 @@
           <button type="button" class="btn btn-outline ob-btn-full" @click="currentStep = 0">Choose a different role</button>
         </div>
 
-        <!-- ══ STEP 2: ACCOUNT CREATION ══ -->
-        <div v-show="currentStep === 2" class="ob-step">
+
+        <!-- ══ USE-CASE STEP: What brings you to Aegis? ══ -->
+        <div v-show="currentStep === USE_CASE_STEP && hasUseCaseStep" class="ob-step">
+          <button type="button" class="ob-back-link" @click="currentStep = form.role === 'practitioner' ? 0 : 1">
+            <AegisIcon name="chevron-left" :size="14" /> Back
+          </button>
+          <div class="ob-step-header">
+            <div class="ob-step-eyebrow">Step {{ USE_CASE_STEP + 1 }} of {{ totalSteps }} — Your Goals</div>
+            <h2 class="ob-step-title">What brings you to Aegis?</h2>
+            <p class="ob-step-subtitle">Select all that apply. This helps personalise your dashboard and recommendations.</p>
+          </div>
+
+          <div class="ob-purpose-list">
+            <label
+              v-for="uc in currentUseCases"
+              :key="uc.value"
+              class="ob-purpose-item"
+              :class="{ 'is-selected': form.use_cases.includes(uc.value) }"
+            >
+              <input
+                type="checkbox"
+                class="ob-purpose-check"
+                :value="uc.value"
+                :checked="form.use_cases.includes(uc.value)"
+                @change="toggleUseCase(uc.value)"
+              />
+              <span class="ob-purpose-label">{{ uc.label }}</span>
+            </label>
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-primary ob-btn-full"
+            @click="currentStep = ACCOUNT_STEP"
+          >Continue</button>
+
+          <p class="ob-skip-step" @click="currentStep = ACCOUNT_STEP">Skip this step</p>
+        </div>
+
+        <!-- ══ ACCOUNT CREATION ══ -->
+        <div v-show="currentStep === ACCOUNT_STEP" class="ob-step">
           <button type="button" class="ob-back-link" @click="backFromAccount">
             <AegisIcon name="chevron-left" :size="14" /> Back
           </button>
 
           <div class="ob-step-header">
-            <div class="ob-step-eyebrow">Step {{ totalSteps > 2 ? '2' : '2' }} of {{ totalSteps }} — Create Account</div>
+            <div class="ob-step-eyebrow">Step {{ ACCOUNT_STEP + 1 }} of {{ totalSteps }} — Create Account</div>
             <h2 class="ob-step-title">Create Your Account</h2>
             <p class="ob-step-subtitle">{{ roleSubtitle }}</p>
           </div>
@@ -430,7 +469,40 @@ const form = useForm({
   bp_type:               null,
   cs_path:               null,
   invitation_code:       '',
+  use_cases:             [],
 })
+
+// ── Use-case options per role ─────────────────────────────────────────
+const USE_CASES = {
+  practitioner: [
+    { value: 'continuity',    label: 'Continuity of Care Emergency Planning (Continuity Plan, Continuity Steward, Support Steward Preparation)' },
+    { value: 'practice_mgmt', label: 'Practice Management (tracking training, renewals)' },
+    { value: 'network',       label: 'Network Development' },
+    { value: 'care_coord',    label: 'Care Coordination' },
+    { value: 'innovation',    label: 'Innovation and Practice Development (connect, learn, partner, expand scope)' },
+    { value: 'resources',     label: 'Resource Access' },
+  ],
+  business_partner: [
+    { value: 'offer_services',      label: 'Offer practice support services to health practitioners' },
+    { value: 'grow_client_base',    label: 'Grow my client base as a Practitioner Partner' },
+    { value: 'long_term_contracts', label: 'Establish long-term service contracts' },
+  ],
+  continuity_steward: [
+    { value: 'succession',         label: 'Provide practice succession planning services' },
+    { value: 'emergency_planning', label: 'Support continuity of care emergency planning' },
+    { value: 'cs_network',         label: 'Connect with other Continuity Stewards' },
+    { value: 'multi_practitioner', label: 'Manage and support multiple practitioner accounts' },
+  ],
+}
+
+const currentUseCases = computed(() => USE_CASES[form.role] ?? [])
+const hasUseCaseStep  = computed(() => !!USE_CASES[form.role])
+
+function toggleUseCase(value) {
+  const idx = form.use_cases.indexOf(value)
+  if (idx === -1) form.use_cases = [...form.use_cases, value]
+  else form.use_cases = form.use_cases.filter(v => v !== value)
+}
 
 // ── Role definitions ──────────────────────────────────────────────────
 const roles = [
@@ -470,10 +542,22 @@ const roles = [
 
 // ── Step count: 3 steps for roles with a sub-path, 2 for direct (practitioner) ──
 const totalSteps = computed(() => {
-  if (!form.role) return 3
-  if (form.role === 'practitioner') return 2
-  return 3
+  if (!form.role) return 4
+  // SS has no use-case step and no sub-path
+  if (form.role === 'support_steward') return 2
+  // Practitioner: role → use-case → account (no sub-path)
+  if (form.role === 'practitioner') return 3
+  // BP / CS: role → sub-path → use-case → account
+  return 4
 })
+
+// Step numbers: 0=role, 1=sub-path(bp/cs)/use-case(practitioner), 1.5=use-case(bp/cs), 2=account
+// Simplified as integers: use USE_CASE_STEP computed
+const USE_CASE_STEP = computed(() => {
+  if (form.role === 'practitioner') return 1
+  return 2  // BP and CS have sub-path at step 1, use-case at step 2
+})
+const ACCOUNT_STEP = computed(() => USE_CASE_STEP.value + 1)
 
 // ── Left panel dynamic content ────────────────────────────────────────
 const panelContent = {
@@ -569,20 +653,18 @@ function advanceFromRole() {
   if (!form.role) return
   v$.value.role.$touch()
   if (v$.value.role.$error) return
-  // Practitioner skips sub-path step
+  form.use_cases = []  // reset on role change
   if (form.role === 'practitioner') {
-    currentStep.value = 2
+    currentStep.value = 1  // practitioner: go to use-case step
+  } else if (form.role === 'support_steward') {
+    currentStep.value = 1  // SS: go directly to SS gate (no use-cases)
   } else {
-    currentStep.value = 1
+    currentStep.value = 1  // BP / CS: go to sub-path step
   }
 }
 
 function backFromAccount() {
-  if (form.role === 'practitioner') {
-    currentStep.value = 0
-  } else {
-    currentStep.value = 1
-  }
+  currentStep.value = USE_CASE_STEP.value
 }
 
 // ── Validation ─────────────────────────────────────────────────────────
@@ -828,4 +910,16 @@ const wwsSections = [
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ── Use-case checkboxes ── */
+.ob-purpose-list { display:flex; flex-direction:column; gap:8px; margin-bottom:24px; }
+.ob-purpose-item { display:flex; align-items:flex-start; gap:12px; border:1px solid var(--border); border-radius:var(--radius); padding:12px 16px; cursor:pointer; transition:all var(--transition); background:var(--surface); }
+.ob-purpose-item:hover { border-color:var(--gold-light); background:var(--surface-2); }
+.ob-purpose-item.is-selected { border-color:var(--gold-dark); background:rgba(196,169,106,0.05); }
+.ob-purpose-check { -webkit-appearance:none; appearance:none; width:16px; height:16px; min-width:16px; border:1px solid var(--border-dark); border-radius:4px; background:var(--surface); cursor:pointer; margin-top:1px; transition:all var(--transition); flex-shrink:0; }
+.ob-purpose-check:checked { background:var(--primary); border-color:var(--primary); background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpolyline points='2,6 5,9 10,3' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:center; background-size:11px; }
+.ob-purpose-label { font-size:13px; color:var(--text-2); line-height:1.5; cursor:pointer; }
+.ob-purpose-item.is-selected .ob-purpose-label { color:var(--text); }
+.ob-skip-step { text-align:center; margin-top:14px; font-size:12px; color:var(--text-4); cursor:pointer; }
+.ob-skip-step:hover { color:var(--text-2); text-decoration:underline; }
 </style>
