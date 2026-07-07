@@ -106,7 +106,7 @@ class VerifyEmailController extends Controller
             $role === 'business_partner' ||
             ($role === 'continuity_steward' && $csType === 'business');
 
-        if ($needsPlan && !$user->subscribed('default')) {
+        if ($needsPlan) {
             return redirect()->route('onboarding.plan');
         }
 
@@ -125,7 +125,7 @@ class VerifyEmailController extends Controller
             $role === 'business_partner' ||
             ($role === 'continuity_steward' && $csType === 'business');
 
-        return $needsPlan && !$user->subscribed('default')
+        return $needsPlan
             ? 'Now choose your plan to get started.'
             : 'Welcome to Aegis.';
     }

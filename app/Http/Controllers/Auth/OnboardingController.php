@@ -66,10 +66,6 @@ class OnboardingController extends Controller
             return redirect()->route('verification.notice');
         }
 
-        if ($user->subscribed('default')) {
-            return redirect()->route($this->dashboardRoute($user));
-        }
-
         if (!$this->requiresSubscription($user)) {
             return redirect()->route($this->dashboardRoute($user));
         }
@@ -119,10 +115,6 @@ class OnboardingController extends Controller
 
         if (!$user->verified) {
             return redirect()->route('verification.notice');
-        }
-
-        if ($user->subscribed('default')) {
-            return redirect()->route($this->dashboardRoute($user));
         }
 
         if (!$this->requiresSubscription($user)) {
