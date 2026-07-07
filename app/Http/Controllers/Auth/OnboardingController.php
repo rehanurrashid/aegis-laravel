@@ -134,6 +134,26 @@ class OnboardingController extends Controller
             return redirect()->route('onboarding.plan');
         }
 
+        // Ensure a valid Stripe customer exists before creating a SetupIntent.
+        // Demo users may have a fake stripe_id (e.g. 'cus_demo_sarah') — clear it
+        // so Cashier creates a real customer in Stripe sandbox.
+        if ($user->hasStripeId()) {
+            try {
+                // Use Cashier's stripe() client — has API key set automatically
+                $user->stripe()->customers->retrieve($user->stripe_id);
+            } catch (\Stripe\Exception\InvalidRequestException $e) {
+                // stripe_id is fake/invalid — clear it so createAsStripeCustomer runs fresh
+                $user->forceFill(['stripe_id' => null])->saveQuietly();
+            }
+        }
+
+        if (!$user->hasStripeId()) {
+            $user->createAsStripeCustomer([
+                'name'  => $user->display_name,
+                'email' => $user->email,
+            ]);
+        }
+
         // CreateSetupIntent so Stripe can collect + tokenize the card
         $intent = $user->createSetupIntent();
 

@@ -37,6 +37,7 @@
     33 => 'Tighten\\Ziggy\\ZiggyServiceProvider',
     34 => 'App\\Providers\\AppServiceProvider',
     35 => 'App\\Providers\\AppServiceProvider',
+    36 => 'Laravel\\Cashier\\CashierServiceProvider',
   ),
   'eager' => 
   array (
@@ -61,6 +62,7 @@
     18 => 'Tighten\\Ziggy\\ZiggyServiceProvider',
     19 => 'App\\Providers\\AppServiceProvider',
     20 => 'App\\Providers\\AppServiceProvider',
+    21 => 'Laravel\\Cashier\\CashierServiceProvider',
   ),
   'deferred' => 
   array (
