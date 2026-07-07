@@ -123,6 +123,15 @@ Route::middleware('guest')->group(function () {
     Route::post('/onboarding/complete', [OnboardingController::class, 'complete'])->name('onboarding.complete');
 });
 
+// ── Post-verification onboarding: plan selection + payment (paid roles) ──────
+// Middleware: auth only — controllers self-guard for verified + subscription state.
+Route::middleware(['auth'])->group(function () {
+    Route::get('/onboarding/plan',       [OnboardingController::class, 'showPlan'])->name('onboarding.plan');
+    Route::post('/onboarding/plan',      [OnboardingController::class, 'storePlan'])->name('onboarding.plan.store');
+    Route::get('/onboarding/payment',    [OnboardingController::class, 'showPayment'])->name('onboarding.payment');
+    Route::post('/onboarding/subscribe', [OnboardingController::class, 'subscribe'])->name('onboarding.subscribe');
+});
+
 Route::post('/logout', [LoginController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');

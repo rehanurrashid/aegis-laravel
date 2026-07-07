@@ -39,18 +39,28 @@ class AuthService
             $slug   = $this->generateSlug($data['display_name']);
 
             /** @var User $user */
+            $role           = $data['role'];
+            $isCS           = $role === 'continuity_steward';
+            $isBP           = $role === 'business_partner';
+            $csPath         = $data['cs_path'] ?? null;          // 'business' | 'invited' | null
+            $csAccountType  = $isCS ? ($csPath === 'invited' ? 'invited' : 'business') : null;
+
             $user = new User();
             $user->forceFill([
-                'id'           => $userId,
-                'role'         => $data['role'],
-                'display_name' => $data['display_name'],
-                'email'        => $data['email'],
-                'password'     => Hash::make($data['password']),
-                'phone'        => $data['phone'] ?? null,
-                'slug'         => $slug,
-                'tier'         => $data['tier'] ?? 'access',
-                'verified'     => 0,
-                'bp_type'      => ($data['role'] === 'business_partner') ? ($data['bp_type'] ?? null) : null,
+                'id'              => $userId,
+                'role'            => $role,
+                'display_name'    => $data['display_name'],
+                'email'           => $data['email'],
+                'password'        => Hash::make($data['password']),
+                'phone'           => $data['phone'] ?? null,
+                'slug'            => $slug,
+                // Tier: practitioners set this at plan-selection step post-verify.
+                // Invited CS / SS / BP don't use tier; cs_business sets tier after subscribe().
+                'tier'            => $data['tier'] ?? ($role === 'practitioner' ? 'access' : null),
+                'verified'        => 0,
+                'bp_type'         => $isBP ? ($data['bp_type'] ?? null) : null,
+                'cs_account_type' => $csAccountType,
+                'cs_path'         => $csPath,
             ])->save();
 
             UserRoleAssignment::create([

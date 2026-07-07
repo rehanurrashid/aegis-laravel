@@ -24,7 +24,7 @@ class VerifyEmailController extends Controller
         $user = $request->user();
 
         if ($user->verified) {
-            return redirect()->route('home');
+            return $this->postVerifyRedirect($user);
         }
 
         return Inertia::render('Auth/VerifyEmail', [
@@ -52,22 +52,8 @@ class VerifyEmailController extends Controller
             event(new EmailVerified($user));
         }
 
-        // Redirect to their portal dashboard now that email is verified
-        $role = $user->role instanceof UserRole
-            ? $user->role
-            : UserRole::tryFrom((string) $user->role);
-
-        $portalRoute = match ($role) {
-            UserRole::Practitioner      => 'provider.dashboard',
-            UserRole::ContinuitySteward => 'cs.dashboard',
-            UserRole::SupportSteward    => 'ss.dashboard',
-            UserRole::BusinessPartner   => 'bp.dashboard',
-            UserRole::Admin             => 'admin.dashboard',
-            default                     => 'home',
-        };
-
-        return redirect()->route($portalRoute)
-            ->with('success', 'Email verified. Welcome to Aegis.');
+        return $this->postVerifyRedirect($user)
+            ->with('success', 'Email verified! ' . $this->postVerifyMessage($user));
     }
 
     /** POST /email/verification-notification — resend */
@@ -77,7 +63,7 @@ class VerifyEmailController extends Controller
         $user = $request->user();
 
         if ($user->verified) {
-            return redirect()->route('home');
+            return $this->postVerifyRedirect($user);
         }
 
         static::sendVerificationEmail($user);
@@ -98,5 +84,63 @@ class VerifyEmailController extends Controller
             ['verification_url' => $url],
             $user->id
         )->onQueue('email');
+    }
+
+    // ── Post-verify routing ───────────────────────────────────────────────
+
+    /**
+     * Route the user to the correct next step after email verification.
+     *
+     * Paid roles (Practitioner, BP, Business CS) → plan selection
+     * Free roles (Invited CS, SS) → portal dashboard directly
+     */
+    private function postVerifyRedirect(User $user): RedirectResponse
+    {
+        $role   = $user->role instanceof UserRole ? $user->role->value : (string) $user->role;
+        $csType = $user->cs_account_type instanceof \App\Enums\CsAccountType
+            ? $user->cs_account_type->value
+            : (string) ($user->cs_account_type ?? '');
+
+        $needsPlan =
+            $role === 'practitioner' ||
+            $role === 'business_partner' ||
+            ($role === 'continuity_steward' && $csType === 'business');
+
+        if ($needsPlan && !$user->subscribed('default')) {
+            return redirect()->route('onboarding.plan');
+        }
+
+        return redirect()->route($this->dashboardRoute($user));
+    }
+
+    private function postVerifyMessage(User $user): string
+    {
+        $role   = $user->role instanceof UserRole ? $user->role->value : (string) $user->role;
+        $csType = $user->cs_account_type instanceof \App\Enums\CsAccountType
+            ? $user->cs_account_type->value
+            : (string) ($user->cs_account_type ?? '');
+
+        $needsPlan =
+            $role === 'practitioner' ||
+            $role === 'business_partner' ||
+            ($role === 'continuity_steward' && $csType === 'business');
+
+        return $needsPlan && !$user->subscribed('default')
+            ? 'Now choose your plan to get started.'
+            : 'Welcome to Aegis.';
+    }
+
+    private function dashboardRoute(User $user): string
+    {
+        $role = $user->role instanceof UserRole ? $user->role : UserRole::tryFrom((string) $user->role);
+
+        return match ($role) {
+            UserRole::Practitioner      => 'provider.dashboard',
+            UserRole::ContinuitySteward => 'cs.dashboard',
+            UserRole::SupportSteward    => 'ss.dashboard',
+            UserRole::BusinessPartner   => 'bp.dashboard',
+            UserRole::Admin             => 'admin.dashboard',
+            default                     => 'home',
+        };
     }
 }
