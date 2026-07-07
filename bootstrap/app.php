@@ -5,7 +5,9 @@ declare(strict_types=1);
 use App\Http\Middleware\CheckAccountLocked;
 use App\Http\Middleware\EnsureAdminRole;
 use App\Http\Middleware\EnsureIncidentActive;
+use App\Http\Middleware\EnsureEmailVerified;
 use App\Http\Middleware\EnsurePlanActive;
+use App\Http\Middleware\EnsureSubscriptionActive;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\EnsureServicesMode;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -35,6 +37,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'incident.active' => EnsureIncidentActive::class,
             'services.mode'   => EnsureServicesMode::class,
             'check.locked'    => CheckAccountLocked::class,
+            'verified.email'  => EnsureEmailVerified::class,
+            'subscription.active' => EnsureSubscriptionActive::class,
             'demo'            => ImpersonateForDemo::class,
         ]);
 

@@ -24,11 +24,44 @@ class VerifyEmailController extends Controller
         $user = $request->user();
 
         if ($user->verified) {
+            // Already verified — check if also subscribed → send to dashboard
+            $role   = $user->role instanceof UserRole ? $user->role->value : (string) $user->role;
+            $csType = $user->cs_account_type instanceof \App\Enums\CsAccountType
+                ? $user->cs_account_type->value : (string) ($user->cs_account_type ?? '');
+
+            $needsSub = $role === 'practitioner'
+                || $role === 'business_partner'
+                || ($role === 'continuity_steward' && $csType === 'business');
+
+            if ($needsSub) {
+                try {
+                    $sub       = $user->subscriptions()->where('type', 'default')->latest()->first();
+                    $hasActive = $sub && in_array($sub->stripe_status, ['active', 'trialing', 'past_due'], true);
+                } catch (\Throwable) { $hasActive = false; }
+
+                if ($hasActive) {
+                    return redirect()->route($this->dashboardRoute($user));
+                }
+            } else {
+                // Free role — verified is enough
+                return redirect()->route($this->dashboardRoute($user));
+            }
+
+            // Verified but not subscribed → continue to plan
             return $this->postVerifyRedirect($user);
         }
 
+        // Auto-send verification email on first visit (e.g. returning user
+        // who registered but never verified). Check session flag to avoid
+        // re-sending on every page reload — resend is explicit via the button.
+        if (!$request->session()->has('verify_email_sent_' . $user->id)) {
+            static::sendVerificationEmail($user);
+            $request->session()->put('verify_email_sent_' . $user->id, true);
+        }
+
         return Inertia::render('Auth/VerifyEmail', [
-            'email' => $user->email,
+            'email'   => $user->email,
+            'resent'  => $request->session()->has('verify_email_sent_' . $user->id),
         ]);
     }
 

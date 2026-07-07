@@ -79,15 +79,41 @@ use App\Http\Controllers\Email\UnsubscribeController;
 use Illuminate\Support\Facades\Route;
 
 // ── Root redirect ─────────────────────────────────────────────────────────────
-Route::get('/', function () {
+Route::get('/', function (\Illuminate\Http\Request $request) {
     if (!auth()->check()) {
         return redirect()->route('login');
     }
 
-    $role = auth()->user()->role;
-    $role = $role instanceof \App\Enums\UserRole
-        ? $role
-        : \App\Enums\UserRole::tryFrom((string) $role);
+    $user = auth()->user();
+
+    // Step 1: must verify email
+    if (!$user->verified) {
+        return redirect()->route('verification.notice');
+    }
+
+    // Step 2: paid roles must have active subscription
+    $roleVal = $user->role instanceof \App\Enums\UserRole ? $user->role->value : (string) $user->role;
+    $csType  = $user->cs_account_type instanceof \App\Enums\CsAccountType
+        ? $user->cs_account_type->value : (string) ($user->cs_account_type ?? '');
+
+    $needsSub = $roleVal === 'practitioner'
+        || $roleVal === 'business_partner'
+        || ($roleVal === 'continuity_steward' && $csType === 'business');
+
+    if ($needsSub) {
+        try {
+            $sub = $user->subscriptions()->where('type', 'default')->latest()->first();
+            $hasActive = $sub && in_array($sub->stripe_status, ['active', 'trialing', 'past_due'], true);
+        } catch (\Throwable) { $hasActive = true; }
+
+        if (!$hasActive) {
+            return redirect()->route('onboarding.plan');
+        }
+    }
+
+    $role = $user->role instanceof \App\Enums\UserRole
+        ? $user->role
+        : \App\Enums\UserRole::tryFrom((string) $user->role);
 
     return match ($role) {
         \App\Enums\UserRole::Practitioner      => redirect()->route('provider.dashboard'),
@@ -155,7 +181,7 @@ Route::get('/mfa/challenge', [MfaController::class, 'showChallenge'])->name('mfa
 Route::post('/mfa/challenge', [MfaController::class, 'challenge'])->name('mfa.challenge.store');
 
 // ── Provider Portal ───────────────────────────────────────────────────────────
-Route::middleware(['auth', 'role:practitioner', 'check.locked'])
+Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practitioner', 'check.locked'])
     ->prefix('provider')
     ->name('provider.')
     ->group(function () {
@@ -333,7 +359,7 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
     });
 
 // ── Continuity Steward Portal ─────────────────────────────────────────────────
-Route::middleware(['auth', 'role:continuity_steward', 'check.locked'])
+Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:continuity_steward', 'check.locked'])
     ->prefix('continuity-steward')
     ->name('cs.')
     ->group(function () {
@@ -395,7 +421,7 @@ Route::middleware(['auth', 'role:continuity_steward', 'check.locked'])
     });
 
 // ── Support Steward Portal ────────────────────────────────────────────────────
-Route::middleware(['auth', 'role:support_steward', 'check.locked'])
+Route::middleware(['auth', 'verified.email', 'role:support_steward', 'check.locked'])
     ->prefix('support-steward')
     ->name('ss.')
     ->group(function () {
@@ -443,7 +469,7 @@ Route::middleware(['auth', 'role:support_steward', 'check.locked'])
     });
 
 // ── Business Partner Portal ───────────────────────────────────────────────────
-Route::middleware(['auth', 'role:business_partner', 'check.locked'])
+Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:business_partner', 'check.locked'])
     ->prefix('business')
     ->name('bp.')
     ->group(function () {
@@ -520,7 +546,7 @@ Route::middleware(['auth', 'role:business_partner', 'check.locked'])
     });
 
 // ── Admin Portal ──────────────────────────────────────────────────────────────
-Route::middleware(['auth', 'admin'])
+Route::middleware(['auth', 'verified.email', 'admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {

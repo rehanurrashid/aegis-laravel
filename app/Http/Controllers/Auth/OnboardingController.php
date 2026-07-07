@@ -62,6 +62,10 @@ class OnboardingController extends Controller
         /** @var \App\Models\User $user */
         $user = $request->user();
 
+        if ($redirect = $this->redirectIfComplete($user)) {
+            return $redirect;
+        }
+
         if (!$user->verified) {
             return redirect()->route('verification.notice');
         }
@@ -112,6 +116,10 @@ class OnboardingController extends Controller
     {
         /** @var \App\Models\User $user */
         $user = $request->user();
+
+        if ($redirect = $this->redirectIfComplete($user)) {
+            return $redirect;
+        }
 
         if (!$user->verified) {
             return redirect()->route('verification.notice');
@@ -190,6 +198,20 @@ class OnboardingController extends Controller
         // Clear onboarding session
         $request->session()->forget(['onboarding_plan', 'onboarding_intent']);
 
+        // Fire welcome email (post-payment — not on register)
+        // and subscription invoice notification via Stripe webhook
+        // (invoice.payment_succeeded fires automatically via Stripe → StripeEventListener)
+        // Welcome email fires here since we know subscription is now active
+        \App\Jobs\SendEmailJob::dispatch(
+            'emails.account.01-welcome',
+            [
+                'user_id'    => $user->id,
+                'portal_url' => route($this->dashboardRoute($user)),
+                'role_label' => $this->roleLabelFor($user),
+            ],
+            $user->id
+        )->onQueue('email');
+
         return redirect()->route($this->dashboardRoute($user))
             ->with('success', 'Welcome to Aegis! Your subscription is active.');
     }
@@ -204,6 +226,41 @@ class OnboardingController extends Controller
      * - CS Invited → free (covered by practitioner)
      * - Support Steward → free (invitation-only)
      */
+    /**
+     * If the user is already fully onboarded (verified + active subscription),
+     * redirect them to their portal dashboard — they have no business here.
+     */
+    private function redirectIfComplete(\App\Models\User $user): ?\Illuminate\Http\RedirectResponse
+    {
+        if (!$user->verified) return null;
+        if (!$this->requiresSubscription($user)) return null; // free role — already handled
+
+        try {
+            $sub = $user->subscriptions()->where('type', 'default')->latest()->first();
+            $active = $sub && in_array($sub->stripe_status, ['active', 'trialing', 'past_due'], true);
+        } catch (\Throwable) {
+            return null; // fail open
+        }
+
+        if ($active) {
+            return redirect()->route($this->dashboardRoute($user));
+        }
+
+        return null;
+    }
+
+    private function roleLabelFor(\App\Models\User $user): string
+    {
+        $role = $user->role instanceof \App\Enums\UserRole ? $user->role->value : (string) $user->role;
+        return match ($role) {
+            'practitioner'      => 'Practitioner Partner',
+            'business_partner'  => 'Business Partner',
+            'continuity_steward'=> 'Continuity Steward',
+            'support_steward'   => 'Support Steward',
+            default             => 'Aegis',
+        };
+    }
+
     private function requiresSubscription(\App\Models\User $user): bool
     {
         $role   = $this->roleValue($user);

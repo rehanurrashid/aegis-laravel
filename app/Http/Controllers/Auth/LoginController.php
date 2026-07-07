@@ -109,7 +109,7 @@ class LoginController extends Controller
             'session_keys' => array_keys($request->session()->all()),
         ]);
 
-        return redirect($this->portalHomeFor($user))
+        return redirect($this->resolvePostLoginDestination($user))
             ->with('success', 'Signed in successfully.');
     }
 
@@ -119,6 +119,48 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         return redirect()->route('login');
+    }
+
+    /**
+     * Determine where to send the user after a successful login.
+     *
+     * Priority:
+     *   1. Not verified            → verification notice
+     *   2. Needs subscription      → onboarding plan
+     *   3. Everything OK           → portal dashboard
+     */
+    private function resolvePostLoginDestination(User $user): string
+    {
+        // Step 1: email not verified
+        if (!$user->verified) {
+            return route('verification.notice');
+        }
+
+        // Step 2: paid role without an active subscription
+        $role   = $user->role instanceof UserRole ? $user->role->value : (string) $user->role;
+        $csType = $user->cs_account_type instanceof \App\Enums\CsAccountType
+            ? $user->cs_account_type->value
+            : (string) ($user->cs_account_type ?? '');
+
+        $needsSub = $role === 'practitioner'
+            || $role === 'business_partner'
+            || ($role === 'continuity_steward' && $csType === 'business');
+
+        if ($needsSub) {
+            try {
+                $sub       = $user->subscriptions()->where('type', 'default')->latest()->first();
+                $hasActive = $sub && in_array($sub->stripe_status, ['active', 'trialing', 'past_due'], true);
+            } catch (\Throwable) {
+                $hasActive = true; // fail open if Cashier not available
+            }
+
+            if (!$hasActive) {
+                return route('onboarding.plan');
+            }
+        }
+
+        // Step 3: dashboard for their role
+        return $this->portalHomeFor($user);
     }
 
     private function portalHomeFor(User $user): string

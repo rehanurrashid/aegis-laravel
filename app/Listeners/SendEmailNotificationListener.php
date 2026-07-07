@@ -170,9 +170,26 @@ class SendEmailNotificationListener
 
     private function userRegistered(UserRegistered $e): array
     {
-        return [['user_id' => $e->user->id, 'gate_key' => 'notify_account',
+        $user   = $e->user;
+        $role   = $user->role instanceof \App\Enums\UserRole ? $user->role->value : (string) $user->role;
+        $csType = $user->cs_account_type instanceof \App\Enums\CsAccountType
+            ? $user->cs_account_type->value
+            : (string) ($user->cs_account_type ?? '');
+
+        // Paid roles (practitioner, BP, business CS) receive the welcome email
+        // AFTER their subscription is activated (fired in OnboardingController::subscribe()).
+        // Free roles (invited CS, SS) have no payment step — send welcome now.
+        $isPaid = $role === 'practitioner'
+            || $role === 'business_partner'
+            || ($role === 'continuity_steward' && $csType === 'business');
+
+        if ($isPaid) {
+            return []; // welcome fires in OnboardingController::subscribe()
+        }
+
+        return [['user_id' => $user->id, 'gate_key' => 'notify_account',
                  'template' => 'emails.account.01-welcome',
-                 'data' => ['user_id' => $e->user->id]]];
+                 'data' => ['user_id' => $user->id]]];
     }
 
     private function passwordReset(PasswordReset $e): array
