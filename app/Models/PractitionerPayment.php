@@ -21,7 +21,7 @@ class PractitionerPayment extends Model
     protected $fillable = [
         'id', 'practitioner_id', 'payment_method_id', 'kind',
         'amount_cents', 'currency', 'status', 'payment_method_label',
-        'stripe_charge_id', 'paid_at',
+        'stripe_charge_id', 'stripe_transfer_id', 'paid_at',
     ];
 
     protected $casts = [

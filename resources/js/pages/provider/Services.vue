@@ -369,7 +369,7 @@
                         <button
                           class="btn-icon"
                           data-tooltip="Mark Complete"
-                          @click.stop="completeSession(b.id)"
+                          @click.stop="setActiveBooking(b); modals.completeSession = true"
                         >
                           <AegisIcon name="check" :size="14" />
                         </button>
@@ -1152,6 +1152,61 @@
       </template>
     </AegisModal>
 
+    <!-- Complete Session Modal -->
+    <AegisModal v-model="modals.completeSession" title="Mark Session Complete" size="md">
+      <template v-if="activeBooking">
+
+        <!-- Session Summary -->
+        <div class="complete-session-summary">
+          <div class="complete-session-row">
+            <span class="complete-session-label">Provider</span>
+            <span class="complete-session-value">{{ activeBooking.provider_name }}</span>
+          </div>
+          <div class="complete-session-row">
+            <span class="complete-session-label">Service</span>
+            <span class="complete-session-value">{{ activeBooking.service_title }}</span>
+          </div>
+          <div class="complete-session-row">
+            <span class="complete-session-label">Scheduled</span>
+            <span class="complete-session-value">{{ activeBooking.datetime_label }}</span>
+          </div>
+          <div v-if="activeBooking.amount_cents > 0" class="complete-session-row">
+            <span class="complete-session-label">Amount</span>
+            <span class="complete-session-value complete-session-amount">{{ activeBooking.amount }}</span>
+          </div>
+        </div>
+
+        <!-- Payout Status Block -->
+        <div v-if="activeBooking.amount_cents > 0" class="complete-session-payout">
+          <div v-if="activeBooking.practitioner_stripe_connected" class="payout-status payout-status--ready">
+            <AegisIcon name="check-circle" :size="15" />
+            <div>
+              <div class="payout-status-title">Stripe Connect linked</div>
+              <div class="payout-status-desc">Funds will be transferred immediately to your connected account ({{ activeBooking.practitioner_stripe_account || 'on file' }}).</div>
+            </div>
+          </div>
+          <div v-else class="payout-status payout-status--warn">
+            <AegisIcon name="alert-triangle" :size="15" />
+            <div>
+              <div class="payout-status-title">No Stripe Connect account</div>
+              <div class="payout-status-desc">The payout will be recorded as pending. Connect your Stripe account in <a :href="route('provider.finances.index')" class="link-inline">Finances</a> to receive it.</div>
+            </div>
+          </div>
+        </div>
+
+        <p class="complete-session-confirm-text">
+          Marking this session complete is permanent. The other practitioner will be notified and this session will move to your completed history.
+        </p>
+      </template>
+
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.completeSession = false">Cancel</button>
+        <button class="btn btn-success" @click="submitCompleteSession">
+          <AegisIcon name="check" :size="14" /> Mark Complete &amp; Release Payment
+        </button>
+      </template>
+    </AegisModal>
+
     <!-- Dismiss Request Modal -->
     <AegisModal v-model="modals.dismiss" title="Dismiss Request" size="sm">
       <div class="form-group">
@@ -1299,7 +1354,7 @@ const modals = reactive({
   create: false, edit: false, accept: false, counter: false,
   preview: false, manageGroup: false, publish: false, reactivate: false,
   pause: false, cancelSession: false, sessionNotes: false,
-  dismiss: false,
+  dismiss: false, completeSession: false,
 })
 
 // ── Active item tracking ──────────────────────────────────────────────────
@@ -1566,17 +1621,18 @@ function submitAccept() {
   })
 }
 
-function completeSession(id) {
-  confirmAction({
-    title: 'Mark Session Complete',
-    message: 'Mark this session as complete? A payment record will be created and will appear in Finances.',
-    btnLabel: 'Mark Complete',
-    type: 'primary',
-  }, () => {
-    router.post(route('provider.services.session.complete', { session: id }), {}, {
-      preserveScroll: true,
-      onSuccess: () => toast.success('Session marked complete. Payout is pending — view in Finances.'),
-    })
+function submitCompleteSession() {
+  if (!activeBooking.value?.id) return
+  router.post(route('provider.services.session.complete', { session: activeBooking.value.id }), {}, {
+    preserveScroll: true,
+    onSuccess: () => {
+      modals.completeSession = false
+      const hasConnect = activeBooking.value?.practitioner_stripe_connected
+      toast.success(hasConnect
+        ? 'Session complete. Payout initiated to your Stripe account.'
+        : 'Session complete. Connect your Stripe account in Finances to receive payouts.'
+      )
+    },
   })
 }
 
@@ -1790,6 +1846,58 @@ function statusVariant(s) {
 
 <style scoped>
 /* ── TOOLBAR ── */
+.complete-session-summary {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.complete-session-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+}
+.complete-session-row:last-child { border-bottom: none; }
+.complete-session-label { font-size: 12px; color: var(--text-4); flex-shrink: 0; }
+.complete-session-value { font-size: 13px; font-weight: 600; color: var(--text); text-align: right; }
+.complete-session-amount { font-size: 15px; color: var(--green); }
+.complete-session-payout {
+  margin-bottom: 14px;
+}
+.payout-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.payout-status--ready {
+  background: var(--green-bg, rgba(34,197,94,0.07));
+  border-color: var(--green);
+  color: var(--green);
+}
+.payout-status--ready .payout-status-title { color: var(--green); }
+.payout-status--warn {
+  background: var(--amber-bg, rgba(245,158,11,0.07));
+  border-color: var(--gold);
+  color: var(--gold-dark);
+}
+.payout-status--warn .payout-status-title { color: var(--gold-dark); }
+.payout-status-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+.payout-status-desc { font-size: 12px; color: var(--text-2); line-height: 1.5; }
+.payout-status-desc .link-inline { color: var(--gold-dark); font-weight: 600; }
+.complete-session-confirm-text {
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.6;
+  margin: 0;
+}
+
 .page-note {
   display: flex;
   align-items: flex-start;

@@ -19,10 +19,14 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 use RuntimeException;
+use App\Services\PayoutService;
 
 class ServiceService
 {
-    public function __construct(private ActivityService $activity) {}
+    public function __construct(
+        private ActivityService $activity,
+        private PayoutService   $payouts,
+    ) {}
 
     // ── Helpers ───────────────────────────────────────────────────────────
 
@@ -158,6 +162,8 @@ class ServiceService
             'duration_label'            => $service?->duration_min ? $service->duration_min . ' min' : '—',
             'amount'                    => $s->amount_cents ? '$' . number_format($s->amount_cents / 100, 0) : '—',
             'amount_cents'              => $s->amount_cents ?? 0,
+            'practitioner_stripe_connected' => (bool) ($s->practitioner?->stripe_connected ?? false),
+            'practitioner_stripe_account'   => $s->practitioner?->stripe_account_id ?? null,
             'status'                    => $status,
             'summary'                   => $s->session_summary ?? '',
             'action_items'              => $s->session_action_items ?? '',
@@ -419,30 +425,42 @@ class ServiceService
             'completed_at' => now(),
         ]);
 
-        // Record payment row so Finances page reflects the earning
-        if ($session->amount_cents > 0) {
-            PractitionerPayment::create([
-                'id'               => 'pp_' . Str::lower(Str::random(12)),
-                'practitioner_id'  => $session->practitioner_id,
-                'payment_method_id'=> null,
-                'kind'             => PractitionerPaymentKind::ServiceSession->value,
-                'amount_cents'     => $session->amount_cents,
-                'currency'         => 'USD',
-                'status'           => PractitionerPaymentStatus::Pending->value,
-                'payment_method_label' => 'Service Session',
-                'stripe_charge_id' => null,
-                'paid_at'          => null,
+        $client      = User::find($session->client_id);
+        $service     = Service::find($session->service_id);
+        $practitioner = User::find($session->practitioner_id);
+
+        // Record payment row and attempt immediate Stripe Connect transfer
+        if ($session->amount_cents > 0 && $practitioner) {
+            $payment = PractitionerPayment::create([
+                'id'                   => 'pp_' . Str::lower(Str::random(12)),
+                'practitioner_id'      => $session->practitioner_id,
+                'payment_method_id'    => null,
+                'kind'                 => PractitionerPaymentKind::ServiceSession->value,
+                'amount_cents'         => $session->amount_cents,
+                'currency'             => 'USD',
+                'status'               => PractitionerPaymentStatus::Pending->value,
+                'payment_method_label' => 'Service Session — ' . ($service?->title ?? 'Session'),
+                'stripe_charge_id'     => null,
+                'paid_at'              => null,
             ]);
+
+            // Attempt Stripe Connect transfer (safe — stubs if not configured)
+            try {
+                $this->payouts->releaseServiceSessionPayout($payment, $practitioner);
+            } catch (\Throwable) {
+                // Transfer failure logged inside PayoutService; session still completes
+            }
         }
 
-        $client  = User::find($session->client_id);
-        $service = Service::find($session->service_id);
+        $payoutNote = ($practitioner?->stripe_connected && $practitioner?->stripe_account_id)
+            ? 'Payout initiated to your Stripe account.'
+            : 'No Stripe Connect account detected — payout is pending until you connect your account in Finances.';
 
         $this->activity->log(
             $session->practitioner_id, 'provider', 'payment', ActivitySeverity::Info,
             'session_completed',
             'Session marked complete',
-            ($service?->title ?? 'Session') . ' — ' . ($client?->display_name ?? 'Client') . '. Payout pending.',
+            ($service?->title ?? 'Session') . ' — ' . ($client?->display_name ?? 'Client') . '. ' . $payoutNote,
             'service_session', $session->id, $session->client_id,
             'log', $session->practitioner_id
         );
