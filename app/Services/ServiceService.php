@@ -244,7 +244,7 @@ class ServiceService
             $practitioner->id, 'provider', 'referral', ActivitySeverity::Info,
             'service_created',
             "Service created: {$service->title}",
-            ucfirst(str_replace('_', ' ', $service->category ?? '')) . ' · ' . ($service->status ?? 'active'),
+            ucfirst(str_replace('_', ' ', $service->category ?? '')) . ' · ' . ($service->status instanceof \App\Enums\ServiceStatus ? $service->status->value : ($service->status ?? 'active')),
             'service', $service->id, null,
             'log', $practitioner->id
         );
