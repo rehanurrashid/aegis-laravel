@@ -75,6 +75,7 @@ use App\Http\Controllers\Admin\IncidentsController as AdminIncidentsController;
 use App\Http\Controllers\Admin\PayoutsController as AdminPayoutsController;
 use App\Http\Controllers\Auth\OnboardingController;
 use App\Http\Controllers\Auth\VerifyEmailController;
+use App\Http\Controllers\Email\UnsubscribeController;
 use Illuminate\Support\Facades\Route;
 
 // ── Root redirect ─────────────────────────────────────────────────────────────
@@ -134,6 +135,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/email/verification-notification', [VerifyEmailController::class, 'resend'])
         ->middleware('throttle:6,1')->name('verification.resend');
 });
+
+// ── Email unsubscribe (signed, no auth required — clicked straight from inbox) ─
+Route::get('/email/unsubscribe', UnsubscribeController::class)
+    ->middleware('signed')
+    ->name('email.unsubscribe');
 
 // ── MFA challenge (session-gated, no auth middleware yet) ─────────────────────
 Route::get('/mfa/challenge', [MfaController::class, 'showChallenge'])->name('mfa.challenge');

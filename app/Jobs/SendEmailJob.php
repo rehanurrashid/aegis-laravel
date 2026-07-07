@@ -55,10 +55,18 @@ class SendEmailJob implements ShouldQueue
             // so this is safe to attach unconditionally. Caller-supplied URLs win.
             $data = $this->data;
             if ($this->recipientUserId && empty($data['unsubscribe_url'])) {
-                $data['unsubscribe_url'] = URL::signedRoute('email.unsubscribe', [
-                    'user_id' => $this->recipientUserId,
-                    'gate'    => $this->gateForTemplate($this->template),
-                ]);
+                try {
+                    $data['unsubscribe_url'] = URL::signedRoute('email.unsubscribe', [
+                        'user_id' => $this->recipientUserId,
+                        'gate'    => $this->gateForTemplate($this->template),
+                    ]);
+                } catch (\Throwable $routeEx) {
+                    Log::warning('SendEmailJob: email.unsubscribe route not defined — skipping unsubscribe link', [
+                        'template' => $this->template,
+                        'user_id'  => $this->recipientUserId,
+                    ]);
+                    $data['unsubscribe_url'] = null;
+                }
             }
 
             Mail::to($email)->send(new GenericMailable(
