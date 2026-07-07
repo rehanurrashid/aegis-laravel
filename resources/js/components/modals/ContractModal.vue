@@ -339,7 +339,7 @@ function doPayMilestone(m) {
         {
           preserveScroll: true,
           onSuccess: () => { toast.success('Milestone payment released via Stripe.'); busyMilestone.value = null },
-          onError:   () => { toast.error('Payment failed. Verify BP Stripe Connect status.'); busyMilestone.value = null },
+          onError:   (e) => { toast.error(e.milestone || e.contract || 'Payment failed. Check your payment method in Settings → Billing.'); busyMilestone.value = null },
         }
       )
     }
