@@ -246,7 +246,7 @@
                           @click="openServiceRequest(svc.title)">
                     <AegisIcon name="send" :size="12" /> Request
                   </button>
-                  <a v-else :href="memberCtaRoute" class="pp-svc-request-btn btn btn-outline">
+                  <a v-else :href="memberCtaRoute" class="pp-svc-request-btn btn btn-primary btn-sm">
                     <AegisIcon :name="memberCtaIcon" :size="12" />
                     {{ memberCtaLabel === 'Sign In' ? 'Sign in to Request' : memberCtaLabel }}
                   </a>
@@ -1218,41 +1218,38 @@ function copyShareLink() {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 12px 18px;
+  padding: 12px 0;
   border-top: 1px solid var(--border);
   margin-top: auto;
 }
 .pp-svc-card-avail { display: none; }
-/* Avail indicator — compact dot + text, no pill background (matches BP style) */
 .pp-svc-avail-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
+  gap: 4px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
 }
 .pp-svc-avail-dot {
   width: 7px; height: 7px;
   border-radius: var(--radius-full);
   flex-shrink: 0;
 }
-.pp-svc-avail-pill.open  { color: var(--green-dark); }
-.pp-svc-avail-pill.open  .pp-svc-avail-dot { background: var(--green-dark); }
+.pp-svc-avail-pill.open    { color: var(--green-dark); }
+.pp-svc-avail-pill.open    .pp-svc-avail-dot { background: var(--green-dark); }
 .pp-svc-avail-pill.limited { color: var(--gold-dark); }
 .pp-svc-avail-pill.limited .pp-svc-avail-dot { background: var(--gold-dark); }
-.pp-svc-avail-pill.closed { color: var(--text-3); }
-.pp-svc-avail-pill.closed .pp-svc-avail-dot { background: var(--text-4); }
+.pp-svc-avail-pill.closed  { color: var(--text-3); }
+.pp-svc-avail-pill.closed  .pp-svc-avail-dot { background: var(--text-4); }
 
 .pp-svc-request-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 6px 14px;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 5px 12px;
   font-size: 12px;
-  font-weight: 700;
   white-space: nowrap;
   flex-shrink: 0;
 }
