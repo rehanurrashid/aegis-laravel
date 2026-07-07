@@ -386,7 +386,7 @@
                         data-tooltip="View Invoice"
                         @click.stop="setActiveBooking(b); modals.invoice = true"
                       >
-                        <AegisIcon name="file-text" :size="14" />
+                        <AegisIcon name="dollar-sign" :size="14" />
                       </button>
                     </div>
                   </td>
@@ -561,15 +561,12 @@
 
         <!-- Services Settings (links to Account Settings) -->
         <div class="card" style="grid-column:1/-1;">
-          <div class="card-header">
-            <div class="card-title-group">
-              <div style="width:36px;height:36px;border-radius:var(--radius);background:var(--badge-bg-gold);color:var(--gold-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                <AegisIcon name="settings" :size="16" />
+          <div class="card-header is-settings">
+            <div>
+              <div class="card-title" style="display:flex;align-items:center;gap:8px;">
+                <AegisIcon name="settings" :size="16" /> Services Settings
               </div>
-              <div>
-                <div class="card-title">Services Settings</div>
-                <div class="card-subtitle">Visibility, booking preferences, and payment — managed in Account Settings</div>
-              </div>
+              <div class="card-subtitle">Visibility, booking preferences, and payment — managed in Account Settings</div>
             </div>
             <a :href="'/provider/settings?tab=services-mode'" class="btn btn-primary btn-sm">
               <AegisIcon name="settings" :size="13" /> Open Settings
@@ -1479,7 +1476,7 @@ onMounted(() => {
 const tabs = computed(() => [
   { key: 'listings',  label: 'My Listings',           icon: 'grid',     count: props.listings.length },
   { key: 'requests',  label: 'Service Requests',       icon: 'clock',    count: newRequests.value.length },
-  { key: 'bookings',  label: 'Bookings & Sessions',    icon: 'calendar', count: props.bookings.length },
+  { key: 'bookings',  label: 'Bookings & Sessions',    icon: 'calendar', count: props.stats?.sessions ?? props.bookings.length },
   { key: 'outgoing',  label: 'My Requests',             icon: 'send',     count: pendingOutgoing.value.length || null },
   { key: 'settings',  label: 'Settings',               icon: 'settings', count: null },
 ])
