@@ -269,7 +269,7 @@
               </div>
             </div>
             <div class="jp-card-footer">
-              <span class="badge badge-green"><AegisIcon name="dot" :size="8" :filled="true" /> Active Contract</span>
+              <span class="badge badge-green"><AegisIcon name="check" :size="10" /> Active Contract</span>
               <div class="jp-card-actions" @click.stop>
                 <button class="btn-icon" data-tooltip="Message" :disabled="msgLoading === c.bp?.id" @click="openConversation(c.bp?.id)"><AegisIcon name="message-square" :size="14" /></button>
                 <button class="btn-icon" data-tooltip="View contract" @click="openContract(c)"><AegisIcon name="file-text" :size="14" /></button>
@@ -791,7 +791,7 @@ function onUseTemplate(t) {
 .jp-grid { display: grid; gap: 14px; }
 .jp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 10px; transition: all var(--transition); cursor: pointer; }
 .jp-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
-.jp-card-header { display: flex; align-items: flex-start; gap: 12px; }
+.jp-card-header { display: flex; align-items: flex-start; gap: 12px; flex: 1; }
 .jp-card-logo { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .jp-card-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 2px; line-height: 1.3; }
 .jp-card-practice { font-size: 12px; color: var(--text-2); }
