@@ -32,6 +32,7 @@ class JobPostingsController extends Controller
         private ProposalService $proposals,
         private ContractService $contracts,
         private MessagingService $messaging,
+        private PayoutService $payouts,
     ) {}
 
     public function index(Request $request): Response
