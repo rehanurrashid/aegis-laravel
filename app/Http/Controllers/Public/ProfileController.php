@@ -112,9 +112,10 @@ class ProfileController extends Controller
             'user'              => $user,
             'profileMeta'       => $profileMeta,
             'services'          => $services,
-            'serviceBio'        => $serviceBio ?? null,
-            'serviceHeadline'   => $serviceHeadline ?? null,
-            'serviceSpecialties'=> $serviceSpecialties ? json_decode($serviceSpecialties, true) : [],
+            // Defensively decode: values may be plain string or json-encoded string depending on when they were saved
+            'serviceBio'        => $serviceBio ? (json_decode($serviceBio, true) ?? $serviceBio) : null,
+            'serviceHeadline'   => $serviceHeadline ? (json_decode($serviceHeadline, true) ?? $serviceHeadline) : null,
+            'serviceSpecialties'=> $serviceSpecialties ? (is_array($decoded = json_decode($serviceSpecialties, true)) ? $decoded : (is_array($inner = json_decode($decoded ?? '', true)) ? $inner : [])) : [],
             'yearsExperience'   => $yearsExperience ? (int) $yearsExperience : null,
             'viewerRole'      => $viewer?->role?->value ?? null,
             'isOwner'         => $isOwner,

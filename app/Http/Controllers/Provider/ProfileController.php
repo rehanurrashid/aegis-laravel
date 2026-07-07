@@ -124,10 +124,12 @@ class ProfileController extends Controller
         ]);
         $user = $request->user();
         $this->profiles->updateServices($user, $data['services']);
-        if (isset($data['service_bio']))      $this->profiles->setMetaPublic($user, 'service_bio',      $data['service_bio']);
-        if (isset($data['service_headline'])) $this->profiles->setMetaPublic($user, 'service_headline', $data['service_headline']);
-        if (isset($data['years_experience'])) $this->profiles->setMetaPublic($user, 'years_experience', (string) $data['years_experience']);
-        $this->profiles->setMetaPublic($user, 'service_specialties', json_encode($data['services']));
+        // Use type='string' so values are stored as plain strings, not double-encoded JSON
+        if (isset($data['service_bio']))      $this->profiles->setMetaPublic($user, 'service_bio',      $data['service_bio'],      'string');
+        if (isset($data['service_headline'])) $this->profiles->setMetaPublic($user, 'service_headline', $data['service_headline'], 'string');
+        if (isset($data['years_experience'])) $this->profiles->setMetaPublic($user, 'years_experience', (string) $data['years_experience'], 'string');
+        // Pass array directly — setMetaPublic with type='json' will encode it once
+        $this->profiles->setMetaPublic($user, 'service_specialties', $data['services'], 'json');
         return back()->with('success', 'Services profile updated.');
     }
 

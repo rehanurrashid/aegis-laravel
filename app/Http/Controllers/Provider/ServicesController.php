@@ -42,12 +42,24 @@ class ServicesController extends Controller
             'servicesMode'     => (bool) $user->services_mode,
             'heroRating'       => '4.8 / 5.0',
             'filters'          => $filters,
-            'serviceProfile'   => [
-                'headline'         => optional($user->meta->firstWhere('meta_key', 'service_headline'))->typed_value ?? '',
-                'bio'              => optional($user->meta->firstWhere('meta_key', 'service_bio'))->typed_value ?? '',
-                'years_experience' => (int) (optional($user->meta->firstWhere('meta_key', 'years_experience'))->typed_value ?? 0),
-                'specialties'      => json_decode(optional($user->meta->firstWhere('meta_key', 'service_specialties'))->typed_value ?? '[]', true) ?: [],
-            ],
+            'serviceProfile'   => (function () use ($user) {
+                $raw = fn(string $k) => optional($user->meta->firstWhere('meta_key', $k))->meta_value;
+                // Defensive decode: handle both plain string and legacy json-encoded string
+                $str = fn(string $k) => ($v = $raw($k)) !== null
+                    ? (is_string($d = json_decode($v, true)) ? $d : ($d === null ? $v : $v))
+                    : '';
+                $arr = fn(string $k) => ($v = $raw($k)) !== null
+                    ? (is_array($d = json_decode($v, true))
+                        ? $d
+                        : (is_array($d2 = json_decode($d ?? '', true)) ? $d2 : []))
+                    : [];
+                return [
+                    'headline'         => $str('service_headline'),
+                    'bio'              => $str('service_bio'),
+                    'years_experience' => (int) ($raw('years_experience') ?? 0),
+                    'specialties'      => $arr('service_specialties'),
+                ];
+            })(),
             'clientSessions'   => $this->services->getSessionsAsClient($user->id)
                                     ->map(fn($s) => $this->services->shapeClientSession($s))
                                     ->values(),

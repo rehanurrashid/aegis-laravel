@@ -197,22 +197,25 @@ class ServiceSeeder extends Seeder
 
         DB::table('service_sessions')->updateOrInsert(['id' => 'ss_sarah_client_1'], $clientSessionRow);
 
-        // ── Services Profile meta for p_sarah ────────────────────────────
+        // ── Services Profile meta for p_sarah (updateOrInsert to fix corrupted rows) ──
         $metas = [
-            ['service_bio',        'I offer clinical supervision, peer consultation, and specialized training to support therapists in building confidence and competence. My approach is collaborative, strengths-based, and rooted in evidence-based practice.'],
-            ['service_headline',   'Board-Approved Clinical Supervisor | Trauma & DBT Specialist'],
-            ['service_specialties', json_encode(['Trauma', 'DBT', 'Complex PTSD', 'Personality Disorders'])],
-            ['years_experience',   '14'],
+            ['service_bio',         'I offer clinical supervision, peer consultation, and specialized training to support therapists in building confidence and competence. My approach is collaborative, strengths-based, and rooted in evidence-based practice.', 'string'],
+            ['service_headline',    'Board-Approved Clinical Supervisor | Trauma & DBT Specialist', 'string'],
+            ['service_specialties', json_encode(['Trauma', 'DBT', 'Complex PTSD', 'Personality Disorders']), 'json'],
+            ['years_experience',    '14', 'string'],
         ];
 
-        foreach ($metas as [$key, $val]) {
-            if (!DB::table('user_meta')->where('user_id', 'p_sarah')->where('meta_key', $key)->exists()) {
-                DB::table('user_meta')->insert([
-                    'id' => 'um_' . Str::lower(Str::random(12)), 'user_id' => 'p_sarah',
-                    'meta_key' => $key, 'meta_value' => $val,
-                    'created_at' => $now, 'updated_at' => $now,
-                ]);
-            }
+        foreach ($metas as [$key, $val, $type]) {
+            DB::table('user_meta')->updateOrInsert(
+                ['user_id' => 'p_sarah', 'meta_key' => $key],
+                [
+                    'id'         => DB::table('user_meta')->where('user_id', 'p_sarah')->where('meta_key', $key)->value('id') ?? 'um_' . Str::lower(Str::random(12)),
+                    'meta_value' => $val,
+                    'meta_type'  => $type,
+                    'updated_at' => $now,
+                    'created_at' => $now,
+                ]
+            );
         }
     }
 }
