@@ -77,13 +77,14 @@
 
         <!-- Stripe Payment Element mount point -->
         <div class="ob-payment-element-wrap">
-          <div id="payment-element" class="ob-payment-element">
-            <!-- Stripe.js mounts here after init -->
-            <div v-if="!stripeReady" class="ob-stripe-loading">
-              <div class="ob-stripe-spinner" />
-              Loading secure payment form…
-            </div>
+          <!-- Loading spinner sits OUTSIDE #payment-element so Vue never
+               touches DOM nodes that Stripe has taken ownership of -->
+          <div v-if="!stripeReady" class="ob-stripe-loading">
+            <div class="ob-stripe-spinner" />
+            Loading secure payment form…
           </div>
+          <!-- Stripe mounts into this div — no Vue children inside -->
+          <div id="payment-element" class="ob-payment-element" />
         </div>
 
         <button
