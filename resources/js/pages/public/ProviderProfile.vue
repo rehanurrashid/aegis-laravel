@@ -1192,9 +1192,7 @@ function copyShareLink() {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 12px 18px;
-  border-top: 1px solid var(--border);
-  background: var(--surface-2);
+  padding: 0px 18px;
 }
 .pp-svc-card-avail { display: none; }
 .pp-svc-avail-pill {

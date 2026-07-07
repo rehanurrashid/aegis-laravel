@@ -418,7 +418,10 @@
           My Booked Sessions
           <span class="section-badge">{{ clientSessions.length }}</span>
         </div>
-        <div class="section-subtitle">Sessions you have scheduled with other practitioners — confirm completion to release payment.</div>
+      </div>
+      <div class="page-note" style="margin-bottom:16px;">
+        <AegisIcon name="users" :size="14" />
+        <span>Sessions you have scheduled with other practitioners. Once a session takes place, confirm it here to release payment to the provider.</span>
       </div>
 
       <div v-if="!clientSessions.length" style="margin-bottom:24px;">
