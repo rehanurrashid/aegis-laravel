@@ -180,20 +180,20 @@
         <AegisIcon name="download" :size="13" /> Download PDF
       </button>
 
-      <!-- Milestone-based: End Contract (requires all paid) -->
+      <!-- Milestone-driven: End Contract (all milestones must be paid first) -->
       <button
-        v-if="isActive && paymentType === 'milestone'"
+        v-if="isActive && isMilestoneDriven"
         class="btn btn-danger"
         :disabled="!allMilestonesPaid || busy"
-        :data-tooltip="!allMilestonesPaid ? 'Pay all milestones first' : null"
+        :data-tooltip="!allMilestonesPaid ? 'Pay all milestones before ending contract' : null"
         @click="endContract"
       >
         {{ busy ? 'Ending…' : 'End Contract' }}
       </button>
 
-      <!-- One-time: End Contract & Release Payment -->
+      <!-- One-time only (no milestones): End Contract & Release Payment -->
       <button
-        v-else-if="isActive && paymentType === 'one_time'"
+        v-else-if="isActive && !isMilestoneDriven"
         class="btn btn-primary"
         :disabled="busy"
         @click="endAndRelease"
@@ -240,6 +240,8 @@ const val = (v) => (v && typeof v === 'object' && 'value' in v) ? v.value : (v ?
 
 const statusVal   = computed(() => val(props.contract?.status))
 const paymentType = computed(() => val(props.contract?.payment_type) || 'one_time')
+// If milestones exist, always treat as milestone-driven regardless of payment_type
+const isMilestoneDriven = computed(() => paymentType.value === 'milestone' || localMilestones.value.length > 0)
 const isActive    = computed(() => statusVal.value === 'active')
 const isCompleted = computed(() => ['completed', 'closed'].includes(statusVal.value))
 

@@ -225,8 +225,9 @@ class JobPostingsController extends Controller
     public function endContract(Request $request, BpContract $contract): RedirectResponse
     {
         $this->authorize('cancel', $contract);
-        $paymentType = $contract->payment_type ?? 'one_time';
-        if ($paymentType === 'milestone'
+        // Block if ANY milestones exist and are not all paid — regardless of payment_type.
+        // Once milestones are added, the contract is milestone-driven.
+        if ($contract->milestones()->exists()
             && $contract->milestones()->whereNotIn('status', ['paid'])->exists()) {
             return back()->withErrors(['contract' => 'All milestones must be paid before ending this contract.']);
         }
@@ -237,6 +238,10 @@ class JobPostingsController extends Controller
     public function releasePayment(Request $request, BpContract $contract): RedirectResponse
     {
         $this->authorize('cancel', $contract);
+        // Block if milestones exist — contract is milestone-driven, use payMilestone instead.
+        if ($contract->milestones()->exists()) {
+            return back()->withErrors(['contract' => 'This contract has milestones. Pay each milestone individually.']);
+        }
         $paymentType = $contract->payment_type ?? 'one_time';
         if ($paymentType !== 'one_time') {
             abort(422, 'Only one-time payment contracts can use this action.');
