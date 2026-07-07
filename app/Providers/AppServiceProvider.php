@@ -136,6 +136,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Service request response
         Event::listen(Events\Service\ServiceRequestResponded::class, Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Service\SessionCancelled::class,        Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Service\SessionCompleted::class,        Listeners\SendEmailNotificationListener::class);
 
         // Steward role change
         Event::listen(Events\Steward\StewardRoleChangeRequested::class, Listeners\SendEmailNotificationListener::class);

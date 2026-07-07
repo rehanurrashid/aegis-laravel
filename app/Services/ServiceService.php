@@ -223,7 +223,7 @@ class ServiceService
 
         $status = $data['status'] ?? 'active';
 
-        return Service::create([
+        $service = Service::create([
             'id'                 => 'ps_' . Str::lower(Str::random(12)),
             'practitioner_id'    => $practitioner->id,
             'title'              => $data['title'],
@@ -239,6 +239,17 @@ class ServiceService
             'status'             => $status,
             'created_at'         => now(),
         ]);
+
+        $this->activity->log(
+            $practitioner->id, 'provider', 'referral', ActivitySeverity::Info,
+            'service_created',
+            "Service created: {$service->title}",
+            ucfirst(str_replace('_', ' ', $service->category ?? '')) . ' · ' . ($service->status ?? 'active'),
+            'service', $service->id, null,
+            'log', $practitioner->id
+        );
+
+        return $service;
     }
 
     public function update(Service $service, array $data): Service
@@ -249,6 +260,17 @@ class ServiceService
             'status', 'is_public',
         ];
         $service->update(array_intersect_key($data, array_flip($allowed)));
+
+        $actorId = request()->user()?->id ?? $service->practitioner_id;
+        $this->activity->log(
+            $actorId, 'provider', 'referral', ActivitySeverity::Info,
+            'service_updated',
+            "Service updated: {$service->title}",
+            'Service listing details updated.',
+            'service', $service->id, null,
+            'log', $actorId
+        );
+
         return $service->fresh();
     }
 
@@ -267,6 +289,17 @@ class ServiceService
     public function archive(Service $service): Service
     {
         $service->update(['status' => ServiceStatus::Archived->value]);
+
+        $actorId = request()->user()?->id ?? $service->practitioner_id;
+        $this->activity->log(
+            $actorId, 'provider', 'referral', ActivitySeverity::Info,
+            'service_archived',
+            "Service archived: {$service->title}",
+            'Service removed from public listings.',
+            'service', $service->id, null,
+            'log', $actorId
+        );
+
         return $service->fresh();
     }
 
@@ -295,6 +328,17 @@ class ServiceService
             'created_at'      => now(),
         ]);
 
+        // Actor log — requester's own history
+        $this->activity->log(
+            $requester->id, 'provider', 'referral', ActivitySeverity::Info,
+            'service_request_sent',
+            "You requested: {$service->title}",
+            "Request sent to {$service->practitioner?->display_name ?? 'the practitioner'}.",
+            'service_request', $req->id, $service->practitioner_id,
+            'log', $requester->id
+        );
+
+        // Notification to practitioner
         $this->activity->log(
             $service->practitioner_id, 'provider', 'referral', ActivitySeverity::Info,
             'service_request_received',
@@ -304,6 +348,7 @@ class ServiceService
             'notification', $requester->id
         );
 
+        event(new \App\Events\Service\ServiceRequestSubmitted($req, $requester));
         return $req;
     }
 
@@ -335,6 +380,17 @@ class ServiceService
 
         $service = Service::find($req->service_id);
 
+        // Actor log — practitioner's own history
+        $this->activity->log(
+            $req->practitioner_id, 'provider', 'referral', ActivitySeverity::Info,
+            'service_request_accepted',
+            "You accepted a request for: " . ($service?->title ?? 'your service'),
+            "Session scheduled for " . ($req->inquirer?->display_name ?? 'the requester') . '.',
+            'service_request', $req->id, $req->inquirer_id,
+            'log', $req->practitioner_id
+        );
+
+        // Notification to inquirer
         $this->activity->log(
             $req->inquirer_id, 'provider', 'referral', ActivitySeverity::Info,
             'service_request_accepted',
@@ -344,6 +400,7 @@ class ServiceService
             'notification', $req->practitioner_id
         );
 
+        event(new \App\Events\Service\ServiceRequestResponded($req, 'accepted'));
         return $req->fresh();
     }
 
@@ -355,6 +412,17 @@ class ServiceService
             'response_note' => $reason,
         ]);
 
+        // Actor log — practitioner's own history
+        $this->activity->log(
+            $req->practitioner_id, 'provider', 'referral', ActivitySeverity::Info,
+            'service_request_declined',
+            'You declined a service request',
+            $reason ?? 'No reason provided.',
+            'service_request', $req->id, $req->inquirer_id,
+            'log', $req->practitioner_id
+        );
+
+        // Notification to inquirer
         $this->activity->log(
             $req->inquirer_id, 'provider', 'referral', ActivitySeverity::Info,
             'service_request_declined',
@@ -364,6 +432,7 @@ class ServiceService
             'notification', $req->practitioner_id
         );
 
+        event(new \App\Events\Service\ServiceRequestResponded($req, 'declined'));
         return $req->fresh();
     }
 
@@ -387,10 +456,46 @@ class ServiceService
 
     public function cancelSession(ServiceSession $session, array $data): ServiceSession
     {
+        $actor   = \App\Models\User::find(request()->user()?->id);
         $session->update([
             'status'        => ServiceSessionStatus::Cancelled->value,
             'cancel_reason' => $data['reason'] ?? null,
         ]);
+
+        $service      = $session->service;
+        $otherPartyId = $actor?->id === $session->practitioner_id
+            ? $session->client_id
+            : $session->practitioner_id;
+
+        // Actor log
+        if ($actor) {
+            $this->activity->log(
+                $actor->id, 'provider', 'referral', ActivitySeverity::Info,
+                'session_cancelled',
+                'You cancelled a session',
+                ($service?->title ?? 'Session') . ' cancelled. ' . ($data['reason'] ?? ''),
+                'service_session', $session->id, $otherPartyId,
+                'log', $actor->id
+            );
+        }
+
+        // Notification to other party
+        if ($otherPartyId) {
+            $actorName = $actor?->display_name ?? 'The other party';
+            $this->activity->log(
+                $otherPartyId, 'provider', 'referral', ActivitySeverity::Warning,
+                'session_cancelled_by_other',
+                'Your session was cancelled',
+                "{$actorName} cancelled the session for " . ($service?->title ?? 'your service') . '.',
+                'service_session', $session->id, $actor?->id,
+                'notification', $actor?->id
+            );
+        }
+
+        if ($actor) {
+            event(new \App\Events\Service\SessionCancelled($session->fresh(), $actor, $data['reason'] ?? ''));
+        }
+
         return $session->fresh();
     }
 
@@ -401,6 +506,17 @@ class ServiceService
             'session_action_items'    => $data['action_items'] ?? null,
             'share_notes_with_client' => $data['share_with_supervisee'] ?? false,
         ]);
+
+        $actorId = request()->user()?->id ?? $session->practitioner_id;
+        $this->activity->log(
+            $actorId, 'provider', 'referral', ActivitySeverity::Info,
+            'session_notes_saved',
+            'Session notes saved',
+            "Notes updated for session: " . ($session->service?->title ?? 'session') . '.',
+            'service_session', $session->id, null,
+            'log', $actorId
+        );
+
         return $session->fresh();
     }
 
@@ -481,18 +597,27 @@ class ServiceService
             ($client?->display_name ?? 'A client') . ' confirmed your session complete',
             ($service?->title ?? 'Session') . '. ' . $payoutStatus,
             'service_session', $session->id, $session->client_id,
-            'notification', $session->practitioner_id
+            'notification', $session->client_id
         );
 
-        // Notify client
+        // Client actor log
         $this->activity->log(
             $session->client_id, 'provider', 'payment', ActivitySeverity::Info,
             'session_payment_sent',
             'Session confirmed and payment sent',
             '$' . number_format($session->amount_cents / 100, 2) . ' for ' . ($service?->title ?? 'session') . ' with ' . ($practitioner?->display_name ?? 'provider') . '.',
             'service_session', $session->id, $session->practitioner_id,
-            'notification', $session->client_id
+            'log', $session->client_id
         );
+
+        if ($practitioner && $client) {
+            event(new \App\Events\Service\SessionCompleted(
+                $session->fresh(),
+                $client,
+                $practitioner,
+                $session->amount_cents ?? 0
+            ));
+        }
 
         return $session->fresh();
     }
@@ -608,6 +733,15 @@ class ServiceService
             abort(422, 'Only pending requests can be withdrawn.');
         }
         $r->update(['status' => \App\Enums\ServiceRequestStatus::Withdrawn->value]);
+
+        $this->activity->log(
+            $inquirerId, 'provider', 'referral', ActivitySeverity::Info,
+            'service_request_withdrawn',
+            'You withdrew a service request',
+            "Request for {$r->service?->title ?? 'a service'} withdrawn.",
+            'service_request', $r->id, $r->practitioner_id,
+            'log', $inquirerId
+        );
     }
 
     public function getSessionsForPractitioner(string $practitionerId): Collection

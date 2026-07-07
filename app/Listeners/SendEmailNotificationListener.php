@@ -37,6 +37,8 @@ use App\Events\Messages\MessageSent;
 use App\Events\Business\MilestoneSubmitted;
 use App\Events\Business\MilestoneApproved;
 use App\Events\Service\ServiceRequestResponded;
+use App\Events\Service\SessionCancelled;
+use App\Events\Service\SessionCompleted;
 use App\Events\Steward\StewardRoleChangeRequested;
 use App\Events\News\NewsCommented;
 use App\Events\News\NewsPostPublished;
@@ -134,6 +136,8 @@ class SendEmailNotificationListener
             $event instanceof ConnectionRequestSent   => $this->connectionRequestSent($event),
             $event instanceof EngagementRequested     => $this->engagementRequested($event),
             $event instanceof ServiceRequestSubmitted => $this->serviceRequestSubmitted($event),
+            $event instanceof SessionCancelled        => $this->sessionCancelled($event),
+            $event instanceof SessionCompleted        => $this->sessionCompleted($event),
             $event instanceof NewsPostPublished       => [],   // fan-out to subscribers handled by ActivityFanoutListener
             $event instanceof EventRsvpReceived       => $this->eventRsvpReceived($event),
             $event instanceof NewsCommented           => $this->newsCommented($event),
@@ -898,23 +902,77 @@ class SendEmailNotificationListener
             'gate_key' => 'notify_email',
             'template' => 'emails.gaps.58-service-inquiry-received',
             'data'     => [
-                'practitioner_name' => \App\Models\User::find($e->request->practitioner_id)?->display_name ?? 'Practitioner',
-                'requester_name'    => $e->requester->display_name ?? 'A provider',
-                'service_title'     => $e->request->service?->title ?? 'a service',
-                'message'           => $e->request->message ?? null,
+                'practitioner_name'  => \App\Models\User::find($e->request->practitioner_id)?->display_name ?? 'Practitioner',
+                'inquirer_name'      => $e->requester->display_name ?? 'A provider',
+                'service_title'      => $e->request->service?->title ?? 'a service',
+                'inquiry_message'    => $e->request->message ?? null,
+                'service_request_url'=> rtrim(config('app.url'), '/') . '/provider/services',
             ],
         ]];
     }
 
     // ── Service request responded ─────────────────────────────────────────────
     private function serviceRequestResponded(ServiceRequestResponded $e): array {
+        $inquirer    = \App\Models\User::find($e->request->inquirer_id);
+        $practitioner = \App\Models\User::find($e->request->practitioner_id);
+        if (!$inquirer) return [];
         return [[
-            'user_id'  => $e->request->provider_id ?? $e->request->practitioner_id,
+            'user_id'  => $e->request->inquirer_id,
             'gate_key' => 'notify_email',
             'template' => 'emails.gaps.59-service-inquiry-responded',
             'data'     => [
-                'provider_name'  => \App\Models\User::find($e->request->provider_id ?? $e->request->practitioner_id)?->display_name ?? 'Provider',
-                'response_status'=> $e->status ?? 'responded',
+                'inquirer_name'    => $inquirer->display_name ?? 'there',
+                'practitioner_name'=> $practitioner?->display_name ?? 'The practitioner',
+                'status_label'     => $e->outcome,
+                'service_title'    => $e->request->service?->title ?? '',
+                'response_note'    => $e->request->response_note ?? null,
+                'service_url'      => rtrim(config('app.url'), '/') . '/provider/services',
+            ],
+        ]];
+    }
+
+    // ── Session cancelled ─────────────────────────────────────────────────────
+    private function sessionCancelled(SessionCancelled $e): array {
+        // Notify the OTHER party (not the actor who cancelled)
+        $session      = $e->session;
+        $actorId      = $e->actor->id;
+        $recipientId  = $actorId === $session->practitioner_id
+            ? $session->client_id
+            : $session->practitioner_id;
+        $recipient    = \App\Models\User::find($recipientId);
+        if (!$recipient) return [];
+        return [[
+            'user_id'  => $recipientId,
+            'gate_key' => 'notify_email',
+            'template' => 'emails.services.60-session-cancelled',
+            'data'     => [
+                'recipient_name'   => $recipient->display_name ?? 'there',
+                'other_party_name' => $e->actor->display_name,
+                'service_title'    => $session->service?->title ?? 'session',
+                'scheduled_date'   => $session->scheduled_at?->format('M j, Y g:i A') ?? null,
+                'cancel_reason'    => $e->reason,
+                'services_url'     => rtrim(config('app.url'), '/') . '/provider/services',
+            ],
+        ]];
+    }
+
+    // ── Session completed / payment released ──────────────────────────────────
+    private function sessionCompleted(SessionCompleted $e): array {
+        $amount = '$' . number_format($e->amountCents / 100, 2);
+        $payoutNote = $e->practitioner->stripe_connected
+            ? 'Transfer to your connected Stripe account is underway.'
+            : 'Payment will be released once you connect your Stripe account in Settings.';
+        return [[
+            'user_id'  => $e->practitioner->id,
+            'gate_key' => 'notify_email',
+            'template' => 'emails.services.61-session-completed',
+            'data'     => [
+                'practitioner_name' => $e->practitioner->display_name ?? 'there',
+                'client_name'       => $e->client->display_name ?? 'Your client',
+                'service_title'     => $e->session->service?->title ?? 'your service',
+                'amount'            => $amount,
+                'payout_note'       => $payoutNote,
+                'services_url'      => rtrim(config('app.url'), '/') . '/provider/services',
             ],
         ]];
     }
