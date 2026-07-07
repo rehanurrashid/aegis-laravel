@@ -406,9 +406,29 @@ const { confirmAction } = useConfirm()
 const { openConversation, loading: msgLoading } = useMessageButton()
 
 // Derive auth state from Inertia shared props — zero dependency on controller passing them
-const authUser   = computed(() => page.props.auth?.user ?? null)
-const isLoggedIn = computed(() => !!authUser.value)
-const isOwner    = computed(() => isVerifiedMember.value && authUser.value?.id === props.user?.id)
+const authUser         = computed(() => page.props.auth?.user ?? null)
+const isLoggedIn       = computed(() => !!authUser.value)
+const isVerifiedMember = computed(() => {
+  if (page.props.isVerifiedMember !== undefined) return !!page.props.isVerifiedMember
+  return !!(authUser.value?.verified)
+})
+const isOwner          = computed(() => isVerifiedMember.value && authUser.value?.id === props.user?.id)
+
+const memberCtaLabel = computed(() => {
+  if (!authUser.value)           return 'Sign In'
+  if (!authUser.value?.verified) return 'Verify Email'
+  return 'Activate Plan'
+})
+const memberCtaRoute = computed(() => {
+  if (!authUser.value)           return route('login')
+  if (!authUser.value?.verified) return route('verification.notice')
+  return route('onboarding.plan')
+})
+const memberCtaIcon = computed(() => {
+  if (!authUser.value)           return 'lock'
+  if (!authUser.value?.verified) return 'check-circle'
+  return 'credit-card'
+})
 
 const pm         = computed(() => props.user.profile_meta ?? {})
 const pmStats    = computed(() => pm.value.stats ?? {})
