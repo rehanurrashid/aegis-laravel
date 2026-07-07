@@ -251,11 +251,11 @@ class JobPostingsController extends Controller
             return back()->withErrors(['contract' => 'Contract is not active.']);
         }
         try {
-            $payout = $this->payouts->endContractAndRelease($contract);
+            $payout = $this->payouts->endContractAndRelease($contract, $request->user());
             $amount = number_format($payout->amount_cents / 100, 2);
-            return back()->with('success', "Payment of ${amount} released to BP via Stripe. Contract ended.");
+            return back()->with('success', "Payment of \${$amount} released to BP via Stripe. Contract ended.");
         } catch (\Throwable $e) {
-            return back()->withErrors(['contract' => 'Stripe transfer failed: ' . $e->getMessage()]);
+            return back()->withErrors(['contract' => $e->getMessage()]);
         }
     }
 
@@ -321,11 +321,11 @@ class JobPostingsController extends Controller
         $this->authorize('cancel', $contract);
         abort_if($milestone->contract_id !== $contract->id, 404);
         try {
-            $payout = $this->payouts->payMilestone($milestone);
+            $payout = $this->payouts->payMilestone($milestone, $request->user());
             $amount = number_format($payout->amount_cents / 100, 2);
-            return back()->with('success', "Milestone payment of ${amount} released via Stripe.");
+            return back()->with('success', "Milestone payment of \${$amount} released via Stripe.");
         } catch (\Throwable $e) {
-            return back()->withErrors(['milestone' => 'Payment failed: ' . $e->getMessage()]);
+            return back()->withErrors(['milestone' => $e->getMessage()]);
         }
     }
 }

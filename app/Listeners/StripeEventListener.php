@@ -43,6 +43,8 @@ class StripeEventListener
             match ($type) {
                 'invoice.payment_succeeded'      => $this->handlePaymentSucceeded($payload),
                 'invoice.payment_failed'         => $this->handlePaymentFailed($payload),
+                'payment_intent.succeeded'       => $this->handlePaymentIntentSucceeded($payload),
+                'payment_intent.payment_failed'  => $this->handlePaymentIntentFailed($payload),
                 'customer.subscription.created'  => $this->handleSubscriptionCreated($payload),
                 'customer.subscription.updated'  => $this->handleSubscriptionUpdated($payload),
                 'customer.subscription.deleted'  => $this->handleSubscriptionCancelled($payload),
@@ -185,5 +187,76 @@ class StripeEventListener
 
         \App\Models\BpPayout::where('stripe_transfer_id', $transferId)->update(['status' => 'failed']);
         \App\Models\CsPayout::where('stripe_transfer_id', $transferId)->update(['status' => 'failed']);
+    }
+
+    /**
+     * PaymentIntent succeeded — destination charge confirmed.
+     * Marks the BpPayout as paid and notifies both parties.
+     */
+    private function handlePaymentIntentSucceeded(array $payload): void
+    {
+        $intent   = $payload['data']['object'] ?? [];
+        $intentId = $intent['id'] ?? null;
+        if (!$intentId) return;
+
+        $payout = \App\Models\BpPayout::where('stripe_payment_intent_id', $intentId)->first();
+        if (!$payout) return; // Not a BP contract payment — subscription charge, ignore
+
+        if ($payout->status === 'paid') return; // Already confirmed — idempotent
+
+        $payout->update(['status' => 'paid', 'paid_at' => now()]);
+
+        // Fire event for email/notification fan-out
+        event(new \App\Events\Business\PayoutReleased($payout->fresh()));
+
+        // Log confirmation to both parties
+        $bp       = \App\Models\User::find($payout->bp_id);
+        $provider = \App\Models\User::find($payout->provider_id);
+        $amount   = '$' . number_format($payout->amount_cents / 100, 2);
+
+        if ($provider) {
+            app(\App\Services\ActivityService::class)->log(
+                $provider->id, 'provider', 'payment', \App\Enums\ActivitySeverity::Info,
+                'payment_confirmed', 'Payment confirmed by Stripe',
+                $amount . ' successfully charged and delivered to ' . ($bp?->display_name ?? 'BP') . '.',
+                'bp_payout', $payout->id, null, 'log', $provider->id
+            );
+        }
+
+        if ($bp) {
+            app(\App\Services\ActivityService::class)->log(
+                $bp->id, 'business_partner', 'payment', \App\Enums\ActivitySeverity::Info,
+                'payment_confirmed', 'Payment confirmed',
+                $amount . ' has been confirmed and is on its way to your bank.',
+                'bp_payout', $payout->id, $provider?->id, 'notification', $provider?->id ?? $bp->id
+            );
+        }
+    }
+
+    /**
+     * PaymentIntent failed — destination charge declined.
+     * Marks BpPayout as failed and surfaces a critical alert to the provider.
+     */
+    private function handlePaymentIntentFailed(array $payload): void
+    {
+        $intent   = $payload['data']['object'] ?? [];
+        $intentId = $intent['id'] ?? null;
+        if (!$intentId) return;
+
+        $payout = \App\Models\BpPayout::where('stripe_payment_intent_id', $intentId)->first();
+        if (!$payout) return;
+
+        $reason   = $intent['last_payment_error']['message'] ?? 'Payment declined.';
+        $payout->update(['status' => 'failed']);
+
+        $provider = \App\Models\User::find($payout->provider_id);
+        if (!$provider) return;
+
+        app(\App\Services\ActivityService::class)->log(
+            $provider->id, 'provider', 'payment', \App\Enums\ActivitySeverity::Critical,
+            'payment_failed', 'Contract payment failed',
+            'Your card was declined: ' . $reason . ' Please update your payment method in Settings → Billing.',
+            'bp_payout', $payout->id, null, 'notification', $provider->id
+        );
     }
 }

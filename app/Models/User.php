@@ -32,7 +32,7 @@ class User extends Authenticatable
         'practitioner_public', 'cs_public', 'business_partner_public',
         'tier', 'services_mode', 'maat_addon', 'payment_model',
         'cs_account_type', 'cs_path', 'linked_provider_id',
-        'stripe_connected', 'stripe_account_id', 'verified',
+        'stripe_connected', 'stripe_account_id', 'stripe_id', 'stripe_payment_method_id', 'verified',
         'invited_by_id', 'about_me',
         'bp_type', 'bp_business_name', 'bp_team_size', 'bp_hourly_rate_cents', 'bp_categories',
         'two_factor_enabled',

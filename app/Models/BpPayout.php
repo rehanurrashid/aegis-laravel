@@ -18,8 +18,8 @@ class BpPayout extends Model
     public    $incrementing = false;
 
     protected $fillable = [
-        'id', 'bp_id', 'contract_id', 'milestone_id', 'amount_cents', 'currency', 'status',
-        'description', 'stripe_payout_id', 'stripe_transfer_id', 'scheduled_at', 'paid_at', 'released_at',
+        'id', 'bp_id', 'provider_id', 'contract_id', 'milestone_id', 'amount_cents', 'currency', 'status',
+        'description', 'stripe_payout_id', 'stripe_transfer_id', 'stripe_payment_intent_id', 'scheduled_at', 'paid_at', 'released_at',
     ];
 
     protected $casts = [
