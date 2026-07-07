@@ -239,9 +239,10 @@
                   v-model="resetForm.email"
                   type="email"
                   class="form-input"
-                  :class="{ 'is-error': resetForm.errors.email }"
+                  :class="{ 'is-error': resetFieldError('email') }"
                   placeholder="your@email.com"
                   autocomplete="email"
+                  @blur="v$reset.email.$touch()"
                 />
                 <div v-if="resetFieldError('email')" class="form-error">{{ resetFieldError('email') }}</div>
               </div>
