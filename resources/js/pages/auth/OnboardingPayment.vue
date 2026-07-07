@@ -383,6 +383,7 @@ async function submit() {
 function goBack() {
   router.visit(route('onboarding.plan'))
 }
+function switchAccount() { router.post(route('logout')) }
 </script>
 
 <style scoped>
@@ -477,4 +478,7 @@ function goBack() {
   opacity: 0.5;
   cursor: not-allowed;
 }
+.ob-switch-account-row { text-align:center; margin-top:12px; }
+.ob-switch-account-link { background:none; border:none; cursor:pointer; font-size:12px; color:rgba(255,255,255,0.35); font-family:var(--font-sans); padding:0; }
+.ob-switch-account-link:hover { color:rgba(255,255,255,0.65); text-decoration:underline; }
 </style>

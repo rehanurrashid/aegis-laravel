@@ -61,7 +61,7 @@
         </button>
 
         <div class="ob-signin-row">
-          <a :href="route('login')" class="ob-signin-link">Sign in with a different account</a>
+          <button type="button" class="ob-signin-link" @click="switchAccount">Sign in with a different account</button>
         </div>
 
       </div>
@@ -71,7 +71,7 @@
 
 <script setup>
 import { ref, onUnmounted } from 'vue'
-import { Head, useForm, usePage } from '@inertiajs/vue3'
+import { Head, useForm, usePage, router } from '@inertiajs/vue3'
 import { useToast } from '@/composables/useToast'
 
 const props  = defineProps({ email: String })
@@ -101,6 +101,7 @@ function startCooldown(seconds) {
 }
 
 onUnmounted(() => clearInterval(timer))
+function switchAccount() { router.post(route('logout')) }
 </script>
 
 <style scoped>

@@ -235,6 +235,10 @@
           Secured with SSL &nbsp;·&nbsp; Cancel anytime &nbsp;·&nbsp; No hidden fees
         </div>
 
+        <div class="ob-switch-account-row">
+          <button type="button" class="ob-switch-account-link" @click="switchAccount">Sign in with a different account</button>
+        </div>
+
       </div>
     </div>
 
@@ -243,7 +247,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { Head, useForm, usePage } from '@inertiajs/vue3'
+import { Head, useForm, usePage } from '@inertiajs/vue3'  // router already imported
 import { useToast } from '@/composables/useToast'
 
 const props = defineProps({
@@ -389,6 +393,7 @@ function submit() {
     onError: () => toast.error('Something went wrong. Please try again.'),
   })
 }
+function switchAccount() { router.post(route('logout')) }
 </script>
 
 <style scoped>
@@ -481,4 +486,7 @@ function submit() {
   opacity: 0.5;
   cursor: not-allowed;
 }
+.ob-switch-account-row { text-align:center; margin-top:12px; }
+.ob-switch-account-link { background:none; border:none; cursor:pointer; font-size:12px; color:var(--text-4); font-family:var(--font-sans); padding:0; }
+.ob-switch-account-link:hover { color:var(--text-2); text-decoration:underline; }
 </style>
