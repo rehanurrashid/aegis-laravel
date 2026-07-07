@@ -16,8 +16,9 @@ class OnboardingIntentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'intent' => ['required', 'string', 'in:provider,continuity_steward,support_steward,business_partner'],
-            'use_case' => ['nullable', 'string', 'max:1000'],
+            'intent'      => ['required', 'string', 'in:provider,continuity_steward,support_steward,business_partner'],
+            'use_cases'   => ['nullable', 'array'],
+            'use_cases.*' => ['string', 'max:100'],
         ];
     }
 }
