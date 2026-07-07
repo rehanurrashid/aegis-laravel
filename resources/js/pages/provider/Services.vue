@@ -380,14 +380,14 @@
                       >
                         <AegisIcon name="x" :size="14" />
                       </button>
-                      <a
+                      <button
                         v-if="b.status === 'completed' && b.amount_cents > 0"
-                        :href="route('provider.finances.index')"
                         class="btn-icon"
-                        data-tooltip="View in Finances"
+                        data-tooltip="View Invoice"
+                        @click.stop="setActiveBooking(b); modals.invoice = true"
                       >
-                        <AegisIcon name="dollar-sign" :size="14" />
-                      </a>
+                        <AegisIcon name="file-text" :size="14" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -408,76 +408,91 @@
     </div>
 
     <!-- ══════════════════════════════════════════
-         TAB 4: MY OUTGOING REQUESTS
+         TAB 4: MY REQUESTS
     ══════════════════════════════════════════ -->
     <div v-show="activeTab === 'outgoing'">
 
-      <div class="page-note">
-        <AegisIcon name="send" :size="14" />
-        <span>These are service requests you have sent to other practitioners. Track their status, and withdraw any pending request if your needs have changed.</span>
+      <!-- ── SECTION A: Sessions I booked (I am the client) ─────────── -->
+      <div class="section-header" style="margin-top:0;">
+        <div class="section-title">
+          My Booked Sessions
+          <span class="section-badge">{{ clientSessions.length }}</span>
+        </div>
+        <div class="section-subtitle">Sessions you have scheduled with other practitioners — confirm completion to release payment.</div>
       </div>
 
-      <!-- Active Sessions: sessions where current user is the client -->
-      <template v-if="clientSessions.filter(s => s.status === 'scheduled').length">
-        <div class="section-header" style="margin-top:4px;">
-          <div class="section-title">Active Sessions</div>
-          <div class="section-subtitle">Sessions you have booked with other providers — confirm completion to release payment.</div>
-        </div>
-        <div class="card card-flush" style="margin-bottom:24px;">
-          <div class="card-body">
-            <div class="table-wrap">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>Provider</th>
-                    <th>Service</th>
-                    <th>Scheduled</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="cs in clientSessions.filter(s => s.status === 'scheduled')" :key="cs.id">
-                    <td>
-                      <div class="td-provider">
-                        <div class="avatar avatar-sm">{{ cs.practitioner_avatar || '?' }}</div>
-                        <div>
-                          <a v-if="cs.practitioner_slug" :href="route('public.provider', { slug: cs.practitioner_slug })" class="td-name link-name">{{ cs.practitioner_name }}</a>
-                          <div v-else class="td-name">{{ cs.practitioner_name }}</div>
-                          <div class="td-cred">{{ cs.practitioner_detail }}</div>
-                        </div>
+      <div v-if="!clientSessions.length" style="margin-bottom:24px;">
+        <AegisEmptyState icon="calendar" title="No booked sessions" message="When a provider accepts your request and books a session, it will appear here." />
+      </div>
+
+      <div v-else class="card card-flush" style="margin-bottom:28px;">
+        <div class="card-body">
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Provider</th>
+                  <th>Service</th>
+                  <th>Scheduled</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="cs in clientSessions" :key="cs.id">
+                  <td>
+                    <div class="td-provider">
+                      <div class="avatar avatar-sm">{{ cs.practitioner_avatar || '?' }}</div>
+                      <div>
+                        <a v-if="cs.practitioner_slug" :href="route('public.provider', { slug: cs.practitioner_slug })" class="td-name link-name">{{ cs.practitioner_name }}</a>
+                        <div v-else class="td-name">{{ cs.practitioner_name }}</div>
+                        <div class="td-cred">{{ cs.practitioner_detail }}</div>
                       </div>
-                    </td>
-                    <td>{{ cs.service_title }}</td>
-                    <td>{{ cs.datetime_label }}</td>
-                    <td style="font-weight:700;">{{ cs.amount }}</td>
-                    <td><AegisBadge label="Scheduled" variant="blue" /></td>
-                    <td>
+                    </div>
+                  </td>
+                  <td>{{ cs.service_title }}</td>
+                  <td>{{ cs.datetime_label }}</td>
+                  <td style="font-weight:700;">{{ cs.amount }}</td>
+                  <td><AegisBadge :label="statusLabel(cs.status)" :variant="statusVariant(cs.status)" /></td>
+                  <td>
+                    <div class="req-actions">
                       <button
+                        v-if="cs.status === 'scheduled'"
                         class="btn btn-success btn-sm"
                         @click.stop="activeClientSession = cs; modals.completeSession = true"
                       >
                         <AegisIcon name="check" :size="13" /> Confirm &amp; Pay
                       </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+                      <button
+                        v-else-if="cs.status === 'completed' && cs.amount_cents > 0"
+                        class="btn-icon"
+                        data-tooltip="View Invoice"
+                        @click.stop="activeClientSession = cs; modals.clientInvoice = true"
+                      >
+                        <AegisIcon name="file-text" :size="14" />
+                      </button>
+                      <span v-else class="td-sub">—</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-        </div>
-      </template>
-
-      <div class="svc-toolbar">
-        <div class="search-wrap">
-          <AegisIcon name="search" :size="15" />
-          <input v-model="outgoingSearch" type="text" class="form-control" placeholder="Search provider or service…">
         </div>
       </div>
 
-      <div v-if="!filteredOutgoing.length" class="empty-state-wrap">
-        <AegisEmptyState icon="send" title="No outgoing requests" message="Requests you send to other providers will appear here." />
+      <!-- ── SECTION B: Requests I sent to others ────────────────────── -->
+      <div class="section-header">
+        <div class="section-title">
+          My Service Requests
+          <span class="section-badge">{{ props.outgoingRequests.length }}</span>
+        </div>
+        <div class="section-subtitle">Requests you have sent to other providers — pending, accepted, declined, or withdrawn.</div>
+      </div>
+
+      <div v-if="!props.outgoingRequests.length">
+        <AegisEmptyState icon="send" title="No outgoing requests" message="When you request a service from another provider, it will appear here." />
       </div>
 
       <div v-else class="card card-flush">
@@ -491,11 +506,11 @@
                   <th>Type</th>
                   <th>Date Sent</th>
                   <th>Status</th>
-                  <th>Actions</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="r in filteredOutgoing" :key="r.id">
+                <tr v-for="r in props.outgoingRequests" :key="r.id">
                   <td>
                     <div class="td-provider">
                       <div class="avatar avatar-sm">{{ r.provider_avatar || '?' }}</div>
@@ -537,7 +552,7 @@
       </div>
     </div>
 
-    <!-- ══════════════════════════════════════════
+        <!-- ══════════════════════════════════════════
          TAB 5: SETTINGS
     ══════════════════════════════════════════ -->
     <div v-show="activeTab === 'settings'">
@@ -1241,6 +1256,90 @@
         </button>
       </template>
     </AegisModal>
+    <!-- Invoice Modal -->
+    <AegisModal v-model="modals.invoice" title="Session Invoice" size="sm">
+      <template v-if="activeBooking">
+        <div class="complete-session-summary">
+          <div class="complete-session-row">
+            <span class="complete-session-label">Provider</span>
+            <span class="complete-session-value">{{ activeBooking.provider_name }}</span>
+          </div>
+          <div class="complete-session-row">
+            <span class="complete-session-label">Service</span>
+            <span class="complete-session-value">{{ activeBooking.service_title }}</span>
+          </div>
+          <div class="complete-session-row">
+            <span class="complete-session-label">Date</span>
+            <span class="complete-session-value">{{ activeBooking.datetime_label }}</span>
+          </div>
+          <div class="complete-session-row">
+            <span class="complete-session-label">Duration</span>
+            <span class="complete-session-value">{{ activeBooking.duration_label }}</span>
+          </div>
+          <div class="complete-session-row">
+            <span class="complete-session-label">Amount</span>
+            <span class="complete-session-value complete-session-amount">{{ activeBooking.amount }}</span>
+          </div>
+          <div class="complete-session-row">
+            <span class="complete-session-label">Status</span>
+            <span class="complete-session-value">
+              <AegisBadge :label="statusLabel(activeBooking.status)" :variant="statusVariant(activeBooking.status)" />
+            </span>
+          </div>
+        </div>
+        <p class="complete-session-confirm-text" style="margin-top:12px;">
+          This is a summary of the completed session. A full record is available in your
+          <a :href="route('provider.finances.index')" class="link-inline">Finances</a> page.
+        </p>
+      </template>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.invoice = false">Close</button>
+        <a :href="route('provider.finances.index')" class="btn btn-primary">
+          <AegisIcon name="dollar-sign" :size="14" /> View in Finances
+        </a>
+      </template>
+    </AegisModal>
+
+    <!-- Client Invoice Modal (when I paid someone else) -->
+    <AegisModal v-model="modals.clientInvoice" title="Session Receipt" size="sm">
+      <template v-if="activeClientSession">
+        <div class="complete-session-summary">
+          <div class="complete-session-row">
+            <span class="complete-session-label">Provider</span>
+            <span class="complete-session-value">{{ activeClientSession.practitioner_name }}</span>
+          </div>
+          <div class="complete-session-row">
+            <span class="complete-session-label">Service</span>
+            <span class="complete-session-value">{{ activeClientSession.service_title }}</span>
+          </div>
+          <div class="complete-session-row">
+            <span class="complete-session-label">Date</span>
+            <span class="complete-session-value">{{ activeClientSession.datetime_label }}</span>
+          </div>
+          <div class="complete-session-row">
+            <span class="complete-session-label">Amount Paid</span>
+            <span class="complete-session-value complete-session-amount">{{ activeClientSession.amount }}</span>
+          </div>
+          <div class="complete-session-row">
+            <span class="complete-session-label">Status</span>
+            <span class="complete-session-value">
+              <AegisBadge label="Completed" variant="green" />
+            </span>
+          </div>
+        </div>
+        <p class="complete-session-confirm-text" style="margin-top:12px;">
+          Payment was sent to {{ activeClientSession.practitioner_name }}. A full record is in your
+          <a :href="route('provider.finances.index')" class="link-inline">Finances</a> page.
+        </p>
+      </template>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.clientInvoice = false">Close</button>
+        <a :href="route('provider.finances.index')" class="btn btn-primary">
+          <AegisIcon name="dollar-sign" :size="14" /> View in Finances
+        </a>
+      </template>
+    </AegisModal>
+
     <!-- Dismiss Request Modal -->
     <AegisModal v-model="modals.dismiss" title="Dismiss Request" size="sm">
       <div class="form-group">
@@ -1390,7 +1489,7 @@ const modals = reactive({
   create: false, edit: false, accept: false, counter: false,
   preview: false, manageGroup: false, publish: false, reactivate: false,
   pause: false, cancelSession: false, sessionNotes: false,
-  dismiss: false, completeSession: false,
+  dismiss: false, completeSession: false, invoice: false, clientInvoice: false,
 })
 
 // ── Active item tracking ──────────────────────────────────────────────────
@@ -2035,6 +2134,17 @@ function statusVariant(s) {
 .svc-metric { background: var(--surface-2); padding: 10px 14px; text-align: center; }
 .svc-metric-val { font-family: var(--font-serif); font-size: 16px; font-weight: 700; color: var(--text); }
 .svc-metric-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-4); margin-top: 2px; }
+
+/* ── section-badge: match badge-pill style ── */
+.section-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 100px;
+  font-size: 10px; font-weight: 700; line-height: 1;
+  background: var(--surface-3); color: var(--text-3);
+  text-transform: none; letter-spacing: 0;
+  vertical-align: middle; margin-left: 6px;
+}
 
 /* ── TAB BADGE RED ALERT ── */
 .badge-pill {
