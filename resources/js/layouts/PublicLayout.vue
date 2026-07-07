@@ -35,8 +35,25 @@
           <a :href="route('home')"     class="pub-nav-link">Pricing</a>
           <a :href="route('home')"     class="pub-nav-link">Contact</a>
           <span class="pub-nav-divider" aria-hidden="true"></span>
-          <a :href="route('login')"    class="pub-nav-link pub-nav-link--signin">Sign in</a>
-          <a :href="route('register')" class="btn btn-sm btn-primary pub-nav-cta">Get started</a>
+          <!-- Anonymous: sign in + register -->
+          <template v-if="!isLoggedIn">
+            <a :href="route('login')"    class="pub-nav-link pub-nav-link--signin">Sign in</a>
+            <a :href="route('register')" class="btn btn-sm btn-primary pub-nav-cta">Get started</a>
+          </template>
+          <!-- Logged in but unverified -->
+          <template v-else-if="isUnverified">
+            <span class="pub-nav-user-name">{{ authUser.display_name }}</span>
+            <a :href="route('verification.notice')" class="btn btn-sm btn-primary pub-nav-cta">
+              <AegisIcon name="check-circle" :size="12" /> Verify Email
+            </a>
+          </template>
+          <!-- Verified but no active plan -->
+          <template v-else-if="needsPlan">
+            <span class="pub-nav-user-name">{{ authUser.display_name }}</span>
+            <a :href="route('onboarding.plan')" class="btn btn-sm btn-primary pub-nav-cta">
+              <AegisIcon name="credit-card" :size="12" /> Activate Plan
+            </a>
+          </template>
         </nav>
       </div>
     </header>
@@ -123,6 +140,9 @@ const isVerifiedMember = computed(() => {
   return !!user?.verified
 })
 const isLoggedIn       = computed(() => !!page.props.auth?.user)
+const authUser         = computed(() => page.props.auth?.user ?? null)
+const isUnverified     = computed(() => isLoggedIn.value && !authUser.value?.verified)
+const needsPlan        = computed(() => isLoggedIn.value && authUser.value?.verified && !isVerifiedMember.value)
 const year             = new Date().getFullYear()
 </script>
 
@@ -237,6 +257,7 @@ const year             = new Date().getFullYear()
 
 .pub-nav-link:hover::after { transform: scaleX(1); }
 
+.pub-nav-user-name { font-size:12px; font-weight:600; color:var(--text-2); padding:0 8px; }
 .pub-nav-link--signin {
   font-weight: 600;
   color: var(--text);
