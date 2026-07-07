@@ -433,12 +433,14 @@ class ServiceService
         $service      = Service::find($session->service_id);
         $practitioner = User::find($session->practitioner_id);
 
-        // Charge client -> transfer to practitioner via Stripe Connect
-        if ($session->amount_cents > 0 && $practitioner) {
+        // Charge client -> transfer to practitioner via Stripe Connect destination charge
+        if ($session->amount_cents > 0 && $practitioner && $client) {
             $clientPm = \App\Models\PractitionerPaymentMethod::where('practitioner_id', $session->client_id)
                 ->where('is_default', 1)->first();
 
-            $payment = PractitionerPayment::create([
+            $hasSessId = \Illuminate\Support\Facades\Schema::hasColumn('practitioner_payments', 'session_id');
+
+            $paymentData = [
                 'id'                   => 'pp_' . Str::lower(Str::random(12)),
                 'practitioner_id'      => $session->practitioner_id,
                 'payment_method_id'    => $clientPm?->id,
@@ -446,13 +448,23 @@ class ServiceService
                 'amount_cents'         => $session->amount_cents,
                 'currency'             => 'USD',
                 'status'               => PractitionerPaymentStatus::Pending->value,
-                'payment_method_label' => $clientPm?->label ?? (($client?->display_name ?? 'Client') . ' payment method'),
+                'payment_method_label' => $clientPm?->label ?? (($client->display_name) . ' payment method'),
                 'stripe_charge_id'     => null,
                 'paid_at'              => null,
-            ]);
+            ];
+            if ($hasSessId) {
+                $paymentData['session_id'] = $session->id;
+            }
+
+            $payment = PractitionerPayment::create($paymentData);
 
             try {
-                $this->payouts->releaseServiceSessionPayout($payment, $practitioner);
+                $this->payouts->releaseServiceSessionPayout($payment, $practitioner, $client);
+                // Stamp stripe_payment_intent_id back onto session for webhook lookup
+                $refreshed = $payment->fresh();
+                if (!empty($refreshed->stripe_payment_intent_id)) {
+                    $session->update(['stripe_payment_intent_id' => $refreshed->stripe_payment_intent_id]);
+                }
             } catch (\Throwable) {
                 // Failure logged inside PayoutService; session still completes
             }

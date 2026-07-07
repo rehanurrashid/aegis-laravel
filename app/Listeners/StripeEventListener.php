@@ -199,38 +199,67 @@ class StripeEventListener
         $intentId = $intent['id'] ?? null;
         if (!$intentId) return;
 
+        // ── Check BP contract payments first ─────────────────────────────
         $payout = \App\Models\BpPayout::where('stripe_payment_intent_id', $intentId)->first();
-        if (!$payout) return; // Not a BP contract payment — subscription charge, ignore
 
-        if ($payout->status === 'paid') return; // Already confirmed — idempotent
+        if ($payout) {
+            if ($payout->status === 'paid') return; // Already confirmed — idempotent
 
-        $payout->update(['status' => 'paid', 'paid_at' => now()]);
+            $payout->update(['status' => 'paid', 'paid_at' => now()]);
 
-        // Fire event for email/notification fan-out
-        event(new \App\Events\Business\PayoutReleased($payout->fresh()));
+            event(new \App\Events\Business\PayoutReleased($payout->fresh()));
 
-        // Log confirmation to both parties
-        $bp       = \App\Models\User::find($payout->bp_id);
-        $provider = \App\Models\User::find($payout->provider_id);
-        $amount   = '$' . number_format($payout->amount_cents / 100, 2);
+            $bp       = \App\Models\User::find($payout->bp_id);
+            $provider = \App\Models\User::find($payout->provider_id);
+            $amount   = '$' . number_format($payout->amount_cents / 100, 2);
 
-        if ($provider) {
-            app(\App\Services\ActivityService::class)->log(
-                $provider->id, 'provider', 'payment', \App\Enums\ActivitySeverity::Info,
-                'payment_confirmed', 'Payment confirmed by Stripe',
-                $amount . ' successfully charged and delivered to ' . ($bp?->display_name ?? 'BP') . '.',
-                'bp_payout', $payout->id, null, 'log', $provider->id
-            );
+            if ($provider) {
+                app(\App\Services\ActivityService::class)->log(
+                    $provider->id, 'provider', 'payment', \App\Enums\ActivitySeverity::Info,
+                    'payment_confirmed', 'Payment confirmed by Stripe',
+                    $amount . ' successfully charged and delivered to ' . ($bp?->display_name ?? 'BP') . '.',
+                    'bp_payout', $payout->id, null, 'log', $provider->id
+                );
+            }
+
+            if ($bp) {
+                app(\App\Services\ActivityService::class)->log(
+                    $bp->id, 'business_partner', 'payment', \App\Enums\ActivitySeverity::Info,
+                    'payment_confirmed', 'Payment confirmed',
+                    $amount . ' has been confirmed and is on its way to your bank.',
+                    'bp_payout', $payout->id, $provider?->id, 'notification', $provider?->id ?? $bp->id
+                );
+            }
+            return;
         }
 
-        if ($bp) {
-            app(\App\Services\ActivityService::class)->log(
-                $bp->id, 'business_partner', 'payment', \App\Enums\ActivitySeverity::Info,
-                'payment_confirmed', 'Payment confirmed',
-                $amount . ' has been confirmed and is on its way to your bank.',
-                'bp_payout', $payout->id, $provider?->id, 'notification', $provider?->id ?? $bp->id
-            );
+        // ── Check service session payments (PractitionerPayment) ─────────
+        $practitionerPayment = \App\Models\PractitionerPayment::where('stripe_payment_intent_id', $intentId)->first();
+
+        if ($practitionerPayment) {
+            if ($practitionerPayment->status === \App\Enums\PractitionerPaymentStatus::Paid->value) return;
+
+            $practitionerPayment->update([
+                'status'  => \App\Enums\PractitionerPaymentStatus::Paid->value,
+                'paid_at' => now(),
+            ]);
+
+            $practitioner = \App\Models\User::find($practitionerPayment->practitioner_id);
+            $amount       = '$' . number_format($practitionerPayment->amount_cents / 100, 2);
+
+            if ($practitioner) {
+                app(\App\Services\ActivityService::class)->log(
+                    $practitioner->id, 'provider', 'payment', \App\Enums\ActivitySeverity::Info,
+                    'session_payment_confirmed', 'Session payment confirmed by Stripe',
+                    $amount . ' has been confirmed and is on its way to your Stripe account.',
+                    'practitioner_payment', $practitionerPayment->id,
+                    null, 'notification', $practitioner->id
+                );
+            }
+            return;
         }
+
+        // Not a known payment — subscription or other charge, ignore
     }
 
     /**
@@ -244,7 +273,26 @@ class StripeEventListener
         if (!$intentId) return;
 
         $payout = \App\Models\BpPayout::where('stripe_payment_intent_id', $intentId)->first();
-        if (!$payout) return;
+
+        // Check service session payments if not a BP payout
+        if (!$payout) {
+            $practitionerPayment = \App\Models\PractitionerPayment::where('stripe_payment_intent_id', $intentId)->first();
+            if ($practitionerPayment) {
+                $reason = $intent['last_payment_error']['message'] ?? 'Payment declined.';
+                $practitionerPayment->update(['status' => \App\Enums\PractitionerPaymentStatus::Failed->value]);
+                $practitioner = \App\Models\User::find($practitionerPayment->practitioner_id);
+                if ($practitioner) {
+                    app(\App\Services\ActivityService::class)->log(
+                        $practitioner->id, 'provider', 'payment', \App\Enums\ActivitySeverity::Critical,
+                        'session_payment_failed', 'Session payment failed',
+                        'Card declined: ' . $reason . ' The client may need to update their payment method.',
+                        'practitioner_payment', $practitionerPayment->id,
+                        null, 'notification', $practitioner->id
+                    );
+                }
+            }
+            return;
+        }
 
         $reason   = $intent['last_payment_error']['message'] ?? 'Payment declined.';
         $payout->update(['status' => 'failed']);

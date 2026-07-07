@@ -1771,6 +1771,9 @@ function submitCompleteSession() {
       )
       activeClientSession.value = null
     },
+    onError: (e) => {
+      toast.error(Object.values(e)[0] || 'Could not complete session. Please try again.')
+    },
   })
 }
 

@@ -329,53 +329,133 @@ class PayoutService
 
     /**
      * Release payment for a completed service session.
-     * Uses the same destination charge pattern: client's card → practitioner's connected account.
+     *
+     * Uses the same destination charge pattern as chargeProviderToBp():
+     *   Client's saved card (stripe_id + stripe_payment_method_id)
+     *   → Aegis platform ($0 net)
+     *   → Practitioner's Stripe Connect account (stripe_account_id)
+     *
+     * Demo detection: cus_demo_* / pm_demo_* / acct_demo_* identifiers bypass
+     * real Stripe so the demo works without live credentials.
+     *
+     * @throws \RuntimeException with user-facing message on guard failure
      */
-    public function releaseServiceSessionPayout(PractitionerPayment $payment, User $practitioner): PractitionerPayment
-    {
-        $stripeAccount = $practitioner->stripe_account_id;
+    public function releaseServiceSessionPayout(
+        PractitionerPayment $payment,
+        User $practitioner,
+        User $client
+    ): PractitionerPayment {
+        // ── Demo / stub detection ─────────────────────────────────────────
+        $isDemoClient = str_starts_with((string) $client->stripe_id, 'cus_demo_')
+            || str_starts_with((string) $client->stripe_payment_method_id, 'pm_demo_');
+        $isDemoPractitioner = str_starts_with((string) $practitioner->stripe_account_id, 'acct_demo_');
 
-        if (config('services.stripe.secret') && $stripeAccount) {
-            try {
-                $stripe   = new StripeClient(config('services.stripe.secret'));
-                $transfer = $stripe->transfers->create([
-                    'amount'      => $payment->amount_cents,
-                    'currency'    => strtolower($payment->currency ?? 'usd'),
-                    'destination' => $stripeAccount,
-                    'description' => 'Service session payout — Aegis',
-                    'metadata'    => ['payment_id' => $payment->id],
-                ]);
-                $payment->update([
-                    'status'             => PractitionerPaymentStatus::Paid->value,
-                    'stripe_transfer_id' => $transfer->id,
-                    'paid_at'            => now(),
-                ]);
-            } catch (\Throwable $e) {
-                $payment->update(['status' => PractitionerPaymentStatus::Failed->value]);
-                $this->activity->log(
-                    $practitioner->id, 'provider', 'payment', ActivitySeverity::Critical,
-                    'session_payout_failed', 'Session payout failed', $e->getMessage(),
-                    'practitioner_payment', $payment->id, null, 'notification', $practitioner->id
-                );
-                throw $e;
-            }
-        } else {
+        if ($isDemoClient || $isDemoPractitioner) {
             $payment->update([
-                'status'             => PractitionerPaymentStatus::Pending->value,
-                'stripe_transfer_id' => null,
-                'paid_at'            => null,
+                'status'                   => PractitionerPaymentStatus::Paid->value,
+                'stripe_payment_intent_id' => 'pi_demo_' . Str::lower(Str::random(16)),
+                'paid_at'                  => now(),
             ]);
+            $this->logSessionPaymentActivity($payment, $practitioner, $client, stub: true);
+            return $payment->fresh();
         }
 
+        // ── Guards (production) ───────────────────────────────────────────
+        if (!$client->stripe_id || !$client->stripe_payment_method_id) {
+            throw new \RuntimeException(
+                'No payment method on file. You must add a card in Settings → Billing before confirming sessions.'
+            );
+        }
+
+        $practitionerAccount = $practitioner->stripe_account_id;
+        if (!$practitionerAccount || !preg_match('/^acct_[a-zA-Z0-9]{16,}$/', $practitionerAccount)) {
+            throw new \RuntimeException(
+                'Provider has not connected a Stripe account. Payment will be queued once they complete account setup.'
+            );
+        }
+
+        // ── No Stripe key configured — stub pending ───────────────────────
+        if (!config('services.stripe.secret')) {
+            $payment->update([
+                'status'                   => PractitionerPaymentStatus::Pending->value,
+                'stripe_payment_intent_id' => null,
+                'paid_at'                  => null,
+            ]);
+            return $payment->fresh();
+        }
+
+        // ── Live Stripe destination charge ────────────────────────────────
+        try {
+            $stripe = new StripeClient(config('services.stripe.secret'));
+            $intent = $stripe->paymentIntents->create([
+                'amount'               => $payment->amount_cents,
+                'currency'             => strtolower($payment->currency ?? 'usd'),
+                'customer'             => $client->stripe_id,
+                'payment_method'       => $client->stripe_payment_method_id,
+                'confirm'              => true,
+                'automatic_payment_methods' => ['enabled' => true, 'allow_redirects' => 'never'],
+                'transfer_data'        => ['destination' => $practitionerAccount],
+                'on_behalf_of'         => $practitionerAccount,
+                'description'          => 'Session payment — Aegis',
+                'metadata'             => [
+                    'payment_id'      => $payment->id,
+                    'practitioner_id' => $practitioner->id,
+                    'client_id'       => $client->id,
+                ],
+            ]);
+
+            $isPaid = $intent->status === 'succeeded';
+            $payment->update([
+                'status'                   => $isPaid
+                    ? PractitionerPaymentStatus::Paid->value
+                    : PractitionerPaymentStatus::Pending->value,
+                'stripe_payment_intent_id' => $intent->id,
+                'paid_at'                  => $isPaid ? now() : null,
+            ]);
+        } catch (\Throwable $e) {
+            $payment->update(['status' => PractitionerPaymentStatus::Failed->value]);
+            $this->activity->log(
+                $practitioner->id, 'provider', 'payment', ActivitySeverity::Critical,
+                'session_payout_failed', 'Session payment failed',
+                $e->getMessage(),
+                'practitioner_payment', $payment->id,
+                $client->id, 'notification', $practitioner->id
+            );
+            throw new \RuntimeException('Session payment failed: ' . $e->getMessage());
+        }
+
+        $this->logSessionPaymentActivity($payment->fresh(), $practitioner, $client, stub: false);
+        return $payment->fresh();
+    }
+
+    private function logSessionPaymentActivity(
+        PractitionerPayment $payment,
+        User $practitioner,
+        User $client,
+        bool $stub = false
+    ): void {
+        $amount    = '$' . number_format($payment->amount_cents / 100, 2);
+        $statusNote = $stub ? ' (demo mode — no real charge)' : ' via Stripe';
+
+        // Practitioner notification
         $this->activity->log(
             $practitioner->id, 'provider', 'payment', ActivitySeverity::Info,
-            'session_payout_initiated',
-            'Session payout ' . ($payment->status instanceof PractitionerPaymentStatus ? $payment->status->label() : (string) $payment->status),
-            '$' . number_format($payment->amount_cents / 100, 2) . ' for completed session.',
-            'practitioner_payment', $payment->id, null, 'log', $practitioner->id
+            'session_payment_received',
+            'Session payment received',
+            $amount . ' from ' . $client->display_name . $statusNote . '.',
+            'practitioner_payment', $payment->id,
+            $client->id, 'notification', $client->id
         );
 
-        return $payment->fresh();
+        // Client log
+        $this->activity->log(
+            $client->id, 'provider', 'payment', ActivitySeverity::Info,
+            'session_payment_sent',
+            'Session payment sent',
+            $amount . ' sent to ' . $practitioner->display_name . $statusNote . '.',
+            'practitioner_payment', $payment->id,
+            $practitioner->id, 'log', $client->id
+        );
     }
 
     // ── Private helpers ────────────────────────────────────────────────────────
