@@ -3,9 +3,10 @@ import 'flatpickr/dist/flatpickr.min.css'
 import 'tom-select/dist/css/tom-select.css'
 
 import { createApp, h } from 'vue'
-import { createInertiaApp } from '@inertiajs/vue3'
+import { createInertiaApp, router } from '@inertiajs/vue3'
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'
 import { createPinia } from 'pinia'
+import { useUiStore } from '@/stores/ui'
 import { ZiggyVue } from 'ziggy-js'
 import { TooltipPlugin } from '@/plugins/tooltip'
 import { FormEnhancerPlugin } from '@/plugins/FormEnhancerPlugin'
@@ -72,6 +73,24 @@ createInertiaApp({
             .component('AegisEmptyState', AegisEmptyState)
             .component('IncidentBanner', IncidentBanner)
             .mount(el)
+
+        // ── Global flash toast handler ────────────────────────────────────
+        // Fires on EVERY Inertia navigation (redirect, visit, back, forward)
+        // regardless of which layout or page is rendered.
+        // This is the single source of truth for flash → toast conversion.
+        router.on('navigate', (event) => {
+            const flash = event.detail?.page?.props?.flash
+            if (!flash) return
+            try {
+                const ui = useUiStore()
+                if (flash.success) ui.showToast(flash.success, 'success')
+                if (flash.error)   ui.showToast(flash.error,   'error',   6000)
+                if (flash.info)    ui.showToast(flash.info,    'info')
+                if (flash.warning) ui.showToast(flash.warning, 'warning')
+            } catch (e) {
+                // Pinia store not ready on very first load — layouts handle that case
+            }
+        })
     },
 
     progress: {
