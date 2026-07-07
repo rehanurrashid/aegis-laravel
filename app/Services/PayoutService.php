@@ -147,25 +147,37 @@ class PayoutService
         array  $meta = [],
         string $description = ''
     ): array {
-        // ── Guards ────────────────────────────────────────────────────────────
+        // ── Demo / stub detection ─────────────────────────────────────────────
+        // Demo seed data uses cus_demo_* / pm_demo_* / acct_demo_* identifiers.
+        // These are not real Stripe objects — always stub so demo works without real Stripe onboarding.
+        $isDemoProvider = str_starts_with((string) $provider->stripe_id, 'cus_demo_')
+            || str_starts_with((string) $provider->stripe_payment_method_id, 'pm_demo_');
+        $isDemoBp = str_starts_with((string) $bp->stripe_account_id, 'acct_demo_');
+
+        if ($isDemoProvider || $isDemoBp) {
+            return [
+                'stripe_payment_intent_id' => 'pi_demo_' . Str::lower(Str::random(16)),
+                'stripe_transfer_id'       => null,
+                'status'                   => 'paid', // Stub as paid so demo flow completes
+                'stub'                     => true,
+                'stub_reason'              => 'Demo mode — no real Stripe objects.',
+            ];
+        }
+
+        // ── Guards (production / real Stripe env) ────────────────────────────
         if (!$provider->stripe_id || !$provider->stripe_payment_method_id) {
             throw new \RuntimeException(
                 'No payment method on file. Please add a card in Settings → Billing before releasing payment.'
             );
         }
 
-        $bpAccount   = $bp->stripe_account_id;
-        $isRealAcct  = $bpAccount && preg_match('/^acct_[a-zA-Z0-9]{16,}$/', $bpAccount);
+        $bpAccount  = $bp->stripe_account_id;
+        $isRealAcct = $bpAccount && preg_match('/^acct_[a-zA-Z0-9]{16,}$/', $bpAccount);
 
-        if (!$isRealAcct && config('services.stripe.secret')) {
-            // Real Stripe env but BP has no real connected account — stub with warning
-            return [
-                'stripe_payment_intent_id' => null,
-                'stripe_transfer_id'       => null,
-                'status'                   => 'pending',
-                'stub'                     => true,
-                'stub_reason'              => 'BP has no verified Stripe Connect account.',
-            ];
+        if (!$isRealAcct) {
+            throw new \RuntimeException(
+                'BP has not connected a Stripe account yet. They must complete payment setup before payment can be released.'
+            );
         }
 
         // ── Stripe not configured — stub mode ─────────────────────────────────
