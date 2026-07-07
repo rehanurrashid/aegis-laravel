@@ -176,7 +176,6 @@
     </div>
 
     <template #footer>
-      <button type="button" class="btn btn-outline" @click="close">Close</button>
       <button type="button" class="btn btn-outline btn-sm" :disabled="!contract" @click="downloadPdf">
         <AegisIcon name="download" :size="13" /> Download PDF
       </button>
