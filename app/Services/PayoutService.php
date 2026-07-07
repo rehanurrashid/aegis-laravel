@@ -191,7 +191,8 @@ class PayoutService
         array $meta = []
     ): array {
         $stripeAccount = $bp->stripe_account_id;
-        if (config('services.stripe.secret') && $stripeAccount) {
+        $isRealAccount = $stripeAccount && preg_match('/^acct_[a-zA-Z0-9]{16,}$/', $stripeAccount);
+        if (config('services.stripe.secret') && $isRealAccount) {
             try {
                 $stripe = new StripeClient(config('services.stripe.secret'));
                 $transfer = $stripe->transfers->create([
