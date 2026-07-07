@@ -1214,10 +1214,11 @@ function copyShareLink() {
 /* Footer */
 .pp-svc-card-footer {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 16px 18px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 18px;
   border-top: 1px solid var(--border);
   margin-top: auto;
 }
