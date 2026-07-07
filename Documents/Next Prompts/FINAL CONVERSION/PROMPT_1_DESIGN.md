@@ -214,6 +214,11 @@ const modals = reactive({ /* one key per modal */ })
 15. **Font sizes** — scale only: 10/11/12/13/14/15/18/22/24/26/28/36px. No `.5px`.
 16. **Shadows** — `--shadow-sm` at rest, `--shadow` on hover. Every `.alert` gets `--shadow-sm`.
 17. **border-radius** — tokens only. `50%`→`var(--radius-full)`. No off-scale 4/6/10/14/20px.
+18. **Borders — always 1px.** Every card, button, input, alert, badge, modal, role card, plan card, and any bordered box uses `border: 1px solid var(--token)`. Never `1.5px`, never `2px` for standard borders. The only exception is decorative accent stripes (e.g. `border-left: 2px solid var(--gold-dark)` on highlighted rows).
+19. **Icon + text in buttons/rows — ALWAYS `inline-flex` + `align-items:center` + `gap`.** Any element that places an `<AegisIcon>` next to text must be `display:inline-flex` (or `flex`) with `align-items:center` and a `gap` value. This applies to button labels, badge content, alert rows, role card badges, and every `<span>` inside a `<button>` that contains both text and an icon. A `<span>` that is NOT flex will cause the icon to float or misalign — this is a hard violation.
+20. **Auth-page CTAs — pill shape, consistent padding.** All primary/outline CTA buttons on auth pages (Sign In, Create Account, Continue, Verify, Send Reset Link, Save Password, Resend, etc.) use `border-radius: var(--radius-full)`, `padding: 12px 22px`, `font-size: 13px`, `font-weight: 700`, `width: 100%`. Use the `.ob-btn-full` class with these properties baked in. Never use default `.btn` padding (8px 16px) on full-width auth CTAs.
+21. **Focus rings — no box-shadow on inputs or checkboxes.** Remove `box-shadow: 0 0 0 3px ...` from all `:focus` states on `.form-input`, `.form-control`, `.form-select`, `.form-textarea`, `input[type="checkbox"]`, `input[type="radio"]`. Focus is indicated by `border-color: var(--gold-dark)` only. No glow rings. Error state (`.is-error`) shows `border-color: var(--red)` only — no red shadow.
+22. **Global outline removal.** All interactive HTML elements (`a`, `button`, `input`, `select`, `textarea`, `[tabindex]`) must have `outline: none`. Never rely on browser default blue/black outlines anywhere in the Aegis UI. Add `outline: none` to the global reset block in `_shared.css`.
 18. **Avatars** — modifier classes only: `.avatar-{gold|dark|red}` + size `.avatar-{xs..2xl}`. Never inline `style="background:…"`.
 19. **Tooltips** — `data-tooltip="…"` only. Never `title=`.
 20. **Icon + text alignment** — any element with an `AegisIcon` next to text is `display:flex`/`inline-flex` + `align-items:center` + `gap`.
@@ -282,6 +287,8 @@ grep -cE 'href.*"/messages"'          $PAGE   # 0
 grep -cE 'class="[^"]*\b(flex|grid|p-[0-9]|m-[0-9]|text-sm|text-lg)\b' $PAGE  # 0 (Tailwind)
 grep -cE '#[0-9a-fA-F]{3,6}'          $PAGE   # 0 (bare hex)
 grep -c "is-invalid"                  $PAGE   # 0 — must be is-error, never is-invalid
+grep -cE "border.*1\.5px"               $PAGE   # 0 — all borders must be 1px
+grep -c "box-shadow.*3px"               $PAGE   # 0 in focus/error states (no focus rings)
 grep -c "<script setup>" $PAGE  # 1
 grep -c "</script>"      $PAGE  # 1
 grep -c "<template>"     $PAGE  # 1

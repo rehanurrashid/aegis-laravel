@@ -2409,14 +2409,14 @@ p {
 .form-control::placeholder,
 .form-textarea::placeholder { color: var(--text-4); }
 
-/* Gold focus ring per brand spec — gold border with soft gold ring */
+/* Focus: gold border only — no box-shadow */
 .form-input:focus,
 .form-control:focus,
 .form-select:focus,
 .form-textarea:focus {
   outline: none;
-  border-color: var(--gold);
-  box-shadow: 0 0 0 3px var(--badge-bg-gold);
+  border-color: var(--gold-dark);
+  box-shadow: none;
 }
 
 .form-input:disabled,
@@ -2431,7 +2431,18 @@ p {
 .form-input.is-error,
 .form-control.is-error,
 .form-select.is-error,
-.form-textarea.is-error { border-color: var(--red); box-shadow: var(--focus-ring-red); }
+.form-textarea.is-error,
+.form-input.is-error:focus,
+.form-control.is-error:focus,
+.form-select.is-error:focus,
+.form-textarea.is-error:focus,
+.form-input.is-error:hover,
+.form-control.is-error:hover,
+.form-select.is-error:hover,
+.form-textarea.is-error:hover {
+  border-color: var(--red) !important;
+  box-shadow: none !important;
+}
 
 /* Select custom chevron */
 .form-select {
@@ -2550,7 +2561,7 @@ p {
   text-decoration: none;
   transform: translateY(-1px);
 }
-.pcard-edit-btn:focus { outline: none; box-shadow: var(--focus-ring-checkbox, 0 0 0 3px rgba(255,255,255,0.25)); }
+.pcard-edit-btn:focus { outline: none; box-shadow: none; }
 
 /* On light surfaces (e.g. inside a regular card body) — clean white square with soft shadow */
 .card .pcard-edit-btn,
@@ -2624,7 +2635,7 @@ input[type="checkbox"]:hover:not(:checked),
 input[type="radio"]:hover:not(:checked) { border-color: var(--gold, #c4a96a); }
 
 input[type="checkbox"]:focus,
-input[type="radio"]:focus { outline: none; box-shadow: var(--focus-ring-checkbox, 0 0 0 3px rgba(196,169,106,0.18)); }
+input[type="radio"]:focus { outline: none; box-shadow: none; }
 
 /* Item-row helper (used in review modals etc.) — inherits global checkbox styling. */
 .review-check {
@@ -2690,7 +2701,7 @@ border-color: var(--gold-dark);
 .form-check input[type="radio"]:hover:not(:checked) { border-color: var(--gold-dark); }
 
 .form-check input[type="checkbox"]:focus,
-.form-check input[type="radio"]:focus { outline: none; box-shadow: var(--focus-ring-checkbox); }
+.form-check input[type="radio"]:focus { outline: none; box-shadow: none; }
 
 .form-check-label { font-family: var(--font-sans); font-size: 13px; color: var(--text-2); line-height: 1.5; }
 
@@ -2735,7 +2746,7 @@ border-color: var(--gold-dark);
 }
 
 .ep-check-item input[type="checkbox"]:hover:not(:checked) { border-color: var(--gold-dark); }
-.ep-check-item input[type="checkbox"]:focus { outline: none; box-shadow: var(--focus-ring-checkbox); }
+.ep-check-item input[type="checkbox"]:focus { outline: none; box-shadow: none; }
 .ep-check-grid { display: flex; flex-direction: column; gap: 2px; }
 
 /* ─── Toggle / Switch ────────────────────────────────────────── */
@@ -2781,7 +2792,7 @@ button.toggle::after {
 }
 button.toggle.on::after { transform: translate(18px, -50%); }
 button.toggle.on { background: var(--gold-dark); }
-button.toggle:focus-visible { box-shadow: var(--focus-ring); }
+button.toggle:focus-visible { box-shadow: none; }
 
 /* LEGACY — label + hidden input (kept for back-compat only) */
 /* LEGACY — label + hidden input (visually identical to button.toggle) */
@@ -5034,7 +5045,7 @@ body.theme-gold-dark {
 .form-input.is-invalid,
 .form-control.is-invalid,
 .form-select.is-invalid,
-.form-textarea.is-invalid { border-color: var(--red); box-shadow: var(--focus-ring-red); }
+.form-textarea.is-invalid { border-color: var(--red) !important; box-shadow: none !important; }
 
 
 /* ══════════════════════════════════════════════════════════════════

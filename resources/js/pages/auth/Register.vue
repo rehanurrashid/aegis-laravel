@@ -239,10 +239,10 @@
             </div>
             <div class="ob-invite-gate-body">
               <p>Support Steward accounts are <strong>invitation-only</strong> — there is no public signup.</p>
-              <p style="margin-top: 12px;">Support Stewards are part of a Practitioner's operational team, handling administrative, monitoring, and coordination tasks under their authorization.</p>
-              <p style="margin-top: 12px;">For HIPAA compliance and audit integrity, the practitioner who's bringing you on must define your role and access permissions before your account can be created.</p>
-              <p style="margin-top: 12px;"><strong>Expecting an invitation?</strong> Check your email (including spam). If you haven't received one, ask your practitioner to send it from their Support Stewards page.</p>
-              <p style="margin-top: 12px;"><strong>Looking for a different role?</strong> If you're an independent professional serving multiple practitioners, you're likely looking for the <a href="#" class="ob-gate-link" @click.prevent="selectRole('continuity_steward'); currentStep = 0">Continuity Steward</a> role.</p>
+              <p class="ob-gate-para">Support Stewards are part of a Practitioner's operational team, handling administrative, monitoring, and coordination tasks under their authorization.</p>
+              <p class="ob-gate-para">For HIPAA compliance and audit integrity, the practitioner who's bringing you on must define your role and access permissions before your account can be created.</p>
+              <p class="ob-gate-para"><strong>Expecting an invitation?</strong> Check your email (including spam). If you haven't received one, ask your practitioner to send it from their Support Stewards page.</p>
+              <p class="ob-gate-para"><strong>Looking for a different role?</strong> If you're an independent professional serving multiple practitioners, you're likely looking for the <a href="#" class="ob-gate-link" @click.prevent="selectRole('continuity_steward'); currentStep = 0">Continuity Steward</a> role.</p>
             </div>
           </div>
 
@@ -707,11 +707,11 @@ const wwsSections = [
 .ob-panel-left-content { position:relative; z-index:1; flex:1; display:flex; flex-direction:column; justify-content:center; padding:clamp(12px,2.5vh,40px) 0; min-height:0; overflow:hidden; }
 .ob-panel-left-eyebrow { font-size:10px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.65); margin-bottom:clamp(8px,1.5vh,16px); }
 .ob-panel-left-title { font-family:var(--font-serif); font-size:clamp(22px,2.2vw + 0.6rem,34px); font-weight:700; color:var(--text-inverted); line-height:1.22; margin-bottom:clamp(10px,1.8vh,20px); }
-.ob-panel-left-body { font-size:13.5px; color:rgba(255,255,255,0.78); line-height:1.65; max-width:340px; }
+.ob-panel-left-body { font-size:13px; color:rgba(255,255,255,0.78); line-height:1.65; max-width:340px; }
 .ob-panel-features { display:flex; flex-direction:column; gap:clamp(8px,1.4vh,14px); margin-top:clamp(16px,2.8vh,36px); }
 .ob-panel-feature { display:flex; align-items:flex-start; gap:14px; }
 .ob-panel-feature-icon { width:32px; height:32px; background:rgba(255,255,255,0.12); border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:rgba(255,255,255,0.85); }
-.ob-panel-feature-text { font-size:12.5px; color:rgba(255,255,255,0.75); line-height:1.5; }
+.ob-panel-feature-text { font-size:12px; color:rgba(255,255,255,0.75); line-height:1.5; }
 .ob-panel-feature-text strong { display:block; font-weight:600; color:rgba(255,255,255,0.92); font-size:12px; margin-bottom:1px; }
 .ob-progress-track { margin-top:clamp(14px,2.4vh,32px); display:flex; gap:5px; align-items:center; }
 .ob-progress-pip { height:3px; flex:1; border-radius:var(--radius-sm); background:rgba(255,255,255,0.2); transition:all var(--transition); }
@@ -730,7 +730,7 @@ const wwsSections = [
 .ob-step-header { margin-bottom:28px; }
 .ob-step-eyebrow { font-size:10px; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; color:var(--gold-dark); margin-bottom:8px; }
 .ob-step-title { font-family:var(--font-serif); font-size:clamp(22px,2vw + 0.6rem,28px); font-weight:700; color:var(--text); line-height:1.25; margin-bottom:8px; }
-.ob-step-subtitle { font-size:13.5px; color:var(--text-2); line-height:1.55; }
+.ob-step-subtitle { font-size:13px; color:var(--text-2); line-height:1.55; }
 
 /* ── BACK LINK ── */
 .ob-back-link { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--text-2); background:none; border:none; padding:6px 0; cursor:pointer; margin-bottom:28px; transition:color var(--transition); }
@@ -738,7 +738,7 @@ const wwsSections = [
 
 /* ── ROLE CARDS ── */
 .ob-role-cards { display:flex; flex-direction:column; gap:12px; margin-bottom:24px; }
-.ob-role-card { border:1.5px solid var(--border); border-radius:var(--radius-lg); padding:18px 20px; cursor:pointer; transition:all var(--transition); background:var(--surface); display:flex; align-items:flex-start; gap:16px; }
+.ob-role-card { border:1px solid var(--border); border-radius:var(--radius-lg); padding:18px 20px; cursor:pointer; transition:all var(--transition); background:var(--surface); display:flex; align-items:flex-start; gap:16px; }
 .ob-role-card:hover { border-color:var(--gold); transform:translateY(-1px); }
 .ob-role-card.selected { border-color:var(--gold); background:rgba(196,169,106,0.04); }
 .ob-role-card-icon { width:42px; height:42px; background:rgba(196,169,106,0.1); border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--gold-dark); transition:all var(--transition); }
@@ -753,7 +753,7 @@ const wwsSections = [
 .ob-role-card:hover .ob-role-card-action, .ob-role-card.selected .ob-role-card-action { color:var(--gold-dark); }
 
 /* ── SS GATE ── */
-.ob-invite-gate { background:var(--surface-2); border:1.5px solid var(--border); border-left:3px solid var(--gold); border-radius:var(--radius-lg); padding:22px 24px; margin-bottom:24px; display:flex; gap:20px; align-items:flex-start; }
+.ob-invite-gate { background:var(--surface-2); border:1px solid var(--border); border-left:2px solid var(--gold); border-radius:var(--radius-lg); padding:22px 24px; margin-bottom:24px; display:flex; gap:20px; align-items:flex-start; }
 .ob-invite-gate-icon { width:56px; height:56px; background:rgba(196,169,106,0.1); border-radius:var(--radius); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--gold-dark); }
 .ob-invite-gate-body { flex:1; font-size:13px; color:var(--text-2); line-height:1.65; }
 .ob-invite-gate-body strong { color:var(--text); }
@@ -773,24 +773,18 @@ const wwsSections = [
 .ob-req-item { display:inline-flex; align-items:center; gap:5px; font-size:11px; color:var(--text-4); transition:color var(--transition); }
 .ob-req-item.valid { color:var(--green); }
 .ob-req-item.invalid { color:var(--red); }
-.form-hint { font-size:11.5px; color:var(--text-4); margin-top:5px; line-height:1.5; }
+.form-hint { font-size:12px; color:var(--text-4); margin-top:5px; line-height:1.5; }
 .auth-remember { display:flex; align-items:flex-start; gap:10px; margin-bottom:10px; cursor:pointer; }
 .auth-checkbox { margin-top:2px; flex-shrink:0; }
-.auth-checkbox-label { font-size:12.5px; color:var(--text-2); line-height:1.5; }
+.auth-checkbox-label { font-size:12px; color:var(--text-2); line-height:1.5; }
 .ob-terms-row { margin-bottom:22px; }
 .ob-terms-row .auth-checkbox-label small { display:block; font-size:11px; color:var(--text-4); margin-top:2px; }
 
 /* ── BUTTONS ── */
-.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:11px 22px; font-family:var(--font-sans); font-size:13px; font-weight:700; border-radius:var(--radius-full); border:1.5px solid transparent; cursor:pointer; transition:all var(--transition); -webkit-appearance:none; outline:none; }
-.btn-primary { background:var(--primary); color:var(--text-inverted); border-color:var(--primary); }
-.btn-primary:hover:not(:disabled) { background:var(--primary-mid); }
-.btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
-.btn-outline { background:transparent; color:var(--text-2); border-color:var(--border-dark); }
-.btn-outline:hover { border-color:var(--gold); color:var(--gold-dark); }
-.ob-btn-full { width:100%; margin-top:4px; }
+.ob-btn-full { width:100%; padding:12px 22px; border-radius:var(--radius-full); font-size:13px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
 
 /* ── SIGN-IN ROW ── */
-.ob-signin-row { text-align:center; margin-top:24px; font-size:12.5px; color:var(--text-2); }
+.ob-signin-row { text-align:center; margin-top:24px; font-size:12px; color:var(--text-2); }
 .ob-signin-link { color:var(--gold-dark); text-decoration:none; font-weight:600; }
 .ob-signin-link:hover { text-decoration:underline; }
 
@@ -798,7 +792,7 @@ const wwsSections = [
 .wws-section { margin-bottom:20px; }
 .wws-section-title { font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--gold-dark); margin-bottom:8px; }
 .wws-list { list-style:none; padding:0; margin:0; }
-.wws-list li { font-size:12.5px; color:var(--text-2); padding:4px 0 4px 14px; position:relative; line-height:1.5; }
+.wws-list li { font-size:12px; color:var(--text-2); padding:4px 0 4px 14px; position:relative; line-height:1.5; }
 .wws-list li::before { content:'·'; position:absolute; left:0; color:var(--gold); font-weight:700; }
 
 /* ── RESPONSIVE ── */
@@ -811,4 +805,5 @@ const wwsSections = [
   .ob-panel-right { height:auto; overflow:visible; }
   .ob-panel-right-inner { padding:32px 24px; }
 }
+.ob-gate-para { margin-top:12px; }
 </style>

@@ -272,7 +272,7 @@
             <button
               type="button"
               class="btn btn-outline btn-block"
-              style="margin-top: 1rem;"
+             
               @click="showSignin"
             >Back to Sign In</button>
           </div>
@@ -504,7 +504,7 @@ async function submitReset() {
 }
 
 .signin-left-body {
-  font-size: 13.5px;
+  font-size:13px;
   color: rgba(255, 255, 255, 0.78);
   line-height: 1.65;
   max-width: 340px;
@@ -537,7 +537,7 @@ async function submitReset() {
 }
 
 .signin-trust-text {
-  font-size: 12.5px;
+  font-size:12px;
   color: rgba(255, 255, 255, 0.72);
   line-height: 1.45;
 }
@@ -566,13 +566,13 @@ async function submitReset() {
   top: -6px;
   left: 18px;
   font-family: var(--font-serif);
-  font-size: 48px;
+  font-size:36px;
   color: rgba(255, 255, 255, 0.2);
   line-height: 1;
 }
 
 .signin-testimonial-text {
-  font-size: 12.5px;
+  font-size:12px;
   color: rgba(255, 255, 255, 0.75);
   line-height: 1.6;
   font-style: italic;
@@ -620,6 +620,7 @@ async function submitReset() {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
   padding: 52px 64px;
   width: 100%;
   min-height: 100vh;
@@ -654,7 +655,7 @@ async function submitReset() {
 }
 
 .signin-form-subtitle {
-  font-size: 13.5px;
+  font-size:13px;
   color: var(--text-2);
   line-height: 1.55;
 }
@@ -665,12 +666,12 @@ async function submitReset() {
   align-items: flex-start;
   gap: 9px;
   background: var(--red-light);
-  border: 1.5px solid rgba(224, 92, 92, 0.25);
-  border-left: 3px solid var(--red);
+  border: 1px solid rgba(224,92,92,0.2);
+  border-left: 2px solid var(--red);
   border-radius: var(--radius-sm);
   padding: 12px 14px;
   margin-bottom: 20px;
-  font-size: 12.5px;
+  font-size:12px;
   color: var(--red);
   line-height: 1.5;
 }
@@ -734,11 +735,11 @@ async function submitReset() {
   justify-content: center;
   gap: 8px;
   padding: 10px 14px;
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface);
   font-family: var(--font-sans);
-  font-size: 12.5px;
+  font-size:12px;
   font-weight: 600;
   color: var(--text-2);
   cursor: pointer;
@@ -804,7 +805,7 @@ button.form-label-link {
   padding: 12px 22px;
   font-size: 13px;
   font-weight: 700;
-  border: 1.5px solid var(--primary);
+  border: 1px solid var(--primary);
 }
 
 .signin-view .btn-primary:hover:not(:disabled) {
@@ -821,7 +822,7 @@ button.form-label-link {
   padding: 12px 22px;
   font-size: 13px;
   font-weight: 700;
-  border: 1.5px solid var(--border-dark);
+  border: 1px solid var(--border-dark);
 }
 
 .signin-view .btn-outline:hover {
@@ -848,7 +849,7 @@ button.form-label-link {
 .signin-success-ring {
   width: 64px;
   height: 64px;
-  border-radius: 50%;
+  border-radius:var(--radius-full);
   background: rgba(76, 175, 125, 0.1);
   border: 2px solid rgba(76, 175, 125, 0.25);
   display: flex;
@@ -860,7 +861,7 @@ button.form-label-link {
 
 .signin-success-title {
   font-family: var(--font-serif);
-  font-size: 20px;
+  font-size:22px;
   font-weight: 700;
   color: var(--text);
   margin-bottom: 8px;

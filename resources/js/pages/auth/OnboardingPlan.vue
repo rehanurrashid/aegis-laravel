@@ -137,7 +137,7 @@
               />
               <span class="ob-checkbox-label">
                 Add MAAT Professional CS to my plan
-                <small v-if="selectedTier !== 'practice'">Requires Continuity Practice</small>
+                <small v-if="selectedTier !== 'practice'">Available with Continuity Practice</small>
                 <small v-else>You can remove this add-on at any time from settings</small>
               </span>
             </label>
@@ -222,12 +222,12 @@
         <!-- CTA -->
         <button
           type="button"
-          class="btn btn-primary ob-btn-full"
+          class="btn btn-primary ob-btn-full ob-auth-btn"
           :disabled="!canProceed || form.processing"
           @click="submit"
         >
           <span v-if="form.processing">Saving…</span>
-          <span v-else>Continue to Payment <AegisIcon name="arrow-right" :size="13" /></span>
+          <span v-else style="display:inline-flex;align-items:center;gap:6px;">Continue to Payment <AegisIcon name="arrow-right" :size="13" /></span>
         </button>
 
         <div class="ob-secure-note">
@@ -418,15 +418,15 @@ function submit() {
 .ob-step-eyebrow { font-size:10px; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; color:var(--gold-dark); margin-bottom:8px; }
 .ob-step-title { font-family:var(--font-serif); font-size:clamp(22px,2vw + 0.6rem,28px); font-weight:700; color:var(--text); line-height:1.25; margin-bottom:8px; }
 .ob-step-subtitle { font-size:13px; color:var(--text-2); line-height:1.55; }
-.ob-billing-toggle { display:inline-flex; align-items:center; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-full); padding:4px; gap:0; margin-bottom:20px; }
+.ob-billing-toggle { display:flex; width:fit-content; align-items:center; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-full); padding:4px; gap:0; margin-bottom:20px; }
 .ob-billing-btn { background:transparent; border:none; font-family:var(--font-sans); font-size:12px; font-weight:600; padding:7px 18px; border-radius:var(--radius-full); cursor:pointer; color:var(--text-2); transition:all var(--transition); display:flex; align-items:center; gap:6px; }
 .ob-billing-btn.active { background:var(--gold-dark); color:var(--text-inverted); }
 .ob-save-badge { font-size:10px; font-weight:700; color:var(--gold-dark); }
 .ob-billing-btn.active .ob-save-badge { color:var(--text-inverted); }
 .ob-plan-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px; }
-.ob-plan-card { border:1.5px solid var(--border); border-radius:var(--radius-lg); padding:22px 20px; cursor:pointer; transition:all var(--transition); background:var(--surface); position:relative; display:flex; flex-direction:column; }
+.ob-plan-card { border:1px solid var(--border); border-radius:var(--radius-lg); padding:22px 20px; cursor:pointer; transition:all var(--transition); background:var(--surface); position:relative; display:flex; flex-direction:column; }
 .ob-plan-card:hover { border-color:var(--gold-dark); transform:translateY(-2px); box-shadow:var(--shadow); }
-.ob-plan-card.selected { border-color:var(--gold-dark); background:rgba(196,169,106,0.06); box-shadow:0 0 0 3px rgba(160,129,62,0.12); }
+.ob-plan-card.selected { border-color:var(--gold-dark); background:rgba(196,169,106,0.06); }
 .ob-plan-card.recommended { border-color:var(--gold-light); }
 .ob-plan-badge { position:absolute; top:-10px; left:50%; transform:translateX(-50%); background:var(--gold-dark); color:var(--text-inverted); font-size:10px; font-weight:700; padding:3px 12px; border-radius:var(--radius-sm); letter-spacing:0.8px; text-transform:uppercase; white-space:nowrap; }
 .ob-plan-badge-inline { display:inline-flex; align-items:center; background:var(--gold-dark); color:var(--text-inverted); font-size:10px; font-weight:700; padding:4px 12px; border-radius:var(--radius-sm); letter-spacing:0.8px; text-transform:uppercase; margin-bottom:12px; }
@@ -441,9 +441,9 @@ function submit() {
 .ob-plan-limits { margin-bottom:14px; display:flex; flex-direction:column; gap:4px; }
 .ob-plan-limit-item { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text-4); }
 .ob-plan-btn { width:100%; margin-top:auto; }
-.ob-cs-plan-card { border:1.5px solid var(--gold); border-radius:var(--radius-lg); padding:24px; background:rgba(196,169,106,0.04); margin-bottom:20px; }
-.ob-maat-addon { background:rgba(196,169,106,0.04); border:1.5px solid rgba(196,169,106,0.3); border-radius:var(--radius-lg); padding:16px 18px; margin-bottom:16px; transition:opacity var(--transition); }
-.ob-maat-addon--locked { opacity:0.55; }
+.ob-cs-plan-card { border:1px solid var(--gold); border-radius:var(--radius-lg); padding:24px; background:rgba(196,169,106,0.04); margin-bottom:20px; }
+.ob-maat-addon { background:rgba(196,169,106,0.04); border:1px solid rgba(196,169,106,0.2); border-radius:var(--radius-lg); padding:16px 18px; margin-bottom:16px; transition:opacity var(--transition); }
+.ob-maat-addon--locked { opacity:0.65; pointer-events:none; }
 .ob-maat-header { display:flex; align-items:flex-start; gap:12px; margin-bottom:8px; }
 .ob-maat-icon { width:36px; height:36px; background:var(--gold-dark); border-radius:var(--radius-full); display:flex; align-items:center; justify-content:center; color:var(--text-inverted); flex-shrink:0; }
 .ob-maat-title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:3px; }
@@ -458,4 +458,12 @@ function submit() {
 .ob-btn-full { width:100%; margin-bottom:14px; }
 .ob-secure-note { display:flex; align-items:center; justify-content:center; gap:6px; font-size:12px; color:var(--text-4); }
 @media (max-width:720px) { .ob-layout { flex-direction:column; height:auto; min-height:100vh; overflow:visible; } .ob-panel-left { width:100%; height:auto; padding:32px 28px; } .ob-panel-right { height:auto; overflow:visible; } .ob-panel-right-inner { padding:32px 24px; } .ob-plan-grid { grid-template-columns:1fr; } }
+.ob-auth-btn {
+  width: 100%;
+  padding: 12px 22px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 4px;
+}
 </style>

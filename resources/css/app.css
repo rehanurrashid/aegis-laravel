@@ -25,8 +25,40 @@
 }
 
 /* Form feedback rows — icon + message text */
-.form-error { display:inline-flex; align-items:center; gap:4px; }
-.form-hint  { display:inline-flex; align-items:center; gap:4px; }
+/* ── Layout-shift prevention for validation errors ─────────────────────────
+   .form-group reserves bottom space for the error message via padding-bottom.
+   .form-error is absolutely positioned so it NEVER pushes sibling elements.
+   Result: zero layout shift when errors appear or disappear.
+────────────────────────────────────────────────────────────────────────── */
+.form-group {
+    position: relative;
+    padding-bottom: 18px; /* reserves space for one line of error text */
+}
+.form-error {
+    position: absolute;
+    bottom: 2px;
+    left: 0;
+    right: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 0;
+    line-height: 1.3;
+}
+.form-hint {
+    position: absolute;
+    bottom: 2px;
+    left: 0;
+    right: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 0;
+    line-height: 1.3;
+}
+/* When both hint and error exist, error wins (error shown via v-if, so this
+   is handled by Vue already — but keep specificity clear) */
+.form-group:has(.form-error) .form-hint { display: none; }
 
 /* Badge / chip rows — icon + label text */
 .badge { display:inline-flex; align-items:center; gap:5px; }
@@ -226,16 +258,17 @@ body {
 .form-input.is-error,
 .form-control.is-error,
 .form-select.is-error,
-.form-textarea.is-error {
-    border-color: var(--red) !important;
-    box-shadow: var(--focus-ring-red);
-}
+.form-textarea.is-error,
 .form-input.is-error:focus,
 .form-control.is-error:focus,
 .form-select.is-error:focus,
-.form-textarea.is-error:focus {
+.form-textarea.is-error:focus,
+.form-input.is-error:hover,
+.form-control.is-error:hover,
+.form-select.is-error:hover,
+.form-textarea.is-error:hover {
     border-color: var(--red) !important;
-    box-shadow: var(--focus-ring-red);
+    box-shadow: none !important;
 }
 .form-label-row {
     display: flex;

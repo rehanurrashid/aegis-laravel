@@ -117,28 +117,24 @@ async function submit() {
 .ob-panel-left-content { position:relative; z-index:1; flex:1; display:flex; flex-direction:column; justify-content:center; padding:clamp(12px,2.5vh,40px) 0; min-height:0; overflow:hidden; }
 .ob-panel-left-eyebrow { font-size:10px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,0.65); margin-bottom:clamp(8px,1.5vh,16px); }
 .ob-panel-left-title { font-family:var(--font-serif); font-size:clamp(22px,2.2vw + 0.6rem,34px); font-weight:700; color:var(--text-inverted); line-height:1.22; margin-bottom:clamp(10px,1.8vh,20px); }
-.ob-panel-left-body { font-size:13.5px; color:rgba(255,255,255,0.78); line-height:1.65; max-width:340px; }
+.ob-panel-left-body { font-size:13px; color:rgba(255,255,255,0.78); line-height:1.65; max-width:340px; }
 .ob-panel-features { display:flex; flex-direction:column; gap:clamp(8px,1.4vh,14px); margin-top:clamp(16px,2.8vh,36px); }
 .ob-panel-feature { display:flex; align-items:flex-start; gap:12px; }
-.ob-panel-feature-icon { width:28px; height:28px; background:rgba(196,169,106,0.15); border-radius:6px; display:flex; align-items:center; justify-content:center; color:var(--gold); flex-shrink:0; }
-.ob-panel-feature-text { font-size:12.5px; color:rgba(255,255,255,0.72); line-height:1.5; }
+.ob-panel-feature-icon { width:28px; height:28px; background:rgba(196,169,106,0.15); border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; color:var(--gold-dark); flex-shrink:0; }
+.ob-panel-feature-text { font-size:12px; color:rgba(255,255,255,0.72); line-height:1.5; }
 .ob-panel-feature-text strong { color:rgba(255,255,255,0.92); display:block; margin-bottom:1px; }
 .ob-panel-left-footer { position:relative; z-index:1; }
 .ob-panel-left-footer p { font-size:11px; color:rgba(255,255,255,0.38); line-height:1.5; }
 .ob-panel-right { flex:1; display:flex; flex-direction:column; overflow-y:auto; background-color:var(--surface); }
-.ob-panel-right-inner { flex:1; display:flex; flex-direction:column; justify-content:center; padding:clamp(32px,5vh,64px) clamp(28px,5vw,72px); max-width:480px; width:100%; margin:0 auto; }
-.fp-success-icon { width:72px; height:72px; background:rgba(196,169,106,0.1); border-radius:var(--radius-lg); display:flex; align-items:center; justify-content:center; color:var(--gold-dark); margin-bottom:28px; }
+.ob-panel-right-inner { flex:1; display:flex; flex-direction:column; justify-content:center; padding:clamp(40px,5vh,64px) clamp(40px,5vw,72px); min-height:100vh; max-width:520px; width:100%; margin:0 auto; }
+.fp-success-icon { width:72px; height:72px; background:rgba(196,169,106,0.1); border-radius:var(--radius-lg); display:flex; align-items:center; justify-content:center; color:var(--gold-dark); margin-bottom:32px; }
 .ob-step-header { margin-bottom:28px; }
 .ob-step-eyebrow { font-size:10px; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; color:var(--gold-dark); margin-bottom:8px; }
 .ob-step-title { font-family:var(--font-serif); font-size:clamp(22px,2vw + 0.6rem,30px); font-weight:700; color:var(--text); line-height:1.22; margin-bottom:8px; }
-.ob-step-subtitle { font-size:13.5px; color:var(--text-2); line-height:1.55; }
+.ob-step-subtitle { font-size:13px; color:var(--text-2); line-height:1.55; }
 .ob-step-subtitle strong { color:var(--text); font-weight:600; }
-.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:11px 22px; font-family:var(--font-sans); font-size:13px; font-weight:700; border-radius:var(--radius-full); border:1.5px solid transparent; cursor:pointer; transition:all var(--transition); -webkit-appearance:none; outline:none; }
-.btn-primary { background:var(--primary); color:var(--text-inverted); border-color:var(--primary); }
-.btn-primary:hover:not(:disabled) { background:var(--primary-mid); border-color:var(--primary-mid); }
-.btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
-.ob-btn-full { width:100%; margin-top:4px; }
-.ob-altline { text-align:center; margin-top:20px; font-size:12.5px; color:var(--text-2); }
+.ob-btn-full { width:100%; padding:12px 22px; border-radius:var(--radius-full); font-size:13px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.ob-altline { text-align:center; margin-top:20px; font-size:12px; color:var(--text-2); }
 .ob-altline-link { color:var(--gold-dark); text-decoration:none; font-weight:600; background:none; border:none; cursor:pointer; font-size:inherit; padding:0; }
 .ob-altline-link:hover { text-decoration:underline; }
 </style>
