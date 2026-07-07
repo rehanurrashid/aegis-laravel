@@ -206,7 +206,7 @@ const modals = reactive({ /* one key per modal */ })
 8. **Form fields** — canonical classes only: `.form-input .form-select .form-textarea .form-group .form-row (2-col) .form-row.is-3col .form-check .form-check-label`. Short fields (select/date/number/short text) go side-by-side in `.form-row`; only textarea/long fields full width.
 9. **Toggles** → `AegisToggle` (local import). Never checkbox+label hack.
 10. **Icon-only buttons** → `.btn-icon` (or `-sm`/`-danger`/`-primary`) with `data-tooltip="…"`. In table/card rows use icon size **14**. `btn-icon-sm`+size 13 only for compact rows / modal-close.
-11. **Buttons** — canonical only: `btn btn-primary`, `btn btn-outline`, `btn btn-danger`, `btn btn-ghost`, `btn-hero-solid is-on-light`, `btn-hero-ghost is-on-light`. **`btn-sm` is BANNED everywhere — never use it, not in modals, not in tables, not in cards, not anywhere.** `btn-gold`→`btn-primary`. `btn-ghost` is invisible on light bg → use `btn-outline` for any secondary action that must be visible. For compact rows use `.btn-icon` (icon-only) — never `btn-sm`.
+11. **Buttons** — canonical only: `btn btn-primary`, `btn btn-outline`, `btn btn-danger`, `btn btn-ghost`, `btn-hero-solid is-on-light`, `btn-hero-ghost is-on-light`, size `btn-sm`. `btn-gold`→`btn-primary`. `btn-ghost` is invisible on light bg → use `btn-outline` for any secondary action that must be visible.
 12. **Icons** — `<AegisIcon name="x" :size="N" />` only. No raw `<svg>`. Deprecated→correct: `square-pen`→`pencil`, `x-circle`→`x`, `gear`→`settings`, `time`→`clock`, `magnifier`→`search`, `person`→`user`, `event`→`calendar`.
 13. **Colors** — every value `var(--token)`. No bare hex/rgb/hsl/named. Exceptions: `#fff` / `rgba(255,255,255,*)` on dark panels; `rgba(0,0,0,0.4)` on modal backdrops (already in _shared.css).
 14. **`--gold-dark` for action states** (hover/active/focus/checked/CTA). Never `--gold`.
@@ -269,7 +269,6 @@ grep -c 'title="'                     $PAGE   # 0
 grep -cE 'href.*"/messages"'          $PAGE   # 0
 grep -cE 'class="[^"]*\b(flex|grid|p-[0-9]|m-[0-9]|text-sm|text-lg)\b' $PAGE  # 0 (Tailwind)
 grep -cE '#[0-9a-fA-F]{3,6}'          $PAGE   # 0 (bare hex)
-grep -c "btn-sm"          $PAGE   # 0 (BANNED — never use btn-sm)
 grep -c "<script setup>" $PAGE  # 1
 grep -c "</script>"      $PAGE  # 1
 grep -c "<template>"     $PAGE  # 1

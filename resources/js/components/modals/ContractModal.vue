@@ -50,7 +50,7 @@
       <div v-if="paymentType === 'milestone' || localMilestones.length" class="milestone-section">
         <div class="milestone-section-header">
           <span class="milestone-section-title">
-            <AegisIcon name="check-square" :size="14" />
+            <AegisIcon name="tasks" :size="14" />
             Milestones
             <span v-if="localMilestones.length" class="badge-pill">{{ localMilestones.length }}</span>
           </span>
@@ -96,7 +96,7 @@
         <!-- Milestone list -->
         <AegisEmptyState
           v-if="!localMilestones.length && !showAddMilestone"
-          icon="check-square"
+          icon="tasks"
           title="No milestones yet"
           description="Add milestones to track deliverables and release incremental payments."
         />
