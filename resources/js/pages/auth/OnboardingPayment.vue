@@ -202,7 +202,7 @@ onMounted(async () => {
           colorDanger:        '#e05c5c',
           fontFamily:         'Inter, Helvetica Neue, Arial, sans-serif',
           spacingUnit:        '4px',
-          borderRadius:       '10px',
+          borderRadius:       '8px',
           fontSizeBase:       '13px',
         },
         rules: {
@@ -213,7 +213,8 @@ onMounted(async () => {
           },
           '.Input:focus': {
             border:      '1px solid #c4a96a',
-            boxShadow:   '0 0 0 3px rgba(196,169,106,0.15)',
+            boxShadow:   'none',
+            outline:     'none',
           },
           '.Label': {
             fontWeight:  '600',
