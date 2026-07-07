@@ -1223,36 +1223,26 @@ function copyShareLink() {
   margin-top: auto;
 }
 .pp-svc-card-avail { display: none; }
+/* Avail indicator — compact dot + text, no pill background (matches BP style) */
 .pp-svc-avail-pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
-  font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.4px;
-  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 .pp-svc-avail-dot {
   width: 7px; height: 7px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   flex-shrink: 0;
 }
-.pp-svc-avail-pill.open {
-  background: rgba(46,125,50,0.08);
-  border-color: rgba(46,125,50,0.2);
-  color: var(--green-dark, #2e7d32);
-}
-.pp-svc-avail-pill.open .pp-svc-avail-dot { background: var(--green-dark, #2e7d32); }
-.pp-svc-avail-pill.limited {
-  background: rgba(160,129,62,0.1);
-  border-color: rgba(160,129,62,0.25);
-  color: var(--gold-dark);
-}
+.pp-svc-avail-pill.open  { color: var(--green-dark); }
+.pp-svc-avail-pill.open  .pp-svc-avail-dot { background: var(--green-dark); }
+.pp-svc-avail-pill.limited { color: var(--gold-dark); }
 .pp-svc-avail-pill.limited .pp-svc-avail-dot { background: var(--gold-dark); }
-.pp-svc-avail-pill.closed {
-  background: var(--surface-3);
-  border-color: var(--border);
-  color: var(--text-3);
-}
+.pp-svc-avail-pill.closed { color: var(--text-3); }
 .pp-svc-avail-pill.closed .pp-svc-avail-dot { background: var(--text-4); }
 
 .pp-svc-request-btn {
@@ -1260,11 +1250,11 @@ function copyShareLink() {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  padding: 7px 20px;
+  padding: 6px 14px;
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
-  width: 100%;
+  flex-shrink: 0;
 }
 
 .svc-request-strip {
