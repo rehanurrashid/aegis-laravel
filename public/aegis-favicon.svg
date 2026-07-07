@@ -1,4 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <rect width="64" height="64" rx="12" fill="#a0813e"></rect>
-  <text x="32" y="46" text-anchor="middle" font-family="Spectral, &#39;Spectral SC&#39;, Georgia, &#39;Times New Roman&#39;, serif" font-size="44" font-weight="600" fill="#ffffff" letter-spacing="-0.5">A</text>
+  <!-- Gold-dark rounded square background -->
+  <rect width="64" height="64" rx="12" fill="#a0813e"/>
+  <!-- Shield: filled white for legibility at small favicon sizes -->
+  <path
+    d="M32 10 L50 17 L50 30 C50 42 32 52 32 52 C32 52 14 42 14 30 L14 17 Z"
+    fill="#ffffff"
+    opacity="1"
+  />
+  <!-- Inner shield highlight to give depth -->
+  <path
+    d="M32 15 L46 21 L46 30 C46 40 32 48 32 48 C32 48 18 40 18 30 L18 21 Z"
+    fill="#a0813e"
+    opacity="0.35"
+  />
 </svg>

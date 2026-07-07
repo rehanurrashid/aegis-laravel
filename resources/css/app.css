@@ -22,6 +22,7 @@
 .aegis-icon {
   vertical-align: middle;
   flex-shrink: 0;
+  pointer-events: none; /* tooltip fires on parent element, not SVG */
 }
 
 /* Form feedback rows — icon + message text */
