@@ -246,11 +246,11 @@
       <!-- Active / Closed sub-tabs -->
       <div class="tabs-segmented" style="margin-bottom:16px">
         <button :class="['tab-pill', { active: hiredSubTab === 'active' }]" @click="hiredSubTab = 'active'">
-          <AegisIcon name="dot" :size="10" :filled="true" style="color:var(--green-dark)" /> Active
+          Active
           <span v-if="activeHiredContracts.length" class="badge-pill">{{ activeHiredContracts.length }}</span>
         </button>
         <button :class="['tab-pill', { active: hiredSubTab === 'closed' }]" @click="hiredSubTab = 'closed'">
-          <AegisIcon name="archive" :size="12" /> Closed
+          Closed
           <span v-if="closedHiredContracts.length" class="badge-pill">{{ closedHiredContracts.length }}</span>
         </button>
       </div>
