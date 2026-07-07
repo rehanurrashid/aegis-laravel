@@ -138,4 +138,27 @@ onUnmounted(() => clearInterval(timer))
 .ob-signin-row { text-align:center; margin-top:24px; font-size:12px; color:var(--text-2); }
 .ob-signin-link { color:var(--gold-dark); text-decoration:none; font-weight:600; }
 .ob-signin-link:hover { text-decoration:underline; }
+/* ── Auth CTA buttons — black bg, white text, pill shape ─────────────── */
+.ob-btn-full.btn-primary {
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  color: var(--text-inverted);
+  border-radius: var(--radius-full);
+  padding: 12px 22px;
+  font-size: 13px;
+  font-weight: 700;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.ob-btn-full.btn-primary:hover:not(:disabled) {
+  background: var(--primary-mid);
+  border-color: var(--primary-mid);
+}
+.ob-btn-full.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 </style>

@@ -458,4 +458,27 @@ function submit() {
 .ob-btn-full { width:100%; padding:12px 22px; border-radius:var(--radius-full); font-size:13px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
 .ob-secure-note { display:flex; align-items:center; justify-content:center; gap:6px; font-size:12px; color:var(--text-4); margin-top:16px; }
 @media (max-width:720px) { .ob-layout { flex-direction:column; height:auto; min-height:100vh; overflow:visible; } .ob-panel-left { width:100%; height:auto; padding:32px 28px; } .ob-panel-right { height:auto; overflow:visible; } .ob-panel-right-inner { padding:32px 24px; } .ob-plan-grid { grid-template-columns:1fr; } }
+/* ── Auth CTA buttons — black bg, white text, pill shape ─────────────── */
+.ob-btn-full.btn-primary {
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  color: var(--text-inverted);
+  border-radius: var(--radius-full);
+  padding: 12px 22px;
+  font-size: 13px;
+  font-weight: 700;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.ob-btn-full.btn-primary:hover:not(:disabled) {
+  background: var(--primary-mid);
+  border-color: var(--primary-mid);
+}
+.ob-btn-full.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 </style>

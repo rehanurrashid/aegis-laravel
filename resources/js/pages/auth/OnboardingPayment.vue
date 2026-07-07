@@ -454,4 +454,27 @@ function goBack() {
   .ob-panel-right { height:auto; overflow:visible; }
   .ob-panel-right-inner { padding:32px 24px; }
 }
+/* ── Auth CTA buttons — black bg, white text, pill shape ─────────────── */
+.ob-btn-full.btn-primary {
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  color: var(--text-inverted);
+  border-radius: var(--radius-full);
+  padding: 12px 22px;
+  font-size: 13px;
+  font-weight: 700;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.ob-btn-full.btn-primary:hover:not(:disabled) {
+  background: var(--primary-mid);
+  border-color: var(--primary-mid);
+}
+.ob-btn-full.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 </style>
