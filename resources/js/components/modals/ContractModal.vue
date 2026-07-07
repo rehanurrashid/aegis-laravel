@@ -176,14 +176,14 @@
     </div>
 
     <template #footer>
-      <button type="button" class="btn btn-outline btn-sm" :disabled="!contract" @click="downloadPdf">
+      <button type="button" class="btn btn-outline" :disabled="!contract" @click="downloadPdf">
         <AegisIcon name="download" :size="13" /> Download PDF
       </button>
 
       <!-- Milestone-based: End Contract (requires all paid) -->
       <button
         v-if="isActive && paymentType === 'milestone'"
-        class="btn btn-danger btn-sm"
+        class="btn btn-danger"
         :disabled="!allMilestonesPaid || busy"
         :data-tooltip="!allMilestonesPaid ? 'Pay all milestones first' : null"
         @click="endContract"
@@ -194,7 +194,7 @@
       <!-- One-time: End Contract & Release Payment -->
       <button
         v-else-if="isActive && paymentType === 'one_time'"
-        class="btn btn-primary btn-sm"
+        class="btn btn-primary"
         :disabled="busy"
         @click="endAndRelease"
       >
