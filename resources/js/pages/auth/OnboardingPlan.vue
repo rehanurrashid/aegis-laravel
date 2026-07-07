@@ -247,7 +247,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { Head, useForm, usePage } from '@inertiajs/vue3'  // router already imported
+import { Head, useForm, usePage, router } from '@inertiajs/vue3'
 import { useToast } from '@/composables/useToast'
 
 const props = defineProps({

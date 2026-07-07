@@ -137,8 +137,8 @@ function switchAccount() { router.post(route('logout')) }
 .ob-btn-full { width:100%; padding:12px 22px; border-radius:var(--radius-full); font-size:13px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
 
 .ob-signin-row { text-align:center; margin-top:24px; font-size:12px; color:var(--text-2); }
-.ob-signin-link { color:var(--gold-dark); text-decoration:none; font-weight:600; }
-.ob-signin-link:hover { text-decoration:underline; }
+.ob-signin-link { background:none; border:none; padding:0; cursor:pointer; font-family:var(--font-sans); font-size:12px; font-weight:600; color:var(--gold-dark); text-decoration:none; }
+.ob-signin-link:hover { text-decoration:underline; color:var(--gold-dark); }
 /* ── Auth CTA buttons — black bg, white text, pill shape ─────────────── */
 .ob-btn-full.btn-primary {
   background: var(--primary);
