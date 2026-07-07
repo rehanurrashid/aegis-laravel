@@ -33,6 +33,7 @@
             <template v-else-if="isLoggedIn">
               <button type="button" class="btn-hero-solid is-on-light" @click="openHireModal"><AegisIcon name="check" :size="14" /> Hire</button>
               <button type="button" class="btn-hero-ghost is-on-light" @click="openRequestQuoteModal"><AegisIcon name="clipboard" :size="14" /> Quote</button>
+              <button type="button" class="btn-hero-ghost is-on-light" @click="openScheduleModal"><AegisIcon name="calendar" :size="14" /> Book</button>
               <template v-if="isPendingReceived">
                 <button type="button" class="btn-hero-solid is-on-light" :disabled="connectForm.processing" @click="acceptInbound"><AegisIcon name="check" :size="14" /> Accept Request</button>
                 <button type="button" class="btn-hero-ghost is-on-light" :disabled="connectForm.processing" @click="declineInbound"><AegisIcon name="x" :size="14" /> Decline</button>
