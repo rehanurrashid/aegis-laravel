@@ -735,11 +735,12 @@ class ServiceService
         }
         $r->update(['status' => \App\Enums\ServiceRequestStatus::Withdrawn->value]);
 
+        $serviceTitle = $r->service?->title ?? 'a service';
         $this->activity->log(
             $inquirerId, 'provider', 'referral', ActivitySeverity::Info,
             'service_request_withdrawn',
             'You withdrew a service request',
-            "Request for {$r->service?->title ?? 'a service'} withdrawn.",
+            "Request for {$serviceTitle} withdrawn.",
             'service_request', $r->id, $r->practitioner_id,
             'log', $inquirerId
         );
