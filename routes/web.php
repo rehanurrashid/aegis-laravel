@@ -650,7 +650,7 @@ Route::prefix('public')->name('public.')->group(function () {
 });
 
 // ── Public Profile Interactions (auth required) ───────────────────────────────
-Route::middleware('auth')->prefix('public/profiles')->name('public.profile.')->group(function () {
+Route::middleware(['auth', 'verified.email', 'subscription.active'])->prefix('public/profiles')->name('public.profile.')->group(function () {
     Route::post('/{user}/endorse',         [PublicInteractionController::class, 'endorse'])->name('endorse');
     Route::post('/{user}/service-request', [PublicInteractionController::class, 'serviceRequest'])->name('service-request');
     Route::post('/{user}/connect',              [PublicInteractionController::class, 'connect'])->name('connect');

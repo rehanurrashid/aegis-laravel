@@ -21,13 +21,55 @@ class ProfileController extends Controller
 {
     public function __construct(private ProfileService $profiles) {}
 
+
+    /**
+     * Resolve the effective viewer for public profile pages.
+     *
+     * A logged-in user who hasn't verified their email, or whose subscription
+     * is not yet active, is treated as an anonymous viewer for public profiles.
+     * They can see the public page but cannot use any interactive features
+     * (connect, refer, request services, etc.) that require a full account.
+     *
+     * Returns null if the viewer should be treated as anonymous.
+     */
+    private function effectiveViewer(?\App\Models\User $viewer): ?\App\Models\User
+    {
+        if (!$viewer) return null;
+
+        // Must have verified email
+        if (!$viewer->verified) return null;
+
+        // Free roles (invited CS, SS) — verified is enough
+        $role   = $viewer->role instanceof \App\Enums\UserRole ? $viewer->role->value : (string) $viewer->role;
+        $csType = $viewer->cs_account_type instanceof \App\Enums\CsAccountType
+            ? $viewer->cs_account_type->value
+            : (string) ($viewer->cs_account_type ?? '');
+
+        $needsSub = $role === 'practitioner'
+            || $role === 'business_partner'
+            || ($role === 'continuity_steward' && $csType === 'business');
+
+        if ($needsSub) {
+            try {
+                $sub = $viewer->subscriptions()->where('type', 'default')->latest()->first();
+                $active = $sub && in_array($sub->stripe_status, ['active', 'trialing', 'past_due'], true);
+            } catch (\Throwable) {
+                $active = true; // fail open
+            }
+            if (!$active) return null;
+        }
+
+        return $viewer;
+    }
+
     public function provider(Request $request, string $slug): Response
     {
-        $user   = $this->profiles->getPublicProfile($slug);
-        $viewer = Auth::user();
+        $user         = $this->profiles->getPublicProfile($slug);
+        $rawViewer    = Auth::user();
+        $viewer       = $this->effectiveViewer($rawViewer);
 
-        $isOwner    = $viewer && $viewer->id === $user->id;
-        $isLoggedIn = (bool) $viewer;
+        $isOwner    = $rawViewer && $viewer && $rawViewer->id === $user->id;
+        $isLoggedIn = (bool) $viewer;  // only true if verified + active
 
         abort_if(
             ! $user
@@ -117,9 +159,10 @@ class ProfileController extends Controller
             'serviceHeadline'   => $serviceHeadline ? (json_decode($serviceHeadline, true) ?? $serviceHeadline) : null,
             'serviceSpecialties'=> $serviceSpecialties ? (is_array($decoded = json_decode($serviceSpecialties, true)) ? $decoded : (is_array($inner = json_decode($decoded ?? '', true)) ? $inner : [])) : [],
             'yearsExperience'   => $yearsExperience ? (int) $yearsExperience : null,
-            'viewerRole'      => $viewer?->role?->value ?? null,
-            'isOwner'         => $isOwner,
-            'isLoggedIn'      => $isLoggedIn,
+            'viewerRole'       => $viewer?->role?->value ?? null,
+            'isOwner'          => $isOwner,
+            'isLoggedIn'       => $isLoggedIn,
+            'isVerifiedMember' => $isLoggedIn, // true only when viewer is verified + active
             'referralRoster'  => $referralRoster,
             'referralNetwork' => $referralNetwork,
             'myServiceRequests' => $viewer && ! $isOwner
@@ -145,10 +188,11 @@ class ProfileController extends Controller
 
     public function continuityStewarded(Request $request, string $slug): Response
     {
-        $user   = $this->profiles->getPublicProfile($slug);
-        $viewer = Auth::user();
+        $user         = $this->profiles->getPublicProfile($slug);
+        $rawViewer    = Auth::user();
+        $viewer       = $this->effectiveViewer($rawViewer);
 
-        $isOwner    = $viewer && $viewer->id === $user->id;
+        $isOwner    = $rawViewer && $viewer && $rawViewer->id === $user->id;
         $isLoggedIn = (bool) $viewer;
 
         abort_if(
@@ -166,23 +210,26 @@ class ProfileController extends Controller
         return Inertia::render('public/ContinuityStewardProfile', [
             'user'        => $user,
             'profileMeta' => $profileMeta,
-            'viewerRole'  => $viewer?->role?->value ?? null,
-            'isOwner'     => $isOwner,
-            'isLoggedIn'  => $isLoggedIn,
+            'viewerRole'       => $viewer?->role?->value ?? null,
+            'isOwner'          => $isOwner,
+            'isLoggedIn'       => $isLoggedIn,
+            'isVerifiedMember' => $isLoggedIn,
         ]);
     }
 
     public function supportSteward(Request $request, string $slug): Response
     {
-        $user   = $this->profiles->getPublicProfile($slug);
-        $viewer = Auth::user();
+        $user         = $this->profiles->getPublicProfile($slug);
+        $rawViewer    = Auth::user();
+        $viewer       = $this->effectiveViewer($rawViewer);
 
         abort_if(! $user || $user->role !== UserRole::SupportSteward, 404);
 
         // SS profiles are relationship-gated: only owner or linked Provider
+        // Use rawViewer for ownership/relationship check (so even unverified owner can still see)
         $invitedById = $user->invited_by_id ?? null;
-        $viewerIsLinkedProvider = $viewer && $invitedById && $viewer->id === $invitedById;
-        $isOwner = $viewer && $viewer->id === $user->id;
+        $viewerIsLinkedProvider = $rawViewer && $invitedById && $rawViewer->id === $invitedById;
+        $isOwner = $rawViewer && $rawViewer->id === $user->id;
 
         abort_if(! $isOwner && ! $viewerIsLinkedProvider, 404);
 
@@ -192,18 +239,20 @@ class ProfileController extends Controller
         return Inertia::render('public/SupportStewardProfile', [
             'user'        => $user,
             'profileMeta' => $profileMeta,
-            'viewerRole'  => $viewer?->role?->value ?? null,
-            'isOwner'     => $isOwner,
-            'isLoggedIn'  => $isLoggedIn,
+            'viewerRole'       => $viewer?->role?->value ?? null,
+            'isOwner'          => $isOwner,
+            'isLoggedIn'       => $isLoggedIn,
+            'isVerifiedMember' => $isLoggedIn,
         ]);
     }
 
     public function business(Request $request, string $slug): Response
     {
-        $user   = $this->profiles->getPublicProfile($slug);
-        $viewer = Auth::user();
+        $user         = $this->profiles->getPublicProfile($slug);
+        $rawViewer    = Auth::user();
+        $viewer       = $this->effectiveViewer($rawViewer);
 
-        $isOwner    = $viewer && $viewer->id === $user->id;
+        $isOwner    = $rawViewer && $viewer && $rawViewer->id === $user->id;
         $isLoggedIn = (bool) $viewer;
 
         abort_if(
@@ -286,6 +335,7 @@ class ProfileController extends Controller
             'viewerRole'       => $viewer?->role?->value ?? null,
             'isOwner'          => $isOwner,
             'isLoggedIn'       => $isLoggedIn,
+            'isVerifiedMember' => $isLoggedIn,
             // Connection
             'connectionStatus' => $connectionStatus,   // 'connected'|'pending-sent'|'pending-received'|'not-connected'
             'connectionId'     => $connectionId,
