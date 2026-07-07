@@ -125,6 +125,78 @@ class ServiceSeeder extends Seeder
             DB::table('service_sessions')->updateOrInsert(['id' => $row['id']], $row);
         }
 
+        // ── Outgoing requests FROM Sarah TO other providers ─────────────
+        $outgoing = [
+            // 1. Pending — Sarah requested Maria's Family Systems Session
+            [
+                'id'              => 'sreq_sarah_out_1',
+                'service_id'      => 'svc_maria_family',
+                'practitioner_id' => 'p_maria',
+                'inquirer_id'     => 'p_sarah',
+                'message'         => 'I have a client who would benefit from family systems work. Looking to refer and coordinate care.',
+                'status'          => 'new',
+                'response_note'   => null,
+                'responded_at'    => null,
+                'created_at'      => $now->copy()->subDays(3)->toDateTimeString(),
+                'updated_at'      => $now->copy()->subDays(3)->toDateTimeString(),
+            ],
+            // 2. Accepted — Sarah requested Maria's Couples Therapy (has a session booked)
+            [
+                'id'              => 'sreq_sarah_out_2',
+                'service_id'      => 'svc_maria_couples',
+                'practitioner_id' => 'p_maria',
+                'inquirer_id'     => 'p_sarah',
+                'message'         => 'Looking to book a couples session for personal professional development around attachment dynamics.',
+                'status'          => 'accepted',
+                'response_note'   => 'Happy to work with you — I have availability next week.',
+                'responded_at'    => $now->copy()->subDays(5)->toDateTimeString(),
+                'created_at'      => $now->copy()->subDays(8)->toDateTimeString(),
+                'updated_at'      => $now->copy()->subDays(5)->toDateTimeString(),
+            ],
+            // 3. Declined — Sarah requested Maria's Group Supervision (Maria at capacity)
+            [
+                'id'              => 'sreq_sarah_out_3',
+                'service_id'      => 'svc_maria_family',
+                'practitioner_id' => 'p_maria',
+                'inquirer_id'     => 'p_sarah',
+                'message'         => 'Interested in a family systems consultation for an ongoing case.',
+                'status'          => 'declined',
+                'response_note'   => 'Currently at capacity for new consultations — please try again next month.',
+                'responded_at'    => $now->copy()->subWeeks(2)->toDateTimeString(),
+                'created_at'      => $now->copy()->subWeeks(3)->toDateTimeString(),
+                'updated_at'      => $now->copy()->subWeeks(2)->toDateTimeString(),
+            ],
+        ];
+
+        foreach ($outgoing as $r) {
+            $r = array_merge(['inquirer_name' => null, 'inquirer_email' => null, 'deleted_at' => null], $r);
+            DB::table('service_requests')->updateOrInsert(['id' => $r['id']], $r);
+        }
+
+        // ── Session where Sarah is the CLIENT (from sreq_sarah_out_2) ────
+        $clientSessionRow = [
+            'id'                 => 'ss_sarah_client_1',
+            'service_request_id' => 'sreq_sarah_out_2',
+            'service_id'         => 'svc_maria_couples',
+            'practitioner_id'    => 'p_maria',
+            'client_id'          => 'p_sarah',
+            'status'             => 'scheduled',
+            'scheduled_at'       => $now->copy()->addDays(4)->setTime(10, 0)->toDateTimeString(),
+            'completed_at'       => null,
+            'amount_cents'       => 22000,
+            'deleted_at'         => null,
+            'created_at'         => $now->copy()->subDays(5)->toDateTimeString(),
+            'updated_at'         => $now->copy()->subDays(5)->toDateTimeString(),
+        ];
+
+        if ($sessHasTimezone) $clientSessionRow['timezone']              = 'America/Chicago';
+        if ($sessHasNotes)    $clientSessionRow['session_summary']       = null;
+        if ($sessHasNotes)    $clientSessionRow['session_action_items']  = null;
+        if ($sessHasNotes)    $clientSessionRow['share_notes_with_client'] = 0;
+        if ($sessHasCancel)   $clientSessionRow['cancel_reason']         = null;
+
+        DB::table('service_sessions')->updateOrInsert(['id' => 'ss_sarah_client_1'], $clientSessionRow);
+
         // ── Services Profile meta for p_sarah ────────────────────────────
         $metas = [
             ['service_bio',        'I offer clinical supervision, peer consultation, and specialized training to support therapists in building confidence and competence. My approach is collaborative, strengths-based, and rooted in evidence-based practice.'],

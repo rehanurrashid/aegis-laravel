@@ -968,7 +968,7 @@
       <template #footer>
         <button class="btn btn-outline" @click="modals.accept = false">Cancel</button>
         <button class="btn btn-primary" @click="submitAccept">
-          <AegisIcon name="check" :size="14" /> Accept &amp; Send Agreement
+          <AegisIcon name="check" :size="14" /> Accept Request
         </button>
       </template>
     </AegisModal>
@@ -1654,7 +1654,7 @@ function submitAccept() {
     recurring:    acceptForm.recurring,
   }, {
     preserveScroll: true,
-    onSuccess: () => { modals.accept = false; toast.success('Request accepted — agreement sent.') },
+    onSuccess: () => { modals.accept = false; toast.success('Request accepted. The practitioner has been notified.') },
   })
 }
 
