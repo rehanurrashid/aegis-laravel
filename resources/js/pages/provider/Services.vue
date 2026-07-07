@@ -700,23 +700,23 @@
         <input
           v-model="createForm.title"
           class="form-input"
-          :class="{ 'is-invalid': createV$.title.$error }"
+          :class="{ 'is-error': createFieldError('title') }"
           type="text"
           placeholder="e.g. Individual Clinical Supervision for Pre-Licensed Therapists"
           @blur="createV$.title.$touch()"
         >
-        <div v-if="createV$.title.$error" class="form-error">{{ createFieldError('title') }}</div>
+        <div v-if="createFieldError('title')" class="form-error">{{ createFieldError('title') }}</div>
       </div>
       <div class="form-group">
         <label class="form-label">Description <span style="color:var(--red);">*</span></label>
         <textarea
           v-model="createForm.description"
           class="form-input"
-          :class="{ 'is-invalid': createV$.description.$error }"
+          :class="{ 'is-error': createFieldError('description') }"
           placeholder="Describe what you offer, who it's for, your approach, and any requirements…"
           @blur="createV$.description.$touch()"
         ></textarea>
-        <div v-if="createV$.description.$error" class="form-error">{{ createFieldError('description') }}</div>
+        <div v-if="createFieldError('description')" class="form-error">{{ createFieldError('description') }}</div>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -750,9 +750,12 @@
           <input
             v-model.number="createDollars"
             class="form-input"
+            :class="{ 'is-error': createFieldError('price_cents') }"
             type="number"
             placeholder="150"
+            @blur="createV$.price_cents?.$touch()"
           >
+          <div v-if="createFieldError('price_cents')" class="form-error">{{ createFieldError('price_cents') }}</div>
         </div>
         <div class="form-group">
           <label class="form-label">Per</label>
@@ -809,7 +812,7 @@
       </div>
 
       <template #footer>
-        <button class="btn btn-outline" @click="modals.create = false">Cancel</button>
+        <button class="btn btn-outline" @click="resetCreateModal">Cancel</button>
         <button class="btn btn-outline" @click="submitCreate('draft')">Save as Draft</button>
         <button class="btn btn-primary" @click="submitCreate('active')">
           <AegisIcon name="check" :size="14" /> Publish Listing
@@ -1437,7 +1440,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
 import { Head } from '@inertiajs/vue3'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
@@ -1446,7 +1449,7 @@ import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useMessageButton } from '@/composables/useMessageButton'
 import useVuelidate from '@vuelidate/core'
-import { required, minLength } from '@vuelidate/validators'
+import { required, minLength, maxLength, helpers } from '@vuelidate/validators'
 
 // ── Props (stubbed for Prompt 2) ──────────────────────────────────────────
 const props = defineProps({
@@ -1633,24 +1636,74 @@ const createForm = reactive({
   availability: 'open', availability_label: '',
   is_public: true,
 })
-watch(createDollars, (v) => { createForm.price_cents = v != null ? Math.round(Number(v) * 100) : null })
+watch(createDollars, (v) => {
+  createForm.price_cents = v != null ? Math.round(Number(v) * 100) : null
+  createV$.value.price_cents?.$touch()
+})
 
-const createRules = {
-  title:       { required },
-  description: { required },
-  // price_cents not required for draft
-}
+// Track which submit was attempted so rules can tighten for publish
+const createSubmitIntent = ref('draft')
+
+const createRules = computed(() => {
+  const isPublish = createSubmitIntent.value === 'active'
+  return {
+    title: {
+      required: helpers.withMessage('Service name is required.', required),
+      max:      helpers.withMessage('Service name must be 200 characters or less.', maxLength(200)),
+    },
+    description: isPublish ? {
+      required: helpers.withMessage('Description is required to publish.', required),
+      max:      helpers.withMessage('Description must be 5000 characters or less.', maxLength(5000)),
+    } : {
+      max: helpers.withMessage('Description must be 5000 characters or less.', maxLength(5000)),
+    },
+    price_cents: isPublish ? {
+      requiredIfPaid: helpers.withMessage(
+        'Enter a rate, or set pricing to "Contact for pricing".',
+        helpers.withParams(
+          { type: 'requiredIfPaid' },
+          (v) => createForm.price_type === 'inquiry' || (v !== null && v >= 0)
+        )
+      ),
+    } : {},
+  }
+})
+
 const createV$ = useVuelidate(createRules, createForm)
 
+// Unified error helper — client (Vuelidate) wins while editing, server as fallback
+const createServerErrors = ref({})
 function createFieldError(field) {
-  const e = createV$.value[field].$errors[0]
-  return e?.$message ?? ''
+  if (createV$.value[field]?.$error) {
+    return createV$.value[field].$errors[0]?.$message ?? ''
+  }
+  return createServerErrors.value[field] ?? ''
+}
+
+function resetCreateModal() {
+  modals.create = false
+  Object.assign(createForm, {
+    category: 'supervision', title: '', description: '',
+    duration_min: 60, format: 'telehealth', price_cents: null,
+    price_type: 'session', sliding_scale: false,
+    availability: 'open', availability_label: '', is_public: true,
+  })
+  createDollars.value = null
+  createServerErrors.value = {}
+  createV$.value.$reset()
+  createSubmitIntent.value = 'draft'
 }
 
 async function submitCreate(status) {
-  if (status === 'active') {
-    const ok = await createV$.value.$validate()
-    if (!ok) return
+  createSubmitIntent.value = status
+  // Allow a tick for computed rules to react to intent change
+  await nextTick()
+  const ok = await createV$.value.$validate()
+  if (!ok) {
+    toast.error(status === 'active'
+      ? 'Please fix the highlighted fields before publishing.'
+      : 'Service name is required.')
+    return
   }
   router.post(route('provider.services.store'), {
     title: createForm.title, description: createForm.description,
@@ -1662,10 +1715,12 @@ async function submitCreate(status) {
   }, {
     preserveScroll: true,
     onSuccess: () => {
-      modals.create = false
+      resetCreateModal()
       toast.success(status === 'active' ? 'Listing published!' : 'Saved as draft.')
-      createV$.value.$reset()
-      createDollars.value = null
+    },
+    onError: (errors) => {
+      createServerErrors.value = errors
+      toast.error('Please fix the highlighted fields.')
     },
   })
 }

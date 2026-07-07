@@ -14,11 +14,12 @@ Convert one legacy PHP page into a Vue 3 + Inertia component with 100% design pa
 - **Globally registered components (NO import needed):** `AegisIcon, AegisModal, AegisToast, AegisConfirm, AegisBadge, AegisStatChip, AegisHeroBanner, AegisCard, AegisEmptyState, IncidentBanner`.
 - **Need LOCAL import:** `AegisDropzone, AegisToggle, AegisPagination, AegisUpgradeModal`, and every file in `resources/js/components/modals/`.
 - **Centralized modals available** (`resources/js/components/modals/`): `ReferralModal, ServiceRequestModal, ConnectionRequestModal, HireModal, ContractModal, CredentialModal, PostJobModal, EditJobModal, JobDetailModal, ProposalModal, RejectModal, BpEngageModal, BpQuoteModal, BpScheduleModal, EngagementRequestModal, ScheduleInterviewModal, StageActionModal, ManageApplicationsModal, ApplicantProfileModal, ImportJobTemplatesModal, UpgradeCSModal`.
-- **AegisModal sizes:** `sm | md | lg | xl` ONLY. There is NO `fullscreen`. Multi-step wizards use `xl`.
+- **AegisModal sizes:** `sm | md | lg | xl` ONLY. There is NO `fullscreen`. Multi-step wizards use `xl`. Single-step create/edit modals use `lg`. Confirmation modals use `sm` or `md`.
 - **AegisDropzone emits:** `@files` (array) and `@rejected`. Never `@file-selected`.
 - **Ziggy:** `route()` is a global (ZiggyVue). Import in app.js is `from 'ziggy-js'`.
 - **Composables:** `useToast()`, `useConfirm()` (callback: `confirmAction(msg, fn)`), `useActivity()` (`timeAgo`, `severityClass`, `iconForEventType`), `useMessageButton()` (`openConversation(id)`, `loading`), `useProfileRoute()` (`viewProfile(slug, kind)`, `profileHref(slug, kind)` where kind ∈ provider|cs|ss|business).
-- **Client-side validation (MANDATORY):** Every form with a submit action must use Vuelidate (`@vuelidate/core` + `@vuelidate/validators`). See AEGIS_VUE_RULES.md Section 14 for the full pattern. Required fields emit `@blur` → `v$.field.$touch()`. Submit handler calls `await v$.value.$validate()` and returns early if invalid. Errors render via `fieldError(field)` helper (client error beats server error). Same `.form-error` class for both. Never rely on browser native validation alone. Never submit without `v$.$validate()` first.
+- **String interpolation safety (PHP):** Never put `?->` + `??` inside a double-quoted string interpolation `"{$obj?->prop ?? 'fallback'}"` — this is a PHP 8.2 parse error. Always extract to a variable first: `$val = $obj?->prop ?? 'fallback'; "…{$val}…"`
+- **Client-side validation (MANDATORY):** Every form with a submit action must use Vuelidate (`@vuelidate/core` + `@vuelidate/validators`). See AEGIS_VUE_RULES.md Section 14 for the full pattern. Required fields emit `@blur` → `v$.field.$touch()`. Submit handler calls `await v$.value.$validate()` and returns early if invalid. Errors render via `fieldError(field)` helper (client error beats server error). Same `.form-error` class for both. Error state class on inputs is `is-error` (never `is-invalid`). Never rely on browser native validation alone. Never submit without `v$.$validate()` first.
 
 ---
 
@@ -217,6 +218,17 @@ const modals = reactive({ /* one key per modal */ })
 19. **Tooltips** — `data-tooltip="…"` only. Never `title=`.
 20. **Icon + text alignment** — any element with an `AegisIcon` next to text is `display:flex`/`inline-flex` + `align-items:center` + `gap`.
 21. **If `_shared.css` has it, use it.** No local duplicates, no `!important`, no dead CSS. Locals that collide → rename page-scoped. Locals that duplicate → delete.
+22. **Client-side validation (MANDATORY on every write form).** Use Vuelidate (`@vuelidate/core` + `@vuelidate/validators`). Pattern:
+    - `const rules = computed(() => ({ … }))` — computed so rules can react to form intent (e.g. draft vs publish have different required fields)
+    - `const v$ = useVuelidate(rules, form)`
+    - Every required field: `@blur="v$.field.$touch()"` on the input
+    - Error class on input: `:class="{ 'is-error': fieldError('field') }"` — always `is-error`, never `is-invalid`
+    - Error message: `<div v-if="fieldError('field')" class="form-error">{{ fieldError('field') }}</div>`
+    - Unified `fieldError(field)` helper: Vuelidate error wins while editing; falls back to `form.errors.field` (Inertia server errors) — same element, same class for both
+    - Submit handler: `const ok = await v$.value.$validate(); if (!ok) { toast.error(…); return }`
+    - Modal close / form reset: always call `v$.value.$reset()` alongside `form.reset()`
+    - Multi-intent forms (draft vs publish): use a `submitIntent` ref; set it before `$validate()`; rules computed off it via `nextTick()`
+    - Client rules must pair with server FormRequest rules: `required` → `required`, `max:200` → `maxLength(200)`, `nullable` → no `required`, `in:x,y` → custom validator checking allowed values
 
 ### Button/link/icon wiring (every clickable element gets a real target)
 
@@ -269,6 +281,7 @@ grep -c 'title="'                     $PAGE   # 0
 grep -cE 'href.*"/messages"'          $PAGE   # 0
 grep -cE 'class="[^"]*\b(flex|grid|p-[0-9]|m-[0-9]|text-sm|text-lg)\b' $PAGE  # 0 (Tailwind)
 grep -cE '#[0-9a-fA-F]{3,6}'          $PAGE   # 0 (bare hex)
+grep -c "is-invalid"                  $PAGE   # 0 — must be is-error, never is-invalid
 grep -c "<script setup>" $PAGE  # 1
 grep -c "</script>"      $PAGE  # 1
 grep -c "<template>"     $PAGE  # 1
@@ -279,6 +292,8 @@ grep -c 'v\$\.\|v\$\.value\.' $PAGE  # ≥ 1 (vuelidate used in template/script)
 grep -c 'fieldError\|form-error' $PAGE  # ≥ 1 per required field
 grep -c '\$touch'        $PAGE   # ≥ 1 (blur handlers present)
 grep -c '\$validate'     $PAGE   # ≥ 1 (submit handler validates before post)
+grep -c 'is-error'       $PAGE   # ≥ 1 per validated field (never is-invalid)
+grep -c '\$reset'        $PAGE   # ≥ 1 (reset called on modal close)
 # Modal pairing (local AegisModal + centralized modal mounts == v-model keys used)
 M=$(grep -cE "<AegisModal|<[A-Z][A-Za-z]+Modal " $PAGE); V=$(grep -c 'v-model="modals\.' $PAGE)
 echo "modals:$M vmodels:$V"; test $M -eq $V && echo OK || echo MISMATCH
