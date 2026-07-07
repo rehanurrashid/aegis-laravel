@@ -219,6 +219,13 @@ Route::middleware(['auth', 'role:practitioner', 'check.locked'])
         Route::post('/support-services/{job}/proposals/{proposal}/stage', [ProviderJobPostingsController::class, 'setProposalStage'])->name('jobs.proposal.stage');
         Route::post('/support-services/{job}/proposals/{proposal}/notes', [ProviderJobPostingsController::class, 'setProposalNotes'])->name('jobs.proposal.notes');
         Route::post('/support-services/contracts/{contract}/cancel', [ProviderJobPostingsController::class, 'cancelContract'])->name('jobs.contract.cancel');
+        Route::post('/support-services/contracts/{contract}/end', [ProviderJobPostingsController::class, 'endContract'])->name('jobs.contract.end');
+        Route::post('/support-services/contracts/{contract}/release-payment', [ProviderJobPostingsController::class, 'releasePayment'])->name('jobs.contract.release-payment');
+        Route::post('/support-services/contracts/{contract}/milestones', [ProviderJobPostingsController::class, 'storeMilestone'])->name('jobs.contract.milestones.store');
+        Route::put('/support-services/contracts/{contract}/milestones/{milestone}', [ProviderJobPostingsController::class, 'updateMilestone'])->name('jobs.contract.milestones.update');
+        Route::delete('/support-services/contracts/{contract}/milestones/{milestone}', [ProviderJobPostingsController::class, 'destroyMilestone'])->name('jobs.contract.milestones.destroy');
+        Route::post('/support-services/contracts/{contract}/milestones/{milestone}/approve', [ProviderJobPostingsController::class, 'approveMilestone'])->name('jobs.contract.milestones.approve');
+        Route::post('/support-services/contracts/{contract}/milestones/{milestone}/pay', [ProviderJobPostingsController::class, 'payMilestone'])->name('jobs.contract.milestones.pay');
 
         // Continuity Documents
         Route::get('/important-documents', [DocumentsController::class, 'index'])->name('documents.index');

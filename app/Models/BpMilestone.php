@@ -20,7 +20,7 @@ class BpMilestone extends Model
 
     protected $fillable = [
         'id', 'contract_id', 'title', 'description', 'amount_cents', 'status',
-        'assigned_member_id', 'due_at', 'submitted_at', 'approved_at', 'sort_order',
+        'assigned_member_id', 'due_at', 'submitted_at', 'approved_at', 'paid_at', 'payout_id', 'sort_order',
     ];
 
     protected $casts = [
@@ -30,6 +30,7 @@ class BpMilestone extends Model
         'due_at'       => 'datetime',
         'submitted_at' => 'datetime',
         'approved_at'  => 'datetime',
+        'paid_at'      => 'datetime',
     ];
 
     public function contract(): BelongsTo

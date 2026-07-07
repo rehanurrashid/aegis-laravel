@@ -18,6 +18,7 @@ use App\Models\BpProposal;
 use App\Services\BpJobService;
 use App\Services\ContractService;
 use App\Services\MessagingService;
+use App\Services\PayoutService;
 use App\Services\ProposalService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -218,5 +219,107 @@ class JobPostingsController extends Controller
         $this->authorize('cancel', $contract);
         $this->contracts->cancel($contract, $request->user(), $request->input('reason'));
         return back()->with('success', 'Contract ended.');
+    }
+
+    public function endContract(Request $request, BpContract $contract): RedirectResponse
+    {
+        $this->authorize('cancel', $contract);
+        $paymentType = $contract->payment_type ?? 'one_time';
+        if ($paymentType === 'milestone'
+            && $contract->milestones()->whereNotIn('status', ['paid'])->exists()) {
+            return back()->withErrors(['contract' => 'All milestones must be paid before ending this contract.']);
+        }
+        $contract->update(['status' => 'completed', 'ended_at' => now(), 'completed_at' => now()]);
+        return back()->with('success', 'Contract ended.');
+    }
+
+    public function releasePayment(Request $request, BpContract $contract): RedirectResponse
+    {
+        $this->authorize('cancel', $contract);
+        $paymentType = $contract->payment_type ?? 'one_time';
+        if ($paymentType !== 'one_time') {
+            abort(422, 'Only one-time payment contracts can use this action.');
+        }
+        $statusVal = $contract->status instanceof \BackedEnum ? $contract->status->value : (string) $contract->status;
+        if ($statusVal !== 'active') {
+            return back()->withErrors(['contract' => 'Contract is not active.']);
+        }
+        try {
+            $payout = $this->payouts->endContractAndRelease($contract);
+            $amount = number_format($payout->amount_cents / 100, 2);
+            return back()->with('success', "Payment of ${amount} released to BP via Stripe. Contract ended.");
+        } catch (\Throwable $e) {
+            return back()->withErrors(['contract' => 'Stripe transfer failed: ' . $e->getMessage()]);
+        }
+    }
+
+    public function storeMilestone(Request $request, BpContract $contract): RedirectResponse
+    {
+        $this->authorize('cancel', $contract);
+        $data = $request->validate([
+            'title'        => ['required', 'string', 'max:191'],
+            'description'  => ['nullable', 'string'],
+            'amount_cents' => ['required', 'integer', 'min:0'],
+            'due_at'       => ['nullable', 'date'],
+            'sort_order'   => ['nullable', 'integer'],
+        ]);
+        BpMilestone::create([
+            'id'           => 'bm_' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(12)),
+            'contract_id'  => $contract->id,
+            'title'        => $data['title'],
+            'description'  => $data['description'] ?? null,
+            'amount_cents' => $data['amount_cents'],
+            'due_at'       => $data['due_at'] ?? null,
+            'sort_order'   => $data['sort_order'] ?? 0,
+            'status'       => 'pending',
+        ]);
+        return back()->with('success', 'Milestone added.');
+    }
+
+    public function updateMilestone(Request $request, BpContract $contract, BpMilestone $milestone): RedirectResponse
+    {
+        $this->authorize('cancel', $contract);
+        abort_if($milestone->contract_id !== $contract->id, 404);
+        $data = $request->validate([
+            'title'        => ['required', 'string', 'max:191'],
+            'description'  => ['nullable', 'string'],
+            'amount_cents' => ['required', 'integer', 'min:0'],
+            'due_at'       => ['nullable', 'date'],
+        ]);
+        $milestone->update($data);
+        return back()->with('success', 'Milestone updated.');
+    }
+
+    public function destroyMilestone(Request $request, BpContract $contract, BpMilestone $milestone): RedirectResponse
+    {
+        $this->authorize('cancel', $contract);
+        abort_if($milestone->contract_id !== $contract->id, 404);
+        $statusVal = $milestone->status instanceof \BackedEnum ? $milestone->status->value : (string) $milestone->status;
+        if ($statusVal === 'paid') {
+            return back()->withErrors(['milestone' => 'Cannot delete a paid milestone.']);
+        }
+        $milestone->delete();
+        return back()->with('success', 'Milestone removed.');
+    }
+
+    public function approveMilestone(Request $request, BpContract $contract, BpMilestone $milestone): RedirectResponse
+    {
+        $this->authorize('cancel', $contract);
+        abort_if($milestone->contract_id !== $contract->id, 404);
+        $this->contracts->approveMilestone($milestone, $request->user());
+        return back()->with('success', 'Milestone approved. You can now release payment.');
+    }
+
+    public function payMilestone(Request $request, BpContract $contract, BpMilestone $milestone): RedirectResponse
+    {
+        $this->authorize('cancel', $contract);
+        abort_if($milestone->contract_id !== $contract->id, 404);
+        try {
+            $payout = $this->payouts->payMilestone($milestone);
+            $amount = number_format($payout->amount_cents / 100, 2);
+            return back()->with('success', "Milestone payment of ${amount} released via Stripe.");
+        } catch (\Throwable $e) {
+            return back()->withErrors(['milestone' => 'Payment failed: ' . $e->getMessage()]);
+        }
     }
 }

@@ -1,8 +1,7 @@
 <!--
-  ContractModal.vue — Provider contract viewer.
-  Shows BpContract details, milestones, invoice reference.
-  "Download PDF" prints a branded HTML receipt via a new tab.
-  "End Contract" cancels via provider.jobs.contract.cancel.
+  ContractModal.vue — Provider contract viewer with milestone CRUD + Stripe payment actions.
+  Supports payment_type: 'one_time' | 'milestone'
+  AEGIS_VUE_RULES.md governs every pattern.
 -->
 <template>
   <AegisModal v-model="isOpen" title="Contract Details" size="lg" @update:model-value="onUpdateOpen">
@@ -12,48 +11,149 @@
         <template v-if="contract.started_at"> · Started {{ formatDate(contract.started_at) }}</template>
       </div>
 
-      <!-- Meta grid -->
-      <div class="contract-meta-grid">
-        <div class="contract-meta-cell">
-          <div class="contract-meta-label">Total Value</div>
-          <div class="contract-meta-val contract-meta-green">{{ formatCents(contract.total_value_cents) }}</div>
-        </div>
-        <div class="contract-meta-cell">
-          <div class="contract-meta-label">Status</div>
-          <div class="contract-meta-val" :style="{ color: isActive ? 'var(--green)' : isCompleted ? 'var(--text-3)' : 'var(--red)' }">{{ statusLabel }}</div>
-        </div>
-        <div class="contract-meta-cell">
-          <div class="contract-meta-label">Started</div>
-          <div class="contract-meta-val">{{ formatDate(contract.started_at) }}</div>
-        </div>
-        <div class="contract-meta-cell">
-          <div class="contract-meta-label">Signed</div>
-          <div class="contract-meta-val">{{ formatDate(contract.signed_at) }}</div>
-        </div>
-        <div v-if="contract.completed_at" class="contract-meta-cell">
-          <div class="contract-meta-label">Completed</div>
-          <div class="contract-meta-val">{{ formatDate(contract.completed_at) }}</div>
-        </div>
-        <div class="contract-meta-cell">
-          <div class="contract-meta-label">Contract ID</div>
-          <div class="contract-meta-val" style="font-size:11px;font-family:monospace;color:var(--text-3)">{{ contract.id }}</div>
-        </div>
-      </div>
-
-      <!-- Scope -->
-      <div class="contract-scope">
-        <span class="contract-scope-label">Engagement:</span> {{ contract.title }}
-      </div>
-
-      <!-- Milestones -->
-      <div v-if="milestones.length" class="contract-milestones">
-        <div class="contract-section-label">Milestones</div>
-        <div v-for="m in milestones" :key="m.id" class="contract-milestone-row">
-          <div class="contract-milestone-info">
-            <span class="contract-milestone-title">{{ m.title }}</span>
-            <span class="badge" :class="milestoneBadge(m.status)" style="font-size:10px">{{ milestoneLabel(m.status) }}</span>
+      <!-- Summary card -->
+      <div class="contract-summary-card">
+        <div class="contract-summary-row">
+          <div class="contract-summary-item">
+            <div class="contract-summary-label">Total Value</div>
+            <div class="contract-summary-val is-money">{{ formatMoney(contract.total_value_cents) }}</div>
           </div>
-          <div class="contract-milestone-amount">{{ formatCents(m.amount_cents) }}</div>
+          <div class="contract-summary-item">
+            <div class="contract-summary-label">Payment Type</div>
+            <AegisBadge
+              :label="paymentType === 'milestone' ? 'Milestone-based' : 'One-time'"
+              :variant="paymentType === 'milestone' ? 'blue' : 'gold'"
+            />
+          </div>
+          <div class="contract-summary-item">
+            <div class="contract-summary-label">Status</div>
+            <AegisBadge :label="statusLabel" :variant="statusVariant" />
+          </div>
+        </div>
+        <div class="contract-summary-row">
+          <div class="contract-summary-item">
+            <div class="contract-summary-label">Started</div>
+            <div class="contract-summary-val">{{ formatDate(contract.started_at) }}</div>
+          </div>
+          <div class="contract-summary-item">
+            <div class="contract-summary-label">Signed</div>
+            <div class="contract-summary-val">{{ formatDate(contract.signed_at) }}</div>
+          </div>
+          <div class="contract-summary-item">
+            <div class="contract-summary-label">Contract ID</div>
+            <div class="contract-summary-val contract-id-mono">{{ contract.id }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Milestone section (shown for milestone-based OR when milestones exist) -->
+      <div v-if="paymentType === 'milestone' || localMilestones.length" class="milestone-section">
+        <div class="milestone-section-header">
+          <span class="milestone-section-title">
+            <AegisIcon name="check-square" :size="14" />
+            Milestones
+            <span v-if="localMilestones.length" class="badge-pill">{{ localMilestones.length }}</span>
+          </span>
+          <button
+            v-if="isActive && !showAddMilestone"
+            class="btn btn-outline btn-sm"
+            @click="showAddMilestone = true"
+          >
+            <AegisIcon name="plus" :size="12" /> Add Milestone
+          </button>
+        </div>
+
+        <!-- Add milestone inline form -->
+        <div v-if="showAddMilestone" class="milestone-add-form">
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Title</label>
+              <input v-model="addForm.title" class="form-input" placeholder="Milestone title" maxlength="191" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Amount</label>
+              <input v-model="addForm.amount_dollars" type="number" min="0" step="0.01" class="form-input" placeholder="0.00" />
+            </div>
+          </div>
+          <div class="form-row-2">
+            <div class="form-field">
+              <label class="form-label">Due Date <span class="form-optional">(optional)</span></label>
+              <input v-model="addForm.due_at" type="date" class="form-input" />
+            </div>
+            <div class="form-field">
+              <label class="form-label">Description <span class="form-optional">(optional)</span></label>
+              <input v-model="addForm.description" class="form-input" placeholder="Brief description" />
+            </div>
+          </div>
+          <div class="milestone-add-actions">
+            <button class="btn btn-outline btn-sm" @click="cancelAdd">Cancel</button>
+            <button class="btn btn-primary btn-sm" :disabled="addingMilestone" @click="submitAdd">
+              {{ addingMilestone ? 'Adding…' : 'Add Milestone' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Milestone list -->
+        <AegisEmptyState
+          v-if="!localMilestones.length && !showAddMilestone"
+          icon="check-square"
+          title="No milestones yet"
+          description="Add milestones to track deliverables and release incremental payments."
+        />
+
+        <div v-else-if="localMilestones.length" class="milestone-list">
+          <div v-for="m in localMilestones" :key="m.id" class="milestone-row">
+            <div class="milestone-row-left">
+              <div class="milestone-title">{{ m.title }}</div>
+              <div class="milestone-meta">
+                {{ formatMoney(m.amount_cents) }}
+                <template v-if="m.due_at"> · Due {{ formatDate(m.due_at) }}</template>
+              </div>
+            </div>
+            <div class="milestone-row-right">
+              <AegisBadge :label="milestoneBadgeLabel(m.status)" :variant="milestoneBadgeVariant(m.status)" />
+              <!-- Approve (submitted only) -->
+              <button
+                v-if="milestoneStatusVal(m) === 'submitted'"
+                class="btn btn-xs btn-success"
+                :disabled="busyMilestone === m.id"
+                @click="doApproveMilestone(m)"
+              >
+                Approve
+              </button>
+              <!-- Pay (approved only) -->
+              <button
+                v-if="milestoneStatusVal(m) === 'approved'"
+                class="btn btn-xs btn-primary"
+                :disabled="busyMilestone === m.id"
+                @click="doPayMilestone(m)"
+              >
+                <AegisIcon name="dollar" :size="11" />
+                {{ busyMilestone === m.id ? 'Processing…' : 'Pay' }}
+              </button>
+              <!-- Delete (pending only) -->
+              <button
+                v-if="milestoneStatusVal(m) === 'pending' && isActive"
+                class="btn-icon btn-icon-danger"
+                data-tooltip="Remove milestone"
+                :disabled="busyMilestone === m.id"
+                @click="doDeleteMilestone(m)"
+              >
+                <AegisIcon name="trash" :size="12" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Milestone total -->
+        <div v-if="localMilestones.length" class="milestone-total-row">
+          <span class="milestone-total-label">Total milestones:</span>
+          <span class="milestone-total-val">{{ formatMoney(milestoneTotalCents) }}</span>
+          <AegisBadge
+            v-if="allMilestonesPaid"
+            label="All Paid"
+            variant="green"
+          />
         </div>
       </div>
 
@@ -77,21 +177,38 @@
 
     <template #footer>
       <button type="button" class="btn btn-outline" @click="close">Close</button>
-      <button type="button" class="btn btn-outline" :disabled="!contract" @click="downloadPdf">
-        <AegisIcon name="download" :size="13" />
-        Download PDF
+      <button type="button" class="btn btn-outline btn-sm" :disabled="!contract" @click="downloadPdf">
+        <AegisIcon name="download" :size="13" /> Download PDF
       </button>
-      <button v-if="isActive" type="button" class="btn btn-danger" :disabled="busy" @click="endContract">
+
+      <!-- Milestone-based: End Contract (requires all paid) -->
+      <button
+        v-if="isActive && paymentType === 'milestone'"
+        class="btn btn-danger btn-sm"
+        :disabled="!allMilestonesPaid || busy"
+        :data-tooltip="!allMilestonesPaid ? 'Pay all milestones first' : null"
+        @click="endContract"
+      >
         {{ busy ? 'Ending…' : 'End Contract' }}
+      </button>
+
+      <!-- One-time: End Contract & Release Payment -->
+      <button
+        v-else-if="isActive && paymentType === 'one_time'"
+        class="btn btn-primary btn-sm"
+        :disabled="busy"
+        @click="endAndRelease"
+      >
+        <AegisIcon name="dollar" :size="13" />
+        {{ busy ? 'Processing…' : 'End Contract & Release Payment' }}
       </button>
     </template>
   </AegisModal>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { router } from '@inertiajs/vue3'
-import AegisIcon from '@/components/ui/AegisIcon.vue'
+import { ref, computed, watch } from 'vue'
+import { router, useForm } from '@inertiajs/vue3'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 
@@ -105,33 +222,195 @@ const emit = defineEmits(['update:modelValue'])
 const toast = useToast()
 const { confirmAction } = useConfirm()
 const busy = ref(false)
+const busyMilestone = ref(null)
+const showAddMilestone = ref(false)
+const addingMilestone = ref(false)
+
+// Local milestone copy — stays in sync with prop
+const localMilestones = ref([...props.milestones])
+watch(() => props.milestones, (v) => { localMilestones.value = [...v] }, { deep: true })
+
+const addForm = ref({ title: '', amount_dollars: '', due_at: '', description: '' })
 
 const isOpen = computed(() => props.modelValue)
 function onUpdateOpen(v) { emit('update:modelValue', v) }
 function close() { emit('update:modelValue', false) }
 
-const statusVal  = computed(() => {
-  const s = props.contract?.status
-  return (s && typeof s === 'object' && 'value' in s) ? s.value : (s ?? '')
-})
-const statusLabel = computed(() => ({
-  active: 'Active', completed: 'Completed', cancelled: 'Cancelled', draft: 'Draft'
-}[statusVal.value] ?? statusVal.value ?? '—'))
+// Helpers
+const val = (v) => (v && typeof v === 'object' && 'value' in v) ? v.value : (v ?? '')
+
+const statusVal   = computed(() => val(props.contract?.status))
+const paymentType = computed(() => val(props.contract?.payment_type) || 'one_time')
 const isActive    = computed(() => statusVal.value === 'active')
-const isCompleted = computed(() => statusVal.value === 'completed')
+const isCompleted = computed(() => ['completed', 'closed'].includes(statusVal.value))
 
+const statusLabel = computed(() => ({
+  active: 'Active', completed: 'Completed', cancelled: 'Cancelled', draft: 'Draft', closed: 'Closed'
+}[statusVal.value] ?? statusVal.value ?? '—'))
+
+const statusVariant = computed(() => ({
+  active: 'green', completed: 'grey', cancelled: 'red', draft: 'grey', closed: 'grey'
+}[statusVal.value] ?? 'grey'))
+
+function milestoneStatusVal(m) { return val(m.status) }
+function milestoneBadgeLabel(s) {
+  return { pending: 'Pending', submitted: 'Submitted', approved: 'Approved', rejected: 'Rejected', paid: 'Paid' }[val(s)] ?? val(s)
+}
+function milestoneBadgeVariant(s) {
+  return { pending: 'grey', submitted: 'gold', approved: 'blue', rejected: 'red', paid: 'green' }[val(s)] ?? 'grey'
+}
+
+const milestoneTotalCents = computed(() =>
+  localMilestones.value.reduce((sum, m) => sum + (m.amount_cents ?? 0), 0)
+)
+const allMilestonesPaid = computed(() =>
+  localMilestones.value.length > 0 &&
+  localMilestones.value.every(m => val(m.status) === 'paid')
+)
+
+function formatMoney(cents) {
+  return '$' + ((cents ?? 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })
+}
 function formatDate(d) {
-  return d ? new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
-}
-function formatCents(c) {
-  return c ? '$' + (c / 100).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '—'
+  if (!d) return '—'
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function milestoneLabel(s) {
-  return { pending: 'Pending', submitted: 'Submitted', approved: 'Approved', rejected: 'Rejected' }[s] ?? s
+// ── Add milestone ─────────────────────────────────────────────────────────────
+function cancelAdd() {
+  showAddMilestone.value = false
+  addForm.value = { title: '', amount_dollars: '', due_at: '', description: '' }
 }
-function milestoneBadge(s) {
-  return { pending: 'badge-gray', submitted: 'badge-gold', approved: 'badge-green', rejected: 'badge-red' }[s] ?? 'badge-gray'
+
+function submitAdd() {
+  if (!addForm.value.title.trim()) { toast.error('Title is required.'); return }
+  const amountCents = Math.round(parseFloat(addForm.value.amount_dollars || '0') * 100)
+
+  addingMilestone.value = true
+  router.post(
+    route('provider.jobs.contract.milestones.store', props.contract.id),
+    {
+      title:        addForm.value.title,
+      description:  addForm.value.description || null,
+      amount_cents: amountCents,
+      due_at:       addForm.value.due_at || null,
+    },
+    {
+      preserveScroll: true,
+      onSuccess: () => {
+        toast.success('Milestone added.')
+        cancelAdd()
+        addingMilestone.value = false
+      },
+      onError: () => { toast.error('Could not add milestone.'); addingMilestone.value = false },
+    }
+  )
+}
+
+// ── Approve milestone ─────────────────────────────────────────────────────────
+function doApproveMilestone(m) {
+  confirmAction(
+    { title: 'Approve Milestone', message: `Approve "${m.title}"? This marks it ready for payment.`, confirmLabel: 'Approve', destructive: false },
+    () => {
+      busyMilestone.value = m.id
+      router.post(
+        route('provider.jobs.contract.milestones.approve', [props.contract.id, m.id]),
+        {},
+        {
+          preserveScroll: true,
+          onSuccess: () => { toast.success('Milestone approved.'); busyMilestone.value = null },
+          onError:   () => { toast.error('Could not approve milestone.'); busyMilestone.value = null },
+        }
+      )
+    }
+  )
+}
+
+// ── Pay milestone ─────────────────────────────────────────────────────────────
+function doPayMilestone(m) {
+  confirmAction(
+    { title: 'Release Milestone Payment', message: `Release ${formatMoney(m.amount_cents)} to ${props.contract.bp?.display_name ?? 'the BP'} via Stripe for "${m.title}"?`, confirmLabel: 'Release Payment', destructive: false },
+    () => {
+      busyMilestone.value = m.id
+      router.post(
+        route('provider.jobs.contract.milestones.pay', [props.contract.id, m.id]),
+        {},
+        {
+          preserveScroll: true,
+          onSuccess: () => { toast.success('Milestone payment released via Stripe.'); busyMilestone.value = null },
+          onError:   () => { toast.error('Payment failed. Verify BP Stripe Connect status.'); busyMilestone.value = null },
+        }
+      )
+    }
+  )
+}
+
+// ── Delete milestone ──────────────────────────────────────────────────────────
+function doDeleteMilestone(m) {
+  confirmAction(
+    { title: 'Remove Milestone', message: `Remove "${m.title}"? This cannot be undone.`, confirmLabel: 'Remove', destructive: true },
+    () => {
+      busyMilestone.value = m.id
+      router.delete(
+        route('provider.jobs.contract.milestones.destroy', [props.contract.id, m.id]),
+        {
+          preserveScroll: true,
+          onSuccess: () => { toast.info('Milestone removed.'); busyMilestone.value = null },
+          onError:   () => { toast.error('Could not remove milestone.'); busyMilestone.value = null },
+        }
+      )
+    }
+  )
+}
+
+// ── End contract (milestone-based) ────────────────────────────────────────────
+function endContract() {
+  confirmAction(
+    { title: 'End Contract', message: 'End this contract? This cannot be undone.', confirmLabel: 'End Contract', destructive: true },
+    () => {
+      busy.value = true
+      router.post(
+        route('provider.jobs.contract.end', props.contract.id),
+        {},
+        {
+          preserveScroll: true,
+          onSuccess: () => { toast.info('Contract ended.'); busy.value = false; close() },
+          onError:   (e) => {
+            toast.error(e.contract ?? 'Could not end contract.')
+            busy.value = false
+          },
+        }
+      )
+    }
+  )
+}
+
+// ── End & release (one-time) ──────────────────────────────────────────────────
+const releaseForm = useForm({})
+
+function endAndRelease() {
+  confirmAction(
+    {
+      title: 'Release Payment & End Contract',
+      message: `Release ${formatMoney(props.contract?.total_value_cents)} to ${props.contract?.bp?.display_name ?? 'the BP'} via Stripe and end the contract?`,
+      confirmLabel: 'Release Payment',
+      destructive: false,
+    },
+    () => {
+      busy.value = true
+      releaseForm.post(
+        route('provider.jobs.contract.release-payment', props.contract.id),
+        {
+          preserveScroll: true,
+          onSuccess: () => { toast.success('Payment released and contract ended.'); busy.value = false; close() },
+          onError:   (e) => {
+            toast.error(e.contract ?? 'Stripe transfer failed. Check BP Stripe connection.')
+            busy.value = false
+          },
+        }
+      )
+    }
+  )
 }
 
 // ── PDF Download ──────────────────────────────────────────────────────────────
@@ -139,11 +418,12 @@ function downloadPdf() {
   const c = props.contract
   if (!c) return
 
-  const milestoneRows = props.milestones.map(m => `
+  const milestoneBadgeMap = { pending: 'Pending', submitted: 'Submitted', approved: 'Approved', rejected: 'Rejected', paid: 'Paid' }
+  const milestoneRows = localMilestones.value.map(m => `
     <tr>
       <td>${m.title}</td>
-      <td>${milestoneLabel(m.status)}</td>
-      <td style="text-align:right">${formatCents(m.amount_cents)}</td>
+      <td>${milestoneBadgeMap[val(m.status)] ?? val(m.status)}</td>
+      <td style="text-align:right">${formatMoney(m.amount_cents)}</td>
     </tr>`).join('')
 
   const html = `<!DOCTYPE html>
@@ -174,11 +454,11 @@ function downloadPdf() {
     <div><div class="label">Contract ID</div><div class="value" style="font-family:monospace;font-size:11px">${c.id}</div></div>
     <div><div class="label">Status</div><div class="value">${statusLabel.value}</div></div>
     <div><div class="label">Engagement</div><div class="value">${c.title}</div></div>
-    <div><div class="label">Total Value</div><div class="value" style="color:#2a6f2a">${formatCents(c.total_value_cents)}</div></div>
+    <div><div class="label">Total Value</div><div class="value" style="color:#2a6f2a">${formatMoney(c.total_value_cents)}</div></div>
+    <div><div class="label">Payment Type</div><div class="value">${paymentType.value === 'milestone' ? 'Milestone-based' : 'One-time'}</div></div>
     <div><div class="label">Business Partner</div><div class="value">${c.bp?.display_name ?? '—'}</div></div>
     <div><div class="label">Signed</div><div class="value">${formatDate(c.signed_at)}</div></div>
     <div><div class="label">Started</div><div class="value">${formatDate(c.started_at)}</div></div>
-    <div><div class="label">Completed</div><div class="value">${formatDate(c.completed_at)}</div></div>
   </div>
   ${milestoneRows ? `
   <div class="section-title">Milestones</div>
@@ -197,38 +477,35 @@ function downloadPdf() {
   win.document.write(html)
   win.document.close()
 }
-
-function endContract() {
-  if (!props.contract) return
-  confirmAction(
-    { title: 'End Contract', message: 'End this contract? This cannot be undone.', confirmLabel: 'End Contract', destructive: true },
-    () => {
-      busy.value = true
-      router.post(route('provider.jobs.contract.cancel', props.contract.id), {}, {
-        preserveScroll: true,
-        onSuccess: () => { toast.info('Contract ended.'); busy.value = false; close() },
-        onError:   () => { toast.error('Could not end contract.'); busy.value = false },
-      })
-    },
-  )
-}
 </script>
 
 <style scoped>
-.contract-meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 14px; }
-.contract-meta-cell { background: var(--surface-2); padding: 12px 14px; }
-.contract-meta-label { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-4); margin-bottom: 4px; }
-.contract-meta-val { font-size: 14px; font-weight: 600; color: var(--text); }
-.contract-meta-green { color: var(--green-dark); }
-.contract-scope { font-size: 13px; color: var(--text-2); line-height: 1.6; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
-.contract-scope-label { font-weight: 600; color: var(--text); }
-.contract-section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-3); margin: 14px 0 8px; }
-.contract-milestones { margin-bottom: 14px; }
-.contract-milestone-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--surface-2); border-radius: var(--radius-sm); margin-bottom: 4px; }
-.contract-milestone-info { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.contract-milestone-title { font-size: 12.5px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
-.contract-milestone-amount { font-size: 13px; font-weight: 700; color: var(--green-dark); flex-shrink: 0; }
-.contract-invoice-note { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-3); background: var(--badge-bg-gold); border-radius: var(--radius-sm); padding: 10px 14px; border-left: 3px solid var(--gold); }
+.contract-summary-card { background: var(--surface-2); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; border: 1px solid var(--border); }
+.contract-summary-row  { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.contract-summary-row:last-child { margin-bottom: 0; }
+.contract-summary-item { flex: 1; min-width: 130px; }
+.contract-summary-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-4); margin-bottom: 4px; }
+.contract-summary-val   { font-size: 14px; color: var(--text); font-weight: 500; }
+.contract-summary-val.is-money { font-size: 20px; font-weight: 700; color: var(--green-dark); }
+.contract-id-mono { font-size: 11px; font-family: monospace; color: var(--text-3); }
+
+.milestone-section { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 4px; margin-bottom: 16px; }
+.milestone-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.milestone-section-title  { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; }
+.milestone-add-form { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
+.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.milestone-add-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.milestone-list { display: flex; flex-direction: column; gap: 6px; }
+.milestone-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--surface-2); border-radius: var(--radius-sm); gap: 12px; border: 1px solid var(--border); }
+.milestone-row-left { flex: 1; min-width: 0; }
+.milestone-title { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.milestone-meta  { font-size: 12px; color: var(--text-4); margin-top: 2px; }
+.milestone-row-right { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.milestone-total-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 13px; }
+.milestone-total-label { color: var(--text-3); }
+.milestone-total-val { font-weight: 700; color: var(--text); }
+
+.contract-invoice-note { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-3); background: var(--badge-bg-gold); border-radius: var(--radius-sm); padding: 10px 14px; border-left: 3px solid var(--gold); margin-top: 16px; }
 .link-gold { color: var(--gold-dark); font-weight: 600; text-decoration: none; }
 .link-gold:hover { text-decoration: underline; }
 </style>

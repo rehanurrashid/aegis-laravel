@@ -175,7 +175,14 @@
             <div class="jp-app-role">{{ bpTypeLabel(p.bp?.bp_type) }}</div>
           </div>
           <div style="font-size:12.5px;color:var(--text-2)">{{ jobTitle(p.job_id) }}</div>
-          <div style="font-size:13px;font-weight:700;color:var(--green)">{{ formatCents(p.proposed_rate_cents) }}</div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--green)">{{ formatCents(p.proposed_rate_cents) }}</div>
+            <AegisBadge
+              v-if="p.payment_type"
+              :label="p.payment_type === 'milestone' ? 'Milestone-based' : 'One-time Payment'"
+              :variant="p.payment_type === 'milestone' ? 'blue' : 'gold'"
+            />
+          </div>
           <div><span class="badge" :class="proposalStatusBadgeClass(p)">{{ proposalStatusLabel(p) }}</span></div>
           <div style="display:flex;gap:5px" @click.stop>
             <button class="btn-icon" data-tooltip="View profile" @click="openProfile(p)"><AegisIcon name="eye" :size="12" /></button>

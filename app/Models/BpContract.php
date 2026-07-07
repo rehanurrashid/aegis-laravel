@@ -21,8 +21,8 @@ class BpContract extends Model
 
     protected $fillable = [
         'id', 'job_id', 'proposal_id', 'practitioner_id', 'bp_id', 'title',
-        'status', 'total_value_cents',
-        'signed_at', 'cancelled_at', 'cancel_reason', 'started_at', 'completed_at',
+        'status', 'total_value_cents', 'payment_type',
+        'signed_at', 'cancelled_at', 'cancel_reason', 'started_at', 'completed_at', 'ended_at',
     ];
 
     protected $casts = [
@@ -32,6 +32,7 @@ class BpContract extends Model
         'cancelled_at'      => 'datetime',
         'started_at'        => 'datetime',
         'completed_at'      => 'datetime',
+        'ended_at'          => 'datetime',
     ];
 
     public function job(): BelongsTo          { return $this->belongsTo(BpJob::class, 'job_id'); }

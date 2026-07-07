@@ -6,6 +6,8 @@ namespace App\Services;
 
 use App\Enums\ActivitySeverity;
 use App\Events\Business\PayoutReleased;
+use App\Models\BpContract;
+use App\Models\BpMilestone;
 use App\Models\BpPayout;
 use App\Models\CsPayout;
 use App\Models\User;
@@ -176,5 +178,151 @@ class PayoutService
         );
 
         return $payment->fresh();
+    }
+
+    /**
+     * Transfer funds directly to a BP via Stripe Connect.
+     * Stubs when Stripe not configured or BP has no connected account.
+     */
+    public function releaseToConnectedAccount(
+        User $bp,
+        int $amountCents,
+        string $currency = 'usd',
+        array $meta = []
+    ): array {
+        $stripeAccount = $bp->stripe_account_id;
+        if (config('services.stripe.secret') && $stripeAccount) {
+            try {
+                $stripe = new StripeClient(config('services.stripe.secret'));
+                $transfer = $stripe->transfers->create([
+                    'amount'      => $amountCents,
+                    'currency'    => $currency,
+                    'destination' => $stripeAccount,
+                    'metadata'    => $meta,
+                ]);
+                return ['stripe_transfer_id' => $transfer->id, 'status' => 'paid'];
+            } catch (\Stripe\Exception\InvalidRequestException $e) {
+                throw new \RuntimeException('Stripe error: ' . $e->getMessage());
+            } catch (\Stripe\Exception\AuthenticationException $e) {
+                throw new \RuntimeException('Stripe authentication failed. Check STRIPE_SECRET in .env.');
+            } catch (\Throwable $e) {
+                throw new \RuntimeException('Stripe transfer failed: ' . $e->getMessage());
+            }
+        }
+        return [
+            'stripe_transfer_id' => 'stub_' . Str::lower(Str::random(12)),
+            'status' => 'pending',
+        ];
+    }
+
+    /**
+     * End a one-time payment contract and release full value to BP via Stripe.
+     */
+    public function endContractAndRelease(BpContract $contract): BpPayout
+    {
+        $bp = User::findOrFail($contract->bp_id);
+        $result = $this->releaseToConnectedAccount(
+            $bp,
+            $contract->total_value_cents,
+            'usd',
+            ['contract_id' => $contract->id, 'type' => 'one_time']
+        );
+
+        $payout = BpPayout::create([
+            'id'                 => 'bpo_' . Str::lower(Str::random(12)),
+            'bp_id'              => $contract->bp_id,
+            'contract_id'        => $contract->id,
+            'amount_cents'       => $contract->total_value_cents,
+            'currency'           => 'USD',
+            'status'             => $result['status'],
+            'stripe_transfer_id' => $result['stripe_transfer_id'],
+            'released_at'        => now(),
+            'description'        => 'One-time contract payment: ' . $contract->title,
+        ]);
+
+        $contract->update(['status' => 'completed', 'ended_at' => now(), 'completed_at' => now()]);
+
+        $this->activity->log(
+            $contract->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
+            'contract_payment_released',
+            'Payment released: ' . $contract->title,
+            '$' . number_format($contract->total_value_cents / 100, 2) . ' sent to ' . $bp->display_name . ' via Stripe.',
+            'bp_payout', $payout->id, null,
+            'log', $contract->practitioner_id
+        );
+
+        $this->activity->log(
+            $contract->bp_id, 'business_partner', 'job_postings', ActivitySeverity::Info,
+            'contract_payment_received',
+            'Payment received: ' . $contract->title,
+            '$' . number_format($contract->total_value_cents / 100, 2) . ' transferred to your account.',
+            'bp_payout', $payout->id, $contract->practitioner_id,
+            'notification', $contract->practitioner_id
+        );
+
+        return $payout;
+    }
+
+    /**
+     * Pay an approved milestone and release funds to BP via Stripe.
+     */
+    public function payMilestone(BpMilestone $milestone): BpPayout
+    {
+        $statusVal = $milestone->status instanceof \BackedEnum
+            ? $milestone->status->value
+            : (string) $milestone->status;
+
+        if ($statusVal !== 'approved') {
+            throw new \RuntimeException('Milestone must be approved before payment.');
+        }
+
+        $contract = $milestone->contract;
+        $bp = User::findOrFail($contract->bp_id);
+
+        $result = $this->releaseToConnectedAccount(
+            $bp,
+            $milestone->amount_cents,
+            'usd',
+            ['contract_id' => $contract->id, 'milestone_id' => $milestone->id]
+        );
+
+        $payout = BpPayout::create([
+            'id'                 => 'bpo_' . Str::lower(Str::random(12)),
+            'bp_id'              => $contract->bp_id,
+            'contract_id'        => $contract->id,
+            'milestone_id'       => $milestone->id,
+            'amount_cents'       => $milestone->amount_cents,
+            'currency'           => 'USD',
+            'status'             => $result['status'],
+            'stripe_transfer_id' => $result['stripe_transfer_id'],
+            'released_at'        => now(),
+            'description'        => 'Milestone payment: ' . $milestone->title,
+        ]);
+
+        $milestone->update([
+            'status'    => 'paid',
+            'paid_at'   => now(),
+            'payout_id' => $payout->id,
+        ]);
+
+        $this->activity->log(
+            $contract->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
+            'milestone_paid',
+            'Milestone payment released: ' . $milestone->title,
+            '$' . number_format($milestone->amount_cents / 100, 2) . ' sent to ' . $bp->display_name . ' via Stripe.',
+            'bp_milestone', $milestone->id, null,
+            'log', $contract->practitioner_id
+        );
+
+        $this->activity->log(
+            $contract->bp_id, 'business_partner', 'job_postings', ActivitySeverity::Info,
+            'milestone_payment_received',
+            'Milestone payment received: ' . $milestone->title,
+            '$' . number_format($milestone->amount_cents / 100, 2) . ' transferred to your account.',
+            'bp_milestone', $milestone->id, $contract->practitioner_id,
+            'notification', $contract->practitioner_id
+        );
+
+        return $payout;
     }
 }

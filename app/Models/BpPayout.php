@@ -18,8 +18,8 @@ class BpPayout extends Model
     public    $incrementing = false;
 
     protected $fillable = [
-        'id', 'bp_id', 'amount_cents', 'currency', 'status',
-        'description', 'stripe_payout_id', 'scheduled_at', 'paid_at',
+        'id', 'bp_id', 'contract_id', 'milestone_id', 'amount_cents', 'currency', 'status',
+        'description', 'stripe_payout_id', 'stripe_transfer_id', 'scheduled_at', 'paid_at', 'released_at',
     ];
 
     protected $casts = [
@@ -27,6 +27,7 @@ class BpPayout extends Model
         'amount_cents' => 'integer',
         'scheduled_at' => 'datetime',
         'paid_at'      => 'datetime',
+        'released_at'  => 'datetime',
     ];
 
     public function bp(): BelongsTo
