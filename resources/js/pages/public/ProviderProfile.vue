@@ -1216,8 +1216,10 @@ function copyShareLink() {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 10px;
-  padding: 12px 18px;
+  gap: 16px;
+  padding: 16px 18px;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
 }
 .pp-svc-card-avail { display: none; }
 .pp-svc-avail-pill {
