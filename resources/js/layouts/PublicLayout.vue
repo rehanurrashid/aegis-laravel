@@ -31,9 +31,9 @@
 
         <!-- Nav -->
         <nav class="pub-nav" aria-label="Main navigation">
-          <a :href="route('home')"     class="pub-nav-link">About</a>
-          <a :href="route('home')"     class="pub-nav-link">Pricing</a>
-          <a :href="route('home')"     class="pub-nav-link">Contact</a>
+          <a :href="route('about')"    class="pub-nav-link">About</a>
+          <a :href="route('pricing')"   class="pub-nav-link">Pricing</a>
+          <a :href="route('contact')"   class="pub-nav-link">Contact</a>
           <span class="pub-nav-divider" aria-hidden="true"></span>
           <!-- Anonymous: sign in + register -->
           <template v-if="!isLoggedIn">
@@ -94,9 +94,9 @@
         <div class="pub-footer-links-wrap">
           <div class="pub-footer-col">
             <div class="pub-footer-col-label">Platform</div>
-            <a :href="route('home')" class="pub-footer-link">About Aegis</a>
-            <a :href="route('home')" class="pub-footer-link">Pricing</a>
-            <a :href="route('home')" class="pub-footer-link">Security</a>
+            <a :href="route('about')"   class="pub-footer-link">About Aegis</a>
+            <a :href="route('pricing')"  class="pub-footer-link">Pricing</a>
+            <a :href="route('about')"    class="pub-footer-link">Security</a>
           </div>
           <div class="pub-footer-col">
             <div class="pub-footer-col-label">Practitioners</div>
@@ -107,7 +107,7 @@
           <div class="pub-footer-col">
             <div class="pub-footer-col-label">Support</div>
             <a :href="route('home')" class="pub-footer-link">Help center</a>
-            <a :href="route('home')" class="pub-footer-link">Contact us</a>
+            <a :href="route('contact')" class="pub-footer-link">Contact us</a>
             <a :href="route('home')" class="pub-footer-link">Privacy policy</a>
           </div>
         </div>
