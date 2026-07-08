@@ -649,21 +649,25 @@
               <div class="st-divider"></div>
 
               <!-- Payment methods — from Stripe -->
-              <div class="st-subhead" style="margin-bottom:12px">Payment Methods</div>
-              <div v-if="stripePaymentMethods.length === 0" style="font-size:13px;color:var(--text-3);padding:12px 0;">
-                No payment methods on file. <a :href="route('provider.settings.billing.portal')" style="color:var(--gold-dark);text-decoration:underline;">Add one via Stripe →</a>
+              <div class="st-pm-header">
+                <div class="st-subhead" style="margin-bottom:0">Payment Methods</div>
+                <a :href="route('provider.finances.index')" class="btn btn-outline btn-sm">
+                  <AegisIcon name="credit-card" :size="13" /> Manage Payment Methods
+                </a>
               </div>
-              <div v-for="pm in stripePaymentMethods" :key="pm.id" class="st-pay-row" style="margin-bottom:10px">
-                <span class="st-pay-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span>
-                <div class="st-pay-info">
-                  <div class="st-pay-num" style="font-family:var(--font-sans);letter-spacing:0;font-weight:700">{{ formatCardBrand(pm.brand) }} ending in {{ pm.last4 }}</div>
-                  <div class="st-pay-exp">Expires {{ pm.exp }}<span v-if="pm.default"> · Default payment method</span></div>
+              <div v-if="stripePaymentMethods.length === 0" class="st-pm-empty">
+                <AegisIcon name="credit-card" :size="18" />
+                <span>No payment methods on file. <a :href="route('provider.finances.index')" style="color:var(--gold-dark)">Add one in Finances →</a></span>
+              </div>
+              <div v-else class="st-pm-list">
+                <div v-for="pm in stripePaymentMethods" :key="pm.id" class="st-pay-row">
+                  <span class="st-pay-ico"><AegisIcon name="credit-card" :size="16" /></span>
+                  <div class="st-pay-info">
+                    <div class="st-pay-num">{{ formatCardBrand(pm.brand) }} ending in {{ pm.last4 }}</div>
+                    <div class="st-pay-exp">Expires {{ pm.exp }}<span v-if="pm.default"> · Default</span></div>
+                  </div>
+                  <span v-if="pm.default" class="st-badge-green"><AegisIcon name="check" :size="11" /> Default</span>
                 </div>
-                <span v-if="pm.default" class="st-badge-green">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><polyline points="20 6 9 17 4 12"/></svg>Default
-                </span>
-                <button v-else type="button" class="btn btn-outline btn-sm" @click="setDefaultPm(pm.id)" :disabled="pmBusy">Set Default</button>
-                <button type="button" class="st-link-btn st-remove" @click="removePm(pm.id)" :disabled="pmBusy || pm.default">Remove</button>
               </div>
 
               <div class="st-divider"></div>
@@ -1478,6 +1482,12 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 .inv-status-other { font-size: 11px; color: var(--text-3); font-weight: 600; }
 .inv-dl { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius); background: var(--surface-2); color: var(--text-3); transition: all var(--transition); }
 .inv-dl:hover { background: var(--surface-3); color: var(--text); }
+
+.st-pm-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.st-pm-empty { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-3); padding: 12px 0; }
+.st-pm-list { display: flex; flex-direction: column; gap: 0; }
+.st-pm-list .st-pay-row { margin-bottom: 0; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.st-pm-list .st-pay-row:last-child { border-bottom: none; }
 
 /* RESPONSIVE */
 @media (max-width: 1000px) { .settings-layout { grid-template-columns: 1fr; } .settings-sidebar { position: static; } }
