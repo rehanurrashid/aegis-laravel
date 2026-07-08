@@ -276,6 +276,13 @@ class OnboardingController extends Controller
             $user->id
         )->onQueue('email');
 
+        // Fire subscription invoice email alongside the welcome email
+        \App\Jobs\SendEmailJob::dispatch(
+            'emails.auth.10-subscription-invoice',
+            $this->buildInvoiceData($user, $plan, $billing),
+            $user->id
+        )->onQueue('email');
+
         return redirect()->route($this->dashboardRoute($user))
             ->with('success', 'Welcome to Aegis! Your subscription is active.');
     }
@@ -357,5 +364,88 @@ class OnboardingController extends Controller
     private function roleValue(\App\Models\User $user): string
     {
         return $user->role instanceof UserRole ? $user->role->value : (string) $user->role;
+    }
+
+    /**
+     * Build the data array for the subscription invoice email.
+     * Pulls prices from config('aegis.pricing') — same source OnboardingPlan uses.
+     */
+    private function buildInvoiceData(\App\Models\User $user, array $plan, string $billing): array
+    {
+        $pricing   = config('aegis.pricing');
+        $tier      = $plan['tier']    ?? 'practice';
+        $addons    = $plan['addons']  ?? [];
+        $isAnnual  = $billing === 'annual';
+        $toD       = fn(int $cents): string => '$' . number_format($cents / 100, 2);
+
+        // ── Base plan ─────────────────────────────────────────────────────
+        $planCents = match (true) {
+            $tier === 'access'      => $isAnnual
+                ? ($pricing['practitioner']['access']['annual_cents']        ?? 2300)
+                : ($pricing['practitioner']['access']['monthly_cents']       ?? 2900),
+            $tier === 'practice'    => $isAnnual
+                ? ($pricing['practitioner']['practice']['annual_cents']      ?? 3900)
+                : ($pricing['practitioner']['practice']['monthly_cents']     ?? 4900),
+            $tier === 'monthly'     => $pricing['business_partner']['monthly_cents']      ?? 6900,
+            $tier === 'annual'      => $pricing['business_partner']['annual_total_cents'] ?? 69000,
+            $tier === 'cs_business' => $isAnnual
+                ? ($pricing['continuity_steward_business']['annual_cents']   ?? 3600)
+                : ($pricing['continuity_steward_business']['monthly_cents']  ?? 4900),
+            default => 0,
+        };
+
+        $planLabels = [
+            'access'      => 'Continuity Access',
+            'practice'    => 'Continuity Practice',
+            'monthly'     => 'Business Partner — Monthly',
+            'annual'      => 'Business Partner — Annual',
+            'cs_business' => 'Business CS',
+        ];
+
+        $planName = $planLabels[$tier] ?? 'Aegis Subscription';
+        $planDesc = $isAnnual && !in_array($tier, ['monthly', 'annual'], true)
+            ? 'Annual subscription (billed today)'
+            : 'Monthly subscription';
+
+        // ── Add-ons ───────────────────────────────────────────────────────
+        $addonLines = [];
+        $addonTotal = 0;
+
+        if (in_array('maat', $addons, true)) {
+            $maatCents   = $isAnnual
+                ? ($pricing['maat_addon']['annual_cents']      ?? 2300)
+                : ($pricing['maat_addon']['monthly_cents']     ?? 2900);
+            $addonTotal += $maatCents;
+            $addonLines[] = [
+                'name'        => 'MAAT Professional Continuity Steward Service',
+                'description' => 'Designated licensed & insured CS · emergency response within 4 hrs',
+                'price'       => $toD($maatCents) . ($tier === 'annual' ? '/yr' : '/mo'),
+            ];
+        }
+
+        // ── Totals & renewal ─────────────────────────────────────────────
+        $totalCents   = $planCents + $addonTotal;
+        $suffix       = in_array($tier, ['annual', 'cs_business'], true) && $isAnnual ? '/yr' : '/mo';
+        $billingLabel = $isAnnual ? 'Annual (billed today)' : 'Monthly';
+
+        $renewalLabel = $isAnnual
+            ? 'Annually on ' . now()->addYear()->format('F j, Y')
+            : 'Monthly on the ' . now()->addMonth()->format('jS') . ' of each month';
+
+        return [
+            'recipient_name'  => $user->display_name ?? $user->name,
+            'invoice_number'  => 'INV-' . strtoupper(substr(str_replace('-', '', $user->id), 0, 8)),
+            'invoice_date'    => now()->format('F j, Y'),
+            'billing_label'   => $billingLabel,
+            'plan_name'       => $planName,
+            'plan_description'=> $planDesc,
+            'plan_price'      => $toD($planCents) . $suffix,
+            'addons'          => $addonLines,
+            'total_price'     => $toD($totalCents) . $suffix,
+            'renewal_label'   => $renewalLabel,
+            'portal_url'      => route($this->dashboardRoute($user)),
+            'role_label'      => $this->roleLabelFor($user),
+            'user_id'         => $user->id,
+        ];
     }
 }
