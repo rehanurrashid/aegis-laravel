@@ -105,7 +105,6 @@ class SettingsController extends Controller
     {
         $data = $request->validate([
             'notify_email'    => 'nullable|boolean',
-            'notify_sms'      => 'nullable|boolean',
             'notify_in_app'   => 'nullable|boolean',
             'notify_summary'  => 'nullable|boolean',
             'notify_plan'     => 'nullable|boolean',
@@ -117,8 +116,11 @@ class SettingsController extends Controller
             'notify_referral' => 'nullable|boolean',
             'notify_account'  => 'nullable|boolean',
             // Channel-level from notification table
-            'prefs'           => 'nullable|array',
-            'categories'      => 'nullable|array',
+            'categories'               => 'nullable|array',
+            'categories.*.key'         => 'required|string',
+            'categories.*.push'        => 'boolean',
+            'categories.*.email'       => 'boolean',
+            'categories.*.inapp'       => 'boolean',
         ]);
 
         $user = $request->user();
@@ -130,12 +132,7 @@ class SettingsController extends Controller
             }
         }
 
-        // Save quiet hours + digest prefs
-        if (!empty($data['prefs'])) {
-            $this->profiles->saveMeta($user, 'notify_prefs', $data['prefs'], 'json');
-        }
-
-        // Save per-category channel matrix
+        // Save per-category channel matrix (push, email, inapp)
         if (!empty($data['categories'])) {
             $this->profiles->saveMeta($user, 'notify_categories', $data['categories'], 'json');
         }

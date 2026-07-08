@@ -417,14 +417,14 @@ const nav = [
 ];
 
 const csNotifCategories = [
-  { key: \'incident\',    label: \'Incident Triggers\',    desc: \'When a critical incident is reported for one of my assigned providers\',    push: true,  email: true,  sms: true,  inapp: true  },
-  { key: \'plan\',        label: \'Plan Changes\',          desc: \'When a practitioner updates or amends their continuity plan\',               push: true,  email: true,  sms: false, inapp: true  },
-  { key: \'attestation\', label: \'Attestation Requests\', desc: \'When a pending plan attestation requires my sign-off\',                      push: true,  email: true,  sms: true,  inapp: true  },
-  { key: \'agreements\',  label: \'Agreement Alerts\',     desc: \'Signing requests, renewals, and expiry warnings on stewardship agreements\', push: true,  email: true,  sms: false, inapp: true  },
-  { key: \'messages\',    label: \'New Messages\',         desc: \'From assigned practitioners or Aegis support\',                              push: true,  email: false, sms: false, inapp: true  },
-  { key: \'docs\',        label: \'Document Access\',      desc: \'When vault documents are accessed on behalf of a provider I steward\',       push: false, email: true,  sms: false, inapp: true  },
-  { key: \'coverage\',    label: \'Coverage Activation\',  desc: \'When continuity coverage for one of my providers is formally activated\',    push: true,  email: true,  sms: true,  inapp: true  },
-  { key: \'checkin\',     label: \'Check-in Reminders\',   desc: \'Scheduled reminders to review and certify practitioner plans\',             push: true,  email: true,  sms: false, inapp: true  },
+  { key: \'incident\',    label: \'Incident Triggers\',    desc: \'When a critical incident is reported for one of my assigned providers\',    push: true,  email: true  inapp: true  },
+  { key: \'plan\',        label: \'Plan Changes\',          desc: \'When a practitioner updates or amends their continuity plan\',               push: true,  email: true inapp: true  },
+  { key: \'attestation\', label: \'Attestation Requests\', desc: \'When a pending plan attestation requires my sign-off\',                      push: true,  email: true  inapp: true  },
+  { key: \'agreements\',  label: \'Agreement Alerts\',     desc: \'Signing requests, renewals, and expiry warnings on stewardship agreements\', push: true,  email: true inapp: true  },
+  { key: \'messages\',    label: \'New Messages\',         desc: \'From assigned practitioners or Aegis support\',                              push: true,  email: false, inapp: true  },
+  { key: \'docs\',        label: \'Document Access\',      desc: \'When vault documents are accessed on behalf of a provider I steward\',       push: false, email: true inapp: true  },
+  { key: \'coverage\',    label: \'Coverage Activation\',  desc: \'When continuity coverage for one of my providers is formally activated\',    push: true,  email: true  inapp: true  },
+  { key: \'checkin\',     label: \'Check-in Reminders\',   desc: \'Scheduled reminders to review and certify practitioner plans\',             push: true,  email: true inapp: true  },
 ];
 
 const csRolePrefs      = reactive({ showOnProfile: true, vaultAccess: true });

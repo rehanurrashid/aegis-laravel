@@ -87,15 +87,17 @@ class SettingsController extends Controller
     {
         $data = $request->validate([
             'notify_email'    => 'nullable|boolean',
-            'notify_sms'      => 'nullable|boolean',
             'notify_in_app'   => 'nullable|boolean',
             'notify_summary'  => 'nullable|boolean',
             'notify_plan'     => 'nullable|boolean',
             'notify_incident' => 'nullable|boolean',
             'notify_message'  => 'nullable|boolean',
             'notify_account'  => 'nullable|boolean',
-            'prefs'           => 'nullable|array',
-            'categories'      => 'nullable|array',
+            'categories'               => 'nullable|array',
+            'categories.*.key'         => 'required|string',
+            'categories.*.push'        => 'boolean',
+            'categories.*.email'       => 'boolean',
+            'categories.*.inapp'       => 'boolean',
         ]);
 
         $user = $request->user();
@@ -103,9 +105,6 @@ class SettingsController extends Controller
             if (str_starts_with($key, 'notify_') && (is_bool($val) || is_numeric($val))) {
                 $this->profiles->saveMeta($user, $key, $val ? '1' : '0', 'string');
             }
-        }
-        if (!empty($data['prefs'])) {
-            $this->profiles->saveMeta($user, 'notify_prefs', $data['prefs'], 'json');
         }
         if (!empty($data['categories'])) {
             $this->profiles->saveMeta($user, 'notify_categories', $data['categories'], 'json');
