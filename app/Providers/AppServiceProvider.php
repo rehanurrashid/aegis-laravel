@@ -116,9 +116,10 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Plan\VaultUnsealed::class,         Listeners\SendEmailNotificationListener::class);
 
         // Subscription / account events
-        Event::listen(Events\Account\SubscriptionCancelled::class,   Listeners\SendEmailNotificationListener::class);
-        Event::listen(Events\Account\SubscriptionTierChanged::class,  Listeners\SendEmailNotificationListener::class);
-        Event::listen(Events\Account\MaatAddonChanged::class,         Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\SubscriptionCancelled::class,   Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\SubscriptionTierChanged::class,  Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\MaatAddonChanged::class,         Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Account\SubscriptionRenewalUpcoming::class, Listeners\SendEmailNotificationListener::class);
 
         // Document events
         Event::listen(Events\Document\DocumentRequested::class,        Listeners\SendEmailNotificationListener::class);

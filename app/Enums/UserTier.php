@@ -20,7 +20,7 @@ enum UserTier: string
     public function monthlyCents(): int
     {
         return match ($this) {
-            self::Access   => 1900,
+            self::Access   => 2900,   // $29/mo (corrected from stale $19)
             self::Practice => 4900,
         };
     }

@@ -423,6 +423,10 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:contin
         // Settings
         Route::get('/settings', [CsSettingsController::class, 'index'])->name('settings.index');
         Route::put('/settings/notifications', [CsSettingsController::class, 'updateNotifications'])->name('settings.notifications');
+        Route::post('/settings/subscription/swap',   [CsSettingsController::class, 'swapPlan'])->name('settings.subscription.swap');
+        Route::post('/settings/subscription/cancel', [CsSettingsController::class, 'cancelPlan'])->name('settings.subscription.cancel');
+        Route::post('/settings/subscription/resume', [CsSettingsController::class, 'resumePlan'])->name('settings.subscription.resume');
+        Route::get('/settings/billing-portal',       [CsSettingsController::class, 'billingPortal'])->name('settings.billing.portal');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
         Route::put('/settings/messaging', [CsSettingsController::class, 'updateMessaging'])->name('settings.messaging');
         Route::put('/settings/email-prefs', [CsSettingsController::class, 'updateEmailPrefs'])->name('settings.email-prefs');
@@ -558,6 +562,10 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:busine
         // Settings
         Route::get('/settings', [BpSettingsController::class, 'index'])->name('settings.index');
         Route::put('/settings/notifications', [BpSettingsController::class, 'updateNotifications'])->name('settings.notifications');
+        Route::post('/settings/subscription/swap',   [BpSettingsController::class, 'swapPlan'])->name('settings.subscription.swap');
+        Route::post('/settings/subscription/cancel', [BpSettingsController::class, 'cancelPlan'])->name('settings.subscription.cancel');
+        Route::post('/settings/subscription/resume', [BpSettingsController::class, 'resumePlan'])->name('settings.subscription.resume');
+        Route::get('/settings/billing-portal',       [BpSettingsController::class, 'billingPortal'])->name('settings.billing.portal');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
         Route::put('/settings/messaging', [BpSettingsController::class, 'updateMessaging'])->name('settings.messaging');
         Route::put('/settings/email-prefs', [BpSettingsController::class, 'updateEmailPrefs'])->name('settings.email-prefs');

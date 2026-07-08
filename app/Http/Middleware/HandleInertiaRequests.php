@@ -125,7 +125,20 @@ class HandleInertiaRequests extends Middleware
                     'avatar_url'      => $user->avatar_url ?? null,
                     'services_mode'      => (bool) ($user->services_mode ?? false),
                     'two_factor'         => (bool) ($user->two_factor_enabled ?? false),
+                    'mfa_enabled'        => (bool) ($user->two_factor_enabled ?? false),
                     'verified'           => (bool) ($user->verified ?? false),
+                    'bp_type'            => $user->bp_type instanceof \BackedEnum
+                                               ? $user->bp_type->value
+                                               : ($user->bp_type ?? null),
+                    'cs_account_type'    => $user->cs_account_type instanceof \BackedEnum
+                                               ? $user->cs_account_type->value
+                                               : ($user->cs_account_type ?? null),
+                    'has_cs_portal'      => \App\Models\UserRoleAssignment::where('user_id', $user->id)
+                                               ->where('role', 'continuity_steward')
+                                               ->exists(),
+                    'has_ss_portal'      => \App\Models\UserRoleAssignment::where('user_id', $user->id)
+                                               ->where('role', 'support_steward')
+                                               ->exists(),
                     'messaging_status'   => UserMeta::where('user_id', $user->id)
                                                ->where('meta_key', 'messaging_status')
                                                ->value('meta_value') ?? 'available',

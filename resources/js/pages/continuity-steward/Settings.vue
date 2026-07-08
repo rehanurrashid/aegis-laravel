@@ -139,30 +139,105 @@
         <div v-show="section === \'appearance\'" class="settings-panel">
           <SettingsAppearance update-route="cs.settings.appearance" :meta="meta" />
         </div>
+        <!-- BILLING — Business CS only / Invited CS sees no-cost notice -->
         <div v-show="section === \'billing\'" class="settings-panel">
-          <div class="card">
+
+          <!-- INVITED CS -->
+          <div v-if="isInvitedCs" class="card">
             <div class="card-header">
               <div class="card-title-group">
                 <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="star" :size="16" /></div>
-                <div><div class="card-title">Subscription &amp; Plan</div><div class="card-subtitle">{{ isInvitedCs ? \'Your access is covered by your linked provider\' : \'Business CS Plan\' }}</div></div>
+                <div><div class="card-title">Subscription &amp; Plan</div><div class="card-subtitle">Your access is covered by your linked provider</div></div>
               </div>
-              <span class="badge badge-green" style="font-size:12px;display:inline-flex;align-items:center;gap:5px"><AegisIcon name="check" :size="12" /> Active{{ isInvitedCs ? \' — No Cost\' : \'\'  }}</span>
+              <span class="badge badge-green" style="font-size:12px;display:inline-flex;align-items:center;gap:5px"><AegisIcon name="check" :size="12" /> Active — No Cost</span>
             </div>
             <div class="card-body">
-              <div v-if="isInvitedCs">
-                <div class="alert alert-info" style="margin-bottom:18px"><div class="alert-icon"><AegisIcon name="shield" :size="18" /></div><div class="alert-content"><strong>You have full Continuity Steward access — at no cost.</strong><br>Your portal is fully covered by your linked provider\'s Aegis subscription.</div></div>
-                <div v-if="user?.linked_provider_name" style="background:var(--icon-bg-gold);border:1px solid var(--badge-border-gold);border-radius:var(--radius);padding:16px 18px;display:flex;align-items:center;gap:14px">
-                  <div class="stat-chip-icon" style="width:40px;height:40px;flex-shrink:0;background:var(--gold-dark);color:var(--text-inverted)"><AegisIcon name="user" :size="16" /></div>
-                  <div style="flex:1"><div style="font-size:11px;text-transform:uppercase;color:var(--text-3);margin-bottom:3px">Your Linked Provider</div><div style="font-family:var(--font-serif);font-size:17px;font-weight:700">{{ user.linked_provider_name }}</div></div>
-                  <a :href="route(\'cs.providers.index\')" class="btn btn-outline btn-sm"><AegisIcon name="external-link" :size="13" /> View Provider</a>
-                </div>
+              <div class="alert alert-info" style="margin-bottom:18px">
+                <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
+                <div class="alert-content"><strong>Full Continuity Steward access — at no cost.</strong><br>Covered by your linked provider\'s Aegis subscription.</div>
               </div>
-              <div v-else>
-                <div class="alert alert-info"><div class="alert-icon"><AegisIcon name="credit-card" :size="16" /></div><div class="alert-content" style="font-size:13px">To cancel or change your Business CS plan, contact <a href="mailto:support@maatpracticefirm.com" style="color:var(--gold-dark)">support@maatpracticefirm.com</a></div></div>
+              <div v-if="user?.linked_provider_name" style="background:var(--icon-bg-gold);border:1px solid var(--badge-border-gold);border-radius:var(--radius);padding:16px 18px;margin-bottom:18px;display:flex;align-items:center;gap:14px">
+                <div class="stat-chip-icon" style="width:40px;height:40px;flex-shrink:0;background:var(--gold-dark);color:var(--text-inverted)"><AegisIcon name="user" :size="16" /></div>
+                <div style="flex:1">
+                  <div style="font-size:11px;text-transform:uppercase;color:var(--text-3);margin-bottom:3px">Your Linked Provider</div>
+                  <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text)">{{ user.linked_provider_name }}</div>
+                </div>
+                <a :href="route(\'cs.providers.index\')" class="btn btn-outline btn-sm"><AegisIcon name="external-link" :size="13" /> View Provider</a>
+              </div>
+              <div class="alert alert-gold" style="margin:0">
+                <div class="alert-icon"><AegisIcon name="star" :size="16" /></div>
+                <div class="alert-content" style="font-size:12.5px">Want to serve more practitioners? <strong>Upgrade to Business CS</strong> ($49/mo) to get a public profile and serve up to 40 practitioners. Contact <a href="mailto:support@maatpracticefirm.com" style="color:var(--gold-dark)">support@maatpracticefirm.com</a>.</div>
               </div>
             </div>
           </div>
+
+          <!-- BUSINESS CS: full billing management -->
+          <div v-else class="st-card">
+            <div class="st-card-head">
+              <div class="st-card-head-l">
+                <span class="st-card-ico"><AegisIcon name="star" :size="17" /></span>
+                <div><div class="st-card-title">Subscription &amp; Plan</div><div class="st-card-sub">Business Continuity Steward</div></div>
+              </div>
+              <a :href="route(\'cs.settings.billing.portal\')" class="btn btn-outline btn-sm" target="_blank"><AegisIcon name="external-link" :size="13" /> Manage in Stripe</a>
+            </div>
+            <div class="st-card-body">
+              <template v-if="sub.on_grace_period">
+                <div class="st-perks-band" style="border-color:var(--orange);background:var(--orange-light);">
+                  <AegisIcon name="alert-triangle" :size="16" style="color:var(--orange)" />
+                  <div style="font-size:13px;color:var(--text-2)">Subscription cancelled — access ends {{ formatDate(sub.ends_at) }}. <button type="button" class="btn btn-gold btn-sm" @click="resumeCsPlan" :disabled="planBusy">Reactivate</button></div>
+                </div>
+              </template>
+              <template v-else-if="subStatus === \'past_due\'">
+                <div class="st-perks-band" style="border-color:var(--red-light);background:var(--surface-2);">
+                  <AegisIcon name="alert-triangle" :size="16" style="color:var(--red)" />
+                  <div style="font-size:13px;color:var(--text-2)">Payment failed — <a :href="route(\'cs.settings.billing.portal\')" style="color:var(--red)">update your payment method</a>.</div>
+                </div>
+              </template>
+              <div v-if="subStatus !== \'none\'" class="st-current-plan">
+                <div class="st-current-meta">Business CS — {{ sub.current_billing === \'annual\' ? \'$35.75/mo (billed $429/yr)\' : \'$49/mo\' }}</div>
+                <div v-if="sub.current_period" class="st-current-meta" style="font-size:12px;color:var(--text-3)">Current period: {{ formatDate(sub.current_period.start) }} → {{ formatDate(sub.current_period.end) }}</div>
+              </div>
+              <div v-if="subStatus !== \'none\'" class="st-cycle-toggle">
+                <span :class="{ active: !billingAnnual }">Monthly</span>
+                <button type="button" class="toggle" :class="{ on: billingAnnual }" @click="billingAnnual = !billingAnnual" :aria-pressed="billingAnnual"></button>
+                <span :class="{ active: billingAnnual }">Annual <span class="st-save-pill">Save ~27%</span></span>
+              </div>
+              <div v-if="subStatus !== \'none\'" style="margin:12px 0">
+                <button v-if="billingAnnual !== (sub.current_billing === \'annual\')" type="button" class="btn btn-gold btn-sm" @click="swapCsPlan" :disabled="planBusy || !csPriceId">
+                  Switch to {{ billingAnnual ? \'Annual\' : \'Monthly\' }} billing
+                </button>
+              </div>
+              <div v-if="(subStatus === \'active\' || subStatus === \'trialing\')" style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border);margin-top:8px">
+                <div style="font-size:13px;color:var(--text-3)">Need to cancel your Business CS plan?</div>
+                <button type="button" class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red)" @click="confirmCsCancel = true" :disabled="planBusy">Cancel Plan</button>
+              </div>
+              <div v-if="stripeInvoices.length > 0">
+                <div class="st-divider"></div>
+                <div class="st-subhead" style="margin-bottom:12px">Invoice History</div>
+                <table class="billing-table">
+                  <thead><tr><th>Date</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+                  <tbody>
+                    <tr v-for="inv in stripeInvoices" :key="inv.id">
+                      <td>{{ formatDate(inv.paid_at || inv.created) }}</td>
+                      <td>{{ formatCents(inv.amount_cents) }}</td>
+                      <td><span v-if="inv.status === \'paid\'" style="color:var(--green);font-weight:600;display:inline-flex;align-items:center;gap:4px"><AegisIcon name="check" :size="13" />Paid</span><span v-else style="color:var(--text-3)">{{ inv.status }}</span></td>
+                      <td><a v-if="inv.pdf_url" :href="inv.pdf_url" target="_blank" class="btn btn-ghost btn-xs" data-tooltip="Download PDF"><AegisIcon name="download" :size="14" /></a></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <AegisModal v-model="confirmCsCancel" title="Cancel your subscription?" size="sm">
+            <p style="font-size:14px;color:var(--text);margin-bottom:12px">Your Business CS subscription will end <strong>{{ formatDate(sub.current_period?.end) || \'at the end of the current period\' }}</strong>.</p>
+            <template #footer>
+              <button type="button" class="btn btn-outline btn-sm" @click="confirmCsCancel = false">Keep Subscription</button>
+              <button type="button" class="btn btn-danger btn-sm" @click="cancelCsPlan" :disabled="planBusy">Cancel Subscription</button>
+            </template>
+          </AegisModal>
         </div>
+
         <div v-show="section === \'danger\'" class="settings-panel">
           <SettingsDangerZone title="Account and Service Changes" pause-label="Pause Stewardship" pause-desc="Temporarily suspend your stewardship duties. Your practitioners will be notified." deactivate-label="Deactivate Account" deactivate-desc="Permanently deactivate your Continuity Steward account." deactivate-button-label="Deactivate" />
         </div>
@@ -188,10 +263,61 @@ const props = defineProps({
   meta:         { type: Object,  default: () => ({}) },
   mfaEnabled:   { type: Boolean, default: false },
   sessions:     { type: Array,   default: () => [] },
-  subscription: { type: Object,  default: () => ({}) },
+  subscription: { type: Object,  default: () => null },
+  pricing:      { type: Object,  default: () => ({}) },
 });
 
 const toast = useToast();
+
+// Billing state (Business CS only)
+const billingAnnual    = ref(false);
+const sub              = computed(() => props.subscription ?? {});
+const subStatus        = computed(() => sub.value.status || 'none');
+const prices           = computed(() => sub.value.prices ?? {});
+const csMonthlyId      = computed(() => prices.value.cs_business_monthly ?? null);
+const csAnnualId       = computed(() => prices.value.cs_business_annual  ?? null);
+const csPriceId        = computed(() => billingAnnual.value ? csAnnualId.value : csMonthlyId.value);
+const stripeInvoices   = computed(() => sub.value.invoices ?? []);
+const planBusy         = ref(false);
+const confirmCsCancel  = ref(false);
+
+function formatDate(ts) {
+  if (!ts) return '';
+  const d = typeof ts === 'number' ? new Date(ts * 1000) : new Date(ts);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function formatCents(cents) { return '$' + (cents / 100).toFixed(2); }
+
+function swapCsPlan() {
+  if (!csPriceId.value) { toast.error('Price not configured.'); return; }
+  planBusy.value = true;
+  router.post(route('cs.settings.subscription.swap'), { price_id: csPriceId.value }, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Plan updated!'),
+    onError: (errors) => toast.error(errors.subscription ?? 'Could not update plan.'),
+    onFinish: () => { planBusy.value = false; },
+  });
+}
+function cancelCsPlan() {
+  planBusy.value = true;
+  confirmCsCancel.value = false;
+  router.post(route('cs.settings.subscription.cancel'), {}, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Subscription will end at the current billing period.'),
+    onError: (errors) => toast.error(errors.subscription ?? 'Could not cancel.'),
+    onFinish: () => { planBusy.value = false; },
+  });
+}
+function resumeCsPlan() {
+  planBusy.value = true;
+  router.post(route('cs.settings.subscription.resume'), {}, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Subscription reactivated!'),
+    onError: (errors) => toast.error(errors.subscription ?? 'Could not reactivate.'),
+    onFinish: () => { planBusy.value = false; },
+  });
+}
+
 const section = ref(\'profile\');
 const isInvitedCs = computed(() => !props.user?.cs_account_type || props.user.cs_account_type === \'invited\' || !!props.user.linked_provider_id);
 const displayName = computed(() => props.user?.display_name || \'Marcus Webb\');

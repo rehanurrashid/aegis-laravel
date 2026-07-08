@@ -7,6 +7,7 @@ namespace App\Http\Controllers\ContinuitySteward;
 use App\Http\Controllers\Controller;
 use App\Models\UserSession;
 use App\Services\ProfileService;
+use App\Services\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,7 +15,10 @@ use Inertia\Response;
 
 class SettingsController extends Controller
 {
-    public function __construct(private ProfileService $profiles) {}
+    public function __construct(
+        private ProfileService $profiles,
+        private SubscriptionService $subscriptions,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -45,11 +49,23 @@ class SettingsController extends Controller
         $userArr['cs_account_type']          = $user->cs_account_type?->value ?? 'invited';
         $userArr['cs_assignment_role']       = $meta['cs_assignment_role'] ?? 'Primary';
 
+        // Only Business CS has a paid subscription
+        $csAccountType = $user->cs_account_type instanceof \BackedEnum
+            ? $user->cs_account_type->value
+            : (string) ($user->cs_account_type ?? 'invited');
+
+        $subscription = null;
+        if ($csAccountType === 'business') {
+            $subscription = $this->subscriptions->getFullSubscriptionData($user);
+        }
+
         return Inertia::render('ContinuitySteward/Settings', [
-            'user'       => $userArr,
-            'meta'       => $meta,
-            'mfaEnabled' => (bool) $user->two_factor_enabled,
-            'sessions'   => $sessions,
+            'user'         => $userArr,
+            'meta'         => $meta,
+            'mfaEnabled'   => (bool) $user->two_factor_enabled,
+            'sessions'     => $sessions,
+            'subscription' => $subscription,
+            'pricing'      => config('aegis.pricing'),
         ]);
     }
 
@@ -146,5 +162,60 @@ class SettingsController extends Controller
     {
         $this->profiles->revokeAllSessions($request->user());
         return back()->with('success', 'All sessions revoked.');
+    }
+}
+    public function swapPlan(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        $csType = $user->cs_account_type instanceof \BackedEnum ? $user->cs_account_type->value : 'invited';
+        if ($csType !== 'business') {
+            return back()->withErrors(['subscription' => 'Only Business CS accounts have a paid subscription.']);
+        }
+
+        $data = $request->validate(['price_id' => ['required', 'string', 'starts_with:price_']]);
+        try {
+            $result = $this->subscriptions->changePlan($user, $data['price_id']);
+            $msg = match ($result['direction']) {
+                'upgrade'   => 'Plan updated successfully.',
+                'downgrade' => 'Plan will change at your next billing cycle.',
+                default     => 'Plan unchanged.',
+            };
+            return back()->with('success', $msg);
+        } catch (\Throwable $e) {
+            return back()->withErrors(['subscription' => $e->getMessage()]);
+        }
+    }
+
+    public function cancelPlan(Request $request): RedirectResponse
+    {
+        try {
+            $this->subscriptions->cancel($request->user());
+            return back()->with('success', 'Your subscription will end at the current billing period.');
+        } catch (\Throwable $e) {
+            return back()->withErrors(['subscription' => $e->getMessage()]);
+        }
+    }
+
+    public function resumePlan(Request $request): RedirectResponse
+    {
+        try {
+            $this->subscriptions->reactivate($request->user());
+            return back()->with('success', 'Your subscription has been reactivated.');
+        } catch (\Throwable $e) {
+            return back()->withErrors(['subscription' => $e->getMessage()]);
+        }
+    }
+
+    public function billingPortal(Request $request): RedirectResponse
+    {
+        try {
+            $url = $this->subscriptions->billingPortalUrl(
+                $request->user(),
+                route('cs.settings.index') . '?section=billing'
+            );
+            return redirect()->away($url);
+        } catch (\Throwable $e) {
+            return back()->withErrors(['stripe' => 'Could not open billing portal. Please try again.']);
+        }
     }
 }

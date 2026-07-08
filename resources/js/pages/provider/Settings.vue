@@ -15,8 +15,8 @@
           <div class="settings-nav-group">
             <div class="settings-nav-label">{{ grp.group }}</div>
             <button v-for="it in grp.items" :key="it.key" type="button"
-              class="settings-nav-item" :class="{ active: section === it.key }"
-              :style="it.danger ? 'color:var(--red)' : ''" @click="section = it.key">
+              class="settings-nav-item" :class="{ active: section === it.key, 'is-locked': it.lockedForAccess && isAccessTier }"
+              :style="it.danger ? 'color:var(--red)' : ''" @click="navClick(it)">
               <span class="s-nav-icon"><AegisIcon :name="it.icon" :size="15" /></span>
               {{ it.label }}
               <span v-if="it.badge" class="s-nav-badge">{{ it.badge }}</span>
@@ -191,6 +191,16 @@
 
         <!-- REFERRAL PREFERENCES -->
         <div v-show="section === 'referrals'" class="settings-panel">
+          <!-- ACCESS TIER GATE -->
+          <div v-if="isAccessTier" class="settings-tier-gate">
+            <div class="settings-tier-gate-inner">
+              <div class="settings-tier-gate-icon"><AegisIcon name="lock" :size="22" /></div>
+              <div class="settings-tier-gate-title">Referrals require Continuity Practice</div>
+              <div class="settings-tier-gate-body">Send and receive patient referrals, access the full Integrative Network, and manage referral preferences — all included in Continuity Practice.</div>
+              <button type="button" class="btn btn-gold" @click="section = 'billing'"><AegisIcon name="star" :size="14" /> Upgrade to Continuity Practice</button>
+            </div>
+          </div>
+          <div :class="{ 'settings-tier-blurred': isAccessTier }">
           <div class="card">
             <div class="card-header">
               <div class="card-title-group">
@@ -205,6 +215,7 @@
               <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Referral preferences saved.')"><AegisIcon name="check" :size="14" /> Save</button></div>
             </div>
           </div>
+          </div><!-- end tier-blurred -->
         </div>
 
         <!-- CONTINUITY STEWARD SETTINGS -->
@@ -279,6 +290,16 @@
 
         <!-- MY SERVICES SETTINGS -->
         <div v-show="section === 'myservices'" class="settings-panel">
+          <!-- ACCESS TIER GATE -->
+          <div v-if="isAccessTier" class="settings-tier-gate">
+            <div class="settings-tier-gate-inner">
+              <div class="settings-tier-gate-icon"><AegisIcon name="lock" :size="22" /></div>
+              <div class="settings-tier-gate-title">My Services requires Continuity Practice</div>
+              <div class="settings-tier-gate-body">Offer supervision, consultation, training, and other peer services through Aegis. Enables the My Services sidebar and the Integrative Business Services badge on your profile.</div>
+              <button type="button" class="btn btn-gold" @click="section = 'billing'"><AegisIcon name="star" :size="14" /> Upgrade to Continuity Practice</button>
+            </div>
+          </div>
+          <div :class="{ 'settings-tier-blurred': isAccessTier }">
           <div class="card">
             <div class="card-header">
               <div class="card-title-group">
@@ -321,6 +342,7 @@
               <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Services settings saved.')"><AegisIcon name="check" :size="13" /> Save Services Settings</button></div>
             </div>
           </div>
+          </div><!-- end tier-blurred -->
         </div>
 
         <!-- PRIVACY & VISIBILITY -->
@@ -790,6 +812,13 @@
       </template>
     </AegisModal>
 
+  <!-- Tier upgrade modal for gated sections -->
+  <SettingsTierUpgradeModal
+    v-model:show="showTierModal"
+    :locked-feature-note="tierModalFeature"
+    @upgrade="section = 'billing'"
+  />
+
   </AppLayout>
 </template>
 
@@ -832,7 +861,7 @@ const nav = [
   ]},
   { group: 'Clinical', items: [
     { key: 'availability', label: 'Availability & Hours',        icon: 'calendar' },
-    { key: 'referrals',    label: 'Referral Preferences',        icon: 'share-tree' },
+    { key: 'referrals',    label: 'Referral Preferences',        icon: 'share-tree', lockedForAccess: true },
   ]},
   { group: 'Operations', items: [
     { key: 'csettings',    label: 'Continuity Steward Settings', icon: 'shield' },
@@ -841,7 +870,7 @@ const nav = [
     { key: 'agreements',   label: 'Agreements & Contracts',      icon: 'file-text' },
   ]},
   { group: 'Platform', items: [
-    { key: 'myservices',    label: 'My Services Settings',       icon: 'grid' },
+    { key: 'myservices',    label: 'My Services Settings',       icon: 'grid',  lockedForAccess: true },
     { key: 'privacy',       label: 'Privacy & Visibility',       icon: 'shield' },
     { key: 'network',       label: 'Network Settings',           icon: 'network' },
     { key: 'appearance',    label: 'Appearance & Timezone',      icon: 'settings' },
@@ -863,6 +892,22 @@ const section = ref('profile');
 const displayName = computed(() => props.user?.display_name || 'Dr. Sarah Johnson');
 const initials    = computed(() => displayName.value.replace(/^Dr\.?\s+/i, '').split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase());
 const tierLabel   = computed(() => props.user?.tier === 'practice' ? 'Continuity Practice' : 'Continuity Access');
+const isAccessTier = computed(() => (props.user?.tier ?? (sub.value.tier)) === 'access');
+const showTierModal  = ref(false);
+const tierModalFeature = ref('');
+
+function openTierModal(featureName) {
+  tierModalFeature.value = featureName;
+  showTierModal.value = true;
+}
+
+function navClick(item) {
+  if (item.locked && isAccessTier.value) {
+    openTierModal(item.label);
+    return;
+  }
+  section.value = item.key;
+}
 
 // ─── Account form ─────────────────────────────────────────────────────────────
 const showPw = ref(false);
@@ -1433,4 +1478,62 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 /* RESPONSIVE */
 @media (max-width: 1000px) { .settings-layout { grid-template-columns: 1fr; } .settings-sidebar { position: static; } }
 @media (max-width: 700px) { .st-plan-grid { grid-template-columns: 1fr; } .privacy-levels { flex-direction: column; } .notif-table { display: block; overflow-x: auto; } .rate-payment-block { flex-direction: column; } }
+
+/* ── Tier gate overlay ──────────────────────────────────────────────────── */
+.settings-tier-gate {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(2px);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+.settings-tier-gate-inner {
+  text-align: center;
+  max-width: 360px;
+}
+.settings-tier-gate-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--icon-bg-gold);
+  color: var(--gold-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+}
+.settings-tier-gate-title {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.settings-tier-gate-body {
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+.settings-tier-blurred {
+  filter: blur(4px);
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.45;
+}
+.settings-panel { position: relative; }
+/* Locked nav item */
+.settings-nav-item.is-locked { opacity: 0.6; }
+.settings-nav-item.is-locked:hover { opacity: 0.8; }
+.s-nav-lock {
+  margin-left: auto;
+  color: var(--gold-dark);
+  display: inline-flex;
+  align-items: center;
+}
 </style>

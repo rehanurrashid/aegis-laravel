@@ -27,9 +27,10 @@ use App\Events\Plan\PlanReadyForSs;
 use App\Events\Plan\PlanVersionUpdated;
 use App\Events\Plan\VaultItemShared;
 use App\Events\Plan\VaultUnsealed;
-use App\Events\Account\SubscriptionCancelled;
-use App\Events\Account\SubscriptionTierChanged;
-use App\Events\Account\MaatAddonChanged;
+use App\Events\Business\SubscriptionCancelled;
+use App\Events\Business\SubscriptionTierChanged;
+use App\Events\Business\MaatAddonChanged;
+use App\Events\Account\SubscriptionRenewalUpcoming;
 use App\Events\Document\DocumentRequested;
 use App\Events\Document\DocumentReleaseRequested;
 use App\Events\Document\DocumentUpdated;
@@ -154,6 +155,7 @@ class SendEmailNotificationListener
             $event instanceof SubscriptionCancelled   => $this->subscriptionCancelled($event),
             $event instanceof SubscriptionTierChanged => $this->subscriptionTierChanged($event),
             $event instanceof MaatAddonChanged        => $this->maatAddonChanged($event),
+            $event instanceof SubscriptionRenewalUpcoming => $this->subscriptionRenewalUpcoming($event),
             $event instanceof DocumentRequested       => $this->documentRequested($event),
             $event instanceof DocumentReleaseRequested => $this->documentReleaseRequested($event),
             $event instanceof DocumentUpdated         => $this->documentUpdated($event),
@@ -771,6 +773,21 @@ class SendEmailNotificationListener
     }
 
     // ── Documents ────────────────────────────────────────────────────────────
+    private function subscriptionRenewalUpcoming(SubscriptionRenewalUpcoming $e): array
+    {
+        return [[
+            'user_id'  => $e->user->id,
+            'gate_key' => 'notify_email',
+            'template' => 'emails.admin.55-renewal-upcoming',
+            'data'     => [
+                'user_name'    => $e->user->display_name,
+                'renewal_date' => $e->renewalDate ?? null,
+                'plan_label'   => $e->planLabel   ?? null,
+                'amount_cents' => $e->amountCents  ?? 0,
+            ],
+        ]];
+    }
+
     private function documentRequested(DocumentRequested $e): array {
         return [[
             'user_id'  => $e->plan->practitioner_id,

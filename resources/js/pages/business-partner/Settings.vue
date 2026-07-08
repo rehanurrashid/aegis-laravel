@@ -168,57 +168,128 @@
           <SettingsAppearance update-route="bp.settings.appearance" :meta="meta" />
         </div>
 
-        <!-- BILLING — BP has its own subscription -->
-        <div v-show="section === \'billing\'" class="settings-panel">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title-group">
-                <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="star" :size="16" /></div>
-                <div><div class="card-title">Subscription &amp; Plan</div><div class="card-subtitle">Your current Aegis Business Partner plan</div></div>
+        <!-- BILLING — BP subscription (wired to Stripe) -->
+        <div v-show="section === 'billing'" class="settings-panel">
+          <div class="st-card">
+            <div class="st-card-head">
+              <div class="st-card-head-l">
+                <span class="st-card-ico"><AegisIcon name="star" :size="17" /></span>
+                <div><div class="st-card-title">Subscription &amp; Plan</div><div class="st-card-sub">Your current Aegis Business Partner plan</div></div>
               </div>
-              <span class="badge badge-gold" style="font-size:12px">BP Professional</span>
+              <div style="display:flex;gap:8px">
+                <a :href="route('bp.settings.billing.portal')" class="btn btn-outline btn-sm" target="_blank"><AegisIcon name="external-link" :size="13" /> Manage in Stripe</a>
+              </div>
             </div>
-            <div class="card-body">
-              <div style="background:var(--icon-bg-gold);border:1px solid var(--badge-border-gold);border-radius:var(--radius);padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between">
-                <div>
-                  <div style="font-family:var(--font-serif);font-size:18px;font-weight:700;color:var(--text)">Business Partner Professional — ${{ billingAnnual ? 49 : 59 }}/mo</div>
-                  <div style="font-size:13px;color:var(--text-3);margin-top:3px">{{ subscription?.billing_meta ?? \'Billing cycle: Feb 1 – Mar 1, 2026\' }}</div>
+            <div class="st-card-body">
+
+              <!-- No subscription -->
+              <template v-if="subStatus === 'none'">
+                <div class="alert alert-info" style="margin-bottom:18px">
+                  <div class="alert-icon"><AegisIcon name="info" :size="18" /></div>
+                  <div class="alert-content">No active subscription found. Your account may be in grace period or payment failed. Contact <a href="mailto:support@maatpracticefirm.com" style="color:var(--gold-dark)">support@maatpracticefirm.com</a> for help.</div>
                 </div>
-                <button type="button" class="btn btn-outline btn-sm" @click="modals.cancelSub = true">Cancel Plan</button>
+              </template>
+
+              <!-- Grace period -->
+              <template v-else-if="sub.on_grace_period">
+                <div class="st-perks-band" style="border-color:var(--orange);background:var(--orange-light);">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <AegisIcon name="alert-triangle" :size="18" style="color:var(--orange)" />
+                    <div>
+                      <div style="font-size:13px;font-weight:700;color:var(--text)">Your subscription was cancelled</div>
+                      <div style="font-size:12px;color:var(--text-2)">Access ends {{ formatDate(sub.ends_at) }}. Reactivate before then to keep your account.</div>
+                    </div>
+                    <button type="button" class="btn btn-gold btn-sm" @click="resumeBpPlan" :disabled="planBusy">Reactivate</button>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Past due -->
+              <template v-else-if="subStatus === 'past_due'">
+                <div class="st-perks-band" style="border-color:var(--red-light);background:var(--icon-bg-red,var(--surface-2));">
+                  <AegisIcon name="alert-triangle" :size="16" style="color:var(--red)" />
+                  <div style="font-size:13px;color:var(--text-2)">Payment failed — please <a :href="route('bp.settings.billing.portal')" style="color:var(--red)">update your payment method</a>.</div>
+                </div>
+              </template>
+
+              <!-- Active -->
+              <div v-if="subStatus !== 'none'" class="st-current-plan">
+                <div class="st-current-meta">Business Partner Professional &mdash; {{ sub.current_billing === 'annual' ? '$57.50/mo (billed $690/yr)' : '$69/mo' }}</div>
+                <div v-if="sub.current_period" class="st-current-meta" style="font-size:12px;color:var(--text-3)">
+                  Current period: {{ formatDate(sub.current_period.start) }} → {{ formatDate(sub.current_period.end) }}
+                </div>
               </div>
-              <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:18px;font-size:13px;font-weight:600;color:var(--text-3)">
-                <span :style="billingAnnual ? \'\'  : \'color:var(--text-2)\'">Monthly</span>
+
+              <!-- Billing toggle -->
+              <div v-if="subStatus !== 'none'" class="st-cycle-toggle">
+                <span :class="{ active: !billingAnnual }">Monthly</span>
                 <button type="button" class="toggle" :class="{ on: billingAnnual }" @click="billingAnnual = !billingAnnual" :aria-pressed="billingAnnual"></button>
-                <span :style="billingAnnual ? \'color:var(--text-2)\' : \'\'">Annual <span style="background:var(--green-light);color:var(--green-dark);font-size:10px;font-weight:700;padding:2px 7px;border-radius:var(--radius-full);">Save 17%</span></span>
+                <span :class="{ active: billingAnnual }">Annual <span class="st-save-pill">Save 2 months</span></span>
               </div>
-              <div style="border:1px solid var(--gold-dark);border-radius:var(--radius-lg);padding:20px;text-align:center;background:var(--icon-bg-gold);max-width:460px;margin:0 auto 20px">
-                <div style="display:inline-flex;align-items:center;gap:5px;background:var(--gold-dark);color:var(--text-inverted);font-size:10px;font-weight:700;padding:3px 10px;border-radius:var(--radius-full);margin-bottom:10px"><AegisIcon name="check" :size="11" /> CURRENT PLAN</div>
-                <div style="font-family:var(--font-serif);font-size:18px;font-weight:700;color:var(--text)">Business Partner Professional</div>
-                <div style="font-size:26px;font-weight:700;color:var(--gold-dark);margin:8px 0 4px">${{ billingAnnual ? 49 : 59 }}<span style="font-size:13px;color:var(--text-3);font-weight:600">/mo</span></div>
-                <div style="font-size:11px;color:var(--text-4);margin-bottom:12px">{{ billingAnnual ? \'billed $588/yr\' : \'or $588/yr (save 17%)\' }}</div>
+
+              <!-- Single BP plan card -->
+              <div v-if="subStatus !== 'none'" class="st-plan-grid" style="max-width:380px;margin:0 auto">
+                <div class="st-plan-tier current">
+                  <span class="st-plan-tier-badge"><AegisIcon name="check" :size="11" /> Your Plan</span>
+                  <div class="st-plan-tier-name">Business Partner</div>
+                  <div class="st-plan-tier-price">${{ billingAnnual ? '57.50' : '69' }}<span>/mo</span></div>
+                  <div class="st-plan-tier-alt">{{ billingAnnual ? 'billed $690/yr (save 2 months)' : 'or $690/yr (save 2 months)' }}</div>
+                  <ul class="st-plan-feats">
+                    <li v-for="f in bpFeatures" :key="f"><AegisIcon name="check" :size="12" /> {{ f }}</li>
+                  </ul>
+                  <button
+                    v-if="billingAnnual !== (sub.current_billing === 'annual')"
+                    type="button" class="btn btn-gold btn-sm st-plan-cta"
+                    @click="swapBpPlan" :disabled="planBusy || !bpPriceId"
+                  >
+                    Switch to {{ billingAnnual ? 'Annual' : 'Monthly' }} billing
+                  </button>
+                  <button v-else type="button" class="btn btn-outline btn-sm st-plan-cta" disabled>
+                    Your current plan
+                  </button>
+                </div>
               </div>
-              <div class="section-label">What\'s included</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12.5px;color:var(--text-2)">
-                <span style="display:inline-flex;align-items:center;gap:6px"><AegisIcon name="check" :size="12" /> Marketplace &amp; provider directory</span>
-                <span style="display:inline-flex;align-items:center;gap:6px"><AegisIcon name="check" :size="12" /> Job postings &amp; applicant management</span>
-                <span style="display:inline-flex;align-items:center;gap:6px"><AegisIcon name="check" :size="12" /> Contract creation &amp; tracking</span>
-                <span style="display:inline-flex;align-items:center;gap:6px"><AegisIcon name="check" :size="12" /> Stripe Connect payouts</span>
-                <span style="display:inline-flex;align-items:center;gap:6px"><AegisIcon name="check" :size="12" /> Milestones &amp; invoicing</span>
-                <span style="display:inline-flex;align-items:center;gap:6px"><AegisIcon name="check" :size="12" /> Secure encrypted messaging</span>
+
+              <div v-if="subStatus !== 'none'" class="st-divider"></div>
+
+              <!-- Cancel plan -->
+              <div v-if="subStatus === 'active' || subStatus === 'trialing'" style="display:flex;align-items:center;justify-content:space-between;padding-top:8px">
+                <div style="font-size:13px;color:var(--text-3)">Want to cancel? Your access continues until the end of the billing period.</div>
+                <button type="button" class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red)" @click="confirmBpCancel = true" :disabled="planBusy">Cancel Plan</button>
               </div>
+
+              <!-- Invoice history -->
+              <div v-if="stripeInvoices.length > 0">
+                <div class="st-divider"></div>
+                <div class="st-subhead" style="margin-bottom:12px">Invoice History</div>
+                <table class="billing-table">
+                  <thead><tr><th>Date</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+                  <tbody>
+                    <tr v-for="inv in stripeInvoices" :key="inv.id">
+                      <td>{{ formatDate(inv.paid_at || inv.created) }}</td>
+                      <td>{{ formatCents(inv.amount_cents) }}</td>
+                      <td><span v-if="inv.status === 'paid'" style="color:var(--green);font-weight:600;display:inline-flex;align-items:center;gap:4px"><AegisIcon name="check" :size="13" />Paid</span><span v-else style="color:var(--text-3)">{{ inv.status }}</span></td>
+                      <td><a v-if="inv.pdf_url" :href="inv.pdf_url" target="_blank" class="btn btn-ghost btn-xs" data-tooltip="Download PDF"><AegisIcon name="download" :size="14" /></a></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
             </div>
           </div>
-          <AegisModal v-model="modals.cancelSub" title="Cancel Subscription?" size="md">
-            <p style="font-size:14px;color:var(--text-2);margin-bottom:14px">Your plan will remain active until the end of the current billing cycle. After that your account will be deactivated.</p>
-            <div class="form-group"><label class="form-label">Reason for cancelling</label><select class="form-select" v-model="cancelForm.reason"><option value="expensive">Too expensive</option><option value="inactive">No longer active on Aegis</option><option value="switching">Switching platform</option><option value="other">Other</option></select></div>
+
+          <!-- Cancel confirmation modal -->
+          <AegisModal v-model="confirmBpCancel" title="Cancel your subscription?" size="sm">
+            <p style="font-size:14px;color:var(--text);margin-bottom:12px">Your subscription will remain active until <strong>{{ formatDate(sub.current_period?.end) || 'the end of the current period' }}</strong>. After that you'll lose access to your BP portal.</p>
+            <p style="font-size:13px;color:var(--text-3)">You can reactivate any time before the period ends.</p>
             <template #footer>
-              <button type="button" class="btn btn-outline btn-sm" @click="modals.cancelSub = false">Keep Plan</button>
-              <button type="button" class="btn btn-danger btn-sm" @click="modals.cancelSub = false; toast.info(\'Subscription cancelled.\')">Cancel Subscription</button>
+              <button type="button" class="btn btn-outline btn-sm" @click="confirmBpCancel = false">Keep Subscription</button>
+              <button type="button" class="btn btn-danger btn-sm" @click="cancelBpPlan" :disabled="planBusy">Cancel Subscription</button>
             </template>
           </AegisModal>
         </div>
 
-        <div v-show="section === \'danger\'" class="settings-panel">
+        <div v-show="section === 'danger'" class="settings-panel">
           <SettingsDangerZone
             title="Account Closure &amp; Data Management"
             pause-label="Pause Account"
@@ -253,11 +324,61 @@ const props = defineProps({
   mfaEnabled:   { type: Boolean, default: false },
   sessions:     { type: Array,   default: () => [] },
   subscription: { type: Object,  default: () => ({}) },
+  pricing:      { type: Object,  default: () => ({}) },
 });
 
 const toast = useToast();
 const section     = ref(\'profile\');
 const billingAnnual = ref(false);
+const sub                  = computed(() => props.subscription ?? {});
+const subStatus            = computed(() => sub.value.status || 'none');
+const prices               = computed(() => sub.value.prices ?? {});
+const bpMonthlyId          = computed(() => prices.value.bp_monthly ?? null);
+const bpAnnualId           = computed(() => prices.value.bp_annual  ?? null);
+const bpPriceId            = computed(() => billingAnnual.value ? bpAnnualId.value : bpMonthlyId.value);
+const stripeInvoices        = computed(() => sub.value.invoices        ?? []);
+const stripePaymentMethods  = computed(() => sub.value.payment_methods ?? []);
+const planBusy              = ref(false);
+const confirmBpCancel       = ref(false);
+
+function formatDate(ts) {
+  if (!ts) return '';
+  const d = typeof ts === 'number' ? new Date(ts * 1000) : new Date(ts);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function formatCents(cents) { return '$' + (cents / 100).toFixed(2); }
+function formatCardBrand(b) { return b ? b.charAt(0).toUpperCase() + b.slice(1) : 'Card'; }
+
+function swapBpPlan() {
+  if (!bpPriceId.value) { toast.error('Price not configured.'); return; }
+  planBusy.value = true;
+  router.post(route('bp.settings.subscription.swap'), { price_id: bpPriceId.value }, {
+    preserveScroll: true,
+    onSuccess: () => toast.success(billingAnnual.value ? 'Switched to annual billing!' : 'Switched to monthly billing!'),
+    onError: (errors) => toast.error(errors.subscription ?? 'Could not update plan.'),
+    onFinish: () => { planBusy.value = false; },
+  });
+}
+function cancelBpPlan() {
+  planBusy.value = true;
+  confirmBpCancel.value = false;
+  router.post(route('bp.settings.subscription.cancel'), {}, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Subscription will end at the current billing period.'),
+    onError: (errors) => toast.error(errors.subscription ?? 'Could not cancel.'),
+    onFinish: () => { planBusy.value = false; },
+  });
+}
+function resumeBpPlan() {
+  planBusy.value = true;
+  router.post(route('bp.settings.subscription.resume'), {}, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Subscription reactivated!'),
+    onError: (errors) => toast.error(errors.subscription ?? 'Could not reactivate.'),
+    onFinish: () => { planBusy.value = false; },
+  });
+}
+
 const displayName = computed(() => props.user?.display_name || \'TechCare Solutions\');
 const initials    = computed(() => displayName.value.split(\' \').map(p => p[0]).join(\'\').slice(0, 2).toUpperCase());
 

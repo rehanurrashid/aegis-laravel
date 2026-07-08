@@ -7,6 +7,7 @@ namespace App\Http\Controllers\BusinessPartner;
 use App\Http\Controllers\Controller;
 use App\Models\UserSession;
 use App\Services\ProfileService;
+use App\Services\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,7 +15,10 @@ use Inertia\Response;
 
 class SettingsController extends Controller
 {
-    public function __construct(private ProfileService $profiles) {}
+    public function __construct(
+        private ProfileService $profiles,
+        private SubscriptionService $subscriptions,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -38,10 +42,12 @@ class SettingsController extends Controller
         $userArr['bp_type']        = $user->bp_type?->value ?? 'agency';
 
         return Inertia::render('BusinessPartner/Settings', [
-            'user'       => $userArr,
-            'meta'       => $meta,
-            'mfaEnabled' => (bool) $user->two_factor_enabled,
-            'sessions'   => $sessions,
+            'user'         => $userArr,
+            'meta'         => $meta,
+            'mfaEnabled'   => (bool) $user->two_factor_enabled,
+            'sessions'     => $sessions,
+            'subscription' => $this->subscriptions->getFullSubscriptionData($user),
+            'pricing'      => config('aegis.pricing'),
         ]);
     }
 
@@ -133,5 +139,54 @@ class SettingsController extends Controller
     {
         $this->profiles->revokeAllSessions($request->user());
         return back()->with('success', 'All sessions revoked.');
+    }
+}
+    public function swapPlan(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['price_id' => ['required', 'string', 'starts_with:price_']]);
+        try {
+            $result = $this->subscriptions->changePlan($request->user(), $data['price_id']);
+            $msg = match ($result['direction']) {
+                'upgrade'   => 'Plan upgraded successfully.',
+                'downgrade' => 'Plan will change at your next billing cycle.',
+                default     => 'Plan unchanged.',
+            };
+            return back()->with('success', $msg);
+        } catch (\Throwable $e) {
+            return back()->withErrors(['subscription' => $e->getMessage()]);
+        }
+    }
+
+    public function cancelPlan(Request $request): RedirectResponse
+    {
+        try {
+            $this->subscriptions->cancel($request->user());
+            return back()->with('success', 'Your subscription will end at the current billing period.');
+        } catch (\Throwable $e) {
+            return back()->withErrors(['subscription' => $e->getMessage()]);
+        }
+    }
+
+    public function resumePlan(Request $request): RedirectResponse
+    {
+        try {
+            $this->subscriptions->reactivate($request->user());
+            return back()->with('success', 'Your subscription has been reactivated.');
+        } catch (\Throwable $e) {
+            return back()->withErrors(['subscription' => $e->getMessage()]);
+        }
+    }
+
+    public function billingPortal(Request $request): RedirectResponse
+    {
+        try {
+            $url = $this->subscriptions->billingPortalUrl(
+                $request->user(),
+                route('bp.settings.index') . '?section=billing'
+            );
+            return redirect()->away($url);
+        } catch (\Throwable $e) {
+            return back()->withErrors(['stripe' => 'Could not open billing portal. Please try again.']);
+        }
     }
 }
