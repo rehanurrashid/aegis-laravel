@@ -503,6 +503,19 @@
               <button type="button" class="btn btn-danger btn-sm" @click="cancelPlan" :disabled="planBusy">Cancel Subscription</button>
             </template>
           </AegisModal>
+
+          <!-- Change Plan / Upgrade modal — opened from sidebar Upgrade ↗ link -->
+          <AegisModal v-model="modals.showUpgrade" title="Change Plan" size="sm">
+            <p style="font-size:14px;color:var(--text-2);margin-bottom:14px">Upgrades take effect immediately. Downgrades to a reduced service package take effect at the start of the next billing cycle.</p>
+            <div style="background:var(--surface-2);border-radius:var(--radius);padding:14px;font-size:13px;color:var(--text-2);">
+              To learn more about available service packages or discuss custom support needs, contact
+              <a href="mailto:support@aegis.com" style="color:var(--gold-dark);">support@aegis.com</a>.
+            </div>
+            <template #footer>
+              <button type="button" class="btn btn-outline btn-sm" @click="modals.showUpgrade = false">Cancel</button>
+              <button type="button" class="btn btn-primary btn-sm" @click="modals.showUpgrade = false; toast.success('Plan change request submitted')">Confirm Change</button>
+            </template>
+          </AegisModal>
         </div>
 
 
@@ -557,23 +570,36 @@
                 <AegisIcon name="receipt" :size="24" />
                 <div>No invoices yet. Your first invoice will appear after your first billing cycle.</div>
               </div>
-              <div v-else class="inv-list">
-                <div v-for="inv in stripeInvoices" :key="inv.id" class="inv-row">
-                  <div class="inv-row-left">
-                    <div class="inv-date">{{ formatDate(inv.paid_at || inv.created) }}</div>
-                    <div class="inv-desc">{{ inv.description }}</div>
-                  </div>
-                  <div class="inv-row-right">
-                    <div class="inv-amount">${{ (inv.amount_cents / 100).toFixed(2) }}</div>
-                    <div class="inv-status-wrap">
-                      <span v-if="inv.status === 'paid'" class="inv-status-paid"><AegisIcon name="check" :size="11" /> Paid</span>
-                      <span v-else-if="inv.status === 'open'" class="inv-status-open">Open</span>
-                      <span v-else class="inv-status-other">{{ inv.status }}</span>
-                      <a v-if="inv.pdf_url" :href="inv.pdf_url" target="_blank" rel="noopener" class="inv-dl" data-tooltip="Download PDF"><AegisIcon name="download" :size="13" /></a>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <table v-else class="billing-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="inv in stripeInvoices" :key="inv.id">
+                    <td>{{ formatDate(inv.paid_at || inv.created) }}</td>
+                    <td>{{ inv.description }}</td>
+                    <td>${{ (inv.amount_cents / 100).toFixed(2) }}</td>
+                    <td>
+                      <span v-if="inv.status === 'paid'" style="color:var(--green);font-weight:600;display:inline-flex;align-items:center;gap:4px;">
+                        <AegisIcon name="check" :size="14" />Paid
+                      </span>
+                      <span v-else-if="inv.status === 'open'" style="color:var(--gold-dark);font-weight:600;">Open</span>
+                      <span v-else style="color:var(--text-3);font-weight:500;">{{ inv.status }}</span>
+                    </td>
+                    <td>
+                      <a v-if="inv.pdf_url" :href="inv.pdf_url" target="_blank" rel="noopener" class="btn btn-ghost btn-xs" data-tooltip="Download PDF">
+                        <AegisIcon name="download" :size="14" />
+                      </a>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -751,8 +777,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { ref, reactive, computed, onMounted } from 'vue';
+import { router, usePage } from '@inertiajs/vue3';
 import { useVuelidate } from '@vuelidate/core';
 import { required, email, minLength, sameAs, helpers } from '@vuelidate/validators';
 import { useToast } from '@/composables/useToast';
@@ -1093,7 +1119,21 @@ const modals = reactive({
   exportSettings: false, exportData: false,
   pauseAccount: false, transferRecords: false, deleteAccount: false,
   addIntegration: false, newApiKey: false,
+  showUpgrade: false,
 });
+
+// ─── URL param routing (?tab=billing&upgrade=1) ───────────────────────────────
+onMounted(() => {
+  const params = new URLSearchParams(window.location.search)
+  const tab    = params.get('tab')
+  const upgrade = params.get('upgrade')
+  if (tab) section.value = tab
+  if (upgrade === '1') {
+    // Ensure billing section is active, then open modal
+    section.value = 'billing'
+    modals.showUpgrade = true
+  }
+})
 const pauseForm    = reactive({ until: '', reason: 'leave', message: '' });
 const transferForm = reactive({ provider: '', scope: 'active' });
 const deleteForm   = reactive({ transferTo: '', confirm: '' });
@@ -1350,6 +1390,18 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 .inv-status-other { font-size: 11px; color: var(--text-3); font-weight: 600; }
 .inv-dl { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius); background: var(--surface-2); color: var(--text-3); transition: all var(--transition); }
 .inv-dl:hover { background: var(--surface-3); color: var(--text); }
+
+/* Billing table — matches PHP settings.php #panel-subscription design */
+.billing-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.billing-table thead tr { border-bottom: 1px solid var(--border); }
+.billing-table th { padding: 8px 12px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-4); white-space: nowrap; }
+.billing-table th:last-child { width: 40px; }
+.billing-table td { padding: 12px 12px; color: var(--text-2); vertical-align: middle; border-bottom: 1px solid var(--border); }
+.billing-table tbody tr:last-child td { border-bottom: none; }
+.billing-table tbody tr:hover td { background: var(--surface-2); }
+.billing-table td:first-child { white-space: nowrap; font-size: 12px; color: var(--text-3); }
+.billing-table td:nth-child(3) { font-family: var(--font-serif); font-weight: 700; color: var(--text); white-space: nowrap; }
+.billing-table td:last-child { text-align: center; }
 
 .st-pm-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .st-pm-empty { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-3); padding: 12px 0; }
