@@ -228,14 +228,14 @@ const nav = [
 ];
 
 const ssNotifCategories = [
-  { key: \'incidents\',   label: \'Incident Reports\',     desc: \'When a critical incident is reported for a practitioner I support\',   push: true,  email: true  inapp: true  },
-  { key: \'attestation\', label: \'Attestation Requests\', desc: \'When a practitioner needs my attestation on their plan\',              push: true,  email: true  inapp: true  },
-  { key: \'changes\',     label: \'Change Requests\',      desc: \'When a practitioner requests a plan update I need to act on\',          push: true,  email: true inapp: true  },
-  { key: \'coverage\',    label: \'Coverage Activation\',  desc: \'When continuity coverage for a provider I support is activated\',       push: true,  email: true  inapp: true  },
-  { key: \'roles\',       label: \'Role Changes\',         desc: \'When my steward role or permissions are updated\',                      push: true,  email: true inapp: true  },
-  { key: \'docs\',        label: \'Document Access\',      desc: \'When administrative documents are accessed on behalf of a provider\',   push: false, email: true inapp: true  },
+  { key: \'incidents\',   label: \'Incident Reports\',     desc: \'When a critical incident is reported for a practitioner I support\',   push: true,  email: true, inapp: true  },
+  { key: \'attestation\', label: \'Attestation Requests\', desc: \'When a practitioner needs my attestation on their plan\',              push: true,  email: true, inapp: true  },
+  { key: \'changes\',     label: \'Change Requests\',      desc: \'When a practitioner requests a plan update I need to act on\',          push: true,  email: true, inapp: true  },
+  { key: \'coverage\',    label: \'Coverage Activation\',  desc: \'When continuity coverage for a provider I support is activated\',       push: true,  email: true, inapp: true  },
+  { key: \'roles\',       label: \'Role Changes\',         desc: \'When my steward role or permissions are updated\',                      push: true,  email: true, inapp: true  },
+  { key: \'docs\',        label: \'Document Access\',      desc: \'When administrative documents are accessed on behalf of a provider\',   push: false, email: true, inapp: true  },
   { key: \'messages\',    label: \'New Messages\',         desc: \'From assigned practitioners or Aegis support\',                         push: true,  email: false, inapp: true  },
-  { key: \'network\',     label: \'Network Updates\',      desc: \'New connection requests and approvals within the Aegis network\',        push: false, email: true inapp: true  },
+  { key: \'network\',     label: \'Network Updates\',      desc: \'New connection requests and approvals within the Aegis network\',        push: false, email: true, inapp: true  },
 ];
 
 const ssRolePrefs    = reactive({ showOnProfile: true });

@@ -476,13 +476,13 @@ const nav = [
 ];
 
 const bpNotifCategories = [
-  { key: \'proposals\',  label: \'Job Proposal Activity\',  desc: \'When a practitioner responds to, accepts, or declines a proposal\',          push: true,  email: true inapp: true  },
-  { key: \'milestones\', label: \'Contract Milestones\',    desc: \'When a contract milestone is reached, due, or requires action\',               push: true,  email: true inapp: true  },
-  { key: \'payments\',   label: \'Invoice & Payments\',     desc: \'Payment confirmations, failed charges, and upcoming invoices\',                push: false, email: true inapp: true  },
+  { key: \'proposals\',  label: \'Job Proposal Activity\',  desc: \'When a practitioner responds to, accepts, or declines a proposal\',          push: true,  email: true, inapp: true  },
+  { key: \'milestones\', label: \'Contract Milestones\',    desc: \'When a contract milestone is reached, due, or requires action\',               push: true,  email: true, inapp: true  },
+  { key: \'payments\',   label: \'Invoice & Payments\',     desc: \'Payment confirmations, failed charges, and upcoming invoices\',                push: false, email: true, inapp: true  },
   { key: \'messages\',   label: \'New Messages\',           desc: \'When a practitioner or Aegis support sends you a message\',                    push: true,  email: false, inapp: true  },
-  { key: \'agreements\', label: \'Agreement Alerts\',       desc: \'Signing requests, renewals, and expiry warnings on business agreements\',      push: true,  email: true inapp: true  },
-  { key: \'network\',    label: \'Network Updates\',        desc: \'New connection requests and approvals from practitioners\',                    push: false, email: true inapp: true  },
-  { key: \'jobs\',       label: \'Job Posting Activity\',   desc: \'Applications, views, and status changes on your active job postings\',         push: true,  email: true inapp: true  },
+  { key: \'agreements\', label: \'Agreement Alerts\',       desc: \'Signing requests, renewals, and expiry warnings on business agreements\',      push: true,  email: true, inapp: true  },
+  { key: \'network\',    label: \'Network Updates\',        desc: \'New connection requests and approvals from practitioners\',                    push: false, email: true, inapp: true  },
+  { key: \'jobs\',       label: \'Job Posting Activity\',   desc: \'Applications, views, and status changes on your active job postings\',         push: true,  email: true, inapp: true  },
   { key: \'platform\',   label: \'Platform Updates\',       desc: \'New Aegis features and maintenance windows\',                                  push: false, email: false, inapp: false },
 ];
 

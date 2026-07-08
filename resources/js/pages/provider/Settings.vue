@@ -1062,12 +1062,12 @@ const securityAlerts = reactive([
 // ─── Notifications ─────────────────────────────────────────────────────────────
 const notifPrefs = reactive({ quietFrom: '22:00', quietTo: '08:00', digest: 'daily', reminderLead: '1day' });
 const notifCategories = reactive([
-  { key: 'critical',  label: 'Critical Incident Alerts', desc: 'Emergency activations, CS/SS verifications', push: true,  email: true  inapp: true  },
-  { key: 'referrals', label: 'Referral Updates',         desc: 'New, accepted, and declined referrals',      push: true,  email: true inapp: true  },
-  { key: 'messages',  label: 'Direct Messages',          desc: 'New messages from providers and stewards',   push: true,  email: true inapp: true  },
-  { key: 'payments',  label: 'Payments & Invoices',      desc: 'Subscription renewals and payment activity', push: false, email: true inapp: true  },
-  { key: 'plan',      label: 'Continuity Plan Updates',  desc: 'Plan reviews, attestations, and amendments', push: true,  email: true inapp: true  },
-  { key: 'vault',     label: 'Vault Activity',           desc: 'Document uploads, access, and unlocks',      push: false, email: true inapp: true  },
+  { key: 'critical',  label: 'Critical Incident Alerts', desc: 'Emergency activations, CS/SS verifications', push: true,  email: true, inapp: true  },
+  { key: 'referrals', label: 'Referral Updates',         desc: 'New, accepted, and declined referrals',      push: true,  email: true, inapp: true  },
+  { key: 'messages',  label: 'Direct Messages',          desc: 'New messages from providers and stewards',   push: true,  email: true, inapp: true  },
+  { key: 'payments',  label: 'Payments & Invoices',      desc: 'Subscription renewals and payment activity', push: false, email: true, inapp: true  },
+  { key: 'plan',      label: 'Continuity Plan Updates',  desc: 'Plan reviews, attestations, and amendments', push: true,  email: true, inapp: true  },
+  { key: 'vault',     label: 'Vault Activity',           desc: 'Document uploads, access, and unlocks',      push: false, email: true, inapp: true  },
   { key: 'network',   label: 'Network & Connections',    desc: 'New connections and BP activity',            push: false, email: false, inapp: true  },
 ]);
 function setAllNotifs(val) { notifCategories.forEach(c => { c.push = val; c.email = val; c.inapp = val; }); }
