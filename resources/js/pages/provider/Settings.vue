@@ -188,13 +188,23 @@
               </div>
             </div>
             <div class="card-body">
-              <div style="display:grid;grid-template-columns:auto auto 1fr 1fr;gap:10px 14px;align-items:center;margin-bottom:18px">
-                <template v-for="day in weekDays" :key="day.key">
+              <div class="avail-schedule">
+                <div class="avail-schedule-header">
+                  <span></span>
+                  <span></span>
+                  <span class="avail-col-label">From</span>
+                  <span class="avail-col-label">To</span>
+                </div>
+                <div v-for="day in weekDays" :key="day.key" class="avail-day-row" :class="{ 'avail-day-off': !day.on }">
                   <button type="button" class="toggle" :class="{ on: day.on }" @click="day.on = !day.on" :aria-pressed="day.on"></button>
-                  <span style="font-size:13px;font-weight:600;color:var(--text-2)">{{ day.label }}</span>
-                  <input class="form-input form-input-sm ae-datepicker" type="time" v-model="day.from" :disabled="!day.on" />
-                  <input class="form-input form-input-sm ae-datepicker" type="time" v-model="day.to" :disabled="!day.on" />
-                </template>
+                  <span class="avail-day-name">{{ day.label }}</span>
+                  <select class="form-select form-select-sm" v-model="day.from" :disabled="!day.on" data-no-enhance>
+                    <option v-for="t in timeOptions" :key="t.value" :value="t.value">{{ t.label }}</option>
+                  </select>
+                  <select class="form-select form-select-sm" v-model="day.to" :disabled="!day.on" data-no-enhance>
+                    <option v-for="t in timeOptions" :key="t.value" :value="t.value">{{ t.label }}</option>
+                  </select>
+                </div>
               </div>
               <div class="form-row form-row-2">
                 <div class="form-group"><label class="form-label">Telehealth States Licensed</label><input class="form-input" v-model="availability.states" /><div class="form-hint">Comma-separated state codes</div></div>
@@ -1127,6 +1137,22 @@ const weekDays = reactive([
   { key: 'sun', label: 'Sunday',    on: false, from: '10:00', to: '13:00' },
 ]);
 
+// ─── Time options for availability hour selects ─────────────────────────────────
+const timeOptions = (() => {
+  const opts = [];
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 30]) {
+      const hh = String(h).padStart(2, '0');
+      const mm = String(m).padStart(2, '0');
+      const val = `${hh}:${mm}`;
+      const period = h < 12 ? 'AM' : 'PM';
+      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      opts.push({ value: val, label: `${h12}:${mm} ${period}` });
+    }
+  }
+  return opts;
+})();
+
 // ─── Referral prefs ─────────────────────────────────────────────────────────────
 const referralPrefs    = reactive({ accepting: true, autoAccept: false, suggestAlts: true, autoArchive: true });
 const referralIncoming = [
@@ -1656,8 +1682,50 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 .stripe-setup-connected { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .stripe-setup-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
-/* ae-datepicker time input styling */
-.ae-datepicker { font-variant-numeric: tabular-nums; }
+/* ── Availability schedule grid ─────────────────────────────────────────────── */
+.avail-schedule {
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.avail-schedule-header,
+.avail-day-row {
+  display: grid;
+  grid-template-columns: 42px 110px 1fr 1fr;
+  align-items: center;
+  gap: 0 12px;
+  padding: 0 16px;
+}
+.avail-schedule-header {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.avail-col-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.avail-day-row {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.avail-day-row:last-child { border-bottom: none; }
+.avail-day-row:hover { background: var(--surface-hover); }
+.avail-day-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  transition: color 0.15s;
+}
+.avail-day-off .avail-day-name { color: var(--text-3); }
+.avail-day-off select { opacity: 0.4; pointer-events: none; }
 
 /* NAV BADGE — gold design */
 .s-nav-badge { margin-left: auto; background: var(--icon-bg-gold); color: var(--gold-dark); border: 1px solid var(--badge-border-gold); font-size: 10px; padding: 1px 7px; border-radius: var(--radius-full); font-weight: 700; }
