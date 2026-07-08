@@ -2,8 +2,8 @@
   <AppLayout :user="user" portal="support_steward" activePage="settings" pageTitle="Settings">
     <AegisHeroBanner eyebrow="Support Steward" title="Support Steward Settings" quiet>
       <template #actions>
-        <a :href="route(\'ss.activity\') + \'?event_type=account\'" class="btn btn-outline btn-sm">
-          <AegisIcon name="activity" :size="14" /> View Account Activity
+        <a :href="route(\'ss.activity\') + \'?event_type=account\'" class="btn-hero-ghost is-on-light">
+          <AegisIcon name="activity" :size="14" /> Activity
         </a>
       </template>
     </AegisHeroBanner>
