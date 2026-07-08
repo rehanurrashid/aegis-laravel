@@ -24,14 +24,16 @@
         id="aegis-config"
         style="display:none"
         data-config='{!! json_encode([
-            "STRIPE_PRICE_ACCESS_MONTHLY"   => env("STRIPE_PRICE_ACCESS_MONTHLY",   ""),
-            "STRIPE_PRICE_ACCESS_ANNUAL"    => env("STRIPE_PRICE_ACCESS_ANNUAL",    ""),
-            "STRIPE_PRICE_PRACTICE_MONTHLY" => env("STRIPE_PRICE_PRACTICE_MONTHLY", ""),
-            "STRIPE_PRICE_PRACTICE_ANNUAL"  => env("STRIPE_PRICE_PRACTICE_ANNUAL",  ""),
-            "STRIPE_PRICE_BP_MONTHLY"       => env("STRIPE_PRICE_BP_MONTHLY",       ""),
-            "STRIPE_PRICE_BP_ANNUAL"        => env("STRIPE_PRICE_BP_ANNUAL",        ""),
-            "STRIPE_PRICE_SERVICES_ADDON"   => env("STRIPE_PRICE_SERVICES_ADDON",   ""),
-            "STRIPE_PRICE_MAAT_ADDON"       => env("STRIPE_PRICE_MAAT_ADDON",       ""),
+            "STRIPE_PRICE_ACCESS_MONTHLY"       => env("STRIPE_PRICE_ACCESS_MONTHLY",       ""),
+            "STRIPE_PRICE_ACCESS_ANNUAL"        => env("STRIPE_PRICE_ACCESS_ANNUAL",        ""),
+            "STRIPE_PRICE_PRACTICE_MONTHLY"     => env("STRIPE_PRICE_PRACTICE_MONTHLY",     ""),
+            "STRIPE_PRICE_PRACTICE_ANNUAL"      => env("STRIPE_PRICE_PRACTICE_ANNUAL",      ""),
+            "STRIPE_PRICE_BP_MONTHLY"           => env("STRIPE_PRICE_BP_MONTHLY",           ""),
+            "STRIPE_PRICE_BP_ANNUAL"            => env("STRIPE_PRICE_BP_ANNUAL",            ""),
+            "STRIPE_PRICE_CS_BUSINESS_MONTHLY"  => env("STRIPE_PRICE_CS_BUSINESS_MONTHLY",  ""),
+            "STRIPE_PRICE_CS_BUSINESS_ANNUAL"   => env("STRIPE_PRICE_CS_BUSINESS_ANNUAL",   ""),
+            "STRIPE_PRICE_MAAT_MONTHLY"         => env("STRIPE_PRICE_MAAT_MONTHLY",         ""),
+            "STRIPE_PRICE_MAAT_ANNUAL"          => env("STRIPE_PRICE_MAAT_ANNUAL",          ""),
         ], JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_QUOT|JSON_HEX_APOS) !!}'
     ></div>
     <script>

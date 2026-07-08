@@ -240,6 +240,8 @@ return [
         env('STRIPE_PRICE_BP_ANNUAL')           => 'business_partner',
         env('STRIPE_PRICE_CS_BUSINESS_MONTHLY') => 'cs_business',
         env('STRIPE_PRICE_CS_BUSINESS_ANNUAL')  => 'cs_business',
+        env('STRIPE_PRICE_MAAT_MONTHLY')        => 'maat_addon',
+        env('STRIPE_PRICE_MAAT_ANNUAL')         => 'maat_addon',
     ],
 
     /*

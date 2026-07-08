@@ -68,11 +68,14 @@ class StripeEventListener
             match ($type) {
                 'invoice.payment_succeeded'      => $this->handlePaymentSucceeded($payload),
                 'invoice.payment_failed'         => $this->handlePaymentFailed($payload),
+                'invoice.upcoming'               => $this->handleInvoiceUpcoming($payload),
                 'payment_intent.succeeded'       => $this->handlePaymentIntentSucceeded($payload),
                 'payment_intent.payment_failed'  => $this->handlePaymentIntentFailed($payload),
                 'customer.subscription.created'  => $this->handleSubscriptionCreated($payload),
                 'customer.subscription.updated'  => $this->handleSubscriptionUpdated($payload),
                 'customer.subscription.deleted'  => $this->handleSubscriptionCancelled($payload),
+                'payment_method.attached'        => $this->handlePaymentMethodAttached($payload),
+                'payment_method.detached'        => $this->handlePaymentMethodDetached($payload),
                 'charge.refunded'                => $this->handleChargeRefunded($payload),
                 'transfer.created'               => $this->handleTransferCreated($payload),
                 'transfer.paid'                  => $this->handleTransferPaid($payload),
@@ -164,13 +167,46 @@ class StripeEventListener
         $sub = $payload['data']['object'] ?? [];
         $customerId = $sub['customer'] ?? null;
         $user = $customerId ? User::where('stripe_id', $customerId)->first() : null;
-        if (!$user) return;
+        if (!$user) {
+            Log::info('[STRIPE_WEBHOOK] subscription.updated — no user found', ['customer_id' => $customerId]);
+            return;
+        }
 
-        // Sync tier based on the current Stripe price
+        // Sync tier based on the current Stripe base price (first item)
         $priceId = $sub['items']['data'][0]['price']['id'] ?? null;
         if ($priceId) {
             $tier = config("aegis.stripe_price_to_tier.{$priceId}");
-            if ($tier) $user->update(['tier' => $tier]);
+            if ($tier && $tier !== 'maat_addon') {
+                $user->update(['tier' => $tier]);
+                Log::info('[STRIPE_WEBHOOK] tier synced from Stripe', [
+                    'user_id'  => $user->id,
+                    'tier'     => $tier,
+                    'price_id' => $priceId,
+                ]);
+            } elseif (!$tier) {
+                Log::warning('[STRIPE_WEBHOOK] Unknown price ID in subscription update — check config/aegis.php stripe_price_to_tier map', [
+                    'price_id' => $priceId,
+                    'user_id'  => $user->id,
+                ]);
+            }
+        }
+
+        // Sync MAAT addon state — check all subscription items for a MAAT price
+        $maatMonthly = env('STRIPE_PRICE_MAAT_MONTHLY');
+        $maatAnnual  = env('STRIPE_PRICE_MAAT_ANNUAL');
+        $itemPriceIds = array_column(
+            array_column($sub['items']['data'] ?? [], 'price'),
+            'id'
+        );
+        $hasMaat = ($maatMonthly && in_array($maatMonthly, $itemPriceIds, true))
+                || ($maatAnnual  && in_array($maatAnnual,  $itemPriceIds, true));
+
+        if ((bool) $user->maat_addon !== $hasMaat) {
+            $user->update(['maat_addon' => $hasMaat ? 1 : 0]);
+            Log::info('[STRIPE_WEBHOOK] MAAT addon state synced', [
+                'user_id'  => $user->id,
+                'has_maat' => $hasMaat,
+            ]);
         }
     }
 
@@ -224,6 +260,74 @@ class StripeEventListener
 
         \App\Models\BpPayout::where('stripe_transfer_id', $transferId)->update(['status' => 'failed']);
         \App\Models\CsPayout::where('stripe_transfer_id', $transferId)->update(['status' => 'failed']);
+    }
+
+    /**
+     * Payment method attached — sync pm_type + pm_last_four on the user
+     * so the Settings page shows the correct card without an extra API call.
+     */
+    private function handlePaymentMethodAttached(array $payload): void
+    {
+        $pm         = $payload['data']['object'] ?? [];
+        $customerId = $pm['customer'] ?? null;
+        if (!$customerId) return;
+
+        $user = User::where('stripe_id', $customerId)->first();
+        if (!$user) return;
+
+        $user->update([
+            'pm_type'      => $pm['card']['brand'] ?? ($pm['type'] ?? null),
+            'pm_last_four' => $pm['card']['last4'] ?? null,
+        ]);
+
+        Log::info('[STRIPE_WEBHOOK] payment method attached', [
+            'user_id' => $user->id,
+            'brand'   => $pm['card']['brand'] ?? null,
+            'last4'   => $pm['card']['last4'] ?? null,
+        ]);
+    }
+
+    /**
+     * Payment method detached — clear pm_type / pm_last_four if the removed card
+     * matches the last-four on record.
+     */
+    private function handlePaymentMethodDetached(array $payload): void
+    {
+        $pm    = $payload['data']['object'] ?? [];
+        $last4 = $pm['card']['last4'] ?? null;
+        if (!$last4) return;
+
+        User::where('pm_last_four', $last4)->update([
+            'pm_type'      => null,
+            'pm_last_four' => null,
+        ]);
+
+        Log::info('[STRIPE_WEBHOOK] payment method detached', [
+            'pm_id' => $pm['id'] ?? null,
+            'last4' => $last4,
+        ]);
+    }
+
+    /**
+     * invoice.upcoming — fires ~7 days before subscription renewal.
+     * Logs for now; a renewal-reminder email can be dispatched from here later.
+     */
+    private function handleInvoiceUpcoming(array $payload): void
+    {
+        $invoice    = $payload['data']['object'] ?? [];
+        $customerId = $invoice['customer'] ?? null;
+        if (!$customerId) return;
+
+        $user = User::where('stripe_id', $customerId)->first();
+        if (!$user) return;
+
+        Log::info('[STRIPE_WEBHOOK] invoice.upcoming — renewal due soon', [
+            'user_id'      => $user->id,
+            'amount_cents' => $invoice['amount_due'] ?? 0,
+            'due_date'     => $invoice['next_payment_attempt'] ?? null,
+        ]);
+
+        // TODO: dispatch SubscriptionRenewalUpcoming event when reminder email template is ready
     }
 
     /**

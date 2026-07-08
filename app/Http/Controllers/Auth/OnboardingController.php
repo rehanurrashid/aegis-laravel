@@ -243,10 +243,12 @@ class OnboardingController extends Controller
         // Create the Stripe subscription
         $this->subscriptionService->subscribe($user, $priceId, $pmId);
 
-        // Handle add-ons
+        // Handle add-ons — pick MAAT price matching the base plan's billing period
+        $plan    = $request->session()->get('onboarding_plan', []);
+        $billing = $plan['billing'] ?? 'monthly';
         foreach ($data['addons'] ?? [] as $addon) {
             match ($addon) {
-                'maat' => $this->subscriptionService->toggleMaatAddon($user, true),
+                'maat' => $this->subscriptionService->toggleMaatAddon($user, true, $billing),
                 default => null,
             };
         }

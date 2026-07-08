@@ -434,91 +434,200 @@
         <!-- SUBSCRIPTION & PLAN -->
         <template v-else-if="section === 'billing'">
           <div class="st-card">
-            <div class="st-card-head"><div class="st-card-head-l"><span class="st-card-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span><div><div class="st-card-title">Subscription &amp; Plan</div><div class="st-card-sub">Your current Aegis plan and available upgrades</div></div></div><span class="st-bp-badge">Continuity Practice</span></div>
+            <div class="st-card-head">
+              <div class="st-card-head-l">
+                <span class="st-card-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
+                <div><div class="st-card-title">Subscription &amp; Plan</div><div class="st-card-sub">Your current Aegis plan and available upgrades</div></div>
+              </div>
+              <span class="st-bp-badge">{{ currentTierLabel }}</span>
+            </div>
             <div class="st-card-body">
+
+              <!-- Current plan band — dynamic from backend -->
               <div class="st-current-band">
                 <div>
-                  <div class="st-current-name">Continuity Practice — $49/mo</div>
-                  <div class="st-current-meta">Billing cycle: Feb 1 – Mar 1, 2026 · Next invoice: $49 on Mar 1</div>
+                  <div class="st-current-name">{{ currentPlanLine }}</div>
+                  <div class="st-current-meta">{{ billingMetaLine }}</div>
                 </div>
-                <button type="button" class="btn btn-outline btn-sm">Cancel Plan</button>
+                <template v-if="subStatus === 'none'">
+                  <button type="button" class="btn btn-gold btn-sm" @click="goToPricing">Choose a Plan</button>
+                </template>
+                <template v-else-if="subOnGracePeriod">
+                  <button type="button" class="btn btn-gold btn-sm" @click="resumePlan" :disabled="planBusy">Reactivate</button>
+                </template>
+                <template v-else>
+                  <button type="button" class="btn btn-outline btn-sm" @click="confirmCancel = true" :disabled="planBusy">Cancel Plan</button>
+                </template>
               </div>
-              <div class="st-perks-band"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> <span><strong>Founding Member perks active</strong> — 2 additional Continuity Stewards free for life · 2 marketing ads/yr free (first 100 providers)</span></div>
-              <div class="st-cycle-toggle">
-                <span :class="{ active: !billing.annual }">Monthly</span>
-                <button type="button" class="toggle" :class="{ on: billing.annual }" @click="billing.annual = !billing.annual"></button>
-                <span :class="{ active: billing.annual }">Annual <span class="st-save-pill">Save 20%</span></span>
+
+              <!-- Grace period banner -->
+              <div v-if="subOnGracePeriod" class="st-perks-band" style="border-color:var(--red-light);background:var(--icon-bg-red,var(--surface-2));">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span><strong>Subscription ending</strong> — your plan will end on {{ formatDate(sub.ends_at) }}. Reactivate any time before then to keep your access.</span>
               </div>
+
+              <!-- Past-due banner -->
+              <div v-else-if="subStatus === 'past_due'" class="st-perks-band" style="border-color:var(--red-light);background:var(--icon-bg-red,var(--surface-2));">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span><strong>Payment failed</strong> — please update your payment method to avoid interruption.</span>
+              </div>
+
+              <!-- Monthly/Annual toggle -->
+              <div class="st-cycle-toggle" v-if="subStatus !== 'none'">
+                <span :class="{ active: !billingAnnualView }">Monthly</span>
+                <button type="button" class="toggle" :class="{ on: billingAnnualView }" @click="billingAnnualView = !billingAnnualView"></button>
+                <span :class="{ active: billingAnnualView }">Annual <span class="st-save-pill">Save 20%</span></span>
+              </div>
+
+              <!-- Plan grid -->
               <div class="st-plan-grid">
-                <div class="st-plan-tier">
+                <!-- Access -->
+                <div class="st-plan-tier" :class="{ current: currentTier === 'access' }">
+                  <span v-if="currentTier === 'access'" class="st-plan-tier-badge">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Current Plan
+                  </span>
                   <div class="st-plan-tier-name">Continuity Access</div>
-                  <div class="st-plan-tier-price">$29<span>/mo</span></div>
-                  <div class="st-plan-tier-alt">or $276/yr (save 20%)</div>
+                  <div class="st-plan-tier-price">${{ billingAnnualView ? 23 : 29 }}<span>/mo</span></div>
+                  <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $276/yr' : 'or $276/yr (save 20%)' }}</div>
                   <div class="st-plan-feats">
                     <span v-for="f in accessFeatures" :key="f"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> {{ f }}</span>
                   </div>
-                  <button type="button" class="btn btn-outline btn-sm st-plan-cta">Switch to this plan</button>
+                  <button v-if="currentTier === 'access' && !isSwapAllowed('access')" type="button" class="btn btn-outline btn-sm st-plan-cta" disabled>
+                    Your current plan
+                  </button>
+                  <button v-else type="button" class="btn btn-outline btn-sm st-plan-cta" @click="swapPlan('access')" :disabled="planBusy || !accessPriceId">
+                    {{ swapButtonLabel('access') }}
+                  </button>
                 </div>
-                <div class="st-plan-tier current">
-                  <span class="st-plan-tier-badge"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Current Plan</span>
+
+                <!-- Practice -->
+                <div class="st-plan-tier" :class="{ current: currentTier === 'practice' }">
+                  <span v-if="currentTier === 'practice'" class="st-plan-tier-badge">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Current Plan
+                  </span>
                   <div class="st-plan-tier-name">Continuity Practice</div>
-                  <div class="st-plan-tier-price">$49<span>/mo</span></div>
-                  <div class="st-plan-tier-alt">or $468/yr (save 20%)</div>
+                  <div class="st-plan-tier-price">${{ billingAnnualView ? 39 : 49 }}<span>/mo</span></div>
+                  <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $468/yr' : 'or $468/yr (save 20%)' }}</div>
                   <div class="st-plan-feats">
                     <span v-for="f in practiceFeatures" :key="f"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> {{ f }}</span>
                   </div>
-                  <div class="st-plan-cta-current">Your current plan</div>
+                  <button v-if="currentTier === 'practice' && !isSwapAllowed('practice')" type="button" class="btn btn-outline btn-sm st-plan-cta" disabled>
+                    Your current plan
+                  </button>
+                  <button v-else type="button" class="btn btn-gold btn-sm st-plan-cta" @click="swapPlan('practice')" :disabled="planBusy || !practicePriceId">
+                    {{ swapButtonLabel('practice') }}
+                  </button>
                 </div>
               </div>
+
+              <!-- Add-ons — MAAT (requires Practice) -->
               <div class="st-included-head" style="margin-top:24px">Add-ons</div>
               <div class="st-note" style="margin-top:-4px;margin-bottom:14px">Stack on top of your base plan. Add or remove at any time.</div>
               <div class="st-addon-card">
                 <span class="st-card-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
                 <div class="st-addon-body">
-                  <div class="st-addon-head"><div class="st-addon-name">MAAT Professional CS <span class="st-addon-tag">MAAT Add-On</span></div><div class="st-addon-price">+<strong>$23</strong>/mo<div class="st-addon-billed">billed $276/yr</div></div></div>
+                  <div class="st-addon-head">
+                    <div class="st-addon-name">MAAT Professional CS <span class="st-addon-tag">MAAT Add-On</span></div>
+                    <div class="st-addon-price">
+                      +<strong>${{ maatBillingAnnual ? 23 : 29 }}</strong>/mo
+                      <div class="st-addon-billed">{{ maatBillingAnnual ? 'billed $276/yr' : 'or $276/yr (save 20%)' }}</div>
+                    </div>
+                  </div>
                   <div class="st-addon-desc">A licensed, insured professional Continuity Steward — certified by MAAT — designated to your practice. Emergency response within 4 hours, annual recertification included.</div>
                   <div class="st-addon-feats">
                     <span v-for="f in maatFeatures" :key="f"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> {{ f }}</span>
                   </div>
                   <div class="st-addon-foot">
-                    <button type="button" class="btn btn-gold btn-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Add MAAT Service</button>
-                    <span class="st-addon-req">Requires Continuity Practice</span>
+                    <button v-if="hasMaat" type="button" class="btn btn-outline btn-sm" @click="toggleMaat(false)" :disabled="maatBusy">Remove MAAT</button>
+                    <button v-else type="button" class="btn btn-gold btn-sm" @click="toggleMaat(true)" :disabled="maatBusy || currentTier !== 'practice'">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Add MAAT Service
+                    </button>
+                    <span class="st-addon-req">{{ currentTier === 'practice' ? 'Available with your plan' : 'Requires Continuity Practice' }}</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+
+          <!-- Cancel confirmation modal -->
+          <AegisModal v-model="confirmCancel" title="Cancel your subscription?" size="sm">
+            <p style="font-size:14px;color:var(--text);margin-bottom:12px">Your subscription will remain active until <strong>{{ formatDate(sub.current_period?.end) || 'the end of the current period' }}</strong>. After that, you'll lose access to your portal.</p>
+            <p style="font-size:13px;color:var(--text-3);margin-bottom:0">You can reactivate any time before then.</p>
+            <template #footer>
+              <button type="button" class="btn btn-outline btn-sm" @click="confirmCancel = false">Keep Subscription</button>
+              <button type="button" class="btn btn-danger btn-sm" @click="cancelPlan" :disabled="planBusy">Cancel Subscription</button>
+            </template>
+          </AegisModal>
         </template>
 
         <!-- BILLING & INVOICES -->
         <template v-else-if="section === 'invoices'">
           <div class="st-card">
-            <div class="st-card-head"><div class="st-card-head-l"><span class="st-card-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span><div><div class="st-card-title">Billing &amp; Payment</div><div class="st-card-sub">Payment methods and invoice history</div></div></div><button type="button" class="btn btn-gold btn-sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Card</button></div>
+            <div class="st-card-head">
+              <div class="st-card-head-l">
+                <span class="st-card-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span>
+                <div><div class="st-card-title">Billing &amp; Payment</div><div class="st-card-sub">Payment methods and invoice history</div></div>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <a :href="route('provider.settings.billing.portal')" class="btn btn-outline btn-sm">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  Manage in Stripe
+                </a>
+              </div>
+            </div>
             <div class="st-card-body">
+
+              <!-- Financial controls (existing local toggles — cosmetic only) -->
               <div class="st-subhead" style="margin-bottom:2px">Financial Controls</div>
               <div class="st-toggle-row"><div><div class="st-toggle-name">Auto-Pay for Retainer Contracts</div><div class="st-toggle-sub">Automatically process monthly retainer payments via your payment method on file</div></div><button type="button" class="toggle" :class="{ on: financial.autoPay }" @click="financial.autoPay = !financial.autoPay"></button></div>
               <div class="st-toggle-row"><div><div class="st-toggle-name">Require Approval for Invoices Over $500</div><div class="st-toggle-sub">Flag invoices above this threshold for manual review before payment</div></div><button type="button" class="toggle" :class="{ on: financial.requireApproval }" @click="financial.requireApproval = !financial.requireApproval"></button></div>
               <div class="st-toggle-row"><div><div class="st-toggle-name">Monthly Spend Limit Alert</div><div class="st-toggle-sub">Notify me when monthly Business Partner spending exceeds my set limit</div></div><button type="button" class="toggle" :class="{ on: financial.spendLimit }" @click="financial.spendLimit = !financial.spendLimit"></button></div>
               <div class="st-toggle-row"><div><div class="st-toggle-name">Invoice Email Notifications</div><div class="st-toggle-sub">Send email confirmation for every invoice generated or paid</div></div><button type="button" class="toggle" :class="{ on: financial.invoiceEmails }" @click="financial.invoiceEmails = !financial.invoiceEmails"></button></div>
+
               <div class="st-divider"></div>
+
+              <!-- Payment methods — from Stripe -->
               <div class="st-subhead" style="margin-bottom:12px">Payment Methods</div>
-              <div v-for="(pm, idx) in paymentMethods" :key="idx" class="st-pay-row" style="margin-bottom:10px">
-                <span class="st-pay-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span>
-                <div class="st-pay-info"><div class="st-pay-num" style="font-family:var(--font-sans);letter-spacing:0;font-weight:700">{{ pm.label }}</div><div class="st-pay-exp">{{ pm.meta }}</div></div>
-                <span v-if="pm.default" class="st-badge-green"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><polyline points="20 6 9 17 4 12"/></svg>Default</span>
-                <button v-else type="button" class="btn btn-outline btn-sm">Set Default</button>
-                <button type="button" class="st-link-btn st-remove">Remove</button>
+              <div v-if="stripePaymentMethods.length === 0" style="font-size:13px;color:var(--text-3);padding:12px 0;">
+                No payment methods on file. <a :href="route('provider.settings.billing.portal')" style="color:var(--gold-dark);text-decoration:underline;">Add one via Stripe →</a>
               </div>
+              <div v-for="pm in stripePaymentMethods" :key="pm.id" class="st-pay-row" style="margin-bottom:10px">
+                <span class="st-pay-ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span>
+                <div class="st-pay-info">
+                  <div class="st-pay-num" style="font-family:var(--font-sans);letter-spacing:0;font-weight:700">{{ formatCardBrand(pm.brand) }} ending in {{ pm.last4 }}</div>
+                  <div class="st-pay-exp">Expires {{ pm.exp }}<span v-if="pm.default"> · Default payment method</span></div>
+                </div>
+                <span v-if="pm.default" class="st-badge-green">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><polyline points="20 6 9 17 4 12"/></svg>Default
+                </span>
+                <button v-else type="button" class="btn btn-outline btn-sm" @click="setDefaultPm(pm.id)" :disabled="pmBusy">Set Default</button>
+                <button type="button" class="st-link-btn st-remove" @click="removePm(pm.id)" :disabled="pmBusy || pm.default">Remove</button>
+              </div>
+
               <div class="st-divider"></div>
+
+              <!-- Invoice history — from Stripe -->
               <div class="st-subhead" style="margin-bottom:12px">Invoice History</div>
-              <table class="st-invoice-table">
+              <div v-if="stripeInvoices.length === 0" style="font-size:13px;color:var(--text-3);padding:12px 0;">
+                No invoices yet. Your first invoice will appear here after your first billing cycle.
+              </div>
+              <table v-else class="st-invoice-table">
                 <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Status</th></tr></thead>
                 <tbody>
-                  <tr v-for="inv in invoices" :key="inv.date">
-                    <td class="st-inv-date">{{ inv.date }}</td>
-                    <td>{{ inv.desc }}</td>
-                    <td class="st-inv-amount">{{ inv.amount }}</td>
-                    <td><span class="st-inv-status"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Paid</span><button type="button" class="btn-icon st-inv-dl"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button></td>
+                  <tr v-for="inv in stripeInvoices" :key="inv.id">
+                    <td class="st-inv-date">{{ formatDate(inv.paid_at || inv.created) }}</td>
+                    <td>{{ inv.description }}</td>
+                    <td class="st-inv-amount">${{ (inv.amount_cents / 100).toFixed(2) }}</td>
+                    <td>
+                      <span class="st-inv-status" v-if="inv.status === 'paid'">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Paid
+                      </span>
+                      <span v-else-if="inv.status === 'open'" style="color:var(--gold-dark);font-weight:600">Open</span>
+                      <span v-else style="color:var(--text-3);font-weight:600">{{ inv.status }}</span>
+                      <a v-if="inv.pdf_url" :href="inv.pdf_url" target="_blank" rel="noopener" class="btn-icon st-inv-dl" title="Download PDF">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      </a>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -708,7 +817,14 @@ import { ref, reactive, computed } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import AppLayout from '../../Components/AppLayout.vue';
 import Modal from '../../Components/Modal.vue';
-const props = defineProps({ user: Object });
+
+const props = defineProps({
+  user:         { type: Object,  default: () => ({}) },
+  meta:         { type: Object,  default: () => ({}) },
+  mfaEnabled:   { type: Boolean, default: false },
+  subscription: { type: Object,  default: () => ({}) },
+  pricing:      { type: Object,  default: () => ({}) },
+});
 
 const i = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
 const phoneSvg = `<svg viewBox="0 0 24 24" ${i}><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`;
@@ -917,6 +1033,155 @@ const maatFeatures = [
   '4-hour emergency response guarantee',
   'Annual CS recertification included',
 ];
+
+// ─────────────────────────────────────────────────────────────────────
+// Subscription state — wired to backend
+// ─────────────────────────────────────────────────────────────────────
+const sub = computed(() => props.subscription || {});
+const subStatus = computed(() => sub.value.status || 'none');
+const subOnGracePeriod = computed(() => !!sub.value.on_grace_period);
+const currentTier = computed(() => sub.value.tier || props.user?.tier || null);
+const hasMaat = computed(() => !!sub.value.has_maat_addon);
+const prices = computed(() => sub.value.prices || {});
+const stripeInvoices = computed(() => sub.value.invoices || []);
+const stripePaymentMethods = computed(() => sub.value.payment_methods || []);
+
+const currentPriceId = computed(() => sub.value.price_id || null);
+const currentBillingIsAnnual = computed(() => {
+  const p = currentPriceId.value;
+  if (!p) return false;
+  return p === prices.value.access_annual || p === prices.value.practice_annual;
+});
+
+// UI toggle — defaults to current billing but user can flip to preview swap
+const billingAnnualView = ref(currentBillingIsAnnual.value);
+
+const accessPriceId = computed(() => billingAnnualView.value ? prices.value.access_annual : prices.value.access_monthly);
+const practicePriceId = computed(() => billingAnnualView.value ? prices.value.practice_annual : prices.value.practice_monthly);
+const maatBillingAnnual = computed(() => currentBillingIsAnnual.value);
+
+const currentTierLabel = computed(() => ({
+  access:   'Continuity Access',
+  practice: 'Continuity Practice',
+}[currentTier.value] || 'No active plan'));
+
+const currentPlanLine = computed(() => {
+  if (subStatus.value === 'none') return 'No active subscription';
+  const t = currentTier.value;
+  const monthly = t === 'access' ? 29 : (t === 'practice' ? 49 : 0);
+  const annualPerMo = t === 'access' ? 23 : (t === 'practice' ? 39 : 0);
+  const cycle = currentBillingIsAnnual.value ? 'annual' : 'monthly';
+  const rate = currentBillingIsAnnual.value ? annualPerMo : monthly;
+  return `${currentTierLabel.value} — $${rate}/mo (${cycle})`;
+});
+
+const billingMetaLine = computed(() => {
+  if (subStatus.value === 'none') return 'Choose a plan to unlock the full platform.';
+  const period = sub.value.current_period;
+  const next   = sub.value.next_invoice;
+  const parts = [];
+  if (period?.start && period?.end) {
+    parts.push(`Billing cycle: ${formatDate(period.start)} – ${formatDate(period.end)}`);
+  }
+  if (next?.amount_cents != null && next?.date) {
+    parts.push(`Next invoice: $${(next.amount_cents / 100).toFixed(2)} on ${formatDate(next.date)}`);
+  }
+  return parts.join(' · ') || 'Billing details will appear after your first cycle.';
+});
+
+const isSwapAllowed = (tier) => {
+  // Same-tier swap only makes sense if switching billing period
+  if (tier !== currentTier.value) return true;
+  return billingAnnualView.value !== currentBillingIsAnnual.value;
+};
+
+const swapButtonLabel = (tier) => {
+  if (tier === currentTier.value) {
+    return billingAnnualView.value !== currentBillingIsAnnual.value
+      ? (billingAnnualView.value ? 'Switch to annual' : 'Switch to monthly')
+      : 'Your current plan';
+  }
+  const currentIdx = ['access', 'practice'].indexOf(currentTier.value);
+  const newIdx     = ['access', 'practice'].indexOf(tier);
+  return newIdx > currentIdx ? 'Upgrade to this plan' : 'Switch to this plan';
+};
+
+// ── Actions ──────────────────────────────────────────────────────────
+const planBusy = ref(false);
+const maatBusy = ref(false);
+const pmBusy   = ref(false);
+const confirmCancel = ref(false);
+
+function swapPlan(tier) {
+  const priceId = tier === 'access' ? accessPriceId.value : practicePriceId.value;
+  if (!priceId) {
+    router.visit(route('provider.settings.index'), { only: [] }); // no-op — silently ignore
+    return;
+  }
+  planBusy.value = true;
+  router.post(route('provider.settings.subscription.swap'), { price_id: priceId }, {
+    preserveScroll: true,
+    onFinish: () => { planBusy.value = false; },
+  });
+}
+
+function cancelPlan() {
+  planBusy.value = true;
+  router.post(route('provider.settings.subscription.cancel'), {}, {
+    preserveScroll: true,
+    onFinish: () => { planBusy.value = false; confirmCancel.value = false; },
+  });
+}
+
+function resumePlan() {
+  planBusy.value = true;
+  router.post(route('provider.settings.subscription.resume'), {}, {
+    preserveScroll: true,
+    onFinish: () => { planBusy.value = false; },
+  });
+}
+
+function toggleMaat(enable) {
+  maatBusy.value = true;
+  router.post(route('provider.settings.subscription.maat'), { enable }, {
+    preserveScroll: true,
+    onFinish: () => { maatBusy.value = false; },
+  });
+}
+
+function setDefaultPm(pmId) {
+  pmBusy.value = true;
+  router.post(route('provider.settings.payment.default'), { payment_method_id: pmId }, {
+    preserveScroll: true,
+    onFinish: () => { pmBusy.value = false; },
+  });
+}
+
+function removePm(pmId) {
+  if (!confirm('Remove this payment method? This cannot be undone.')) return;
+  pmBusy.value = true;
+  router.delete(route('provider.settings.payment.remove'), {
+    data: { payment_method_id: pmId },
+    preserveScroll: true,
+    onFinish: () => { pmBusy.value = false; },
+  });
+}
+
+function goToPricing() {
+  router.visit(route('onboarding.plan'));
+}
+
+function formatDate(input) {
+  if (!input) return '';
+  const d = typeof input === 'number' ? new Date(input * 1000) : new Date(input);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function formatCardBrand(brand) {
+  if (!brand) return 'Card';
+  return brand.charAt(0).toUpperCase() + brand.slice(1);
+}
 
 const financial = reactive({ autoPay: true, requireApproval: true, spendLimit: false, invoiceEmails: true });
 const paymentMethods = [

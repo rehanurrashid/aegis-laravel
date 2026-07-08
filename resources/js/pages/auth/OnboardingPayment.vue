@@ -213,12 +213,14 @@ function resolveStripePrice() {
   const b      = props.plan?.billing
 
   const map = {
-    'access-monthly':   cfg.STRIPE_PRICE_ACCESS_MONTHLY,
-    'access-annual':    cfg.STRIPE_PRICE_ACCESS_ANNUAL,
-    'practice-monthly': cfg.STRIPE_PRICE_PRACTICE_MONTHLY,
-    'practice-annual':  cfg.STRIPE_PRICE_PRACTICE_ANNUAL,
-    'monthly-monthly':  cfg.STRIPE_PRICE_BP_MONTHLY,
-    'annual-annual':    cfg.STRIPE_PRICE_BP_ANNUAL,
+    'access-monthly':      cfg.STRIPE_PRICE_ACCESS_MONTHLY,
+    'access-annual':       cfg.STRIPE_PRICE_ACCESS_ANNUAL,
+    'practice-monthly':    cfg.STRIPE_PRICE_PRACTICE_MONTHLY,
+    'practice-annual':     cfg.STRIPE_PRICE_PRACTICE_ANNUAL,
+    'monthly-monthly':     cfg.STRIPE_PRICE_BP_MONTHLY,
+    'annual-annual':       cfg.STRIPE_PRICE_BP_ANNUAL,
+    'cs_business-monthly': cfg.STRIPE_PRICE_CS_BUSINESS_MONTHLY,
+    'cs_business-annual':  cfg.STRIPE_PRICE_CS_BUSINESS_ANNUAL,
   }
 
   return map[`${t}-${b}`] ?? ''

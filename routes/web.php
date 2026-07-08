@@ -351,6 +351,18 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::post('/settings/mfa/verify', [MfaController::class, 'verify'])->name('settings.mfa.verify');
         Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->name('settings.mfa.disable');
 
+        // Subscription — Settings.vue panel-subscription
+        Route::get( '/settings/billing-portal',        [ProviderSettingsController::class, 'billingPortal'])->name('settings.billing.portal');
+        Route::post('/settings/subscription/swap',     [ProviderSettingsController::class, 'swapPlan'])->name('settings.subscription.swap');
+        Route::post('/settings/subscription/cancel',   [ProviderSettingsController::class, 'cancelPlan'])->name('settings.subscription.cancel');
+        Route::post('/settings/subscription/resume',   [ProviderSettingsController::class, 'resumePlan'])->name('settings.subscription.resume');
+        Route::post('/settings/subscription/maat',     [ProviderSettingsController::class, 'toggleMaat'])->name('settings.subscription.maat');
+
+        // Payment methods — Settings.vue panel-billing
+        Route::post('/settings/payment-method',            [ProviderSettingsController::class, 'storePaymentMethod'])->name('settings.payment.store');
+        Route::post('/settings/payment-method/default',    [ProviderSettingsController::class, 'setDefaultPaymentMethod'])->name('settings.payment.default');
+        Route::delete('/settings/payment-method',          [ProviderSettingsController::class, 'removePaymentMethod'])->name('settings.payment.remove');
+
         // Shared pages — portal-prefixed URLs
         Route::get('/overview',  [OverviewController::class,  'index'])->name('overview');
         Route::get('/messages',  [MessagesController::class,  'index'])->name('messages');
