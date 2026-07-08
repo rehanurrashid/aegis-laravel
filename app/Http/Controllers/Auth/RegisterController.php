@@ -36,6 +36,10 @@ class RegisterController extends Controller
         // Send verification email asynchronously
         VerifyEmailController::sendVerificationEmail($user);
 
+        // Mark email as already sent so VerifyEmailController::notice()
+        // does not send a second verification email on the redirect landing.
+        $request->session()->put('verify_email_sent_' . $user->id, true);
+
         Log::info("{$trace} login complete", [
             'auth_check'   => Auth::check(),
             'auth_id'      => Auth::id(),

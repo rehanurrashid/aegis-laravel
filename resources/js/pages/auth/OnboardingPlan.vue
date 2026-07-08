@@ -246,8 +246,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
-import { Head, useForm, usePage, router } from '@inertiajs/vue3'
+import { ref, computed } from 'vue'
+import { Head, useForm, router } from '@inertiajs/vue3'
 import { useToast } from '@/composables/useToast'
 
 const props = defineProps({
@@ -258,18 +258,7 @@ const props = defineProps({
 })
 
 const toast = useToast()
-const page  = usePage()
 
-// Fire Laravel flash toasts from shared props (HandleInertiaRequests)
-// Props.flash from controller may be consumed before reaching here — use page.props.flash
-const fireFlash = (flash) => {
-  if (flash?.error)   toast.error(flash.error)
-  if (flash?.success) toast.success(flash.success)
-  if (flash?.info)    toast.info(flash.info)
-  if (flash?.warning) toast.warning(flash.warning)
-}
-onMounted(() => fireFlash(page.props.flash))
-watch(() => page.props.flash, fireFlash, { deep: true })
 const year  = new Date().getFullYear()
 
 const isPractitioner = computed(() => props.role === 'practitioner')
