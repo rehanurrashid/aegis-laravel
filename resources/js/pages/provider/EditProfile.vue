@@ -88,12 +88,6 @@
         <div class="ep-nav-divider"></div>
         <div class="ep-nav-section-label">Settings</div>
 
-        <a class="ep-nav-item" :class="{ active: activeSection === 'availability' }"
-           href="#" @click.prevent="activeSection = 'availability'">
-          <div class="ep-nav-icon"><AegisIcon name="clock" :size="16" /></div>
-          <span class="ep-nav-label">Availability</span>
-          <div class="ep-nav-check"><AegisIcon name="check-badge" :size="16" class="aegis-icon-filled" /></div>
-        </a>
       </div><!-- /.ep-nav -->
 
       <!-- ─── RIGHT CONTENT ─── -->
@@ -864,73 +858,7 @@
           </div>
         </div><!-- /demographics -->
 
-        <!-- ══════════════ AVAILABILITY ══════════════ -->
-        <div v-show="activeSection === 'availability'" class="ep-section">
-          <div class="ep-card">
-            <div class="ep-card-header">
-              <div class="ep-card-header-left">
-                <div class="ep-card-icon"><AegisIcon name="clock" :size="16" /></div>
-                <div>
-                  <div class="ep-card-title">Operating Hours</div>
-                  <div class="ep-card-sub">When are you available to see clients and accept referrals?</div>
-                </div>
-              </div>
-            </div>
-            <div class="card-body">
-              <div class="form-group">
-                <label class="form-label">Available Days <span class="ep-label-req">*</span></label>
-                <div class="ep-days">
-                  <button v-for="day in weekDays" :key="day" type="button"
-                          class="ep-day" :class="{ selected: availabilityForm.hours.days.includes(day) }"
-                          @click="toggleInArray(availabilityForm.hours.days, day)">{{ day }}</button>
-                </div>
-              </div>
-              <div class="form-row form-row-2">
-                <div class="form-group">
-                  <label class="form-label">Start Time <span class="ep-label-req">*</span></label>
-                  <input v-model="availabilityForm.hours.start" type="time" class="form-input">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">End Time <span class="ep-label-req">*</span></label>
-                  <input v-model="availabilityForm.hours.end" type="time" class="form-input">
-                </div>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Timezone <span class="ep-label-req">*</span></label>
-                <select v-model="availabilityForm.hours.timezone" class="form-select">
-                  <option>Eastern Time (EST)</option><option>Central Time (CST)</option><option>Mountain Time (MST)</option><option>Pacific Time (PST)</option>
-                </select>
-              </div>
-              <div class="form-group form-group-last">
-                <label class="form-label">Typical Response Time</label>
-                <select v-model="availabilityForm.hours.response_time" class="form-select">
-                  <option>Within 1 hour</option><option>Within 2 hours</option><option>Within 4 hours</option><option>Same day</option><option>Within 24 hours</option>
-                </select>
-              </div>
-            </div>
-          </div>
 
-          <div class="ep-card">
-            <div class="ep-card-header">
-              <div class="ep-card-header-left">
-                <div class="ep-card-icon"><AegisIcon name="monitor" :size="16" /></div>
-                <div>
-                  <div class="ep-card-title">Telehealth Settings</div>
-                  <div class="ep-card-sub">Configure your telehealth availability and platform</div>
-                </div>
-              </div>
-            </div>
-            <div class="card-body">
-              <AegisToggle v-model="availabilityForm.telehealth" label="Available via telehealth" />
-              <AegisToggle v-model="availabilityForm.accepting" label="Accepting new referrals" />
-              <div class="form-actions-bar">
-                <button type="button" class="btn btn-primary" :disabled="availabilityForm.processing" @click="submitAvailability">
-                  {{ availabilityForm.processing ? 'Saving…' : 'Save availability' }}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div><!-- /availability -->
 
         <!-- Notifications and Privacy & Visibility are managed in Settings, per PHP design (lines: "→ managed in Settings"). -->
 

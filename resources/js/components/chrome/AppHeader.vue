@@ -330,16 +330,18 @@ const criticalIncidentUrl = computed(() => {
 
 // ── Portal switcher ────────────────────────────────────────────────────
 const portalSwitchEntries = computed(() => {
+  const user = page.props.auth?.user ?? {}
   const all = [
-    { key: 'provider',           label: 'Practitioner',       icon: 'user',        href: route('provider.dashboard') },
-    { key: 'continuity_steward', label: 'Continuity Steward', icon: 'shield-check', href: '#' },
-    { key: 'support_steward',    label: 'Support Steward',    icon: 'users',        href: '#' },
+    { key: 'provider',           label: 'Practitioner',       icon: 'user',         href: route('provider.dashboard'), always: true },
+    { key: 'continuity_steward', label: 'Continuity Steward', icon: 'shield-check',  href: '#', gate: user.has_cs_portal },
+    { key: 'support_steward',    label: 'Support Steward',    icon: 'users',         href: '#', gate: user.has_ss_portal },
   ]
   const current = portal.value
+  const eligible = all.filter(e => e.always || e.gate)
   const ordered = []
-  const cur = all.find(e => e.key === current)
+  const cur = eligible.find(e => e.key === current)
   if (cur) ordered.push({ ...cur, current: true })
-  for (const e of all) {
+  for (const e of eligible) {
     if (e.key !== current) ordered.push({ ...e, current: false })
   }
   return ordered
