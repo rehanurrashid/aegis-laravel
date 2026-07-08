@@ -122,7 +122,7 @@
             verify-mfa-route="provider.settings.mfa.verify"
             :mfa-enabled="mfaEnabled"
           />
-        </div>        </div>
+        </div>
 
         <!-- NOTIFICATIONS -->
         <div v-show="section === 'notifications'" class="settings-panel">

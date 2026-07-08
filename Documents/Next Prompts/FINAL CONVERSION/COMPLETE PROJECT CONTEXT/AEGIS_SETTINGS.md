@@ -1,8 +1,10 @@
-# AEGIS_PROVIDER_SETTINGS.md
+# AEGIS_SETTINGS.md
 
-> **Purpose:** Canonical reference for every setting in the Provider Portal Settings page. For each setting: what it controls, where the value is stored, how it affects platform behaviour, which backend endpoint persists it, and implementation status. Use this file to drive backend wiring for each panel.
-
-**Last updated:** July 2026 — matches `Settings.vue` as of commit `2cd19de`
+> **Purpose:** Canonical reference for all Settings pages across every Aegis portal (Provider, CS, SS, BP).
+> Records what each setting controls, where values are stored, backend endpoints, shared component status,
+> and implementation notes. Use this file before building or converting any portal's Settings.vue.
+>
+> **Last updated:** July 2026 — reflects shared component extraction and all 4 portal Settings.vue builds.
 
 ---
 
@@ -16,10 +18,67 @@ Settings are persisted via two mechanisms:
 | `users` table columns | Email, phone, password, MFA status | `users` |
 | Stripe / Cashier | Subscription plan, payment methods, invoices | Stripe API + `subscriptions` table |
 
-All settings routes are under the `provider.` Ziggy prefix (`/provider/settings/...`).
+Route prefixes per portal: `provider.settings.*` · `cs.settings.*` · `ss.settings.*` · `bp.settings.*`
 
-**Controller:** `App\Http\Controllers\Provider\SettingsController`
-**Service:** `App\Services\ProfileService` (meta read/write), `App\Services\SubscriptionService` (billing)
+Controllers:
+- `App\Http\Controllers\Provider\SettingsController`
+- `App\Http\Controllers\ContinuitySteward\SettingsController`
+- `App\Http\Controllers\SupportSteward\SettingsController`
+- `App\Http\Controllers\BusinessPartner\SettingsController`
+
+Services: `ProfileService` (meta read/write) · `SubscriptionService` (billing) · `PayoutService` (BP/CS payout)
+
+---
+
+---
+
+## Shared Component Map
+
+These sections were extracted into reusable components at `resources/js/components/settings/`.
+When converting any portal's settings page, import these — do not rebuild the section.
+
+| Component | Covers | Props | Portals |
+|-----------|--------|-------|---------|
+| `SettingsAccount.vue` | Email · phone · handle · change password · active sessions · revoke-all modal | `updateAccountRoute` `updatePasswordRoute` `revokeSessionRoute` `revokeAllRoute` | All 4 |
+| `SettingsSecurity.vue` | TOTP/email 2FA · backup codes · security alerts | `enableMfaRoute` `disableMfaRoute` `verifyMfaRoute` `mfaEnabled` `userPhone` `userEmail` | All 4 |
+| `SettingsNotifications.vue` | Quiet hours · 4-col digest prefs · notification table · `#extra-toggles` slot | `updateRoute` `notifCategories` `subtitle` | All 4 |
+| `SettingsAppearance.vue` | Theme swatches · dark mode · timezone select | `updateRoute` | All 4 |
+| `SettingsMessaging.vue` | Who can message · status · read receipts · away text · `#extra-toggles` slot | `updateRoute` `messagesRoute` `portalLabel` | CS · SS · BP |
+| `SettingsEmailPrefs.vue` | Digest frequency · activity summary label · unsub-all | `updateRoute` `activityLabel` | CS · SS · BP |
+| `SettingsDangerZone.vue` | Export · pause · optional transfer (BP) · deactivate/delete | `pauseLabel` `deactivateLabel` `showTransfer` `deleteRoute` `exportRoute` | All 4 |
+
+### Route name pattern
+
+| Portal | Example |
+|--------|---------|
+| Provider | `provider.settings.password` |
+| Continuity Steward | `cs.settings.password` |
+| Support Steward | `ss.settings.password` |
+| Business Partner | `bp.settings.password` |
+
+### Portal settings page structure
+
+| File | Shared components used | Portal-specific sections (inline) |
+|------|----------------------|----------------------------------|
+| `provider/Settings.vue` | Account · Security · Notifications (extra-toggles slot) · Appearance · DangerZone | Profile · Billing/Invoices · Availability · Referrals · CS/SS/Vault/Agreement/Services/Privacy/Network prefs |
+| `cs/Settings.vue` | Account · Security · Notifications · Appearance · Messaging · EmailPrefs · DangerZone | Profile · CS Role Settings · Document Vault Access · Privacy · Billing (invited/business split) |
+| `ss/Settings.vue` | Account · Security · Notifications · Appearance · Messaging · EmailPrefs · DangerZone | Profile · SS Role Settings · Agreements & Attestation · Privacy · Billing (no-cost notice) |
+| `bp/Settings.vue` | Account · Security · Notifications · Appearance · Messaging · EmailPrefs · DangerZone | Profile · Business Account Settings · Payout/Stripe Connect · Privacy · Billing (BP subscription with monthly/annual toggle) |
+
+### What stays portal-specific (do NOT extract)
+
+| Panel | Portal(s) | Why |
+|-------|----------|-----|
+| Profile & Identity | All (separate) | Badge color, edit route, portal cross-links differ |
+| Billing & Subscription | Provider | Full Stripe Cashier + plan selection |
+| Payout / Stripe Connect | BP + CS | Different payout models and account structures |
+| Services Mode toggle | Provider only | `services_mode` meta key |
+| CS Steward Settings | CS only | Continuity-specific incident prefs |
+| SS Steward Settings | SS only | Task management + incident reporting prefs |
+| Team / Agency Settings | BP only | Agency `bp_type` only |
+| Billing — CS | CS only | Invited vs business billing split |
+| Billing — SS | SS only | No-cost model |
+| Billing — BP | BP only | BP subscription with monthly/annual toggle |
 
 ---
 
@@ -50,6 +109,8 @@ All settings routes are under the `provider.` Ziggy prefix (`/provider/settings/
 
 ## Panel 2 — Account & Login (`section = 'account'`)
 
+> **Shared component:** `SettingsAccount.vue` — import this for all portals, do not rebuild.
+
 ### 2a — Credentials
 
 | Field | Stored in | Route | Controller method | Status |
@@ -62,6 +123,8 @@ All settings routes are under the `provider.` Ziggy prefix (`/provider/settings/
 
 ### 2b — Change Password
 
+> Covered by `SettingsAccount.vue`.
+
 | Field | Validation | Route | Controller method | Status |
 |---|---|---|---|---|
 | New Password (min 12 chars) | Required, min:12, regex uppercase+number+special | `PUT /provider/settings/password` | `PasswordResetController::change` | ✅ Wired |
@@ -70,6 +133,8 @@ All settings routes are under the `provider.` Ziggy prefix (`/provider/settings/
 **Note:** Current password is NOT requested (by design). Session authentication is sufficient.
 
 ### 2c — Active Sessions
+
+> Covered by `SettingsAccount.vue`.
 
 | Feature | Purpose | Backend |
 |---|---|---|
@@ -80,6 +145,8 @@ All settings routes are under the `provider.` Ziggy prefix (`/provider/settings/
 ---
 
 ## Panel 3 — Security & Two-Factor Authentication (`section = 'security'`)
+
+> **Shared component:** `SettingsSecurity.vue`
 
 ### 3a — 2FA Methods
 
@@ -106,6 +173,8 @@ All settings routes are under the `provider.` Ziggy prefix (`/provider/settings/
 ---
 
 ## Panel 4 — Notification Preferences (`section = 'notifications'`)
+
+> **Shared component:** `SettingsNotifications.vue` — pass `notifCategories` prop for portal-specific gates.
 
 **This is the single place for all notification-type toggles across the platform.** Toggles from CS Settings, SS Settings, Vault, Agreements, and Billing that were notification-related have all been consolidated here.
 
@@ -410,6 +479,8 @@ Read from `agreements` table filtered by `provider_id` and `status = active`. Di
 
 ## Panel 14 — Appearance & Timezone (`section = 'appearance'`)
 
+> **Shared component:** `SettingsAppearance.vue`
+
 **Route:** `PUT /provider/settings/appearance` → `SettingsController::updateAppearance`
 **Storage:** `user_meta.appearance` (JSON)
 
@@ -501,6 +572,8 @@ Currently shows empty state. No hard-coded integrations. Future OAuth connectors
 ---
 
 ## Panel 18 — Account Actions (`section = 'changes'`)
+
+> **Shared component:** `SettingsDangerZone.vue` — use props to vary labels and show/hide transfer option.
 
 ### 18a — Export All Data
 | | |
