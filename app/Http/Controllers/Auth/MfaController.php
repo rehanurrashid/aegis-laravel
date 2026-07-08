@@ -118,8 +118,8 @@ class MfaController extends Controller
             ]
         );
 
-        // Send OTP email
-        \App\Jobs\SendEmailJob::dispatch(
+        // Use dispatchSync — OTP must send immediately, cannot be queued
+        \App\Jobs\SendEmailJob::dispatchSync(
             'emails.auth.11-email-otp',
             [
                 'recipient_name' => $user->display_name,
@@ -128,7 +128,7 @@ class MfaController extends Controller
                 'settings_url'   => rtrim(config('app.url'), '/') . '/' . ($user->role?->portal() ?? 'provider') . '/settings',
             ],
             $user->id,
-        )->onQueue('email');
+        );
 
         return back()->with('success', 'Verification code sent to ' . $user->email . '. Enter it below to activate Email 2FA.');
     }
@@ -258,10 +258,8 @@ class MfaController extends Controller
         $user   = \App\Models\User::find($userId);
         $mfa    = $user?->mfaToken;
 
-        // Determine method: if MFA token exists and is confirmed → totp, else email
-        $mfaMethod = ($mfa && $mfa->confirmed_at && !$mfa->disabled_at)
-            ? 'totp'
-            : 'email';
+        // Use the stored method field; fall back to 'totp' for legacy records
+        $mfaMethod = $mfa?->method ?? 'totp';
 
         return Inertia::render('Auth/MfaChallenge', [
             'mfaMethod' => $mfaMethod,
@@ -290,16 +288,23 @@ class MfaController extends Controller
                 ->withErrors(['email' => 'Two-factor session is invalid.']);
         }
 
-        if ($mfa->method === 'email') {
-            // Email OTP verification
-            if (!$mfa->email_otp_expires_at || now()->gt($mfa->email_otp_expires_at)) {
-                return back()->withErrors(['code' => 'Your verification code has expired. Please sign in again to receive a new code.']);
+        $method = $mfa->method ?? 'totp';
+
+        if ($method === 'email') {
+            // Try backup/recovery code first (6-digit, same as OTP — check recovery list)
+            $isBackup = $this->consumeRecoveryCode($mfa, $request->code);
+
+            if (!$isBackup) {
+                // Verify email OTP
+                if (!$mfa->email_otp_expires_at || now()->gt($mfa->email_otp_expires_at)) {
+                    return back()->withErrors(['code' => 'Your verification code has expired. Please sign in again to receive a new code.']);
+                }
+                if (!$mfa->email_otp_hash || !Hash::check($request->code, (string) $mfa->email_otp_hash)) {
+                    return back()->withErrors(['code' => 'Invalid code. Check your email or use a backup code.']);
+                }
+                // Consume — clear the OTP after use
+                $mfa->forceFill(['email_otp_hash' => null, 'email_otp_expires_at' => null])->save();
             }
-            if (!Hash::check($request->code, (string) $mfa->email_otp_hash)) {
-                return back()->withErrors(['code' => 'Invalid code. Please check your email and try again.']);
-            }
-            // Consume — clear the OTP after use
-            $mfa->forceFill(['email_otp_hash' => null, 'email_otp_expires_at' => null])->save();
         } else {
             // TOTP verification (authenticator app)
             if (!$this->verifyTotp($mfa->secret, $request->code)) {

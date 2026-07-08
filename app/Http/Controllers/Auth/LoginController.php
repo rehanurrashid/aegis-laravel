@@ -94,7 +94,8 @@ class LoginController extends Controller
                     'email_otp_expires_at' => $expires,
                 ])->save();
 
-                \App\Jobs\SendEmailJob::dispatch(
+                // Use dispatchSync — OTP must send immediately, cannot be queued
+                \App\Jobs\SendEmailJob::dispatchSync(
                     'emails.auth.11-email-otp',
                     [
                         'recipient_name' => $user->display_name,
@@ -103,7 +104,7 @@ class LoginController extends Controller
                         'settings_url'   => rtrim(config('app.url'), '/') . '/' . ($user->role?->portal() ?? 'provider') . '/settings',
                     ],
                     $user->id,
-                )->onQueue('email');
+                );
             }
 
             $request->session()->save(); // force flush before hard redirect

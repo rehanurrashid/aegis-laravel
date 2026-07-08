@@ -44,6 +44,7 @@
           </span>
           <span v-else>
             We sent a <strong>6-digit code to your email</strong>. Check your inbox and enter it below. The code expires in 10 minutes.
+            <span style="display:block;margin-top:6px;font-size:12px;color:var(--text-4)">No email? Enter one of your 6-digit <strong>backup codes</strong> instead.</span>
           </span>
         </p>
         </div>
