@@ -110,47 +110,64 @@
 
       <!-- Step 2: Scan QR + Verify -->
       <div v-else>
-        <p style="font-size:14px;color:var(--text-2);margin-bottom:18px">
-          Scan this QR code with your authenticator app, then enter the 6-digit verification code.
+        <p style="font-size:14px;color:var(--text-2);margin-bottom:20px">
+          Scan the QR code with your authenticator app, then enter the 6-digit code to confirm setup.
         </p>
 
-        <!-- QR code via Google Charts API -->
-        <div class="ss-qr-container">
-          <img
-            v-if="qrImageUrl"
-            :src="qrImageUrl"
-            alt="2FA QR Code"
-            class="ss-qr-image"
-          />
-          <div v-else class="ss-qr-placeholder">
-            <AegisIcon name="phone" :size="32" />
+        <!-- ── QR + Manual key layout ─────────────────────────────── -->
+        <div class="ss-qr-card">
+          <!-- Left: QR image -->
+          <div class="ss-qr-frame">
+            <img
+              v-if="qrImageUrl"
+              :src="qrImageUrl"
+              alt="2FA QR Code"
+              class="ss-qr-img"
+              crossorigin="anonymous"
+            />
+            <div v-else class="ss-qr-skeleton">
+              <AegisIcon name="phone" :size="28" />
+              <span>Generating…</span>
+            </div>
           </div>
-          <!-- Manual entry key -->
-          <div class="ss-secret-key">
-            <div class="ss-secret-key-label">Or enter this key manually:</div>
-            <div class="ss-secret-key-value">{{ formatSecret(setupData.secret) }}</div>
-            <button type="button" class="btn btn-ghost btn-xs" @click="copySecret" style="margin-top:6px">
-              <AegisIcon name="clipboard" :size="12" /> Copy
+
+          <!-- Right: Steps + manual key -->
+          <div class="ss-qr-right">
+            <ol class="ss-qr-steps">
+              <li>Open your authenticator app</li>
+              <li>Tap <strong>+</strong> and choose <strong>Scan QR code</strong></li>
+              <li>Point your camera at the code</li>
+            </ol>
+            <div class="ss-qr-manual-label">Or enter this key manually:</div>
+            <div class="ss-qr-secret-box">{{ formatSecret(setupData.secret) }}</div>
+            <button type="button" class="btn btn-ghost btn-xs ss-qr-copy-btn" @click="copySecret">
+              <AegisIcon name="clipboard" :size="12" /> Copy key
             </button>
           </div>
         </div>
 
-        <div class="form-group" style="margin-top:18px">
-          <label class="form-label">Verification Code <span class="required">*</span></label>
-          <input
-            class="form-input ss-otp-input"
-            :class="{ 'is-error': verifyForm.errors.code }"
-            type="text"
-            inputmode="numeric"
-            maxlength="6"
-            placeholder="000000"
-            v-model="verifyForm.code"
-            @keyup.enter="verifyMfa"
-            ref="otpInput"
-            autocomplete="one-time-code"
-          />
-          <div v-if="verifyForm.errors.code" class="form-error">{{ verifyForm.errors.code }}</div>
-          <div class="form-hint">The code refreshes every 30 seconds.</div>
+        <!-- ── OTP input ──────────────────────────────────────────── -->
+        <div class="ss-otp-card">
+          <div class="ss-otp-label">
+            <AegisIcon name="shield" :size="14" />
+            Enter the 6-digit code from your app
+            <span class="ss-otp-timer">Refreshes every 30s</span>
+          </div>
+          <div class="ss-otp-wrap">
+            <input
+              class="form-input ss-otp-input"
+              :class="{ 'is-error': verifyForm.errors.code }"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              placeholder="000000"
+              v-model="verifyForm.code"
+              @keyup.enter="verifyMfa"
+              ref="otpInput"
+              autocomplete="one-time-code"
+            />
+          </div>
+          <div v-if="verifyForm.errors.code" class="form-error" style="text-align:center;margin-top:6px">{{ verifyForm.errors.code }}</div>
         </div>
       </div>
 
@@ -314,9 +331,9 @@ async function generateQr() {
     }
     setupData.value  = data;
 
-    // Build QR via Google Charts — no composer package needed
+    // Build QR via qrserver.com — reliable, no API key, returns PNG
     const uri        = encodeURIComponent(data.provisioning_uri);
-    qrImageUrl.value = `https://chart.googleapis.com/chart?chs=200x200&chld=M|0&cht=qr&chl=${uri}`;
+    qrImageUrl.value = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&ecc=M&data=${uri}`;
 
     // Focus OTP input after render
     await nextTick();
@@ -571,42 +588,70 @@ function copyAllCodes() {
   padding-left: 20px;
 }
 
-/* ── QR ──────────────────────────────────────────────────────────── */
-.ss-qr-container {
+/* ── QR card ─────────────────────────────────────────────────────── */
+.ss-qr-card {
   display: flex;
-  align-items: flex-start;
   gap: 20px;
-  padding: 16px;
+  padding: 18px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface-2);
+  margin-bottom: 18px;
 }
-.ss-qr-image {
-  width: 150px;
-  height: 150px;
-  border-radius: var(--radius-sm);
-  image-rendering: pixelated;
+.ss-qr-frame {
   flex-shrink: 0;
-  background: var(--surface);
-  padding: 4px;
-}
-.ss-qr-placeholder {
-  width: 150px;
-  height: 150px;
+  width: 160px;
+  height: 160px;
   border-radius: var(--radius-sm);
-  background: var(--surface);
-  border: 1px dashed var(--border-dark);
+  background: var(--surface-white, var(--color-white, #fff)); /* QR needs white bg to be scannable */
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-3);
-  flex-shrink: 0;
+  padding: 6px;
+  border: 1px solid var(--border);
 }
-.ss-secret-key { flex: 1; min-width: 0; }
-.ss-secret-key-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-3); margin-bottom: 6px; }
-.ss-secret-key-value {
-  font-family: var(--font-mono, monospace);
+.ss-qr-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+}
+.ss-qr-skeleton {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-3);
+  font-size: 11px;
+}
+.ss-qr-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+.ss-qr-steps {
+  margin: 0 0 4px 16px;
   font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.9;
+  padding: 0;
+}
+.ss-qr-manual-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--text-3);
+}
+.ss-qr-secret-box {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
   font-weight: 700;
   color: var(--text);
   letter-spacing: 2px;
@@ -615,18 +660,48 @@ function copyAllCodes() {
   padding: 8px 10px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
+  line-height: 1.7;
 }
+.ss-qr-copy-btn { align-self: flex-start; margin-top: 2px; }
 
-/* ── OTP input ───────────────────────────────────────────────────── */
+/* ── OTP card ─────────────────────────────────────────────────────── */
+.ss-otp-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 18px;
+  text-align: center;
+}
+.ss-otp-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.ss-otp-timer {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-4);
+  background: var(--surface-3, var(--surface));
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+.ss-otp-wrap { display: flex; justify-content: center; }
 .ss-otp-input {
   font-family: var(--font-mono, monospace);
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 700;
-  letter-spacing: 8px;
+  letter-spacing: 10px;
   text-align: center;
-  max-width: 200px;
-  display: block;
-  margin: 0 auto;
+  width: 220px;
+  height: 60px;
+  padding-left: 16px;
 }
 
 /* ── Backup codes grid ───────────────────────────────────────────── */
