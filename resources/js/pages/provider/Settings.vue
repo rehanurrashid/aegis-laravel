@@ -158,7 +158,7 @@
                 </div>
               </div>
               <div style="font-size:12px;color:var(--text-3);margin-bottom:14px">Password must be 12+ characters, include uppercase, number, and special character.</div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
                 <button type="button" class="btn btn-outline" @click="v$.$reset()">Cancel</button>
                 <button type="button" class="btn btn-primary" @click="savePassword"><AegisIcon name="lock" :size="14" /> Update Password</button>
               </div>
@@ -196,6 +196,7 @@
               <span style="font-size:12px;font-weight:600;color:var(--green);background:var(--green-light);padding:4px 12px;border-radius:var(--radius-full);display:inline-flex;align-items:center;gap:6px"><span class="status-dot active"></span>2FA Enabled</span>
             </div>
             <div class="card-body">
+              <div class="form-hint" style="margin-bottom:14px">Security alerts and login notifications are managed in <strong>Notifications →</strong></div>
               <div v-for="tfa in tfaOptions" :key="tfa.key" class="twofa-option" :class="{ active: tfa.active }" @click="selectTfa(tfa)">
                 <div class="twofa-icon"><AegisIcon :name="tfa.icon" :size="16" /></div>
                 <div class="twofa-info">
@@ -204,15 +205,6 @@
                 </div>
                 <button v-if="tfa.active" type="button" class="btn btn-outline btn-xs" @click.stop="modals.viewBackup = true">View Backup Codes</button>
                 <button v-else type="button" class="btn btn-primary btn-xs" @click.stop="modals.setup2fa = true">Set Up</button>
-              </div>
-              <hr class="form-divider" style="margin-top:24px" />
-              <div style="font-size:14px;font-weight:600;color:var(--text);margin:24px 0 14px">Security Alerts</div>
-              <div v-for="al in securityAlerts" :key="al.name" class="toggle-row">
-                <div class="toggle-info"><div class="toggle-label">{{ al.name }}</div><div class="toggle-desc">{{ al.sub }}</div></div>
-                <button type="button" class="toggle" :class="{ on: al.on }" @click="al.on = !al.on" :aria-pressed="al.on"></button>
-              </div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
-                <button type="button" class="btn btn-primary" @click="toast.success('Security settings saved.')"><AegisIcon name="check" :size="13" /> Save Security Settings</button>
               </div>
             </div>
           </div>
@@ -245,9 +237,11 @@
                   </tr>
                 </tbody>
               </table>
+              <div class="section-label" style="margin-top:20px">Security &amp; Login Alerts</div>
+              <div v-for="al in securityAlerts" :key="al.name" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ al.name }}</div><div class="toggle-desc">{{ al.sub }}</div></div><button type="button" class="toggle" :class="{ on: al.on }" @click="al.on = !al.on" :aria-pressed="al.on"></button></div>
               <div class="section-label" style="margin-top:20px">Network &amp; Updates</div>
               <div v-for="row in networkNotifs" :key="row.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ row.label }}</div><div class="toggle-desc">{{ row.desc }}</div></div><button type="button" class="toggle" :class="{ on: networkPrefs[row.key] }" @click="networkPrefs[row.key] = !networkPrefs[row.key]" :aria-pressed="networkPrefs[row.key]"></button></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
                 <button type="button" class="btn btn-primary" @click="toast.success('Notification preferences saved!')"><AegisIcon name="check" :size="14" /> Save Preferences</button>
               </div>
             </div>
@@ -263,10 +257,6 @@
                 <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="calendar" :size="16" /></div>
                 <div><div class="card-title">Availability &amp; Hours</div><div class="card-subtitle">Set your weekly schedule and client availability</div></div>
               </div>
-              <div style="display:flex;align-items:center;gap:10px">
-                <span style="font-size:13px;color:var(--text-2)">Accepting New Clients</span>
-                <button type="button" class="toggle" :class="{ on: availability.accepting }" @click="availability.accepting = !availability.accepting" :aria-pressed="availability.accepting"></button>
-              </div>
             </div>
             <div class="card-body">
               <div style="display:grid;grid-template-columns:auto auto 1fr 1fr;gap:10px 14px;align-items:center;margin-bottom:18px">
@@ -281,7 +271,7 @@
                 <div class="form-group"><label class="form-label">Telehealth States Licensed</label><input class="form-input" v-model="availability.states" /><div class="form-hint">Comma-separated state codes</div></div>
                 <div class="form-group"><label class="form-label">Next Available Appointment</label><input class="form-input" type="date" v-model="availability.nextAvail" /></div>
               </div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)"><button type="button" class="btn btn-primary" @click="toast.success('Availability saved.')"><AegisIcon name="check" :size="13" /> Save</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Availability saved.')"><AegisIcon name="check" :size="13" /> Save</button></div>
             </div>
           </div>
         </div>
@@ -299,7 +289,7 @@
               <div class="section-label">Incoming Referrals</div>
               <div v-for="row in referralIncoming" :key="row.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ row.label }}</div><div class="toggle-desc">{{ row.desc }}</div></div><button type="button" class="toggle" :class="{ on: referralPrefs[row.key] }" @click="referralPrefs[row.key] = !referralPrefs[row.key]" :aria-pressed="referralPrefs[row.key]"></button></div>
 
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)"><button type="button" class="btn btn-primary" @click="toast.success('Referral preferences saved.')"><AegisIcon name="check" :size="14" /> Save</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Referral preferences saved.')"><AegisIcon name="check" :size="14" /> Save</button></div>
             </div>
           </div>
         </div>
@@ -316,7 +306,7 @@
             </div>
             <div class="card-body">
               <div v-for="row in csToggles" :key="row.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ row.label }}</div><div class="toggle-desc">{{ row.desc }}</div></div><button type="button" class="toggle" :class="{ on: csPrefs[row.key] }" @click="csPrefs[row.key] = !csPrefs[row.key]" :aria-pressed="csPrefs[row.key]"></button></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)"><button type="button" class="btn btn-primary" @click="toast.success('Continuity Steward settings saved.')"><AegisIcon name="check" :size="13" /> Save</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Continuity Steward settings saved.')"><AegisIcon name="check" :size="13" /> Save</button></div>
             </div>
           </div>
         </div>
@@ -333,7 +323,7 @@
             </div>
             <div class="card-body">
               <div v-for="row in ssToggles" :key="row.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ row.label }}</div><div class="toggle-desc">{{ row.desc }}</div></div><button type="button" class="toggle" :class="{ on: ssPrefs[row.key] }" @click="ssPrefs[row.key] = !ssPrefs[row.key]" :aria-pressed="ssPrefs[row.key]"></button></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)"><button type="button" class="btn btn-primary" @click="toast.success('Support Steward settings saved.')"><AegisIcon name="check" :size="13" /> Save</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Support Steward settings saved.')"><AegisIcon name="check" :size="13" /> Save</button></div>
             </div>
           </div>
         </div>
@@ -352,7 +342,7 @@
               <div class="alert alert-info" style="margin-bottom:16px"><div class="alert-icon"><AegisIcon name="info" :size="16" /></div><div class="alert-content" style="font-size:12px">Steward vault access levels are managed per-steward in <a :href="route('provider.vault.index')" style="color:var(--gold-dark);font-weight:700">Document Vault →</a></div></div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Notify Me on Vault Access</div><div class="toggle-desc">Receive an alert when a steward views or downloads a document from your vault</div></div><button type="button" class="toggle" :class="{ on: vaultPrefs.notifyAccess }" @click="vaultPrefs.notifyAccess = !vaultPrefs.notifyAccess" :aria-pressed="vaultPrefs.notifyAccess"></button></div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Notify Me on Emergency Vault Unlock</div><div class="toggle-desc">Alert me immediately if the Emergency Vault is accessed during an active incident</div></div><button type="button" class="toggle" :class="{ on: vaultPrefs.notifyUnlock }" @click="vaultPrefs.notifyUnlock = !vaultPrefs.notifyUnlock" :aria-pressed="vaultPrefs.notifyUnlock"></button></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)"><button type="button" class="btn btn-primary" @click="toast.success('Vault settings saved.')"><AegisIcon name="check" :size="13" /> Save</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Vault settings saved.')"><AegisIcon name="check" :size="13" /> Save</button></div>
             </div>
           </div>
         </div>
@@ -372,7 +362,7 @@
               <div v-for="ag in activeAgreements" :key="ag.title" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)"><div><div style="font-size:13px;font-weight:700;color:var(--text)">{{ ag.title }}</div><div style="font-size:12px;color:var(--text-3);margin-top:2px">{{ ag.meta }}</div></div><span class="badge badge-green" style="flex-shrink:0">Active</span></div>
               <div class="section-label" style="margin-top:20px">Notifications</div>
               <div v-for="row in agreementToggles" :key="row.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ row.label }}</div><div class="toggle-desc">{{ row.desc }}</div></div><button type="button" class="toggle" :class="{ on: agreementPrefs[row.key] }" @click="agreementPrefs[row.key] = !agreementPrefs[row.key]" :aria-pressed="agreementPrefs[row.key]"></button></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)"><button type="button" class="btn btn-primary" @click="toast.success('Agreement settings saved.')"><AegisIcon name="check" :size="13" /> Save</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Agreement settings saved.')"><AegisIcon name="check" :size="13" /> Save</button></div>
             </div>
           </div>
         </div>
@@ -401,25 +391,24 @@
                 <div class="form-group"><label class="form-label">Buffer Between Sessions</label><select class="form-select" v-model="servicesPrefs.sessionBuffer"><option value="none">None</option><option value="15min">15 min</option><option value="30min">30 min</option><option value="1hr">1 hour</option></select><div class="form-hint">Minimum gap between consecutive bookings</div></div>
               </div>
               <div class="section-label">Payment &amp; Rates</div>
-              <div class="form-row form-row-2" style="margin-top:6px">
-                <div class="form-group">
+              <div class="rate-payment-block">
+                <div class="rate-field">
                   <label class="form-label">Default Hourly Rate</label>
-                  <div style="position:relative">
-                    <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--text-3);font-weight:600">$</span>
-                    <input class="form-input" type="number" v-model="servicesPrefs.hourlyRate" placeholder="0.00" min="0" style="padding-left:26px" />
+                  <div class="rate-input-wrap">
+                    <span class="rate-currency">$</span>
+                    <input class="form-input" type="number" v-model="servicesPrefs.hourlyRate" placeholder="0" min="0" />
                   </div>
                   <div class="form-hint">Shown on your public profile when Services mode is on</div>
                 </div>
-                <div class="form-group">
-                  <label class="form-label">Payment</label>
-                  <div style="padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-2);font-size:13px;color:var(--text-2);display:flex;align-items:center;gap:8px">
-                    <AegisIcon name="credit-card" :size="15" />
-                    Stripe Connect — Direct Transfer
+                <div class="rate-payment-info">
+                  <AegisIcon name="credit-card" :size="18" />
+                  <div>
+                    <div style="font-size:13px;font-weight:700;color:var(--text)">Stripe Connect</div>
+                    <div style="font-size:12px;color:var(--text-3);margin-top:1px">Payments go directly to your Stripe account. <a :href="route('provider.settings.billing.portal')" style="color:var(--gold-dark)">Manage →</a></div>
                   </div>
-                  <div class="form-hint">Payments go directly to your connected Stripe account</div>
                 </div>
               </div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)"><button type="button" class="btn btn-primary" @click="toast.success('Services settings saved.')"><AegisIcon name="check" :size="13" /> Save Services Settings</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Services settings saved.')"><AegisIcon name="check" :size="13" /> Save Services Settings</button></div>
             </div>
           </div>
         </div>
@@ -445,7 +434,7 @@
                 </div>
               </div>
               <div v-for="row in privacyToggles" :key="row.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ row.label }}</div><div class="toggle-desc">{{ row.desc }}</div></div><button type="button" class="toggle" :class="{ on: privacy[row.key] }" @click="privacy[row.key] = !privacy[row.key]" :aria-pressed="privacy[row.key]"></button></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)"><button type="button" class="btn btn-primary" @click="toast.success('Privacy settings saved.')"><AegisIcon name="check" :size="13" /> Save Privacy Settings</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Privacy settings saved.')"><AegisIcon name="check" :size="13" /> Save Privacy Settings</button></div>
             </div>
           </div>
         </div>
@@ -464,8 +453,8 @@
               <div class="section-label">Connection Preferences</div>
               <div v-for="row in networkConnection" :key="row.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ row.label }}</div><div class="toggle-desc">{{ row.desc }}</div></div><button type="button" class="toggle" :class="{ on: networkPrefs[row.key] }" @click="networkPrefs[row.key] = !networkPrefs[row.key]" :aria-pressed="networkPrefs[row.key]"></button></div>
 
-              <div class="form-group" style="margin-top:14px"><label class="form-label">Geographic Focus for Suggestions</label><select class="form-select" v-model="networkPrefs.geoFocus"><option value="25mi">25 miles</option><option value="50mi">50 miles</option><option value="100mi">100 miles</option><option value="statewide">Statewide</option><option value="national">National</option></select><div class="form-hint">Aegis will prioritize providers in this range when suggesting connections</div></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)"><button type="button" class="btn btn-primary" @click="toast.success('Network settings saved.')"><AegisIcon name="check" :size="14" /> Save</button></div>
+              <div class="form-group" style="margin-top:20px"><label class="form-label">Geographic Focus for Suggestions</label><select class="form-select" v-model="networkPrefs.geoFocus"><option value="25mi">25 miles</option><option value="50mi">50 miles</option><option value="100mi">100 miles</option><option value="statewide">Statewide</option><option value="national">National</option></select><div class="form-hint" style="margin-top:4px">Aegis will prioritize providers in this range when suggesting connections</div></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Network settings saved.')"><AegisIcon name="check" :size="14" /> Save</button></div>
             </div>
           </div>
         </div>
@@ -491,7 +480,7 @@
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Dark Mode</div><div class="toggle-desc">Switch to dark surfaces across all portals</div></div><button type="button" class="toggle" :class="{ on: appearance.darkMode }" @click="appearance.darkMode = !appearance.darkMode" :aria-pressed="appearance.darkMode"></button></div>
               <div class="section-label" style="margin-top:20px">Timezone</div>
               <div class="form-group"><select class="form-select" v-model="appearance.timezone"><option value="America/New_York">Eastern Time (ET)</option><option value="America/Chicago">Central Time (CT)</option><option value="America/Denver">Mountain Time (MT)</option><option value="America/Los_Angeles">Pacific Time (PT)</option><option value="America/Phoenix">Arizona (no DST)</option><option value="Pacific/Honolulu">Hawaii (HST)</option><option value="America/Anchorage">Alaska (AKST)</option><option value="UTC">UTC</option></select></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)"><button type="button" class="btn btn-primary" @click="toast.success('Appearance settings saved.')"><AegisIcon name="check" :size="13" /> Save Appearance</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Appearance settings saved.')"><AegisIcon name="check" :size="13" /> Save Appearance</button></div>
             </div>
           </div>
         </div>
@@ -676,29 +665,27 @@
 
               <!-- Invoice history — from Stripe -->
               <div class="st-subhead" style="margin-bottom:12px">Invoice History</div>
-              <div v-if="stripeInvoices.length === 0" style="font-size:13px;color:var(--text-3);padding:12px 0;">
-                No invoices yet. Your first invoice will appear here after your first billing cycle.
+              <div v-if="stripeInvoices.length === 0" class="inv-empty">
+                <AegisIcon name="receipt" :size="24" />
+                <div>No invoices yet. Your first invoice will appear after your first billing cycle.</div>
               </div>
-              <table v-else class="st-invoice-table">
-                <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Status</th></tr></thead>
-                <tbody>
-                  <tr v-for="inv in stripeInvoices" :key="inv.id">
-                    <td class="st-inv-date">{{ formatDate(inv.paid_at || inv.created) }}</td>
-                    <td>{{ inv.description }}</td>
-                    <td class="st-inv-amount">${{ (inv.amount_cents / 100).toFixed(2) }}</td>
-                    <td>
-                      <span class="st-inv-status" v-if="inv.status === 'paid'">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Paid
-                      </span>
-                      <span v-else-if="inv.status === 'open'" style="color:var(--gold-dark);font-weight:600">Open</span>
-                      <span v-else style="color:var(--text-3);font-weight:600">{{ inv.status }}</span>
-                      <a v-if="inv.pdf_url" :href="inv.pdf_url" target="_blank" rel="noopener" class="btn-icon st-inv-dl" data-tooltip="Download PDF">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                      </a>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <div v-else class="inv-list">
+                <div v-for="inv in stripeInvoices" :key="inv.id" class="inv-row">
+                  <div class="inv-row-left">
+                    <div class="inv-date">{{ formatDate(inv.paid_at || inv.created) }}</div>
+                    <div class="inv-desc">{{ inv.description }}</div>
+                  </div>
+                  <div class="inv-row-right">
+                    <div class="inv-amount">${{ (inv.amount_cents / 100).toFixed(2) }}</div>
+                    <div class="inv-status-wrap">
+                      <span v-if="inv.status === 'paid'" class="inv-status-paid"><AegisIcon name="check" :size="11" /> Paid</span>
+                      <span v-else-if="inv.status === 'open'" class="inv-status-open">Open</span>
+                      <span v-else class="inv-status-other">{{ inv.status }}</span>
+                      <a v-if="inv.pdf_url" :href="inv.pdf_url" target="_blank" rel="noopener" class="inv-dl" data-tooltip="Download PDF"><AegisIcon name="download" :size="13" /></a>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -712,7 +699,7 @@
                 <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="activity" :size="16" /></div>
                 <div><div class="card-title">Integrations &amp; Connected Apps</div><div class="card-subtitle">Third-party apps connected to your Aegis account</div></div>
               </div>
-              <button type="button" class="btn btn-primary btn-sm" @click="modals.addIntegration = true"><AegisIcon name="plus" :size="14" /> Add Integration</button>
+
             </div>
             <div class="card-body">
               <!-- Stripe Connect Setup -->
@@ -733,20 +720,10 @@
                   </div>
                 </div>
               </div>
-              <div class="integrations-grid">
-                <div v-for="app in integrations" :key="app.name" class="integration-card" :class="{ connected: app.connected }">
-                  <div class="integration-card-top">
-                    <div class="integration-logo"><AegisIcon :name="app.icon" :size="22" /></div>
-                    <span v-if="app.connected" class="app-status-connected"><AegisIcon name="check" :size="12" /> Connected</span>
-                    <span v-else class="badge badge-gray">Not connected</span>
-                  </div>
-                  <div class="integration-name">{{ app.name }}</div>
-                  <div class="integration-desc">{{ app.desc }}</div>
-                  <div class="integration-actions">
-                    <button v-if="app.connected" type="button" class="btn btn-ghost btn-xs" @click="toast.info('Disconnected.')">Disconnect</button>
-                    <button v-else type="button" class="btn btn-primary btn-xs" @click="toast.info('Redirecting to OAuth…')">Connect</button>
-                  </div>
-                </div>
+              <div class="integrations-empty">
+                <AegisIcon name="activity" :size="28" />
+                <div style="font-size:14px;font-weight:600;color:var(--text);margin-top:10px">No additional integrations yet</div>
+                <div style="font-size:13px;color:var(--text-3);margin-top:4px">Connect third-party apps via the Add Integration button. Stripe Connect is managed above.</div>
               </div>
             </div>
           </div>
@@ -1209,14 +1186,7 @@ function formatCardBrand(brand) { return brand ? brand.charAt(0).toUpperCase() +
 const financial = reactive({ autoPay: true, requireApproval: true, spendLimit: false, invoiceEmails: true });
 
 // ─── Integrations ─────────────────────────────────────────────────────────────────
-const integrations = reactive([
-  { name: 'Google Calendar',      desc: 'Sync availability and appointments automatically', icon: 'calendar',    connected: true  },
-  { name: 'SimplePractice EHR',   desc: 'Sync client records and session notes',            icon: 'file-text',   connected: true  },
-  { name: 'DrFirst (e-Prescribing)',desc: 'Send prescriptions electronically',              icon: 'activity',    connected: true  },
-  { name: 'Zoom for Healthcare',  desc: 'HIPAA-compliant video sessions',                   icon: 'monitor',     connected: false },
-  { name: 'DocuSign',             desc: 'Advanced e-signatures for agreements',             icon: 'file-text',   connected: false },
-  { name: 'Stripe Connect',       desc: 'Accept payments via Stripe Connect',               icon: 'credit-card', connected: false },
-]);
+
 const integrationOptions = [
   { name: 'Epic EHR',       desc: 'Client records sync',      icon: 'activity'    },
   { name: 'Zoom Health',    desc: 'HIPAA video sessions',      icon: 'monitor'     },
@@ -1277,7 +1247,7 @@ const exportOptions = reactive([
 .settings-nav-item.active { background: var(--icon-bg-gold); color: var(--gold-dark); border-left-color: var(--gold-dark); font-weight: 600; }
 .s-nav-icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .s-nav-icon :deep(svg) { width: 15px; height: 15px; }
-.s-nav-badge { margin-left: auto; background: var(--red); color: var(--text-inverted); font-size: 10px; padding: 1px 6px; border-radius: var(--radius-full); font-weight: 700; }
+.s-nav-badge { margin-left: auto; background: var(--icon-bg-gold); color: var(--gold-dark); border: 1px solid var(--badge-border-gold); font-size: 10px; padding: 1px 7px; border-radius: var(--radius-full); font-weight: 700; }
 
 /* PANELS */
 .settings-content { min-width: 0; }
@@ -1467,7 +1437,42 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 /* ae-datepicker time input styling */
 .ae-datepicker { font-variant-numeric: tabular-nums; }
 
+/* NAV BADGE — gold design */
+.s-nav-badge { margin-left: auto; background: var(--icon-bg-gold); color: var(--gold-dark); border: 1px solid var(--badge-border-gold); font-size: 10px; padding: 1px 7px; border-radius: var(--radius-full); font-weight: 700; }
+
+/* SECTION LABEL — no top margin when first child of card-body */
+.card-body > .section-label:first-child,
+.st-card-body > .section-label:first-child { margin-top: 0; }
+
+/* RATE / PAYMENT BLOCK */
+.rate-payment-block { display: flex; gap: 12px; margin-top: 6px; align-items: flex-start; }
+.rate-field { flex: 1; }
+.rate-input-wrap { position: relative; }
+.rate-currency { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--text-3); font-weight: 600; pointer-events: none; }
+.rate-input-wrap .form-input { padding-left: 26px; }
+.rate-payment-info { flex: 1; display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; background: var(--icon-bg-gold); border: 1px solid var(--badge-border-gold); border-radius: var(--radius-lg); color: var(--gold-dark); }
+
+/* INTEGRATIONS EMPTY STATE */
+.integrations-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 36px 20px; text-align: center; color: var(--text-3); gap: 0; }
+
+/* INVOICE LIST */
+.inv-empty { display: flex; align-items: center; gap: 12px; padding: 20px; background: var(--surface-2); border-radius: var(--radius); color: var(--text-3); font-size: 13px; }
+.inv-list { display: flex; flex-direction: column; gap: 0; }
+.inv-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.inv-row:last-child { border-bottom: none; }
+.inv-row-left { flex: 1; min-width: 0; }
+.inv-date { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-4); margin-bottom: 3px; }
+.inv-desc { font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inv-row-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.inv-amount { font-size: 15px; font-weight: 700; color: var(--text); font-family: var(--font-serif); }
+.inv-status-wrap { display: flex; align-items: center; gap: 8px; }
+.inv-status-paid { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: var(--green-dark); background: var(--green-light); padding: 3px 9px; border-radius: var(--radius-full); }
+.inv-status-open { font-size: 11px; font-weight: 700; color: var(--gold-dark); background: var(--icon-bg-gold); padding: 3px 9px; border-radius: var(--radius-full); }
+.inv-status-other { font-size: 11px; color: var(--text-3); font-weight: 600; }
+.inv-dl { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius); background: var(--surface-2); color: var(--text-3); transition: all var(--transition); }
+.inv-dl:hover { background: var(--surface-3); color: var(--text); }
+
 /* RESPONSIVE */
 @media (max-width: 1000px) { .settings-layout { grid-template-columns: 1fr; } .settings-sidebar { position: static; } }
-@media (max-width: 700px) { .st-plan-grid { grid-template-columns: 1fr; } .privacy-levels { flex-direction: column; } .notif-table { display: block; overflow-x: auto; } .integrations-grid { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .st-plan-grid { grid-template-columns: 1fr; } .privacy-levels { flex-direction: column; } .notif-table { display: block; overflow-x: auto; } .rate-payment-block { flex-direction: column; } }
 </style>

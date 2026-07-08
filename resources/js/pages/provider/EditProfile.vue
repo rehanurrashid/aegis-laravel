@@ -85,8 +85,6 @@
           <div class="ep-nav-check"><AegisIcon name="check-badge" :size="16" class="aegis-icon-filled" /></div>
         </a>
 
-        <div class="ep-nav-divider"></div>
-        <div class="ep-nav-section-label">Settings</div>
 
       </div><!-- /.ep-nav -->
 
