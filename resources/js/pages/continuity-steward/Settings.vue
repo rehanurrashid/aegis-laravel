@@ -1,6 +1,12 @@
 <template>
   <AppLayout :user="user" portal="continuity_steward" activePage="settings" pageTitle="Settings">
-    <AegisHeroBanner eyebrow="Continuity Steward" title="Continuity Steward Settings" quiet />
+    <AegisHeroBanner eyebrow="Continuity Steward" title="Continuity Steward Settings" quiet>
+      <template #actions>
+        <a :href="route(\'cs.activity\') + \'?event_type=account\'" class="btn btn-outline btn-sm">
+          <AegisIcon name="activity" :size="14" /> View Account Activity
+        </a>
+      </template>
+    </AegisHeroBanner>
     <div class="settings-layout">
       <div class="settings-sidebar">
         <div class="settings-sidebar-header">

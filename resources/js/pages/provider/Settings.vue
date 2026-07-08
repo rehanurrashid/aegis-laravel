@@ -1,7 +1,13 @@
 <template>
   <AppLayout :user="user" portal="practitioner" activePage="settings" pageTitle="Settings">
 
-    <AegisHeroBanner eyebrow="Provider Portal" title="Account Settings" quiet />
+    <AegisHeroBanner eyebrow="Provider Portal" title="Account Settings" quiet>
+      <template #actions>
+        <a :href="route('provider.activity') + '?event_type=account'" class="btn btn-outline btn-sm">
+          <AegisIcon name="activity" :size="14" /> View Account Activity
+        </a>
+      </template>
+    </AegisHeroBanner>
 
     <div class="settings-layout">
 
