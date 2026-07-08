@@ -279,6 +279,49 @@
           </div>
 
           <!-- Cancel confirmation modal -->
+          <!-- BP Plan Swap Confirmation -->
+          <AegisModal v-model="confirmBpSwap" title="Confirm Billing Change" size="md">
+            <div style="margin-bottom:16px">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+                <div style="flex:1;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-2)">
+                  <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:4px">Current</div>
+                  <div style="font-family:var(--font-serif);font-size:14px;font-weight:700;color:var(--text)">Business Partner — {{ sub.current_billing === 'annual' ? 'Annual' : 'Monthly' }}</div>
+                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">{{ sub.current_billing === 'annual' ? '$57.50/mo (billed $690/yr)' : '$69/mo' }}</div>
+                </div>
+                <AegisIcon name="arrow-right" :size="16" style="color:var(--text-3);flex-shrink:0" />
+                <div style="flex:1;padding:12px 14px;border:1px solid var(--gold-dark);border-radius:var(--radius);background:var(--icon-bg-gold)">
+                  <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:4px">New</div>
+                  <div style="font-family:var(--font-serif);font-size:14px;font-weight:700;color:var(--text)">{{ pendingBpSwap.label }}</div>
+                  <div style="font-size:12px;color:var(--gold-dark);margin-top:2px;font-weight:600">{{ pendingBpSwap.priceLine }}</div>
+                </div>
+              </div>
+              <div style="padding:12px 14px;border-radius:var(--radius);background:var(--surface-2);border:1px solid var(--border);font-size:13px;color:var(--text-2);line-height:1.6">
+                <AegisIcon name="info" :size="13" style="color:var(--gold-dark);vertical-align:middle;margin-right:4px" />
+                {{ pendingBpSwap.note }}
+              </div>
+            </div>
+            <template #footer>
+              <button type="button" class="btn btn-outline btn-sm" @click="confirmBpSwap = false">Go Back</button>
+              <button type="button" class="btn btn-gold btn-sm" @click="doBpSwap" :disabled="planBusy">
+                <AegisIcon name="check" :size="13" /> Confirm Change
+              </button>
+            </template>
+          </AegisModal>
+
+          <!-- BP Reactivate Confirmation -->
+          <AegisModal v-model="confirmBpResume" title="Reactivate Subscription" size="sm">
+            <p style="font-size:14px;color:var(--text-2);margin-bottom:14px">Your <strong>Business Partner</strong> subscription will continue as normal. You will be charged on your next billing date.</p>
+            <div style="padding:10px 14px;border-radius:var(--radius);background:var(--green-light);border:1px solid var(--green-dark);font-size:13px;color:var(--green-dark)">
+              <AegisIcon name="check" :size="13" style="margin-right:4px" /> Your Business Partner portal access will be fully restored immediately.
+            </div>
+            <template #footer>
+              <button type="button" class="btn btn-outline btn-sm" @click="confirmBpResume = false">Cancel</button>
+              <button type="button" class="btn btn-gold btn-sm" @click="doBpResume" :disabled="planBusy">
+                <AegisIcon name="refresh" :size="13" /> Reactivate
+              </button>
+            </template>
+          </AegisModal>
+
           <AegisModal v-model="confirmBpCancel" title="Cancel your subscription?" size="sm">
             <p style="font-size:14px;color:var(--text);margin-bottom:12px">Your subscription will remain active until <strong>{{ formatDate(sub.current_period?.end) || 'the end of the current period' }}</strong>. After that you'll lose access to your BP portal.</p>
             <p style="font-size:13px;color:var(--text-3)">You can reactivate any time before the period ends.</p>
@@ -339,7 +382,10 @@ const bpPriceId            = computed(() => billingAnnual.value ? bpAnnualId.val
 const stripeInvoices        = computed(() => sub.value.invoices        ?? []);
 const stripePaymentMethods  = computed(() => sub.value.payment_methods ?? []);
 const planBusy              = ref(false);
-const confirmBpCancel       = ref(false);
+const confirmBpCancel  = ref(false);
+const confirmBpResume  = ref(false);
+const pendingBpSwap    = reactive({ label: '', priceLine: '', note: '' });
+const confirmBpSwap    = ref(false);
 
 function formatDate(ts) {
   if (!ts) return '';
@@ -351,6 +397,16 @@ function formatCardBrand(b) { return b ? b.charAt(0).toUpperCase() + b.slice(1) 
 
 function swapBpPlan() {
   if (!bpPriceId.value) { toast.error('Price not configured.'); return; }
+  pendingBpSwap.label     = 'Business Partner — ' + (billingAnnual.value ? 'Annual' : 'Monthly');
+  pendingBpSwap.priceLine = billingAnnual.value ? '$57.50/mo (billed $690/yr)' : '$69/mo';
+  pendingBpSwap.note      = billingAnnual.value
+    ? 'Switching to annual billing saves you the equivalent of 2 months. The change takes effect at your next billing cycle.'
+    : 'Switching to monthly billing. The change takes effect at your next billing cycle.';
+  confirmBpSwap.value = true;
+}
+
+function doBpSwap() {
+  confirmBpSwap.value = false;
   planBusy.value = true;
   router.post(route('bp.settings.subscription.swap'), { price_id: bpPriceId.value }, {
     preserveScroll: true,
@@ -370,10 +426,15 @@ function cancelBpPlan() {
   });
 }
 function resumeBpPlan() {
+  confirmBpResume.value = true;
+}
+
+function doBpResume() {
+  confirmBpResume.value = false;
   planBusy.value = true;
   router.post(route('bp.settings.subscription.resume'), {}, {
     preserveScroll: true,
-    onSuccess: () => toast.success('Subscription reactivated!'),
+    onSuccess: () => toast.success('Subscription reactivated! Your plan continues as before.'),
     onError: (errors) => toast.error(errors.subscription ?? 'Could not reactivate.'),
     onFinish: () => { planBusy.value = false; },
   });

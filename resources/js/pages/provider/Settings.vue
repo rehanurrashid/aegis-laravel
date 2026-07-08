@@ -437,7 +437,7 @@
                   <button type="button" class="btn btn-gold btn-sm" @click="goToPricing">Choose a Plan</button>
                 </template>
                 <template v-else-if="subOnGracePeriod">
-                  <button type="button" class="btn btn-gold btn-sm" @click="resumePlan" :disabled="planBusy">Reactivate</button>
+                  <button type="button" class="btn btn-gold btn-sm" @click="resumePlan" :disabled="planBusy"><AegisIcon name="refresh" :size="13" /> Reactivate</button>
                 </template>
                 <template v-else>
                   <button type="button" class="btn btn-outline btn-sm" @click="confirmCancel = true" :disabled="planBusy">Cancel Plan</button>
@@ -532,6 +532,99 @@
               </div>
             </div>
           </div>
+
+          <!-- ── PLAN SWAP CONFIRMATION ──────────────────────────────────── -->
+          <AegisModal v-model="confirmSwap" title="Confirm Plan Change" size="md">
+            <div style="margin-bottom:16px">
+              <!-- Direction badge -->
+              <div style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:4px 12px;border-radius:var(--radius-full);margin-bottom:16px;"
+                :style="pendingSwap.direction === 'upgrade' ? 'background:var(--green-light);color:var(--green-dark)' : pendingSwap.direction === 'downgrade' ? 'background:var(--orange-light);color:var(--orange-dark,#b45309)' : 'background:var(--surface-2);color:var(--text-2)'">
+                <AegisIcon :name="pendingSwap.direction === 'upgrade' ? 'trending-up' : pendingSwap.direction === 'downgrade' ? 'trending-up' : 'refresh'" :size="12" />
+                {{ pendingSwap.direction === 'upgrade' ? 'Upgrade' : pendingSwap.direction === 'downgrade' ? 'Downgrade' : 'Billing Change' }}
+              </div>
+
+              <!-- Current → New -->
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+                <div style="flex:1;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-2)">
+                  <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:4px">Current</div>
+                  <div style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--text)">{{ currentTierLabel }}</div>
+                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">{{ currentBillingIsAnnual ? 'Annual billing' : 'Monthly billing' }}</div>
+                </div>
+                <AegisIcon name="arrow-right" :size="18" style="color:var(--text-3);flex-shrink:0" />
+                <div style="flex:1;padding:12px 14px;border:1px solid var(--gold-dark);border-radius:var(--radius);background:var(--icon-bg-gold)">
+                  <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:4px">New Plan</div>
+                  <div style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--text)">{{ pendingSwap.label }}</div>
+                  <div style="font-size:12px;color:var(--gold-dark);margin-top:2px;font-weight:600">{{ pendingSwap.priceLine }}</div>
+                </div>
+              </div>
+
+              <!-- Proration / timing note -->
+              <div style="padding:12px 14px;border-radius:var(--radius);background:var(--surface-2);border:1px solid var(--border);font-size:13px;color:var(--text-2);line-height:1.6">
+                <AegisIcon name="info" :size="14" style="color:var(--gold-dark);vertical-align:middle;margin-right:4px" />
+                {{ pendingSwap.note }}
+              </div>
+            </div>
+            <template #footer>
+              <button type="button" class="btn btn-outline btn-sm" @click="confirmSwap = false">Go Back</button>
+              <button type="button" class="btn btn-gold btn-sm" @click="doSwapPlan" :disabled="planBusy">
+                <AegisIcon name="check" :size="13" /> Confirm Change
+              </button>
+            </template>
+          </AegisModal>
+
+          <!-- ── REACTIVATE CONFIRMATION ────────────────────────────────── -->
+          <AegisModal v-model="confirmResume" title="Reactivate Subscription" size="sm">
+            <p style="font-size:14px;color:var(--text-2);margin-bottom:14px">
+              Your <strong>{{ currentTierLabel }}</strong> subscription will continue as normal. You will be charged on your next billing date.
+            </p>
+            <div style="padding:10px 14px;border-radius:var(--radius);background:var(--green-light);border:1px solid var(--green-dark);font-size:13px;color:var(--green-dark);margin-bottom:4px">
+              <AegisIcon name="check" :size="13" style="margin-right:4px" /> Your access will be fully restored immediately.
+            </div>
+            <template #footer>
+              <button type="button" class="btn btn-outline btn-sm" @click="confirmResume = false">Cancel</button>
+              <button type="button" class="btn btn-gold btn-sm" @click="doResumePlan" :disabled="planBusy">
+                <AegisIcon name="refresh" :size="13" /> Reactivate
+              </button>
+            </template>
+          </AegisModal>
+
+          <!-- ── MAAT ADD CONFIRMATION ─────────────────────────────────── -->
+          <AegisModal v-model="confirmMaat" :title="pendingMaat.enable ? 'Add MAAT Professional CS Service' : 'Remove MAAT Service'" size="md">
+            <template v-if="pendingMaat.enable">
+              <div style="margin-bottom:14px;padding:14px;border-radius:var(--radius);background:var(--icon-bg-gold);border:1px solid var(--badge-border-gold)">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                  <AegisIcon name="shield" :size="20" style="color:var(--gold-dark);flex-shrink:0" />
+                  <div>
+                    <div style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--text)">MAAT Professional CS Service</div>
+                    <div style="font-size:12px;color:var(--text-3)">+${{ maatBillingAnnual ? 23 : 29 }}/mo added to your subscription</div>
+                  </div>
+                </div>
+                <ul style="margin:0 0 0 14px;font-size:13px;color:var(--text-2);line-height:1.8">
+                  <li v-for="f in maatFeatures" :key="f">{{ f }}</li>
+                </ul>
+              </div>
+              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin-bottom:0">
+                <AegisIcon name="info" :size="13" style="color:var(--gold-dark);vertical-align:middle;margin-right:4px" />
+                The MAAT add-on will be billed on the same cycle as your base plan. A prorated charge will be applied today.
+              </p>
+            </template>
+            <template v-else>
+              <p style="font-size:14px;color:var(--text-2);margin-bottom:14px">You are about to remove the <strong>MAAT Professional CS Service</strong> add-on.</p>
+              <div style="padding:12px 14px;border-radius:var(--radius);background:var(--orange-light);border:1px solid var(--border-dark);font-size:13px;color:var(--text-2);line-height:1.6">
+                <AegisIcon name="alert-triangle" :size="13" style="color:var(--orange);vertical-align:middle;margin-right:4px" />
+                The MAAT Continuity Steward assignment will be removed. Your MAAT CS will be notified. The remove takes effect immediately.
+              </div>
+            </template>
+            <template #footer>
+              <button type="button" class="btn btn-outline btn-sm" @click="confirmMaat = false">Go Back</button>
+              <button v-if="pendingMaat.enable" type="button" class="btn btn-gold btn-sm" @click="doToggleMaat" :disabled="maatBusy">
+                <AegisIcon name="shield" :size="13" /> Add MAAT Service
+              </button>
+              <button v-else type="button" class="btn btn-danger btn-sm" @click="doToggleMaat" :disabled="maatBusy">
+                Remove MAAT
+              </button>
+            </template>
+          </AegisModal>
 
           <!-- Cancel confirmation modal -->
           <AegisModal v-model="confirmCancel" title="Cancel your subscription?" size="sm">
@@ -1110,27 +1203,103 @@ const swapButtonLabel = (tier) => {
   return ['access','practice'].indexOf(tier) > ['access','practice'].indexOf(currentTier.value) ? 'Upgrade to this plan' : 'Switch to this plan';
 };
 const planBusy = ref(false); const maatBusy = ref(false); const pmBusy = ref(false);
-const confirmCancel = ref(false);
+const confirmCancel  = ref(false);
+const confirmResume  = ref(false);
+// Plan swap confirmation
+const pendingSwap    = reactive({ tier: '', priceId: '', label: '', direction: '', priceLine: '', note: '' });
+const confirmSwap    = ref(false);
+// MAAT confirmation
+const pendingMaat    = reactive({ enable: false });
+const confirmMaat    = ref(false);
 const accessFeatures   = ['Limited dashboard view','1 Continuity Steward included','2 Support Stewards included','Core continuity planning','Continuity Plan','Document Vault','Integrative Care Network (limited)'];
 const practiceFeatures = ['Full dashboard access','Up to 2 Continuity Stewards','2 Support Stewards included','All continuity features','Continuity Plan','Full Document Vault','Full Integrative Care Network','Integrative Care Network Matching','Business Partners access'];
 const maatFeatures     = ['Licensed & insured CS, certified by MAAT','4-hour emergency response guarantee','Annual CS recertification included'];
 function swapPlan(tier) {
   const priceId = tier === 'access' ? accessPriceId.value : practicePriceId.value;
-  if (!priceId) return;
+  if (!priceId) { toast.error('Price ID not configured.'); return; }
+
+  const tierLabels = { access: 'Continuity Access', practice: 'Continuity Practice' };
+  const tierPrices = { access: billingAnnualView.value ? 23 : 29, practice: billingAnnualView.value ? 39 : 49 };
+  const billingLabel = billingAnnualView.value ? 'billed annually' : 'billed monthly';
+
+  // Detect direction
+  const tierOrder = ['access', 'practice'];
+  const currentIdx = tierOrder.indexOf(currentTier.value);
+  const newIdx     = tierOrder.indexOf(tier);
+  let direction = 'switch';
+  if (tier === currentTier.value) {
+    direction = billingAnnualView.value ? 'switch-annual' : 'switch-monthly';
+  } else if (newIdx > currentIdx) {
+    direction = 'upgrade';
+  } else {
+    direction = 'downgrade';
+  }
+
+  pendingSwap.tier     = tier;
+  pendingSwap.priceId  = priceId;
+  pendingSwap.label    = tierLabels[tier];
+  pendingSwap.direction = direction;
+  pendingSwap.priceLine = `$${tierPrices[tier]}/mo — ${billingLabel}`;
+  pendingSwap.note     = direction === 'upgrade'
+    ? 'The prorated difference will be charged to your card today.'
+    : direction === 'downgrade'
+      ? 'The new price takes effect at the start of your next billing cycle. No refund is issued for the remainder of this cycle.'
+      : direction === 'switch-annual'
+        ? 'Switching to annual billing saves you 20%. The change takes effect at your next billing cycle.'
+        : 'Switching to monthly billing. The change takes effect at your next billing cycle.';
+  confirmSwap.value = true;
+}
+
+function doSwapPlan() {
+  confirmSwap.value = false;
   planBusy.value = true;
-  router.post(route('provider.settings.subscription.swap'), { price_id: priceId }, { preserveScroll: true, onFinish: () => { planBusy.value = false; } });
+  router.post(route('provider.settings.subscription.swap'), { price_id: pendingSwap.priceId }, {
+    preserveScroll: true,
+    onSuccess: () => toast.success(
+      pendingSwap.direction === 'upgrade' ? 'Plan upgraded! Changes are effective immediately.' :
+      pendingSwap.direction === 'downgrade' ? 'Plan change scheduled for next billing cycle.' :
+      'Billing cycle updated.'
+    ),
+    onError: (errors) => toast.error(errors.subscription ?? 'Could not change plan.'),
+    onFinish: () => { planBusy.value = false; },
+  });
 }
 function cancelPlan() {
   planBusy.value = true;
   router.post(route('provider.settings.subscription.cancel'), {}, { preserveScroll: true, onFinish: () => { planBusy.value = false; confirmCancel.value = false; } });
 }
 function resumePlan() {
+  confirmResume.value = true;
+}
+
+function doResumePlan() {
+  confirmResume.value = false;
   planBusy.value = true;
-  router.post(route('provider.settings.subscription.resume'), {}, { preserveScroll: true, onFinish: () => { planBusy.value = false; } });
+  router.post(route('provider.settings.subscription.resume'), {}, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Subscription reactivated! Your plan continues as before.'),
+    onError: (errors) => toast.error(errors.subscription ?? 'Could not reactivate subscription.'),
+    onFinish: () => { planBusy.value = false; },
+  });
 }
 function toggleMaat(enable) {
+  pendingMaat.enable = enable;
+  confirmMaat.value  = true;
+}
+
+function doToggleMaat() {
+  const enable = pendingMaat.enable;
+  confirmMaat.value = false;
   maatBusy.value = true;
-  router.post(route('provider.settings.subscription.maat'), { enable }, { preserveScroll: true, onFinish: () => { maatBusy.value = false; } });
+  router.post(route('provider.settings.subscription.maat'), { enable }, {
+    preserveScroll: true,
+    onSuccess: () => toast.success(enable
+      ? 'MAAT Professional CS Service added to your subscription.'
+      : 'MAAT Professional CS Service removed.'
+    ),
+    onError: (errors) => toast.error(errors.maat ?? 'Could not update MAAT add-on.'),
+    onFinish: () => { maatBusy.value = false; },
+  });
 }
 function setDefaultPm(pmId) {
   pmBusy.value = true;

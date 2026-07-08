@@ -229,6 +229,49 @@
             </div>
           </div>
 
+          <!-- CS Plan Swap Confirmation -->
+          <AegisModal v-model="confirmCsSwap" title="Confirm Billing Change" size="md">
+            <div style="margin-bottom:16px">
+              <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+                <div style="flex:1;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-2)">
+                  <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:4px">Current</div>
+                  <div style="font-family:var(--font-serif);font-size:14px;font-weight:700;color:var(--text)">Business CS — {{ sub.current_billing === 'annual' ? 'Annual' : 'Monthly' }}</div>
+                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">{{ sub.current_billing === 'annual' ? '$35.75/mo (billed $429/yr)' : '$49/mo' }}</div>
+                </div>
+                <AegisIcon name="arrow-right" :size="16" style="color:var(--text-3);flex-shrink:0" />
+                <div style="flex:1;padding:12px 14px;border:1px solid var(--gold-dark);border-radius:var(--radius);background:var(--icon-bg-gold)">
+                  <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:4px">New</div>
+                  <div style="font-family:var(--font-serif);font-size:14px;font-weight:700;color:var(--text)">{{ pendingCsSwap.label }}</div>
+                  <div style="font-size:12px;color:var(--gold-dark);margin-top:2px;font-weight:600">{{ pendingCsSwap.priceLine }}</div>
+                </div>
+              </div>
+              <div style="padding:12px 14px;border-radius:var(--radius);background:var(--surface-2);border:1px solid var(--border);font-size:13px;color:var(--text-2);line-height:1.6">
+                <AegisIcon name="info" :size="13" style="color:var(--gold-dark);vertical-align:middle;margin-right:4px" />
+                {{ pendingCsSwap.note }}
+              </div>
+            </div>
+            <template #footer>
+              <button type="button" class="btn btn-outline btn-sm" @click="confirmCsSwap = false">Go Back</button>
+              <button type="button" class="btn btn-gold btn-sm" @click="doCsSwap" :disabled="planBusy">
+                <AegisIcon name="check" :size="13" /> Confirm Change
+              </button>
+            </template>
+          </AegisModal>
+
+          <!-- CS Reactivate Confirmation -->
+          <AegisModal v-model="confirmCsResume" title="Reactivate Subscription" size="sm">
+            <p style="font-size:14px;color:var(--text-2);margin-bottom:14px">Your <strong>Business CS</strong> subscription will continue as normal. You will be charged on your next billing date.</p>
+            <div style="padding:10px 14px;border-radius:var(--radius);background:var(--green-light);border:1px solid var(--green-dark);font-size:13px;color:var(--green-dark)">
+              <AegisIcon name="check" :size="13" style="margin-right:4px" /> Your CS portal access will be fully restored immediately.
+            </div>
+            <template #footer>
+              <button type="button" class="btn btn-outline btn-sm" @click="confirmCsResume = false">Cancel</button>
+              <button type="button" class="btn btn-gold btn-sm" @click="doCsResume" :disabled="planBusy">
+                <AegisIcon name="refresh" :size="13" /> Reactivate
+              </button>
+            </template>
+          </AegisModal>
+
           <AegisModal v-model="confirmCsCancel" title="Cancel your subscription?" size="sm">
             <p style="font-size:14px;color:var(--text);margin-bottom:12px">Your Business CS subscription will end <strong>{{ formatDate(sub.current_period?.end) || \'at the end of the current period\' }}</strong>.</p>
             <template #footer>
@@ -280,6 +323,9 @@ const csPriceId        = computed(() => billingAnnual.value ? csAnnualId.value :
 const stripeInvoices   = computed(() => sub.value.invoices ?? []);
 const planBusy         = ref(false);
 const confirmCsCancel  = ref(false);
+const confirmCsResume  = ref(false);
+const pendingCsSwap    = reactive({ label: '', priceLine: '', note: '' });
+const confirmCsSwap    = ref(false);
 
 function formatDate(ts) {
   if (!ts) return '';
@@ -290,10 +336,20 @@ function formatCents(cents) { return '$' + (cents / 100).toFixed(2); }
 
 function swapCsPlan() {
   if (!csPriceId.value) { toast.error('Price not configured.'); return; }
+  pendingCsSwap.label     = 'Business CS — ' + (billingAnnual.value ? 'Annual' : 'Monthly');
+  pendingCsSwap.priceLine = billingAnnual.value ? '$35.75/mo (billed $429/yr)' : '$49/mo';
+  pendingCsSwap.note      = billingAnnual.value
+    ? 'Switching to annual billing saves you ~27%. The change takes effect at your next billing cycle.'
+    : 'Switching to monthly billing. The change takes effect at your next billing cycle.';
+  confirmCsSwap.value = true;
+}
+
+function doCsSwap() {
+  confirmCsSwap.value = false;
   planBusy.value = true;
   router.post(route('cs.settings.subscription.swap'), { price_id: csPriceId.value }, {
     preserveScroll: true,
-    onSuccess: () => toast.success('Plan updated!'),
+    onSuccess: () => toast.success(billingAnnual.value ? 'Switched to annual billing!' : 'Switched to monthly billing!'),
     onError: (errors) => toast.error(errors.subscription ?? 'Could not update plan.'),
     onFinish: () => { planBusy.value = false; },
   });
@@ -309,10 +365,15 @@ function cancelCsPlan() {
   });
 }
 function resumeCsPlan() {
+  confirmCsResume.value = true;
+}
+
+function doCsResume() {
+  confirmCsResume.value = false;
   planBusy.value = true;
   router.post(route('cs.settings.subscription.resume'), {}, {
     preserveScroll: true,
-    onSuccess: () => toast.success('Subscription reactivated!'),
+    onSuccess: () => toast.success('Subscription reactivated! Your plan continues as before.'),
     onError: (errors) => toast.error(errors.subscription ?? 'Could not reactivate.'),
     onFinish: () => { planBusy.value = false; },
   });
