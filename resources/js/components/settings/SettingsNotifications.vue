@@ -43,25 +43,19 @@
             <div class="notif-cat-desc">{{ cat.desc }}</div>
           </div>
           <div class="notif-col-channel">
-            <button type="button" class="notif-toggle" :class="{ 'is-on': cat.push }" :aria-pressed="cat.push" @click="cat.push = !cat.push">
-              <span class="notif-toggle-knob"></span>
-            </button>
+            <button type="button" class="toggle" :class="{ on: cat.push }" :aria-pressed="cat.push" @click="cat.push = !cat.push"></button>
           </div>
           <div class="notif-col-channel">
-            <button type="button" class="notif-toggle" :class="{ 'is-on': cat.email }" :aria-pressed="cat.email" @click="cat.email = !cat.email">
-              <span class="notif-toggle-knob"></span>
-            </button>
+            <button type="button" class="toggle" :class="{ on: cat.email }" :aria-pressed="cat.email" @click="cat.email = !cat.email"></button>
           </div>
           <div class="notif-col-channel">
-            <button type="button" class="notif-toggle" :class="{ 'is-on': cat.inapp }" :aria-pressed="cat.inapp" @click="cat.inapp = !cat.inapp">
-              <span class="notif-toggle-knob"></span>
-            </button>
+            <button type="button" class="toggle" :class="{ on: cat.inapp }" :aria-pressed="cat.inapp" @click="cat.inapp = !cat.inapp"></button>
           </div>
         </div>
       </div>
 
       <!-- Extra portal-specific toggles slot -->
-      <slot name="extra-toggles" />
+      <div class="notif-extra-wrap"><slot name="extra-toggles" /></div>
 
       <div style="padding:20px 24px;display:flex;justify-content:flex-end;border-top:1px solid var(--border)">
         <button type="button" class="btn btn-primary btn-sm" :disabled="saving" @click="save">
@@ -178,29 +172,9 @@ function save() {
   line-height: 1.4;
 }
 
-.notif-toggle {
-  position: relative;
-  width: 36px;
-  height: 20px;
-  border-radius: 10px;
-  border: none;
-  background: var(--border);
-  cursor: pointer;
-  transition: background 0.2s;
-  padding: 0;
-  flex-shrink: 0;
-}
-.notif-toggle.is-on { background: var(--gold); }
-.notif-toggle-knob {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
-  transition: left 0.2s;
-}
-.notif-toggle.is-on .notif-toggle-knob { left: 18px; }
+/* Global button.toggle styles apply; just ensure column centers the toggle */
+.notif-col-channel button.toggle { display: block; }
+
+/* x-axis padding for extra section wrappers */
+.notif-extra-wrap { padding: 0 24px; }
 </style>
