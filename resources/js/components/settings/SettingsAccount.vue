@@ -174,45 +174,68 @@
           </div>
           <div>
             <div class="card-title">Active Sessions</div>
-            <div class="card-subtitle">Devices currently logged into your account</div>
+            <div class="card-subtitle">{{ sessions.length }} device{{ sessions.length === 1 ? '' : 's' }} currently signed in</div>
           </div>
         </div>
-        <button v-if="sessions.length > 1" type="button" class="btn btn-danger btn-sm" @click="modals.revokeAll = true">
+        <button v-if="sessions.length > 1" type="button" class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red)" @click="modals.revokeAll = true">
           <AegisIcon name="x" :size="12" /> Revoke All Others
         </button>
       </div>
-      <div class="card-body" style="padding-top:8px">
-        <div v-if="!sessions || sessions.length === 0" class="sa-empty-sessions">
-          <AegisIcon name="monitor" :size="18" />
-          <span>No active sessions found. Your session data may still be loading.</span>
+
+      <div class="card-body" style="padding:0">
+
+        <!-- Empty state -->
+        <div v-if="!sessions || sessions.length === 0" class="sess-empty">
+          <div class="sess-empty-icon"><AegisIcon name="monitor" :size="20" /></div>
+          <div class="sess-empty-text">No active sessions found.</div>
+          <div class="sess-empty-sub">Session data will appear here once you've signed in from a device.</div>
         </div>
-        <div v-for="(sess, idx) in sessions" :key="sess.id" class="session-item">
-          <div class="session-icon">
-            <AegisIcon :name="isMobile(sess.device) ? 'phone' : 'monitor'" :size="18" />
+
+        <!-- Session rows -->
+        <div
+          v-for="(sess, idx) in sessions"
+          :key="sess.id"
+          class="sess-row"
+          :class="{ 'sess-row-current': idx === 0 }"
+        >
+          <!-- Device icon -->
+          <div class="sess-device-icon" :class="idx === 0 ? 'sess-device-icon-current' : ''">
+            <AegisIcon :name="deviceIcon(sess.device)" :size="20" />
           </div>
-          <div class="session-info">
-            <div class="session-device">
-              {{ sess.device || 'Unknown device' }}
-              <span v-if="idx === 0" class="session-current">
-                <AegisIcon name="check" :size="9" /> Current
+
+          <!-- Device info -->
+          <div class="sess-info">
+            <div class="sess-name-row">
+              <span class="sess-device-name">{{ deviceName(sess.device) }}</span>
+              <span v-if="idx === 0" class="sess-current-badge">
+                <AegisIcon name="check" :size="9" /> This device
               </span>
             </div>
-            <div class="session-meta">
-              <span v-if="sess.ip">{{ sess.ip }} &middot; </span>
-              Last active {{ sess.last_seen_at || 'recently' }}
+            <div class="sess-meta-row">
+              <span class="sess-browser">{{ browserName(sess.device) }}</span>
+              <span class="sess-dot">·</span>
+              <span class="sess-ip">{{ sess.ip || 'IP unknown' }}</span>
+              <span class="sess-dot">·</span>
+              <span class="sess-time">{{ sess.last_seen_at || 'Recently' }}</span>
             </div>
           </div>
-          <button
-            v-if="idx !== 0"
-            type="button"
-            class="btn-icon btn-icon-danger"
-            data-tooltip="Revoke this session"
-            @click="revokeOne(sess.id)"
-          >
-            <AegisIcon name="x" :size="14" />
-          </button>
-          <span v-else style="width:28px;flex-shrink:0"></span>
+
+          <!-- Action -->
+          <div class="sess-action">
+            <button
+              v-if="idx !== 0"
+              type="button"
+              class="btn btn-outline btn-xs sess-revoke-btn"
+              @click="revokeOne(sess.id)"
+            >
+              <AegisIcon name="x" :size="11" /> Revoke
+            </button>
+            <span v-else class="sess-active-indicator">
+              <span class="status-dot active" style="width:7px;height:7px"></span> Active now
+            </span>
+          </div>
         </div>
+
       </div>
     </div>
 
@@ -342,10 +365,27 @@ function resetPwForm() {
   reqs.special = false;
 }
 
-// ── Sessions ─────────────────────────────────────────────────────────────
-function isMobile(device) {
-  if (!device) return false;
-  return /iphone|android|ipad|mobile/i.test(device);
+// ── Session helpers ───────────────────────────────────────────────────────
+function deviceIcon(device) {
+  if (!device) return 'monitor';
+  const d = device.toLowerCase();
+  if (/iphone|android.*mobile|pixel.*phone/i.test(d)) return 'smartphone';
+  if (/ipad|android(?!.*mobile)/i.test(d))            return 'tablet';
+  if (/macbook|laptop|notebook/i.test(d))              return 'laptop';
+  return 'monitor';
+}
+
+function deviceName(device) {
+  if (!device) return 'Unknown device';
+  // Strip browser part — everything before " — "
+  const parts = device.split(' — ');
+  return parts[0] || device;
+}
+
+function browserName(device) {
+  if (!device) return '';
+  const parts = device.split(' — ');
+  return parts[1] || '';
 }
 
 function revokeOne(sessionId) {
@@ -439,13 +479,116 @@ function revokeAll() {
 .ob-req-item.invalid { color: var(--red); }
 
 
-/* Sessions */
-.sa-empty-sessions {
+/* ── Sessions ─────────────────────────────────────────────────────── */
+.sess-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  gap: 6px;
+  text-align: center;
+}
+.sess-empty-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text-4);
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 13px;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+.sess-empty-text { font-size: 14px; font-weight: 600; color: var(--text-2); }
+.sess-empty-sub  { font-size: 12px; color: var(--text-4); }
+
+.sess-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  transition: background var(--transition);
+}
+.sess-row:last-child { border-bottom: none; }
+.sess-row-current { background: var(--surface-2); }
+.sess-row:not(.sess-row-current):hover { background: var(--surface-2); }
+
+.sess-device-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius);
+  background: var(--surface-3, var(--surface-2));
   color: var(--text-3);
-  padding: 14px 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.sess-device-icon-current {
+  background: var(--icon-bg-gold);
+  color: var(--gold-dark);
+}
+
+.sess-info { flex: 1; min-width: 0; }
+
+.sess-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+  flex-wrap: wrap;
+}
+.sess-device-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+.sess-current-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--green-dark);
+  background: var(--green-light);
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.sess-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.sess-browser { font-size: 12px; color: var(--text-3); }
+.sess-dot     { font-size: 11px; color: var(--text-4); }
+.sess-ip      { font-size: 12px; color: var(--text-3); font-family: var(--font-mono, monospace); }
+.sess-time    { font-size: 12px; color: var(--text-4); }
+
+.sess-action { flex-shrink: 0; }
+
+.sess-revoke-btn {
+  font-size: 11px;
+  padding: 4px 10px;
+  color: var(--red);
+  border-color: var(--red);
+}
+.sess-revoke-btn:hover {
+  background: var(--red);
+  color: var(--text-inverted);
+}
+
+.sess-active-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--green-dark);
 }
 </style>
