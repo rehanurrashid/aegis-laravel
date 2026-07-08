@@ -198,10 +198,10 @@
                 <div v-for="day in weekDays" :key="day.key" class="avail-day-row" :class="{ 'avail-day-off': !day.on }">
                   <button type="button" class="toggle" :class="{ on: day.on }" @click="day.on = !day.on" :aria-pressed="day.on"></button>
                   <span class="avail-day-name">{{ day.label }}</span>
-                  <select class="form-select form-select-sm" v-model="day.from" :disabled="!day.on" data-no-enhance>
+                  <select class="form-select form-select-sm" v-model="day.from" :disabled="!day.on">
                     <option v-for="t in timeOptions" :key="t.value" :value="t.value">{{ t.label }}</option>
                   </select>
-                  <select class="form-select form-select-sm" v-model="day.to" :disabled="!day.on" data-no-enhance>
+                  <select class="form-select form-select-sm" v-model="day.to" :disabled="!day.on">
                     <option v-for="t in timeOptions" :key="t.value" :value="t.value">{{ t.label }}</option>
                   </select>
                 </div>
@@ -942,7 +942,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { useVuelidate } from '@vuelidate/core';
 import { required, email, minLength, sameAs, helpers } from '@vuelidate/validators';
@@ -1459,6 +1459,20 @@ onMounted(() => {
     modals.showUpgrade = true
   }
 })
+// Sync TomSelect disabled state when a day is toggled on/off
+watch(
+  () => weekDays.map(d => d.on),
+  () => {
+    nextTick(() => {
+      document.querySelectorAll('.avail-day-row select').forEach(el => {
+        const ts = el.tomselect;
+        if (!ts) return;
+        el.disabled ? ts.disable() : ts.enable();
+      });
+    });
+  }
+);
+
 const pauseForm    = reactive({ until: '', reason: 'leave', message: '' });
 const transferForm = reactive({ provider: '', scope: 'active' });
 const deleteForm   = reactive({ transferTo: '', confirm: '' });
