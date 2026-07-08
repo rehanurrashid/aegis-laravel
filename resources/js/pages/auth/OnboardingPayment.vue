@@ -76,15 +76,32 @@
         </div>
 
         <!-- Stripe Payment Element mount point -->
-        <div class="ob-payment-element-wrap">
-          <!-- Loading spinner sits OUTSIDE #payment-element so Vue never
-               touches DOM nodes that Stripe has taken ownership of -->
+        <!-- Stripe split card fields — full brand control -->
+        <div class="ob-card-fields-wrap">
           <div v-if="!stripeReady" class="ob-stripe-loading">
             <div class="ob-stripe-spinner" />
             Loading secure payment form…
           </div>
-          <!-- Stripe mounts into this div — no Vue children inside -->
-          <div id="payment-element" class="ob-payment-element" />
+
+          <div v-show="stripeReady" class="ob-card-fields">
+            <!-- Card Number -->
+            <div class="form-group ob-card-group">
+              <label class="form-label ob-card-label">Card Number</label>
+              <div id="card-number" class="ob-card-input" />
+            </div>
+
+            <!-- Expiry + CVC row -->
+            <div class="ob-card-row">
+              <div class="form-group ob-card-group">
+                <label class="form-label ob-card-label">Expiry Date</label>
+                <div id="card-expiry" class="ob-card-input" />
+              </div>
+              <div class="form-group ob-card-group">
+                <label class="form-label ob-card-label">CVC</label>
+                <div id="card-cvc" class="ob-card-input" />
+              </div>
+            </div>
+          </div>
         </div>
 
         <button
@@ -129,9 +146,11 @@ const stripeReady = ref(false)
 const submitting  = ref(false)
 const errorMessage = ref('')
 
-let stripe  = null
-let elements = null
-let paymentElement = null
+let stripe       = null
+let elements     = null
+let cardNumber   = null
+let cardExpiry   = null
+let cardCvc      = null
 
 // ── Plan display helpers ─────────────────────────────────────────────
 const tierLabels = {
@@ -194,7 +213,6 @@ onMounted(async () => {
 
     elements = stripe.elements({
       clientSecret: props.clientSecret,
-      loader: 'auto',
       appearance: {
         theme: 'flat',
         variables: {
@@ -305,33 +323,38 @@ onMounted(async () => {
       },
     })
 
-    // Use 'card' element directly instead of 'payment' to avoid
-    // Link, Bank, iDEAL, Cash App and other payment method tabs entirely.
-    paymentElement = elements.create('card', {
-      hidePostalCode: false,
-      style: {
-        base: {
-          fontFamily:     'Inter, Helvetica Neue, Arial, sans-serif',
-          fontSize:       '14px',
-          fontWeight:     '500',
-          color:          '#1e1c1a',
-          letterSpacing:  '0',
-          '::placeholder': { color: '#b5afa8' },
-        },
-        invalid: {
-          color:     '#c85c42',
-          iconColor: '#c85c42',
-        },
+    // Individual card elements — no Link/tabs/wallets/external methods
+    const cardStyle = {
+      base: {
+        fontFamily:      'Inter, Helvetica Neue, Arial, sans-serif',
+        fontSize:        '13px',
+        fontWeight:      '500',
+        color:           '#1e1c1a',
+        letterSpacing:   '0.01em',
+        iconColor:       '#6b6560',
+        '::placeholder': { color: '#b5afa8', fontWeight: '400' },
       },
-    })
+      invalid: { color: '#c85c42', iconColor: '#c85c42' },
+      complete: { iconColor: '#3a7d5c' },
+    }
 
-    paymentElement.mount('#payment-element')
+    elements = stripe.elements()
+    cardNumber = elements.create('cardNumber', { style: cardStyle, showIcon: true })
+    cardExpiry = elements.create('cardExpiry', { style: cardStyle })
+    cardCvc    = elements.create('cardCvc',    { style: cardStyle })
 
-    paymentElement.on('ready', () => { stripeReady.value = true })
-    paymentElement.on('change', (e) => {
-      if (e.error) errorMessage.value = e.error.message
-      else errorMessage.value = ''
-    })
+    cardNumber.mount('#card-number')
+    cardExpiry.mount('#card-expiry')
+    cardCvc.mount('#card-cvc')
+
+    let nR = false, eR = false, cR = false
+    const chk = () => { if (nR && eR && cR) stripeReady.value = true }
+    cardNumber.on('ready',  () => { nR = true; chk() })
+    cardExpiry.on('ready',  () => { eR = true; chk() })
+    cardCvc.on('ready',     () => { cR = true; chk() })
+    cardNumber.on('change', (e) => { errorMessage.value = e.error?.message ?? '' })
+    cardExpiry.on('change', (e) => { if (e.error) errorMessage.value = e.error.message })
+    cardCvc.on('change',    (e) => { if (e.error) errorMessage.value = e.error.message })
   } catch (err) {
     errorMessage.value = err.message ?? 'Could not load payment form. Please refresh.'
     console.error('[OnboardingPayment] Stripe init failed:', err)
@@ -339,7 +362,9 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  paymentElement?.unmount()
+  cardNumber?.unmount()
+  cardExpiry?.unmount()
+  cardCvc?.unmount()
 })
 
 // ── Submit ─────────────────────────────────────────────────────────────
@@ -350,10 +375,9 @@ async function submit() {
   submitting.value   = true
 
   try {
-    // confirmCardSetup for the card element (avoids Link/redirect flow)
     const { setupIntent, error } = await stripe.confirmCardSetup(
       props.clientSecret,
-      { payment_method: { card: paymentElement } }
+      { payment_method: { card: cardNumber } }
     )
 
     if (error) {
@@ -451,8 +475,26 @@ function switchAccount() { router.post(route('logout')) }
 .ob-error-banner { display:flex; align-items:flex-start; gap:8px; background:var(--red-light); border:1px solid rgba(224,92,92,0.25); border-radius:var(--radius-sm); padding:10px 14px; font-size:13px; color:var(--red); margin-bottom:16px; line-height:1.5; }
 
 /* Stripe Payment Element */
-.ob-payment-element-wrap { margin-bottom:20px; }
-.ob-payment-element { min-height:160px; }
+.ob-card-fields-wrap { margin-bottom:24px; }
+.ob-card-fields { display:flex; flex-direction:column; gap:16px; }
+.ob-card-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.ob-card-group { margin-bottom:0; padding-bottom:0; }
+.ob-card-label { font-size:12px; font-weight:600; color:var(--text-2); margin-bottom:6px; display:block; }
+.ob-card-input {
+  padding: 10px 13px;
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius);
+  background: var(--surface);
+  transition: border-color var(--transition);
+  height: 42px;
+  display: flex;
+  align-items: center;
+}
+.ob-card-input:focus-within {
+  border-color: var(--gold-dark);
+  outline: none;
+}
+.ob-card-input.is-error { border-color: var(--red) !important; }
 .ob-stripe-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:40px 20px; color:var(--text-2); font-size:12px; }
 .ob-stripe-spinner { width:24px; height:24px; border:2px solid var(--border); border-top-color:var(--gold); border-radius:var(--radius-full); animation:spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
