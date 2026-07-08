@@ -346,6 +346,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::get('/settings', [ProviderSettingsController::class, 'index'])->name('settings.index');
         Route::put('/settings/notifications', [ProviderSettingsController::class, 'updateNotifications'])->name('settings.notifications');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
+        Route::put('/settings/appearance', [ProviderSettingsController::class, 'updateAppearance'])->name('settings.appearance');
         Route::delete('/settings/account', [ProviderSettingsController::class, 'deleteAccount'])->name('settings.account.delete');
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::post('/settings/mfa/verify', [MfaController::class, 'verify'])->name('settings.mfa.verify');
@@ -421,6 +422,9 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:contin
         Route::get('/settings', [CsSettingsController::class, 'index'])->name('settings.index');
         Route::put('/settings/notifications', [CsSettingsController::class, 'updateNotifications'])->name('settings.notifications');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
+        Route::put('/settings/messaging', [CsSettingsController::class, 'updateMessaging'])->name('settings.messaging');
+        Route::put('/settings/email-prefs', [CsSettingsController::class, 'updateEmailPrefs'])->name('settings.email-prefs');
+        Route::put('/settings/appearance', [CsSettingsController::class, 'updateAppearance'])->name('settings.appearance');
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::post('/settings/mfa/verify', [MfaController::class, 'verify'])->name('settings.mfa.verify');
         Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->name('settings.mfa.disable');
@@ -469,6 +473,9 @@ Route::middleware(['auth', 'verified.email', 'role:support_steward', 'check.lock
         Route::get('/settings', [SsSettingsController::class, 'index'])->name('settings.index');
         Route::put('/settings/notifications', [SsSettingsController::class, 'updateNotifications'])->name('settings.notifications');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
+        Route::put('/settings/messaging', [SsSettingsController::class, 'updateMessaging'])->name('settings.messaging');
+        Route::put('/settings/email-prefs', [SsSettingsController::class, 'updateEmailPrefs'])->name('settings.email-prefs');
+        Route::put('/settings/appearance', [SsSettingsController::class, 'updateAppearance'])->name('settings.appearance');
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::post('/settings/mfa/verify', [MfaController::class, 'verify'])->name('settings.mfa.verify');
         Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->name('settings.mfa.disable');
@@ -546,6 +553,9 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:busine
         Route::get('/settings', [BpSettingsController::class, 'index'])->name('settings.index');
         Route::put('/settings/notifications', [BpSettingsController::class, 'updateNotifications'])->name('settings.notifications');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
+        Route::put('/settings/messaging', [BpSettingsController::class, 'updateMessaging'])->name('settings.messaging');
+        Route::put('/settings/email-prefs', [BpSettingsController::class, 'updateEmailPrefs'])->name('settings.email-prefs');
+        Route::put('/settings/appearance', [BpSettingsController::class, 'updateAppearance'])->name('settings.appearance');
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::post('/settings/mfa/verify', [MfaController::class, 'verify'])->name('settings.mfa.verify');
         Route::post('/settings/mfa/disable', [MfaController::class, 'disable'])->name('settings.mfa.disable');

@@ -111,132 +111,27 @@
 
         <!-- ACCOUNT & LOGIN -->
         <div v-show="section === 'account'" class="settings-panel">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title-group">
-                <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="lock" :size="16" /></div>
-                <div><div class="card-title">Account &amp; Login</div><div class="card-subtitle">Email, password, and login credentials</div></div>
-              </div>
-            </div>
-            <div class="card-body">
-              <div class="alert alert-info" style="margin-bottom:14px">
-                <div class="alert-icon"><AegisIcon name="users" :size="16" /></div>
-                <div class="alert-content" style="font-size:12px"><strong>Unified credentials</strong> — Your email, phone, and password are shared across all portals.</div>
-              </div>
-              <div class="form-row form-row-2">
-                <div class="form-group">
-                  <label class="form-label">Primary Email <span class="required">*</span></label>
-                  <input class="form-input" :class="{ 'is-error': fieldError('email') }" type="email" v-model="acct.email" @blur="v$.email.$touch()" />
-                  <div v-if="fieldError('email')" class="form-error">{{ fieldError('email') }}</div>
-                  <div v-else class="form-hint" style="display:flex;align-items:center;gap:4px;color:var(--green)"><AegisIcon name="check" :size="14" /> Verified · Used for login and important notices</div>
-                </div>
-              </div>
-              <div class="form-row form-row-2">
-                <div class="form-group">
-                  <label class="form-label">Phone Number</label>
-                  <input class="form-input" type="tel" v-model="acct.phone" />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Username / Handle</label>
-                  <input class="form-input" v-model="acct.handle" />
-                  <div class="form-hint">Your public @handle on Aegis</div>
-                </div>
-              </div>
-              <hr class="form-divider" style="margin-top:20px" />
-              <div style="font-size:14px;font-weight:600;color:var(--text);margin:20px 0 14px">Change Password</div>
-
-              <div class="form-row form-row-2">
-                <div class="form-group">
-                  <label class="form-label">New Password</label>
-                  <input class="form-input" :class="{ 'is-error': fieldError('newpw') }" type="password" v-model="acct.newpw" @blur="v$.newpw.$touch()" placeholder="Min 12 characters…" />
-                  <div v-if="fieldError('newpw')" class="form-error">{{ fieldError('newpw') }}</div>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Confirm New Password</label>
-                  <input class="form-input" :class="{ 'is-error': fieldError('confirmpw') }" type="password" v-model="acct.confirmpw" @blur="v$.confirmpw.$touch()" placeholder="Repeat new password…" />
-                  <div v-if="fieldError('confirmpw')" class="form-error">{{ fieldError('confirmpw') }}</div>
-                </div>
-              </div>
-              <div style="font-size:12px;color:var(--text-3);margin-bottom:14px">Password must be 12+ characters, include uppercase, number, and special character.</div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
-                <button type="button" class="btn btn-outline" @click="v$.$reset()">Cancel</button>
-                <button type="button" class="btn btn-primary" @click="savePassword"><AegisIcon name="lock" :size="14" /> Update Password</button>
-              </div>
-            </div>
-          </div>
-          <div class="card" style="margin-top:16px">
-            <div class="card-header">
-              <div class="card-title-group">
-                <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="monitor" :size="16" /></div>
-                <div><div class="card-title">Active Sessions</div><div class="card-subtitle">Devices currently logged into your account</div></div>
-              </div>
-              <button type="button" class="btn btn-danger btn-sm" @click="modals.revokeAll = true"><AegisIcon name="x" :size="12" /> Revoke All</button>
-            </div>
-            <div class="card-body">
-              <div v-for="sess in sessions" :key="sess.device" class="session-item">
-                <div class="session-icon"><AegisIcon :name="sess.mobile ? 'phone' : 'monitor'" :size="20" /></div>
-                <div class="session-info">
-                  <div class="session-device">{{ sess.device }} <span v-if="sess.current" class="session-current">Current</span></div>
-                  <div class="session-meta">{{ sess.meta }}</div>
-                </div>
-                <button v-if="!sess.current" type="button" class="btn-icon btn-icon-danger" data-tooltip="Revoke session" @click="toast.info('Session revoked.')"><AegisIcon name="x" :size="14" /></button>
-              </div>
-            </div>
-          </div>
+          <SettingsAccount :user="user" update-password-route="provider.settings.password" />
         </div>
 
         <!-- SECURITY & 2FA -->
         <div v-show="section === 'security'" class="settings-panel">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title-group">
-                <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="shield" :size="16" /></div>
-                <div><div class="card-title">Security &amp; Two-Factor Authentication</div><div class="card-subtitle">Unified across all portals — 2FA and sessions apply to your entire Aegis account</div></div>
-              </div>
-              <span style="font-size:12px;font-weight:600;color:var(--green);background:var(--green-light);padding:4px 12px;border-radius:var(--radius-full);display:inline-flex;align-items:center;gap:6px"><span class="status-dot active"></span>2FA Enabled</span>
-            </div>
-            <div class="card-body">
-              <div class="form-hint" style="margin-bottom:14px">Security alerts and login notifications are managed in <strong>Notifications →</strong></div>
-              <div v-for="tfa in tfaOptions" :key="tfa.key" class="twofa-option" :class="{ active: tfa.active }" @click="selectTfa(tfa)">
-                <div class="twofa-icon"><AegisIcon :name="tfa.icon" :size="16" /></div>
-                <div class="twofa-info">
-                  <div class="twofa-name">{{ tfa.name }} <span v-if="tfa.active" style="font-size:11px;color:var(--green);font-weight:600;display:inline-flex;align-items:center;gap:3px;vertical-align:middle"><AegisIcon name="check" :size="11" />Active</span></div>
-                  <div class="twofa-desc">{{ tfa.desc }}</div>
-                </div>
-                <button v-if="tfa.active" type="button" class="btn btn-outline btn-xs" @click.stop="modals.viewBackup = true">View Backup Codes</button>
-                <button v-else type="button" class="btn btn-primary btn-xs" @click.stop="modals.setup2fa = true">Set Up</button>
-              </div>
-            </div>
-          </div>
-        </div>
+          <SettingsSecurity
+            enable-mfa-route="provider.settings.mfa.enable"
+            disable-mfa-route="provider.settings.mfa.disable"
+            verify-mfa-route="provider.settings.mfa.verify"
+            :mfa-enabled="mfaEnabled"
+          />
+        </div>        </div>
 
         <!-- NOTIFICATIONS -->
         <div v-show="section === 'notifications'" class="settings-panel">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title-group">
-                <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="bell" :size="16" /></div>
-                <div><div class="card-title">Notification Preferences</div><div class="card-subtitle">Delivery channels are unified across all portals.</div></div>
-              </div>
-              <div style="display:flex;gap:8px">
-                <button type="button" class="btn btn-ghost btn-sm" @click="setAllNotifs(false)">Mute All</button>
-                <button type="button" class="btn btn-outline btn-sm" @click="setAllNotifs(true)">Enable All</button>
-              </div>
-            </div>
-            <div class="card-body">
-
-              <table class="notif-table">
-                <thead><tr><th>Category</th><th><span class="th-icon"><AegisIcon name="phone" :size="13" /> Push</span></th><th><span class="th-icon"><AegisIcon name="mail" :size="13" /> Email</span></th><th><span class="th-icon"><AegisIcon name="bell" :size="13" /> In-App</span></th></tr></thead>
-                <tbody>
-                  <tr v-for="cat in notifCategories" :key="cat.key">
-                    <td><div class="notif-cat-label">{{ cat.label }}</div><div class="notif-cat-desc">{{ cat.desc }}</div></td>
-                    <td><button type="button" class="toggle" :class="{ on: cat.push }" @click="cat.push = !cat.push" :aria-pressed="cat.push"></button></td>
-                    <td><button type="button" class="toggle" :class="{ on: cat.email }" @click="cat.email = !cat.email" :aria-pressed="cat.email"></button></td>
-                    
-                    <td><button type="button" class="toggle" :class="{ on: cat.inapp }" @click="cat.inapp = !cat.inapp" :aria-pressed="cat.inapp"></button></td>
-                  </tr>
-                </tbody>
-              </table>
+          <SettingsNotifications
+            update-route="provider.settings.notifications"
+            subtitle="Delivery channels are unified across all portals."
+            :notif-categories="notifCategories"
+          >
+            <template #extra-toggles>
               <div class="section-label" style="margin-top:20px">Security &amp; Login Alerts</div>
               <div v-for="al in securityAlerts" :key="al.name" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ al.name }}</div><div class="toggle-desc">{{ al.sub }}</div></div><button type="button" class="toggle" :class="{ on: al.on }" @click="al.on = !al.on" :aria-pressed="al.on"></button></div>
               <div class="section-label" style="margin-top:20px">Steward Notifications</div>
@@ -254,11 +149,8 @@
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Invoice Email Notifications</div><div class="toggle-desc">Send email confirmation for every invoice generated or paid</div></div><button type="button" class="toggle" :class="{ on: financial.invoiceEmails }" @click="financial.invoiceEmails = !financial.invoiceEmails" :aria-pressed="financial.invoiceEmails"></button></div>
               <div class="section-label" style="margin-top:20px">Network &amp; Updates</div>
               <div v-for="row in networkNotifs" :key="row.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ row.label }}</div><div class="toggle-desc">{{ row.desc }}</div></div><button type="button" class="toggle" :class="{ on: networkPrefs[row.key] }" @click="networkPrefs[row.key] = !networkPrefs[row.key]" :aria-pressed="networkPrefs[row.key]"></button></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
-                <button type="button" class="btn btn-primary" @click="toast.success('Notification preferences saved!')"><AegisIcon name="check" :size="14" /> Save Preferences</button>
-              </div>
-            </div>
-          </div>
+            </template>
+          </SettingsNotifications>
         </div>
 
 
@@ -471,28 +363,7 @@
 
         <!-- APPEARANCE & TIMEZONE -->
         <div v-show="section === 'appearance'" class="settings-panel">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title-group">
-                <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="settings" :size="16" /></div>
-                <div><div class="card-title">Appearance &amp; Timezone</div><div class="card-subtitle">Unified across all portals — theme and timezone apply everywhere on your account.</div></div>
-              </div>
-            </div>
-            <div class="card-body">
-              <div class="section-label">Color Theme</div>
-              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px">
-                <div v-for="th in themes" :key="th.key" @click="appearance.theme = th.key" style="cursor:pointer;border-radius:var(--radius);overflow:hidden;transition:border-color var(--transition)" :style="{ border: appearance.theme === th.key ? '1px solid var(--gold-dark)' : '1px solid var(--border)' }">
-                  <div style="height:48px" :style="{ background: th.swatch }"></div>
-                  <div style="padding:8px 10px;background:var(--surface)"><div style="font-size:12px;font-weight:700;color:var(--text)">{{ th.label }}</div><div style="font-size:11px;color:var(--text-3);margin-top:1px">{{ th.desc }}</div></div>
-                </div>
-              </div>
-              <div class="section-label">Display</div>
-              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Dark Mode</div><div class="toggle-desc">Switch to dark surfaces across all portals</div></div><button type="button" class="toggle" :class="{ on: appearance.darkMode }" @click="appearance.darkMode = !appearance.darkMode" :aria-pressed="appearance.darkMode"></button></div>
-              <div class="section-label" style="margin-top:20px">Timezone</div>
-              <div class="form-group"><select class="form-select" v-model="appearance.timezone"><option value="America/New_York">Eastern Time (ET)</option><option value="America/Chicago">Central Time (CT)</option><option value="America/Denver">Mountain Time (MT)</option><option value="America/Los_Angeles">Pacific Time (PT)</option><option value="America/Phoenix">Arizona (no DST)</option><option value="Pacific/Honolulu">Hawaii (HST)</option><option value="America/Anchorage">Alaska (AKST)</option><option value="UTC">UTC</option></select></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Appearance settings saved.')"><AegisIcon name="check" :size="13" /> Save Appearance</button></div>
-            </div>
-          </div>
+          <SettingsAppearance update-route="provider.settings.appearance" :meta="meta" />
         </div>
 
 
@@ -742,32 +613,15 @@
 
         <!-- ACCOUNT ACTIONS (danger) -->
         <div v-show="section === 'changes'" class="settings-panel">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title-group">
-                <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--red);color:var(--text-inverted)"><AegisIcon name="alert-triangle" :size="16" /></div>
-                <div><div class="card-title" style="color:var(--red)">Account Actions</div><div class="card-subtitle">Irreversible operations — proceed with caution</div></div>
-              </div>
-            </div>
-            <div class="card-body">
-              <div class="danger-zone">
-                <div class="danger-zone-title"><AegisIcon name="alert-triangle" :size="16" /> Account Closure &amp; Data Management</div>
-                <div class="danger-action">
-                  <div class="danger-action-info"><div class="danger-action-label">Export All Data</div><div class="danger-action-desc">Download a complete copy of all your Aegis data (HIPAA compliant export)</div></div>
-                  <button type="button" class="btn btn-outline btn-sm" @click="modals.exportData = true"><AegisIcon name="download" :size="14" /> Export</button>
-                </div>
-                <div class="danger-action">
-                  <div class="danger-action-info"><div class="danger-action-label">Pause Account</div><div class="danger-action-desc">Temporarily suspend your account. You won't appear in searches or receive referrals.</div></div>
-                  <button type="button" class="btn btn-outline btn-sm" @click="modals.pauseAccount = true"><AegisIcon name="activity" :size="13" /> Pause Account</button>
-                </div>
-
-                <div class="danger-action">
-                  <div class="danger-action-info"><div class="danger-action-label" style="color:var(--red)">Delete Account Permanently</div><div class="danger-action-desc">Permanently delete your Aegis account. This cannot be undone. All data will be erased after 30 days.</div></div>
-                  <button type="button" class="btn btn-danger btn-sm" @click="modals.deleteAccount = true"><AegisIcon name="trash" :size="14" /> Delete Account</button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <SettingsDangerZone
+            title="Account Closure &amp; Data Management"
+            pause-label="Pause Account"
+            pause-desc="Temporarily suspend your account. You won't appear in searches or receive referrals."
+            deactivate-label="Delete Account Permanently"
+            deactivate-desc="Permanently delete your Aegis account. This cannot be undone. All data will be erased after 30 days."
+            deactivate-button-label="Delete Account"
+            delete-route="provider.settings.account.delete"
+          />
         </div>
 
       </div><!-- end .settings-content -->
@@ -894,7 +748,12 @@ import { router } from '@inertiajs/vue3';
 import { useVuelidate } from '@vuelidate/core';
 import { required, email, minLength, sameAs, helpers } from '@vuelidate/validators';
 import { useToast } from '@/composables/useToast';
-import AppLayout from '@/layouts/AppLayout.vue';
+import AppLayout           from '@/layouts/AppLayout.vue';
+import SettingsAccount      from '@/components/settings/SettingsAccount.vue';
+import SettingsSecurity     from '@/components/settings/SettingsSecurity.vue';
+import SettingsNotifications from '@/components/settings/SettingsNotifications.vue';
+import SettingsAppearance   from '@/components/settings/SettingsAppearance.vue';
+import SettingsDangerZone   from '@/components/settings/SettingsDangerZone.vue';
 
 const props = defineProps({
   user:         { type: Object,  default: () => ({}) },

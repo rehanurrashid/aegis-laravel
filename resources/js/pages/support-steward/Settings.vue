@@ -1,52 +1,256 @@
-<!--
-  pages/support-steward/Settings.vue — SS account preferences.
--->
 <template>
-  <AppLayout>
-    <AegisHeroBanner eyebrow="Account" title="Settings" subtitle="Login, notifications, and availability." />
-
-    <AegisCard title="Account">
-      <form @submit.prevent="saveAccount">
-        <div class="form-group">
-          <label class="form-label">Email</label>
-          <input v-model="accountForm.email" type="email" class="form-input" />
+  <AppLayout :user="user" portal="support_steward" activePage="settings" pageTitle="Settings">
+    <AegisHeroBanner eyebrow="Support Steward" title="Support Steward Settings" quiet />
+    <div class="settings-layout">
+      <div class="settings-sidebar">
+        <div class="settings-sidebar-header">
+          <div class="settings-sidebar-header-icon"><AegisIcon name="settings" :size="16" /></div>
+          <div><h3>Settings</h3></div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Current password</label>
-            <input v-model="accountForm.current_password" type="password" class="form-input" />
+        <template v-for="grp in nav" :key="grp.group">
+          <div class="settings-nav-group">
+            <div class="settings-nav-label">{{ grp.group }}</div>
+            <button v-for="it in grp.items" :key="it.key" type="button"
+              class="settings-nav-item" :class="{ active: section === it.key }"
+              :style="it.danger ? \'color:var(--red)\' : \'\'" @click="section = it.key">
+              <span class="s-nav-icon" v-html="it.icon"></span>{{ it.label }}
+            </button>
           </div>
-          <div class="form-group">
-            <label class="form-label">New password</label>
-            <input v-model="accountForm.password" type="password" class="form-input" />
-          </div>
-        </div>
-        <button type="submit" class="btn btn-primary" :disabled="accountForm.processing">Save account</button>
-      </form>
-    </AegisCard>
-
-    <AegisCard title="Availability">
-      <AegisToggle v-model="prefForm.accepting_new" label="Accepting new designations" />
-      <AegisToggle v-model="prefForm.after_hours_alerts" label="After-hours alerts" />
-      <div class="form-actions-bar">
-        <button type="button" class="btn btn-primary" :disabled="prefForm.processing" @click="savePrefs">Save preferences</button>
+        </template>
       </div>
-    </AegisCard>
+      <div class="settings-content">
+
+        <div v-show="section === \'profile\'" class="settings-panel">
+          <div class="alert alert-info" style="margin-bottom:16px">
+            <div class="alert-icon"><AegisIcon name="users" :size="18" /></div>
+            <div class="alert-content"><strong>Unified identity across all portals.</strong> Your photo, display name, email, and phone are shared across every portal you have access to.</div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="user" :size="16" /></div>
+                <div><div class="card-title">Profile Summary</div><div class="card-subtitle">Your public-facing identity on Aegis</div></div>
+              </div>
+              <a :href="route(\'ss.profile.edit\')" class="btn btn-primary btn-sm"><AegisIcon name="edit" :size="13" /> Edit Full Profile</a>
+            </div>
+            <div class="card-body">
+              <div class="list-group">
+                <div class="list-group-item" style="gap:14px">
+                  <div class="avatar avatar-lg avatar-gold">{{ initials }}</div>
+                  <div style="flex:1">
+                    <div style="font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--text)">{{ displayName }}</div>
+                    <div style="font-size:12px;color:var(--text-4);margin-top:4px;display:flex;gap:14px;flex-wrap:wrap">
+                      <span style="display:flex;align-items:center;gap:4px"><AegisIcon name="mail" :size="12" /> {{ user?.email ?? \'\'  }}</span>
+                    </div>
+                  </div>
+                  <span class="badge badge-blue">SS</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-show="section === \'account\'" class="settings-panel">
+          <SettingsAccount :user="user" update-password-route="ss.settings.password" />
+        </div>
+
+        <div v-show="section === \'security\'" class="settings-panel">
+          <SettingsSecurity enable-mfa-route="ss.settings.mfa.enable" disable-mfa-route="ss.settings.mfa.disable" verify-mfa-route="ss.settings.mfa.verify" :mfa-enabled="mfaEnabled" />
+        </div>
+
+        <div v-show="section === \'notifications\'" class="settings-panel">
+          <SettingsNotifications update-route="ss.settings.notifications" subtitle="Delivery channels unified across portals. Per-category preferences apply to your Support Steward role." :notif-categories="ssNotifCategories" />
+        </div>
+
+        <div v-show="section === \'messaging\'" class="settings-panel">
+          <SettingsMessaging update-route="ss.settings.messaging" messages-route="ss.messages.index" subtitle="Control who can reach you and how you appear to assigned practitioners" :meta="meta" />
+        </div>
+
+        <div v-show="section === \'email-prefs\'" class="settings-panel">
+          <SettingsEmailPrefs update-route="ss.settings.email-prefs" activity-label="Assignment Activity Summary" activity-desc="Digest of task updates, role changes, and document access events" :meta="meta" />
+        </div>
+
+        <div v-show="section === \'ss-steward\'" class="settings-panel">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="users" :size="16" /></div>
+                <div><div class="card-title">Support Steward Settings</div><div class="card-subtitle">Preferences for your support role and responsibilities</div></div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Show Name on Provider Public Profile</div><div class="toggle-desc">Allow your name to appear as "Support Steward" on your providers\' public Aegis pages</div></div><button type="button" class="toggle" :class="{ on: ssRolePrefs.showOnProfile }" @click="ssRolePrefs.showOnProfile = !ssRolePrefs.showOnProfile" :aria-pressed="ssRolePrefs.showOnProfile"></button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success(\'SS settings saved.\')"><AegisIcon name="check" :size="16" /> Save SS Settings</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div v-show="section === \'agreements-s\'" class="settings-panel">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="file-text" :size="16" /></div>
+                <div><div class="card-title">Agreements &amp; Attestation</div><div class="card-subtitle">Your active steward agreements and attestation status</div></div>
+              </div>
+              <a :href="route(\'ss.documents.index\')" class="btn btn-outline btn-sm"><AegisIcon name="file-text" :size="13" /> View Agreements</a>
+            </div>
+            <div class="card-body">
+              <div class="section-label">Agreement Status</div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)">
+                <div><div style="font-size:13px;font-weight:700;color:var(--text)">Support Steward Agreement</div><div style="font-size:12px;color:var(--text-3);margin-top:2px">Dr. Sarah Johnson — Signed Feb 1, 2026 · Annual re-attestation required</div></div>
+                <span class="badge badge-green" style="flex-shrink:0">Signed</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0">
+                <div><div style="font-size:13px;font-weight:700;color:var(--text)">Annual Attestation</div><div style="font-size:12px;color:var(--text-3);margin-top:2px">Due June 30, 2026 — confirm tasks and responsibilities are current</div></div>
+                <span class="badge badge-orange" style="flex-shrink:0">Pending</span>
+              </div>
+              <div class="section-label" style="margin-top:20px">Notifications</div>
+              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Expiry Reminder (30 days before)</div><div class="toggle-desc">Notify me 30 days before any agreement or attestation is due</div></div><button type="button" class="toggle" :class="{ on: agreementPrefs.expiryReminder }" @click="agreementPrefs.expiryReminder = !agreementPrefs.expiryReminder" :aria-pressed="agreementPrefs.expiryReminder"></button></div>
+              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Notify Me When New Agreements Arrive</div><div class="toggle-desc">Alert me when a practitioner sends a new or amended agreement for my signature</div></div><button type="button" class="toggle" :class="{ on: agreementPrefs.incomingNotify }" @click="agreementPrefs.incomingNotify = !agreementPrefs.incomingNotify" :aria-pressed="agreementPrefs.incomingNotify"></button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
+                <button type="button" class="btn btn-outline btn-sm" @click="toast.success(\'Preferences saved.\')"><AegisIcon name="check" :size="13" /> Save Preferences</button>
+                <a :href="route(\'ss.documents.index\')" class="btn btn-primary"><AegisIcon name="edit" :size="13" /> Complete Attestation</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-show="section === \'privacy\'" class="settings-panel">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="shield" :size="16" /></div>
+                <div><div class="card-title">Privacy &amp; Visibility</div><div class="card-subtitle">Support Steward profiles are private by design — not publicly searchable on Aegis</div></div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="alert alert-info" style="margin-bottom:16px"><div class="alert-icon"><AegisIcon name="info" :size="16" /></div><div class="alert-content" style="font-size:12px">Your profile is only visible to the practitioners who have designated you as their Support Steward. It does not appear in any public directory or search.</div></div>
+              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Show Location to My Practitioners</div><div class="toggle-desc">Display your general city/region to practitioners you support</div></div><button type="button" class="toggle" :class="{ on: ssPrivacy.location }" @click="ssPrivacy.location = !ssPrivacy.location" :aria-pressed="ssPrivacy.location"></button></div>
+              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Show Contact Details to My Practitioners</div><div class="toggle-desc">Let your assigned practitioners see your phone and email</div></div><button type="button" class="toggle" :class="{ on: ssPrivacy.contact }" @click="ssPrivacy.contact = !ssPrivacy.contact" :aria-pressed="ssPrivacy.contact"></button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success(\'Privacy settings saved.\')"><AegisIcon name="check" :size="13" /> Save Privacy Settings</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div v-show="section === \'appearance\'" class="settings-panel">
+          <SettingsAppearance update-route="ss.settings.appearance" :meta="meta" />
+        </div>
+
+        <div v-show="section === \'billing\'" class="settings-panel">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="star" :size="16" /></div>
+                <div><div class="card-title">Subscription &amp; Plan</div><div class="card-subtitle">Your access is covered by your linked provider</div></div>
+              </div>
+              <span class="badge badge-green" style="font-size:12px;display:inline-flex;align-items:center;gap:5px"><AegisIcon name="check" :size="12" /> Active — No Cost</span>
+            </div>
+            <div class="card-body">
+              <div class="alert alert-info" style="margin-bottom:18px"><div class="alert-icon"><AegisIcon name="shield" :size="18" /></div><div class="alert-content"><strong>You have full Support Steward access — at no cost.</strong><br>Your portal is fully covered by your linked provider\'s Aegis subscription. You do not manage or pay for a separate plan.</div></div>
+              <div v-if="user?.linked_provider_name" style="background:var(--icon-bg-gold);border:1px solid var(--badge-border-gold);border-radius:var(--radius);padding:16px 18px;display:flex;align-items:center;gap:14px">
+                <div class="stat-chip-icon" style="width:40px;height:40px;flex-shrink:0;background:var(--gold-dark);color:#fff"><AegisIcon name="user" :size="16" /></div>
+                <div style="flex:1"><div style="font-size:11px;text-transform:uppercase;color:var(--text-3);margin-bottom:3px">Your Linked Provider</div><div style="font-family:var(--font-serif);font-size:17px;font-weight:700">{{ user.linked_provider_name }}</div></div>
+                <a :href="route(\'ss.providers.index\')" class="btn btn-outline btn-sm"><AegisIcon name="external-link" :size="13" /> View Provider</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-show="section === \'danger\'" class="settings-panel">
+          <SettingsDangerZone title="Account Closure &amp; Data Management" pause-label="Pause Stewardship" pause-desc="Temporarily suspend your support duties. Your practitioners will be notified." deactivate-label="Deactivate Account" deactivate-desc="Permanently deactivate your Support Steward account." deactivate-button-label="Deactivate" />
+        </div>
+
+      </div>
+    </div>
   </AppLayout>
 </template>
 
 <script setup>
-import { useForm } from '@inertiajs/vue3'
-import AppLayout from '@/layouts/AppLayout.vue'
-import AegisCard from '@/components/ui/AegisCard.vue'
-import AegisToggle from '@/components/ui/AegisToggle.vue'
-import { useToast } from '@/composables/useToast'
+import { ref, reactive, computed } from \'vue\';
+import { useToast } from \'@/composables/useToast\';
+import AppLayout              from \'@/layouts/AppLayout.vue\';
+import SettingsAccount        from \'@/components/settings/SettingsAccount.vue\';
+import SettingsSecurity       from \'@/components/settings/SettingsSecurity.vue\';
+import SettingsNotifications  from \'@/components/settings/SettingsNotifications.vue\';
+import SettingsAppearance     from \'@/components/settings/SettingsAppearance.vue\';
+import SettingsMessaging      from \'@/components/settings/SettingsMessaging.vue\';
+import SettingsEmailPrefs     from \'@/components/settings/SettingsEmailPrefs.vue\';
+import SettingsDangerZone     from \'@/components/settings/SettingsDangerZone.vue\';
 
-const props = defineProps({ account: { type: Object, default: () => ({ email: '' }) }, prefs: { type: Object, default: () => ({}) } })
-const toast = useToast()
-const accountForm = useForm({ email: props.account.email, current_password: '', password: '' })
-const prefForm    = useForm({ ...props.prefs })
+const props = defineProps({
+  user:       { type: Object,  default: () => ({}) },
+  meta:       { type: Object,  default: () => ({}) },
+  mfaEnabled: { type: Boolean, default: false },
+});
 
-function saveAccount() { accountForm.put(route('ss.settings.account'), { preserveScroll: true, onSuccess: () => toast.success('Account updated.') }) }
-function savePrefs()   { prefForm.put(route('ss.settings.prefs'),       { preserveScroll: true, onSuccess: () => toast.success('Preferences updated.') }) }
+const toast = useToast();
+const section = ref(\'profile\');
+const displayName = computed(() => props.user?.display_name || \'Linda Torres\');
+const initials    = computed(() => displayName.value.split(\' \').map(p => p[0]).join(\'\').slice(0, 2).toUpperCase());
+
+const i = \'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"\';
+const nav = [
+  { group: \'Account\', items: [
+    { key: \'profile\',  label: \'Profile & Identity\', icon: `<svg viewBox="0 0 24 24" ${i}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>` },
+    { key: \'account\',  label: \'Account & Login\',    icon: `<svg viewBox="0 0 24 24" ${i}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>` },
+    { key: \'security\', label: \'Security & 2FA\',     icon: `<svg viewBox="0 0 24 24" ${i}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>` },
+  ]},
+  { group: \'Communications\', items: [
+    { key: \'notifications\', label: \'Notifications\',     icon: `<svg viewBox="0 0 24 24" ${i}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>` },
+    { key: \'messaging\',     label: \'Messaging\',         icon: `<svg viewBox="0 0 24 24" ${i}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>` },
+    { key: \'email-prefs\',   label: \'Email Preferences\', icon: `<svg viewBox="0 0 24 24" ${i}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>` },
+  ]},
+  { group: \'Steward Role\', items: [
+    { key: \'ss-steward\',   label: \'SS Role Settings\',      icon: `<svg viewBox="0 0 24 24" ${i}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>` },
+    { key: \'agreements-s\', label: \'Agreements & Attestation\', icon: `<svg viewBox="0 0 24 24" ${i}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>` },
+    { key: \'privacy\',      label: \'Privacy & Visibility\',  icon: `<svg viewBox="0 0 24 24" ${i}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>` },
+  ]},
+  { group: \'Platform\', items: [
+    { key: \'appearance\', label: \'Appearance & Timezone\', icon: `<svg viewBox="0 0 24 24" ${i}><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg>` },
+    { key: \'billing\',    label: \'Subscription & Plan\',  icon: `<svg viewBox="0 0 24 24" ${i}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>` },
+  ]},
+  { group: \'Account Changes\', items: [
+    { key: \'danger\', label: \'Account Actions\', danger: true, icon: `<svg viewBox="0 0 24 24" ${i}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>` },
+  ]},
+];
+
+const ssNotifCategories = [
+  { key: \'incidents\',   label: \'Incident Reports\',     desc: \'When a critical incident is reported for a practitioner I support\',   push: true,  email: true,  sms: true,  inapp: true  },
+  { key: \'attestation\', label: \'Attestation Requests\', desc: \'When a practitioner needs my attestation on their plan\',              push: true,  email: true,  sms: true,  inapp: true  },
+  { key: \'changes\',     label: \'Change Requests\',      desc: \'When a practitioner requests a plan update I need to act on\',          push: true,  email: true,  sms: false, inapp: true  },
+  { key: \'coverage\',    label: \'Coverage Activation\',  desc: \'When continuity coverage for a provider I support is activated\',       push: true,  email: true,  sms: true,  inapp: true  },
+  { key: \'roles\',       label: \'Role Changes\',         desc: \'When my steward role or permissions are updated\',                      push: true,  email: true,  sms: false, inapp: true  },
+  { key: \'docs\',        label: \'Document Access\',      desc: \'When administrative documents are accessed on behalf of a provider\',   push: false, email: true,  sms: false, inapp: true  },
+  { key: \'messages\',    label: \'New Messages\',         desc: \'From assigned practitioners or Aegis support\',                         push: true,  email: false, sms: false, inapp: true  },
+  { key: \'network\',     label: \'Network Updates\',      desc: \'New connection requests and approvals within the Aegis network\',        push: false, email: true,  sms: false, inapp: true  },
+];
+
+const ssRolePrefs    = reactive({ showOnProfile: true });
+const ssPrivacy      = reactive({ location: true, contact: true });
+const agreementPrefs = reactive({ expiryReminder: true, incomingNotify: true });
 </script>
+
+<style scoped>
+.settings-layout { display: grid; grid-template-columns: 240px 1fr; gap: 22px; align-items: start; padding: 0 var(--page-x, 24px) 40px; }
+.settings-sidebar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); position: sticky; top: 80px; }
+.settings-sidebar-header { padding: 18px 20px; border-bottom: 1px solid var(--border); background: var(--surface-2); display: flex; align-items: center; gap: 10px; }
+.settings-sidebar-header-icon { width: 34px; height: 34px; border-radius: var(--radius); background: var(--icon-bg-gold); color: var(--gold-dark); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.settings-sidebar-header h3 { font-family: var(--font-serif); font-size: 15px; font-weight: 700; color: var(--text); }
+.settings-nav-group { padding: 6px 0; border-bottom: 1px solid var(--border); }
+.settings-nav-group:last-child { border-bottom: none; }
+.settings-nav-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-4); padding: 4px 14px; }
+.settings-nav-item { width: 100%; display: flex; align-items: center; gap: 8px; padding: 7px 14px; font-size: 13px; color: var(--text-2); cursor: pointer; border: none; background: none; border-left: 3px solid transparent; transition: all var(--transition); text-align: left; }
+.settings-nav-item:hover { background: var(--surface-2); color: var(--text); }
+.settings-nav-item.active { background: var(--icon-bg-gold); color: var(--gold-dark); border-left-color: var(--gold-dark); font-weight: 600; }
+.s-nav-icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.s-nav-icon :deep(svg) { width: 15px; height: 15px; }
+.settings-content { min-width: 0; }
+.settings-panel { display: block; }
+.toggle-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--border); }
+.toggle-row:last-of-type { border-bottom: none; }
+.toggle-info { flex: 1; min-width: 0; }
+.toggle-label { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.toggle-desc { font-size: 12px; color: var(--text-3); line-height: 1.5; }
+.toggle-row .toggle { flex-shrink: 0; margin-top: 2px; }
+@media (max-width: 1000px) { .settings-layout { grid-template-columns: 1fr; } .settings-sidebar { position: static; } }
+</style>
