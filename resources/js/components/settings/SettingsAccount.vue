@@ -25,11 +25,15 @@
         <div class="form-row form-row-2">
           <div class="form-group">
             <label class="form-label">Primary Email</label>
-            <div class="input-with-badge">
+            <div class="email-field-wrap">
               <input class="form-input" type="email" :value="user?.email ?? ''" disabled />
-              <span class="input-verified-badge"><AegisIcon name="check" :size="11" /> Verified</span>
+              <div class="email-field-footer">
+                <span class="email-verified-badge">
+                  <AegisIcon name="check" :size="11" /> Verified
+                </span>
+                <span class="email-field-hint">To change, contact support.</span>
+              </div>
             </div>
-            <div class="form-hint">Used for login and security alerts. To change, contact support.</div>
           </div>
 
           <!-- Phone (editable) -->
@@ -375,25 +379,31 @@ function revokeAll() {
   background: var(--border);
 }
 
-/* Email verified badge */
-.input-with-badge { position: relative; }
-.input-verified-badge {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 10px;
+/* Email field */
+.email-field-wrap { display: flex; flex-direction: column; gap: 0; }
+.email-field-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+}
+.email-verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--green-dark);
   background: var(--green-light);
   padding: 2px 8px;
   border-radius: var(--radius-full);
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  pointer-events: none;
+  flex-shrink: 0;
 }
-.input-with-badge .form-input { padding-right: 80px; }
+.email-field-hint {
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.4;
+}
 
 /* Password show/hide */
 .input-password-wrap { position: relative; }
