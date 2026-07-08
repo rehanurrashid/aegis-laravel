@@ -126,6 +126,10 @@
           256-bit SSL encryption · PCI DSS compliant · Cancel anytime
         </div>
 
+        <div class="ob-switch-account-row">
+          <button type="button" class="ob-signin-link" @click="switchAccount">Sign in with a different account</button>
+        </div>
+
       </div>
     </div>
 
@@ -461,7 +465,7 @@ function switchAccount() { router.post(route('logout')) }
   opacity: 0.5;
   cursor: not-allowed;
 }
-.ob-switch-account-row { text-align:center; margin-top:12px; }
-.ob-switch-account-link { background:none; border:none; cursor:pointer; font-size:12px; color:rgba(255,255,255,0.35); font-family:var(--font-sans); padding:0; }
-.ob-switch-account-link:hover { color:rgba(255,255,255,0.65); text-decoration:underline; }
+.ob-switch-account-row { text-align:center; margin-top:16px; margin-bottom:4px; }
+.ob-signin-link { background:none; border:none; padding:0; cursor:pointer; font-family:var(--font-sans); font-size:12px; font-weight:600; color:var(--gold-dark); text-decoration:none; }
+.ob-signin-link:hover { text-decoration:underline; color:var(--gold-dark); }
 </style>
