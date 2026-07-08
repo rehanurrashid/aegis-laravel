@@ -399,9 +399,8 @@ function cancelSetup() {
 async function generateQr() {
   enabling.value = true;
   try {
-    // Use axios — Inertia pre-configures it with X-CSRF-TOKEN and credentials automatically
-    const { default: axios } = await import('axios');
-    const res = await axios.post(route(props.enableMfaRoute), {}, {
+    // Use window.axios — configured in bootstrap.js with X-CSRF-TOKEN header
+    const res = await window.axios.post(route(props.enableMfaRoute), {}, {
       headers: { 'Accept': 'application/json' },
     });
     const data = res.data;
@@ -426,8 +425,8 @@ async function sendEmailOtp() {
   if (!props.enableEmailMfaRoute) { toast.error('Email 2FA not configured.'); return; }
   emailSending.value = true;
   try {
-    const { default: axios } = await import('axios');
-    await axios.post(route(props.enableEmailMfaRoute));
+    // Use window.axios — configured in bootstrap.js with X-CSRF-TOKEN header
+    await window.axios.post(route(props.enableEmailMfaRoute));
     emailCodeSent.value = true;
     toast.success('Verification code sent to ' + props.userEmail);
   } catch (e) {
@@ -589,10 +588,10 @@ async function fetchBackupCodes() {
   backupCodes.value = []; // clear while loading
   modals.backup = true;   // open modal immediately (shows loading state)
   try {
-    const { default: axios } = await import('axios');
+    // Use window.axios — configured in bootstrap.js with X-CSRF-TOKEN header
     const backupRoute = props.backupCodesRoute
       || props.enableMfaRoute.replace(/\/enable$/, '/backup-codes');
-    const res = await axios.get(route(backupRoute), {
+    const res = await window.axios.get(route(backupRoute), {
       headers: { 'Accept': 'application/json' },
     });
     backupCodes.value = res.data.recovery_codes ?? [];
