@@ -71,9 +71,10 @@
           <span>Change Password</span>
         </div>
 
+        <!-- Current password -->
         <div class="form-group">
           <label class="form-label">Current Password <span class="required">*</span></label>
-          <div class="input-password-wrap">
+          <div class="ob-password-wrap">
             <input
               class="form-input"
               :class="{ 'is-error': fieldError('current_password') }"
@@ -83,64 +84,71 @@
               placeholder="Your current password"
               autocomplete="current-password"
             />
-            <button type="button" class="pw-toggle" @click="showPw.current = !showPw.current" data-tooltip="Show / hide">
+            <button type="button" class="ob-password-toggle" @click="showPw.current = !showPw.current">
               <AegisIcon :name="showPw.current ? 'eye-off' : 'eye'" :size="15" />
             </button>
           </div>
           <div v-if="fieldError('current_password')" class="form-error">{{ fieldError('current_password') }}</div>
         </div>
 
-        <div class="form-row form-row-2">
-          <div class="form-group">
-            <label class="form-label">New Password <span class="required">*</span></label>
-            <div class="input-password-wrap">
-              <input
-                class="form-input"
-                :class="{ 'is-error': fieldError('password') }"
-                :type="showPw.new ? 'text' : 'password'"
-                v-model="pwForm.password"
-                @blur="v$.password.$touch()"
-                @input="v$.password.$touch()"
-                placeholder="Min 8 characters…"
-                autocomplete="new-password"
-              />
-              <button type="button" class="pw-toggle" @click="showPw.new = !showPw.new" data-tooltip="Show / hide">
-                <AegisIcon :name="showPw.new ? 'eye-off' : 'eye'" :size="15" />
-              </button>
-            </div>
-            <div v-if="fieldError('password')" class="form-error">{{ fieldError('password') }}</div>
-            <!-- Strength bar -->
-            <div v-if="pwForm.password" class="pw-strength-bar" style="margin-top:6px">
-              <div class="pw-strength-track">
-                <div class="pw-strength-fill" :class="pwStrengthClass" :style="{ width: pwStrengthWidth }"></div>
-              </div>
-              <span class="pw-strength-label" :class="pwStrengthClass">{{ pwStrengthLabel }}</span>
-            </div>
+        <!-- New password -->
+        <div class="form-group">
+          <label class="form-label">New Password <span class="required">*</span></label>
+          <div class="ob-password-wrap">
+            <input
+              class="form-input"
+              :class="{ 'is-error': fieldError('password') }"
+              :type="showPw.new ? 'text' : 'password'"
+              v-model="pwForm.password"
+              @input="checkPasswordStrength"
+              @blur="v$.password.$touch()"
+              placeholder="Create a strong password"
+              autocomplete="new-password"
+            />
+            <button type="button" class="ob-password-toggle" @click="showPw.new = !showPw.new">
+              <AegisIcon :name="showPw.new ? 'eye-off' : 'eye'" :size="15" />
+            </button>
           </div>
-          <div class="form-group">
-            <label class="form-label">Confirm New Password <span class="required">*</span></label>
-            <div class="input-password-wrap">
-              <input
-                class="form-input"
-                :class="{ 'is-error': fieldError('password_confirmation') }"
-                :type="showPw.confirm ? 'text' : 'password'"
-                v-model="pwForm.password_confirmation"
-                @blur="v$.password_confirmation.$touch()"
-                placeholder="Repeat new password…"
-                autocomplete="new-password"
-              />
-              <button type="button" class="pw-toggle" @click="showPw.confirm = !showPw.confirm" data-tooltip="Show / hide">
-                <AegisIcon :name="showPw.confirm ? 'eye-off' : 'eye'" :size="15" />
-              </button>
+          <div v-if="fieldError('password')" class="form-error">{{ fieldError('password') }}</div>
+          <!-- Requirement pills — identical to Register.vue -->
+          <div class="ob-password-reqs">
+            <div class="ob-req-item" :class="{ valid: reqs.length, invalid: pwForm.password && !reqs.length }">
+              <AegisIcon :name="reqs.length ? 'check-circle' : 'x-circle'" :size="11" />8+ characters
             </div>
-            <div v-if="fieldError('password_confirmation')" class="form-error">{{ fieldError('password_confirmation') }}</div>
-            <div v-else-if="pwForm.password && pwForm.password_confirmation && pwForm.password === pwForm.password_confirmation" class="form-hint" style="color:var(--green);display:inline-flex;align-items:center;gap:4px">
-              <AegisIcon name="check" :size="12" /> Passwords match
+            <div class="ob-req-item" :class="{ valid: reqs.uppercase, invalid: pwForm.password && !reqs.uppercase }">
+              <AegisIcon :name="reqs.uppercase ? 'check-circle' : 'x-circle'" :size="11" />Uppercase
+            </div>
+            <div class="ob-req-item" :class="{ valid: reqs.number, invalid: pwForm.password && !reqs.number }">
+              <AegisIcon :name="reqs.number ? 'check-circle' : 'x-circle'" :size="11" />Number
+            </div>
+            <div class="ob-req-item" :class="{ valid: reqs.special, invalid: pwForm.password && !reqs.special }">
+              <AegisIcon :name="reqs.special ? 'check-circle' : 'x-circle'" :size="11" />Special char
             </div>
           </div>
         </div>
 
-        <div class="form-hint" style="margin-bottom:4px">Min 8 characters. Use a mix of uppercase, numbers, and symbols.</div>
+        <!-- Confirm password -->
+        <div class="form-group">
+          <label class="form-label">Confirm New Password <span class="required">*</span></label>
+          <div class="ob-password-wrap">
+            <input
+              class="form-input"
+              :class="{ 'is-error': fieldError('password_confirmation') }"
+              :type="showPw.confirm ? 'text' : 'password'"
+              v-model="pwForm.password_confirmation"
+              @blur="v$.password_confirmation.$touch()"
+              placeholder="Re-enter your password"
+              autocomplete="new-password"
+            />
+            <button type="button" class="ob-password-toggle" @click="showPw.confirm = !showPw.confirm">
+              <AegisIcon :name="showPw.confirm ? 'eye-off' : 'eye'" :size="15" />
+            </button>
+          </div>
+          <div v-if="fieldError('password_confirmation')" class="form-error">{{ fieldError('password_confirmation') }}</div>
+          <div v-else-if="pwForm.password && pwForm.password_confirmation && pwForm.password === pwForm.password_confirmation" class="form-hint" style="color:var(--green);display:inline-flex;align-items:center;gap:4px">
+            <AegisIcon name="check" :size="12" /> Passwords match
+          </div>
+        </div>
 
         <div class="btn-group" style="justify-content:flex-end;margin-top:12px">
           <button type="button" class="btn btn-outline btn-sm" @click="resetPwForm">Cancel</button>
@@ -225,7 +233,7 @@
 </template>
 
 <script setup>
-import { reactive, computed, ref, watch } from 'vue';
+import { reactive, computed } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import { useVuelidate } from '@vuelidate/core';
 import { required, minLength, sameAs, helpers } from '@vuelidate/validators';
@@ -267,21 +275,16 @@ const pwForm = useForm({
   password_confirmation: '',
 });
 
-// Password strength
-const pwStrength = computed(() => {
-  const p = pwForm.password;
-  if (!p) return 0;
-  let score = 0;
-  if (p.length >= 8)  score++;
-  if (p.length >= 12) score++;
-  if (/[A-Z]/.test(p)) score++;
-  if (/[0-9]/.test(p)) score++;
-  if (/[^A-Za-z0-9]/.test(p)) score++;
-  return score;
-});
-const pwStrengthClass = computed(() => ['', 'pw-weak', 'pw-fair', 'pw-fair', 'pw-good', 'pw-strong'][pwStrength.value] || 'pw-weak');
-const pwStrengthWidth = computed(() => `${(pwStrength.value / 5) * 100}%`);
-const pwStrengthLabel = computed(() => ['', 'Weak', 'Fair', 'Fair', 'Good', 'Strong'][pwStrength.value] || '');
+// ── Requirement pills — same logic as Register.vue ────────────────────────
+const reqs = reactive({ length: false, uppercase: false, number: false, special: false });
+
+function checkPasswordStrength() {
+  const pw = pwForm.password;
+  reqs.length    = pw.length >= 8;
+  reqs.uppercase = /[A-Z]/.test(pw);
+  reqs.number    = /[0-9]/.test(pw);
+  reqs.special   = /[^A-Za-z0-9]/.test(pw);
+}
 
 // Vuelidate — mirrors PasswordResetController::change() rules
 const rules = computed(() => ({
@@ -333,6 +336,10 @@ function resetPwForm() {
   showPw.current = false;
   showPw.new = false;
   showPw.confirm = false;
+  reqs.length = false;
+  reqs.uppercase = false;
+  reqs.number = false;
+  reqs.special = false;
 }
 
 // ── Sessions ─────────────────────────────────────────────────────────────
@@ -406,43 +413,31 @@ function revokeAll() {
   line-height: 1.4;
 }
 
-/* Password show/hide */
-.input-password-wrap { position: relative; }
-.input-password-wrap .form-input { padding-right: 42px; }
-.pw-toggle {
+/* Password show/hide — matches Register.vue ob- classes */
+.ob-password-wrap { position: relative; }
+.ob-password-wrap .form-input { padding-right: 42px; }
+.ob-password-toggle {
   position: absolute;
-  right: 10px;
+  right: 12px;
   top: 50%;
   transform: translateY(-50%);
-  border: none;
   background: none;
+  border: none;
+  padding: 4px;
   cursor: pointer;
-  color: var(--text-3);
-  padding: 2px;
+  color: var(--text-2);
   display: flex;
   align-items: center;
+  transition: color var(--transition);
 }
-.pw-toggle:hover { color: var(--text); }
+.ob-password-toggle:hover { color: var(--gold-dark); }
 
-/* Password strength */
-.pw-strength-bar { display: flex; align-items: center; gap: 8px; }
-.pw-strength-track {
-  flex: 1;
-  height: 4px;
-  background: var(--border);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.pw-strength-fill { height: 100%; border-radius: 2px; transition: width .3s, background .3s; }
-.pw-strength-fill.pw-weak   { background: var(--red); }
-.pw-strength-fill.pw-fair   { background: var(--orange); }
-.pw-strength-fill.pw-good   { background: var(--gold); }
-.pw-strength-fill.pw-strong { background: var(--green); }
-.pw-strength-label { font-size: 11px; font-weight: 700; min-width: 40px; }
-.pw-strength-label.pw-weak   { color: var(--red); }
-.pw-strength-label.pw-fair   { color: var(--orange); }
-.pw-strength-label.pw-good   { color: var(--gold-dark); }
-.pw-strength-label.pw-strong { color: var(--green-dark); }
+/* Requirement pills — matches Register.vue */
+.ob-password-reqs { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; }
+.ob-req-item { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-4); transition: color var(--transition); }
+.ob-req-item.valid   { color: var(--green); }
+.ob-req-item.invalid { color: var(--red); }
+
 
 /* Sessions */
 .sa-empty-sessions {
