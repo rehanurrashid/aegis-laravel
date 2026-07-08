@@ -58,13 +58,15 @@
             :user="user"
             :sessions="sessions"
             update-password-route="bp.settings.password"
+            update-account-route="bp.settings.account"
             revoke-session-route="bp.settings.sessions.revoke"
             revoke-all-route="bp.settings.sessions.revoke-all"
           />
         </div>
 
         <div v-show="section === \'security\'" class="settings-panel">
-          <SettingsSecurity enable-mfa-route="bp.settings.mfa.enable" disable-mfa-route="bp.settings.mfa.disable" verify-mfa-route="bp.settings.mfa.verify" :mfa-enabled="mfaEnabled" />
+          <SettingsSecurity enable-mfa-route="bp.settings.mfa.enable" disable-mfa-route="bp.settings.mfa.disable" verify-mfa-route="bp.settings.mfa.verify" :mfa-enabled="mfaEnabled"
+            :user-email="user?.email ?? ''" />
         </div>
 
         <div v-show="section === \'notifications\'" class="settings-panel">

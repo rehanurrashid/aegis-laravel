@@ -64,7 +64,22 @@ class SettingsController extends Controller
         ]);
     }
 
-    public function updateNotifications(Request $request): RedirectResponse
+    public function updateAccount(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'phone' => ['nullable', 'string', 'max:40'],
+            'handle'=> ['nullable', 'string', 'max:60'],
+        ]);
+
+        $request->user()->forceFill([
+            'phone'  => $data['phone']  ?? null,
+            'handle' => $data['handle'] ?? null,
+        ])->save();
+
+        return back()->with('success', 'Account details updated.');
+    }
+
+        public function updateNotifications(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'notify_email'    => 'nullable|boolean',

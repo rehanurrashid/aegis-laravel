@@ -118,6 +118,7 @@
             :user="user"
             :sessions="sessions"
             update-password-route="provider.settings.password"
+            update-account-route="provider.settings.account"
             revoke-session-route="provider.settings.sessions.revoke"
             revoke-all-route="provider.settings.sessions.revoke-all"
           />
@@ -130,6 +131,7 @@
             disable-mfa-route="provider.settings.mfa.disable"
             verify-mfa-route="provider.settings.mfa.verify"
             :mfa-enabled="mfaEnabled"
+            :user-email="user?.email ?? ''"
           />
         </div>
 

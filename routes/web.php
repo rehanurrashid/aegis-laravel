@@ -346,6 +346,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::get('/settings', [ProviderSettingsController::class, 'index'])->name('settings.index');
         Route::put('/settings/notifications', [ProviderSettingsController::class, 'updateNotifications'])->name('settings.notifications');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
+        Route::put('/settings/account', [ProviderSettingsController::class, 'updateAccount'])->name('settings.account');
         Route::put('/settings/appearance', [ProviderSettingsController::class, 'updateAppearance'])->name('settings.appearance');
         Route::delete('/settings/account', [ProviderSettingsController::class, 'deleteAccount'])->name('settings.account.delete');
         Route::delete('/settings/sessions', [ProviderSettingsController::class, 'revokeAllSessions'])->name('settings.sessions.revoke-all');
@@ -428,6 +429,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:contin
         Route::post('/settings/subscription/resume', [CsSettingsController::class, 'resumePlan'])->name('settings.subscription.resume');
         Route::get('/settings/billing-portal',       [CsSettingsController::class, 'billingPortal'])->name('settings.billing.portal');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
+        Route::put('/settings/account', [CsSettingsController::class, 'updateAccount'])->name('settings.account');
         Route::put('/settings/messaging', [CsSettingsController::class, 'updateMessaging'])->name('settings.messaging');
         Route::put('/settings/email-prefs', [CsSettingsController::class, 'updateEmailPrefs'])->name('settings.email-prefs');
         Route::put('/settings/appearance', [CsSettingsController::class, 'updateAppearance'])->name('settings.appearance');
@@ -481,6 +483,7 @@ Route::middleware(['auth', 'verified.email', 'role:support_steward', 'check.lock
         Route::get('/settings', [SsSettingsController::class, 'index'])->name('settings.index');
         Route::put('/settings/notifications', [SsSettingsController::class, 'updateNotifications'])->name('settings.notifications');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
+        Route::put('/settings/account', [SsSettingsController::class, 'updateAccount'])->name('settings.account');
         Route::put('/settings/messaging', [SsSettingsController::class, 'updateMessaging'])->name('settings.messaging');
         Route::put('/settings/email-prefs', [SsSettingsController::class, 'updateEmailPrefs'])->name('settings.email-prefs');
         Route::put('/settings/appearance', [SsSettingsController::class, 'updateAppearance'])->name('settings.appearance');
@@ -567,6 +570,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:busine
         Route::post('/settings/subscription/resume', [BpSettingsController::class, 'resumePlan'])->name('settings.subscription.resume');
         Route::get('/settings/billing-portal',       [BpSettingsController::class, 'billingPortal'])->name('settings.billing.portal');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
+        Route::put('/settings/account', [BpSettingsController::class, 'updateAccount'])->name('settings.account');
         Route::put('/settings/messaging', [BpSettingsController::class, 'updateMessaging'])->name('settings.messaging');
         Route::put('/settings/email-prefs', [BpSettingsController::class, 'updateEmailPrefs'])->name('settings.email-prefs');
         Route::put('/settings/appearance', [BpSettingsController::class, 'updateAppearance'])->name('settings.appearance');

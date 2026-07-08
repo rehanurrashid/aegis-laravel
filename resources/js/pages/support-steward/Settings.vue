@@ -58,13 +58,15 @@
             :user="user"
             :sessions="sessions"
             update-password-route="ss.settings.password"
+            update-account-route="ss.settings.account"
             revoke-session-route="ss.settings.sessions.revoke"
             revoke-all-route="ss.settings.sessions.revoke-all"
           />
         </div>
 
         <div v-show="section === \'security\'" class="settings-panel">
-          <SettingsSecurity enable-mfa-route="ss.settings.mfa.enable" disable-mfa-route="ss.settings.mfa.disable" verify-mfa-route="ss.settings.mfa.verify" :mfa-enabled="mfaEnabled" />
+          <SettingsSecurity enable-mfa-route="ss.settings.mfa.enable" disable-mfa-route="ss.settings.mfa.disable" verify-mfa-route="ss.settings.mfa.verify" :mfa-enabled="mfaEnabled"
+            :user-email="user?.email ?? ''" />
         </div>
 
         <div v-show="section === \'notifications\'" class="settings-panel">
