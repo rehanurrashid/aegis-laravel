@@ -56,6 +56,11 @@ class UserMetaSeeder extends Seeder
             $rows[] = $this->row('p_sarah', $k, $v, $t);
         }
 
+        // ── p_rehan — same meta as p_sarah (real email test account) ──────────
+        foreach ($sarahMeta as [$k, $v, $t]) {
+            $rows[] = $this->row('p_rehan', $k, $v, $t);
+        }
+
         // ── p_david — partial profile (missing credentials) ────────────────
         $davidMeta = [
             ['specialties',       json_encode(['Depression', 'Anxiety', 'Adjustment Disorders']), 'json'],

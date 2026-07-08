@@ -72,5 +72,39 @@ class SubscriptionSeeder extends Seeder
             'created_at'      => $now,
             'updated_at'      => $now,
         ]);
+        // ── p_rehan — same tier as p_sarah, real email for testing ──────────────
+        DB::table('subscription_items')
+            ->whereIn('subscription_id', function ($q) {
+                $q->select('id')
+                  ->from('subscriptions')
+                  ->where('user_id', 'p_rehan');
+            })->delete();
+
+        DB::table('subscriptions')
+            ->where('user_id', 'p_rehan')
+            ->delete();
+
+        $rehanSubId = DB::table('subscriptions')->insertGetId([
+            'user_id'       => 'p_rehan',
+            'type'          => 'default',
+            'stripe_id'     => 'sub_demo_rehan_practice',          // fake — not called against Stripe
+            'stripe_status' => 'active',
+            'stripe_price'  => 'price_1TqSraHnj73y5cBfjxtPipio',  // real price ID — same plan as Sarah
+            'quantity'      => 1,
+            'trial_ends_at' => null,
+            'ends_at'       => null,
+            'created_at'    => $now,
+            'updated_at'    => $now,
+        ]);
+
+        DB::table('subscription_items')->insert([
+            'subscription_id' => $rehanSubId,
+            'stripe_id'       => 'si_demo_rehan_practice_item',    // fake — not called against Stripe
+            'stripe_product'  => 'prod_Uq99iMpIwmgPTa',
+            'stripe_price'    => 'price_1TqSraHnj73y5cBfjxtPipio',
+            'quantity'        => 1,
+            'created_at'      => $now,
+            'updated_at'      => $now,
+        ]);
     }
 }

@@ -17,7 +17,7 @@ class ActivityReadSeeder extends Seeder
     public function run(): void
     {
         $demoUserIds = [
-            'p_sarah', 'p_david', 'p_maria',
+            'p_sarah', 'p_rehan', 'p_david', 'p_maria',
             'cs_marcus', 'cs_priya', 'cs_alternate',
             'ss_linda', 'ss_james',
             'bp_acme', 'bp_jamal',
