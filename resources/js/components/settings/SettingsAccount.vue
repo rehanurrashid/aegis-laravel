@@ -174,7 +174,7 @@
           </div>
           <div>
             <div class="card-title">Active Sessions</div>
-            <div class="card-subtitle">{{ sessions.length }} device{{ sessions.length === 1 ? '' : 's' }} currently signed in</div>
+            <div class="card-subtitle">{{ sessions.length }} device{{ sessions.length === 1 ? '' : 's' }} signed in{{ sessions.length > 1 ? ', ' + (sessions.length - 1) + ' other' + (sessions.length > 2 ? 's' : '') : '' }}</div>
           </div>
         </div>
         <button v-if="sessions.length > 1" type="button" class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red)" @click="modals.revokeAll = true">
@@ -193,27 +193,27 @@
 
         <!-- Session rows -->
         <div
-          v-for="(sess, idx) in sessions"
+          v-for="sess in sessions"
           :key="sess.id"
           class="sess-row"
-          :class="{ 'sess-row-current': idx === 0 }"
+          :class="{ 'sess-row-current': sess.is_current }"
         >
           <!-- Device icon -->
-          <div class="sess-device-icon" :class="idx === 0 ? 'sess-device-icon-current' : ''">
-            <AegisIcon :name="deviceIcon(sess.device)" :size="20" />
+          <div class="sess-device-icon" :class="sess.is_current ? 'sess-device-icon-current' : ''">
+            <AegisIcon :name="isMobileDevice(sess.device) ? 'phone' : 'monitor'" :size="20" />
           </div>
 
           <!-- Device info -->
           <div class="sess-info">
             <div class="sess-name-row">
               <span class="sess-device-name">{{ deviceName(sess.device) }}</span>
-              <span v-if="idx === 0" class="sess-current-badge">
+              <span v-if="sess.is_current" class="sess-current-badge">
                 <AegisIcon name="check" :size="9" /> This device
               </span>
             </div>
             <div class="sess-meta-row">
               <span class="sess-browser">{{ browserName(sess.device) }}</span>
-              <span class="sess-dot">·</span>
+              <span v-if="browserName(sess.device)" class="sess-dot">·</span>
               <span class="sess-ip">{{ sess.ip || 'IP unknown' }}</span>
               <span class="sess-dot">·</span>
               <span class="sess-time">{{ sess.last_seen_at || 'Recently' }}</span>
@@ -223,7 +223,7 @@
           <!-- Action -->
           <div class="sess-action">
             <button
-              v-if="idx !== 0"
+              v-if="!sess.is_current"
               type="button"
               class="btn btn-outline btn-xs sess-revoke-btn"
               @click="revokeOne(sess.id)"
@@ -366,18 +366,13 @@ function resetPwForm() {
 }
 
 // ── Session helpers ───────────────────────────────────────────────────────
-function deviceIcon(device) {
-  if (!device) return 'monitor';
-  const d = device.toLowerCase();
-  if (/iphone|android.*mobile|pixel.*phone/i.test(d)) return 'smartphone';
-  if (/ipad|android(?!.*mobile)/i.test(d))            return 'tablet';
-  if (/macbook|laptop|notebook/i.test(d))              return 'laptop';
-  return 'monitor';
+function isMobileDevice(device) {
+  if (!device) return false;
+  return /iphone|ipad|android|mobile/i.test(device);
 }
 
 function deviceName(device) {
   if (!device) return 'Unknown device';
-  // Strip browser part — everything before " — "
   const parts = device.split(' — ');
   return parts[0] || device;
 }

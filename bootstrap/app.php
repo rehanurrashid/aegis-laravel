@@ -46,6 +46,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             HandleInertiaRequests::class,
             ImpersonateForDemo::class,
+            \App\Http\Middleware\TrackUserSession::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -29,18 +29,24 @@ class SettingsController extends Controller
         $meta = $user->meta->pluck('typed_value', 'meta_key')->toArray();
 
         // Active sessions (not revoked)
+        $currentSessionId = $request->session()->getId();
+
         $sessions = UserSession::where('user_id', $user->id)
             ->whereNull('revoked_at')
             ->orderByDesc('last_seen_at')
             ->get()
             ->map(fn ($s) => [
-                'id'           => $s->id,
-                'device'       => $s->device_label ?? 'Unknown device',
-                'ip'           => $s->ip_address,
-                'user_agent'   => $s->user_agent,
+                'id'         => $s->id,
+                'device'     => $s->device_label ?? 'Unknown device',
+                'ip'         => $s->ip_address,
+                'user_agent' => $s->user_agent,
                 'last_seen_at' => $s->last_seen_at?->diffForHumans(),
                 'created_at'   => $s->created_at?->toDateString(),
-            ]);
+                'is_current'   => $s->session_token === $currentSessionId,
+            ])
+            // Sort: current first, then by last_seen_at desc
+            ->sortByDesc(fn ($s) => [$s['is_current'] ? 1 : 0, $s['last_seen_at']])
+            ->values();
 
         // Enrich user with computed fields Vue expects
         $userArr = $user->toArray();

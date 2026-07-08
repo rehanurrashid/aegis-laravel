@@ -25,6 +25,8 @@ class SettingsController extends Controller
         $user = $request->user()->load('meta', 'sessions');
         $meta = $user->meta->pluck('typed_value', 'meta_key')->toArray();
 
+        $currentSessionId = $request->session()->getId();
+
         $sessions = UserSession::where('user_id', $user->id)
             ->whereNull('revoked_at')
             ->orderByDesc('last_seen_at')
@@ -35,7 +37,10 @@ class SettingsController extends Controller
                 'ip'           => $s->ip_address,
                 'last_seen_at' => $s->last_seen_at?->diffForHumans(),
                 'created_at'   => $s->created_at?->toDateString(),
-            ]);
+                'is_current'   => $s->session_token === $currentSessionId,
+            ])
+            ->sortByDesc(fn ($s) => [$s['is_current'] ? 1 : 0])
+            ->values();
 
         $userArr         = $user->toArray();
         $userArr['mfa_enabled'] = (bool) $user->two_factor_enabled;
