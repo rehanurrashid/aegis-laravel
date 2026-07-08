@@ -40,6 +40,7 @@
           <p class="ob-step-subtitle">
           <span v-if="isTotp">
             Open your <strong>authenticator app</strong> (Google Authenticator, Authy, or 1Password) and enter the 6-digit code shown for Aegis.
+            <span style="display:block;margin-top:6px;font-size:12px;color:var(--text-4)">Lost your app? Enter one of your 6-digit <strong>backup codes</strong> instead.</span>
           </span>
           <span v-else>
             We sent a <strong>6-digit code to your email</strong>. Check your inbox and enter it below. The code expires in 10 minutes.

@@ -244,8 +244,9 @@
           Each 6-digit code can only be used <strong>once</strong>. Save them somewhere secure — a password manager or printed sheet.
         </div>
       </div>
-      <div v-if="backupCodes.length === 0" style="text-align:center;padding:20px;color:var(--text-3);font-size:13px">
-        No backup codes available. Re-generate 2FA to get new codes.
+      <div v-if="backupCodes.length === 0" style="text-align:center;padding:24px;color:var(--text-3);font-size:13px;display:flex;flex-direction:column;align-items:center;gap:8px">
+        <AegisIcon name="loader" :size="20" style="color:var(--gold-dark)" />
+        Loading your backup codes…
       </div>
       <div v-else class="ss-codes-grid">
         <div
@@ -420,22 +421,24 @@ function confirmDisable() {
 // ── Backup codes ──────────────────────────────────────────────────────────
 
 function openBackupCodes() {
-  // Show stored recovery codes from setupData (returned by enable endpoint)
-  // or generate display placeholders if already enabled
+  // If we have codes from the just-completed setup flow, use those
   if (setupData.value?.recovery_codes?.length) {
     backupCodes.value = setupData.value.recovery_codes;
+    modals.backup = true;
   } else {
-    // Fetch backup codes from server for already-enabled accounts
+    // Fetch from server (already-enabled accounts)
     fetchBackupCodes();
-    return;
   }
-  modals.backup = true;
 }
 
 async function fetchBackupCodes() {
+  backupCodes.value = []; // clear while loading
+  modals.backup = true;   // open modal immediately (shows loading state)
   try {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
-    const res = await fetch(route(props.backupCodesRoute ?? props.enableMfaRoute.replace('enable', 'backup-codes')), {
+    const backupRoute = props.backupCodesRoute
+      || props.enableMfaRoute.replace(/\/enable$/, '/backup-codes');
+    const res = await fetch(route(backupRoute), {
       method:      'GET',
       credentials: 'same-origin',
       headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken },
@@ -443,12 +446,14 @@ async function fetchBackupCodes() {
     if (res.ok) {
       const data = await res.json();
       backupCodes.value = data.recovery_codes ?? [];
+    } else {
+      toast.error('Could not load backup codes. Please try again.');
+      modals.backup = false;
     }
   } catch {
-    // If no backup codes endpoint, show placeholder message
-    backupCodes.value = [];
+    toast.error('Network error loading backup codes.');
+    modals.backup = false;
   }
-  modals.backup = true;
 }
 
 function copyAllCodes() {

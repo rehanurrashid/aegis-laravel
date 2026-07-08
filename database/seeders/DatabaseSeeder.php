@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             MfaTokenSeeder::class,
             UserMetaSeeder::class,
             UserSessionSeeder::class,
+            SubscriptionSeeder::class,
 
             // Layer 2 — plans + stewards
             PlanSeeder::class,

@@ -22,21 +22,8 @@ class MfaTokenSeeder extends Seeder
      */
     public function run(): void
     {
-        $now = now();
-
-        // Encrypt secrets — mfa_tokens.secret has an 'encrypted' cast on the model.
-        // We insert via DB facade so we must encrypt manually here.
-        DB::table('mfa_tokens')->upsert([
-            [
-                'id'           => 'mfa_sarah_demo_00001',
-                'user_id'      => 'p_sarah',
-                'secret'       => Crypt::encryptString('VHBD3ABYS4O24S55AMIEPDME7EYFDMKJ'),
-                'recovery_codes' => null,
-                'confirmed_at' => $now,
-                'disabled_at'  => null,
-                'created_at'   => $now,
-                'updated_at'   => $now,
-            ],
-        ], ['user_id'], ['secret', 'confirmed_at', 'disabled_at', 'updated_at']);
+        // Sarah (p_sarah) has 2FA disabled in the demo — no MFA token seeded.
+        // Users set up 2FA themselves via Settings → Security.
+        // This seeder is intentionally empty.
     }
 }

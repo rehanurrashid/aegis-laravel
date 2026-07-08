@@ -77,8 +77,17 @@ class MfaController extends Controller
             return response()->json(['recovery_codes' => []]);
         }
 
+        // Generate codes on-demand if none exist (e.g. seeded/legacy accounts)
+        if (empty($mfa->recovery_codes)) {
+            $codes = [];
+            for ($i = 0; $i < 8; $i++) {
+                $codes[] = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            }
+            $mfa->forceFill(['recovery_codes' => $codes])->save();
+        }
+
         return response()->json([
-            'recovery_codes' => $mfa->recovery_codes ?? [],
+            'recovery_codes' => $mfa->recovery_codes,
         ]);
     }
 
@@ -196,7 +205,10 @@ class MfaController extends Controller
         }
 
         if (!$this->verifyTotp($mfa->secret, $request->code)) {
-            return back()->withErrors(['code' => 'Invalid authentication code.']);
+            // TOTP failed — try backup/recovery codes
+            if (!$this->consumeRecoveryCode($mfa, $request->code)) {
+                return back()->withErrors(['code' => 'Invalid authentication code. Try a backup code if you have lost access to your authenticator app.']);
+            }
         }
 
         $remember = (bool) $request->session()->pull('mfa_remember', false);
@@ -215,6 +227,35 @@ class MfaController extends Controller
     }
 
     // ── TOTP helpers (RFC 6238 / RFC 4226) ───────────────────────────────────
+
+    /**
+     * Check if the given code matches a recovery code and consume it (one-time use).
+     */
+    private function consumeRecoveryCode(MfaToken $mfa, string $code): bool
+    {
+        $codes = $mfa->recovery_codes ?? [];
+        if (empty($codes)) {
+            return false;
+        }
+
+        $code = trim($code);
+        $remaining = [];
+        $matched   = false;
+
+        foreach ($codes as $stored) {
+            if (!$matched && hash_equals((string) $stored, $code)) {
+                $matched = true; // consume — do not add back
+            } else {
+                $remaining[] = $stored;
+            }
+        }
+
+        if ($matched) {
+            $mfa->forceFill(['recovery_codes' => $remaining])->save();
+        }
+
+        return $matched;
+    }
 
     /**
      * Verify a 6-digit TOTP code against a base32 secret.

@@ -32,7 +32,7 @@ class UserSeeder extends Seeder
                 'tier'             => 'practice',
                 'services_mode'    => 1,
                 'maat_addon'       => 1,
-                'two_factor_enabled' => 1,
+                'two_factor_enabled' => 0,
                 'verified'         => 1,
                 'stripe_connected'         => 1,
                 'stripe_account_id'        => 'acct_demo_sarah',
