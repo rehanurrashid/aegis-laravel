@@ -87,18 +87,24 @@
             <!-- Card Number -->
             <div class="form-group ob-card-group">
               <label class="form-label ob-card-label">Card Number</label>
-              <div id="card-number" class="ob-card-input" :class="{ 'is-focused': focusedField === 'number' }" />
+              <div ref="cardNumberEl" id="card-number" class="ob-card-input"
+                :class="{ 'is-focused': focusedField === 'number', 'is-error': cardNumberError }" />
+              <div v-if="cardNumberError" class="form-error ob-field-error">{{ cardNumberError }}</div>
             </div>
 
             <!-- Expiry + CVC row -->
             <div class="ob-card-row">
               <div class="form-group ob-card-group">
                 <label class="form-label ob-card-label">Expiry Date</label>
-                <div id="card-expiry" class="ob-card-input" :class="{ 'is-focused': focusedField === 'expiry' }" />
+                <div ref="cardExpiryEl" id="card-expiry" class="ob-card-input"
+                  :class="{ 'is-focused': focusedField === 'expiry', 'is-error': cardExpiryError }" />
+                <div v-if="cardExpiryError" class="form-error ob-field-error">{{ cardExpiryError }}</div>
               </div>
               <div class="form-group ob-card-group">
                 <label class="form-label ob-card-label">CVC</label>
-                <div id="card-cvc" class="ob-card-input" :class="{ 'is-focused': focusedField === 'cvc' }" />
+                <div ref="cardCvcEl" id="card-cvc" class="ob-card-input"
+                  :class="{ 'is-focused': focusedField === 'cvc', 'is-error': cardCvcError }" />
+                <div v-if="cardCvcError" class="form-error ob-field-error">{{ cardCvcError }}</div>
               </div>
             </div>
           </div>
@@ -147,11 +153,28 @@ const submitting     = ref(false)
 const errorMessage   = ref('')
 const focusedField   = ref('')   // 'number' | 'expiry' | 'cvc' | ''
 
+// Per-field inline errors
+const cardNumberError = ref('')
+const cardExpiryError = ref('')
+const cardCvcError    = ref('')
+
+// Wrapper div refs
+const cardNumberEl = ref(null)
+const cardExpiryEl = ref(null)
+const cardCvcEl    = ref(null)
+
 let stripe       = null
 let elements     = null
 let cardNumber   = null
 let cardExpiry   = null
 let cardCvc      = null
+
+// useForm at top level — never inside functions
+const subscribeForm = useForm({
+  payment_method_id: '',
+  price_id:          '',
+  addons:            [],
+})
 
 // ── Plan display helpers ─────────────────────────────────────────────
 const tierLabels = {
@@ -327,23 +350,24 @@ onMounted(async () => {
     // Individual card elements — no Link/tabs/wallets/external methods
     const cardStyle = {
       base: {
-        fontFamily:      'Inter, Helvetica Neue, Arial, sans-serif',
-        fontSize:        '14px',
-        fontWeight:      '500',
-        color:           '#1e1c1a',
-        letterSpacing:   '0.02em',
-        iconColor:       '#a0813e',
-        caretColor:      '#a0813e',
-        '::placeholder': { color: '#9e9890', fontWeight: '400' },
+        color:        '#1e1c1a',
+        fontFamily:   'Inter, -apple-system, sans-serif',
+        fontSize:     '14px',
+        lineHeight:   '44px',
+        fontWeight:   '400',
+        iconColor:    '#a0928a',
+        '::placeholder': { color: '#b0a89e' },
       },
-      invalid: { color: '#c85c42', iconColor: '#c85c42' },
-      complete: { color: '#1e1c1a', iconColor: '#3a7d5c' },
+      invalid: {
+        color:     '#e53e3e',
+        iconColor: '#e53e3e',
+      },
     }
 
     elements = stripe.elements()
-    cardNumber = elements.create('cardNumber', { style: cardStyle, showIcon: true })
-    cardExpiry = elements.create('cardExpiry', { style: cardStyle })
-    cardCvc    = elements.create('cardCvc',    { style: cardStyle })
+    cardNumber = elements.create('cardNumber', { style: cardStyle, showIcon: true, placeholder: '1234 5678 9012 3456' })
+    cardExpiry = elements.create('cardExpiry', { style: cardStyle, placeholder: 'MM / YY' })
+    cardCvc    = elements.create('cardCvc',    { style: cardStyle, placeholder: 'CVC' })
 
     cardNumber.mount('#card-number')
     cardExpiry.mount('#card-expiry')
@@ -354,6 +378,8 @@ onMounted(async () => {
     cardNumber.on('ready',  () => { nR = true; chk() })
     cardExpiry.on('ready',  () => { eR = true; chk() })
     cardCvc.on('ready',     () => { cR = true; chk() })
+
+    // Focus / blur
     cardNumber.on('focus', () => { focusedField.value = 'number' })
     cardNumber.on('blur',  () => { focusedField.value = '' })
     cardExpiry.on('focus', () => { focusedField.value = 'expiry' })
@@ -361,9 +387,19 @@ onMounted(async () => {
     cardCvc.on('focus',    () => { focusedField.value = 'cvc' })
     cardCvc.on('blur',     () => { focusedField.value = '' })
 
-    cardNumber.on('change', (e) => { errorMessage.value = e.error?.message ?? '' })
-    cardExpiry.on('change', (e) => { if (e.error) errorMessage.value = e.error.message })
-    cardCvc.on('change',    (e) => { if (e.error) errorMessage.value = e.error.message })
+    // Change — per-field errors + banner clear on fix
+    cardNumber.on('change', (e) => {
+      cardNumberError.value = e.error?.message ?? ''
+      if (!e.error) errorMessage.value = ''
+    })
+    cardExpiry.on('change', (e) => {
+      cardExpiryError.value = e.error?.message ?? ''
+      if (!e.error) errorMessage.value = ''
+    })
+    cardCvc.on('change', (e) => {
+      cardCvcError.value = e.error?.message ?? ''
+      if (!e.error) errorMessage.value = ''
+    })
   } catch (err) {
     errorMessage.value = err.message ?? 'Could not load payment form. Please refresh.'
     console.error('[OnboardingPayment] Stripe init failed:', err)
@@ -405,13 +441,11 @@ async function submit() {
     }
 
     // POST to backend — attach card, create subscription
-    const form = useForm({
-      payment_method_id: pmId,
-      price_id:          priceId,
-      addons:            props.plan?.addons ?? [],
-    })
+    subscribeForm.payment_method_id = pmId
+    subscribeForm.price_id          = priceId
+    subscribeForm.addons            = props.plan?.addons ?? []
 
-    form.post(route('onboarding.subscribe'), {
+    subscribeForm.post(route('onboarding.subscribe'), {
       onError: (errors) => {
         const first = Object.values(errors)[0]
         errorMessage.value = first ?? 'Subscription failed. Please try again.'
@@ -490,20 +524,22 @@ function switchAccount() { router.post(route('logout')) }
 .ob-card-group { margin-bottom:0; padding-bottom:0; }
 .ob-card-label { font-size:12px; font-weight:600; color:var(--text-2); margin-bottom:6px; display:block; }
 .ob-card-input {
-  padding: 10px 13px;
-  border: 1px solid var(--border-dark);
-  border-radius: var(--radius);
+  height: 44px;
+  padding: 0 12px;
   background: var(--surface);
-  transition: border-color var(--transition);
-  height: 42px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
+  transition: border-color 0.15s;
 }
-.ob-card-input:focus-within {
+.ob-card-input.is-focused {
   border-color: var(--gold-dark);
-  outline: none;
+  box-shadow: 0 0 0 3px rgba(160,129,62,0.12);
 }
-.ob-card-input.is-error { border-color: var(--red) !important; }
+.ob-card-input.is-error { border-color: var(--red); }
+.ob-card-input .StripeElement { width: 100%; }
+.ob-field-error { font-size: 11px; color: var(--red); margin-top: 4px; line-height: 1.4; }
 .ob-stripe-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:40px 20px; color:var(--text-2); font-size:12px; }
 .ob-stripe-spinner { width:24px; height:24px; border:2px solid var(--border); border-top-color:var(--gold); border-radius:var(--radius-full); animation:spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

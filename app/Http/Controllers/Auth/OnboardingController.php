@@ -144,24 +144,38 @@ class OnboardingController extends Controller
             } catch (\Stripe\Exception\InvalidRequestException $e) {
                 // stripe_id is fake/invalid — clear it so createAsStripeCustomer runs fresh
                 $user->forceFill(['stripe_id' => null])->saveQuietly();
+            } catch (\Throwable $e) {
+                // Network/DNS failure — clear stripe_id so we retry fresh on submit
+                \Log::warning('[Onboarding] Stripe customer retrieve failed: ' . $e->getMessage());
+                $user->forceFill(['stripe_id' => null])->saveQuietly();
             }
         }
 
         if (!$user->hasStripeId()) {
-            $user->createAsStripeCustomer([
-                'name'  => $user->display_name,
-                'email' => $user->email,
-            ]);
+            try {
+                $user->createAsStripeCustomer([
+                    'name'  => $user->display_name,
+                    'email' => $user->email,
+                ]);
+            } catch (\Throwable $e) {
+                \Log::warning('[Onboarding] Stripe createAsStripeCustomer failed: ' . $e->getMessage());
+            }
         }
 
         // CreateSetupIntent so Stripe can collect + tokenize the card
-        $intent = $user->createSetupIntent();
+        $clientSecret = null;
+        try {
+            $intent       = $user->createSetupIntent();
+            $clientSecret = $intent->client_secret;
+        } catch (\Throwable $e) {
+            \Log::warning('[Onboarding] Stripe createSetupIntent failed: ' . $e->getMessage());
+        }
 
         return Inertia::render('auth/OnboardingPayment', [
             'role'         => $this->roleValue($user),
             'cs_path'      => $user->cs_path,
             'plan'         => $plan,
-            'clientSecret' => $intent->client_secret,
+            'clientSecret' => $clientSecret,
             'stripeKey'    => config('services.stripe.key'),
             'pricing'      => config('aegis.pricing'),
         ]);
