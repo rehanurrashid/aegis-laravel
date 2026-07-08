@@ -86,16 +86,35 @@
         </button>
       </div>
       <div class="card-body">
-        <div v-if="!sessions || sessions.length === 0" class="form-hint" style="padding:12px 0">No active sessions found.</div>
-        <div v-for="sess in sessions" :key="sess.id" class="session-item">
-          <div class="session-icon"><AegisIcon name="monitor" :size="20" /></div>
-          <div class="session-info">
-            <div class="session-device">{{ sess.device }}</div>
-            <div class="session-meta">{{ sess.ip }} · Last active {{ sess.last_seen_at }}</div>
+        <div v-if="!sessions || sessions.length === 0" class="form-hint" style="padding:12px 0;display:flex;align-items:center;gap:8px;color:var(--text-3)">
+          <AegisIcon name="monitor" :size="16" />
+          No other active sessions. You are only logged in on this device.
+        </div>
+        <div v-for="(sess, idx) in sessions" :key="sess.id" class="session-item">
+          <div class="session-icon">
+            <AegisIcon :name="sess.device && sess.device.toLowerCase().includes('iphone') || (sess.device && sess.device.toLowerCase().includes('android')) ? 'phone' : 'monitor'" :size="20" />
           </div>
-          <button type="button" class="btn-icon btn-icon-danger" data-tooltip="Revoke session" @click="revokeOne(sess.id)">
+          <div class="session-info">
+            <div class="session-device">
+              {{ sess.device || 'Unknown device' }}
+              <span v-if="idx === 0" style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;background:var(--green-light);color:var(--green-dark);padding:1px 7px;border-radius:var(--radius-full);margin-left:6px;vertical-align:middle">
+                <AegisIcon name="check" :size="9" /> Current
+              </span>
+            </div>
+            <div class="session-meta">
+              <span v-if="sess.ip">{{ sess.ip }} · </span>Last active {{ sess.last_seen_at || 'recently' }}
+            </div>
+          </div>
+          <button
+            v-if="idx !== 0"
+            type="button"
+            class="btn-icon btn-icon-danger"
+            data-tooltip="Revoke session"
+            @click="revokeOne(sess.id)"
+          >
             <AegisIcon name="x" :size="14" />
           </button>
+          <span v-else style="width:28px;flex-shrink:0"></span>
         </div>
       </div>
     </div>

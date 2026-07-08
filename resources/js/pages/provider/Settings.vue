@@ -44,7 +44,10 @@
             <div class="card-body">
               <div class="list-group">
                 <div class="list-group-item" style="gap:14px">
-                  <div class="avatar avatar-lg avatar-gold">{{ initials }}</div>
+                  <div
+                    class="avatar avatar-lg avatar-gold"
+                    :style="user?.avatar_url ? { backgroundImage: `url(${user.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center', color: 'transparent' } : {}"
+                  >{{ user?.avatar_url ? '' : initials }}</div>
                   <div style="flex:1">
                     <div style="font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--text)">{{ displayName }}</div>
                     <div style="font-size:13px;color:var(--text-3);margin-top:2px">{{ user?.title ?? '' }}{{ user?.credentials ? ' · ' + user.credentials : '' }}</div>
@@ -1022,12 +1025,8 @@ async function savePassword() {
   v$.value.$reset();
 }
 
-// ─── Sessions ─────────────────────────────────────────────────────────────────
-const sessions = [
-  { device: 'MacBook Pro — Chrome 121', meta: 'New York, NY · Last active just now · 192.168.1.45', current: true,  mobile: false },
-  { device: 'iPhone 15 Pro — Safari',   meta: 'New York, NY · Last active 2h ago · 73.x.x.x',      current: false, mobile: true  },
-  { device: 'Windows PC — Firefox 122', meta: 'Unrecognized location · Last active 3 days ago',     current: false, mobile: false },
-];
+// ─── Sessions — read from props (passed by SettingsController::index()) ─────
+const sessions = computed(() => props.sessions ?? []);
 
 // ─── Security ─────────────────────────────────────────────────────────────────
 const tfaCode    = ref('');

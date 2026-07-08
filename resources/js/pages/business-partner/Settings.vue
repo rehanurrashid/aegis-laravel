@@ -36,7 +36,10 @@
             <div class="card-body">
               <div class="list-group">
                 <div class="list-group-item" style="gap:14px">
-                  <div class="avatar avatar-lg avatar-gold">{{ initials }}</div>
+                  <div
+                    class="avatar avatar-lg avatar-gold"
+                    :style="user?.avatar_url ? { backgroundImage: `url(${user.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center', color: 'transparent' } : {}"
+                  >{{ user?.avatar_url ? '' : initials }}</div>
                   <div style="flex:1">
                     <div style="font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--text)">{{ displayName }}</div>
                     <div style="font-size:12px;color:var(--text-4);margin-top:4px;display:flex;gap:14px;flex-wrap:wrap">
@@ -371,6 +374,8 @@ const props = defineProps({
 });
 
 const toast = useToast();
+// Sessions — passed from controller via props
+const sessions = computed(() => props.sessions ?? []);
 const section     = ref(\'profile\');
 const billingAnnual = ref(false);
 const sub                  = computed(() => props.subscription ?? {});
