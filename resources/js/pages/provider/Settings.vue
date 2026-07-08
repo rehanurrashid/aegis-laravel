@@ -206,11 +206,11 @@
                   </select>
                 </div>
               </div>
-              <div class="form-row form-row-2">
-                <div class="form-group"><label class="form-label">Telehealth States Licensed</label><input class="form-input" v-model="availability.states" /><div class="form-hint">Comma-separated state codes</div></div>
-                <div class="form-group"><label class="form-label">Next Available Appointment</label><input class="form-input" type="date" v-model="availability.nextAvail" /></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
+                <button type="button" class="btn btn-primary" :disabled="availSaving" @click="saveAvailability">
+                  <AegisIcon name="check" :size="13" /> Save Schedule
+                </button>
               </div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Availability saved.')"><AegisIcon name="check" :size="13" /> Save</button></div>
             </div>
           </div>
         </div>
@@ -1126,16 +1126,42 @@ const emailToggles = [
 ];
 
 // ─── Availability ───────────────────────────────────────────────────────────────
-const availability = reactive({ accepting: true, states: 'NY, NJ, CT, PA', nextAvail: '' });
+// ─── Availability & Hours ────────────────────────────────────────────────────────
+// Hydrate from meta.availability (saved as { mon: { on, from, to }, ... })
+const _savedHours = props.meta?.availability ?? {};
+const _dayDefaults = {
+  mon: { on: true,  from: '09:00', to: '17:00' },
+  tue: { on: true,  from: '09:00', to: '17:00' },
+  wed: { on: true,  from: '09:00', to: '17:00' },
+  thu: { on: true,  from: '09:00', to: '17:00' },
+  fri: { on: true,  from: '09:00', to: '15:00' },
+  sat: { on: false, from: '10:00', to: '13:00' },
+  sun: { on: false, from: '10:00', to: '13:00' },
+};
 const weekDays = reactive([
-  { key: 'mon', label: 'Monday',    on: true,  from: '09:00', to: '17:00' },
-  { key: 'tue', label: 'Tuesday',   on: true,  from: '09:00', to: '17:00' },
-  { key: 'wed', label: 'Wednesday', on: true,  from: '09:00', to: '17:00' },
-  { key: 'thu', label: 'Thursday',  on: true,  from: '09:00', to: '17:00' },
-  { key: 'fri', label: 'Friday',    on: true,  from: '09:00', to: '15:00' },
-  { key: 'sat', label: 'Saturday',  on: false, from: '10:00', to: '13:00' },
-  { key: 'sun', label: 'Sunday',    on: false, from: '10:00', to: '13:00' },
+  { key: 'mon', label: 'Monday',    ...(_dayDefaults.mon), ...(_savedHours.mon ?? {}) },
+  { key: 'tue', label: 'Tuesday',   ...(_dayDefaults.tue), ...(_savedHours.tue ?? {}) },
+  { key: 'wed', label: 'Wednesday', ...(_dayDefaults.wed), ...(_savedHours.wed ?? {}) },
+  { key: 'thu', label: 'Thursday',  ...(_dayDefaults.thu), ...(_savedHours.thu ?? {}) },
+  { key: 'fri', label: 'Friday',    ...(_dayDefaults.fri), ...(_savedHours.fri ?? {}) },
+  { key: 'sat', label: 'Saturday',  ...(_dayDefaults.sat), ...(_savedHours.sat ?? {}) },
+  { key: 'sun', label: 'Sunday',    ...(_dayDefaults.sun), ...(_savedHours.sun ?? {}) },
 ]);
+
+const availSaving = ref(false);
+function saveAvailability() {
+  availSaving.value = true;
+  // Build hours map keyed by day key
+  const hours = Object.fromEntries(
+    weekDays.map(d => [d.key, { on: d.on, from: d.from, to: d.to }])
+  );
+  router.put(route('provider.profile.availability'), { hours }, {
+    preserveScroll: true,
+    onSuccess: () => { toast.success('Availability schedule saved.'); },
+    onError:   () => { toast.error('Could not save availability.'); },
+    onFinish:  () => { availSaving.value = false; },
+  });
+}
 
 // ─── Time options for availability hour selects ─────────────────────────────────
 const timeOptions = (() => {
