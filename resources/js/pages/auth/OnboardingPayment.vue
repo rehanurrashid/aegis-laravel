@@ -111,7 +111,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { Head, router, useForm } from '@inertiajs/vue3'
+import { Head, router, useForm, usePage } from '@inertiajs/vue3'
 import { useToast } from '@/composables/useToast'
 
 const props = defineProps({
@@ -123,6 +123,7 @@ const props = defineProps({
 })
 
 const toast       = useToast()
+const page        = usePage()
 const year        = new Date().getFullYear()
 const stripeReady = ref(false)
 const submitting  = ref(false)
@@ -304,7 +305,30 @@ onMounted(async () => {
     })
 
     paymentElement = elements.create('payment', {
-      layout: { type: 'tabs', defaultCollapsed: false },
+      // Card only — no Bank, iDEAL, Cash App, Bancontact etc.
+      paymentMethodOrder: ['card'],
+      layout: {
+        type: 'tabs',
+        defaultCollapsed: false,
+        radios: false,
+        spacedAccordionItems: false,
+      },
+      fields: {
+        billingDetails: {
+          name:  'auto',
+          email: 'never', // we already have the user's email
+        },
+      },
+      defaultValues: {
+        billingDetails: {
+          email: page.props.auth?.user?.email ?? '',
+          name:  page.props.auth?.user?.display_name ?? '',
+        },
+      },
+      wallets: {
+        applePay: 'never',
+        googlePay: 'never',
+      },
     })
 
     paymentElement.mount('#payment-element')
