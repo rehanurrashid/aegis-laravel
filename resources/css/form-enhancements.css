@@ -399,7 +399,6 @@ span.flatpickr-weekday {
 .ts-wrapper.focus .ts-control,
 .ts-wrapper .ts-control:focus-within {
   border-color: var(--gold-dark) !important;
-  box-shadow: 0 0 0 3px var(--badge-bg-gold) !important;
 }
 
 /* §2.4  Open state — bottom corners square off to merge with panel;
