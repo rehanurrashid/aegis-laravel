@@ -250,7 +250,7 @@ onMounted(async () => {
       ],
     })
 
-    cardNumber = elements.create('cardNumber', { showIcon: true })
+    cardNumber = elements.create('cardNumber', { showIcon: true, disableLink: true })
     cardExpiry = elements.create('cardExpiry', {})
     cardCvc    = elements.create('cardCvc',    {})
 
