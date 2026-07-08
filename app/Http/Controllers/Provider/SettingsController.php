@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Provider;
 use App\Http\Controllers\Controller;
 use App\Models\UserMeta;
 use App\Models\UserSession;
+use App\Services\ActivityService;
 use App\Services\ProfileService;
 use App\Services\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
@@ -17,6 +18,7 @@ use Inertia\Response;
 class SettingsController extends Controller
 {
     public function __construct(
+        private ActivityService $activity,
         private ProfileService $profiles,
         private SubscriptionService $subscriptions,
     ) {}
@@ -76,9 +78,23 @@ class SettingsController extends Controller
             'phone' => ['nullable', 'string', 'max:40'],
         ]);
 
-        $request->user()->forceFill([
+        $user = $request->user();
+        $user->forceFill([
             'phone' => $data['phone'] ?? null,
         ])->save();
+
+        $this->activity->log(
+            $user->id,
+            $user->role?->portal() ?? 'provider',
+            'account',
+            \App\Enums\ActivitySeverity::Info,
+            'phone_updated',
+            'Phone number updated',
+            'You updated your contact phone number.',
+            null, null, null,
+            'log',
+            $user->id,
+        );
 
         return back()->with('success', 'Account details updated.');
     }

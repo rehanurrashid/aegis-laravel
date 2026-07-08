@@ -8,6 +8,7 @@ use App\Events\Auth\PasswordReset as PasswordResetEvent;
 use App\Http\Controllers\Controller;
 use App\Models\PasswordResetToken;
 use App\Models\User;
+use App\Services\ActivityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -17,6 +18,7 @@ use Inertia\Response;
 
 class PasswordResetController extends Controller
 {
+    public function __construct(private ActivityService $activity) {}
     /** GET /forgot-password */
     public function showForgot(): Response
     {
@@ -121,6 +123,19 @@ class PasswordResetController extends Controller
         $user->forceFill(['password' => Hash::make($request->password)])->save();
 
         event(new PasswordResetEvent($user));
+
+        $this->activity->log(
+            $user->id,
+            $user->role?->portal() ?? 'provider',
+            'account',
+            \App\Enums\ActivitySeverity::Warning,
+            'password_changed',
+            'Password changed',
+            'You successfully changed your account password.',
+            null, null, null,
+            'log',
+            $user->id,
+        );
 
         return back()->with('success', 'Password updated successfully.');
     }

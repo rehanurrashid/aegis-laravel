@@ -136,6 +136,19 @@ class ProfileService
             $q->where('session_token', '!=', $exceptToken);
         }
         $q->update(['revoked_at' => now()]);
+
+        $this->activity->log(
+            $user->id,
+            $user->role?->portal() ?? 'provider',
+            'account',
+            \App\Enums\ActivitySeverity::Warning,
+            'all_sessions_revoked',
+            'All other sessions revoked',
+            'You signed out from all other active devices.',
+            null, null, null,
+            'log',
+            $user->id,
+        );
     }
 
     /**
@@ -144,6 +157,19 @@ class ProfileService
     public function revokeSession(User $user, string $sessionId): void
     {
         $user->sessions()->where('id', $sessionId)->update(['revoked_at' => now()]);
+
+        $this->activity->log(
+            $user->id,
+            $user->role?->portal() ?? 'provider',
+            'account',
+            \App\Enums\ActivitySeverity::Warning,
+            'session_revoked',
+            'Session revoked',
+            'You revoked an active session on another device.',
+            null, null, null,
+            'log',
+            $user->id,
+        );
     }
 
     public function updateServices(User $user, array $services): User
