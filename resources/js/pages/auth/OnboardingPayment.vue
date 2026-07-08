@@ -243,141 +243,16 @@ onMounted(async () => {
       }, 100)
     })
 
-    stripe = window.Stripe(props.stripeKey)
-
+    stripe   = window.Stripe(props.stripeKey)
     elements = stripe.elements({
-      clientSecret: props.clientSecret,
-      appearance: {
-        theme: 'flat',
-        variables: {
-          // Aegis brand tokens (hex — Stripe API does not accept CSS vars)
-          colorPrimary:         '#a0813e',  // --gold-dark
-          colorBackground:      '#ffffff',  // --surface
-          colorText:            '#1e1c1a',  // --text
-          colorTextSecondary:   '#6b6560',  // --text-2
-          colorTextPlaceholder: '#b5afa8',  // --text-4
-          colorDanger:          '#c85c42',  // --red (Aegis brand red)
-          colorSuccess:         '#3a7d5c',  // --green
-          fontFamily:           'Inter, Helvetica Neue, Arial, sans-serif',
-          spacingUnit:          '4px',
-          borderRadius:         '8px',
-          fontSizeBase:         '13px',
-          fontWeightNormal:     '500',
-          fontWeightMedium:     '600',
-          fontWeightBold:       '700',
-        },
-        rules: {
-          // Base input — 1px border, no shadow
-          '.Input': {
-            border:           '1px solid #e4dfd7',
-            boxShadow:        'none',
-            padding:          '9px 13px',
-            fontSize:         '13px',
-            color:            '#1e1c1a',
-            backgroundColor:  '#ffffff',
-          },
-          // Focus — gold-dark border, no ring
-          '.Input:focus': {
-            border:           '1px solid #a0813e',
-            boxShadow:        'none',
-            outline:          'none',
-          },
-          // Error — Aegis red, 1px, no shadow
-          '.Input--invalid': {
-            border:           '1px solid #c85c42',
-            boxShadow:        'none',
-            color:            '#1e1c1a',
-          },
-          '.Input--invalid:focus': {
-            border:           '1px solid #c85c42',
-            boxShadow:        'none',
-          },
-          // Error message text
-          '.Error': {
-            fontSize:         '11px',
-            color:            '#c85c42',
-            marginTop:        '4px',
-          },
-          // Labels
-          '.Label': {
-            fontWeight:       '600',
-            fontSize:         '12px',
-            color:            '#3d3a36',
-            marginBottom:     '5px',
-            letterSpacing:    '0',
-          },
-          // Dropdown / select — Aegis surface style
-          '.DropdownItem': {
-            fontSize:         '13px',
-            color:            '#1e1c1a',
-            backgroundColor:  '#ffffff',
-            padding:          '8px 13px',
-          },
-          '.DropdownItem:hover': {
-            backgroundColor:  '#f5f2ed',
-            color:            '#a0813e',
-          },
-          '.DropdownItem--highlight': {
-            backgroundColor:  '#f5f2ed',
-            color:            '#a0813e',
-          },
-          // Tab buttons (payment method selector)
-          '.Tab': {
-            border:           '1px solid #e4dfd7',
-            boxShadow:        'none',
-            backgroundColor:  '#ffffff',
-            fontSize:         '13px',
-            fontWeight:       '600',
-            color:            '#6b6560',
-          },
-          '.Tab:hover': {
-            border:           '1px solid #a0813e',
-            color:            '#1e1c1a',
-            boxShadow:        'none',
-          },
-          '.Tab--selected': {
-            border:           '1px solid #a0813e',
-            color:            '#1e1c1a',
-            backgroundColor:  '#fdf9f3',
-            boxShadow:        'none',
-          },
-          '.Tab--selected:focus': {
-            boxShadow:        'none',
-            outline:          'none',
-          },
-          // Checkbox
-          '.Checkbox': {
-            border:           '1px solid #cec8be',
-          },
-          '.Checkbox--checked': {
-            backgroundColor:  '#a0813e',
-            border:           '1px solid #a0813e',
-          },
-        },
-      },
+      fonts: [
+        { cssSrc: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap' },
+      ],
     })
 
-    // Individual card elements — no Link/tabs/wallets/external methods
-    const cardStyle = {
-      base: {
-        color:        '#1e1c1a',
-        fontFamily:   'Inter, -apple-system, sans-serif',
-        fontSize:     '14px',
-        lineHeight:   '44px',
-        fontWeight:   '400',
-        iconColor:    '#a0928a',
-        '::placeholder': { color: '#b0a89e' },
-      },
-      invalid: {
-        color:     '#e53e3e',
-        iconColor: '#e53e3e',
-      },
-    }
-
-    elements = stripe.elements()
-    cardNumber = elements.create('cardNumber', { style: cardStyle, showIcon: true, placeholder: '1234 5678 9012 3456' })
-    cardExpiry = elements.create('cardExpiry', { style: cardStyle, placeholder: 'MM / YY' })
-    cardCvc    = elements.create('cardCvc',    { style: cardStyle, placeholder: 'CVC' })
+    cardNumber = elements.create('cardNumber', { showIcon: true })
+    cardExpiry = elements.create('cardExpiry', {})
+    cardCvc    = elements.create('cardCvc',    {})
 
     cardNumber.mount('#card-number')
     cardExpiry.mount('#card-expiry')
@@ -534,19 +409,13 @@ function switchAccount() { router.post(route('logout')) }
 .ob-card-group { margin-bottom:0; padding-bottom:0; }
 .ob-card-label { font-size:12px; font-weight:600; color:var(--text-2); margin-bottom:6px; display:block; }
 .ob-card-input {
-  height: 44px;
-  padding: 0 12px;
+  padding: 10px 12px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
   transition: border-color 0.15s;
 }
-.ob-card-input.is-focused {
-  border-color: var(--gold-dark);
-  box-shadow: 0 0 0 3px rgba(160,129,62,0.12);
-}
+.ob-card-input.is-focused { border-color: var(--gold-dark); }
 .ob-card-input.is-error { border-color: var(--red); }
 .ob-card-input .StripeElement { width: 100%; }
 .ob-field-error { font-size: 11px; color: var(--red); margin-top: 4px; line-height: 1.4; }
