@@ -373,6 +373,7 @@ async function generateQrDataUrl(text) {
 }
 
 
+function formatSecret(secret) {
   // AAAA BBBB CCCC DDDD format for easy manual entry
   return (secret ?? '').match(/.{1,4}/g)?.join(' ') ?? secret;
 }
