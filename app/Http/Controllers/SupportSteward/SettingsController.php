@@ -83,31 +83,43 @@ class SettingsController extends Controller
         return back()->with('success', 'Account details updated.');
     }
 
-        public function updateNotifications(Request $request): RedirectResponse
+    public function updateNotifications(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'notify_email'    => 'nullable|boolean',
-            'notify_in_app'   => 'nullable|boolean',
-            'notify_summary'  => 'nullable|boolean',
-            'notify_plan'     => 'nullable|boolean',
-            'notify_incident' => 'nullable|boolean',
-            'notify_message'  => 'nullable|boolean',
-            'notify_account'  => 'nullable|boolean',
-            'categories'               => 'nullable|array',
-            'categories.*.key'         => 'required|string',
-            'categories.*.push'        => 'boolean',
-            'categories.*.email'       => 'boolean',
-            'categories.*.inapp'       => 'boolean',
+            'categories'                   => 'nullable|array',
+            'categories.*.key'             => 'required|string|max:64',
+            'categories.*.push'            => 'nullable|boolean',
+            'categories.*.email'           => 'nullable|boolean',
+            'categories.*.inapp'           => 'nullable|boolean',
+            // Security & Login Alerts
+            'security.alertOnNewLogin'     => 'nullable|boolean',
+            'security.sessionTimeout'      => 'nullable|boolean',
+            // Support role alerts
+            'support.incidentReports'      => 'nullable|boolean',
+            'support.attestationRequests'  => 'nullable|boolean',
+            'support.changeRequests'       => 'nullable|boolean',
+            'support.coverageActivation'   => 'nullable|boolean',
+            'support.roleChanges'          => 'nullable|boolean',
+            'support.documentAccess'       => 'nullable|boolean',
+            // Billing
+            'billing.invoiceEmails'        => 'nullable|boolean',
+            // Network & Updates
+            'network.connectionAlerts'     => 'nullable|boolean',
+            'network.weeklyDigest'         => 'nullable|boolean',
+            'network.featureUpdates'       => 'nullable|boolean',
         ]);
 
         $user = $request->user();
-        foreach ($data as $key => $val) {
-            if (str_starts_with($key, 'notify_') && (is_bool($val) || is_numeric($val))) {
-                $this->profiles->saveMeta($user, $key, $val ? '1' : '0', 'string');
-            }
-        }
+
         if (!empty($data['categories'])) {
             $this->profiles->saveMeta($user, 'notify_categories', $data['categories'], 'json');
+        }
+
+        $groups = ['security', 'support', 'billing', 'network'];
+        foreach ($groups as $group) {
+            if (isset($data[$group]) && is_array($data[$group])) {
+                $this->profiles->saveMeta($user, "notify_{$group}", $data[$group], 'json');
+            }
         }
 
         return back()->with('success', 'Notification preferences saved.');

@@ -77,6 +77,8 @@ const props = defineProps({
   notifCategories: { type: Array,   default: () => [] },
   savedPrefs:      { type: Object,  default: () => ({}) },
   savedCategories: { type: Array,   default: () => [] },
+  // Portal-specific extra toggle groups (security, steward, docs, billing, network, etc.)
+  extraPrefs:      { type: Object,  default: () => ({}) },
 });
 
 const toast  = useToast();
@@ -103,6 +105,8 @@ function save() {
       email: c.email,
       inapp: c.inapp,
     })),
+    // Spread each named group so backend receives security.*, steward.*, docs.*, etc.
+    ...props.extraPrefs,
   }, {
     preserveScroll: true,
     onSuccess: () => { toast.success('Notification preferences saved!'); },

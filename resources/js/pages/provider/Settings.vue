@@ -153,6 +153,7 @@
             :notif-categories="notifCategories"
             :saved-prefs="meta?.notify_prefs ?? {}"
             :saved-categories="meta?.notify_categories ?? []"
+            :extra-prefs="notifExtraPrefs"
           >
             <template #extra-toggles>
               <div class="section-label" style="margin-top:20px">Security &amp; Login Alerts</div>
@@ -1054,9 +1055,10 @@ const backupCodes = [
   { value: 'KL-3R9K-81ZV', used: false }, { value: 'KL-6C4H-27YB', used: false },
   { value: 'KL-1M5F-49LD', used: true  }, { value: 'KL-8A3E-65RP', used: false },
 ];
+const _securityMeta = props.meta?.notify_security ?? {};
 const securityAlerts = reactive([
-  { name: 'Alert on New Login',              sub: 'Receive email when a new device logs into your account',           on: true },
-  { name: 'Session Timeout (30 min inactivity)', sub: 'Automatically log out after 30 minutes of inactivity',        on: true },
+  { name: 'Alert on New Login',                  sub: 'Receive email when a new device logs into your account', key: 'alertOnNewLogin', on: _securityMeta.alertOnNewLogin ?? true },
+  { name: 'Session Timeout (30 min inactivity)', sub: 'Automatically log out after 30 minutes of inactivity',   key: 'sessionTimeout',  on: _securityMeta.sessionTimeout  ?? true },
 ]);
 
 // ─── Notifications ─────────────────────────────────────────────────────────────
@@ -1071,6 +1073,35 @@ const notifCategories = reactive([
   { key: 'network',   label: 'Network & Connections',    desc: 'New connections and BP activity',            push: false, email: false, inapp: true  },
 ]);
 function setAllNotifs(val) { notifCategories.forEach(c => { c.push = val; c.email = val; c.inapp = val; }); }
+
+// Computed payload that mirrors backend group structure for extra toggles
+const notifExtraPrefs = computed(() => ({
+  security: {
+    alertOnNewLogin: securityAlerts.find(a => a.key === 'alertOnNewLogin')?.on ?? true,
+    sessionTimeout:  securityAlerts.find(a => a.key === 'sessionTimeout')?.on  ?? true,
+  },
+  steward: {
+    csAnnualReminder: csPrefs.annualReminder,
+    csNotifyOnChange: csPrefs.notifyOnChange,
+    ssNotifyIncident: ssPrefs.notifyIncident,
+    ssNotifyChange:   ssPrefs.notifyChange,
+    ssAnnualAttest:   ssPrefs.annualAttest,
+  },
+  docs: {
+    vaultNotifyAccess:        vaultPrefs.notifyAccess,
+    vaultNotifyUnlock:        vaultPrefs.notifyUnlock,
+    agreementExpiryReminder:  agreementPrefs.expiryReminder,
+    agreementCountersign:     agreementPrefs.notifyCountersign,
+  },
+  billing: {
+    invoiceEmails: financial.invoiceEmails,
+  },
+  network: {
+    connectionAlerts: networkPrefs.connectionAlerts,
+    weeklyDigest:     networkPrefs.weeklyDigest,
+    featureUpdates:   networkPrefs.featureUpdates,
+  },
+}));
 
 // ─── Messaging ─────────────────────────────────────────────────────────────────
 const messaging = reactive({ who: 'connected', status: 'available', readReceipts: true, onlineStatus: true, awayText: '' });
@@ -1104,7 +1135,12 @@ const referralIncoming = [
 
 
 // ─── CS / SS / Vault / Agreement prefs ──────────────────────────────────────────
-const csPrefs = reactive({ activation: true, annualReminder: true, notifyOnChange: true });
+const _stewardMeta = props.meta?.notify_steward ?? {};
+const csPrefs = reactive({
+  activation:     _stewardMeta.csActivation    ?? true,
+  annualReminder: _stewardMeta.csAnnualReminder ?? true,
+  notifyOnChange: _stewardMeta.csNotifyOnChange ?? true,
+});
 const csToggles = [
   { key: 'activation', label: 'Emergency CS Activation', desc: 'Allow your CS to activate your Continuity Plan with Aegis admin verification during a critical incident' },
 ];
@@ -1112,18 +1148,30 @@ const csNotifToggles = [
   { key: 'annualReminder', label: 'Annual CS Check-In Reminder', desc: 'Remind me to verify CS availability and re-attest my Continuity Plan every 12 months', model: 'csPrefs' },
   { key: 'notifyOnChange', label: 'Notify CS on Plan Changes',   desc: 'Automatically notify your Continuity Steward when you update or amend your Continuity Plan', model: 'csPrefs' },
 ];
-const ssPrefs = reactive({ notifyIncident: true, notifyChange: true, annualAttest: true });
+const ssPrefs = reactive({
+  notifyIncident: _stewardMeta.ssNotifyIncident ?? true,
+  notifyChange:   _stewardMeta.ssNotifyChange   ?? true,
+  annualAttest:   _stewardMeta.ssAnnualAttest   ?? true,
+});
 const ssNotifToggles = [
   { key: 'notifyIncident', label: 'Notify SS on Critical Incident', desc: 'Your Support Steward is automatically notified when a critical incident is declared', model: 'ssPrefs' },
   { key: 'notifyChange',   label: 'Notify SS on Plan Changes',      desc: 'Automatically notify your Support Steward when you update or amend your Continuity Plan', model: 'ssPrefs' },
   { key: 'annualAttest',   label: 'SS Annual Attestation Reminder', desc: 'Remind me to verify SS contact info and re-confirm permissions annually', model: 'ssPrefs' },
 ];
-const vaultPrefs = reactive({ notifyAccess: true, notifyUnlock: true });
+const _docsMeta = props.meta?.notify_docs ?? {};
+const vaultPrefs = reactive({
+  notifyAccess: _docsMeta.vaultNotifyAccess  ?? true,
+  notifyUnlock: _docsMeta.vaultNotifyUnlock  ?? true,
+});
 const activeAgreements = [
   { title: 'Continuity Steward Agreement', meta: 'Marcus Chen — Signed Jun 15, 2024 · Reviewed annually' },
   { title: 'Support Steward Agreement',    meta: 'Linda Johnson — Signed Oct 5, 2024 · Annual re-attestation required' },
 ];
-const agreementPrefs = reactive({ expiryReminder: true, autoRenew: false, notifyCountersign: true });
+const agreementPrefs = reactive({
+  expiryReminder:    _docsMeta.agreementExpiryReminder ?? true,
+  autoRenew:         false,
+  notifyCountersign: _docsMeta.agreementCountersign    ?? true,
+});
 const agreementNotifToggles = [
   { key: 'expiryReminder',    label: 'Agreement Expiry Reminder (30 days)', desc: 'Notify me 30 days before any steward agreement or attestation is due', model: 'agreementPrefs' },
   { key: 'notifyCountersign', label: 'Agreement Countersigned',             desc: 'Alert me when a steward signs or countersigns an agreement sent by you', model: 'agreementPrefs' },
@@ -1154,7 +1202,14 @@ const privacyToggles = [
 ];
 
 // ─── Network prefs ────────────────────────────────────────────────────────────────
-const networkPrefs = reactive({ requireApproval: false, icnMatching: true, dataUse: true, mutualConnections: true, hideFromBP: false, connectionAlerts: true, weeklyDigest: true, featureUpdates: false, geoFocus: '50mi' });
+const _networkMeta = props.meta?.notify_network ?? {};
+const networkPrefs = reactive({
+  requireApproval: false, icnMatching: true, dataUse: true, mutualConnections: true, hideFromBP: false,
+  connectionAlerts: _networkMeta.connectionAlerts ?? true,
+  weeklyDigest:     _networkMeta.weeklyDigest     ?? true,
+  featureUpdates:   _networkMeta.featureUpdates   ?? false,
+  geoFocus: '50mi',
+});
 const networkConnection = [
   { key: 'dataUse',    label: 'Allow Use of My Data for Network Suggestions', desc: "Anonymized data helps improve Aegis's provider matching quality" },
   { key: 'hideFromBP', label: 'Hide From Business Network Search',           desc: 'Business Partners cannot find your profile without a direct invitation' },
@@ -1331,7 +1386,8 @@ function formatDate(input) {
 function formatCardBrand(brand) { return brand ? brand.charAt(0).toUpperCase() + brand.slice(1) : 'Card'; }
 
 // ─── Financial toggles (invoices panel) ───────────────────────────────────────────
-const financial = reactive({ autoPay: true, requireApproval: true, spendLimit: false, invoiceEmails: true });
+const _billingMeta = props.meta?.notify_billing ?? {};
+const financial = reactive({ autoPay: true, requireApproval: true, spendLimit: false, invoiceEmails: _billingMeta.invoiceEmails ?? true });
 
 // ─── Integrations ─────────────────────────────────────────────────────────────────
 
