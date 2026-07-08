@@ -224,18 +224,21 @@
       <div class="alert alert-gold" style="margin-bottom:14px">
         <div class="alert-icon"><AegisIcon name="alert-triangle" :size="16" /></div>
         <div class="alert-content" style="font-size:13px">
-          Each code can only be used once. Store them somewhere safe — a password manager or printed sheet.
+          Each 6-digit code can only be used <strong>once</strong>. Save them somewhere secure — a password manager or printed sheet.
         </div>
       </div>
-      <div class="ss-codes-grid">
+      <div v-if="backupCodes.length === 0" style="text-align:center;padding:20px;color:var(--text-3);font-size:13px">
+        No backup codes available. Re-generate 2FA to get new codes.
+      </div>
+      <div v-else class="ss-codes-grid">
         <div
-          v-for="code in backupCodes"
-          :key="code"
+          v-for="(code, i) in backupCodes"
+          :key="i"
           class="ss-code"
         >{{ code }}</div>
       </div>
       <div style="font-size:12px;color:var(--text-3);margin-top:12px;text-align:center">
-        These codes are shown only once. Regenerating will invalidate the current set.
+        {{ backupCodes.length }} codes remaining. Once used, a code cannot be reused.
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline btn-sm" @click="copyAllCodes">
@@ -253,11 +256,12 @@ import { useForm } from '@inertiajs/vue3';
 import { useToast } from '@/composables/useToast';
 
 const props = defineProps({
-  enableMfaRoute:  { type: String, required: true },
-  disableMfaRoute: { type: String, required: true },
-  verifyMfaRoute:  { type: String, required: true },
-  mfaEnabled:      { type: Boolean, default: false },
-  userEmail:       { type: String,  default: '' },
+  enableMfaRoute:    { type: String, required: true },
+  disableMfaRoute:   { type: String, required: true },
+  verifyMfaRoute:    { type: String, required: true },
+  backupCodesRoute:  { type: String, default: '' },
+  mfaEnabled:        { type: Boolean, default: false },
+  userEmail:         { type: String,  default: '' },
 });
 
 const toast         = useToast();
@@ -289,11 +293,17 @@ function cancelSetup() {
 async function generateQr() {
   enabling.value = true;
   try {
+    // Get CSRF token from meta tag (set by Laravel blade) or from cookie
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content
+      ?? document.cookie.split(';').find(c => c.trim().startsWith('XSRF-TOKEN='))
+          ?.split('=')[1]?.replace(/%3D/g, '=') ?? '';
+
     const res = await fetch(route(props.enableMfaRoute), {
-      method:  'POST',
+      method:      'POST',
+      credentials: 'same-origin',
       headers: {
         'Content-Type':  'application/json',
-        'X-CSRF-TOKEN':  document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+        'X-CSRF-TOKEN':  csrfToken,
         'Accept':        'application/json',
       },
     });
@@ -338,11 +348,19 @@ function verifyMfa() {
   verifyForm.post(route(props.verifyMfaRoute), {
     preserveScroll: true,
     onSuccess: () => {
+      // Keep setupData briefly to access recovery_codes before clearing
+      const codes = setupData.value?.recovery_codes ?? [];
       modals.setup    = false;
-      setupData.value = null;
       qrImageUrl.value = '';
       verifyForm.reset();
-      toast.success('Two-factor authentication is now enabled. Your account is more secure.');
+      toast.success('Two-factor authentication is now enabled.');
+      // Show backup codes immediately after setup
+      if (codes.length) {
+        backupCodes.value = codes;
+        setTimeout(() => { setupData.value = null; modals.backup = true; }, 300);
+      } else {
+        setupData.value = null;
+      }
     },
     onError: () => {
       toast.error('Invalid code — please check your authenticator app and try again.');
@@ -385,13 +403,34 @@ function confirmDisable() {
 // ── Backup codes ──────────────────────────────────────────────────────────
 
 function openBackupCodes() {
-  // Generate placeholder codes — real implementation fetches from server
-  backupCodes.value = [
-    'AG1-XK72-MP4Q', 'BF3-YR91-NL7W',
-    'CH5-ZT84-QK2X', 'DM7-WV63-JN9P',
-    'EP2-US47-RT5M', 'FQ8-PK36-SV1L',
-    'GR4-NM25-TW8K', 'HS6-LJ14-UX3N',
-  ];
+  // Show stored recovery codes from setupData (returned by enable endpoint)
+  // or generate display placeholders if already enabled
+  if (setupData.value?.recovery_codes?.length) {
+    backupCodes.value = setupData.value.recovery_codes;
+  } else {
+    // Fetch backup codes from server for already-enabled accounts
+    fetchBackupCodes();
+    return;
+  }
+  modals.backup = true;
+}
+
+async function fetchBackupCodes() {
+  try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+    const res = await fetch(route(props.backupCodesRoute ?? props.enableMfaRoute.replace('enable', 'backup-codes')), {
+      method:      'GET',
+      credentials: 'same-origin',
+      headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      backupCodes.value = data.recovery_codes ?? [];
+    }
+  } catch {
+    // If no backup codes endpoint, show placeholder message
+    backupCodes.value = [];
+  }
   modals.backup = true;
 }
 

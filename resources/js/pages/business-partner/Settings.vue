@@ -71,7 +71,8 @@
         </div>
 
         <div v-show="section === \'security\'" class="settings-panel">
-          <SettingsSecurity enable-mfa-route="bp.settings.mfa.enable" disable-mfa-route="bp.settings.mfa.disable" verify-mfa-route="bp.settings.mfa.verify" :mfa-enabled="mfaEnabled"
+          <SettingsSecurity enable-mfa-route="bp.settings.mfa.enable" disable-mfa-route="bp.settings.mfa.disable" verify-mfa-route="bp.settings.mfa.verify"
+            backup-codes-route="bp.settings.mfa.backup-codes" :mfa-enabled="mfaEnabled"
             :user-email="user?.email ?? ''" />
         </div>
 

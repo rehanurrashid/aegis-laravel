@@ -68,7 +68,8 @@
           />
         </div>
         <div v-show="section === \'security\'" class="settings-panel">
-          <SettingsSecurity enable-mfa-route="cs.settings.mfa.enable" disable-mfa-route="cs.settings.mfa.disable" verify-mfa-route="cs.settings.mfa.verify" :mfa-enabled="mfaEnabled"
+          <SettingsSecurity enable-mfa-route="cs.settings.mfa.enable" disable-mfa-route="cs.settings.mfa.disable" verify-mfa-route="cs.settings.mfa.verify"
+            backup-codes-route="cs.settings.mfa.backup-codes" :mfa-enabled="mfaEnabled"
             :user-email="user?.email ?? ''" />
         </div>
         <div v-show="section === \'notifications\'" class="settings-panel">

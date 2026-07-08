@@ -13,7 +13,10 @@
       <div class="ob-panel-left-content">
         <div class="ob-panel-left-eyebrow">Security Verification</div>
         <h1 class="ob-panel-left-title">Two-factor authentication keeps your practice safe.</h1>
-        <p class="ob-panel-left-body">Your account is protected by an additional layer of security. Open your authenticator app to retrieve the 6-digit code.</p>
+        <p class="ob-panel-left-body">
+          <template v-if="isTotp">Your account is protected by an additional layer of security. Open your authenticator app to retrieve the 6-digit code.</template>
+          <template v-else>A one-time 6-digit code has been sent to your registered email address. Enter it to complete sign-in.</template>
+        </p>
         <div class="ob-panel-features">
           <div class="ob-panel-feature">
             <div class="ob-panel-feature-icon"><AegisIcon name="shield-check" :size="15" /></div>
@@ -34,11 +37,26 @@
         <div class="ob-step-header">
           <div class="ob-step-eyebrow">Security Verification</div>
           <h2 class="ob-step-title">Two-Factor Verification</h2>
-          <p class="ob-step-subtitle">Enter the 6-digit code from your authenticator app.</p>
+          <p class="ob-step-subtitle">
+          <span v-if="isTotp">
+            Open your <strong>authenticator app</strong> (Google Authenticator, Authy, or 1Password) and enter the 6-digit code shown for Aegis.
+          </span>
+          <span v-else>
+            We sent a <strong>6-digit code to your email</strong>. Check your inbox and enter it below. The code expires in 10 minutes.
+          </span>
+        </p>
         </div>
 
         <form @submit.prevent="submit" novalidate>
           <div class="form-group">
+            <div v-if="isTotp" class="mfa-method-note">
+              <AegisIcon name="phone" :size="14" />
+              <span>Open your authenticator app — code refreshes every 30 seconds</span>
+            </div>
+            <div v-else class="mfa-method-note mfa-method-note-email">
+              <AegisIcon name="mail" :size="14" />
+              <span>Check your email for the 6-digit code — expires in 10 minutes</span>
+            </div>
             <label class="form-label" for="mfa-code">Authentication Code</label>
             <input id="mfa-code" v-model="form.code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" class="form-input mfa-code-input" :class="{ 'is-error': fieldError('code') }" autocomplete="one-time-code" autofocus placeholder="000000" @blur="v$.code.$touch()" />
             <div v-if="fieldError('code')" class="form-error">{{ fieldError('code') }}</div>
@@ -63,9 +81,12 @@ import { useVuelidate } from '@vuelidate/core'
 import { required, minLength, maxLength, numeric, helpers } from '@vuelidate/validators'
 import { useToast } from '@/composables/useToast'
 
+const props   = defineProps({ mfaMethod: { type: String, default: 'totp' } })
 const toast   = useToast()
 const year    = new Date().getFullYear()
 const form    = useForm({ code: '' })
+
+const isTotp  = computed(() => props.mfaMethod === 'totp')
 
 // ── Vuelidate ──────────────────────────────────────────────────────────
 const rules = computed(() => ({
@@ -126,6 +147,8 @@ function logout() { router.post(route('logout')) }
 .ob-step-title { font-family:var(--font-serif); font-size:clamp(22px,2vw + 0.6rem,30px); font-weight:700; color:var(--text); line-height:1.22; margin-bottom:8px; }
 .ob-step-subtitle { font-size:13px; color:var(--text-2); line-height:1.55; }
 .mfa-code-input { text-align:center; font-family:var(--font-serif); font-size:24px; font-weight:700; letter-spacing:10px; height:56px; }
+.mfa-method-note { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text-3); background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius); padding:8px 12px; margin-bottom:10px; }
+.mfa-method-note-email { background:var(--icon-bg-gold); border-color:var(--badge-border-gold); color:var(--text-2); }
 .ob-btn-full { width:100%; padding:12px 22px; border-radius:var(--radius-full); font-size:13px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
 .ob-altline { text-align:center; margin-top:20px; font-size:12px; color:var(--text-2); }
 .ob-altline-link { color:var(--gold-dark); text-decoration:none; font-weight:600; background:none; border:none; cursor:pointer; font-size:inherit; padding:0; }

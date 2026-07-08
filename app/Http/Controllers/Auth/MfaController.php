@@ -8,6 +8,7 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\MfaToken;
 use App\Models\User;
+use App\Services\ActivityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,8 @@ use Inertia\Response;
 
 class MfaController extends Controller
 {
+    public function __construct(private ActivityService $activity) {}
+
     /** POST /settings/mfa/enable — generate secret + provisioning URI (unconfirmed) */
     public function enable(Request $request): JsonResponse
     {
@@ -31,16 +34,6 @@ class MfaController extends Controller
 
         $secret = $this->generateTotpSecret();
 
-        MfaToken::updateOrCreate(
-            ['user_id' => $user->id],
-            [
-                'id'           => 'mfa_' . Str::lower(Str::random(12)),
-                'secret'       => $secret,
-                'confirmed_at' => null,
-                'disabled_at'  => null,
-            ]
-        );
-
         $provisioningUri = sprintf(
             'otpauth://totp/%s:%s?secret=%s&issuer=%s&algorithm=SHA1&digits=6&period=30',
             rawurlencode('Aegis'),
@@ -49,9 +42,43 @@ class MfaController extends Controller
             rawurlencode('Aegis')
         );
 
+        // Generate 8 six-digit numeric backup/recovery codes
+        $recoveryCodes = [];
+        for ($i = 0; $i < 8; $i++) {
+            $recoveryCodes[] = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        }
+
+        MfaToken::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'id'             => 'mfa_' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(12)),
+                'secret'         => $secret,
+                'recovery_codes' => $recoveryCodes,
+                'confirmed_at'   => null,
+                'disabled_at'    => null,
+            ]
+        );
+
         return response()->json([
             'secret'           => $secret,
             'provisioning_uri' => $provisioningUri,
+            'recovery_codes'   => $recoveryCodes,
+        ]);
+    }
+
+    /** GET /settings/mfa/backup-codes — return existing recovery codes */
+    public function backupCodes(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $mfa  = $user->mfaToken;
+
+        if (!$mfa || !$user->two_factor_enabled) {
+            return response()->json(['recovery_codes' => []]);
+        }
+
+        return response()->json([
+            'recovery_codes' => $mfa->recovery_codes ?? [],
         ]);
     }
 
@@ -79,6 +106,17 @@ class MfaController extends Controller
 
         $user->forceFill(['two_factor_enabled' => 1])->save();
 
+        $this->activity->log(
+            $user->id,
+            $user->role?->portal() ?? 'provider',
+            'account',
+            \App\Enums\ActivitySeverity::Warning,
+            'mfa_enabled',
+            'Two-factor authentication enabled',
+            'You enabled two-factor authentication (authenticator app) on your account.',
+            null, null, null, 'log', $user->id,
+        );
+
         return back()->with('success', 'Two-factor authentication has been enabled.');
     }
 
@@ -100,6 +138,17 @@ class MfaController extends Controller
             $user->mfaToken->forceFill(['disabled_at' => now()])->save();
         }
 
+        $this->activity->log(
+            $user->id,
+            $user->role?->portal() ?? 'provider',
+            'account',
+            \App\Enums\ActivitySeverity::Warning,
+            'mfa_disabled',
+            'Two-factor authentication disabled',
+            'Two-factor authentication was disabled on your account.',
+            null, null, null, 'log', $user->id,
+        );
+
         return back()->with('success', 'Two-factor authentication has been disabled.');
     }
 
@@ -110,7 +159,18 @@ class MfaController extends Controller
             return redirect()->route('login');
         }
 
-        return Inertia::render('Auth/MfaChallenge');
+        $userId = $request->session()->get('mfa_pending_user_id');
+        $user   = \App\Models\User::find($userId);
+        $mfa    = $user?->mfaToken;
+
+        // Determine method: if MFA token exists and is confirmed → totp, else email
+        $mfaMethod = ($mfa && $mfa->confirmed_at && !$mfa->disabled_at)
+            ? 'totp'
+            : 'email';
+
+        return Inertia::render('Auth/MfaChallenge', [
+            'mfaMethod' => $mfaMethod,
+        ]);
     }
 
     /** POST /mfa/challenge — verify code on login */

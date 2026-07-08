@@ -136,6 +136,7 @@
             enable-mfa-route="provider.settings.mfa.enable"
             disable-mfa-route="provider.settings.mfa.disable"
             verify-mfa-route="provider.settings.mfa.verify"
+            backup-codes-route="provider.settings.mfa.backup-codes"
             :mfa-enabled="mfaEnabled"
             :user-email="user?.email ?? ''"
           />
