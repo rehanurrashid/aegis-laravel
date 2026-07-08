@@ -203,6 +203,19 @@ class SubscriptionService
                 // Recent invoice history (last 12)
                 $invList = $stripe->invoices->all(['customer' => $user->stripe_id, 'limit' => 12]);
                 foreach ($invList->data as $inv) {
+                    // Resolve a human-readable product name from the first line item.
+                    // Prefer the Stripe Product name; fall back to line description.
+                    $lineItem    = $inv->lines->data[0] ?? null;
+                    $productName = null;
+                    try {
+                        $productId   = $lineItem?->price?->product ?? null;
+                        if ($productId) {
+                            $product     = $stripe->products->retrieve($productId);
+                            $productName = $product->name ?? null;
+                        }
+                    } catch (\Throwable) {}
+                    $productName = $productName ?? $lineItem?->description ?? 'Aegis subscription';
+
                     $invoices[] = [
                         'id'           => $inv->id,
                         'number'       => $inv->number,
@@ -211,6 +224,7 @@ class SubscriptionService
                         'paid_at'      => $inv->status_transitions->paid_at ?? null,
                         'created'      => $inv->created,
                         'description'  => $inv->lines->data[0]->description ?? 'Aegis subscription',
+                        'product_name' => $productName,
                         'pdf_url'      => $inv->invoice_pdf,
                         'hosted_url'   => $inv->hosted_invoice_url,
                     ];

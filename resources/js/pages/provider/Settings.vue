@@ -388,6 +388,23 @@
             </div>
             <div class="st-card-body">
 
+              <!-- Founding Member perk banner — first 100 practitioners -->
+              <div v-if="user?.is_founding_member && subStatus !== 'none'" class="st-founding-banner">
+                <AegisIcon name="star" :size="16" />
+                <span><strong>Founding Member perks active</strong> — 2 additional Continuity Stewards free for life · 1 marketing ad/yr free (first 100 providers)</span>
+              </div>
+
+              <!-- Upgrade CTA — shown when on Access tier with an active subscription -->
+              <div v-if="currentTier === 'access' && subStatus === 'active'" class="st-upgrade-cta">
+                <div>
+                  <div class="st-upgrade-cta-title">Upgrade to Continuity Practice</div>
+                  <div class="st-upgrade-cta-sub">Unlock referrals, full network, services and more — $49/mo or $468/yr</div>
+                </div>
+                <button type="button" class="btn btn-primary btn-sm" @click="modals.showUpgrade = true">
+                  <AegisIcon name="activity" :size="13" /> Upgrade Now
+                </button>
+              </div>
+
               <!-- Current plan band — dynamic from backend -->
               <div class="st-current-band">
                 <div>
@@ -583,7 +600,7 @@
                 <tbody>
                   <tr v-for="inv in stripeInvoices" :key="inv.id">
                     <td>{{ formatDate(inv.paid_at || inv.created) }}</td>
-                    <td>{{ inv.description }}</td>
+                    <td>{{ inv.product_name || inv.description }}</td>
                     <td>${{ (inv.amount_cents / 100).toFixed(2) }}</td>
                     <td>
                       <span v-if="inv.status === 'paid'" style="color:var(--green);font-weight:600;display:inline-flex;align-items:center;gap:4px;">
@@ -1258,6 +1275,10 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 .st-current-name { font-family: var(--font-serif); font-size: 18px; font-weight: 700; color: var(--text); }
 .st-current-meta { font-size: 13px; color: var(--text-3); margin-top: 3px; }
 .st-perks-band { display: flex; align-items: flex-start; gap: 10px; background: var(--icon-bg-gold); border: 1px solid var(--badge-border-gold); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 16px; font-size: 13px; color: var(--text-2); line-height: 1.5; }
+.st-founding-banner { display: flex; align-items: center; gap: 10px; background: var(--icon-bg-gold); border: 1px solid var(--icon-bg-gold); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 16px; font-size: 13px; color: var(--text-2); }
+.st-upgrade-cta { display: flex; align-items: center; justify-content: space-between; gap: 14px; background: var(--surface-2); border: 1px solid var(--primary); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 18px; }
+.st-upgrade-cta-title { font-family: var(--font-serif); font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.st-upgrade-cta-sub { font-size: 13px; color: var(--text-3); }
 .st-cycle-toggle { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 18px; font-size: 13px; font-weight: 600; color: var(--text-3); }
 .st-cycle-toggle .active { color: var(--text-2); }
 .st-save-pill { background: var(--green-light); color: var(--green-dark); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: var(--radius-full); }

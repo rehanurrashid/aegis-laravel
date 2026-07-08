@@ -44,10 +44,15 @@ class SettingsController extends Controller
 
         // Enrich user with computed fields Vue expects
         $userArr = $user->toArray();
-        $userArr['mfa_enabled']        = (bool) $user->two_factor_enabled;
-        $userArr['has_cs_portal']       = $user->meta()->where('meta_key', 'has_cs_portal')->value('meta_value') === '1';
-        $userArr['has_ss_portal']       = $user->meta()->where('meta_key', 'has_ss_portal')->value('meta_value') === '1';
-        $userArr['tier']                = $user->tier?->value ?? null;
+        $userArr['mfa_enabled']          = (bool) $user->two_factor_enabled;
+        $userArr['has_cs_portal']         = $user->meta()->where('meta_key', 'has_cs_portal')->value('meta_value') === '1';
+        $userArr['has_ss_portal']         = $user->meta()->where('meta_key', 'has_ss_portal')->value('meta_value') === '1';
+        $userArr['tier']                  = $user->tier?->value ?? null;
+        // Founding member = among the first 100 practitioners to register on the platform.
+        // Determined by counting practitioners registered before this user.
+        $userArr['is_founding_member']    = \App\Models\User::where('role', 'practitioner')
+            ->where('created_at', '<', $user->created_at)
+            ->count() < 100;
 
         return Inertia::render('Provider/Settings', [
             'user'         => $userArr,
