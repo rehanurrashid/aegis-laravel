@@ -194,6 +194,7 @@ onMounted(async () => {
 
     elements = stripe.elements({
       clientSecret: props.clientSecret,
+      loader: 'auto',
       appearance: {
         theme: 'flat',
         variables: {
@@ -304,30 +305,23 @@ onMounted(async () => {
       },
     })
 
-    paymentElement = elements.create('payment', {
-      // Card only — no Bank, iDEAL, Cash App, Bancontact etc.
-      paymentMethodOrder: ['card'],
-      layout: {
-        type: 'tabs',
-        defaultCollapsed: false,
-        radios: false,
-        spacedAccordionItems: false,
-      },
-      fields: {
-        billingDetails: {
-          name:  'auto',
-          email: 'never', // we already have the user's email
+    // Use 'card' element directly instead of 'payment' to avoid
+    // Link, Bank, iDEAL, Cash App and other payment method tabs entirely.
+    paymentElement = elements.create('card', {
+      hidePostalCode: false,
+      style: {
+        base: {
+          fontFamily:     'Inter, Helvetica Neue, Arial, sans-serif',
+          fontSize:       '14px',
+          fontWeight:     '500',
+          color:          '#1e1c1a',
+          letterSpacing:  '0',
+          '::placeholder': { color: '#b5afa8' },
         },
-      },
-      defaultValues: {
-        billingDetails: {
-          email: page.props.auth?.user?.email ?? '',
-          name:  page.props.auth?.user?.display_name ?? '',
+        invalid: {
+          color:     '#c85c42',
+          iconColor: '#c85c42',
         },
-      },
-      wallets: {
-        applePay: 'never',
-        googlePay: 'never',
       },
     })
 
@@ -356,14 +350,11 @@ async function submit() {
   submitting.value   = true
 
   try {
-    // Confirm the SetupIntent — this tokenizes the card → returns pm_xxx
-    const { setupIntent, error } = await stripe.confirmSetup({
-      elements,
-      confirmParams: {
-        // No return_url needed — we handle redirect server-side
-      },
-      redirect: 'if_required',
-    })
+    // confirmCardSetup for the card element (avoids Link/redirect flow)
+    const { setupIntent, error } = await stripe.confirmCardSetup(
+      props.clientSecret,
+      { payment_method: { card: paymentElement } }
+    )
 
     if (error) {
       errorMessage.value = error.message ?? 'Payment failed. Please try again.'
