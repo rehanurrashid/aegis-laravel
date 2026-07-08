@@ -37,9 +37,11 @@ class SettingsController extends Controller
                 'created_at'   => $s->created_at?->toDateString(),
             ]);
 
-        $userArr = $user->toArray();
-        $userArr['mfa_enabled']    = (bool) $user->two_factor_enabled;
-        $userArr['bp_type']        = $user->bp_type?->value ?? 'agency';
+        $userArr         = $user->toArray();
+        $userArr['mfa_enabled'] = (bool) $user->two_factor_enabled;
+        $userArr['bp_type']     = $user->bp_type instanceof \BackedEnum
+            ? $user->bp_type->value
+            : ($user->bp_type ?? 'agency');
 
         return Inertia::render('BusinessPartner/Settings', [
             'user'         => $userArr,
@@ -140,10 +142,11 @@ class SettingsController extends Controller
         $this->profiles->revokeAllSessions($request->user());
         return back()->with('success', 'All sessions revoked.');
     }
-}
+
     public function swapPlan(Request $request): RedirectResponse
     {
         $data = $request->validate(['price_id' => ['required', 'string', 'starts_with:price_']]);
+
         try {
             $result = $this->subscriptions->changePlan($request->user(), $data['price_id']);
             $msg = match ($result['direction']) {

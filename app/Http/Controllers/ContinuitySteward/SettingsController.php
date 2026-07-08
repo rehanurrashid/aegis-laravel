@@ -38,16 +38,16 @@ class SettingsController extends Controller
             ]);
 
         $userArr = $user->toArray();
-        $userArr['mfa_enabled']              = (bool) $user->two_factor_enabled;
-        $userArr['linked_provider_name']     = $user->linkedProvider?->display_name;
-        $userArr['linked_provider_tier']     = $user->linkedProvider?->tier?->value;
-        $userArr['linked_provider_tier_label'] = match($user->linkedProvider?->tier?->value) {
+        $userArr['mfa_enabled']                = (bool) $user->two_factor_enabled;
+        $userArr['linked_provider_name']       = $user->linkedProvider?->display_name;
+        $userArr['linked_provider_tier']       = $user->linkedProvider?->tier?->value;
+        $userArr['linked_provider_tier_label'] = match ($user->linkedProvider?->tier?->value) {
             'practice' => 'Continuity Practice',
             'access'   => 'Continuity Access',
             default    => null,
         };
-        $userArr['cs_account_type']          = $user->cs_account_type?->value ?? 'invited';
-        $userArr['cs_assignment_role']       = $meta['cs_assignment_role'] ?? 'Primary';
+        $userArr['cs_account_type']    = $user->cs_account_type?->value ?? 'invited';
+        $userArr['cs_assignment_role'] = $meta['cs_assignment_role'] ?? 'Primary';
 
         // Only Business CS has a paid subscription
         $csAccountType = $user->cs_account_type instanceof \BackedEnum
@@ -163,16 +163,20 @@ class SettingsController extends Controller
         $this->profiles->revokeAllSessions($request->user());
         return back()->with('success', 'All sessions revoked.');
     }
-}
+
     public function swapPlan(Request $request): RedirectResponse
     {
-        $user = $request->user();
-        $csType = $user->cs_account_type instanceof \BackedEnum ? $user->cs_account_type->value : 'invited';
+        $user   = $request->user();
+        $csType = $user->cs_account_type instanceof \BackedEnum
+            ? $user->cs_account_type->value
+            : 'invited';
+
         if ($csType !== 'business') {
             return back()->withErrors(['subscription' => 'Only Business CS accounts have a paid subscription.']);
         }
 
         $data = $request->validate(['price_id' => ['required', 'string', 'starts_with:price_']]);
+
         try {
             $result = $this->subscriptions->changePlan($user, $data['price_id']);
             $msg = match ($result['direction']) {
