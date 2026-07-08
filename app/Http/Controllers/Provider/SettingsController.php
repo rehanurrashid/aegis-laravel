@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
 use App\Models\UserMeta;
+use App\Models\UserSession;
 use App\Services\ProfileService;
 use App\Services\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
@@ -22,16 +23,37 @@ class SettingsController extends Controller
 
     public function index(Request $request): Response
     {
-        $user = $request->user();
-        $meta = UserMeta::where('user_id', $user->id)
-            ->where('meta_key', 'like', 'notify_%')
-            ->pluck('meta_value', 'meta_key')
-            ->toArray();
+        $user = $request->user()->load('meta', 'sessions');
+
+        // Return ALL meta so Vue can populate every panel
+        $meta = $user->meta->pluck('typed_value', 'meta_key')->toArray();
+
+        // Active sessions (not revoked)
+        $sessions = UserSession::where('user_id', $user->id)
+            ->whereNull('revoked_at')
+            ->orderByDesc('last_seen_at')
+            ->get()
+            ->map(fn ($s) => [
+                'id'           => $s->id,
+                'device'       => $s->device_label ?? 'Unknown device',
+                'ip'           => $s->ip_address,
+                'user_agent'   => $s->user_agent,
+                'last_seen_at' => $s->last_seen_at?->diffForHumans(),
+                'created_at'   => $s->created_at?->toDateString(),
+            ]);
+
+        // Enrich user with computed fields Vue expects
+        $userArr = $user->toArray();
+        $userArr['mfa_enabled']        = (bool) $user->two_factor_enabled;
+        $userArr['has_cs_portal']       = $user->meta()->where('meta_key', 'has_cs_portal')->value('meta_value') === '1';
+        $userArr['has_ss_portal']       = $user->meta()->where('meta_key', 'has_ss_portal')->value('meta_value') === '1';
+        $userArr['tier']                = $user->tier?->value ?? null;
 
         return Inertia::render('Provider/Settings', [
-            'user'         => $user,
+            'user'         => $userArr,
             'meta'         => $meta,
-            'mfaEnabled'   => (bool) $user->mfa_enabled,
+            'mfaEnabled'   => (bool) $user->two_factor_enabled,
+            'sessions'     => $sessions,
             'subscription' => $this->subscriptions->getFullSubscriptionData($user),
             'pricing'      => config('aegis.pricing'),
         ]);
@@ -52,35 +74,80 @@ class SettingsController extends Controller
             'notify_message'  => 'nullable|boolean',
             'notify_referral' => 'nullable|boolean',
             'notify_account'  => 'nullable|boolean',
+            // Channel-level from notification table
+            'prefs'           => 'nullable|array',
+            'categories'      => 'nullable|array',
         ]);
 
+        $user = $request->user();
+
+        // Save simple boolean notify_* keys
         foreach ($data as $key => $val) {
-            $this->profiles->setMeta($request->user()->id, $key, $val ? '1' : '0', 'bool');
+            if (str_starts_with($key, 'notify_') && is_bool($val) || is_string($val)) {
+                $this->profiles->saveMeta($user, $key, $val ? '1' : '0', 'string');
+            }
         }
+
+        // Save quiet hours + digest prefs
+        if (!empty($data['prefs'])) {
+            $this->profiles->saveMeta($user, 'notify_prefs', $data['prefs'], 'json');
+        }
+
+        // Save per-category channel matrix
+        if (!empty($data['categories'])) {
+            $this->profiles->saveMeta($user, 'notify_categories', $data['categories'], 'json');
+        }
+
         return back()->with('success', 'Notification preferences saved.');
+    }
+
+    public function updateAppearance(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'theme'    => 'nullable|string|in:gold,gold-dark,slate',
+            'darkMode' => 'nullable|boolean',
+            'timezone' => 'nullable|string|max:64',
+        ]);
+
+        $user = $request->user();
+        $this->profiles->saveMeta($user, 'appearance', [
+            'theme'     => $data['theme']    ?? 'gold',
+            'dark_mode' => (bool) ($data['darkMode'] ?? false),
+            'timezone'  => $data['timezone'] ?? 'America/New_York',
+        ], 'json');
+
+        return back()->with('success', 'Appearance settings saved.');
+    }
+
+    public function revokeSession(Request $request, string $session): RedirectResponse
+    {
+        $user = $request->user();
+        $this->profiles->revokeSession($user, $session);
+        return back()->with('success', 'Session revoked.');
+    }
+
+    public function revokeAllSessions(Request $request): RedirectResponse
+    {
+        $user  = $request->user();
+        // Keep the current Laravel session intact; revoke all UserSession records
+        $this->profiles->revokeAllSessions($user);
+        return back()->with('success', 'All sessions revoked.');
     }
 
     public function deleteAccount(Request $request): RedirectResponse
     {
-        $request->validate(['password' => 'required|string']);
+        $data = $request->validate(['confirm' => 'required|string|in:DELETE MY ACCOUNT']);
+
         $user = $request->user();
-        if (!\Hash::check($request->input('password'), $user->password)) {
-            return back()->withErrors(['password' => 'Incorrect password.']);
-        }
         $user->update(['deactivated_at' => now()]);
         $user->tokens()->delete();
         auth()->logout();
+
         return redirect('/login')->with('success', 'Account closed.');
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // Subscription management — wired to Settings.vue panel-subscription
-    // ─────────────────────────────────────────────────────────────────────
+    // ── Subscription management ──────────────────────────────────────────
 
-    /**
-     * Redirect to Stripe-hosted billing portal (card update, invoice history,
-     * cancel — everything covered by Stripe's own UI).
-     */
     public function billingPortal(Request $request): RedirectResponse
     {
         try {
@@ -98,15 +165,9 @@ class SettingsController extends Controller
         }
     }
 
-    /**
-     * Change plan (upgrade or downgrade) — direction auto-detected by price comparison.
-     */
     public function swapPlan(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'price_id' => ['required', 'string', 'starts_with:price_'],
-        ]);
-
+        $data = $request->validate(['price_id' => ['required', 'string', 'starts_with:price_']]);
         try {
             $result = $this->subscriptions->changePlan($request->user(), $data['price_id']);
             $msg = match ($result['direction']) {
@@ -120,22 +181,16 @@ class SettingsController extends Controller
         }
     }
 
-    /**
-     * Cancel subscription at period end — grace period until then.
-     */
     public function cancelPlan(Request $request): RedirectResponse
     {
         try {
             $this->subscriptions->cancel($request->user());
-            return back()->with('success', 'Your subscription will end at the current billing period. You can reactivate any time before then.');
+            return back()->with('success', 'Your subscription will end at the current billing period.');
         } catch (\Throwable $e) {
             return back()->withErrors(['subscription' => $e->getMessage()]);
         }
     }
 
-    /**
-     * Reactivate a cancelled subscription during grace period.
-     */
     public function resumePlan(Request $request): RedirectResponse
     {
         try {
@@ -146,25 +201,16 @@ class SettingsController extends Controller
         }
     }
 
-    /**
-     * Toggle MAAT addon on the existing subscription.
-     */
     public function toggleMaat(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'enable' => ['required', 'boolean'],
-        ]);
-
+        $data = $request->validate(['enable' => ['required', 'boolean']]);
         $user = $request->user();
 
-        if ($data['enable'] && $user->tier !== 'practice') {
-            return back()->withErrors([
-                'maat' => 'MAAT Professional CS Service requires Continuity Practice tier. Please upgrade first.',
-            ]);
+        if ($data['enable'] && $user->tier?->value !== 'practice') {
+            return back()->withErrors(['maat' => 'MAAT requires Continuity Practice tier.']);
         }
 
-        // Determine billing period from the base subscription's price
-        $sub = $user->subscription('default');
+        $sub     = $user->subscription('default');
         $billing = 'monthly';
         if ($sub && $sub->stripe_price) {
             $annualPrices = array_filter([
@@ -178,39 +224,26 @@ class SettingsController extends Controller
 
         try {
             $this->subscriptions->toggleMaatAddon($user, (bool) $data['enable'], $billing);
-            $msg = $data['enable']
-                ? 'MAAT Professional CS Service added to your subscription.'
-                : 'MAAT Professional CS Service removed.';
+            $msg = $data['enable'] ? 'MAAT Professional CS Service added.' : 'MAAT Professional CS Service removed.';
             return back()->with('success', $msg);
         } catch (\Throwable $e) {
             return back()->withErrors(['maat' => $e->getMessage()]);
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // Payment methods — wired to Settings.vue panel-billing
-    // ─────────────────────────────────────────────────────────────────────
+    // ── Payment methods ───────────────────────────────────────────────────
 
-    /**
-     * Store a new payment method (Stripe PaymentMethod ID from Stripe Elements).
-     * Optionally sets as default.
-     */
     public function storePaymentMethod(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'payment_method_id' => 'required|string|starts_with:pm_',
             'set_default'       => 'nullable|boolean',
         ]);
-
         $user = $request->user();
         try {
             if (!$user->hasStripeId()) {
-                $user->createAsStripeCustomer([
-                    'name'  => $user->display_name,
-                    'email' => $user->email,
-                ]);
+                $user->createAsStripeCustomer(['name' => $user->display_name, 'email' => $user->email]);
             }
-
             if (!empty($data['set_default'])) {
                 $user->updateDefaultPaymentMethod($data['payment_method_id']);
             } else {
@@ -218,19 +251,13 @@ class SettingsController extends Controller
             }
             return back()->with('success', 'Payment method saved.');
         } catch (\Throwable $e) {
-            \Log::error('[SettingsController] storePaymentMethod failed', [
-                'user_id' => $user->id,
-                'error'   => $e->getMessage(),
-            ]);
             return back()->withErrors(['payment' => 'Could not save payment method. ' . $e->getMessage()]);
         }
     }
 
     public function setDefaultPaymentMethod(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'payment_method_id' => 'required|string|starts_with:pm_',
-        ]);
+        $data = $request->validate(['payment_method_id' => 'required|string|starts_with:pm_']);
         try {
             $this->subscriptions->setDefaultPaymentMethod($request->user(), $data['payment_method_id']);
             return back()->with('success', 'Default payment method updated.');
@@ -241,9 +268,7 @@ class SettingsController extends Controller
 
     public function removePaymentMethod(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'payment_method_id' => 'required|string|starts_with:pm_',
-        ]);
+        $data = $request->validate(['payment_method_id' => 'required|string|starts_with:pm_']);
         try {
             $this->subscriptions->removePaymentMethod($request->user(), $data['payment_method_id']);
             return back()->with('success', 'Payment method removed.');

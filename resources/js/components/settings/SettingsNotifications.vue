@@ -41,6 +41,7 @@
           </div>
         </div>
       </div>
+
       <table class="notif-table">
         <thead>
           <tr>
@@ -62,11 +63,13 @@
         </tbody>
       </table>
 
-      <!-- Portal-specific extra toggles rendered via slot -->
+      <!-- Extra portal-specific toggles (steward alerts etc.) -->
       <slot name="extra-toggles" />
 
       <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
-        <button type="button" class="btn btn-primary" @click="save"><AegisIcon name="check" :size="14" /> Save Preferences</button>
+        <button type="button" class="btn btn-primary" :disabled="saving" @click="save">
+          <AegisIcon name="check" :size="14" /> Save Preferences
+        </button>
       </div>
     </div>
   </div>
@@ -81,25 +84,43 @@ const props = defineProps({
   updateRoute:     { type: String,  required: true },
   subtitle:        { type: String,  default: 'Delivery channels are unified across all portals.' },
   notifCategories: { type: Array,   default: () => [] },
+  // Pre-populated from meta
+  savedPrefs:      { type: Object,  default: () => ({}) },
+  savedCategories: { type: Array,   default: () => [] },
 });
 
-const toast = useToast();
+const toast  = useToast();
+const saving = ref(false);
 
-const prefs = reactive({ quietFrom: '22:00', quietTo: '08:00', digest: 'daily', reminderLead: '1day' });
+const prefs = reactive({
+  quietFrom:    props.savedPrefs?.quietFrom   ?? '22:00',
+  quietTo:      props.savedPrefs?.quietTo     ?? '08:00',
+  digest:       props.savedPrefs?.digest      ?? 'daily',
+  reminderLead: props.savedPrefs?.reminderLead ?? '1day',
+});
 
-// Deep clone so we can mutate locally
-const localCategories = reactive(props.notifCategories.map(c => ({ ...c })));
+// Merge saved category states into the portal-defined list
+const localCategories = reactive(
+  props.notifCategories.map(c => {
+    const saved = props.savedCategories?.find(s => s.key === c.key);
+    return saved ? { ...c, ...saved } : { ...c };
+  })
+);
 
-function setAll(val) { localCategories.forEach(c => { c.push = val; c.email = val; c.sms = val; c.inapp = val; }); }
+function setAll(val) {
+  localCategories.forEach(c => { c.push = val; c.email = val; c.sms = val; c.inapp = val; });
+}
 
 function save() {
+  saving.value = true;
   router.put(route(props.updateRoute), {
-    prefs: prefs,
+    prefs:      prefs,
     categories: localCategories,
   }, {
     preserveScroll: true,
-    onSuccess: () => toast.success('Notification preferences saved!'),
-    onError: () => toast.error('Could not save preferences.'),
+    onSuccess: () => { saving.value = false; toast.success('Notification preferences saved!'); },
+    onError:   () => { saving.value = false; toast.error('Could not save preferences.'); },
+    onFinish:  () => { saving.value = false; },
   });
 }
 </script>

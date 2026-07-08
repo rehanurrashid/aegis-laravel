@@ -51,7 +51,13 @@
         </div>
 
         <div v-show="section === \'account\'" class="settings-panel">
-          <SettingsAccount :user="user" update-password-route="ss.settings.password" />
+          <SettingsAccount
+            :user="user"
+            :sessions="sessions"
+            update-password-route="ss.settings.password"
+            revoke-session-route="ss.settings.sessions.revoke"
+            revoke-all-route="ss.settings.sessions.revoke-all"
+          />
         </div>
 
         <div v-show="section === \'security\'" class="settings-panel">
@@ -59,7 +65,9 @@
         </div>
 
         <div v-show="section === \'notifications\'" class="settings-panel">
-          <SettingsNotifications update-route="ss.settings.notifications" subtitle="Delivery channels unified across portals. Per-category preferences apply to your Support Steward role." :notif-categories="ssNotifCategories" />
+          <SettingsNotifications update-route="ss.settings.notifications"
+            :saved-prefs="meta?.notify_prefs ?? {}"
+            :saved-categories="meta?.notify_categories ?? []" subtitle="Delivery channels unified across portals. Per-category preferences apply to your Support Steward role." :notif-categories="ssNotifCategories" />
         </div>
 
         <div v-show="section === \'messaging\'" class="settings-panel">

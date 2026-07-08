@@ -49,13 +49,21 @@
           </div>
         </div>
         <div v-show="section === \'account\'" class="settings-panel">
-          <SettingsAccount :user="user" update-password-route="cs.settings.password" />
+          <SettingsAccount
+            :user="user"
+            :sessions="sessions"
+            update-password-route="cs.settings.password"
+            revoke-session-route="cs.settings.sessions.revoke"
+            revoke-all-route="cs.settings.sessions.revoke-all"
+          />
         </div>
         <div v-show="section === \'security\'" class="settings-panel">
           <SettingsSecurity enable-mfa-route="cs.settings.mfa.enable" disable-mfa-route="cs.settings.mfa.disable" verify-mfa-route="cs.settings.mfa.verify" :mfa-enabled="mfaEnabled" />
         </div>
         <div v-show="section === \'notifications\'" class="settings-panel">
-          <SettingsNotifications update-route="cs.settings.notifications" subtitle="Delivery channels unified across portals. Per-category preferences apply to your Continuity Steward role." :notif-categories="csNotifCategories" />
+          <SettingsNotifications update-route="cs.settings.notifications"
+            :saved-prefs="meta?.notify_prefs ?? {}"
+            :saved-categories="meta?.notify_categories ?? []" subtitle="Delivery channels unified across portals. Per-category preferences apply to your Continuity Steward role." :notif-categories="csNotifCategories" />
         </div>
         <div v-show="section === \'messaging\'" class="settings-panel">
           <SettingsMessaging update-route="cs.settings.messaging" messages-route="cs.messages.index" subtitle="Control who can reach you and how you appear to assigned practitioners" :meta="meta">
@@ -179,6 +187,7 @@ const props = defineProps({
   user:         { type: Object,  default: () => ({}) },
   meta:         { type: Object,  default: () => ({}) },
   mfaEnabled:   { type: Boolean, default: false },
+  sessions:     { type: Array,   default: () => [] },
   subscription: { type: Object,  default: () => ({}) },
 });
 

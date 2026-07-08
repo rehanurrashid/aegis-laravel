@@ -85,6 +85,67 @@ class ProfileService
         $this->setMeta($user, $key, $value, $type);
     }
 
+    /**
+     * Save a single meta key for a user (public, accepts User or user_id string).
+     * Used by Settings controllers across all portals.
+     */
+    public function saveMeta(User $user, string $key, mixed $value, string $type = 'string'): void
+    {
+        $this->setMeta($user, $key, $value, $type);
+    }
+
+    /**
+     * Save multiple meta keys at once.
+     * @param array<string, mixed> $pairs  key => value
+     */
+    public function saveManyMeta(User $user, array $pairs, string $type = 'string'): void
+    {
+        foreach ($pairs as $key => $value) {
+            $this->setMeta($user, $key, $value, $type);
+        }
+    }
+
+    /**
+     * Read a single meta value for a user, with an optional default.
+     */
+    public function getMeta(User $user, string $key, mixed $default = null): mixed
+    {
+        $row = $user->meta()->where('meta_key', $key)->first();
+        return $row ? $row->typed_value : $default;
+    }
+
+    /**
+     * Read all meta for a user as key => typed_value map.
+     */
+    public function getAllMeta(User $user, ?string $prefix = null): array
+    {
+        $q = $user->meta();
+        if ($prefix) {
+            $q->where('meta_key', 'like', $prefix . '%');
+        }
+        return $q->get()->pluck('typed_value', 'meta_key')->toArray();
+    }
+
+    /**
+     * Revoke all active user sessions except the current one.
+     */
+    public function revokeAllSessions(User $user, ?string $exceptToken = null): void
+    {
+        $q = $user->sessions()->whereNull('revoked_at');
+        if ($exceptToken) {
+            $q->where('session_token', '!=', $exceptToken);
+        }
+        $q->update(['revoked_at' => now()]);
+    }
+
+    /**
+     * Revoke a single session by ID.
+     */
+    public function revokeSession(User $user, string $sessionId): void
+    {
+        $user->sessions()->where('id', $sessionId)->update(['revoked_at' => now()]);
+    }
+
     public function updateServices(User $user, array $services): User
     {
         $this->setMeta($user, 'services', $services);

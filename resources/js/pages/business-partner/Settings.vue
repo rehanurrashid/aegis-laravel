@@ -51,7 +51,13 @@
         </div>
 
         <div v-show="section === \'account\'" class="settings-panel">
-          <SettingsAccount :user="user" update-password-route="bp.settings.password" />
+          <SettingsAccount
+            :user="user"
+            :sessions="sessions"
+            update-password-route="bp.settings.password"
+            revoke-session-route="bp.settings.sessions.revoke"
+            revoke-all-route="bp.settings.sessions.revoke-all"
+          />
         </div>
 
         <div v-show="section === \'security\'" class="settings-panel">
@@ -59,11 +65,14 @@
         </div>
 
         <div v-show="section === \'notifications\'" class="settings-panel">
-          <SettingsNotifications update-route="bp.settings.notifications" subtitle="Choose how you receive alerts about your business activity on Aegis." :notif-categories="bpNotifCategories" />
+          <SettingsNotifications update-route="bp.settings.notifications"
+            :saved-prefs="meta?.notify_prefs ?? {}"
+            :saved-categories="meta?.notify_categories ?? []" subtitle="Choose how you receive alerts about your business activity on Aegis." :notif-categories="bpNotifCategories" />
         </div>
 
         <div v-show="section === \'messaging\'" class="settings-panel">
-          <SettingsMessaging update-route="bp.settings.messaging" messages-route="bp.messages.index" subtitle="Control how practitioners can reach your business on Aegis" :who-options="[\'Practitioners I\'m connected with\']" :meta="meta" />
+          <SettingsMessaging update-route="bp.settings.messaging"
+            :meta="meta" messages-route="bp.messages.index" subtitle="Control how practitioners can reach your business on Aegis" :who-options="[\'Practitioners I\'m connected with\']" :meta="meta" />
         </div>
 
         <div v-show="section === \'email-prefs\'" class="settings-panel">
@@ -242,6 +251,7 @@ const props = defineProps({
   user:         { type: Object,  default: () => ({}) },
   meta:         { type: Object,  default: () => ({}) },
   mfaEnabled:   { type: Boolean, default: false },
+  sessions:     { type: Array,   default: () => [] },
   subscription: { type: Object,  default: () => ({}) },
 });
 

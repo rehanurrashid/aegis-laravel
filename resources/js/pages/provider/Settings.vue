@@ -111,7 +111,13 @@
 
         <!-- ACCOUNT & LOGIN -->
         <div v-show="section === 'account'" class="settings-panel">
-          <SettingsAccount :user="user" update-password-route="provider.settings.password" />
+          <SettingsAccount
+            :user="user"
+            :sessions="sessions"
+            update-password-route="provider.settings.password"
+            revoke-session-route="provider.settings.sessions.revoke"
+            revoke-all-route="provider.settings.sessions.revoke-all"
+          />
         </div>
 
         <!-- SECURITY & 2FA -->
@@ -130,6 +136,8 @@
             update-route="provider.settings.notifications"
             subtitle="Delivery channels are unified across all portals."
             :notif-categories="notifCategories"
+            :saved-prefs="meta?.notify_prefs ?? {}"
+            :saved-categories="meta?.notify_categories ?? []"
           >
             <template #extra-toggles>
               <div class="section-label" style="margin-top:20px">Security &amp; Login Alerts</div>
@@ -759,6 +767,7 @@ const props = defineProps({
   user:         { type: Object,  default: () => ({}) },
   meta:         { type: Object,  default: () => ({}) },
   mfaEnabled:   { type: Boolean, default: false },
+  sessions:     { type: Array,   default: () => [] },
   subscription: { type: Object,  default: () => ({}) },
   pricing:      { type: Object,  default: () => ({}) },
 });
