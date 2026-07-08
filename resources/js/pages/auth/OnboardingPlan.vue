@@ -393,7 +393,7 @@ function submit() {
     return
   }
 
-  const tier   = isBusinessCS.value ? 'business_cs' : selectedTier.value
+  const tier   = isBusinessCS.value ? 'cs_business' : selectedTier.value
   const addons = []
   if (addMaat.value && selectedTier.value === 'practice') addons.push('maat')
 

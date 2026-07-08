@@ -173,10 +173,13 @@ class StripeEventListener
         }
 
         // Sync tier based on the current Stripe base price (first item)
+        // NOTE: users.tier enum only accepts 'access'|'practice'. BP and CS Business
+        // roles map to their own columns/logic, not users.tier — so we only write
+        // practitioner tiers here to avoid corrupting the enum.
         $priceId = $sub['items']['data'][0]['price']['id'] ?? null;
         if ($priceId) {
             $tier = config("aegis.stripe_price_to_tier.{$priceId}");
-            if ($tier && $tier !== 'maat_addon') {
+            if ($tier && in_array($tier, ['access', 'practice'], true)) {
                 $user->update(['tier' => $tier]);
                 Log::info('[STRIPE_WEBHOOK] tier synced from Stripe', [
                     'user_id'  => $user->id,
@@ -189,6 +192,8 @@ class StripeEventListener
                     'user_id'  => $user->id,
                 ]);
             }
+            // tiers 'business_partner', 'cs_business', 'maat_addon' are intentionally
+            // not written to users.tier — they don't belong to the practitioner enum.
         }
 
         // Sync MAAT addon state — check all subscription items for a MAAT price
