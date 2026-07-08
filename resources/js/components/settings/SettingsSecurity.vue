@@ -311,26 +311,13 @@ function cancelSetup() {
 async function generateQr() {
   enabling.value = true;
   try {
-    // Get CSRF token from meta tag (set by Laravel blade) or from cookie
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content
-      ?? document.cookie.split(';').find(c => c.trim().startsWith('XSRF-TOKEN='))
-          ?.split('=')[1]?.replace(/%3D/g, '=') ?? '';
-
-    const res = await fetch(route(props.enableMfaRoute), {
-      method:      'POST',
-      credentials: 'same-origin',
-      headers: {
-        'Content-Type':  'application/json',
-        'X-CSRF-TOKEN':  csrfToken,
-        'Accept':        'application/json',
-      },
+    // Use axios — Inertia pre-configures it with X-CSRF-TOKEN and credentials automatically
+    const { default: axios } = await import('axios');
+    const res = await axios.post(route(props.enableMfaRoute), {}, {
+      headers: { 'Accept': 'application/json' },
     });
-    const data = await res.json();
-    if (!res.ok) {
-      toast.error(data.message ?? 'Could not initiate 2FA setup.');
-      return;
-    }
-    setupData.value  = data;
+    const data = res.data;
+    setupData.value = data;
 
     // Build QR via qrserver.com — reliable, no API key, returns PNG
     const uri        = encodeURIComponent(data.provisioning_uri);
@@ -435,23 +422,15 @@ async function fetchBackupCodes() {
   backupCodes.value = []; // clear while loading
   modals.backup = true;   // open modal immediately (shows loading state)
   try {
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+    const { default: axios } = await import('axios');
     const backupRoute = props.backupCodesRoute
       || props.enableMfaRoute.replace(/\/enable$/, '/backup-codes');
-    const res = await fetch(route(backupRoute), {
-      method:      'GET',
-      credentials: 'same-origin',
-      headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+    const res = await axios.get(route(backupRoute), {
+      headers: { 'Accept': 'application/json' },
     });
-    if (res.ok) {
-      const data = await res.json();
-      backupCodes.value = data.recovery_codes ?? [];
-    } else {
-      toast.error('Could not load backup codes. Please try again.');
-      modals.backup = false;
-    }
+    backupCodes.value = res.data.recovery_codes ?? [];
   } catch {
-    toast.error('Network error loading backup codes.');
+    toast.error('Could not load backup codes. Please try again.');
     modals.backup = false;
   }
 }
