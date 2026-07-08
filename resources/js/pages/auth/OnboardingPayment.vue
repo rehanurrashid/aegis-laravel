@@ -87,18 +87,18 @@
             <!-- Card Number -->
             <div class="form-group ob-card-group">
               <label class="form-label ob-card-label">Card Number</label>
-              <div id="card-number" class="ob-card-input" />
+              <div id="card-number" class="ob-card-input" :class="{ 'is-focused': focusedField === 'number' }" />
             </div>
 
             <!-- Expiry + CVC row -->
             <div class="ob-card-row">
               <div class="form-group ob-card-group">
                 <label class="form-label ob-card-label">Expiry Date</label>
-                <div id="card-expiry" class="ob-card-input" />
+                <div id="card-expiry" class="ob-card-input" :class="{ 'is-focused': focusedField === 'expiry' }" />
               </div>
               <div class="form-group ob-card-group">
                 <label class="form-label ob-card-label">CVC</label>
-                <div id="card-cvc" class="ob-card-input" />
+                <div id="card-cvc" class="ob-card-input" :class="{ 'is-focused': focusedField === 'cvc' }" />
               </div>
             </div>
           </div>
@@ -142,9 +142,10 @@ const props = defineProps({
 const toast       = useToast()
 const page        = usePage()
 const year        = new Date().getFullYear()
-const stripeReady = ref(false)
-const submitting  = ref(false)
-const errorMessage = ref('')
+const stripeReady    = ref(false)
+const submitting     = ref(false)
+const errorMessage   = ref('')
+const focusedField   = ref('')   // 'number' | 'expiry' | 'cvc' | ''
 
 let stripe       = null
 let elements     = null
@@ -327,15 +328,16 @@ onMounted(async () => {
     const cardStyle = {
       base: {
         fontFamily:      'Inter, Helvetica Neue, Arial, sans-serif',
-        fontSize:        '13px',
+        fontSize:        '14px',
         fontWeight:      '500',
         color:           '#1e1c1a',
-        letterSpacing:   '0.01em',
-        iconColor:       '#6b6560',
-        '::placeholder': { color: '#b5afa8', fontWeight: '400' },
+        letterSpacing:   '0.02em',
+        iconColor:       '#a0813e',
+        caretColor:      '#a0813e',
+        '::placeholder': { color: '#9e9890', fontWeight: '400' },
       },
       invalid: { color: '#c85c42', iconColor: '#c85c42' },
-      complete: { iconColor: '#3a7d5c' },
+      complete: { color: '#1e1c1a', iconColor: '#3a7d5c' },
     }
 
     elements = stripe.elements()
@@ -352,6 +354,13 @@ onMounted(async () => {
     cardNumber.on('ready',  () => { nR = true; chk() })
     cardExpiry.on('ready',  () => { eR = true; chk() })
     cardCvc.on('ready',     () => { cR = true; chk() })
+    cardNumber.on('focus', () => { focusedField.value = 'number' })
+    cardNumber.on('blur',  () => { focusedField.value = '' })
+    cardExpiry.on('focus', () => { focusedField.value = 'expiry' })
+    cardExpiry.on('blur',  () => { focusedField.value = '' })
+    cardCvc.on('focus',    () => { focusedField.value = 'cvc' })
+    cardCvc.on('blur',     () => { focusedField.value = '' })
+
     cardNumber.on('change', (e) => { errorMessage.value = e.error?.message ?? '' })
     cardExpiry.on('change', (e) => { if (e.error) errorMessage.value = e.error.message })
     cardCvc.on('change',    (e) => { if (e.error) errorMessage.value = e.error.message })
