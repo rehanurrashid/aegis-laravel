@@ -123,7 +123,6 @@
               :src="qrImageUrl"
               alt="2FA QR Code"
               class="ss-qr-img"
-              crossorigin="anonymous"
             />
             <div v-else class="ss-qr-skeleton">
               <AegisIcon name="phone" :size="28" />
@@ -319,9 +318,8 @@ async function generateQr() {
     const data = res.data;
     setupData.value = data;
 
-    // Build QR via qrserver.com — reliable, no API key, returns PNG
-    const uri        = encodeURIComponent(data.provisioning_uri);
-    qrImageUrl.value = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&ecc=M&data=${uri}`;
+    // Generate QR inline via qrcode.js loaded from CDN (no npm package needed)
+    qrImageUrl.value = await generateQrDataUrl(data.provisioning_uri);
 
     // Focus OTP input after render
     await nextTick();
@@ -333,7 +331,48 @@ async function generateQr() {
   }
 }
 
-function formatSecret(secret) {
+// ── QR code generation (CDN, no npm package required) ────────────────────
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = src; s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+async function generateQrDataUrl(text) {
+  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
+  return new Promise((resolve) => {
+    const div = document.createElement('div');
+    div.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:180px;height:180px';
+    document.body.appendChild(div);
+    // eslint-disable-next-line no-undef
+    new window.QRCode(div, {
+      text,
+      width:  180,
+      height: 180,
+      colorDark:  '#000000',
+      colorLight: '#ffffff',
+      correctLevel: window.QRCode?.CorrectLevel?.M ?? 0,
+    });
+    // QRCode renders synchronously into a canvas child
+    setTimeout(() => {
+      const canvas = div.querySelector('canvas');
+      if (canvas) {
+        resolve(canvas.toDataURL('image/png'));
+      } else {
+        // Fallback: qrcodejs may render an img instead
+        const img = div.querySelector('img');
+        resolve(img?.src ?? '');
+      }
+      document.body.removeChild(div);
+    }, 100);
+  });
+}
+
+
   // AAAA BBBB CCCC DDDD format for easy manual entry
   return (secret ?? '').match(/.{1,4}/g)?.join(' ') ?? secret;
 }
@@ -587,7 +626,7 @@ function copyAllCodes() {
   width: 160px;
   height: 160px;
   border-radius: var(--radius-sm);
-  background: var(--surface-white, var(--color-white, #fff)); /* QR needs white bg to be scannable */
+  background: var(--surface); /* QR data URL has its own white background */
   display: flex;
   align-items: center;
   justify-content: center;
