@@ -68,9 +68,9 @@ const form = useForm({
 });
 
 const themes = [
-  { key: 'gold',      label: 'Aegis Gold',  desc: 'Classic warm gold (default)', swatch: 'linear-gradient(135deg,#a0813e 0%,#c4a96a 100%)' },
-  { key: 'gold-dark', label: 'Gold Dark',   desc: 'Deep rich gold palette',       swatch: 'linear-gradient(135deg,#6e4e14 0%,#8c6a1e 100%)' },
-  { key: 'slate',     label: 'Slate Blue',  desc: 'Cool professional slate tone',  swatch: 'linear-gradient(135deg,#3b5278 0%,#5a7ab5 100%)' },
+  { key: 'gold',      label: 'Aegis Gold',  desc: 'Classic warm gold (default)', swatch: 'linear-gradient(135deg,var(--gold-dark) 0%,var(--gold) 100%)' },
+  { key: 'gold-dark', label: 'Gold Dark',   desc: 'Deep rich gold palette',       swatch: 'linear-gradient(135deg,var(--gold-dark) 0%,var(--gold-dark) 100%)'  },
+  { key: 'slate',     label: 'Slate Blue',  desc: 'Cool professional slate tone',  swatch: 'linear-gradient(135deg,var(--blue-dark) 0%,var(--blue) 100%)' },
 ];
 
 function save() {

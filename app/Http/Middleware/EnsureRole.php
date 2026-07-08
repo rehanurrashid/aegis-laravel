@@ -41,7 +41,21 @@ class EnsureRole
         }
 
         if (!$hasRole) {
-            abort(403, 'You do not have access to this portal.');
+            $role = $user->role instanceof UserRole
+                ? $user->role
+                : UserRole::tryFrom($userRoleValue);
+
+            $dashboardRoute = match ($role) {
+                UserRole::Practitioner       => 'provider.dashboard',
+                UserRole::ContinuitySteward  => 'cs.dashboard',
+                UserRole::SupportSteward     => 'ss.dashboard',
+                UserRole::BusinessPartner    => 'bp.dashboard',
+                UserRole::Admin              => 'admin.dashboard',
+                default                      => 'home',
+            };
+
+            return redirect()->route($dashboardRoute)
+                ->with('error', 'You are not authorized to access that portal.');
         }
 
         return $next($request);

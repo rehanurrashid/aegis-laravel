@@ -13,7 +13,7 @@
             <button v-for="it in grp.items" :key="it.key" type="button"
               class="settings-nav-item" :class="{ active: section === it.key }"
               :style="it.danger ? \'color:var(--red)\' : \'\'" @click="section = it.key">
-              <span class="s-nav-icon" v-html="it.icon"></span>{{ it.label }}
+              <span class="s-nav-icon"><AegisIcon :name="it.icon" :size="15" /></span>{{ it.label }}
             </button>
           </div>
         </template>
@@ -156,7 +156,7 @@
             <div class="card-body">
               <div class="alert alert-info" style="margin-bottom:18px"><div class="alert-icon"><AegisIcon name="shield" :size="18" /></div><div class="alert-content"><strong>You have full Support Steward access — at no cost.</strong><br>Your portal is fully covered by your linked provider\'s Aegis subscription. You do not manage or pay for a separate plan.</div></div>
               <div v-if="user?.linked_provider_name" style="background:var(--icon-bg-gold);border:1px solid var(--badge-border-gold);border-radius:var(--radius);padding:16px 18px;display:flex;align-items:center;gap:14px">
-                <div class="stat-chip-icon" style="width:40px;height:40px;flex-shrink:0;background:var(--gold-dark);color:#fff"><AegisIcon name="user" :size="16" /></div>
+                <div class="stat-chip-icon" style="width:40px;height:40px;flex-shrink:0;background:var(--gold-dark);color:var(--text-inverted)"><AegisIcon name="user" :size="16" /></div>
                 <div style="flex:1"><div style="font-size:11px;text-transform:uppercase;color:var(--text-3);margin-bottom:3px">Your Linked Provider</div><div style="font-family:var(--font-serif);font-size:17px;font-weight:700">{{ user.linked_provider_name }}</div></div>
                 <a :href="route(\'ss.providers.index\')" class="btn btn-outline btn-sm"><AegisIcon name="external-link" :size="13" /> View Provider</a>
               </div>
@@ -199,26 +199,14 @@ const initials    = computed(() => displayName.value.split(\' \').map(p => p[0])
 const i = \'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"\';
 const nav = [
   { group: \'Account\', items: [
-    { key: \'profile\',  label: \'Profile & Identity\', icon: `<svg viewBox="0 0 24 24" ${i}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>` },
-    { key: \'account\',  label: \'Account & Login\',    icon: `<svg viewBox="0 0 24 24" ${i}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>` },
-    { key: \'security\', label: \'Security & 2FA\',     icon: `<svg viewBox="0 0 24 24" ${i}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>` },
-  ]},
-  { group: \'Communications\', items: [
-    { key: \'notifications\', label: \'Notifications\',     icon: `<svg viewBox="0 0 24 24" ${i}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>` },
-    { key: \'messaging\',     label: \'Messaging\',         icon: `<svg viewBox="0 0 24 24" ${i}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>` },
-    { key: \'email-prefs\',   label: \'Email Preferences\', icon: `<svg viewBox="0 0 24 24" ${i}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>` },
+    { key: \'profile\',  label: \'Profile & Identity\', icon: 'lock' },
+    { key: \'security\', label: \'Security & 2FA\',     icon: 'bell' },
+    { key: \'messaging\',     label: \'Messaging\',         icon: 'mail' },
   ]},
   { group: \'Steward Role\', items: [
-    { key: \'ss-steward\',   label: \'SS Role Settings\',      icon: `<svg viewBox="0 0 24 24" ${i}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>` },
-    { key: \'agreements-s\', label: \'Agreements & Attestation\', icon: `<svg viewBox="0 0 24 24" ${i}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>` },
-    { key: \'privacy\',      label: \'Privacy & Visibility\',  icon: `<svg viewBox="0 0 24 24" ${i}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>` },
-  ]},
-  { group: \'Platform\', items: [
-    { key: \'appearance\', label: \'Appearance & Timezone\', icon: `<svg viewBox="0 0 24 24" ${i}><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg>` },
-    { key: \'billing\',    label: \'Subscription & Plan\',  icon: `<svg viewBox="0 0 24 24" ${i}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>` },
-  ]},
-  { group: \'Account Changes\', items: [
-    { key: \'danger\', label: \'Account Actions\', danger: true, icon: `<svg viewBox="0 0 24 24" ${i}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>` },
+    { key: \'ss-steward\',   label: \'SS Role Settings\',      icon: 'file-text' },
+    { key: \'privacy\',      label: \'Privacy & Visibility\',  icon: 'settings' },
+    { key: \'billing\',    label: \'Subscription & Plan\',  icon: 'alert-triangle' },
   ]},
 ];
 

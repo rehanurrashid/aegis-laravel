@@ -640,10 +640,9 @@ class SendEmailNotificationListener
             'gate_key' => 'notify_email',
             'template' => 'emails.auth.07-new-device-login',
             'data'     => [
-                'user_name'   => $e->user->display_name,
-                'device'      => $e->device ?? 'Unknown device',
-                'ip_address'  => $e->ipAddress ?? null,
-                'logged_in_at'=> now()->format('F j, Y \a\t g:i A T'),
+                'device_label'   => $e->device ?? 'Unknown device',
+                'location_label' => $e->ipAddress ?? null,
+                'login_at'       => now()->format('F j, Y \\a\\t g:i A T'),
             ],
         ]];
     }

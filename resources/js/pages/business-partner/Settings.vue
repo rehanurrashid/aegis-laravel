@@ -13,7 +13,7 @@
             <button v-for="it in grp.items" :key="it.key" type="button"
               class="settings-nav-item" :class="{ active: section === it.key }"
               :style="it.danger ? \'color:var(--red)\' : \'\'" @click="section = it.key">
-              <span class="s-nav-icon" v-html="it.icon"></span>{{ it.label }}
+              <span class="s-nav-icon"><AegisIcon :name="it.icon" :size="15" /></span>{{ it.label }}
             </button>
           </div>
         </template>
@@ -192,7 +192,7 @@
                 <span :style="billingAnnual ? \'color:var(--text-2)\' : \'\'">Annual <span style="background:var(--green-light);color:var(--green-dark);font-size:10px;font-weight:700;padding:2px 7px;border-radius:var(--radius-full);">Save 17%</span></span>
               </div>
               <div style="border:1px solid var(--gold-dark);border-radius:var(--radius-lg);padding:20px;text-align:center;background:var(--icon-bg-gold);max-width:460px;margin:0 auto 20px">
-                <div style="display:inline-flex;align-items:center;gap:5px;background:var(--gold-dark);color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:var(--radius-full);margin-bottom:10px"><AegisIcon name="check" :size="11" /> CURRENT PLAN</div>
+                <div style="display:inline-flex;align-items:center;gap:5px;background:var(--gold-dark);color:var(--text-inverted);font-size:10px;font-weight:700;padding:3px 10px;border-radius:var(--radius-full);margin-bottom:10px"><AegisIcon name="check" :size="11" /> CURRENT PLAN</div>
                 <div style="font-family:var(--font-serif);font-size:18px;font-weight:700;color:var(--text)">Business Partner Professional</div>
                 <div style="font-size:26px;font-weight:700;color:var(--gold-dark);margin:8px 0 4px">${{ billingAnnual ? 49 : 59 }}<span style="font-size:13px;color:var(--text-3);font-weight:600">/mo</span></div>
                 <div style="font-size:11px;color:var(--text-4);margin-bottom:12px">{{ billingAnnual ? \'billed $588/yr\' : \'or $588/yr (save 17%)\' }}</div>
@@ -264,26 +264,14 @@ const initials    = computed(() => displayName.value.split(\' \').map(p => p[0])
 const i = \'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"\';
 const nav = [
   { group: \'Account\', items: [
-    { key: \'profile\',  label: \'Profile & Identity\', icon: `<svg viewBox="0 0 24 24" ${i}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>` },
-    { key: \'account\',  label: \'Account & Login\',    icon: `<svg viewBox="0 0 24 24" ${i}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>` },
-    { key: \'security\', label: \'Security & 2FA\',     icon: `<svg viewBox="0 0 24 24" ${i}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>` },
-  ]},
-  { group: \'Communications\', items: [
-    { key: \'notifications\', label: \'Notifications\',     icon: `<svg viewBox="0 0 24 24" ${i}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>` },
-    { key: \'messaging\',     label: \'Messaging\',         icon: `<svg viewBox="0 0 24 24" ${i}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>` },
-    { key: \'email-prefs\',   label: \'Email Preferences\', icon: `<svg viewBox="0 0 24 24" ${i}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>` },
+    { key: \'profile\',  label: \'Profile & Identity\', icon: 'lock' },
+    { key: \'security\', label: \'Security & 2FA\',     icon: 'bell' },
+    { key: \'messaging\',     label: \'Messaging\',         icon: 'mail' },
   ]},
   { group: \'Business\', items: [
-    { key: \'bp-business\', label: \'Business Account\',    icon: `<svg viewBox="0 0 24 24" ${i}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>` },
-    { key: \'bp-payout\',   label: \'Payout & Stripe Connect\', icon: `<svg viewBox="0 0 24 24" ${i}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>` },
-    { key: \'privacy\',     label: \'Privacy & Visibility\',  icon: `<svg viewBox="0 0 24 24" ${i}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>` },
-  ]},
-  { group: \'Platform\', items: [
-    { key: \'appearance\', label: \'Appearance & Timezone\', icon: `<svg viewBox="0 0 24 24" ${i}><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg>` },
-    { key: \'billing\',    label: \'Subscription & Plan\',  icon: `<svg viewBox="0 0 24 24" ${i}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>` },
-  ]},
-  { group: \'Account Changes\', items: [
-    { key: \'danger\', label: \'Account Actions\', danger: true, icon: `<svg viewBox="0 0 24 24" ${i}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>` },
+    { key: \'bp-business\', label: \'Business Account\',    icon: 'credit-card' },
+    { key: \'privacy\',     label: \'Privacy & Visibility\',  icon: 'settings' },
+    { key: \'billing\',    label: \'Subscription & Plan\',  icon: 'alert-triangle' },
   ]},
 ];
 

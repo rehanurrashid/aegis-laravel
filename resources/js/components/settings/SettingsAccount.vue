@@ -14,9 +14,9 @@
         </div>
         <div class="form-row form-row-2">
           <div class="form-group">
-            <label class="form-label">Primary Email <span class="required">*</span></label>
+            <label class="form-label">Primary Email</label>
             <input class="form-input" type="email" :value="user?.email ?? ''" disabled />
-            <div class="form-hint" style="display:flex;align-items:center;gap:4px;color:var(--green)"><AegisIcon name="check" :size="14" /> Verified · Used for login and important notices</div>
+            <div class="form-hint" style="display:inline-flex;align-items:center;gap:4px;color:var(--green)"><AegisIcon name="check" :size="14" /> Verified · Used for login and important notices</div>
           </div>
           <div class="form-group">
             <label class="form-label">Phone Number</label>
@@ -29,22 +29,40 @@
 
         <div class="form-group">
           <label class="form-label">Current Password <span class="required">*</span></label>
-          <input class="form-input" :class="{ 'is-error': pwForm.errors.current_password }" type="password"
-            v-model="pwForm.current_password" placeholder="Your current password" />
-          <div v-if="pwForm.errors.current_password" class="form-error">{{ pwForm.errors.current_password }}</div>
+          <input
+            class="form-input"
+            :class="{ 'is-error': fieldError('current_password') }"
+            type="password"
+            v-model="pwForm.current_password"
+            @blur="v$.current_password.$touch()"
+            placeholder="Your current password"
+          />
+          <div v-if="fieldError('current_password')" class="form-error">{{ fieldError('current_password') }}</div>
         </div>
         <div class="form-row form-row-2">
           <div class="form-group">
-            <label class="form-label">New Password</label>
-            <input class="form-input" :class="{ 'is-error': pwForm.errors.password }" type="password"
-              v-model="pwForm.password" placeholder="Min 8 characters…" />
-            <div v-if="pwForm.errors.password" class="form-error">{{ pwForm.errors.password }}</div>
+            <label class="form-label">New Password <span class="required">*</span></label>
+            <input
+              class="form-input"
+              :class="{ 'is-error': fieldError('password') }"
+              type="password"
+              v-model="pwForm.password"
+              @blur="v$.password.$touch()"
+              placeholder="Min 8 characters…"
+            />
+            <div v-if="fieldError('password')" class="form-error">{{ fieldError('password') }}</div>
           </div>
           <div class="form-group">
-            <label class="form-label">Confirm New Password</label>
-            <input class="form-input" :class="{ 'is-error': pwForm.errors.password_confirmation }" type="password"
-              v-model="pwForm.password_confirmation" placeholder="Repeat new password…" />
-            <div v-if="pwForm.errors.password_confirmation" class="form-error">{{ pwForm.errors.password_confirmation }}</div>
+            <label class="form-label">Confirm New Password <span class="required">*</span></label>
+            <input
+              class="form-input"
+              :class="{ 'is-error': fieldError('password_confirmation') }"
+              type="password"
+              v-model="pwForm.password_confirmation"
+              @blur="v$.password_confirmation.$touch()"
+              placeholder="Repeat new password…"
+            />
+            <div v-if="fieldError('password_confirmation')" class="form-error">{{ fieldError('password_confirmation') }}</div>
           </div>
         </div>
         <div style="font-size:12px;color:var(--text-3);margin-bottom:14px">Password must be 8+ characters.</div>
@@ -63,7 +81,9 @@
           <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="monitor" :size="16" /></div>
           <div><div class="card-title">Active Sessions</div><div class="card-subtitle">Devices currently logged into your account</div></div>
         </div>
-        <button type="button" class="btn btn-danger btn-sm" @click="modals.revokeAll = true"><AegisIcon name="x" :size="12" /> Revoke All</button>
+        <button type="button" class="btn btn-danger btn-sm" @click="modals.revokeAll = true">
+          <AegisIcon name="x" :size="12" /> Revoke All
+        </button>
       </div>
       <div class="card-body">
         <div v-if="!sessions || sessions.length === 0" class="form-hint" style="padding:12px 0">No active sessions found.</div>
@@ -73,8 +93,9 @@
             <div class="session-device">{{ sess.device }}</div>
             <div class="session-meta">{{ sess.ip }} · Last active {{ sess.last_seen_at }}</div>
           </div>
-          <button type="button" class="btn-icon btn-icon-danger" data-tooltip="Revoke session"
-            @click="revokeOne(sess.id)"><AegisIcon name="x" :size="14" /></button>
+          <button type="button" class="btn-icon btn-icon-danger" data-tooltip="Revoke session" @click="revokeOne(sess.id)">
+            <AegisIcon name="x" :size="14" />
+          </button>
         </div>
       </div>
     </div>
@@ -90,9 +111,11 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue';
-import { useForm, router } from '@inertiajs/vue3';
-import { useToast } from '@/composables/useToast';
+import { reactive, computed } from 'vue';
+import { useForm, router }    from '@inertiajs/vue3';
+import { useVuelidate }        from '@vuelidate/core';
+import { required, minLength, sameAs, helpers } from '@vuelidate/validators';
+import { useToast }            from '@/composables/useToast';
 
 const props = defineProps({
   user:                { type: Object,  default: () => ({}) },
@@ -102,8 +125,8 @@ const props = defineProps({
   revokeSessionRoute:  { type: String,  required: true },
 });
 
-const toast    = useToast();
-const modals   = reactive({ revokeAll: false });
+const toast  = useToast();
+const modals = reactive({ revokeAll: false });
 
 // ─── Password form — field names MUST match PasswordResetController::change()
 const pwForm = useForm({
@@ -112,23 +135,52 @@ const pwForm = useForm({
   password_confirmation: '',
 });
 
-function savePassword() {
+// ─── Vuelidate rules (mirrors server FormRequest)
+const rules = computed(() => ({
+  current_password: {
+    required: helpers.withMessage('Current password is required.', required),
+  },
+  password: {
+    required:  helpers.withMessage('New password is required.', required),
+    minLength: helpers.withMessage('Password must be at least 8 characters.', minLength(8)),
+  },
+  password_confirmation: {
+    required: helpers.withMessage('Please confirm your new password.', required),
+    sameAs:   helpers.withMessage('Passwords do not match.', sameAs(computed(() => pwForm.password))),
+  },
+}));
+
+const v$ = useVuelidate(rules, pwForm);
+
+// fieldError: Vuelidate wins, Inertia server error as fallback
+function fieldError(field) {
+  if (v$.value[field]?.$error) return v$.value[field].$errors[0]?.$message;
+  if (pwForm.errors[field])   return pwForm.errors[field];
+  return null;
+}
+
+async function savePassword() {
+  const valid = await v$.value.$validate();
+  if (!valid) { toast.error('Please fix the highlighted fields.'); return; }
+
   pwForm.put(route(props.updatePasswordRoute), {
     preserveScroll: true,
     onSuccess: () => { toast.success('Password updated.'); resetPwForm(); },
-    onError:   () => toast.error('Please check the form.'),
+    onError:   () => toast.error('Could not update password. Please try again.'),
+    onFinish:  () => v$.value.$reset(),
   });
 }
 
 function resetPwForm() {
   pwForm.reset();
-  pwForm.clearErrors();
+  v$.value.$reset();
 }
 
 function revokeOne(sessionId) {
   router.delete(route(props.revokeSessionRoute, { session: sessionId }), {
     preserveScroll: true,
     onSuccess: () => toast.success('Session revoked.'),
+    onError:   () => toast.error('Could not revoke session.'),
   });
 }
 
@@ -137,6 +189,7 @@ function revokeAll() {
   router.delete(route(props.revokeAllRoute), {
     preserveScroll: true,
     onSuccess: () => toast.success('All other sessions revoked.'),
+    onError:   () => toast.error('Could not revoke sessions.'),
   });
 }
 </script>

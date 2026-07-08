@@ -40,7 +40,20 @@ class EnsureAdminRole
         }
 
         if (!$isAdmin) {
-            abort(403, 'Administrator access required.');
+            $role = $user->role instanceof UserRole
+                ? $user->role
+                : UserRole::tryFrom((string) $user->role);
+
+            $dashboardRoute = match ($role) {
+                UserRole::Practitioner       => 'provider.dashboard',
+                UserRole::ContinuitySteward  => 'cs.dashboard',
+                UserRole::SupportSteward     => 'ss.dashboard',
+                UserRole::BusinessPartner    => 'bp.dashboard',
+                default                      => 'home',
+            };
+
+            return redirect()->route($dashboardRoute)
+                ->with('error', 'You are not authorized to access that portal.');
         }
 
         return $next($request);

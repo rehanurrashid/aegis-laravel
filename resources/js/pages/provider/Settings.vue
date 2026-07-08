@@ -17,7 +17,7 @@
             <button v-for="it in grp.items" :key="it.key" type="button"
               class="settings-nav-item" :class="{ active: section === it.key }"
               :style="it.danger ? 'color:var(--red)' : ''" @click="section = it.key">
-              <span class="s-nav-icon" v-html="it.icon"></span>
+              <span class="s-nav-icon"><AegisIcon :name="it.icon" :size="15" /></span>
               {{ it.label }}
               <span v-if="it.badge" class="s-nav-badge">{{ it.badge }}</span>
             </button>
@@ -381,7 +381,7 @@
           <div class="st-card">
             <div class="st-card-head">
               <div class="st-card-head-l">
-                <span class="st-card-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
+                <span class="st-card-ico"><AegisIcon name="star" :size="17" /></span>
                 <div><div class="st-card-title">Subscription &amp; Plan</div><div class="st-card-sub">Your current Aegis plan and available upgrades</div></div>
               </div>
               <span class="st-bp-badge">{{ currentTierLabel }}</span>
@@ -407,13 +407,13 @@
 
               <!-- Grace period banner -->
               <div v-if="subOnGracePeriod" class="st-perks-band" style="border-color:var(--red-light);background:var(--icon-bg-red,var(--surface-2));">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <AegisIcon name="info" :size="14" />
                 <span><strong>Subscription ending</strong> — your plan will end on {{ formatDate(sub.ends_at) }}. Reactivate any time before then to keep your access.</span>
               </div>
 
               <!-- Past-due banner -->
               <div v-else-if="subStatus === 'past_due'" class="st-perks-band" style="border-color:var(--red-light);background:var(--icon-bg-red,var(--surface-2));">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <AegisIcon name="info" :size="14" />
                 <span><strong>Payment failed</strong> — please update your payment method to avoid interruption.</span>
               </div>
 
@@ -429,13 +429,13 @@
                 <!-- Access -->
                 <div class="st-plan-tier" :class="{ current: currentTier === 'access' }">
                   <span v-if="currentTier === 'access'" class="st-plan-tier-badge">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Current Plan
+                    <AegisIcon name="check" :size="11" /> Current Plan
                   </span>
                   <div class="st-plan-tier-name">Continuity Access</div>
                   <div class="st-plan-tier-price">${{ billingAnnualView ? 23 : 29 }}<span>/mo</span></div>
                   <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $276/yr' : 'or $276/yr (save 20%)' }}</div>
                   <div class="st-plan-feats">
-                    <span v-for="f in accessFeatures" :key="f"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> {{ f }}</span>
+                    <span v-for="f in accessFeatures" :key="f"><AegisIcon name="check" :size="13" /> {{ f }}</span>
                   </div>
                   <button v-if="currentTier === 'access' && !isSwapAllowed('access')" type="button" class="btn btn-outline btn-sm st-plan-cta" disabled>
                     Your current plan
@@ -448,13 +448,13 @@
                 <!-- Practice -->
                 <div class="st-plan-tier" :class="{ current: currentTier === 'practice' }">
                   <span v-if="currentTier === 'practice'" class="st-plan-tier-badge">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Current Plan
+                    <AegisIcon name="check" :size="11" /> Current Plan
                   </span>
                   <div class="st-plan-tier-name">Continuity Practice</div>
                   <div class="st-plan-tier-price">${{ billingAnnualView ? 39 : 49 }}<span>/mo</span></div>
                   <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $468/yr' : 'or $468/yr (save 20%)' }}</div>
                   <div class="st-plan-feats">
-                    <span v-for="f in practiceFeatures" :key="f"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> {{ f }}</span>
+                    <span v-for="f in practiceFeatures" :key="f"><AegisIcon name="check" :size="13" /> {{ f }}</span>
                   </div>
                   <button v-if="currentTier === 'practice' && !isSwapAllowed('practice')" type="button" class="btn btn-outline btn-sm st-plan-cta" disabled>
                     Your current plan
@@ -469,7 +469,7 @@
               <div class="st-included-head" style="margin-top:24px">Add-ons</div>
               <div class="st-note" style="margin-top:-4px;margin-bottom:14px">Stack on top of your base plan. Add or remove at any time.</div>
               <div class="st-addon-card">
-                <span class="st-card-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+                <span class="st-card-ico"><AegisIcon name="shield" :size="17" /></span>
                 <div class="st-addon-body">
                   <div class="st-addon-head">
                     <div class="st-addon-name">MAAT Professional CS <span class="st-addon-tag">MAAT Add-On</span></div>
@@ -480,12 +480,12 @@
                   </div>
                   <div class="st-addon-desc">A licensed, insured professional Continuity Steward — certified by MAAT — designated to your practice. Emergency response within 4 hours, annual recertification included.</div>
                   <div class="st-addon-feats">
-                    <span v-for="f in maatFeatures" :key="f"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> {{ f }}</span>
+                    <span v-for="f in maatFeatures" :key="f"><AegisIcon name="check" :size="12" /> {{ f }}</span>
                   </div>
                   <div class="st-addon-foot">
                     <button v-if="hasMaat" type="button" class="btn btn-outline btn-sm" @click="toggleMaat(false)" :disabled="maatBusy">Remove MAAT</button>
                     <button v-else type="button" class="btn btn-gold btn-sm" @click="toggleMaat(true)" :disabled="maatBusy || currentTier !== 'practice'">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Add MAAT Service
+                      <AegisIcon name="shield" :size="13" /> Add MAAT Service
                     </button>
                     <span class="st-addon-req">{{ currentTier === 'practice' ? 'Available with your plan' : 'Requires Continuity Practice' }}</span>
                   </div>
@@ -511,12 +511,12 @@
           <div class="st-card">
             <div class="st-card-head">
               <div class="st-card-head-l">
-                <span class="st-card-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span>
+                <span class="st-card-ico"><AegisIcon name="credit-card" :size="17" /></span>
                 <div><div class="st-card-title">Billing &amp; Payment</div><div class="st-card-sub">Payment methods and invoice history</div></div>
               </div>
               <div style="display:flex;gap:8px;">
                 <a :href="route('provider.settings.billing.portal')" class="btn btn-outline btn-sm">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  <AegisIcon name="external-link" :size="13" />
                   Manage in Stripe
                 </a>
               </div>
@@ -778,40 +778,40 @@ const toast = useToast();
 const i = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
 const nav = [
   { group: 'Account', items: [
-    { key: 'profile',      label: 'Profile & Identity',          icon: `<svg viewBox="0 0 24 24" ${i}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>` },
-    { key: 'account',      label: 'Account & Login',             icon: `<svg viewBox="0 0 24 24" ${i}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>` },
-    { key: 'security',     label: 'Security & 2FA',              icon: `<svg viewBox="0 0 24 24" ${i}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>` },
+    { key: 'profile',      label: 'Profile & Identity',          icon: 'user' },
+    { key: 'account',      label: 'Account & Login',             icon: 'lock' },
+    { key: 'security',     label: 'Security & 2FA',              icon: 'shield' },
   ]},
   { group: 'Communications', items: [
-    { key: 'notifications', label: 'Notifications', badge: 2,   icon: `<svg viewBox="0 0 24 24" ${i}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>` },
+    { key: 'notifications', label: 'Notifications', badge: 2,   icon: 'bell' },
 
 
   ]},
   { group: 'Clinical', items: [
-    { key: 'availability', label: 'Availability & Hours',        icon: `<svg viewBox="0 0 24 24" ${i}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>` },
-    { key: 'referrals',    label: 'Referral Preferences',        icon: `<svg viewBox="0 0 24 24" ${i}><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>` },
+    { key: 'availability', label: 'Availability & Hours',        icon: 'calendar' },
+    { key: 'referrals',    label: 'Referral Preferences',        icon: 'share-tree' },
   ]},
   { group: 'Operations', items: [
-    { key: 'csettings',    label: 'Continuity Steward Settings', icon: `<svg viewBox="0 0 24 24" ${i}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>` },
-    { key: 'ssettings',    label: 'Support Steward Settings',    icon: `<svg viewBox="0 0 24 24" ${i}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>` },
-    { key: 'vault',        label: 'Document Vault Access',       icon: `<svg viewBox="0 0 24 24" ${i}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>` },
-    { key: 'agreements',   label: 'Agreements & Contracts',      icon: `<svg viewBox="0 0 24 24" ${i}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>` },
+    { key: 'csettings',    label: 'Continuity Steward Settings', icon: 'shield' },
+    { key: 'ssettings',    label: 'Support Steward Settings',    icon: 'users' },
+    { key: 'vault',        label: 'Document Vault Access',       icon: 'lock' },
+    { key: 'agreements',   label: 'Agreements & Contracts',      icon: 'file-text' },
   ]},
   { group: 'Platform', items: [
-    { key: 'myservices',    label: 'My Services Settings',       icon: `<svg viewBox="0 0 24 24" ${i}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>` },
-    { key: 'privacy',       label: 'Privacy & Visibility',       icon: `<svg viewBox="0 0 24 24" ${i}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>` },
-    { key: 'network',       label: 'Network Settings',           icon: `<svg viewBox="0 0 24 24" ${i}><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>` },
-    { key: 'appearance',    label: 'Appearance & Timezone',      icon: `<svg viewBox="0 0 24 24" ${i}><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg>` },
-    { key: 'integrations',  label: 'Integrations',               icon: `<svg viewBox="0 0 24 24" ${i}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>` },
+    { key: 'myservices',    label: 'My Services Settings',       icon: 'grid' },
+    { key: 'privacy',       label: 'Privacy & Visibility',       icon: 'shield' },
+    { key: 'network',       label: 'Network Settings',           icon: 'network' },
+    { key: 'appearance',    label: 'Appearance & Timezone',      icon: 'settings' },
+    { key: 'integrations',  label: 'Integrations',               icon: 'link' },
 
   ]},
   { group: 'Billing', items: [
-    { key: 'billing',  label: 'Subscription & Plan', icon: `<svg viewBox="0 0 24 24" ${i}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>` },
-    { key: 'invoices', label: 'Billing & Invoices',  icon: `<svg viewBox="0 0 24 24" ${i}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>` },
+    { key: 'billing',  label: 'Subscription & Plan', icon: 'star' },
+    { key: 'invoices', label: 'Billing & Invoices',  icon: 'credit-card' },
   ]},
 
   { group: 'Account Closure & Data Management', items: [
-    { key: 'changes', label: 'Account Actions', danger: true, icon: `<svg viewBox="0 0 24 24" ${i}><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>` },
+    { key: 'changes', label: 'Account Actions', danger: true, icon: 'alert-triangle' },
   ]},
 ];
 const section = ref('profile');
@@ -975,9 +975,9 @@ const networkNotifs = [
 // ─── Appearance ───────────────────────────────────────────────────────────────────
 const appearance = reactive({ theme: 'gold', darkMode: false, timezone: 'America/New_York' });
 const themes = [
-  { key: 'gold',      label: 'Aegis Gold',  desc: 'Classic warm gold (default)', swatch: 'linear-gradient(135deg,#a0813e 0%,#c4a96a 100%)' },
-  { key: 'gold-dark', label: 'Gold Dark',   desc: 'Deep rich gold palette',       swatch: 'linear-gradient(135deg,#6e4e14 0%,#8c6a1e 100%)' },
-  { key: 'slate',     label: 'Slate Blue',  desc: 'Cool professional slate tone',  swatch: 'linear-gradient(135deg,#3b5278 0%,#5a7ab5 100%)' },
+  { key: 'gold',      label: 'Aegis Gold',  desc: 'Classic warm gold (default)', swatch: 'linear-gradient(135deg,var(--gold-dark) 0%,var(--gold) 100%)' },
+  { key: 'gold-dark', label: 'Gold Dark',   desc: 'Deep rich gold palette',       swatch: 'linear-gradient(135deg,var(--gold-dark) 0%,var(--gold-dark) 100%)' },
+  { key: 'slate',     label: 'Slate Blue',  desc: 'Cool professional slate tone',  swatch: 'linear-gradient(135deg,var(--blue-dark) 0%,var(--blue) 100%)' },
 ];
 
 // ─── Accessibility ────────────────────────────────────────────────────────────────
