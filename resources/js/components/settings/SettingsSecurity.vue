@@ -28,14 +28,14 @@
       </div>
 
       <!-- ── AUTHENTICATOR APP ──────────────────────────────────────── -->
-      <div class="ss-method" :class="{ 'ss-method-active': mfaEnabled }">
-        <div class="ss-method-icon">
+      <div class="ss-method" :class="{ 'ss-method-active': totpActive }">
+        <div class="ss-method-icon" :class="!totpActive ? 'ss-method-icon-muted' : ''">
           <AegisIcon name="phone" :size="20" />
         </div>
         <div class="ss-method-body">
           <div class="ss-method-name">
             Authenticator App (TOTP)
-            <span v-if="mfaEnabled" class="ss-active-pill">
+            <span v-if="totpActive" class="ss-active-pill">
               <AegisIcon name="check" :size="10" /> Active
             </span>
           </div>
@@ -51,28 +51,48 @@
               {{ enabling ? 'Generating…' : 'Set Up 2FA' }}
             </button>
           </template>
-          <template v-else>
+          <template v-else-if="totpActive">
             <button type="button" class="btn btn-outline btn-sm" @click="modals.disable = true">
               <AegisIcon name="x" :size="13" /> Disable
             </button>
+          </template>
+          <template v-else>
+            <span class="ss-method-tag">Not active</span>
           </template>
         </div>
       </div>
 
       <!-- ── EMAIL CODE ─────────────────────────────────────────────── -->
-      <div class="ss-method ss-method-secondary">
-        <div class="ss-method-icon ss-method-icon-muted">
+      <div class="ss-method" :class="{ 'ss-method-active': emailActive }">
+        <div class="ss-method-icon" :class="!emailActive ? 'ss-method-icon-muted' : ''">
           <AegisIcon name="mail" :size="20" />
         </div>
         <div class="ss-method-body">
-          <div class="ss-method-name">Email Code</div>
+          <div class="ss-method-name">
+            Email Code
+            <span v-if="emailActive" class="ss-active-pill">
+              <AegisIcon name="check" :size="10" /> Active
+            </span>
+          </div>
           <div class="ss-method-desc">
-            One-time code sent to your verified email. Less secure than an authenticator
-            app but available as a fallback if you lose access to your device.
+            A 6-digit code sent to <strong>{{ userEmail || 'your email' }}</strong> each time you sign in.
+            Less secure than an authenticator app but easier to set up.
           </div>
         </div>
         <div class="ss-method-action">
-          <span class="ss-method-tag">Fallback</span>
+          <template v-if="!mfaEnabled">
+            <button type="button" class="btn btn-outline btn-sm" @click="modals.emailSetup = true">
+              <AegisIcon name="mail" :size="13" /> Set Up
+            </button>
+          </template>
+          <template v-else-if="emailActive">
+            <button type="button" class="btn btn-outline btn-sm" @click="modals.disable = true">
+              <AegisIcon name="x" :size="13" /> Disable
+            </button>
+          </template>
+          <template v-else>
+            <span class="ss-method-tag">Not active</span>
+          </template>
         </div>
       </div>
 
@@ -90,6 +110,62 @@
         </div>
       </div>
     </div>
+
+    <!-- ── EMAIL 2FA SETUP MODAL ─────────────────────────────────── -->
+    <AegisModal v-model="modals.emailSetup" title="Set Up Email Two-Factor Auth" size="sm">
+      <template v-if="!emailCodeSent">
+        <div class="ss-setup-intro" style="padding:4px 0 8px">
+          <div class="ss-setup-icon"><AegisIcon name="mail" :size="24" /></div>
+          <div class="ss-setup-intro-title">Email verification codes</div>
+          <div class="ss-setup-intro-body">
+            A 6-digit code will be sent to <strong>{{ userEmail }}</strong> every time you sign in.
+          </div>
+        </div>
+        <div class="alert alert-gold" style="margin-top:14px">
+          <div class="alert-icon"><AegisIcon name="alert-triangle" :size="15" /></div>
+          <div class="alert-content" style="font-size:12.5px">
+            Authenticator apps are more secure. Use Email 2FA only if you don't have access to an authenticator app.
+          </div>
+        </div>
+      </template>
+      <template v-else>
+        <p style="font-size:14px;color:var(--text-2);margin-bottom:18px">
+          A 6-digit code was sent to <strong>{{ userEmail }}</strong>. Enter it below to activate Email 2FA.
+        </p>
+        <div class="ss-otp-card">
+          <div class="ss-otp-label">
+            <AegisIcon name="mail" :size="14" />
+            Enter the code from your email
+            <span class="ss-otp-timer">Expires in 10 min</span>
+          </div>
+          <div class="ss-otp-wrap">
+            <input
+              class="form-input ss-otp-input"
+              :class="{ 'is-error': emailVerifyForm.errors.code }"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              placeholder="000000"
+              v-model="emailVerifyForm.code"
+              @keyup.enter="verifyEmailOtp"
+              autocomplete="one-time-code"
+            />
+          </div>
+          <div v-if="emailVerifyForm.errors.code" class="form-error" style="text-align:center;margin-top:6px">{{ emailVerifyForm.errors.code }}</div>
+        </div>
+      </template>
+      <template #footer>
+        <button type="button" class="btn btn-outline btn-sm" @click="cancelEmailSetup">Cancel</button>
+        <button v-if="!emailCodeSent" type="button" class="btn btn-gold btn-sm" :disabled="emailSending" @click="sendEmailOtp">
+          <AegisIcon name="mail" :size="13" />
+          {{ emailSending ? 'Sending…' : 'Send Code to My Email' }}
+        </button>
+        <button v-else type="button" class="btn btn-gold btn-sm" :disabled="emailVerifyForm.processing || emailVerifyForm.code.length !== 6" @click="verifyEmailOtp">
+          <AegisIcon name="check" :size="13" />
+          {{ emailVerifyForm.processing ? 'Verifying…' : 'Verify & Enable' }}
+        </button>
+      </template>
+    </AegisModal>
 
     <!-- ── SETUP 2FA MODAL ────────────────────────────────────────── -->
     <AegisModal v-model="modals.setup" title="Set Up Two-Factor Authentication" size="md">
@@ -273,12 +349,15 @@ import { useForm } from '@inertiajs/vue3';
 import { useToast } from '@/composables/useToast';
 
 const props = defineProps({
-  enableMfaRoute:    { type: String, required: true },
-  disableMfaRoute:   { type: String, required: true },
-  verifyMfaRoute:    { type: String, required: true },
-  backupCodesRoute:  { type: String, default: '' },
-  mfaEnabled:        { type: Boolean, default: false },
-  userEmail:         { type: String,  default: '' },
+  enableMfaRoute:       { type: String, required: true },
+  disableMfaRoute:      { type: String, required: true },
+  verifyMfaRoute:       { type: String, required: true },
+  enableEmailMfaRoute:  { type: String, default: '' },
+  verifyEmailMfaRoute:  { type: String, default: '' },
+  backupCodesRoute:     { type: String, default: '' },
+  mfaEnabled:           { type: Boolean, default: false },
+  mfaMethod:            { type: String,  default: '' },   // 'totp' | 'email' | ''
+  userEmail:            { type: String,  default: '' },
 });
 
 const toast         = useToast();
@@ -288,10 +367,20 @@ const qrImageUrl    = ref('');
 const backupCodes   = ref([]);
 const showDisablePw = ref(false);
 const otpInput      = ref(null);
-const modals        = reactive({ setup: false, disable: false, backup: false });
+const modals        = reactive({ setup: false, disable: false, backup: false, emailSetup: false });
+
+// Email MFA state
+const emailSending     = ref(false);
+const emailCodeSent    = ref(false);
+const emailVerifyForm  = useForm({ code: '' });
 
 const verifyForm  = useForm({ code: '' });
 const disableForm = useForm({ password: '' });
+
+// Computed method helpers
+const activeMfaMethod = computed(() => props.mfaMethod || (props.mfaEnabled ? 'totp' : ''));
+const totpActive      = computed(() => activeMfaMethod.value === 'totp');
+const emailActive     = computed(() => activeMfaMethod.value === 'email');
 
 // ── Setup flow ────────────────────────────────────────────────────────────
 
@@ -329,6 +418,44 @@ async function generateQr() {
   } finally {
     enabling.value = false;
   }
+}
+
+// ── Email 2FA flow ───────────────────────────────────────────────────────
+
+async function sendEmailOtp() {
+  if (!props.enableEmailMfaRoute) { toast.error('Email 2FA not configured.'); return; }
+  emailSending.value = true;
+  try {
+    const { default: axios } = await import('axios');
+    await axios.post(route(props.enableEmailMfaRoute));
+    emailCodeSent.value = true;
+    toast.success('Verification code sent to ' + props.userEmail);
+  } catch (e) {
+    toast.error(e?.response?.data?.message ?? 'Could not send verification code.');
+  } finally {
+    emailSending.value = false;
+  }
+}
+
+function verifyEmailOtp() {
+  if (emailVerifyForm.code.length !== 6) { toast.error('Enter the 6-digit code from your email.'); return; }
+  emailVerifyForm.post(route(props.verifyEmailMfaRoute), {
+    preserveScroll: true,
+    onSuccess: () => {
+      modals.emailSetup = false;
+      emailCodeSent.value = false;
+      emailVerifyForm.reset();
+      toast.success('Email two-factor authentication enabled.');
+    },
+    onError: () => toast.error('Invalid or expired code. Please try again.'),
+  });
+}
+
+function cancelEmailSetup() {
+  modals.emailSetup = false;
+  emailCodeSent.value = false;
+  emailVerifyForm.reset();
+  emailVerifyForm.clearErrors();
 }
 
 // ── QR code generation (CDN, no npm package required) ────────────────────

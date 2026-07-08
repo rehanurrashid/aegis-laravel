@@ -42,6 +42,7 @@ class SettingsController extends Controller
 
         $userArr = $user->toArray();
         $userArr['mfa_enabled']              = (bool) $user->two_factor_enabled;
+        $userArr['mfa_method']               = $user->mfaToken?->method ?? '';
         $userArr['linked_provider_name']     = $user->linkedProvider?->display_name;
         $userArr['linked_provider_tier_label'] = match($user->linkedProvider?->tier?->value) {
             'practice' => 'Continuity Practice',
@@ -53,6 +54,7 @@ class SettingsController extends Controller
             'user'       => $userArr,
             'meta'       => $meta,
             'mfaEnabled' => (bool) $user->two_factor_enabled,
+            'mfaMethod'  => $user->mfaToken?->method ?? '',
             'sessions'   => $sessions,
         ]);
     }

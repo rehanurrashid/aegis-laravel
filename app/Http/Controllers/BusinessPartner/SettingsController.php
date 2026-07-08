@@ -46,6 +46,7 @@ class SettingsController extends Controller
 
         $userArr         = $user->toArray();
         $userArr['mfa_enabled'] = (bool) $user->two_factor_enabled;
+        $userArr['mfa_method']  = $user->mfaToken?->method ?? '';
         $userArr['bp_type']     = $user->bp_type instanceof \BackedEnum
             ? $user->bp_type->value
             : ($user->bp_type ?? 'agency');
@@ -54,6 +55,7 @@ class SettingsController extends Controller
             'user'         => $userArr,
             'meta'         => $meta,
             'mfaEnabled'   => (bool) $user->two_factor_enabled,
+            'mfaMethod'    => $user->mfaToken?->method ?? '',
             'sessions'     => $sessions,
             'subscription' => $this->subscriptions->getFullSubscriptionData($user),
             'pricing'      => config('aegis.pricing'),

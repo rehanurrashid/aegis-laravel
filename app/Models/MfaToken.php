@@ -17,17 +17,20 @@ class MfaToken extends Model
     public    $incrementing = false;
 
     protected $fillable = [
-        'id', 'user_id', 'secret', 'recovery_codes', 'confirmed_at', 'disabled_at',
+        'id', 'user_id', 'secret', 'method', 'recovery_codes',
+        'email_otp_hash', 'email_otp_expires_at',
+        'confirmed_at', 'disabled_at',
     ];
 
     protected $casts = [
-        'secret'         => 'encrypted',
-        'recovery_codes' => 'array',
-        'confirmed_at'   => 'datetime',
-        'disabled_at'    => 'datetime',
+        'secret'               => 'encrypted',
+        'recovery_codes'       => 'array',
+        'confirmed_at'         => 'datetime',
+        'disabled_at'          => 'datetime',
+        'email_otp_expires_at' => 'datetime',
     ];
 
-    protected $hidden = ['secret', 'recovery_codes'];
+    protected $hidden = ['secret', 'recovery_codes', 'email_otp_hash'];
 
     public function user(): BelongsTo
     {

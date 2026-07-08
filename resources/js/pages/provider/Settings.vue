@@ -137,6 +137,9 @@
             disable-mfa-route="provider.settings.mfa.disable"
             verify-mfa-route="provider.settings.mfa.verify"
             backup-codes-route="provider.settings.mfa.backup-codes"
+            enable-email-mfa-route="provider.settings.mfa.enable-email"
+            verify-email-mfa-route="provider.settings.mfa.verify-email"
+            :mfa-method="mfaMethod"
             :mfa-enabled="mfaEnabled"
             :user-email="user?.email ?? ''"
           />
@@ -944,6 +947,7 @@ const props = defineProps({
   user:         { type: Object,  default: () => ({}) },
   meta:         { type: Object,  default: () => ({}) },
   mfaEnabled:   { type: Boolean, default: false },
+  mfaMethod:    { type: String,   default: '' },
   sessions:     { type: Array,   default: () => [] },
   subscription: { type: Object,  default: () => ({}) },
   pricing:      { type: Object,  default: () => ({}) },

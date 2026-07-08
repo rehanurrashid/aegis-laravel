@@ -53,6 +53,7 @@ class SettingsController extends Controller
         // Enrich user with computed fields Vue expects
         $userArr = $user->toArray();
         $userArr['mfa_enabled']          = (bool) $user->two_factor_enabled;
+        $userArr['mfa_method']           = $user->mfaToken?->method ?? '';
         $userArr['has_cs_portal']         = $user->meta()->where('meta_key', 'has_cs_portal')->value('meta_value') === '1';
         $userArr['has_ss_portal']         = $user->meta()->where('meta_key', 'has_ss_portal')->value('meta_value') === '1';
         $userArr['tier']                  = $user->tier?->value ?? null;
@@ -66,6 +67,7 @@ class SettingsController extends Controller
             'user'         => $userArr,
             'meta'         => $meta,
             'mfaEnabled'   => (bool) $user->two_factor_enabled,
+            'mfaMethod'    => $user->mfaToken?->method ?? '',
             'sessions'     => $sessions,
             'subscription' => $this->subscriptions->getFullSubscriptionData($user),
             'pricing'      => config('aegis.pricing'),

@@ -72,7 +72,10 @@
 
         <div v-show="section === \'security\'" class="settings-panel">
           <SettingsSecurity enable-mfa-route="bp.settings.mfa.enable" disable-mfa-route="bp.settings.mfa.disable" verify-mfa-route="bp.settings.mfa.verify"
-            backup-codes-route="bp.settings.mfa.backup-codes" :mfa-enabled="mfaEnabled"
+            backup-codes-route="bp.settings.mfa.backup-codes"
+            enable-email-mfa-route="bp.settings.mfa.enable-email"
+            verify-email-mfa-route="bp.settings.mfa.verify-email"
+            :mfa-method="mfaMethod" :mfa-enabled="mfaEnabled"
             :user-email="user?.email ?? ''" />
         </div>
 
@@ -377,6 +380,7 @@ const props = defineProps({
   user:         { type: Object,  default: () => ({}) },
   meta:         { type: Object,  default: () => ({}) },
   mfaEnabled:   { type: Boolean, default: false },
+  mfaMethod:    { type: String,   default: '' },
   sessions:     { type: Array,   default: () => [] },
   subscription: { type: Object,  default: () => ({}) },
   pricing:      { type: Object,  default: () => ({}) },

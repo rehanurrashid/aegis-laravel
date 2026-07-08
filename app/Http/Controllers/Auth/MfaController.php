@@ -91,6 +91,92 @@ class MfaController extends Controller
         ]);
     }
 
+    /** POST /settings/mfa/enable-email — enable Email OTP 2FA */
+    public function enableEmail(Request $request): RedirectResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        if ($user->two_factor_enabled) {
+            return back()->withErrors(['email_mfa' => '2FA is already active. Disable it first before switching methods.']);
+        }
+
+        // Generate and store a 6-digit OTP to verify user owns the email
+        $otp     = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $expires = now()->addMinutes(10);
+
+        $mfa = MfaToken::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'id'                  => 'mfa_' . Str::lower(Str::random(12)),
+                'secret'              => Str::random(32), // placeholder — not used for email method
+                'method'              => 'email',
+                'email_otp_hash'      => Hash::make($otp),
+                'email_otp_expires_at'=> $expires,
+                'confirmed_at'        => null,
+                'disabled_at'         => null,
+            ]
+        );
+
+        // Send OTP email
+        \App\Jobs\SendEmailJob::dispatch(
+            'emails.auth.11-email-otp',
+            [
+                'recipient_name' => $user->display_name,
+                'otp_code'       => $otp,
+                'expires_at'     => $expires->format('g:i A'),
+                'settings_url'   => rtrim(config('app.url'), '/') . '/' . ($user->role?->portal() ?? 'provider') . '/settings',
+            ],
+            $user->id,
+        )->onQueue('email');
+
+        return back()->with('success', 'Verification code sent to ' . $user->email . '. Enter it below to activate Email 2FA.');
+    }
+
+    /** POST /settings/mfa/verify-email — confirm email OTP, activate email 2FA */
+    public function verifyEmail(Request $request): RedirectResponse
+    {
+        $request->validate(['code' => ['required', 'string', 'digits:6']]);
+
+        /** @var User $user */
+        $user = $request->user();
+        $mfa  = $user->mfaToken;
+
+        if (!$mfa || $mfa->method !== 'email') {
+            return back()->withErrors(['code' => 'Email 2FA setup has not been initiated.']);
+        }
+
+        if (!$mfa->email_otp_expires_at || now()->gt($mfa->email_otp_expires_at)) {
+            return back()->withErrors(['code' => 'Verification code has expired. Please request a new one.']);
+        }
+
+        if (!Hash::check($request->code, (string) $mfa->email_otp_hash)) {
+            return back()->withErrors(['code' => 'Invalid verification code.']);
+        }
+
+        $mfa->forceFill([
+            'confirmed_at'         => now(),
+            'disabled_at'          => null,
+            'email_otp_hash'       => null,
+            'email_otp_expires_at' => null,
+        ])->save();
+
+        $user->forceFill(['two_factor_enabled' => 1])->save();
+
+        $this->activity->log(
+            $user->id,
+            $user->role?->portal() ?? 'provider',
+            'account',
+            \App\Enums\ActivitySeverity::Warning,
+            'mfa_enabled',
+            'Email 2FA enabled',
+            'You enabled email-based two-factor authentication on your account.',
+            null, null, null, 'log', $user->id,
+        );
+
+        return back()->with('success', 'Email two-factor authentication has been enabled.');
+    }
+
     /** POST /settings/mfa/verify — confirm TOTP code, activate */
     public function verify(Request $request): RedirectResponse
     {
@@ -204,10 +290,23 @@ class MfaController extends Controller
                 ->withErrors(['email' => 'Two-factor session is invalid.']);
         }
 
-        if (!$this->verifyTotp($mfa->secret, $request->code)) {
-            // TOTP failed — try backup/recovery codes
-            if (!$this->consumeRecoveryCode($mfa, $request->code)) {
-                return back()->withErrors(['code' => 'Invalid authentication code. Try a backup code if you have lost access to your authenticator app.']);
+        if ($mfa->method === 'email') {
+            // Email OTP verification
+            if (!$mfa->email_otp_expires_at || now()->gt($mfa->email_otp_expires_at)) {
+                return back()->withErrors(['code' => 'Your verification code has expired. Please sign in again to receive a new code.']);
+            }
+            if (!Hash::check($request->code, (string) $mfa->email_otp_hash)) {
+                return back()->withErrors(['code' => 'Invalid code. Please check your email and try again.']);
+            }
+            // Consume — clear the OTP after use
+            $mfa->forceFill(['email_otp_hash' => null, 'email_otp_expires_at' => null])->save();
+        } else {
+            // TOTP verification (authenticator app)
+            if (!$this->verifyTotp($mfa->secret, $request->code)) {
+                // TOTP failed — try backup/recovery codes
+                if (!$this->consumeRecoveryCode($mfa, $request->code)) {
+                    return back()->withErrors(['code' => 'Invalid authentication code. Try a backup code if you have lost access to your authenticator app.']);
+                }
             }
         }
 

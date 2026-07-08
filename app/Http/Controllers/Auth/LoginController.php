@@ -84,6 +84,28 @@ class LoginController extends Controller
         if ($mfaActive) {
             $request->session()->put('mfa_pending_user_id', $user->id);
             $request->session()->put('mfa_remember', true);
+
+            // If email method: generate and send an OTP now
+            if ($mfa->method === 'email') {
+                $otp     = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+                $expires = now()->addMinutes(10);
+                $mfa->forceFill([
+                    'email_otp_hash'       => \Illuminate\Support\Facades\Hash::make($otp),
+                    'email_otp_expires_at' => $expires,
+                ])->save();
+
+                \App\Jobs\SendEmailJob::dispatch(
+                    'emails.auth.11-email-otp',
+                    [
+                        'recipient_name' => $user->display_name,
+                        'otp_code'       => $otp,
+                        'expires_at'     => $expires->format('g:i A'),
+                        'settings_url'   => rtrim(config('app.url'), '/') . '/' . ($user->role?->portal() ?? 'provider') . '/settings',
+                    ],
+                    $user->id,
+                )->onQueue('email');
+            }
+
             $request->session()->save(); // force flush before hard redirect
             return Inertia::location(route('mfa.challenge'));
         }
