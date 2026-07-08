@@ -39,15 +39,19 @@
           <!-- Phone (editable) -->
           <div class="form-group">
             <label class="form-label">Phone Number</label>
-            <input
-              class="form-input"
-              :class="{ 'is-error': acctForm.errors.phone }"
-              type="tel"
-              v-model="acctForm.phone"
-              placeholder="+1 (555) 000-0000"
-            />
-            <div v-if="acctForm.errors.phone" class="form-error">{{ acctForm.errors.phone }}</div>
-            <div v-else class="form-hint">Used for SMS notifications and 2FA.</div>
+            <div class="email-field-wrap">
+              <input
+                class="form-input"
+                :class="{ 'is-error': acctForm.errors.phone }"
+                type="tel"
+                v-model="acctForm.phone"
+                placeholder="+1 (555) 000-0000"
+              />
+              <div class="email-field-footer">
+                <span v-if="acctForm.errors.phone" class="form-error" style="margin:0">{{ acctForm.errors.phone }}</span>
+                <span v-else class="email-field-hint">Used for SMS notifications and 2FA.</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -386,6 +390,7 @@ function revokeAll() {
   align-items: center;
   gap: 8px;
   margin-top: 5px;
+  min-height: 22px; /* ensures both columns have same footer height */
 }
 .email-verified-badge {
   display: inline-flex;
