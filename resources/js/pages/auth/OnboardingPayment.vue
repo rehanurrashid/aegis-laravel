@@ -140,7 +140,7 @@ import { useToast } from '@/composables/useToast'
 const props = defineProps({
   role:         { type: String,  required: true },
   plan:         { type: Object,  required: true },  // { tier, billing, addons }
-  clientSecret: { type: String,  required: true },  // SetupIntent client_secret
+  clientSecret: { type: String,  default: null },   // SetupIntent client_secret — null if Stripe unreachable
   stripeKey:    { type: String,  required: true },  // pk_test_xxx / pk_live_xxx
   pricing:      { type: Object,  required: true },
 })
@@ -226,12 +226,22 @@ function resolveStripePrice() {
 
 // ── Stripe init ───────────────────────────────────────────────────────
 onMounted(async () => {
+  // Guard: if backend couldn't create a SetupIntent, show error immediately
+  if (!props.clientSecret) {
+    errorMessage.value = 'Payment form could not be loaded — Stripe is unreachable. Check your server .env (STRIPE_SECRET) and try refreshing.'
+    return
+  }
+
   try {
-    // Load Stripe.js — expects window.Stripe to be available via CDN script
-    // in app.blade.php: <script src="https://js.stripe.com/v3/"><\/script>
-    if (typeof window.Stripe === 'undefined') {
-      throw new Error('Stripe.js not loaded. Add Stripe CDN script tag to app.blade.php.')
-    }
+    // Wait up to 3s for Stripe.js CDN script to be available
+    await new Promise((resolve, reject) => {
+      if (typeof window.Stripe !== 'undefined') return resolve()
+      let attempts = 0
+      const interval = setInterval(() => {
+        if (typeof window.Stripe !== 'undefined') { clearInterval(interval); resolve() }
+        else if (++attempts >= 30) { clearInterval(interval); reject(new Error('Stripe.js not loaded. Check network connection or ad-blocker.')) }
+      }, 100)
+    })
 
     stripe = window.Stripe(props.stripeKey)
 

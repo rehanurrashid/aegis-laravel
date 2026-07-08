@@ -11,8 +11,8 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @inertiaHead
 
-    {{-- Stripe.js — required for OnboardingPayment Stripe Payment Element --}}
-    <script src="https://js.stripe.com/v3/" defer></script>
+    {{-- Stripe.js — must load synchronously (no defer/async) so window.Stripe is available when Vue mounts --}}
+    <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
     {{--

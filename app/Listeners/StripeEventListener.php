@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use App\Events\Stripe\PaymentFailed;
 use App\Events\Stripe\PaymentReceived;
-use App\Events\Stripe\WebhookReceived;
+use Laravel\Cashier\Events\WebhookReceived;
 
 /**
  * Handles incoming Stripe webhooks. Logs every event to stripe_webhook_events,
@@ -23,23 +23,48 @@ class StripeEventListener
         $payload = $event->payload;
         $type    = $payload['type'] ?? 'unknown';
         $eventId = $payload['id'] ?? ('evt_' . Str::lower(Str::random(12)));
+        $obj     = $payload['data']['object'] ?? [];
+
+        Log::info('[STRIPE_WEBHOOK] received', [
+            'event_id'    => $eventId,
+            'type'        => $type,
+            'customer_id' => $obj['customer'] ?? $obj['id'] ?? null,
+            'object_id'   => $obj['id'] ?? null,
+        ]);
 
         // Idempotency — Stripe may re-send. Skip if already logged.
         $existing = StripeWebhookEvent::where('stripe_event_id', $eventId)->first();
         if ($existing && $existing->processed) {
+            Log::info('[STRIPE_WEBHOOK] skipped (already processed)', ['event_id' => $eventId]);
             return;
         }
 
-        $row = $existing ?? StripeWebhookEvent::create([
-            'id'              => \Illuminate\Support\Str::uuid()->toString(),
-            'stripe_event_id' => $eventId,
-            'event_type'      => $type,
-            'payload_json'    => json_encode($payload),
-            'received_at'     => now(),
-            'processed'       => 0,
-        ]);
-
+        // ── DB write ─────────────────────────────────────────────────────
         try {
+            $row = $existing ?? StripeWebhookEvent::create([
+                'id'              => \Illuminate\Support\Str::uuid()->toString(),
+                'stripe_event_id' => $eventId,
+                'event_type'      => $type,
+                'payload_json'    => json_encode($payload),
+                'received_at'     => now(),
+                'processed'       => 0,
+            ]);
+            Log::info('[STRIPE_WEBHOOK] logged to DB', ['event_id' => $eventId, 'row_id' => $row->id]);
+        } catch (\Throwable $e) {
+            Log::error('[STRIPE_WEBHOOK] DB write failed — cannot persist event', [
+                'event_id' => $eventId,
+                'type'     => $type,
+                'error'    => $e->getMessage(),
+                'trace'    => collect(explode("\n", $e->getTraceAsString()))->take(8)->implode("\n"),
+            ]);
+            // Re-throw so Stripe gets a 500 and retries
+            throw $e;
+        }
+
+        // ── Route to handler ─────────────────────────────────────────────
+        try {
+            Log::info('[STRIPE_WEBHOOK] routing', ['type' => $type, 'event_id' => $eventId]);
+
             match ($type) {
                 'invoice.payment_succeeded'      => $this->handlePaymentSucceeded($payload),
                 'invoice.payment_failed'         => $this->handlePaymentFailed($payload),
@@ -52,12 +77,19 @@ class StripeEventListener
                 'transfer.created'               => $this->handleTransferCreated($payload),
                 'transfer.paid'                  => $this->handleTransferPaid($payload),
                 'transfer.failed'                => $this->handleTransferFailed($payload),
-                default                          => Log::info('Unhandled Stripe webhook type', ['type' => $type]),
+                default                          => Log::info('[STRIPE_WEBHOOK] no handler (ignored)', ['type' => $type]),
             };
 
             $row->update(['processed' => 1, 'processed_at' => now()]);
+            Log::info('[STRIPE_WEBHOOK] processed OK', ['event_id' => $eventId, 'type' => $type]);
         } catch (\Throwable $e) {
-            Log::error('Stripe webhook handler error', ['type' => $type, 'error' => $e->getMessage()]);
+            Log::error('[STRIPE_WEBHOOK] handler error', [
+                'event_id' => $eventId,
+                'type'     => $type,
+                'error'    => $e->getMessage(),
+                'file'     => $e->getFile() . ':' . $e->getLine(),
+                'trace'    => collect(explode("\n", $e->getTraceAsString()))->take(10)->implode("\n"),
+            ]);
             // last_error / attempts columns are optional — only update if they exist
             $updates = [];
             if (\Illuminate\Support\Facades\Schema::hasColumn('stripe_webhook_events', 'last_error')) {

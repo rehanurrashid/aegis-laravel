@@ -117,6 +117,14 @@ class OnboardingController extends Controller
         /** @var \App\Models\User $user */
         $user = $request->user();
 
+        \Log::info('[ONBOARDING_PAYMENT] page load', [
+            'user_id'    => $user->id,
+            'stripe_id'  => $user->stripe_id,
+            'has_stripe' => $user->hasStripeId(),
+            'verified'   => $user->verified,
+            'role'       => $user->role,
+        ]);
+
         if ($redirect = $this->redirectIfComplete($user)) {
             return $redirect;
         }
@@ -140,6 +148,7 @@ class OnboardingController extends Controller
         if ($user->hasStripeId()) {
             try {
                 // Use Cashier's stripe() client — has API key set automatically
+                \Log::info('[ONBOARDING_PAYMENT] retrieving Stripe customer', ['stripe_id' => $user->stripe_id]);
                 $user->stripe()->customers->retrieve($user->stripe_id);
             } catch (\Stripe\Exception\InvalidRequestException $e) {
                 // stripe_id is fake/invalid — clear it so createAsStripeCustomer runs fresh
@@ -153,23 +162,42 @@ class OnboardingController extends Controller
 
         if (!$user->hasStripeId()) {
             try {
+                \Log::info('[ONBOARDING_PAYMENT] creating Stripe customer', ['user_id' => $user->id]);
                 $user->createAsStripeCustomer([
                     'name'  => $user->display_name,
                     'email' => $user->email,
                 ]);
+                \Log::info('[ONBOARDING_PAYMENT] Stripe customer created', ['stripe_id' => $user->stripe_id]);
             } catch (\Throwable $e) {
-                \Log::warning('[Onboarding] Stripe createAsStripeCustomer failed: ' . $e->getMessage());
+                \Log::warning('[ONBOARDING_PAYMENT] createAsStripeCustomer failed', [
+                    'error' => $e->getMessage(),
+                    'user_id' => $user->id,
+                ]);
             }
         }
 
         // CreateSetupIntent so Stripe can collect + tokenize the card
         $clientSecret = null;
         try {
+            \Log::info('[ONBOARDING_PAYMENT] creating SetupIntent', ['stripe_id' => $user->stripe_id]);
             $intent       = $user->createSetupIntent();
             $clientSecret = $intent->client_secret;
+            \Log::info('[ONBOARDING_PAYMENT] SetupIntent created', ['intent_id' => $intent->id]);
         } catch (\Throwable $e) {
-            \Log::warning('[Onboarding] Stripe createSetupIntent failed: ' . $e->getMessage());
+            \Log::error('[ONBOARDING_PAYMENT] createSetupIntent failed', [
+                'error'     => $e->getMessage(),
+                'user_id'   => $user->id,
+                'stripe_id' => $user->stripe_id,
+            ]);
+            // Don't render with null — redirect back with actionable message
+            return redirect()->route('onboarding.payment')
+                ->withErrors(['stripe' => 'Could not connect to payment processor. Check STRIPE_SECRET in .env and that Stripe API is reachable. Error: ' . $e->getMessage()]);
         }
+
+        \Log::info('[ONBOARDING_PAYMENT] rendering page', [
+            'has_client_secret' => !is_null($clientSecret),
+            'plan'              => $plan,
+        ]);
 
         return Inertia::render('auth/OnboardingPayment', [
             'role'         => $this->roleValue($user),
