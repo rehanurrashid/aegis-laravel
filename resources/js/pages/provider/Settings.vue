@@ -143,6 +143,22 @@
             :mfa-enabled="mfaEnabled"
             :user-email="user?.email ?? ''"
           />
+          <div class="card" style="margin-top:16px">
+            <div class="card-header">
+              <div class="card-title-group">
+                <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="bell" :size="16" /></div>
+                <div><div class="card-title">Security &amp; Login Alerts</div><div class="card-subtitle">Get notified about account access and session activity</div></div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div v-for="al in securityAlerts" :key="al.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ al.name }}</div><div class="toggle-desc">{{ al.sub }}</div></div><button type="button" class="toggle" :class="{ on: al.on }" @click="al.on = !al.on" :aria-pressed="al.on"></button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
+                <button type="button" class="btn btn-primary btn-sm" :disabled="securityAlertSaving" @click="saveSecurityAlerts">
+                  <AegisIcon name="check" :size="13" /> Save
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- NOTIFICATIONS -->
@@ -153,28 +169,7 @@
             :notif-categories="notifCategories"
             :saved-prefs="meta?.notify_prefs ?? {}"
             :saved-categories="meta?.notify_categories ?? []"
-            :extra-prefs="notifExtraPrefs"
-          >
-            <template #extra-toggles>
-              <div class="section-label" style="margin-top:20px">Security &amp; Login Alerts</div>
-              <div v-for="al in securityAlerts" :key="al.name" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ al.name }}</div><div class="toggle-desc">{{ al.sub }}</div></div><button type="button" class="toggle" :class="{ on: al.on }" @click="al.on = !al.on" :aria-pressed="al.on"></button></div>
-              <div class="section-label" style="margin-top:20px">Steward Notifications</div>
-              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Annual CS Check-In Reminder</div><div class="toggle-desc">Remind me to verify CS availability and re-attest my Continuity Plan every 12 months</div></div><button type="button" class="toggle" :class="{ on: csPrefs.annualReminder }" @click="csPrefs.annualReminder = !csPrefs.annualReminder" :aria-pressed="csPrefs.annualReminder"></button></div>
-              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Notify CS on Plan Changes</div><div class="toggle-desc">Automatically notify your Continuity Steward when you update or amend your Continuity Plan</div></div><button type="button" class="toggle" :class="{ on: csPrefs.notifyOnChange }" @click="csPrefs.notifyOnChange = !csPrefs.notifyOnChange" :aria-pressed="csPrefs.notifyOnChange"></button></div>
-              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Notify SS on Critical Incident</div><div class="toggle-desc">Your Support Steward is automatically notified when a critical incident is declared</div></div><button type="button" class="toggle" :class="{ on: ssPrefs.notifyIncident }" @click="ssPrefs.notifyIncident = !ssPrefs.notifyIncident" :aria-pressed="ssPrefs.notifyIncident"></button></div>
-              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Notify SS on Plan Changes</div><div class="toggle-desc">Automatically notify your Support Steward when you update or amend your Continuity Plan</div></div><button type="button" class="toggle" :class="{ on: ssPrefs.notifyChange }" @click="ssPrefs.notifyChange = !ssPrefs.notifyChange" :aria-pressed="ssPrefs.notifyChange"></button></div>
-              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">SS Annual Attestation Reminder</div><div class="toggle-desc">Remind me to verify SS contact info and re-confirm permissions annually</div></div><button type="button" class="toggle" :class="{ on: ssPrefs.annualAttest }" @click="ssPrefs.annualAttest = !ssPrefs.annualAttest" :aria-pressed="ssPrefs.annualAttest"></button></div>
-              <div class="section-label" style="margin-top:20px">Document &amp; Agreement Alerts</div>
-              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Vault Access Alert</div><div class="toggle-desc">Receive an alert when a steward views or downloads a document from your vault</div></div><button type="button" class="toggle" :class="{ on: vaultPrefs.notifyAccess }" @click="vaultPrefs.notifyAccess = !vaultPrefs.notifyAccess" :aria-pressed="vaultPrefs.notifyAccess"></button></div>
-              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Emergency Vault Unlock Alert</div><div class="toggle-desc">Alert me immediately if the Emergency Vault is accessed during an active incident</div></div><button type="button" class="toggle" :class="{ on: vaultPrefs.notifyUnlock }" @click="vaultPrefs.notifyUnlock = !vaultPrefs.notifyUnlock" :aria-pressed="vaultPrefs.notifyUnlock"></button></div>
-              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Agreement Expiry Reminder</div><div class="toggle-desc">Notify me 30 days before any steward agreement or attestation is due</div></div><button type="button" class="toggle" :class="{ on: agreementPrefs.expiryReminder }" @click="agreementPrefs.expiryReminder = !agreementPrefs.expiryReminder" :aria-pressed="agreementPrefs.expiryReminder"></button></div>
-              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Agreement Countersigned</div><div class="toggle-desc">Alert me when a steward signs or countersigns an agreement sent by you</div></div><button type="button" class="toggle" :class="{ on: agreementPrefs.notifyCountersign }" @click="agreementPrefs.notifyCountersign = !agreementPrefs.notifyCountersign" :aria-pressed="agreementPrefs.notifyCountersign"></button></div>
-              <div class="section-label" style="margin-top:20px">Billing &amp; Invoices</div>
-              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Invoice Email Notifications</div><div class="toggle-desc">Send email confirmation for every invoice generated or paid</div></div><button type="button" class="toggle" :class="{ on: financial.invoiceEmails }" @click="financial.invoiceEmails = !financial.invoiceEmails" :aria-pressed="financial.invoiceEmails"></button></div>
-              <div class="section-label" style="margin-top:20px">Network &amp; Updates</div>
-              <div v-for="row in networkNotifs" :key="row.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ row.label }}</div><div class="toggle-desc">{{ row.desc }}</div></div><button type="button" class="toggle" :class="{ on: networkPrefs[row.key] }" @click="networkPrefs[row.key] = !networkPrefs[row.key]" :aria-pressed="networkPrefs[row.key]"></button></div>
-            </template>
-          </SettingsNotifications>
+          />
         </div>
 
 
@@ -255,9 +250,16 @@
               <a :href="route('provider.stewards.index')" class="btn btn-outline btn-sm"><AegisIcon name="users" :size="13" /> Manage CS</a>
             </div>
             <div class="card-body">
+              <div class="section-label">CS Permissions</div>
               <div v-for="row in csToggles" :key="row.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ row.label }}</div><div class="toggle-desc">{{ row.desc }}</div></div><button type="button" class="toggle" :class="{ on: csPrefs[row.key] }" @click="csPrefs[row.key] = !csPrefs[row.key]" :aria-pressed="csPrefs[row.key]"></button></div>
-              <div class="form-hint" style="margin-top:8px">Notification alerts for CS activity are managed in <strong>Notifications →</strong></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Continuity Steward settings saved.')"><AegisIcon name="check" :size="13" /> Save</button></div>
+              <div class="section-label" style="margin-top:20px">Steward Notifications</div>
+              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Annual CS Check-In Reminder</div><div class="toggle-desc">Remind me to verify CS availability and re-attest my Continuity Plan every 12 months</div></div><button type="button" class="toggle" :class="{ on: csPrefs.annualReminder }" @click="csPrefs.annualReminder = !csPrefs.annualReminder" :aria-pressed="csPrefs.annualReminder"></button></div>
+              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Notify CS on Plan Changes</div><div class="toggle-desc">Automatically notify your Continuity Steward when you update or amend your Continuity Plan</div></div><button type="button" class="toggle" :class="{ on: csPrefs.notifyOnChange }" @click="csPrefs.notifyOnChange = !csPrefs.notifyOnChange" :aria-pressed="csPrefs.notifyOnChange"></button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
+                <button type="button" class="btn btn-primary btn-sm" :disabled="csSettingsSaving" @click="saveCsSettings">
+                  <AegisIcon name="check" :size="13" /> Save
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -273,8 +275,15 @@
               <a :href="route('provider.ss.index')" class="btn btn-outline btn-sm"><AegisIcon name="users" :size="13" /> Manage SS</a>
             </div>
             <div class="card-body">
-              <div class="alert alert-info" style="margin:0"><div class="alert-icon"><AegisIcon name="bell" :size="16" /></div><div class="alert-content" style="font-size:13px">SS notification alerts (incident triggers, plan changes, attestation reminders) are managed in <strong>Notifications →</strong></div></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Support Steward settings saved.')"><AegisIcon name="check" :size="13" /> Save</button></div>
+              <div class="section-label">SS Notification Alerts</div>
+              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Notify SS on Critical Incident</div><div class="toggle-desc">Your Support Steward is automatically notified when a critical incident is declared</div></div><button type="button" class="toggle" :class="{ on: ssPrefs.notifyIncident }" @click="ssPrefs.notifyIncident = !ssPrefs.notifyIncident" :aria-pressed="ssPrefs.notifyIncident"></button></div>
+              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Notify SS on Plan Changes</div><div class="toggle-desc">Automatically notify your Support Steward when you update or amend your Continuity Plan</div></div><button type="button" class="toggle" :class="{ on: ssPrefs.notifyChange }" @click="ssPrefs.notifyChange = !ssPrefs.notifyChange" :aria-pressed="ssPrefs.notifyChange"></button></div>
+              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">SS Annual Attestation Reminder</div><div class="toggle-desc">Remind me to verify SS contact info and re-confirm permissions annually</div></div><button type="button" class="toggle" :class="{ on: ssPrefs.annualAttest }" @click="ssPrefs.annualAttest = !ssPrefs.annualAttest" :aria-pressed="ssPrefs.annualAttest"></button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
+                <button type="button" class="btn btn-primary btn-sm" :disabled="ssSettingsSaving" @click="saveSsSettings">
+                  <AegisIcon name="check" :size="13" /> Save
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -285,13 +294,20 @@
             <div class="card-header">
               <div class="card-title-group">
                 <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="lock" :size="16" /></div>
-                <div><div class="card-title">Document Vault</div><div class="card-subtitle">Notification preferences for your vault activity</div></div>
+                <div><div class="card-title">Document Vault Access</div><div class="card-subtitle">Control alerts for vault activity and emergency access</div></div>
               </div>
               <a :href="route('provider.vault.index')" class="btn btn-outline btn-sm"><AegisIcon name="lock" :size="13" /> Open Vault</a>
             </div>
             <div class="card-body">
               <div class="alert alert-info" style="margin-bottom:16px"><div class="alert-icon"><AegisIcon name="info" :size="16" /></div><div class="alert-content" style="font-size:12px">Steward vault access levels are managed per-steward in <a :href="route('provider.vault.index')" style="color:var(--gold-dark);font-weight:700">Document Vault →</a></div></div>
-              <div class="alert alert-info" style="margin-top:12px"><div class="alert-icon"><AegisIcon name="bell" :size="16" /></div><div class="alert-content" style="font-size:13px">Vault access and emergency unlock alerts are managed in <strong>Notifications →</strong></div></div>
+              <div class="section-label">Vault Alerts</div>
+              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Vault Access Alert</div><div class="toggle-desc">Receive an alert when a steward views or downloads a document from your vault</div></div><button type="button" class="toggle" :class="{ on: vaultPrefs.notifyAccess }" @click="vaultPrefs.notifyAccess = !vaultPrefs.notifyAccess" :aria-pressed="vaultPrefs.notifyAccess"></button></div>
+              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Emergency Vault Unlock Alert</div><div class="toggle-desc">Alert me immediately if the Emergency Vault is accessed during an active incident</div></div><button type="button" class="toggle" :class="{ on: vaultPrefs.notifyUnlock }" @click="vaultPrefs.notifyUnlock = !vaultPrefs.notifyUnlock" :aria-pressed="vaultPrefs.notifyUnlock"></button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
+                <button type="button" class="btn btn-primary btn-sm" :disabled="vaultSettingsSaving" @click="saveVaultSettings">
+                  <AegisIcon name="check" :size="13" /> Save
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -302,14 +318,21 @@
             <div class="card-header">
               <div class="card-title-group">
                 <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="file-text" :size="16" /></div>
-                <div><div class="card-title">Agreements &amp; Contracts</div><div class="card-subtitle">Status of your steward agreements and notification preferences</div></div>
+                <div><div class="card-title">Agreements &amp; Contracts</div><div class="card-subtitle">Status of your steward agreements and alert preferences</div></div>
               </div>
               <a :href="route('provider.documents.index')" class="btn btn-outline btn-sm"><AegisIcon name="file-text" :size="13" /> Manage Agreements</a>
             </div>
             <div class="card-body">
               <div class="section-label">Active Agreements</div>
               <div v-for="ag in activeAgreements" :key="ag.title" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)"><div><div style="font-size:13px;font-weight:700;color:var(--text)">{{ ag.title }}</div><div style="font-size:12px;color:var(--text-3);margin-top:2px">{{ ag.meta }}</div></div><span class="badge badge-green" style="flex-shrink:0">Active</span></div>
-              <div class="alert alert-info" style="margin-top:4px"><div class="alert-icon"><AegisIcon name="bell" :size="16" /></div><div class="alert-content" style="font-size:13px">Agreement expiry reminders and countersign alerts are managed in <strong>Notifications →</strong></div></div>
+              <div class="section-label" style="margin-top:20px">Agreement Alerts</div>
+              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Agreement Expiry Reminder</div><div class="toggle-desc">Notify me 30 days before any steward agreement or attestation is due</div></div><button type="button" class="toggle" :class="{ on: agreementPrefs.expiryReminder }" @click="agreementPrefs.expiryReminder = !agreementPrefs.expiryReminder" :aria-pressed="agreementPrefs.expiryReminder"></button></div>
+              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Agreement Countersigned</div><div class="toggle-desc">Alert me when a steward signs or countersigns an agreement sent by you</div></div><button type="button" class="toggle" :class="{ on: agreementPrefs.notifyCountersign }" @click="agreementPrefs.notifyCountersign = !agreementPrefs.notifyCountersign" :aria-pressed="agreementPrefs.notifyCountersign"></button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
+                <button type="button" class="btn btn-primary btn-sm" :disabled="agreementSettingsSaving" @click="saveAgreementSettings">
+                  <AegisIcon name="check" :size="13" /> Save
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -412,7 +435,13 @@
               <div v-for="row in networkConnection" :key="row.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ row.label }}</div><div class="toggle-desc">{{ row.desc }}</div></div><button type="button" class="toggle" :class="{ on: networkPrefs[row.key] }" @click="networkPrefs[row.key] = !networkPrefs[row.key]" :aria-pressed="networkPrefs[row.key]"></button></div>
 
               <div class="form-group" style="margin-top:20px"><label class="form-label">Geographic Focus for Suggestions</label><select class="form-select" v-model="networkPrefs.geoFocus"><option value="25mi">25 miles</option><option value="50mi">50 miles</option><option value="100mi">100 miles</option><option value="statewide">Statewide</option><option value="national">National</option></select><div class="form-hint" style="margin-top:4px">Aegis will prioritize providers in this range when suggesting connections</div></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Network settings saved.')"><AegisIcon name="check" :size="14" /> Save</button></div>
+              <div class="section-label" style="margin-top:20px">Network &amp; Updates</div>
+              <div v-for="row in networkNotifs" :key="row.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ row.label }}</div><div class="toggle-desc">{{ row.desc }}</div></div><button type="button" class="toggle" :class="{ on: networkPrefs[row.key] }" @click="networkPrefs[row.key] = !networkPrefs[row.key]" :aria-pressed="networkPrefs[row.key]"></button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
+                <button type="button" class="btn btn-primary btn-sm" :disabled="networkSettingsSaving" @click="saveNetworkSettings">
+                  <AegisIcon name="check" :size="14" /> Save
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -980,8 +1009,7 @@ const nav = [
 
   ]},
   { group: 'Clinical', items: [
-    { key: 'availability', label: 'Availability & Hours',        icon: 'calendar' },
-    { key: 'referrals',    label: 'Referral Preferences',        icon: 'share-tree', lockedForAccess: true },
+    { key: 'availability', label: 'Availability & Hours',  icon: 'calendar' },
   ]},
   { group: 'Operations', items: [
     { key: 'csettings',    label: 'Continuity Steward Settings', icon: 'shield' },
@@ -1084,34 +1112,92 @@ const notifCategories = reactive([
 ]);
 function setAllNotifs(val) { notifCategories.forEach(c => { c.push = val; c.email = val; c.inapp = val; }); }
 
-// Computed payload that mirrors backend group structure for extra toggles
-const notifExtraPrefs = computed(() => ({
-  security: {
-    alertOnNewLogin: securityAlerts.find(a => a.key === 'alertOnNewLogin')?.on ?? true,
-    sessionTimeout:  securityAlerts.find(a => a.key === 'sessionTimeout')?.on  ?? true,
-  },
-  steward: {
-    csAnnualReminder: csPrefs.annualReminder,
-    csNotifyOnChange: csPrefs.notifyOnChange,
-    ssNotifyIncident: ssPrefs.notifyIncident,
-    ssNotifyChange:   ssPrefs.notifyChange,
-    ssAnnualAttest:   ssPrefs.annualAttest,
-  },
-  docs: {
-    vaultNotifyAccess:        vaultPrefs.notifyAccess,
-    vaultNotifyUnlock:        vaultPrefs.notifyUnlock,
-    agreementExpiryReminder:  agreementPrefs.expiryReminder,
-    agreementCountersign:     agreementPrefs.notifyCountersign,
-  },
-  billing: {
-    invoiceEmails: financial.invoiceEmails,
-  },
-  network: {
+// Per-section save functions wired to dedicated routes
+const securityAlertSaving  = ref(false);
+const csSettingsSaving     = ref(false);
+const ssSettingsSaving     = ref(false);
+const vaultSettingsSaving  = ref(false);
+const agreementSettingsSaving = ref(false);
+const networkSettingsSaving   = ref(false);
+
+function saveSecurityAlerts() {
+  securityAlertSaving.value = true;
+  const payload = {};
+  securityAlerts.forEach(a => { payload[a.key] = a.on; });
+  router.put(route('provider.settings.security-alerts'), payload, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Security alerts saved.'),
+    onError:   () => toast.error('Could not save.'),
+    onFinish:  () => { securityAlertSaving.value = false; },
+  });
+}
+function saveCsSettings() {
+  csSettingsSaving.value = true;
+  router.put(route('provider.settings.cs-settings'), {
+    activation:     csPrefs.activation,
+    annualReminder: csPrefs.annualReminder,
+    notifyOnChange: csPrefs.notifyOnChange,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Continuity Steward settings saved.'),
+    onError:   () => toast.error('Could not save.'),
+    onFinish:  () => { csSettingsSaving.value = false; },
+  });
+}
+function saveSsSettings() {
+  ssSettingsSaving.value = true;
+  router.put(route('provider.settings.ss-settings'), {
+    notifyIncident: ssPrefs.notifyIncident,
+    notifyChange:   ssPrefs.notifyChange,
+    annualAttest:   ssPrefs.annualAttest,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Support Steward settings saved.'),
+    onError:   () => toast.error('Could not save.'),
+    onFinish:  () => { ssSettingsSaving.value = false; },
+  });
+}
+function saveVaultSettings() {
+  vaultSettingsSaving.value = true;
+  router.put(route('provider.settings.vault-alerts'), {
+    notifyAccess: vaultPrefs.notifyAccess,
+    notifyUnlock: vaultPrefs.notifyUnlock,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Vault alert settings saved.'),
+    onError:   () => toast.error('Could not save.'),
+    onFinish:  () => { vaultSettingsSaving.value = false; },
+  });
+}
+function saveAgreementSettings() {
+  agreementSettingsSaving.value = true;
+  router.put(route('provider.settings.agreement-alerts'), {
+    expiryReminder:    agreementPrefs.expiryReminder,
+    notifyCountersign: agreementPrefs.notifyCountersign,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Agreement alert settings saved.'),
+    onError:   () => toast.error('Could not save.'),
+    onFinish:  () => { agreementSettingsSaving.value = false; },
+  });
+}
+function saveNetworkSettings() {
+  networkSettingsSaving.value = true;
+  router.put(route('provider.settings.network-settings'), {
+    requireApproval:  networkPrefs.requireApproval,
+    dataUse:          networkPrefs.dataUse,
+    hideFromBP:       networkPrefs.hideFromBP,
     connectionAlerts: networkPrefs.connectionAlerts,
     weeklyDigest:     networkPrefs.weeklyDigest,
     featureUpdates:   networkPrefs.featureUpdates,
-  },
-}));
+    geoFocus:         networkPrefs.geoFocus,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Network settings saved.'),
+    onError:   () => toast.error('Could not save.'),
+    onFinish:  () => { networkSettingsSaving.value = false; },
+  });
+}
 
 // ─── Messaging ─────────────────────────────────────────────────────────────────
 const messaging = reactive({ who: 'connected', status: 'available', readReceipts: true, onlineStatus: true, awayText: '' });
@@ -1187,11 +1273,11 @@ const referralIncoming = [
 
 
 // ─── CS / SS / Vault / Agreement prefs ──────────────────────────────────────────
-const _stewardMeta = props.meta?.notify_steward ?? {};
+const _csMeta = props.meta?.notify_cs ?? {};
 const csPrefs = reactive({
-  activation:     _stewardMeta.csActivation    ?? true,
-  annualReminder: _stewardMeta.csAnnualReminder ?? true,
-  notifyOnChange: _stewardMeta.csNotifyOnChange ?? true,
+  activation:     _csMeta.activation     ?? true,
+  annualReminder: _csMeta.annualReminder ?? true,
+  notifyOnChange: _csMeta.notifyOnChange ?? true,
 });
 const csToggles = [
   { key: 'activation', label: 'Emergency CS Activation', desc: 'Allow your CS to activate your Continuity Plan with Aegis admin verification during a critical incident' },
@@ -1200,29 +1286,31 @@ const csNotifToggles = [
   { key: 'annualReminder', label: 'Annual CS Check-In Reminder', desc: 'Remind me to verify CS availability and re-attest my Continuity Plan every 12 months', model: 'csPrefs' },
   { key: 'notifyOnChange', label: 'Notify CS on Plan Changes',   desc: 'Automatically notify your Continuity Steward when you update or amend your Continuity Plan', model: 'csPrefs' },
 ];
+const _ssMeta = props.meta?.notify_ss ?? {};
 const ssPrefs = reactive({
-  notifyIncident: _stewardMeta.ssNotifyIncident ?? true,
-  notifyChange:   _stewardMeta.ssNotifyChange   ?? true,
-  annualAttest:   _stewardMeta.ssAnnualAttest   ?? true,
+  notifyIncident: _ssMeta.notifyIncident ?? true,
+  notifyChange:   _ssMeta.notifyChange   ?? true,
+  annualAttest:   _ssMeta.annualAttest   ?? true,
 });
 const ssNotifToggles = [
   { key: 'notifyIncident', label: 'Notify SS on Critical Incident', desc: 'Your Support Steward is automatically notified when a critical incident is declared', model: 'ssPrefs' },
   { key: 'notifyChange',   label: 'Notify SS on Plan Changes',      desc: 'Automatically notify your Support Steward when you update or amend your Continuity Plan', model: 'ssPrefs' },
   { key: 'annualAttest',   label: 'SS Annual Attestation Reminder', desc: 'Remind me to verify SS contact info and re-confirm permissions annually', model: 'ssPrefs' },
 ];
-const _docsMeta = props.meta?.notify_docs ?? {};
+const _vaultMeta = props.meta?.notify_vault ?? {};
 const vaultPrefs = reactive({
-  notifyAccess: _docsMeta.vaultNotifyAccess  ?? true,
-  notifyUnlock: _docsMeta.vaultNotifyUnlock  ?? true,
+  notifyAccess: _vaultMeta.notifyAccess ?? true,
+  notifyUnlock: _vaultMeta.notifyUnlock ?? true,
 });
 const activeAgreements = [
   { title: 'Continuity Steward Agreement', meta: 'Marcus Chen — Signed Jun 15, 2024 · Reviewed annually' },
   { title: 'Support Steward Agreement',    meta: 'Linda Johnson — Signed Oct 5, 2024 · Annual re-attestation required' },
 ];
+const _agreementMeta = props.meta?.notify_agreements ?? {};
 const agreementPrefs = reactive({
-  expiryReminder:    _docsMeta.agreementExpiryReminder ?? true,
+  expiryReminder:    _agreementMeta.expiryReminder    ?? true,
   autoRenew:         false,
-  notifyCountersign: _docsMeta.agreementCountersign    ?? true,
+  notifyCountersign: _agreementMeta.notifyCountersign ?? true,
 });
 const agreementNotifToggles = [
   { key: 'expiryReminder',    label: 'Agreement Expiry Reminder (30 days)', desc: 'Notify me 30 days before any steward agreement or attestation is due', model: 'agreementPrefs' },
@@ -1256,11 +1344,14 @@ const privacyToggles = [
 // ─── Network prefs ────────────────────────────────────────────────────────────────
 const _networkMeta = props.meta?.notify_network ?? {};
 const networkPrefs = reactive({
-  requireApproval: false, icnMatching: true, dataUse: true, mutualConnections: true, hideFromBP: false,
+  requireApproval: _networkMeta.requireApproval ?? false,
+  icnMatching: true, mutualConnections: true,
+  dataUse:          _networkMeta.dataUse          ?? true,
+  hideFromBP:       _networkMeta.hideFromBP       ?? false,
   connectionAlerts: _networkMeta.connectionAlerts ?? true,
   weeklyDigest:     _networkMeta.weeklyDigest     ?? true,
   featureUpdates:   _networkMeta.featureUpdates   ?? false,
-  geoFocus: '50mi',
+  geoFocus:         _networkMeta.geoFocus         ?? '50mi',
 });
 const networkConnection = [
   { key: 'dataUse',    label: 'Allow Use of My Data for Network Suggestions', desc: "Anonymized data helps improve Aegis's provider matching quality" },

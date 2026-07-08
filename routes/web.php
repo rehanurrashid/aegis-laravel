@@ -345,6 +345,12 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         // Settings
         Route::get('/settings', [ProviderSettingsController::class, 'index'])->name('settings.index');
         Route::put('/settings/notifications', [ProviderSettingsController::class, 'updateNotifications'])->name('settings.notifications');
+        Route::put('/settings/security-alerts',   [ProviderSettingsController::class, 'updateSecurityAlerts'])->name('settings.security-alerts');
+        Route::put('/settings/cs-settings',       [ProviderSettingsController::class, 'updateCsSettings'])->name('settings.cs-settings');
+        Route::put('/settings/ss-settings',       [ProviderSettingsController::class, 'updateSsSettings'])->name('settings.ss-settings');
+        Route::put('/settings/vault-alerts',      [ProviderSettingsController::class, 'updateVaultAlerts'])->name('settings.vault-alerts');
+        Route::put('/settings/agreement-alerts',  [ProviderSettingsController::class, 'updateAgreementAlerts'])->name('settings.agreement-alerts');
+        Route::put('/settings/network-settings',  [ProviderSettingsController::class, 'updateNetworkSettings'])->name('settings.network-settings');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
         Route::put('/settings/account', [ProviderSettingsController::class, 'updateAccount'])->name('settings.account');
         Route::put('/settings/appearance', [ProviderSettingsController::class, 'updateAppearance'])->name('settings.appearance');

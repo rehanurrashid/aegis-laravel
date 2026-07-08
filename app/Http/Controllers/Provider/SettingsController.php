@@ -104,63 +104,87 @@ class SettingsController extends Controller
     public function updateNotifications(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            // Channel matrix (push/email/inapp per category)
-            'categories'                    => 'nullable|array',
-            'categories.*.key'              => 'required|string|max:64',
-            'categories.*.push'             => 'nullable|boolean',
-            'categories.*.email'            => 'nullable|boolean',
-            'categories.*.inapp'            => 'nullable|boolean',
-            // Security & Login Alerts
-            'security.alertOnNewLogin'      => 'nullable|boolean',
-            'security.sessionTimeout'       => 'nullable|boolean',
-            // Steward Notifications
-            'steward.csAnnualReminder'      => 'nullable|boolean',
-            'steward.csNotifyOnChange'      => 'nullable|boolean',
-            'steward.ssNotifyIncident'      => 'nullable|boolean',
-            'steward.ssNotifyChange'        => 'nullable|boolean',
-            'steward.ssAnnualAttest'        => 'nullable|boolean',
-            // Document & Agreement Alerts
-            'docs.vaultNotifyAccess'        => 'nullable|boolean',
-            'docs.vaultNotifyUnlock'        => 'nullable|boolean',
-            'docs.agreementExpiryReminder'  => 'nullable|boolean',
-            'docs.agreementCountersign'     => 'nullable|boolean',
-            // Billing & Invoices
-            'billing.invoiceEmails'         => 'nullable|boolean',
-            // Network & Updates
-            'network.connectionAlerts'      => 'nullable|boolean',
-            'network.weeklyDigest'          => 'nullable|boolean',
-            'network.featureUpdates'        => 'nullable|boolean',
+            'categories'       => 'nullable|array',
+            'categories.*.key'   => 'required|string|max:64',
+            'categories.*.push'  => 'nullable|boolean',
+            'categories.*.email' => 'nullable|boolean',
+            'categories.*.inapp' => 'nullable|boolean',
         ]);
 
         $user = $request->user();
 
-        // Save category channel matrix
         if (!empty($data['categories'])) {
             $this->profiles->saveMeta($user, 'notify_categories', $data['categories'], 'json');
         }
 
-        // Save each named group as its own meta key
-        $groups = ['security', 'steward', 'docs', 'billing', 'network'];
-        foreach ($groups as $group) {
-            if (isset($data[$group]) && is_array($data[$group])) {
-                $this->profiles->saveMeta($user, "notify_{$group}", $data[$group], 'json');
-            }
-        }
-
-        $this->activity->log(
-            $user->id,
-            'provider',
-            'account',
-            \App\Enums\ActivitySeverity::Info,
-            'notifications_updated',
-            'Notification preferences updated',
-            'You updated your notification preferences.',
-            null, null, null,
-            'log',
-            $user->id,
-        );
-
         return back()->with('success', 'Notification preferences saved.');
+    }
+
+    public function updateSecurityAlerts(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'alertOnNewLogin' => 'nullable|boolean',
+            'sessionTimeout'  => 'nullable|boolean',
+        ]);
+        $this->profiles->saveMeta($request->user(), 'notify_security', $data, 'json');
+        return back()->with('success', 'Security alert settings saved.');
+    }
+
+    public function updateCsSettings(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'activation'     => 'nullable|boolean',
+            'annualReminder' => 'nullable|boolean',
+            'notifyOnChange' => 'nullable|boolean',
+        ]);
+        $this->profiles->saveMeta($request->user(), 'notify_cs', $data, 'json');
+        return back()->with('success', 'Continuity Steward settings saved.');
+    }
+
+    public function updateSsSettings(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'notifyIncident' => 'nullable|boolean',
+            'notifyChange'   => 'nullable|boolean',
+            'annualAttest'   => 'nullable|boolean',
+        ]);
+        $this->profiles->saveMeta($request->user(), 'notify_ss', $data, 'json');
+        return back()->with('success', 'Support Steward settings saved.');
+    }
+
+    public function updateVaultAlerts(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'notifyAccess' => 'nullable|boolean',
+            'notifyUnlock' => 'nullable|boolean',
+        ]);
+        $this->profiles->saveMeta($request->user(), 'notify_vault', $data, 'json');
+        return back()->with('success', 'Vault alert settings saved.');
+    }
+
+    public function updateAgreementAlerts(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'expiryReminder'    => 'nullable|boolean',
+            'notifyCountersign' => 'nullable|boolean',
+        ]);
+        $this->profiles->saveMeta($request->user(), 'notify_agreements', $data, 'json');
+        return back()->with('success', 'Agreement alert settings saved.');
+    }
+
+    public function updateNetworkSettings(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'requireApproval'  => 'nullable|boolean',
+            'dataUse'          => 'nullable|boolean',
+            'hideFromBP'       => 'nullable|boolean',
+            'connectionAlerts' => 'nullable|boolean',
+            'weeklyDigest'     => 'nullable|boolean',
+            'featureUpdates'   => 'nullable|boolean',
+            'geoFocus'         => 'nullable|string|in:25mi,50mi,100mi,statewide,national',
+        ]);
+        $this->profiles->saveMeta($request->user(), 'notify_network', $data, 'json');
+        return back()->with('success', 'Network settings saved.');
     }
 
     public function updateAppearance(Request $request): RedirectResponse
