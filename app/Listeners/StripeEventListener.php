@@ -31,7 +31,7 @@ class StripeEventListener
         }
 
         $row = $existing ?? StripeWebhookEvent::create([
-            'id'              => 'swe_' . Str::lower(Str::random(12)),
+            'id'              => \Illuminate\Support\Str::uuid()->toString(),
             'stripe_event_id' => $eventId,
             'event_type'      => $type,
             'payload_json'    => json_encode($payload),
@@ -57,11 +57,16 @@ class StripeEventListener
 
             $row->update(['processed' => 1, 'processed_at' => now()]);
         } catch (\Throwable $e) {
-            $row->update([
-                'last_error'  => $e->getMessage(),
-                'attempts'    => ($row->attempts ?? 0) + 1,
-            ]);
             Log::error('Stripe webhook handler error', ['type' => $type, 'error' => $e->getMessage()]);
+            // last_error / attempts columns are optional — only update if they exist
+            $updates = [];
+            if (\Illuminate\Support\Facades\Schema::hasColumn('stripe_webhook_events', 'last_error')) {
+                $updates['last_error'] = $e->getMessage();
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('stripe_webhook_events', 'attempts')) {
+                $updates['attempts'] = ($row->attempts ?? 0) + 1;
+            }
+            if ($updates) $row->update($updates);
             throw $e;
         }
     }
