@@ -68,12 +68,10 @@ class SettingsController extends Controller
     {
         $data = $request->validate([
             'phone' => ['nullable', 'string', 'max:40'],
-            'handle'=> ['nullable', 'string', 'max:60'],
         ]);
 
         $request->user()->forceFill([
-            'phone'  => $data['phone']  ?? null,
-            'handle' => $data['handle'] ?? null,
+            'phone' => $data['phone'] ?? null,
         ])->save();
 
         return back()->with('success', 'Account details updated.');

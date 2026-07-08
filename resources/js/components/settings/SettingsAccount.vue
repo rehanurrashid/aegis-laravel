@@ -243,16 +243,12 @@ const props = defineProps({
 const toast  = useToast();
 const modals = reactive({ revokeAll: false });
 
-// ── Account form (phone, handle) ─────────────────────────────────────────
+// ── Account form ───────────────────────────────────────────────────────────
 const acctForm = useForm({
   phone:  props.user?.phone  ?? '',
-  handle: props.user?.handle ?? '',
 });
 
-const acctDirty = computed(() =>
-  acctForm.phone !== (props.user?.phone ?? '') ||
-  acctForm.handle !== (props.user?.handle ?? '')
-);
+const acctDirty = computed(() => acctForm.phone !== (props.user?.phone ?? ''));
 
 function saveAccount() {
   acctForm.put(route(props.updateAccountRoute), {

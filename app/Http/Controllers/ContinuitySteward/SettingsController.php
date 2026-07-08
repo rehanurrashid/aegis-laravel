@@ -72,12 +72,10 @@ class SettingsController extends Controller
     public function updateAccount(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'phone'  => ['nullable', 'string', 'max:40'],
-            'handle' => ['nullable', 'string', 'max:60'],
+            'phone' => ['nullable', 'string', 'max:40'],
         ]);
         $request->user()->forceFill([
-            'phone'  => $data['phone']  ?? null,
-            'handle' => $data['handle'] ?? null,
+            'phone' => $data['phone'] ?? null,
         ])->save();
         return back()->with('success', 'Account details updated.');
     }
