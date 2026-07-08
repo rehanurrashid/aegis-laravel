@@ -32,6 +32,7 @@
         <div class="ob-plan-summary-panel" v-if="plan">
           <div class="ob-psp-label">Your plan</div>
           <div class="ob-psp-name">{{ planDisplayName }}</div>
+          <div v-if="hasMaat" class="ob-psp-addon">+ MAAT Professional CS</div>
           <div class="ob-psp-price">{{ planDisplayPrice }}</div>
           <button type="button" class="ob-psp-change" @click="goBack">Change plan</button>
         </div>
@@ -60,13 +61,37 @@
           <p class="ob-step-subtitle">Complete your subscription to unlock full platform access.</p>
         </div>
 
-        <!-- Plan recap -->
-        <div class="ob-plan-recap">
-          <div>
-            <div class="ob-plan-recap-name">{{ planDisplayName }}</div>
-            <div class="ob-plan-recap-detail">{{ planBillingDetail }}</div>
+        <!-- Order summary / cart -->
+        <div class="ob-order-summary">
+          <div class="ob-order-title">Order Summary</div>
+
+          <!-- Base plan line -->
+          <div class="ob-order-line">
+            <div class="ob-order-line-left">
+              <div class="ob-order-line-name">{{ planDisplayName }}</div>
+              <div class="ob-order-line-detail">{{ planBillingDetail }}</div>
+            </div>
+            <div class="ob-order-line-price">{{ basePlanPrice }}</div>
           </div>
-          <div class="ob-plan-recap-price">{{ planDisplayPrice }}</div>
+
+          <!-- MAAT add-on line (only when selected) -->
+          <div v-if="hasMaat" class="ob-order-line ob-order-line--addon">
+            <div class="ob-order-line-left">
+              <div class="ob-order-line-name">
+                <AegisIcon name="shield" :size="11" style="display:inline;vertical-align:middle;margin-right:4px;" />
+                MAAT Professional CS
+              </div>
+              <div class="ob-order-line-detail">Designated continuity steward</div>
+            </div>
+            <div class="ob-order-line-price">{{ maatAddonPrice }}</div>
+          </div>
+
+          <!-- Divider + total -->
+          <div class="ob-order-divider" />
+          <div class="ob-order-total">
+            <div class="ob-order-total-label">Total{{ plan?.billing === 'annual' ? ' (billed annually)' : ' per month' }}</div>
+            <div class="ob-order-total-price">{{ planDisplayPrice }}</div>
+          </div>
         </div>
 
         <!-- Error banner -->
@@ -182,22 +207,57 @@ const subscribeForm = useForm({
 
 // ── Plan display helpers ─────────────────────────────────────────────
 const tierLabels = {
-  access:   'Continuity Access',
-  practice: 'Continuity Practice',
-  monthly:  'Business Partner — Monthly',
-  annual:   'Business Partner — Annual',
+  access:      'Continuity Access',
+  practice:    'Continuity Practice',
+  monthly:     'Business Partner — Monthly',
+  annual:      'Business Partner — Annual',
+  cs_business: 'Business CS',
 }
 
 const planDisplayName = computed(() => tierLabels[props.plan?.tier] ?? 'Aegis Subscription')
 
-const planDisplayPrice = computed(() => {
+const hasMaat = computed(() => (props.plan?.addons ?? []).includes('maat'))
+
+// Pricing cents → dollars helpers
+const toD = (c) => Math.round((c ?? 0) / 100)
+
+const basePlanPriceCents = computed(() => {
   const t = props.plan?.tier
   const b = props.plan?.billing
-  if (t === 'access')   return b === 'annual' ? '$23/mo (billed annually)' : '$29/mo'
-  if (t === 'practice') return b === 'annual' ? '$39/mo (billed annually)' : '$49/mo'
-  if (t === 'monthly')  return '$69/mo'
-  if (t === 'annual')   return '$690/yr'
-  return '—'
+  if (t === 'access')      return b === 'annual' ? (props.pricing?.practitioner?.access?.annual_cents   ?? 2300) : (props.pricing?.practitioner?.access?.monthly_cents   ?? 2900)
+  if (t === 'practice')    return b === 'annual' ? (props.pricing?.practitioner?.practice?.annual_cents ?? 3900) : (props.pricing?.practitioner?.practice?.monthly_cents ?? 4900)
+  if (t === 'monthly')     return props.pricing?.business_partner?.monthly_cents  ?? 6900
+  if (t === 'annual')      return props.pricing?.business_partner?.annual_total_cents ?? 69000
+  if (t === 'cs_business') return b === 'annual' ? (props.pricing?.continuity_steward_business?.annual_cents ?? 3600) : (props.pricing?.continuity_steward_business?.monthly_cents ?? 4900)
+  return 0
+})
+
+const maatPriceCents = computed(() => {
+  const b = props.plan?.billing
+  return b === 'annual'
+    ? (props.pricing?.maat_addon?.annual_cents      ?? 3900)
+    : (props.pricing?.maat_addon?.monthly_cents     ?? 4900)
+})
+
+const isAnnualTotal = computed(() => props.plan?.tier === 'annual' || (props.plan?.billing === 'annual' && props.plan?.tier === 'cs_business'))
+
+const basePlanPrice = computed(() => {
+  const dollars = toD(basePlanPriceCents.value)
+  if (isAnnualTotal.value) return `$${dollars}/yr`
+  return `$${dollars}/mo`
+})
+
+const maatAddonPrice = computed(() => {
+  const dollars = toD(maatPriceCents.value)
+  return props.plan?.billing === 'annual' ? `+$${dollars}/mo` : `+$${dollars}/mo`
+})
+
+const planDisplayPrice = computed(() => {
+  const base  = basePlanPriceCents.value
+  const addon = hasMaat.value ? maatPriceCents.value : 0
+  const total = toD(base + addon)
+  if (isAnnualTotal.value) return `$${total}/yr`
+  return `$${total}/mo`
 })
 
 const planBillingDetail = computed(() => {
@@ -404,6 +464,24 @@ function switchAccount() { router.post(route('logout')) }
 .ob-plan-recap-name { font-family:var(--font-serif); font-size:14px; font-weight:700; color:var(--text); margin-bottom:2px; }
 .ob-plan-recap-detail { font-size:12px; color:var(--text-2); }
 .ob-plan-recap-price { font-family:var(--font-serif); font-size:15px; font-weight:700; color:var(--gold-dark); }
+
+/* Order summary cart */
+.ob-order-summary { background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; margin-bottom:20px; }
+.ob-order-title { font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--text-3); margin-bottom:12px; }
+.ob-order-line { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:8px 0; }
+.ob-order-line + .ob-order-line { border-top:1px solid var(--border); }
+.ob-order-line--addon { background:rgba(196,169,106,0.05); margin:0 -18px; padding:8px 18px; }
+.ob-order-line-left { flex:1; min-width:0; }
+.ob-order-line-name { font-size:13px; font-weight:600; color:var(--text); margin-bottom:2px; }
+.ob-order-line-detail { font-size:11px; color:var(--text-3); }
+.ob-order-line-price { font-family:var(--font-serif); font-size:14px; font-weight:700; color:var(--text); white-space:nowrap; }
+.ob-order-divider { height:1px; background:var(--border); margin:4px 0 10px; }
+.ob-order-total { display:flex; justify-content:space-between; align-items:center; }
+.ob-order-total-label { font-size:12px; font-weight:700; color:var(--text-2); }
+.ob-order-total-price { font-family:var(--font-serif); font-size:18px; font-weight:700; color:var(--gold-dark); }
+
+/* Left panel addon line */
+.ob-psp-addon { font-size:11px; color:var(--gold-light); margin-bottom:2px; display:flex; align-items:center; gap:4px; }
 
 /* Error */
 .ob-error-banner { display:flex; align-items:flex-start; gap:8px; background:var(--red-light); border:1px solid rgba(224,92,92,0.25); border-radius:var(--radius-sm); padding:10px 14px; font-size:13px; color:var(--red); margin-bottom:16px; line-height:1.5; }
