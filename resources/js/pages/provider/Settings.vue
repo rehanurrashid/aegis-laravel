@@ -203,7 +203,8 @@
               </div>
               <div style="margin-top:20px;max-width:260px">
                 <label class="form-label">Timezone</label>
-                <select class="form-select" v-model="availTimezone" data-no-enhance>
+                <p class="form-hint" style="margin:2px 0 8px">Used for scheduling, reminders, and calendar display</p>
+                <select class="form-select" v-model="availTimezone">
                   <option value="America/New_York">Eastern Time (ET)</option>
                   <option value="America/Chicago">Central Time (CT)</option>
                   <option value="America/Denver">Mountain Time (MT)</option>
@@ -213,7 +214,6 @@
                   <option value="America/Anchorage">Alaska (AKST)</option>
                   <option value="UTC">UTC</option>
                 </select>
-                <div class="form-hint" style="margin-top:6px">Used for scheduling, reminders, and calendar display</div>
               </div>
               <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
                 <button type="button" class="btn btn-primary btn-sm" :disabled="availSaving" @click="saveAvailability">
