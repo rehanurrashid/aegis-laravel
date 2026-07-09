@@ -382,6 +382,9 @@ class SettingsController extends Controller
             'message' => 'nullable|string|max:500',
         ]);
 
+        // Treat empty string as null for until
+        $data['until'] = !empty($data['until']) ? $data['until'] : null;
+
         $user = $request->user();
         $user->update(['paused_at' => now()]);
 

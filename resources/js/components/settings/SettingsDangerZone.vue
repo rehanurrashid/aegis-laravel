@@ -31,7 +31,7 @@
     </div>
     <template #footer>
       <button type="button" class="btn btn-ghost btn-sm" @click="modals.export = false">Cancel</button>
-      <button type="button" class="btn btn-primary btn-sm" :disabled="!hasExportSelection || exportForm.processing" @click="submitExport">
+      <button type="button" class="btn btn-primary btn-sm" :disabled="!hasExportSelection || exportSaving" @click="submitExport">
         <AegisIcon name="download" :size="14" /> Request Export
       </button>
     </template>
@@ -65,7 +65,7 @@
     </div>
     <template #footer>
       <button type="button" class="btn btn-ghost btn-sm" @click="modals.pause = false">Cancel</button>
-      <button type="button" class="btn btn-primary btn-sm" :disabled="pauseIForm.processing" @click="submitPause">
+      <button type="button" class="btn btn-primary btn-sm" :disabled="pauseSaving" @click="submitPause">
         <AegisIcon name="activity" :size="13" /> Pause Account
       </button>
     </template>
@@ -89,7 +89,7 @@
     <template #footer>
       <button type="button" class="btn btn-ghost btn-sm" @click="modals.delete = false">Cancel</button>
       <button type="button" class="btn btn-danger btn-sm"
-        :disabled="deleteConfirm !== 'DELETE MY ACCOUNT' || deleteIForm.processing"
+        :disabled="deleteConfirm !== 'DELETE MY ACCOUNT' || deleteSaving"
         @click="submitDelete">
         <AegisIcon name="trash" :size="14" /> Permanently Delete
       </button>
@@ -137,7 +137,7 @@
         <button v-if="!isPaused" type="button" class="btn btn-outline btn-sm" @click="modals.pause = true">
           <AegisIcon name="activity" :size="13" /> Pause
         </button>
-        <button v-else type="button" class="btn btn-primary btn-sm" :disabled="resumeForm.processing" @click="submitResume">
+        <button v-else type="button" class="btn btn-primary btn-sm" :disabled="resumeSaving" @click="submitResume">
           <AegisIcon name="check" :size="13" /> Reactivate
         </button>
       </div>
@@ -160,7 +160,7 @@
 
 <script setup>
 import { ref, reactive, computed } from 'vue';
-import { useForm, router } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import { useToast } from '@/composables/useToast';
 
 const props = defineProps({
@@ -187,56 +187,69 @@ const exportOptions = reactive([
 ]);
 const exportFormat    = ref('json');
 const hasExportSelection = computed(() => exportOptions.some(o => o.checked));
-const exportForm      = useForm({});
+const exportSaving = ref(false);
 
 function submitExport() {
-  exportForm.post(route(props.exportRoute), {
-    data: {
-      include: exportOptions.filter(o => o.checked).map(o => o.key),
-      format:  exportFormat.value,
-    },
+  const selected = exportOptions.filter(o => o.checked).map(o => o.key);
+  if (!selected.length) return;
+  exportSaving.value = true;
+  router.post(route(props.exportRoute), {
+    include: selected,
+    format:  exportFormat.value,
+  }, {
     preserveScroll: true,
     onSuccess: () => { modals.export = false; toast.success('Export request submitted. Check your email within 24 hours.'); },
-    onError:   () => toast.error('Could not submit export request.'),
+    onError:   (e) => { toast.error(Object.values(e).flat().join(' ') || 'Could not submit export request.'); },
+    onFinish:  () => { exportSaving.value = false; },
   });
 }
 
 // ── Pause ────────────────────────────────────────────────────────────────────
 const minDate    = new Date(Date.now() + 86400000).toISOString().split('T')[0];
 const pauseForm  = reactive({ until: '', reason: 'leave', message: '' });
-const pauseIForm = useForm({});
+const pauseSaving = ref(false);
 
 function submitPause() {
-  pauseIForm.post(route(props.pauseRoute), {
-    data: pauseForm,
+  pauseSaving.value = true;
+  router.post(route(props.pauseRoute), {
+    until:   pauseForm.until   || null,
+    reason:  pauseForm.reason,
+    message: pauseForm.message || null,
+  }, {
     preserveScroll: true,
-    onSuccess: () => { modals.pause = false; toast.success('Account paused. You can reactivate at any time.'); },
-    onError:   () => toast.error('Could not pause account.'),
+    onSuccess: () => { modals.pause = false; toast.success('Account paused. You can reactivate at any time from this page.'); },
+    onError:   (e) => { toast.error(Object.values(e).flat().join(' ') || 'Could not pause account.'); },
+    onFinish:  () => { pauseSaving.value = false; },
   });
 }
 
 // ── Resume ───────────────────────────────────────────────────────────────────
-const resumeForm = useForm({});
+const resumeSaving = ref(false);
 
 function submitResume() {
-  resumeForm.post(route(props.resumeRoute), {
+  resumeSaving.value = true;
+  router.post(route(props.resumeRoute), {}, {
     preserveScroll: true,
-    onSuccess: () => toast.success('Account reactivated. You are now visible in search results.'),
-    onError:   () => toast.error('Could not reactivate account.'),
+    onSuccess: () => { toast.success('Account reactivated. You are now visible in search results.'); },
+    onError:   () => { toast.error('Could not reactivate account.'); },
+    onFinish:  () => { resumeSaving.value = false; },
   });
 }
 
 // ── Delete ───────────────────────────────────────────────────────────────────
 const deleteConfirm = ref('');
-const deleteIForm   = useForm({ confirm: '' });
+const deleteSaving = ref(false);
 
 function submitDelete() {
   if (deleteConfirm.value !== 'DELETE MY ACCOUNT') return;
-  deleteIForm.confirm = 'DELETE MY ACCOUNT';
-  deleteIForm.delete(route(props.deleteRoute), {
-    preserveScroll: true,
+  deleteSaving.value = true;
+  router.delete(route(props.deleteRoute), {
+    data: { confirm: 'DELETE MY ACCOUNT' },
     onSuccess: () => { modals.delete = false; },
-    onError:   () => toast.error('Could not delete account. Please try again.'),
+    onError:   (e) => {
+      toast.error(Object.values(e).flat().join(' ') || 'Could not delete account. Please try again.');
+      deleteSaving.value = false;
+    },
   });
 }
 </script>

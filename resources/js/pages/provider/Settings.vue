@@ -854,7 +854,7 @@
             pause-route="provider.settings.account.pause"
             resume-route="provider.settings.account.resume"
             export-route="provider.settings.account.export"
-            :is-paused="props.accountPaused"
+            :is-paused="usePage().props.auth?.user?.is_paused ?? false"
           />
         </div>
 

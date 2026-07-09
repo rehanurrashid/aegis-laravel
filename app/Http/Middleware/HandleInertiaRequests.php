@@ -142,6 +142,8 @@ class HandleInertiaRequests extends Middleware
                     'messaging_status'   => UserMeta::where('user_id', $user->id)
                                                ->where('meta_key', 'messaging_status')
                                                ->value('meta_value') ?? 'available',
+                    'is_paused'          => $user->paused_at !== null,
+                    'is_deactivated'     => $user->deactivated_at !== null,
                 ] : null,
                 'portal' => $user
                     ? ($user->role instanceof UserRole

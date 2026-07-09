@@ -23,6 +23,16 @@
 
       <IncidentBanner />
 
+      <!-- Paused Account Banner -->
+      <div v-if="page.props.auth?.user?.is_paused"
+        style="background:var(--orange-light);border-bottom:1px solid var(--orange);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px">
+        <div style="display:inline-flex;align-items:center;gap:8px;color:var(--orange-dark)">
+          <AegisIcon name="activity" :size="15" />
+          <strong>Account Paused</strong> — You are not visible in search results or receiving referrals.
+        </div>
+        <a :href="route('provider.settings.index') + '?tab=changes'" style="font-size:12px;font-weight:600;color:var(--orange-dark);text-decoration:underline;white-space:nowrap">Reactivate →</a>
+      </div>
+
       <main class="page-body">
         <slot />
       </main>
