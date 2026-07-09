@@ -201,9 +201,8 @@
                   </select>
                 </div>
               </div>
-              <div style="margin-top:20px;max-width:260px">
+              <div style="margin-top:20px;max-width:315px">
                 <label class="form-label">Timezone</label>
-                <p class="form-hint" style="margin:2px 0 8px">Used for scheduling, reminders, and calendar display</p>
                 <select class="form-select" v-model="availTimezone">
                   <option value="America/New_York">Eastern Time (ET)</option>
                   <option value="America/Chicago">Central Time (CT)</option>
