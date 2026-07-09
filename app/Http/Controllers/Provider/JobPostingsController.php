@@ -34,7 +34,6 @@ class JobPostingsController extends Controller
         private ContractService $contracts,
         private MessagingService $messaging,
         private \App\Services\InvoiceService $invoices,
-        private \App\Services\PayoutService $payouts,
         private PayoutService $payouts,
     ) {}
 
