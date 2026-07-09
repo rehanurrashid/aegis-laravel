@@ -28,6 +28,7 @@ use App\Http\Controllers\ContinuitySteward\DashboardController as CsDashboardCon
 use App\Http\Controllers\ContinuitySteward\ContinuityManagementController;
 use App\Http\Controllers\ContinuitySteward\DocumentsController as CsDocumentsController;
 use App\Http\Controllers\ContinuitySteward\FinancesController as CsFinancesController;
+use App\Http\Controllers\ContinuitySteward\InvoicesController as CsInvoicesController;
 use App\Http\Controllers\ContinuitySteward\ProfileController as CsProfileController;
 use App\Http\Controllers\ContinuitySteward\ProvidersController as CsProvidersController;
 use App\Http\Controllers\ContinuitySteward\SettingsController as CsSettingsController;
@@ -46,7 +47,7 @@ use App\Http\Controllers\BusinessPartner\FinancesController as BpFinancesControl
 use App\Http\Controllers\BusinessPartner\InvoicesController;
 use App\Http\Controllers\BusinessPartner\JobsController;
 use App\Http\Controllers\BusinessPartner\MilestonesController;
-use App\Http\Controllers\BusinessPartner\PaymentSetupController as BpPaymentController;
+
 use App\Http\Controllers\BusinessPartner\ProfileController as BpProfileController;
 use App\Http\Controllers\BusinessPartner\ProposalsController;
 use App\Http\Controllers\BusinessPartner\SettingsController as BpSettingsController;
@@ -447,6 +448,12 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:contin
         Route::post('/finances/invoice', [CsFinancesController::class, 'storeInvoice'])->name('finances.invoice.store');
         Route::post('/finances/fee-amendment', [CsFinancesController::class, 'feeAmendment'])->name('finances.amend');
 
+        // Invoices — CS billing to Practitioners
+        Route::get('/invoices',                    [CsInvoicesController::class, 'index'])->name('invoices.index');
+        Route::post('/invoices',                   [CsInvoicesController::class, 'store'])->name('invoices.store');
+        Route::post('/invoices/{invoice}/send',    [CsInvoicesController::class, 'send'])->name('invoices.send');
+        Route::post('/invoices/{invoice}/void',    [CsInvoicesController::class, 'void'])->name('invoices.void');
+
         // Profile
         Route::get('/profile', [CsProfileController::class, 'index'])->name('profile.index');
         Route::put('/profile', [CsProfileController::class, 'update'])->name('profile.update');
@@ -603,8 +610,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:busine
         Route::delete('/tax-documents/{document}', [TaxDocumentsController::class, 'destroy'])->name('tax.destroy');
 
         // Stripe Connect setup
-        Route::get('/payment-setup', [BpPaymentController::class, 'index'])->name('payment.index');
-        Route::post('/payment-setup/connect', [BpPaymentController::class, 'connect'])->name('payment.connect');
+
 
         // Team (agency only)
         Route::get('/team', [TeamController::class, 'index'])->name('team.index');
