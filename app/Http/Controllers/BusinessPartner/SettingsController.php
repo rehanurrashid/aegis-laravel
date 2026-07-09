@@ -403,48 +403,6 @@ class SettingsController extends Controller
         return back()->with('success', 'Privacy settings saved.');
     }
 
-    public function connectOnboard(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
-    {
-        $user = $request->user();
-        if (!config('services.stripe.secret')) {
-            return back()->withErrors(['connect' => 'Stripe is not configured.']);
-        }
-        try {
-            $stripe = new \Stripe\StripeClient(config('services.stripe.secret'));
-            if (!$user->stripe_account_id || str_starts_with((string) $user->stripe_account_id, 'acct_demo_')) {
-                $account = $stripe->accounts->create([
-                    'type'         => 'express',
-                    'email'        => $user->email,
-                    'capabilities' => ['transfers' => ['requested' => true]],
-                    'metadata'     => ['user_id' => $user->id, 'portal' => 'business_partner'],
-                ]);
-                $user->update(['stripe_account_id' => $account->id, 'stripe_connected' => false]);
-            }
-            $link = $stripe->accountLinks->create([
-                'account'     => $user->stripe_account_id,
-                'refresh_url' => route('bp.settings.connect.onboard'),
-                'return_url'  => route('bp.settings.connect.return'),
-                'type'        => 'account_onboarding',
-            ]);
-            return redirect($link->url);
-        } catch (\Throwable $e) {
-            return back()->withErrors(['connect' => 'Could not start Stripe Connect setup: ' . $e->getMessage()]);
-        }
-    }
 
-    public function connectReturn(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
-    {
-        $user = $request->user();
-        if ($user->stripe_account_id && config('services.stripe.secret')
-            && !str_starts_with((string) $user->stripe_account_id, 'acct_demo_')) {
-            try {
-                $stripe  = new \Stripe\StripeClient(config('services.stripe.secret'));
-                $account = $stripe->accounts->retrieve($user->stripe_account_id);
-                $user->update(['stripe_connected' => ($account->charges_enabled && $account->payouts_enabled && $account->details_submitted) ? 1 : 0]);
-            } catch (\Throwable $e) {}
-        }
-        return redirect()->route('bp.settings.index', ['tab' => 'bp-payout'])
-            ->with('success', 'Stripe Connect setup complete. You can now receive payments from providers.');
-    }
 
 }
