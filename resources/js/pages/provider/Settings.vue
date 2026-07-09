@@ -31,7 +31,7 @@
         </template>
       </div>
 
-      <div class="settings-content">
+      <div class="settings-content" ref="settingsContent">
 
         <!-- PROFILE & IDENTITY -->
         <div v-show="section === 'profile'" class="settings-panel active">
@@ -1065,12 +1065,20 @@ function openTierModal(featureName) {
   showTierModal.value = true;
 }
 
+const settingsContent = ref(null);
+
 function navClick(item) {
   if (item.locked && isAccessTier.value) {
     openTierModal(item.label);
     return;
   }
   section.value = item.key;
+  nextTick(() => {
+    const el = settingsContent.value;
+    if (!el) return;
+    const top = el.getBoundingClientRect().top + window.scrollY - 80; // 64px topbar + 16px breathing room
+    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  });
 }
 
 // ─── Account form ─────────────────────────────────────────────────────────────
