@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Jobs\AnnualReviewReminderJob;
 use App\Jobs\DigestEmailJob;
 use App\Jobs\ExpireMutedThreadsJob;
+use App\Jobs\IncidentAutoCloseCheckJob;
 use App\Jobs\StaleIncidentAlertJob;
 use App\Jobs\StewardResponsivenessCheckJob;
 use App\Jobs\StripeWebhookProcessorJob;
@@ -47,3 +48,7 @@ Schedule::job(new StewardResponsivenessCheckJob)->dailyAt('10:00')->name('aegis.
 
 // Daily 08:00 UTC — warn users whose subscription renews in 7 days.
 Schedule::job(new SubscriptionRenewalCheckJob)->dailyAt('08:00')->name('aegis.subscription_renewal_check');
+
+// Hourly — auto-close incidents that hit "ready for closure" state past CS_INCIDENT_AUTOCLOSE_DAYS
+// window (default 7d) without explicit Provider or SS verification.
+Schedule::job(new IncidentAutoCloseCheckJob)->hourly()->name('aegis.incident_auto_close');

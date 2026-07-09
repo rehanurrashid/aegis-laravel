@@ -23,6 +23,8 @@ class PlanSteward extends Model
     protected $fillable = [
         'id', 'plan_id', 'steward_id', 'role', 'steward_category', 'status',
         'permissions', 'vault_access', 'responsibilities',
+        // CS engagement contract fields (migration 2026_07_10_000001)
+        'fee_cents', 'payment_terms', 'auto_charge', 'engagement_document_id',
         'signed_at', 'review_due_at', 'invited_at', 'request_sent_at',
         'expires_at', 'declined_at', 'declined_reason', 'ss_acknowledged_at',
     ];
@@ -33,6 +35,8 @@ class PlanSteward extends Model
         'vault_access'       => VaultAccess::class,
         'permissions'        => 'array',
         'responsibilities'   => 'array',
+        'fee_cents'          => 'integer',
+        'auto_charge'        => 'boolean',
         'signed_at'          => 'datetime',
         'review_due_at'      => 'datetime',
         'invited_at'         => 'datetime',
@@ -50,6 +54,17 @@ class PlanSteward extends Model
     public function steward(): BelongsTo
     {
         return $this->belongsTo(User::class, 'steward_id');
+    }
+
+    public function engagementDocument(): BelongsTo
+    {
+        return $this->belongsTo(ContinuityDocument::class, 'engagement_document_id');
+    }
+
+    /** Is this a paid CS engagement? Drives auto-invoice on incident close. */
+    public function isPaidEngagement(): bool
+    {
+        return (int) $this->fee_cents > 0;
     }
 
     public function scopeActive($q)      { return $q->where('status', StewardStatus::Active->value); }

@@ -181,10 +181,29 @@ class FinancesController extends Controller
         if ($status === InvoiceStatus::Draft->value) {
             return back()->withErrors(['invoice' => 'This invoice has not been sent yet.']);
         }
+        if ($status === InvoiceStatus::Disputed->value) {
+            return back()->withErrors(['invoice' => 'This invoice is under dispute. Wait for the dispute to be resolved before paying.']);
+        }
 
         $cs = User::find($invoice->cs_id);
         if (!$cs) {
             return back()->withErrors(['invoice' => 'Continuity Steward not found.']);
+        }
+
+        // W-9 soft-warn (Rev 2 §0.10 — Stripe handles 1099-K reporting for
+        // destination charges; we don't need to hard-block. Log for admin
+        // audit only.)
+        $w9 = method_exists($cs, 'bpTaxDocuments')
+            ? $cs->bpTaxDocuments()->where('doc_type', 'w9')->latest()->first()
+            : null;
+        if (!$w9 || (string) $w9->status !== \App\Enums\TaxDocStatus::Verified->value) {
+            $this->activity->log(
+                $provider->id, 'provider', 'finances',
+                \App\Enums\ActivitySeverity::Warning,
+                'cs_invoice_pay_no_w9', 'Payment to CS without verified W-9',
+                'CS ' . ($cs->display_name ?? $cs->id) . ' does not have a verified W-9 on file. Payment proceeded; Stripe Connect will issue 1099-K if thresholds are met.',
+                CsInvoice::class, $invoice->id, $cs->id, 'log', $provider->id,
+            );
         }
 
         try {

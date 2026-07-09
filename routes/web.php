@@ -384,6 +384,14 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::post('/settings/payment-method',            [ProviderSettingsController::class, 'storePaymentMethod'])->name('settings.payment.store');
         Route::post('/settings/payment-method/default',    [ProviderSettingsController::class, 'setDefaultPaymentMethod'])->name('settings.payment.default');
         Route::delete('/settings/payment-method',          [ProviderSettingsController::class, 'removePaymentMethod'])->name('settings.payment.remove');
+        // Native "Add card" — Stripe SetupIntent client_secret
+        Route::post('/settings/payment-method/setup-intent', [\App\Http\Controllers\Provider\PaymentMethodSetupController::class, 'createSetupIntent'])->name('settings.payment.setup-intent');
+
+        // Disputes
+        Route::get('/disputes',                             [\App\Http\Controllers\Provider\DisputesController::class, 'index'])->name('disputes.index');
+        Route::post('/disputes',                            [\App\Http\Controllers\Provider\DisputesController::class, 'store'])->name('disputes.store');
+        Route::get('/disputes/{dispute}',                   [\App\Http\Controllers\Provider\DisputesController::class, 'show'])->name('disputes.show');
+        Route::post('/disputes/{dispute}/reply',            [\App\Http\Controllers\Provider\DisputesController::class, 'reply'])->name('disputes.reply');
 
         // Shared pages — portal-prefixed URLs
         Route::get('/overview',  [OverviewController::class,  'index'])->name('overview');
@@ -452,6 +460,14 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:contin
         Route::get('/settings/billing-portal',       [CsSettingsController::class, 'billingPortal'])->name('settings.billing.portal');
         Route::get('/settings/connect/onboard', [CsSettingsController::class, 'connectOnboard'])->name('settings.connect.onboard');
         Route::get('/settings/connect/return',  [CsSettingsController::class, 'connectReturn'])->name('settings.connect.return');
+        // Native "Add card" — Stripe SetupIntent client_secret
+        Route::post('/settings/payment-method/setup-intent', [\App\Http\Controllers\ContinuitySteward\PaymentMethodSetupController::class, 'createSetupIntent'])->name('settings.payment.setup-intent');
+
+        // Disputes
+        Route::get('/disputes',                             [\App\Http\Controllers\ContinuitySteward\DisputesController::class, 'index'])->name('disputes.index');
+        Route::post('/disputes',                            [\App\Http\Controllers\ContinuitySteward\DisputesController::class, 'store'])->name('disputes.store');
+        Route::get('/disputes/{dispute}',                   [\App\Http\Controllers\ContinuitySteward\DisputesController::class, 'show'])->name('disputes.show');
+        Route::post('/disputes/{dispute}/reply',            [\App\Http\Controllers\ContinuitySteward\DisputesController::class, 'reply'])->name('disputes.reply');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
         Route::put('/settings/account', [CsSettingsController::class, 'updateAccount'])->name('settings.account');
         Route::put('/settings/messaging', [CsSettingsController::class, 'updateMessaging'])->name('settings.messaging');
@@ -607,6 +623,14 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:busine
         Route::post('/settings/subscription/cancel', [BpSettingsController::class, 'cancelPlan'])->name('settings.subscription.cancel');
         Route::post('/settings/subscription/resume', [BpSettingsController::class, 'resumePlan'])->name('settings.subscription.resume');
         Route::get('/settings/billing-portal',       [BpSettingsController::class, 'billingPortal'])->name('settings.billing.portal');
+        // Native "Add card" — Stripe SetupIntent client_secret
+        Route::post('/settings/payment-method/setup-intent', [\App\Http\Controllers\BusinessPartner\PaymentMethodSetupController::class, 'createSetupIntent'])->name('settings.payment.setup-intent');
+
+        // Disputes
+        Route::get('/disputes',                             [\App\Http\Controllers\BusinessPartner\DisputesController::class, 'index'])->name('disputes.index');
+        Route::post('/disputes',                            [\App\Http\Controllers\BusinessPartner\DisputesController::class, 'store'])->name('disputes.store');
+        Route::get('/disputes/{dispute}',                   [\App\Http\Controllers\BusinessPartner\DisputesController::class, 'show'])->name('disputes.show');
+        Route::post('/disputes/{dispute}/reply',            [\App\Http\Controllers\BusinessPartner\DisputesController::class, 'reply'])->name('disputes.reply');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
         Route::put('/settings/account', [BpSettingsController::class, 'updateAccount'])->name('settings.account');
         Route::put('/settings/messaging', [BpSettingsController::class, 'updateMessaging'])->name('settings.messaging');
@@ -673,6 +697,12 @@ Route::middleware(['auth', 'verified.email', 'admin'])
         Route::get('/payouts', [AdminPayoutsController::class, 'index'])->name('payouts.index');
         Route::post('/payouts/{payout}/cancel', [AdminPayoutsController::class, 'cancel'])->name('payouts.cancel');
         Route::post('/payouts/{payout}/retry', [AdminPayoutsController::class, 'retry'])->name('payouts.retry');
+
+        // Disputes
+        Route::get('/disputes',                     [\App\Http\Controllers\Admin\DisputesController::class, 'index'])->name('disputes.index');
+        Route::get('/disputes/{dispute}',           [\App\Http\Controllers\Admin\DisputesController::class, 'show'])->name('disputes.show');
+        Route::post('/disputes/{dispute}/reply',    [\App\Http\Controllers\Admin\DisputesController::class, 'reply'])->name('disputes.reply');
+        Route::post('/disputes/{dispute}/resolve',  [\App\Http\Controllers\Admin\DisputesController::class, 'resolve'])->name('disputes.resolve');
 
         // Critical Incident oversight
         Route::get('/incidents', [AdminIncidentsController::class, 'index'])->name('incidents.index');
