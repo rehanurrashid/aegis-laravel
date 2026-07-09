@@ -716,7 +716,9 @@
             </div>
             <template #footer>
               <button type="button" class="btn btn-outline btn-sm" @click="modals.showUpgrade = false">Cancel</button>
-              <button type="button" class="btn btn-primary btn-sm" @click="modals.showUpgrade = false; toast.success('Plan change request submitted')">Confirm Change</button>
+              <button type="button" class="btn btn-primary btn-sm" @click="modals.showUpgrade = false; section = 'billing'">
+                View Plans
+              </button>
             </template>
           </AegisModal>
         </div>
