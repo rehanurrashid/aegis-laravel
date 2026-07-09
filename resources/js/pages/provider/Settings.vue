@@ -850,13 +850,11 @@
         <!-- ACCOUNT ACTIONS (danger) -->
         <div v-show="section === 'changes'" class="settings-panel">
           <SettingsDangerZone
-            title="Account Closure &amp; Data Management"
-            pause-label="Pause Account"
-            pause-desc="Temporarily suspend your account. You won't appear in searches or receive referrals."
-            deactivate-label="Delete Account Permanently"
-            deactivate-desc="Permanently delete your Aegis account. This cannot be undone. All data will be erased after 30 days."
-            deactivate-button-label="Delete Account"
             delete-route="provider.settings.account.delete"
+            pause-route="provider.settings.account.pause"
+            resume-route="provider.settings.account.resume"
+            export-route="provider.settings.account.export"
+            :is-paused="props.accountPaused"
           />
         </div>
 

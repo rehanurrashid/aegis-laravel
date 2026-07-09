@@ -356,7 +356,10 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
         Route::put('/settings/account', [ProviderSettingsController::class, 'updateAccount'])->name('settings.account');
         Route::put('/settings/appearance', [ProviderSettingsController::class, 'updateAppearance'])->name('settings.appearance');
-        Route::delete('/settings/account', [ProviderSettingsController::class, 'deleteAccount'])->name('settings.account.delete');
+        Route::delete('/settings/account',      [ProviderSettingsController::class, 'deleteAccount'])->name('settings.account.delete');
+        Route::post('/settings/account/pause',   [ProviderSettingsController::class, 'pauseAccount'])->name('settings.account.pause');
+        Route::post('/settings/account/resume',  [ProviderSettingsController::class, 'resumeAccount'])->name('settings.account.resume');
+        Route::post('/settings/export-data',     [ProviderSettingsController::class, 'exportData'])->name('settings.account.export');
         Route::delete('/settings/sessions', [ProviderSettingsController::class, 'revokeAllSessions'])->name('settings.sessions.revoke-all');
         Route::delete('/settings/sessions/{session}', [ProviderSettingsController::class, 'revokeSession'])->name('settings.sessions.revoke');
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');

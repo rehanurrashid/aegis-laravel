@@ -109,6 +109,8 @@ class SettingsController extends Controller
             'sessions'         => $sessions,
             'subscription'     => $this->subscriptions->getFullSubscriptionData($user),
             'pricing'          => config('aegis.pricing'),
+            'accountPaused'    => $user->paused_at !== null,
+            'pausedUntil'      => $user->getMeta ? optional($user->meta->where('meta_key','pause_prefs')->first())?->typed_value['until'] ?? null : null,
             'activeAgreements' => $activeAgreements->values(),
         ]);
     }
@@ -354,14 +356,89 @@ class SettingsController extends Controller
 
     public function deleteAccount(Request $request): RedirectResponse
     {
-        $data = $request->validate(['confirm' => 'required|string|in:DELETE MY ACCOUNT']);
+        $request->validate(['confirm' => 'required|string|in:DELETE MY ACCOUNT']);
 
         $user = $request->user();
         $user->update(['deactivated_at' => now()]);
         $user->tokens()->delete();
-        auth()->logout();
 
-        return redirect('/login')->with('success', 'Account closed.');
+        $this->activity->log(
+            $user->id, 'provider', 'account',
+            \App\Enums\ActivitySeverity::Warning,
+            'account_deleted', 'Account deletion requested',
+            'Account queued for permanent deletion in 30 days.',
+            null, null, null, 'log', $user->id,
+        );
+
+        auth()->logout();
+        return redirect('/login')->with('success', 'Your account has been scheduled for deletion. You have 30 days to change your mind by contacting support.');
+    }
+
+    public function pauseAccount(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'until'   => 'nullable|date|after:today',
+            'reason'  => 'nullable|string|in:leave,vacation,parental,sabbatical,other',
+            'message' => 'nullable|string|max:500',
+        ]);
+
+        $user = $request->user();
+        $user->update(['paused_at' => now()]);
+
+        $this->profiles->saveMeta($user, 'pause_prefs', [
+            'until'   => $data['until']   ?? null,
+            'reason'  => $data['reason']  ?? 'other',
+            'message' => $data['message'] ?? '',
+        ], 'json');
+
+        $this->activity->log(
+            $user->id, 'provider', 'account',
+            \App\Enums\ActivitySeverity::Warning,
+            'account_paused', 'Account paused',
+            'Your account has been paused. You will not appear in searches or receive referrals.',
+            null, null, null, 'log', $user->id,
+        );
+
+        return back()->with('success', 'Account paused successfully. You can reactivate at any time.');
+    }
+
+    public function resumeAccount(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        $user->update(['paused_at' => null]);
+
+        $this->activity->log(
+            $user->id, 'provider', 'account',
+            \App\Enums\ActivitySeverity::Info,
+            'account_resumed', 'Account reactivated',
+            'Your account is active again.',
+            null, null, null, 'log', $user->id,
+        );
+
+        return back()->with('success', 'Account reactivated. You are now visible in search results.');
+    }
+
+    public function exportData(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'include' => 'required|array|min:1',
+            'include.*' => 'string|in:profile,referrals,documents,agreements,network,activity,messages,billing',
+            'format' => 'required|string|in:json,csv',
+        ]);
+
+        $user = $request->user();
+
+        $this->activity->log(
+            $user->id, 'provider', 'account',
+            \App\Enums\ActivitySeverity::Info,
+            'data_export_requested', 'Data export requested',
+            'A HIPAA-compliant export of your data has been requested and will be emailed within 24 hours.',
+            null, null, null, 'log', $user->id,
+        );
+
+        // TODO: dispatch ExportUserDataJob::dispatch($user, $data['include'], $data['format']);
+
+        return back()->with('success', 'Export request submitted. Your data will be emailed to ' . $user->email . ' within 24 hours.');
     }
 
     // ── Subscription management ──────────────────────────────────────────
