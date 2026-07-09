@@ -262,7 +262,7 @@ class SettingsController extends Controller
         ]);
         $data['until'] = !empty($data['until']) ? $data['until'] : null;
         $user = $request->user();
-        $user->update(['paused_at' => now()]);
+        $this->profiles->saveMeta($user, 'account_paused', '1', 'string');
         $this->profiles->saveMeta($user, 'pause_prefs', [
             'until'   => $data['until'],
             'reason'  => $data['reason']  ?? 'other',
@@ -281,7 +281,7 @@ class SettingsController extends Controller
     public function resumeAccount(Request $request): RedirectResponse
     {
         $user = $request->user();
-        $user->update(['paused_at' => null]);
+        $this->profiles->saveMeta($user, 'account_paused', '0', 'string');
         $this->activity->log(
             $user->id, 'bp', 'account',
             \App\Enums\ActivitySeverity::Info,
