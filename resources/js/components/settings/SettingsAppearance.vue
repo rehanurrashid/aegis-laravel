@@ -58,7 +58,7 @@ const form = useForm({
 const themes = [
   { key: 'gold',      label: 'Aegis Gold',  desc: 'Classic warm gold (default)', swatch: 'linear-gradient(135deg,var(--gold-dark) 0%,var(--gold) 100%)' },
   { key: 'gold-dark', label: 'Gold Dark',   desc: 'Deep rich gold palette',       swatch: 'linear-gradient(135deg,#8c6a1e 0%,#b8922e 100%)'  },
-  { key: 'slate',     label: 'Slate Blue',  desc: 'Cool professional slate tone',  swatch: 'linear-gradient(135deg,var(--blue-dark) 0%,var(--blue) 100%)' },
+  { key: 'slate',     label: 'Slate Blue',  desc: 'Cool professional slate tone',  swatch: 'linear-gradient(135deg,#2a5f8f 0%,#4a90c4 100%)' },
 ];
 
 // Theme class map: setting key → body CSS class
@@ -70,15 +70,14 @@ const THEME_CLASSES = {
 const ALL_THEME_CLASSES = ['theme-gold-dark', 'theme-gold-deep', 'theme-slate'];
 
 function applyToBody(theme, darkMode) {
-  const body = document.body;
-  // Clear all theme classes
-  body.classList.remove(...ALL_THEME_CLASSES, 'theme-dark');
-  // Apply theme
-  const cls = THEME_CLASSES[theme] ?? [];
-  cls.forEach(c => body.classList.add(c));
-  // Apply dark mode
-  if (darkMode) body.classList.add('theme-dark');
-  // Persist to localStorage so app.blade.php can re-apply on next load
+  // Apply to both <html> (for blade script) and <body> (for theme CSS selectors)
+  [document.documentElement, document.body].forEach(el => {
+    el.classList.remove(...ALL_THEME_CLASSES, 'theme-dark');
+    const cls = THEME_CLASSES[theme] ?? [];
+    cls.forEach(c => el.classList.add(c));
+    if (darkMode) el.classList.add('theme-dark');
+  });
+  // Sync localStorage — app.blade.php reads this on hard reload
   try {
     localStorage.setItem('aegis_appearance', JSON.stringify({ theme, darkMode }));
   } catch (e) {}

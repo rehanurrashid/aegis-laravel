@@ -5043,6 +5043,36 @@ body.theme-gold-dark {
   --focus-ring:       0 0 0 3px rgba(184,146,46,0.22);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   THEME: Slate Blue  (cool professional slate — Aegis branding variation)
+   Gold accent is replaced with slate blue; layout/surface tokens stay neutral.
+───────────────────────────────────────────────────────────────────────────── */
+body.theme-slate,
+html.theme-slate body {
+  --gold:              #4a90c4;
+  --gold-light:        #6baed6;
+  --gold-dark:         #2a6a9a;
+  --icon-bg-gold:      rgba(74,144,196,0.12);
+  --badge-bg-gold:     rgba(74,144,196,0.10);
+  --badge-border-gold: rgba(74,144,196,0.28);
+  --soft-gold:         rgba(74,144,196,0.15);
+  --fade-gold:         rgba(74,144,196,0.12);
+  --shadow-gold:       0 4px 20px rgba(42,106,154,0.25);
+  --focus-ring:        0 0 0 3px rgba(74,144,196,0.20);
+  --surface:           #ffffff;
+  --surface-2:         #f4f7fb;
+  --surface-3:         #e8eff8;
+  --surface-4:         #dde7f4;
+  --bg:                #f0f4fa;
+  --bg-2:              #e6edf7;
+  --border:            #d8e4f0;
+  --border-dark:       #c4d4e8;
+  --text:              #1a2a3a;
+  --text-2:            #2e4a66;
+  --text-3:            #5a7a9a;
+  --text-4:            #8aaac8;
+}
+
 /* ── Missing from PHP prototype sync ─────────────────── */
 .sidebar-toggle-btn[data-tooltip]::after { display: none; }
 .topbar [data-tooltip]::after { z-index: 100001; }

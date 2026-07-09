@@ -78,8 +78,31 @@ createInertiaApp({
         // Fires on EVERY Inertia navigation (redirect, visit, back, forward)
         // regardless of which layout or page is rendered.
         // This is the single source of truth for flash → toast conversion.
+        // ── Appearance: apply theme/dark-mode on every Inertia navigation ──────────
+        const ALL_THEME_CLASSES = ['theme-dark', 'theme-gold-dark', 'theme-gold-deep', 'theme-slate']
+        function applyAppearance(appearance) {
+            if (!appearance) return
+            const body = document.body
+            body.classList.remove(...ALL_THEME_CLASSES)
+            if (appearance.theme === 'gold-dark') body.classList.add('theme-gold-dark')
+            if (appearance.theme === 'gold-deep') body.classList.add('theme-gold-deep')
+            if (appearance.theme === 'slate')     body.classList.add('theme-slate')
+            if (appearance.dark_mode)             body.classList.add('theme-dark')
+            // Also sync localStorage so it survives hard reloads
+            try {
+                localStorage.setItem('aegis_appearance', JSON.stringify({
+                    theme: appearance.theme ?? 'gold',
+                    darkMode: appearance.dark_mode ?? false,
+                }))
+            } catch (e) {}
+        }
+
         router.on('navigate', (event) => {
-            const flash = event.detail?.page?.props?.flash
+            const props = event.detail?.page?.props
+            // Apply appearance on every navigation (covers initial load + SPA navigation)
+            applyAppearance(props?.appearance)
+
+            const flash = props?.flash
             if (!flash) return
             try {
                 const ui = useUiStore()

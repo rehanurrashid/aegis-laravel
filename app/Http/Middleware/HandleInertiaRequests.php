@@ -162,6 +162,12 @@ class HandleInertiaRequests extends Middleware
                 ? BpEngagementRequest::where('bp_id', $user->id)->where('status', 'pending')->count()
                 : 0,
             'activePage'   => $request->route()?->getName(),
+            'appearance'   => $user
+                ? (\App\Models\UserMeta::where('user_id', $user->id)
+                    ->where('meta_key', 'appearance')
+                    ->first()
+                    ?->typed_value ?? ['theme' => 'gold', 'dark_mode' => false])
+                : ['theme' => 'gold', 'dark_mode' => false],
             'flash'        => [
                 'success' => session('success'),
                 'error'   => session()->get('error'),

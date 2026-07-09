@@ -11,18 +11,19 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @inertiaHead
 
-    {{-- Appearance: apply saved theme/darkMode to <body> before first paint --}}
+    {{-- Appearance: apply saved theme/darkMode before first paint.
+         Reads from localStorage (fast, no flash) AND from server-injected value (cross-device). --}}
     <script>
     (function () {
         try {
             var prefs = JSON.parse(localStorage.getItem('aegis_appearance') || '{}');
-            var body  = document.body || document.documentElement;
-            // Remove any previous theme classes
-            body.classList.remove('theme-dark', 'theme-gold-dark', 'theme-gold-deep', 'theme-slate');
-            if (prefs.theme === 'gold-dark') body.classList.add('theme-gold-dark');
-            if (prefs.theme === 'gold-deep') body.classList.add('theme-gold-deep');
-            if (prefs.theme === 'slate')     body.classList.add('theme-slate');
-            if (prefs.darkMode)              body.classList.add('theme-dark');
+            // Apply to <html> element (body doesn't exist yet in <head>)
+            var el = document.documentElement;
+            el.classList.remove('theme-dark', 'theme-gold-dark', 'theme-gold-deep', 'theme-slate');
+            if (prefs.theme === 'gold-dark') el.classList.add('theme-gold-dark');
+            if (prefs.theme === 'gold-deep') el.classList.add('theme-gold-deep');
+            if (prefs.theme === 'slate')     el.classList.add('theme-slate');
+            if (prefs.darkMode)              el.classList.add('theme-dark');
         } catch (e) {}
     })();
     </script>
