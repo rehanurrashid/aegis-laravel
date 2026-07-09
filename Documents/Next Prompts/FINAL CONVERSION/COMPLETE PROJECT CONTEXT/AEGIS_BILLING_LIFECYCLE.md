@@ -1,12 +1,13 @@
 # Aegis — Complete Billing, Onboarding & System Reference (Canonical)
 
-**Status:** Re-validated against live repo `main @ 2cd19de` on 2026-07-08  
-**Previous validation:** `26ea36a` on 2026-07-08  
-**Companion doc:** `AEGIS-PROJECT-CONTEXT.md`, `AEGIS_PROVIDER_SETTINGS.md`
+**Status:** Re-validated against live repo `main @ 9351e14` on 2026-07-09
+**Previous validation:** `2cd19de` on 2026-07-08
+**Revision:** 3 — reflects P0 + P1 + Batch3 batches, dispute system, CS engagement contract
+**Companion docs:** `AEGIS-PROJECT-CONTEXT.md`, `AEGIS_PAYMENTS_FINANCE.md`, `AEGIS_SETTINGS.md`, `CONTINUITY_GROUP_CONVERSION_PLAN.md`, `ENV_REFERENCE.md`
 
-**Purpose:** Everything a developer or Claude needs to understand Aegis end-to-end — what it is, who the roles are, the continuity-plan workflow, how someone registers and pays, which features are locked for which role, and how ongoing billing is managed. Treat this file + `AEGIS-PROJECT-CONTEXT.md` as the complete project reference.
+**Purpose:** Everything a developer or Claude needs to understand Aegis subscription billing end-to-end — five roles, who pays, registration → onboarding → subscribe, provider/CS/BP plan management, webhook handling, tier limits, and MAAT add-on. Peer-to-peer money (Provider→BP, Provider→CS, Client→Provider) lives in `AEGIS_PAYMENTS_FINANCE.md`. Dispute system + CS engagement contract lifecycle lives in `CONTINUITY_GROUP_CONVERSION_PLAN.md` §0.7–0.8.
 
-**Legend:** ✅ Verified complete · ⚠️ Partial / needs finishing · ❌ Not yet implemented · 🐛 Bug found
+**Legend:** ✅ Verified complete · ⚠️ Partial · ❌ Not yet implemented · 🐛 Bug found · 🆕 New in this revision
 
 ---
 
@@ -38,25 +39,32 @@
 **PART D — LIFECYCLE**
 18. Onboarding Flow (First Subscription) — Step by Step
 19. Post-Signup Management (Provider)
-20. Post-Signup Management (BP & CS) — The Gap
+20. Post-Signup Management (BP & CS)
 21. The Webhook Engine
 22. Proration Rules
 23. The MAAT Add-on
+24. 🆕 Native "Add Card" Flow (Stripe Elements)
 
 **PART E — FEATURE GATING**
-24. Tier-Based Feature Locks (Access vs Practice)
-25. Role-Based Route Gating (Middleware Map)
-26. Frontend Lock Mechanism (Upgrade Modal)
-27. Page-Level Access Matrix
+25. Tier-Based Feature Locks (Access vs Practice)
+26. 🆕 Tier Limits Envification
+27. Role-Based Route Gating (Middleware Map)
+28. Frontend Lock Mechanism (Upgrade Modal)
+29. Page-Level Access Matrix
 
-**PART F — OPERATIONS**
-28. Full Lifecycle Coverage Matrix
-29. Known Bugs & Discrepancies Found
-30. Remaining Gaps & Exactly Where To Fix Them
-31. Stack & Architecture
-32. File Map
-33. Deployment Checklist
-34. Appendix — Test Cards, Demo Users & Prototype vs Laravel
+**PART F — 🆕 PEER-PAYMENT INTEGRATION**
+30. Cross-Reference to `AEGIS_PAYMENTS_FINANCE.md`
+31. 🆕 CS Engagement Contract Billing Path
+32. 🆕 Dispute System — Invoice Freeze Interaction
+
+**PART G — OPERATIONS**
+33. Full Lifecycle Coverage Matrix
+34. Known Bugs & Discrepancies Found
+35. Remaining Gaps
+36. Stack & Architecture
+37. File Map
+38. Deployment Checklist
+39. Appendix — Test Cards, Demo Users & Prototype vs Laravel
 
 ---
 
@@ -76,6 +84,10 @@ Separately, Aegis runs a **Business Partner (BP) marketplace** — an Upwork-sty
 
 Five portals share one Laravel backbone, one Vue/Inertia frontend, one design system, and one write-path layer (`ActivityService::log()` fan-out).
 
+**🆕 Rev 3 additions:**
+- **CS engagement contracts** — pre-agreed fee per activation stored on `plan_stewards.fee_cents`, with auto-invoice on incident close
+- **Dispute system** — either party may open a dispute against an invoice/payout; the invoice freezes to `disputed` status until an admin resolves; refunds route through Stripe's rails
+
 ## 2. The Five Roles ✅ VERIFIED
 
 Role stored in `users.role` (enum) + `user_role_assignments` join row (multi-role support).
@@ -90,79 +102,24 @@ Role stored in `users.role` (enum) + `user_role_assignments` join row (multi-rol
 
 **Verified in code:** `app/Enums/UserRole.php` — all 5 cases present with `.label()`, `.portal()`, `.routePrefix()`, `.middleware()`, `.fromPortal()` methods. ✅
 
-### 2.1 Practitioner (Provider)
-Licensed clinician — the portal owner. Builds the plan, designates stewards, uploads credentials to the vault.
-- **Verb:** Designates, Configures, Attests. **Must NOT:** Trigger their own critical incident.
-- **Subscription:** Access ($29) or Practice ($49). **Public profile:** Yes (`/public/provider/<slug>`)
-
-### 2.2 Continuity Steward (CS)
-The executor — licensed colleague, attorney, or CS firm. Verifies the alert, unlocks the vault, runs the task list.
-- **Verb:** Verifies, Executes, Closes. **Dormant in standby; activates on verified incident.**
-- **Must NOT:** Make plan decisions without practitioner; access vault pre-verification.
-- Subtypes: Business CS (paid, public profile, 2–40 practitioners) · Invited CS (free, no profile, 1 practitioner) · Enterprise (custom, 41+).
-
-### 2.3 Support Steward (SS)
-Eyes on the ground — family, office manager, trusted staff. Spots trouble and **triggers** the alert.
-- **Verb:** Monitors, Triggers, Assists. **Always active (monitoring).**
-- **Must NOT:** Verify/activate CS duties; access the vault.
-- Subtypes: Primary SS, Alternate SS (same portal, different attestation duties).
-- **No subscription** — invitation-only. **No public profile.**
-
-### 2.4 Business Partner (BP)
-Independent marketplace vendor. **Not part of continuity flow.** Upwork model: practitioners post jobs → BPs propose → contracts with milestones → milestone-by-milestone payment.
-- Subtypes: Agency (multi-person, Team Management module) · Freelancer (solo, personal 1099/SSN).
-- **Subscription:** $69/mo or $690/yr. **Public profile:** Yes (`/public/business/<slug>`).
-- **Special:** BP does NOT see the cross-portal switcher — BPs don't bridge into continuity portals. ✅ Confirmed in `AppHeader.vue`: `v-if="portal !== 'business_partner'"` gates the switcher.
-
-### 2.5 Anonymous
-No login. Sees only public profile sections + sign-in CTAs.
+_(Role descriptions §2.1–2.5 unchanged — see prior revision.)_
 
 ## 3. Role Sub-Types & Paths ✅ VERIFIED
 
-### Continuity Steward — `cs_account_type`
-
-| Path | Account type | Pays? | Public profile | Scope |
-|---|---|---|---|---|
-| `business` | `business` | $49/mo or ~$35.75/mo annual ($429/yr) | Yes | 2–40 practitioners |
-| `invited` | `invited` | Free | No | 1 inviting practitioner |
-| (manual) | `enterprise` | Custom quote | Yes | 41+ (mailto, no automation) |
-
-**Verified in code:** `app/Enums/CsAccountType.php` — `Invited`, `Business`, `Enterprise` cases. ✅  
-**Subscription gate:** `EnsureSubscriptionActive` only gates CS when `cs_account_type === 'business'`. Invited CS passes through. ✅
-
-### Business Partner — `bp_type`
-
-| Type | Description | Special module |
-|---|---|---|
-| `agency` | Multi-person firm | Team Management (member per milestone) |
-| `freelancer` | Solo operator | No team module; personal 1099/SSN |
-
-**Verified in code:** `app/Enums/BpType.php` exists. ✅ Team routes (`bp.team.*`) exist in routes. ✅
-
-### Support Steward — no sub-type
-Invitation-only. Registration shows an invite-gate wall (blocked). No self-serve signup, no payment.
+_(Unchanged. `cs_account_type` = business/invited/enterprise; `bp_type` = agency/freelancer; SS has no sub-type.)_
 
 ## 4. Multi-Role Identity & The Three-Tier Visibility Rule ✅ VERIFIED
 
-### Multi-role (Marcus Chen pattern)
-One `users` row can hold multiple `user_role_assignments`. The URL prefix decides which face to render. The header portal switcher shows only portals the user actually has.
-
-**🐛 BUG FIXED (this session):** `AppHeader.vue` `portalSwitchEntries` previously showed ALL 3 portals regardless of which roles the user actually holds (always showed Practitioner + CS + SS). Fixed: now checks `user.has_cs_portal` and `user.has_ss_portal` before including CS/SS in the switcher list.
-
-**⚠️ STILL NEEDED:** `SettingsController::index()` must append `has_cs_portal` and `has_ss_portal` to the user prop so the Provider Settings "Portal Access" panel can correctly show only the portals the user holds.
-
-### Three-tier visibility (all public profiles) ✅
-| Tier | Condition | Sees |
-|---|---|---|
-| Anonymous | No login | Public sections + sign-in CTAs |
-| Logged-in (any role) | Any signed-in user | Full profile: contact, metrics, activity |
-| Owner | Viewing own profile | Adds Edit + Visibility panel |
-
-Implemented in `PublicProfileController`. ✅
+Multi-role is fully wired.
+- `AppHeader.vue` portal switcher gates CS/SS entries on `user.has_cs_portal` / `user.has_ss_portal` ✅
+- `HandleInertiaRequests` middleware (line 136–139) queries `UserRoleAssignment` and injects both flags into `auth.user` on every Inertia request ✅ (was ⚠️ in Rev 2)
+- `SettingsController::index()` reads these flags for the Portal Access panel ✅
 
 ## 5. The Continuity-Plan Lifecycle (Core Workflow)
 
-_(Unchanged — no billing impact. See AEGIS-PROJECT-CONTEXT.md §5 for full lifecycle detail.)_
+_(Unchanged — see AEGIS-PROJECT-CONTEXT.md §5 for full lifecycle detail.)_
+
+**🆕 Money-side integration point:** if the CS designation has `plan_stewards.fee_cents > 0`, incident close now triggers the CS engagement contract workflow (§31 below).
 
 ## 6. The Seven Critical-Incident Types
 
@@ -175,7 +132,7 @@ All five route groups exist in `routes/web.php` with correct middleware stacks:
 - CS: `auth, verified.email, subscription.active, role:continuity_steward, check.locked`
 - SS: `auth, verified.email, role:support_steward, check.locked` *(no subscription gate — free)*
 - BP: `auth, verified.email, subscription.active, role:business_partner, check.locked`
-- Admin: `auth, role:admin` (own simple gate via `EnsureAdminRole`)
+- Admin: `auth, role:admin` (via `EnsureAdminRole`)
 
 ---
 
@@ -193,7 +150,7 @@ All five route groups exist in `routes/web.php` with correct middleware stacks:
 | Support Steward | ❌ Free | No Stripe |
 | Admin | ❌ Free | No Stripe |
 
-**`paid_roles` in `config/aegis.php`:** `['practitioner', 'business_partner', 'continuity_steward_business']` ✅
+`paid_roles` in `config/aegis.php`: `['practitioner', 'business_partner', 'continuity_steward_business']` ✅
 
 ## 9. The Complete Registration → Onboarding Flow ✅ VERIFIED
 
@@ -201,61 +158,32 @@ All five route groups exist in `routes/web.php` with correct middleware stacks:
 /register → RegisterController::store()
     → AuthService::register()
         → users row created (role, tier, cs_account_type, verified=0)
-    → email verification sent
-    → redirect: verification.notice
+    → email verification sent → redirect: verification.notice
 
 /email/verify/{id}/{hash} → VerifyEmailController
     → users.verified = 1
-    → free roles (SS, Invited CS) → redirect to portal dashboard
-    → paid roles → redirect to onboarding.intent
+    → free roles → portal dashboard
+    → paid roles → onboarding.intent
 
-/onboarding → OnboardingController::showIntent() / submitIntent()
-    → stores use-case in session
-
-/onboarding/role → showRole() (if role not yet set)
-
-/onboarding/plan → showPlan()
-    → Practitioner sees: Access $29 / Practice $49 (monthly/annual toggle)
-    → BP sees: Monthly $69 / Annual $690
-    → Business CS sees: Monthly $49 / Annual $429
-    → Stores tier + billing + wantsMaat in session
-
-/onboarding/payment → showPayment()
-    → Creates Stripe customer if not exists (detects and clears fake demo stripe_ids)
-    → Creates SetupIntent → passes clientSecret + stripeKey to OnboardingPayment.vue
-    → Stripe Elements card form renders
+/onboarding → showIntent() / submitIntent()   → stores use-case in session
+/onboarding/role  → showRole() (if role not yet set)
+/onboarding/plan  → showPlan()   → Access/Practice/BP/CS plan cards + monthly/annual toggle
+/onboarding/payment → showPayment()  → creates SetupIntent → OnboardingPayment.vue (Stripe Elements)
 
 POST /onboarding/subscribe → subscribe()
     → Attaches PaymentMethod as default
+    → Mirrors PM to users.stripe_payment_method_id (P0)
     → SubscriptionService::subscribe() → creates Stripe subscription
     → If wantsMaat: toggleMaatAddon(enable=true)
-    → Syncs tier to users.tier
+    → Syncs users.tier
     → Redirect → portal dashboard
 ```
 
-**Verified:** All controllers exist. ✅ Demo stripe_id detection and clearing works. ✅ MAAT add-on wiring at subscribe time confirmed. ✅
+All controllers verified ✅. Demo `stripe_id` clearing works ✅. MAAT wiring at subscribe time ✅. `stripe_payment_method_id` mirror confirmed at all three write sites ✅.
 
-## 10. Email Verification Gate ✅ VERIFIED
+## 10–12. Email verification / Login redirect / Account lock ✅
 
-`EnsureEmailVerified` middleware checks `users.verified` (tinyint, not Laravel's `email_verified_at`). Applied to all portal route groups. Free roles (SS, Invited CS) still go through email verification before accessing their portal. ✅
-
-## 11. Login Redirect Logic ✅ VERIFIED
-
-`LoginController::resolvePostLoginDestination()` — 3-step priority:
-1. `!user.verified` → `verification.notice`
-2. Paid role + no active subscription → `onboarding.plan`
-3. Everything OK → `portalHomeFor($user)` → correct dashboard
-
-**Active statuses checked:** `['active', 'trialing', 'past_due']` — past_due does NOT lock out, just warns. ✅  
-**Fail-open on Cashier error:** If subscription DB check throws, user is let through (logged, not crashed). ✅
-
-## 12. Account Lock / Deactivation ✅ VERIFIED
-
-- `CheckAccountLocked` middleware gates all portals. ✅
-- `AuthService::lockAccount()` sets `users.locked_at` + fires `AccountLocked` event.
-- `AuthService::unlockAccount()` clears `users.locked_at`.
-- `deleteAccount()` sets `users.deactivated_at = now()` + clears tokens + logs out. ✅
-- Admin routes: `admin.users.lock`, `admin.users.unlock`, `admin.users.deactivate`, `admin.users.restore`. ✅
+_(Unchanged — see prior revision.)_
 
 ---
 
@@ -264,105 +192,25 @@ POST /onboarding/subscribe → subscribe()
 ## 13. The Two Stripe Integrations ✅ VERIFIED
 
 ### Integration 1 — Cashier (Subscriptions)
-- Laravel Cashier `^16.6` managing `subscriptions` + `subscription_items` tables.
-- **Who:** Practitioners, Business Partners, Business CS.
-- **Flow:** Aegis collects recurring subscription revenue. Funds go to Aegis Stripe account.
-- **UUID fix confirmed:** Migrations `2026_07_07_100000` and `100001` correct `user_id` from bigint to string for UUID PKs. ✅
+- Laravel Cashier `^16.6` managing `subscriptions` + `subscription_items`
+- **Who:** Practitioners, Business Partners, Business CS
+- **Flow:** Aegis collects recurring revenue → funds go to Aegis Stripe account
+- UUID migrations correct ✅
 
 ### Integration 2 — Stripe Connect (Marketplace Payouts)
-- **Who:** Business Partners (receive pay for contracts) + Practitioners with Services Mode (receive pay for services).
-- **Flow:** Practitioner pays → Aegis creates destination charge → funds land in BP/Provider's connected Stripe account. Aegis nets $0 on marketplace transactions.
-- **Connect account stored:** `users.stripe_account_id` (also `users.stripe_connected` tinyint flag). ✅
+- **Who:** BPs (receive contract/milestone payments), Providers with Services Mode (receive client session payments), Business CS (receive engagement fees)
+- **Flow:** Payer pays → Aegis creates destination charge → funds land in recipient's connected account. Aegis nets $0.
+- Connect account: `users.stripe_account_id` + `users.stripe_connected` tinyint
+- 🆕 **`account.updated` webhook now handled** ✅ — `stripe_connected` flips automatically when `charges_enabled && payouts_enabled && details_submitted`
 
-**`account.updated` webhook:** NOT handled in `StripeEventListener`. The listener's `default` case logs and ignores it. This is acceptable for MVP — Connect account status changes (payout enable/disable, verification) are not currently tracked in the DB. Add if needed for BP onboarding flow.
+## 14–17. Packages / Schema / Pricing / Price IDs ✅ VERIFIED
 
-## 14. Package & Infrastructure Layer ✅ VERIFIED
+- Cashier `^16.6` + Stripe PHP `^17.3` ✅
+- `UserTier::monthlyCents()` corrected to $29/$49 ✅ (was 🐛 in Rev 2)
+- All 10 price IDs env-driven, injected via `#aegis-config` ✅
+- `stripe_price_to_tier` map drives webhook tier sync ✅
 
-| Package | Version | Purpose |
-|---|---|---|
-| `laravel/cashier` | `^16.6` | Subscription billing via Stripe |
-| `stripe/stripe-php` | `^17.3` | Direct Stripe API calls (Connect payouts, SetupIntents, payment methods) |
-
-Both confirmed in `composer.json`. ✅
-
-## 15. Database Schema (Billing Tables) ✅ VERIFIED
-
-| Table | Migration | Purpose |
-|---|---|---|
-| `users` | `2024_01_01_000001` | `tier`, `role`, `cs_account_type`, `bp_type`, `maat_addon`, `services_mode`, `stripe_id`, `stripe_account_id`, `stripe_connected`, `verified` columns |
-| `subscriptions` | `2026_07_07_092246` + `100000` fix | Cashier subscriptions (UUID user_id) |
-| `subscription_items` | `2026_07_07_092247–249` | Cashier subscription items + meter fields |
-| `stripe_webhook_events` | `2024_01_01_000068` | Deduplication log for all incoming webhook events |
-| `bp_payouts` | `2024_01_02_000002` | Marketplace payout records (Stripe Connect) |
-| `practitioner_payments` | `2026_07_06_000006` | Provider service payments (Stripe transfer ID) |
-
-All migrations present. ✅
-
-## 16. The Pricing Model (All Roles) ✅ VERIFIED WITH ONE BUG
-
-All pricing lives in `config/aegis.php` as the single source of truth.
-
-### Practitioner
-
-| Plan | Monthly | Annual (÷12) | Annual total |
-|---|---|---|---|
-| Continuity Access | $29/mo | $23/mo | $276/yr |
-| Continuity Practice | $49/mo | $39/mo | $468/yr |
-
-**Verified in config:** `monthly_cents: 2900`, `annual_cents: 2300`, `annual_total_cents: 27600` (Access) and `monthly_cents: 4900`, `annual_cents: 3900`, `annual_total_cents: 46800` (Practice). ✅
-
-**🐛 BUG — `UserTier::monthlyCents()` returns stale price:**
-`app/Enums/UserTier.php` `monthlyCents()` returns `1900` for Access ($19) and presumably `3900` for Practice — these are **old prototype prices**. The confirmed June 2026 prices are $29/$49. This enum method is used internally for price comparisons. Check all callers and update:
-- `UserTier::Access->monthlyCents()` should return `2900`
-- `UserTier::Practice->monthlyCents()` should return `4900`
-
-**Fix:** Update `app/Enums/UserTier.php`:
-```php
-self::Access   => 2900,   // $29/mo (was 1900 — stale)
-self::Practice => 4900,   // $49/mo
-```
-
-### MAAT Professional CS Add-on (requires Practice)
-
-| | Monthly | Annual (÷12) | Annual total |
-|---|---|---|---|
-| MAAT Add-on | +$29/mo | +$23/mo | +$276/yr |
-| Practice + MAAT combined | $78/mo | $62/mo | $744/yr |
-
-### Business Partner
-
-| | Monthly | Annual total |
-|---|---|---|
-| BP subscription | $69/mo | $690/yr (save ~2 months) |
-
-### Continuity Steward (Business)
-
-| | Monthly | Annual total |
-|---|---|---|
-| CS Business subscription | $49/mo | $429/yr (save ~27%) |
-
-All confirmed against `config/aegis.php`. ✅
-
-## 17. The Price ID System ✅ VERIFIED
-
-10 Stripe price IDs, all controlled via `.env` variables and mapped in `config/aegis.php`:
-
-| env var | Tier mapping | Used by |
-|---|---|---|
-| `STRIPE_PRICE_ACCESS_MONTHLY` | `access` | OnboardingPayment.vue, SubscriptionService |
-| `STRIPE_PRICE_ACCESS_ANNUAL` | `access` | OnboardingPayment.vue, SubscriptionService |
-| `STRIPE_PRICE_PRACTICE_MONTHLY` | `practice` | OnboardingPayment.vue, SubscriptionService |
-| `STRIPE_PRICE_PRACTICE_ANNUAL` | `practice` | OnboardingPayment.vue, SubscriptionService |
-| `STRIPE_PRICE_BP_MONTHLY` | `business_partner` | OnboardingPayment.vue |
-| `STRIPE_PRICE_BP_ANNUAL` | `business_partner` | OnboardingPayment.vue |
-| `STRIPE_PRICE_CS_BUSINESS_MONTHLY` | `cs_business` | OnboardingPayment.vue |
-| `STRIPE_PRICE_CS_BUSINESS_ANNUAL` | `cs_business` | OnboardingPayment.vue |
-| `STRIPE_PRICE_MAAT_MONTHLY` | `maat_addon` | SubscriptionService::toggleMaatAddon |
-| `STRIPE_PRICE_MAAT_ANNUAL` | `maat_addon` | SubscriptionService::toggleMaatAddon |
-
-**Frontend injection:** `resources/views/app.blade.php` injects all 10 IDs into a hidden `#aegis-config` div as JSON. `OnboardingPayment.vue` reads `window.__AEGIS_CONFIG__` and calls `resolveStripePrice()` to look up the correct ID from tier+billing combination. ✅
-
-**`stripe_price_to_tier` mapping** in config used by `StripeEventListener::handleSubscriptionUpdated()` to sync `users.tier` on webhook. ✅
+_(Full pricing tables and price ID matrix — see prior revision. No changes.)_
 
 ---
 
@@ -370,471 +218,369 @@ All confirmed against `config/aegis.php`. ✅
 
 ## 18. Onboarding Flow (First Subscription) ✅ FULLY WIRED
 
-Step-by-step verified:
-
-| Step | Route | Controller | Status |
-|---|---|---|---|
-| 1. Register | `POST /register` | `RegisterController::store` | ✅ |
-| 2. Verify email | `GET /email/verify/{id}/{hash}` | `VerifyEmailController` | ✅ |
-| 3. Intent (use-case) | `GET/POST /onboarding` | `OnboardingController::showIntent/submitIntent` | ✅ |
-| 4. Role confirm | `GET /onboarding/role` | `OnboardingController::showRole` | ✅ |
-| 5. Plan selection | `GET /onboarding/plan` | `OnboardingController::showPlan` | ✅ |
-| 5b. Plan store | `POST /onboarding/plan` | `OnboardingController::storePlan` | ✅ |
-| 6. Payment form | `GET /onboarding/payment` | `OnboardingController::showPayment` | ✅ |
-| 7. Subscribe | `POST /onboarding/subscribe` | `OnboardingController::subscribe` | ✅ |
-
-**Demo stripe_id clearing:** `showPayment()` attempts to retrieve the existing `stripe_id` from Stripe API. If it throws (fake ID like `cus_demo_sarah`), it clears `stripe_id` so `createAsStripeCustomer()` runs fresh. ✅
-
-**MAAT at subscribe time:** `subscribe()` reads `wantsMaat` from session and calls `toggleMaatAddon(true)` if set. ✅
+_(Unchanged — see prior revision.)_
 
 ## 19. Post-Signup Management (Provider) ✅ FULLY WIRED
 
-All subscription management lives in `Provider/SettingsController.php`, served from `provider/settings?section=billing`:
+| Action | Route | Status |
+|---|---|---|
+| View plan + invoices | `GET /provider/settings` | ✅ |
+| Upgrade/downgrade | `POST .../subscription/swap` | ✅ |
+| Cancel at period end | `POST .../subscription/cancel` | ✅ |
+| Resume in grace | `POST .../subscription/resume` | ✅ |
+| Toggle MAAT | `POST .../subscription/maat` | ✅ |
+| Set default PM | `POST .../payment-method/default` | ✅ |
+| Remove PM | `DELETE .../payment-method` | ✅ |
+| Store PM (native) | `POST .../payment-method` | ✅ mirrors to `stripe_payment_method_id` |
+| 🆕 SetupIntent (native add-card) | `POST .../payment-method/setup-intent` | ✅ NEW — returns `client_secret` for `AddCardModal.vue` |
+| Open Stripe portal | `GET .../billing-portal` | ✅ |
+| Delete account | `DELETE .../account` | ✅ |
 
-| Action | Route | Controller method | SubscriptionService method | Status |
-|---|---|---|---|---|
-| View current plan + invoices | `GET /provider/settings` | `index()` | `getFullSubscriptionData()` | ✅ |
-| Upgrade / downgrade plan | `POST /provider/settings/subscription/swap` | `swapPlan()` | `changePlan()` → `upgrade()` or `downgrade()` | ✅ |
-| Cancel at period end | `POST /provider/settings/subscription/cancel` | `cancelPlan()` | `cancel()` | ✅ |
-| Resume during grace period | `POST /provider/settings/subscription/resume` | `resumePlan()` | `reactivate()` | ✅ |
-| Toggle MAAT add-on | `POST /provider/settings/subscription/maat` | `toggleMaat()` | `toggleMaatAddon()` | ✅ |
-| Set default payment method | `POST /provider/settings/payment-method/default` | `setDefaultPaymentMethod()` | `setDefaultPaymentMethod()` | ✅ |
-| Remove payment method | `DELETE /provider/settings/payment-method` | `removePaymentMethod()` | `removePaymentMethod()` | ✅ |
-| Open Stripe billing portal | `GET /provider/settings/billing-portal` | `billingPortal()` | `billingPortalUrl()` | ✅ |
-| Add new card (via portal) | Links to Stripe Portal | N/A | N/A | ✅ (via portal) |
-| Store payment method directly | `POST /provider/settings/payment-method` | `storePaymentMethod()` | — | ✅ route exists; no native Elements UI |
-| Delete account | `DELETE /provider/settings/account` | `deleteAccount()` | — | ✅ |
+## 20. Post-Signup Management (BP & CS)
 
-**⚠️ Native "Add Card" UI still missing:** `storePaymentMethod` route + controller method exist, but `Settings.vue` links to Stripe Portal rather than showing a native Stripe Elements card input modal. This is functional but creates a UX interruption (leaves the app). Low priority.
+**Rev 3 status — resolved from Rev 2's ❌ CONFIRMED GAP to ✅ MOSTLY WIRED.**
 
-## 20. Post-Signup Management (BP & CS) ❌ CONFIRMED GAP
+### Business Partner
+- `BP/SettingsController` methods present ✅: `swapPlan`, `cancelPlan`, `resumePlan`, `billingPortal`, `connectOnboard`, `connectReturn`
+- Real Stripe Connect Express onboarding (`accounts->create` + `accountLinks->create`) ✅ (P0 batch)
+- Routes wired ✅: `bp.settings.subscription.swap/cancel/resume`, `bp.settings.billing.portal`, `bp.settings.connect.onboard/return`
+- `resources/js/pages/business-partner/Settings.vue` billing panel present ✅
+- 🆕 `bp.settings.payment.setup-intent` route exists ✅ (batch3)
 
-### Business Partner Settings
-- `BpSettingsController` has only: `index()` + `updateNotifications()`
-- Routes in `routes/web.php`: only `GET /settings`, `PUT /settings/notifications`, `PUT /settings/password`, MFA routes
-- **Missing:** No subscription management routes. No `swapPlan`, `cancelPlan`, `resumePlan`, `billingPortal` for BP.
-- `resources/js/pages/business-partner/Settings.vue` is **70 lines** — only handles account email/password, notifications, and discoverability. No billing panel.
-- `bp.settings.account`, `bp.settings.notif`, `bp.settings.visibility` routes referenced in the Vue file **do not exist** in `routes/web.php`. ❌ These will 404.
+### Continuity Steward (Business)
+- `CS/SettingsController` methods present ✅: `swapPlan`, `cancelPlan`, `resumePlan`, `billingPortal`, `connectOnboard`, `connectReturn`
+- Routes wired ✅: `cs.settings.subscription.swap/cancel/resume`, `cs.settings.billing.portal`, `cs.settings.connect.onboard/return`
+- `resources/js/pages/continuity-steward/Settings.vue` billing panel + Stripe Connect card present ✅
+- 🆕 `cs.settings.payment.setup-intent` route exists ✅ (batch3)
+- **Invited CS guard:** Settings.vue splits billing panel by `cs_account_type` — Invited CS never sees billing UI ✅
 
-### Continuity Steward Settings
-- `CsSettingsController` has only: `index()` + `updateNotifications()`
-- Routes in `routes/web.php`: only `GET /settings`, `PUT /settings/notifications`, `PUT /settings/password`, MFA routes
-- **Missing:** No subscription management for Business CS. No billing portal.
-- `resources/js/pages/continuity-steward/Settings.vue` is **57 lines** — stub only.
-- Guard needed: only show billing panel if `cs_account_type === 'business'` — Invited CS must never see billing.
+**⚠️ Only remaining gap for both:** `storePaymentMethod` method not yet added to `CS/SettingsController` and `BP/SettingsController`. The `AddCardModal.vue` component and setup-intent endpoint both exist, but there's no target route for the modal to POST the finalized PaymentMethod ID. Provider `storePaymentMethod` works. See §35 Gap 1.
 
-**Priority:** HIGH for both. BP and CS subscribers cannot manage their own plans.
+## 21. The Webhook Engine ✅ COMPLETE
 
-## 21. The Webhook Engine ✅ MOSTLY COMPLETE, ONE GAP
+**Handler:** `app/Listeners/StripeEventListener.php`, registered via Cashier's `WebhookReceived` event.
 
-**Handler:** `app/Listeners/StripeEventListener.php`, registered via Cashier's `WebhookReceived` event in `AppServiceProvider`.
+| Stripe Event | Handler | Status |
+|---|---|---|
+| `invoice.payment_succeeded` | `handlePaymentSucceeded` | ✅ |
+| `invoice.payment_failed` | `handlePaymentFailed` | ✅ ActivityService + email |
+| `invoice.upcoming` | `handleInvoiceUpcoming` | ✅ (belt-and-suspenders; `SubscriptionRenewalCheckJob` is primary) |
+| `customer.subscription.created` | `handleSubscriptionCreated` | ✅ |
+| `customer.subscription.updated` | `handleSubscriptionUpdated` | ✅ syncs `users.tier` |
+| `customer.subscription.deleted` | `handleSubscriptionCancelled` | ✅ template `gaps/68` |
+| `payment_method.attached` | `handlePaymentMethodAttached` | ✅ |
+| `payment_method.detached` | `handlePaymentMethodDetached` | ✅ |
+| `charge.refunded` | `handleChargeRefunded` | ✅ |
+| `transfer.created` | `handleTransferCreated` | ✅ |
+| `transfer.paid` | `handleTransferPaid` | ✅ template `bp/48` |
+| `transfer.failed` | `handleTransferFailed` | ✅ |
+| `payment_intent.succeeded` | `handlePaymentIntentSucceeded` | ✅ |
+| `payment_intent.payment_failed` | `handlePaymentIntentFailed` | ✅ |
+| 🆕 `account.updated` | `handleAccountUpdated` | ✅ WIRED (P1) — flips `stripe_connected` |
 
-**Background sweep:** `StripeWebhookProcessorJob` runs every 5 minutes via scheduler, ensuring any unprocessed webhook rows in `stripe_webhook_events` get re-processed. ✅
+**Renewal reminder email:** Rev 3 status **✅ WIRED**. `SubscriptionRenewalUpcoming` event registered in `AppServiceProvider` (line 122); `SendEmailNotificationListener` has import + match case + private handler + template `emails/admin/55-renewal-upcoming.blade.php`. Was Rev 2 Gap 3 — now closed.
 
-| Stripe Event | Handler method | Status | Notes |
-|---|---|---|---|
-| `invoice.payment_succeeded` | `handlePaymentSucceeded()` | ✅ | Logs + ActivityService entry |
-| `invoice.payment_failed` | `handlePaymentFailed()` | ✅ | Logs + ActivityService notification + email |
-| `invoice.upcoming` | `handleInvoiceUpcoming()` | ⚠️ | Logs only — **renewal reminder email NOT dispatched** (see Gap 3) |
-| `customer.subscription.created` | `handleSubscriptionCreated()` | ✅ | Cashier handles DB sync; custom: no-op |
-| `customer.subscription.updated` | `handleSubscriptionUpdated()` | ✅ | Syncs `users.tier` via `stripe_price_to_tier` map |
-| `customer.subscription.deleted` | `handleSubscriptionCancelled()` | ✅ | ActivityService log + `SubscriptionCancelled` event → email (template 68) |
-| `payment_method.attached` | `handlePaymentMethodAttached()` | ✅ | Logs |
-| `payment_method.detached` | `handlePaymentMethodDetached()` | ✅ | Logs |
-| `charge.refunded` | `handleChargeRefunded()` | ✅ | ActivityService log |
-| `transfer.created` | `handleTransferCreated()` | ✅ | Logs |
-| `transfer.paid` | `handleTransferPaid()` | ✅ | Updates `BpPayout.status = paid` + `PayoutReleased` event → email (template 48) |
-| `transfer.failed` | `handleTransferFailed()` | ✅ | Updates `BpPayout.status = failed` + notification |
-| `payment_intent.succeeded` | `handlePaymentIntentSucceeded()` | ✅ | Updates `BpPayout` or `PractitionerPayment` status |
-| `payment_intent.payment_failed` | `handlePaymentIntentFailed()` | ✅ | Updates payout status + notification |
-| `account.updated` | *(not handled)* | ⚠️ | Stripe Connect account status changes ignored. Acceptable for MVP. |
+## 22–23. Proration + MAAT Add-on ✅
 
-**Billing email events registered in `AppServiceProvider`:** ✅
-- `SubscriptionCancelled` → `SendEmailNotificationListener` → template `gaps/68-subscription-cancelled`
-- `SubscriptionTierChanged` → `SendEmailNotificationListener` → template `admin/51-plan-upgraded` or `admin/52-plan-downgraded`
-- `MaatAddonChanged` → `SendEmailNotificationListener` → template `gaps/69-maat-addon-change`
+_(Unchanged. `changePlan()` detects direction via `pricePerDay()`; MAAT gated on Practice tier; `MaatAddonChanged` → template `gaps/69`.)_
 
-## 22. Proration Rules ✅ VERIFIED
+## 24. 🆕 Native "Add Card" Flow (Stripe Elements)
 
-`SubscriptionService::changePlan()` dynamically detects direction by comparing `pricePerDay()` of current vs new price:
+**Rev 3 addition** — replaces the "Add card → leaves the app to Stripe Portal" flow with an in-app modal.
 
-| Direction | Method called | Cashier call | Billing effect |
-|---|---|---|---|
-| **Upgrade** (higher $/day) | `upgrade()` | `$sub->swapAndInvoice($newPriceId)` | Prorated difference billed immediately |
-| **Downgrade** (lower $/day) | `downgrade()` | `$sub->noProrate()->swap($newPriceId)` | New price effective next cycle, no refund |
-| **Same** | Returns `unchanged` | None | No action |
+**Flow:**
+1. User clicks "Add card" in Settings billing panel
+2. `AddCardModal.vue` mounts → `POST {portal}.settings.payment.setup-intent` → server returns `client_secret` + `stripe_key`
+3. Stripe.js loads from CDN (once); `stripe.elements()` mounts `cardNumber` / `cardExpiry` / `cardCvc` fields
+4. User enters card → `stripe.confirmCardSetup(client_secret)` returns `payment_method` id
+5. Modal POSTs PM id to `{portal}.settings.payment.store` with `set_default: true`
+6. Server persists PM (Cashier `updateDefaultPaymentMethod`) + mirrors to `stripe_payment_method_id`
 
-**Cross-billing period swaps** (e.g. monthly→annual) handled correctly because `pricePerDay()` normalises the comparison using Stripe's price interval. ✅
+**Files:**
+- Trait: `app/Http/Controllers/Concerns/CreatesSetupIntent.php` — `createSetupIntent()` method
+- Portal controllers: `Provider/PaymentMethodSetupController.php`, `ContinuitySteward/PaymentMethodSetupController.php`, `BusinessPartner/PaymentMethodSetupController.php`
+- Vue: `resources/js/components/modals/AddCardModal.vue`
+- Routes: `{portal}.settings.payment.setup-intent` — all three portals
 
-## 23. The MAAT Add-on ✅ FULLY WIRED
+**Gap:** CS + BP `storePaymentMethod` methods still missing (§35 Gap 1). Provider works end-to-end.
 
-- **Guard:** `toggleMaat()` in `SettingsController` checks `user->tier === 'practice'` before proceeding. Upgrade error returned if on Access. ✅
-- **Billing period detection:** Inspects current subscription's `stripe_price` to determine if monthly or annual, then selects matching MAAT price. ✅
-- **Stripe operation:** `$sub->addPrice($maatPriceId)` / `$sub->removePrice($priceId)`. ✅
-- **DB sync:** `users.maat_addon` bool updated after Stripe call. ✅
-- **Event:** `MaatAddonChanged` fired → `SendEmailNotificationListener` → template `gaps/69-maat-addon-change`. ✅
-- **Pricing:** +$29/mo or +$23/mo annual (same price as Access tier, intentional). ✅
+**Fallback:** Stripe Customer Portal link still works as fallback in all three portals.
 
 ---
 
 # PART E — FEATURE GATING
 
-## 24. Tier-Based Feature Locks (Access vs Practice) ✅ VERIFIED
+## 25. Tier-Based Feature Locks (Access vs Practice) ✅
 
-From `config/aegis.php` `tier_limits`:
+_(Unchanged.)_
 
-| Feature | Access | Practice |
+## 26. 🆕 Tier Limits Envification
+
+**Rev 3 change** — tier steward caps are now `.env`-configurable so ops can tune without a deploy.
+
+| `config/aegis.php` key | env var | Default |
 |---|---|---|
-| Max Continuity Stewards | 1 | 2 |
-| Max Support Stewards | 1 | 4 |
-| Referrals (send & receive) | ❌ locked | ✅ |
-| Services Mode (offer to peers) | ❌ locked | ✅ |
-| Network search | limited | full |
-| Job Postings (hire BPs) | ❌ hidden | ✅ |
+| `tier_limits.access.max_continuity_stewards` | `TIER_ACCESS_MAX_CS` | 1 |
+| `tier_limits.access.max_support_stewards` | `TIER_ACCESS_MAX_SS` | 1 |
+| `tier_limits.practice.max_continuity_stewards` | `TIER_PRACTICE_MAX_CS` | 2 |
+| `tier_limits.practice.max_support_stewards` | `TIER_PRACTICE_MAX_SS` | 4 |
 
-**Note on Access steward limits:** Config says `max_support_stewards: 1` for Access. Settings.vue (and the old billing doc) shows "2 Support Stewards included" for Access. These are inconsistent — config is authoritative. Update the Settings.vue copy or the config. **Recommend:** update config to 2 if confirmed with Carizma, or update UI copy to match config.
+**Pending Dr. Chapman confirmation:** `TIER_ACCESS_MAX_SS` — she has verbally referenced "2 SS on Access" but hasn't formally signed off. If confirmed, set `.env` to `TIER_ACCESS_MAX_SS=2`. Do NOT hardcode. See `AEGIS_CHAPMAN_PENDING_ITEMS.md`.
 
-## 25. Role-Based Route Gating (Middleware Map) ✅ VERIFIED
+## 27–29. Middleware / Upgrade Modal / Access Matrix ✅
 
-| Middleware | File | Verified |
-|---|---|---|
-| `EnsureEmailVerified` | `app/Http/Middleware/EnsureEmailVerified.php` | ✅ Checks `users.verified` |
-| `EnsureSubscriptionActive` | `app/Http/Middleware/EnsureSubscriptionActive.php` | ✅ Checks `subscriptions.stripe_status IN (active, trialing, past_due)` |
-| `EnsureServicesMode` | `app/Http/Middleware/EnsureServicesMode.php` | ✅ Gates `services.mode` routes — requires `users.services_mode=1` AND `tier=practice` |
-| `EnsureRole` | `app/Http/Middleware/EnsureRole.php` | ✅ Used as `role:{value}` |
-| `CheckAccountLocked` | `app/Http/Middleware/CheckAccountLocked.php` | ✅ Checks `users.locked_at` |
-| `EnsureAdminRole` | `app/Http/Middleware/EnsureAdminRole.php` | ✅ Admin-specific gate |
-| `ImpersonateForDemo` | `app/Http/Middleware/ImpersonateForDemo.php` | ✅ `?as=<user_id>` demo flag |
-
-## 26. Frontend Lock Mechanism (Upgrade Modal) ✅ VERIFIED
-
-- `AegisUpgradeModal.vue` — universal tier-gate modal, globally mounted in `AppLayout.vue`. ✅
-- `UpgradeCSModal.vue` — CS-specific upgrade modal (Invited → Business CS). ✅
-- `usePortal().requiresTier('practice', fn)` — callback form; opens modal and returns false if Access tier. ✅
-- `useUpgrade().requiresPractice(fn)` — alias pattern. ✅
-- **Sidebar:** `AppSidebar.vue` marks Referrals and Services nav items with `locked: isAccessTier` → renders `.is-locked` CSS class (opacity 0.55) + "Upgrade to unlock" tooltip. ✅
-
-## 27. Page-Level Access Matrix ✅ VERIFIED (PARTIAL)
-
-_(Full matrix unchanged — see §27 of prior version. Route-level gating via middleware confirmed for all portals. `EnsureServicesMode` correctly applied only to service-creation routes, not session-complete routes which any provider can access as a client.)_
+_(Unchanged. `EnsureRole`, `EnsureSubscriptionActive`, `EnsureServicesMode`, `CheckAccountLocked`, `EnsureAdminRole`, `EnsureEmailVerified` all verified. `AegisUpgradeModal.vue`, `UpgradeCSModal.vue`, `usePortal().requiresTier()`, `useUpgrade().requiresPractice()` all verified.)_
 
 ---
 
-# PART F — OPERATIONS
+# PART F — 🆕 PEER-PAYMENT INTEGRATION
 
-## 28. Full Lifecycle Coverage Matrix
+## 30. Cross-Reference to `AEGIS_PAYMENTS_FINANCE.md`
 
-| Lifecycle stage | Status | Notes |
+Peer-to-peer money (Provider→BP, Provider→CS, Client→Provider) is a separate integration from subscription billing. Refer to `AEGIS_PAYMENTS_FINANCE.md` for complete peer-payment coverage.
+
+**Overlap points that matter for subscription billing:**
+- **Same card** — Provider's `stripe_payment_method_id` funds BOTH subscription renewal AND peer payments to BPs/CSs. If the card is invalid, both flows fail.
+- **Same `stripe_id`** — same Stripe customer for both flows.
+- **Different `stripe_account_id`** — BPs and Business CS have their own Connect Express account (as recipients). Providers may have one too if `services_mode=1`.
+
+## 31. 🆕 CS Engagement Contract Billing Path
+
+**Rev 3 addition** — the CS engagement contract sits at the intersection of subscription (the CS pays Aegis) and peer payments (the Provider pays the CS).
+
+**Data model** — `plan_stewards` migration (`2026_07_10_000001`):
+- `fee_cents` — agreed compensation per incident activation
+- `payment_terms` — `on_close | net_30 | net_60`
+- `auto_charge` — boolean; if true, Provider's card charged automatically on incident close
+- `engagement_document_id` — FK to countersigned agreement in `continuity_documents`
+
+**Auto-invoice flow** on incident close:
+1. CS marks all incident tasks complete
+2. `IncidentService::maybeReadyForClosure()` fires `IncidentReadyForClosure` event → email Provider + SS
+3. Provider (or SS as fallback after 72h) verifies closure via `verifyClosure()`
+4. CS calls `closeWithInvoice()`:
+   - Closes the incident (reseals vault)
+   - If `fee_cents > 0`, auto-generates `CsInvoice` (status `sent`)
+   - If `auto_charge && payment_terms='on_close'` and both parties Stripe-ready, immediately fires `chargeProviderToCs()`
+   - Otherwise Provider pays manually via Finances page
+5. Auto-close scheduler (`IncidentAutoCloseCheckJob`, hourly): if 7 days pass with no verification, system auto-verifies and closes
+
+**Env timing knobs:**
+- `CS_INCIDENT_AUTOCLOSE_DAYS` (default 7)
+- `CS_INCIDENT_SS_FALLBACK_HOURS` (default 72 — reserved)
+
+**Events wired (batch3):**
+- `IncidentReadyForClosure`, `IncidentClosureVerified`, `IncidentAutoClosed`, `CsInvoiceAutoGenerated` — all registered on `SendEmailNotificationListener` + `ActivityFanoutListener`
+
+**Pending:** Email blade templates for the 4 events. Wiring is complete; templates come in a later batch. Emails will use `template` key like `emails.incident.30-ready-for-closure`.
+
+## 32. 🆕 Dispute System — Invoice Freeze Interaction
+
+**Rev 3 addition** — either party can open a dispute against a paid or sent invoice/payout/session. The invoice moves to a new `disputed` status, blocking further payment attempts until the dispute is resolved.
+
+**Interaction with subscription billing:**
+- **Subscription invoices** (Provider→Aegis) are NOT subject to the dispute system. Those go through Stripe's chargeback rails directly. Aegis's dispute system is peer-to-peer only.
+- **Peer invoices** (Provider→CS, Provider→BP, milestones, sessions) freeze to `disputed` when a dispute is opened. Payment attempts return "This invoice is under dispute" error.
+
+**Full dispute lifecycle** — see `CONTINUITY_GROUP_CONVERSION_PLAN.md` §0.8. This doc covers only the subscription-billing impact.
+
+---
+
+# PART G — OPERATIONS
+
+## 33. Full Lifecycle Coverage Matrix
+
+| Stage | Rev 3 Status | Notes |
 |---|---|---|
-| Registration (all roles) | ✅ Complete | `RegisterController` + `AuthService::register()` |
-| Email verification | ✅ Complete | `EnsureEmailVerified` middleware |
-| Onboarding intent / role | ✅ Complete | `OnboardingController` |
-| Plan selection (UI) | ✅ Complete | `OnboardingPlan.vue` — all roles |
-| Payment capture | ✅ Complete | `OnboardingPayment.vue` + Stripe Elements |
-| Subscription creation | ✅ Complete | `OnboardingController::subscribe()` + `SubscriptionService::subscribe()` |
-| MAAT add-on at signup | ✅ Complete | Wired in `subscribe()` |
-| Login redirect logic | ✅ Complete | `LoginController::resolvePostLoginDestination()` |
-| Provider plan management | ✅ Complete | `Provider/SettingsController` all methods |
-| BP plan management | ❌ Gap | No subscription routes or billing UI for BP |
-| CS plan management | ❌ Gap | No subscription routes or billing UI for CS (Business) |
-| Webhook processing | ✅ Mostly complete | All key events handled; `invoice.upcoming` email not wired |
-| Renewal reminder email | ⚠️ Partial | Job scheduled ✅, event class exists ✅, email template exists ✅, listener mapping ❌ |
-| Plan upgrade email | ✅ Complete | Template `admin/51-plan-upgraded` wired |
-| Plan downgrade email | ✅ Complete | Template `admin/52-plan-downgraded` wired |
-| Cancellation email | ✅ Complete | Template `gaps/68-subscription-cancelled` wired |
-| MAAT change email | ✅ Complete | Template `gaps/69-maat-addon-change` wired |
-| Payment failed notification | ✅ Complete | ActivityService + email on `invoice.payment_failed` |
-| Payout released email | ✅ Complete | Template `bp/48-payout-released` wired |
-| Account delete | ✅ Complete | `SettingsController::deleteAccount()` |
-| Account lock/unlock | ✅ Complete | `AuthService::lockAccount/unlockAccount` + admin routes |
-| Founding member perks | ❌ Not implemented | Config exists; no DB column or assignment logic |
-| Native add-card modal | ⚠️ Partial | Route + controller exist; no Stripe Elements UI |
+| Registration (all roles) | ✅ | `RegisterController` + `AuthService::register()` |
+| Email verification | ✅ | `EnsureEmailVerified` middleware |
+| Onboarding intent/role/plan | ✅ | `OnboardingController` |
+| Payment capture (Stripe Elements) | ✅ | `OnboardingPayment.vue` |
+| Subscription creation + tier sync | ✅ | `OnboardingController::subscribe()` |
+| MAAT add-on at signup | ✅ | Wired in `subscribe()` |
+| Login redirect logic | ✅ | 3-step priority chain |
+| Provider plan management | ✅ | `Provider/SettingsController` all methods |
+| BP plan management | ✅ Rev 3 | Was ❌ in Rev 2 — closed by P0 |
+| CS plan management | ✅ Rev 3 | Was ❌ in Rev 2 — closed by P0 |
+| BP Stripe Connect Express onboarding | ✅ Rev 3 | Was ❌ (stub) in Rev 2 — closed by P0 |
+| CS Stripe Connect Express onboarding | ✅ Rev 3 | Was ❌ in Rev 2 — closed by P0 |
+| Webhook processing | ✅ | All events handled |
+| Renewal reminder email | ✅ Rev 3 | Was ⚠️ in Rev 2 — closed |
+| Plan upgrade/downgrade emails | ✅ | |
+| Cancellation email | ✅ | |
+| MAAT change email | ✅ | |
+| Payment failed notification | ✅ | |
+| Payout released email | ✅ | |
+| Account delete | ✅ | |
+| Account lock/unlock | ✅ | |
+| `account.updated` webhook | ✅ Rev 3 | Was ⚠️ in Rev 2 — closed by P1 |
+| Native add-card modal (Provider) | ✅ Rev 3 | Was ⚠️ in Rev 2 — closed by batch3 |
+| Native add-card modal (CS/BP) | ⚠️ Rev 3 | SetupIntent + modal exist; `storePaymentMethod` in CS/BP controllers missing |
+| Tier limits envified | ✅ Rev 3 | 4 new env vars, defaults unchanged |
+| `has_cs_portal` / `has_ss_portal` in Inertia props | ✅ Rev 3 | Was ⚠️ in Rev 2 — closed |
+| `UserTier::monthlyCents` correct | ✅ Rev 3 | Was 🐛 in Rev 2 — fixed |
+| CS engagement contract auto-invoice | ✅ Rev 3 | New — batch3 |
+| Dispute system | ✅ Rev 3 | New — batch3 |
+| Dispute email templates | ⚠️ Rev 3 | Listener wired, blade templates pending |
+| Incident closure email templates | ⚠️ Rev 3 | Listener wired, blade templates pending |
+| Founding member perks | ❌ | Awaiting Dr. Chapman answers on 4 questions |
 
-## 29. Known Bugs & Discrepancies Found
+## 34. Known Bugs & Discrepancies
 
-### 🐛 Bug 1 — `UserTier::monthlyCents()` returns stale prototype prices
-**File:** `app/Enums/UserTier.php` line 23  
-**Current:** `Access => 1900` ($19), presumably `Practice => 3900` ($39)  
-**Correct:** `Access => 2900` ($29), `Practice => 4900` ($49) per June 2026 sign-off  
-**Impact:** Any code calling `UserTier::Access->monthlyCents()` gets the wrong price. Check callers before fixing.  
-**Fix:** Update both values in the enum.
+**Rev 2 bug fixes shipped in Rev 3:**
+- 🐛→✅ `UserTier::monthlyCents()` corrected to $29/$49
+- 🐛→✅ `AppHeader.vue` portal switcher now role-gated
+- 🐛→✅ `has_cs_portal`/`has_ss_portal` in Inertia shared props
+- 🐛→✅ `SubscriptionRenewalUpcoming` event registered + listener + template
+- 🐛→✅ BP Settings dead route references replaced
+- 🐛→✅ Field-name mismatches (`practitioner_id`, `total_cents`, `payment_type`, `payable`) across BP + CS Vue pages
+- 🐛→✅ CS accept/decline route missing
+- 🐛→✅ Provider Finances.vue was static HTML — rebuilt as real Inertia component
 
-### 🐛 Bug 2 — Access tier steward count inconsistency
-**Config (`tier_limits.access.max_support_stewards`):** `1`  
-**Settings.vue UI copy:** "2 Support Stewards included"  
-**Old billing doc §24 says:** "2 Support Stewards included"  
-**Resolution needed:** Confirm with Carizma — config is authoritative. Update whichever is wrong.
+**Rev 3 open bugs:** none critical.
 
-### 🐛 Bug 3 — BP Settings Vue references non-existent routes
-**File:** `resources/js/pages/business-partner/Settings.vue`  
-**Bad routes:** `bp.settings.account`, `bp.settings.notif`, `bp.settings.visibility`  
-**Reality:** These routes do not exist in `routes/web.php`  
-**Impact:** All save buttons in BP Settings will 404. This is currently hidden because the file is a 70-line stub and these forms aren't prominently surfaced.
+## 35. Remaining Gaps
 
-### 🐛 Bug 4 (Fixed this session) — Portal switcher showed all portals regardless of user roles
-**File:** `resources/js/components/chrome/AppHeader.vue`  
-**Was:** Always showing Practitioner + Continuity Steward + Support Steward for all non-BP users  
-**Fixed:** Now gates CS/SS entries on `user.has_cs_portal` / `user.has_ss_portal`  
-**Still needed:** Backend must send these flags in the `auth.user` prop.
-
-## 30. Remaining Gaps & Exactly Where To Fix Them
-
-### Gap 1 — BP subscription management UI (HIGH PRIORITY)
-**Scope:** Business Partners can subscribe (onboarding works) but cannot manage their subscription afterward.
-
-**Where to add:**
-1. `app/Http/Controllers/BusinessPartner/SettingsController.php` — add `swapPlan()`, `cancelPlan()`, `resumePlan()`, `billingPortal()`, `setDefaultPaymentMethod()`, `removePaymentMethod()` (mirror Provider/SettingsController)
-2. `routes/web.php` BP group — add subscription management routes
-3. `resources/js/pages/business-partner/Settings.vue` — build billing panel (BP has one tier, so swap = monthly↔annual only)
-4. Fix the 3 missing routes (`bp.settings.account`, `.notif`, `.visibility`) or rename the Vue calls to match existing routes
-
-**Est:** ~2 hrs
-
-### Gap 2 — CS Business subscription management UI (HIGH PRIORITY)
-**Same as Gap 1** for Business CS. One tier (swap = monthly↔annual only).
-
-**Where to add:**
-1. `app/Http/Controllers/ContinuitySteward/SettingsController.php` — add subscription methods
-2. `routes/web.php` CS group — add subscription routes
-3. `resources/js/pages/continuity-steward/Settings.vue` — build billing panel
-4. **Guard:** only show billing panel if `cs_account_type === 'business'` — Invited CS must never see a billing panel
-
-**Est:** ~1.5 hrs
-
-### Gap 3 — Renewal reminder email (MEDIUM PRIORITY)
-**Current state:** 
-- `SubscriptionRenewalCheckJob` runs daily at 08:00 UTC ✅
-- Job fires `SubscriptionRenewalUpcoming` event ✅
-- Email template `resources/views/emails/admin/55-renewal-upcoming.blade.php` exists ✅
-- **Missing:** `SubscriptionRenewalUpcoming` is NOT registered in `AppServiceProvider` → `SendEmailNotificationListener` does not handle it → no email is sent
+### Gap 1 — CS + BP `storePaymentMethod` methods (MEDIUM PRIORITY)
+**Scope:** `AddCardModal.vue` component ready and setup-intent endpoints work for all 3 portals, but only Provider has a `storePaymentMethod` controller method to receive the finalized PaymentMethod id.
 
 **Where to fix:**
-1. `app/Providers/AppServiceProvider.php` — add:
-   ```php
-   Event::listen(Events\Stripe\SubscriptionRenewalUpcoming::class, Listeners\SendEmailNotificationListener::class);
-   ```
-2. `app/Listeners/SendEmailNotificationListener.php` — add import + `match` case + private handler method:
-   ```php
-   use App\Events\Stripe\SubscriptionRenewalUpcoming;
-   // In match block:
-   $event instanceof SubscriptionRenewalUpcoming => $this->subscriptionRenewalUpcoming($event),
-   // New private method:
-   private function subscriptionRenewalUpcoming(SubscriptionRenewalUpcoming $e): array {
-       return [[
-           'user_id'  => $e->user->id,
-           'gate_key' => 'notify_email',
-           'template' => 'emails.admin.55-renewal-upcoming',
-           'data'     => ['user_name' => $e->user->display_name, 'renewal_date' => $e->renewalDate, 'plan_label' => $e->planLabel, 'amount_cents' => $e->amountCents],
-       ]];
-   }
-   ```
-3. Remove the TODO comment from `StripeEventListener::handleInvoiceUpcoming()` and optionally wire it there as well (belt + suspenders).
+1. Add `storePaymentMethod(Request)` to `BP/SettingsController` mirroring `Provider/SettingsController::storePaymentMethod` (validate `payment_method_id`, attach via Cashier, mirror to `stripe_payment_method_id`)
+2. Add same method to `CS/SettingsController` (only for `cs_account_type=business`)
+3. Register `bp.settings.payment.store` and `cs.settings.payment.store` routes
+4. Wire the routes as `storeRoute` prop when mounting `AddCardModal` in BP + CS Settings.vue billing panels
 
-**Est:** ~30 mins
+**Est:** ~30 mins.
 
-### Gap 4 — Enterprise CS provisioning (PRODUCT DECISION)
-`mailto:` only. Intentional. Leave unless automation wanted.
+### Gap 2 — Email blade templates for 7 new events (MEDIUM PRIORITY)
+Rev 3 batch3 wired 7 new events to `SendEmailNotificationListener` with `template` keys pointing to paths that don't yet exist:
+- `emails.incident.30-ready-for-closure`
+- `emails.incident.31-closure-verified`
+- `emails.incident.32-auto-closed`
+- `emails.cs.60-auto-invoice-generated`
+- `emails.disputes.70-opened`
+- `emails.disputes.71-replied`
+- `emails.disputes.72-resolved`
 
-### Gap 5 — Native "Add Card" modal (LOW PRIORITY)
-`storePaymentMethod` route + controller method exist. Only a Stripe Elements modal in Settings.vue is missing. Currently links to Stripe Customer Portal instead. Functional but breaks UX flow.
+**Fix:** create the 7 blade files per `EMAIL_TEMPLATES_PROMPT.md` conventions. The listener silently no-ops on missing templates today, so this isn't blocking — just means users don't get emails for these events yet.
 
-### Gap 6 — Founding Member perks (PRODUCT DECISION)
-Config (`config/aegis.php` `founding_member` section) defines the perks. No `users` column or assignment logic exists. Needs product decision from Carizma before implementation.
+**Est:** ~2 hours.
 
-### Gap 7 — `UserTier::monthlyCents()` stale price (BUG — FIX IMMEDIATELY)
-See §29 Bug 1. One-line fix per case. Audit callers first.
+### Gap 3 — "Open dispute" button placement in Finances tables (LOW PRIORITY)
+`OpenDisputeModal.vue` component + all backend routes are ready. The button that opens the modal isn't yet wired into Provider Finances, CS Invoices, and BP Invoices tables.
 
-### Gap 8 — Backend `has_cs_portal` / `has_ss_portal` flags not sent
-`AppHeader.vue` portal switcher and `Settings.vue` Portal Access panel both check `user.has_cs_portal` / `user.has_ss_portal`. Neither `ProviderSettingsController::index()` nor `HandleInertiaRequests` middleware currently appends these flags to the user prop.
+**Fix:** import `OpenDisputeModal`, add `<button @click="openDispute(row)">` next to paid/sent invoices, wire route names.
 
-**Where to fix:** `app/Http/Middleware/HandleInertiaRequests.php` shared data `auth.user` — add:
-```php
-'has_cs_portal' => $user?->role_assignments?->contains('role', 'continuity_steward') ?? false,
-'has_ss_portal' => $user?->role_assignments?->contains('role', 'support_steward') ?? false,
-```
-Or query `user_role_assignments` table directly.
+**Est:** ~30 mins per portal (3 portals).
 
-**Est:** ~30 mins
+### Gap 4 — Continuity Group Provider Vue pages (SEPARATE WORKSTREAM)
+`ContinuityPlan.vue`, `ContinuityStewards.vue`, `SupportStewards.vue`, `ImportantDocuments.vue`, `Vault.vue` — still legacy static prototypes. See `CONTINUITY_GROUP_CONVERSION_PLAN.md` for the plan.
 
-### Gap 9 — Access tier steward count discrepancy (NEEDS CONFIRMATION)
-`config/aegis.php` `tier_limits.access.max_support_stewards = 1` vs UI/doc saying 2. Confirm with Carizma and update one of them.
+### Gap 5 — Founding Member perks (BLOCKED ON DR. CHAPMAN)
+Config exists (`founding_member` section). No DB column or assignment logic. See `AEGIS_CHAPMAN_PENDING_ITEMS.md`.
 
----
+### Gap 6 — Access tier `max_support_stewards` (BLOCKED ON DR. CHAPMAN)
+`.env`-tunable now. Default 1. Dr. Chapman has verbally suggested 2 but needs confirmation.
 
-## 31. Stack & Architecture ✅ VERIFIED
+## 36. Stack & Architecture
 
-- **Backend:** PHP 8.2, Laravel 12, MySQL 8 — **77 models**, **123 migrations**, **55 enums** across **14 domains** — all confirmed by file count
-- **Frontend:** Vue 3, Inertia.js, Pinia, Vuelidate
-- **Payments:** Laravel Cashier `^16.6` (subscriptions) + Stripe PHP SDK `^17.3` (Connect payouts) — confirmed in `composer.json`
-- **Design system:** CSS variables only (no Tailwind, no hex literals, no inline SVGs). `AegisIcon` for all icons. Globally registered: `AegisModal`, `AegisStatChip`, `AegisBadge`, `AegisPagination`, `AegisHeroBanner`.
-- **Universal conventions:** UUID `CHAR(36)` PKs, money always integer cents, soft deletes on user-facing tables, `authorize()` returns `true` in FormRequests (real auth at Policy level).
-- **Write-path:** Vue form → Inertia POST → FormRequest → Controller → Service → `ActivityService::log()` fan-out → toast + reload. Events fire from Services (never Controllers). `>3 recipients` → `ActivityFanoutJob`.
+_(Unchanged. PHP 8.2, Laravel 12, Vue 3/Inertia, MySQL 8, Cashier 16.6, Stripe PHP 17.3. 77+ models, 127 migrations (up from 123 with batch3's 4 new), 58 enums (up from 55 with 3 new dispute enums), 14 domains + new dispute domain.)_
 
-## 32. File Map ✅ VERIFIED
+## 37. File Map (Rev 3 additions/changes only)
 
-### Backend
-| File | Role | Status |
-|---|---|---|
-| `app/Services/SubscriptionService.php` | Engine: `subscribe`, `upgrade`, `downgrade`, `changePlan`, `cancel`, `cancelNow`, `reactivate`, `getStatus`, `getFullSubscriptionData`, `toggleMaatAddon`, `billingPortalUrl`, `setDefaultPaymentMethod`, `removePaymentMethod`, `syncStripe` — 14 methods | ✅ |
-| `app/Services/AuthService.php` | `register()`, `login()`, `logout()`, `lockAccount()`, `enableMfa()`, `verifyMfa()` and more | ✅ |
-| `app/Http/Controllers/Auth/RegisterController.php` | show / store | ✅ |
-| `app/Http/Requests/Auth/RegisterRequest.php` | Registration validation | ✅ |
-| `app/Http/Controllers/Auth/LoginController.php` | Login + `resolvePostLoginDestination` | ✅ |
-| `app/Http/Controllers/Auth/OnboardingController.php` | `showIntent`, `showRole`, `submitIntent`, `complete`, `showPlan`, `storePlan`, `showPayment`, `subscribe` | ✅ |
-| `app/Http/Controllers/Auth/VerifyEmailController.php` | Email verification | ✅ |
-| `app/Http/Controllers/Provider/SettingsController.php` | `index` + all subscription/payment methods | ✅ |
-| `app/Http/Controllers/BusinessPartner/SettingsController.php` | `index` + `updateNotifications` only | ❌ No subscription methods |
-| `app/Http/Controllers/ContinuitySteward/SettingsController.php` | `index` + `updateNotifications` only | ❌ No subscription methods |
-| `app/Listeners/StripeEventListener.php` | All webhook handlers (subscription + Connect) | ✅ except renewal email gap |
-| `app/Listeners/SendEmailNotificationListener.php` | Billing events: `SubscriptionCancelled`, `SubscriptionTierChanged`, `MaatAddonChanged`, `PayoutReleased` mapped | ⚠️ Missing `SubscriptionRenewalUpcoming` |
-| `app/Jobs/SubscriptionRenewalCheckJob.php` | Daily renewal warning job | ✅ Exists + scheduled |
-| `app/Events/Stripe/SubscriptionRenewalUpcoming.php` | Renewal event class | ✅ Exists, not registered |
-| `app/Http/Middleware/EnsureSubscriptionActive.php` | Subscription gate (exempts free roles) | ✅ |
-| `app/Http/Middleware/EnsureEmailVerified.php` | Email gate | ✅ |
-| `app/Http/Middleware/EnsureServicesMode.php` | Services tier gate (Practice + services_mode=1) | ✅ |
-| `app/Http/Middleware/CheckAccountLocked.php` | Lock / deactivation gate | ✅ |
-| `app/Http/Middleware/EnsureRole.php` | Role gate | ✅ |
-| `config/aegis.php` | pricing, stripe_price_to_tier, paid_roles, tier_limits | ✅ |
-| `config/cashier.php` | Cashier model + webhook path | ✅ |
-| `routes/console.php` | All scheduled jobs (SubscriptionRenewalCheckJob @ 08:00 UTC daily) | ✅ |
+### New backend files (batch3)
+| File | Purpose |
+|---|---|
+| `app/Enums/{DisputeStatus,DisputeReason,DisputeResolution}.php` | Dispute enums |
+| `app/Enums/InvoiceStatus.php` (updated) | Added `Disputed` case + `isPayable()` helper |
+| `app/Models/{Dispute,DisputeMessage}.php` | Dispute models |
+| `app/Models/PlanSteward.php` (updated) | Added CS engagement fields |
+| `app/Services/DisputeService.php` | `open/reply/resolve/listForUser/listForAdmin` |
+| `app/Services/IncidentService.php` (updated) | Added `completeTask/maybeReadyForClosure/verifyClosure/closeWithInvoice/autoClose` |
+| `app/Events/Dispute/{DisputeOpened,DisputeReplied,DisputeResolved}.php` | Dispute events |
+| `app/Events/Incident/{IncidentReadyForClosure,IncidentClosureVerified,IncidentAutoClosed}.php` | CS engagement events |
+| `app/Events/Cs/CsInvoiceAutoGenerated.php` | Auto-invoice event |
+| `app/Jobs/IncidentAutoCloseCheckJob.php` | Hourly auto-close scheduler |
+| `app/Http/Controllers/{Provider,ContinuitySteward,BusinessPartner,Admin}/DisputesController.php` | 4 dispute controllers |
+| `app/Http/Controllers/Concerns/CreatesSetupIntent.php` | Reusable SetupIntent trait |
+| `app/Http/Controllers/{Provider,CS,BP}/PaymentMethodSetupController.php` | 3 native add-card controllers |
 
-### Frontend
-| File | Role | Status |
-|---|---|---|
-| `resources/js/pages/auth/Register.vue` | Multi-step registration wizard | ✅ |
-| `resources/js/pages/auth/OnboardingPlan.vue` | Plan selection (role-branched for all paid roles) | ✅ |
-| `resources/js/pages/auth/OnboardingPayment.vue` | Stripe card capture + `resolveStripePrice()` | ✅ |
-| `resources/js/pages/provider/Settings.vue` | Full subscription + billing management | ✅ |
-| `resources/js/pages/business-partner/Settings.vue` | 70-line stub — no billing panel + broken route refs | ❌ |
-| `resources/js/pages/continuity-steward/Settings.vue` | 57-line stub — no billing panel | ❌ |
-| `resources/js/composables/usePortal.js` | `requiresTier()` tier gate | ✅ |
-| `resources/js/composables/useUpgrade.js` | `openUpgradeModal()` / `requiresPractice()` | ✅ |
-| `resources/js/components/ui/AegisUpgradeModal.vue` | Universal upgrade modal (Provider Access→Practice) | ✅ |
-| `resources/js/components/modals/UpgradeCSModal.vue` | CS-specific Invited→Business upgrade modal | ✅ |
-| `resources/js/components/chrome/AppSidebar.vue` | Locks Referrals + Services nav items for Access tier | ✅ |
-| `resources/js/components/chrome/AppHeader.vue` | Portal switcher (now gated on `has_cs_portal`/`has_ss_portal`) | ✅ Fixed |
-| `resources/views/app.blade.php` | Injects all 10 price IDs to `#aegis-config` div | ✅ |
+### New frontend files (batch3)
+| File | Purpose |
+|---|---|
+| `resources/js/components/modals/AddCardModal.vue` | Native Stripe Elements card capture |
+| `resources/js/components/modals/OpenDisputeModal.vue` | Reusable dispute open form |
+| `resources/js/pages/{admin,provider,cs,bp}/Disputes.vue` | 4 dispute list pages |
+| `resources/js/pages/{admin,provider,cs,bp}/DisputeDetail.vue` | 4 dispute detail pages |
 
-### Migrations (billing-relevant)
-| Migration | Purpose | Status |
-|---|---|---|
-| `2024_01_01_000001` | users (tier, role, cs_account_type, bp_type, maat_addon, services_mode, stripe fields, verified) | ✅ |
-| `2024_01_02_000004` | stripe_id, stripe_payment_method_id on users | ✅ |
-| `2024_01_03_000001` | pm_type, pm_last_four, trial_ends_at (Cashier columns) | ✅ |
-| `2026_07_07_092246–249` | subscriptions + subscription_items (UUID-correct, with meter fields) | ✅ |
-| `2026_07_07_100000–001` | UUID string fix + billable-column fix for subscriptions | ✅ |
-| `2024_01_01_000068` | stripe_webhook_events deduplication table | ✅ |
+### New migrations (batch3)
+| Migration | Purpose |
+|---|---|
+| `2026_07_09_000001_add_stripe_columns_to_cs_invoices` | P0 — `stripe_payment_intent_id`, `stripe_transfer_id` on `cs_invoices` |
+| `2026_07_10_000001_add_cs_engagement_fields_to_plan_stewards` | CS engagement contract fields |
+| `2026_07_10_000002_create_disputes_table` | Dispute records |
+| `2026_07_10_000003_create_dispute_messages_table` | Dispute thread |
+| `2026_07_10_000004_add_disputed_to_invoice_statuses` | Extend ENUMs on both invoice tables |
 
-### Email Templates (billing-relevant)
-| Template path | Event trigger | Status |
-|---|---|---|
-| `emails/admin/51-plan-upgraded.blade.php` | `SubscriptionTierChanged` (upgrade) | ✅ |
-| `emails/admin/52-plan-downgraded.blade.php` | `SubscriptionTierChanged` (downgrade) | ✅ |
-| `emails/admin/55-renewal-upcoming.blade.php` | `SubscriptionRenewalUpcoming` | ⚠️ Template exists; listener NOT registered |
-| `emails/gaps/68-subscription-cancelled.blade.php` | `SubscriptionCancelled` | ✅ |
-| `emails/gaps/69-maat-addon-change.blade.php` | `MaatAddonChanged` | ✅ |
-| `emails/bp/48-payout-released.blade.php` | `PayoutReleased` (BP Connect payout) | ✅ |
-| `emails/business/46-invoice-paid.blade.php` | `InvoiceSent` / paid (BP marketplace) | ✅ |
-
-## 33. Deployment Checklist
+## 38. Deployment Checklist
 
 ### Stripe Dashboard
 1. **Products** — 10 prices created (per `AEGIS_STRIPE_SETUP.md`)
-2. **Billing Portal** (Settings → Billing → Customer portal): enable update card, view invoices, cancel at period end, switch plans. Return URL: `https://aegis.devlet.tech/provider/settings?section=billing`
-3. **Webhook** (`aegis.devlet.tech/stripe/webhook`) — events:
+2. **Billing Portal** — enable update card, view invoices, cancel at period end, switch plans. Return URL: `https://aegis.devlet.tech/provider/settings?section=billing`
+3. **Webhook** — events (🆕 `account.updated` added):
    ```
    invoice.payment_succeeded   invoice.payment_failed   invoice.upcoming
    customer.subscription.created   customer.subscription.updated   customer.subscription.deleted
    payment_intent.succeeded   payment_intent.payment_failed
    payment_method.attached   payment_method.detached
    charge.refunded   transfer.created   transfer.paid   transfer.failed
+   account.updated
    ```
-   Note: `account.updated` not needed for MVP (handler not implemented).
 4. Copy signing secret → `.env` `STRIPE_WEBHOOK_SECRET`
 
 ### Server
 ```bash
 git pull
 composer install --no-dev
-php artisan migrate
+php artisan migrate           # 4 new migrations in batch3
 php artisan config:clear
 php artisan queue:restart
 npm ci && npm run build
+
+# Optional .env tuning (defaults keep current behaviour):
+# TIER_ACCESS_MAX_SS=2 (if Dr. Chapman confirms)
+# CS_INCIDENT_AUTOCLOSE_DAYS=7
+# DISPUTE_RESPONDENT_REPLY_DAYS=5
+
+# Ensure cron runs the scheduler (adds IncidentAutoCloseCheckJob hourly):
+* * * * * cd /path/to/aegis && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-### Test → Live
-Comment out the `pk_test`/`sk_test` block in `.env`, uncomment `pk_live`/`sk_live` (live price IDs already prepared). Re-register webhook on live endpoint, update `STRIPE_WEBHOOK_SECRET`.
+### Pre-launch — remaining tasks
+1. Add `storePaymentMethod` methods to CS + BP `SettingsController` (§35 Gap 1) — 30 min
+2. Create 7 blade templates for CS engagement + dispute emails (§35 Gap 2) — 2 hr
+3. Wire "Open dispute" buttons in Finances tables (§35 Gap 3) — 1.5 hr
+4. Confirm `TIER_ACCESS_MAX_SS` with Dr. Chapman — pending
+5. Continuity Group Vue rebuild — separate workstream per `CONTINUITY_GROUP_CONVERSION_PLAN.md`
 
-### Pre-launch Bug Fixes (do before go-live)
-1. **Fix `UserTier::monthlyCents()` stale prices** (Gap 7) — 5-minute fix
-2. **Wire renewal reminder email** (Gap 3) — 30-minute fix
-3. **Add `has_cs_portal`/`has_ss_portal` to Inertia shared props** (Gap 8) — 30-minute fix
-4. **Confirm Access tier max_support_stewards** (Gap 9) — product decision
+## 39. Appendix — Test Cards, Demo Users & Prototype vs Laravel
 
-## 34. Appendix — Test Cards, Demo Users & Prototype vs Laravel
-
-### Test cards (sandbox)
-| Card | Simulates |
-|---|---|
-| `4242 4242 4242 4242` | Success |
-| `4000 0000 0000 0002` | Card declined |
-| `4000 0025 0000 3155` | 3D Secure required |
-| `4000 0000 0000 9995` | Insufficient funds |
-| `4000 0000 0000 0069` | Expired card |
-| `4000 0000 0000 0127` | Incorrect CVC |
-Any future expiry, any CVC, any ZIP.
-
-### Demo users
-| User | Role / Tier | Notes |
-|---|---|---|
-| `p_sarah` | Practitioner — Practice tier | Has live Stripe sub; `stripe_id` starts with real `cus_` prefix |
-| `p_david` | Practitioner — Access tier | |
-| `p_maria` | Practitioner — Practice, services mode on | |
-| `cs_marcus` | Continuity Steward (Business CS) | |
-| `ss_linda` | Support Steward | |
-| `bp_acme` | Business Partner (Agency) | |
-| `bp_jamal` | Business Partner (Freelancer) | |
-| `admin_root` | Admin | |
-
-State flags: `?as=<user_id>` (impersonate via `ImpersonateForDemo` middleware), `?emergency=true/false` (incident state), `?invited=true` (force Invited CS view). Persisted in session.
-
-**Demo stripe_id detection:** `showPayment()` checks if existing `stripe_id` is fake (retrieval from Stripe throws) → clears it → `createAsStripeCustomer()` runs fresh. `cus_demo_*` and `acct_demo_*` prefixes are also guarded in payment flows. ✅
-
-### Prototype vs Laravel — What Changed
-`AEGIS-PROJECT-CONTEXT.md` was written against the original PHP/SQLite prototype. When the two sources conflict, the Laravel app + `config/aegis.php` win.
-
-| Aspect | Prototype (legacy) | Current Laravel app |
-|---|---|---|
-| Database | SQLite, 16 tables | MySQL, 77 models / 123 migrations |
-| User IDs | `p_sarah`, `cs_marcus` strings | UUID `CHAR(36)`, `ae_`-prefixed |
-| Portals | `/provider-portal/`, `.php` pages | `/provider`, Vue/Inertia SPA |
-| Access price | $39/mo | **$29/mo** (confirmed June 2026) |
-| Practice price | $79/mo | **$49/mo** (confirmed June 2026) |
-| Billing page | `finances.php` | `Settings.vue` (billing + invoices panels) |
-| Cashier version | ^15 | **^16.6** |
-| Services Mode | Standalone +$19 add-on | Folded into Practice tier (no extra charge) |
-| UserTier::monthlyCents() | N/A | 🐛 Returns stale $19/$39 — should be $29/$49 |
-| BP Settings Vue routes | N/A | 🐛 3 routes referenced that don't exist |
-| Portal switcher | N/A | Fixed: now role-gated (was always showing all 3) |
+_(Test cards + demo users unchanged. `p_sarah` real Stripe sub `sub_1Tr3QvHnj73y5cBfBd6U6JCv`; `p_rehan` fake `sub_demo_rehan_practice`. All demo passwords `Demo1234!`. Stripe account `acct_1OCuB1Hnj73y5cBf`.)_
 
 ---
 
-## Quick-Fix Summary (Prioritised)
+## Quick-Fix Summary (Prioritised) — Rev 3
 
 | Priority | Gap | File | Est time |
 |---|---|---|---|
-| 🔴 P0 | `UserTier::monthlyCents()` wrong prices | `app/Enums/UserTier.php` | 5 min |
-| 🔴 P0 | Wire renewal reminder email | `AppServiceProvider` + `SendEmailNotificationListener` | 30 min |
-| 🔴 P0 | Send `has_cs_portal`/`has_ss_portal` in Inertia props | `HandleInertiaRequests.php` | 30 min |
-| 🔴 P1 | BP subscription management | `BP/SettingsController` + routes + `Settings.vue` | 2 hr |
-| 🔴 P1 | CS Business subscription management | `CS/SettingsController` + routes + `Settings.vue` | 1.5 hr |
-| 🟡 P2 | Fix BP Settings 3 broken route refs | `Settings.vue` (BP) | 15 min |
-| 🟡 P2 | Confirm Access max_support_stewards (1 vs 2) | `config/aegis.php` or UI | 5 min + product call |
-| 🟢 P3 | Native Add Card modal | `Provider/Settings.vue` + Stripe Elements | 1 hr |
-| 🟢 P3 | Founding Member perks | Requires product scoping | TBD |
-| 🟢 P3 | `account.updated` webhook handler | `StripeEventListener.php` | 30 min |
+| 🔴 P1 | CS + BP `storePaymentMethod` methods | CS/BP `SettingsController` | 30 min |
+| 🟡 P2 | 7 email blade templates | `resources/views/emails/{incident,cs,disputes}/*` | 2 hr |
+| 🟡 P2 | "Open dispute" buttons in Finances tables | Provider/CS/BP `Finances.vue` + `Invoices.vue` | 1.5 hr |
+| 🟡 P2 | Continuity Group Vue rebuild | 5 legacy Provider pages | Separate workstream |
+| 🟢 P3 | Confirm `TIER_ACCESS_MAX_SS` | Dr. Chapman call | 5 min once decided |
+| 🟢 P3 | Founding Member perks | Requires 4 product answers | TBD |
 
 ---
 
-*Last updated: July 2026 — validated against live repo commit `2cd19de`*
-*Previous validation: commit `26ea36a` (2026-07-08)*
+*Rev 3 — validated against live repo commit `9351e14` on 2026-07-09*
+*Rev 2 — commit `2cd19de` on 2026-07-08*

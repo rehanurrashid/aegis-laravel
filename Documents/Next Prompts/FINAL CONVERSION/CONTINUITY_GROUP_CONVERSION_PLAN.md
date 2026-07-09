@@ -1,356 +1,258 @@
-# Aegis — Master Conversion Plan: Settings + Continuity Group
+# Aegis — Master Conversion Plan: Continuity Group
 
-**Scope:** Provider Settings page (21 panels) + the 6 Provider Continuity pages — Finances, Continuity Plan, Continuity Stewards, Support Stewards, Important Documents, Vault.
-**Sources:** PHP prototype (7 files, ~16k lines) as functional ground truth; Laravel backend; KB docs. Repo commit `032f87e` baseline.
-**Revision:** 2 — updated with P0/P1 batch alignment, peer-payment wiring context, CS engagement contract workflow, dispute system, tier customization, W-9 decision.
+**Scope:** The 6 Provider Continuity pages — Finances, Continuity Plan, Continuity Stewards, Support Stewards, Important Documents, Vault.
+**Sources:** Laravel backend (source of truth); PHP prototype as reference-only functional ground truth (~16k lines).
+**Repo:** `main @ 9351e14`
+**Revision:** 3 — batch3 items shipped; plan doc refocused on what's still pending (5 Provider Vue pages)
 
----
-
-## ⚠️ Standing findings (unchanged)
-
-**1. Settings.vue on disk is a minimal stub.** The file is ~80L with 3 flat cards (Account, Notifications, Privacy). The PHP prototype has 21 panels with a full sidebar nav. The SettingsController already has 7 routes; ~8 more exist in the KB but are not yet in `web.php`'s provider block. This must be fully rebuilt before Continuity Group work.
-
-> **Update (2026-07):** Settings.vue rebuild completed separately from this plan. Provider Settings is now 2000+ lines with all 21 panels, subscription mgmt, Stripe Connect onboarding, MFA, sessions, danger zone. Referenced here for context only — not part of this plan's scope.
-
-**2. Continuity pages are design-only or broken.** `ContinuityPlan.vue` (644L), `ContinuityStewards.vue` (1177L), `SupportStewards.vue` (786L), and `ImportantDocuments.vue` (945L) declare only `defineProps({ user: Object })` and render hardcoded data — they ignore the Inertia props their controllers already send. `Vault.vue` (120L) references props and a route (`provider.vault.unseal`) that do not exist. `Finances.vue` (124L) is raw prototype HTML (inline `<svg>`, inline styles, wrong-cased import). Conversion = backend wiring for the four stubbed pages + full rebuild for Vault and Finances.
-
-> **Update (2026-07):** `Finances.vue` **has been rebuilt** in the P0 batch. It is now 304 lines, uses Inertia props (`subscription`, `paymentMethods`, `csInvoices`, `bpInvoices`, `paymentHistory`, `earnings`, `totalSpendCents`, `outstandingCents`, `stripeConnected`), calls real routes (`provider.finances.cs-invoice.pay`, `provider.jobs.bp-invoice.pay`), and includes confirm modals for pay actions. Remaining Continuity pages: ContinuityPlan, ContinuityStewards, SupportStewards, ImportantDocuments, Vault — still legacy static.
-
-**3. ~30 write actions have no route yet.** The thin controllers cover the happy-path spine. The prototype's richer surface has no route. Recommendation: wire the 🟡 set (method exists, just needs a route — cheap) plus a curated ❌ subset visible in the demo script. Defer the rest behind "coming soon" to avoid dead buttons.
+**Legend:** ✅ Verified complete · ⚠️ Partial · ❌ Not implemented · 🆕 New in Rev 3
 
 ---
 
-## 🔗 STEP 0.5 — Alignment with P0 & P1 batches (NEW)
+## Rev 3 status change vs. Rev 2
 
-Before starting Continuity Group Vue work, the following upstream work has landed. Every page in this group must consume these, not re-implement:
+Rev 2 of this plan doc was written before batch3 landed. Several sections in Rev 2 were **plans / proposals** — they are now **built and shipped**. Rev 3 marks the shift and refocuses on what's still pending: the 5 legacy static Provider Vue pages.
 
-### From P0 batch
-| Feature | Where | Consumers in Continuity Group |
-|---|---|---|
-| **Stripe Connect Express onboarding** | `Provider/SettingsController::connectOnboard/connectReturn`, `CS/SettingsController::connectOnboard/connectReturn`, `BP/SettingsController::connectOnboard/connectReturn` | Finances checks `stripeConnected` prop before showing peer-payment CTAs |
-| **`chargeProviderToCs` engine** | `PayoutService::chargeProviderToCs` (line 244) | Finances "Pay CS invoice" button |
-| **`chargeProviderToBp` engine** | `PayoutService::chargeProviderToBp` (line 142) | Finances "Pay BP invoice" button + SupportServices milestone pay |
-| **`releaseServiceSessionPayout` engine** | `PayoutService::releaseServiceSessionPayout` (line 432) | (Provider→Provider session flow — already wired) |
-| **CS invoice CRUD** | `CS/InvoicesController::index/store/send/void` + `cs.invoices.*` routes | ContinuityStewards page: show "invoices from your CS" widget linking to Finances |
-| **`stripe_payment_method_id` persistence** | `SubscriptionService::setDefaultPaymentMethod` + `OnboardingController::subscribe` + `Provider/SettingsController::storePaymentMethod` — all mirror the PM id to the peer-charge column | Finances always assumes card is set correctly |
-| **CS Payouts + Provider spend rows** | `PractitionerPayment` + `CsPayout` created on every CS invoice pay | ContinuityStewards shows "recent payouts to Marcus" |
-| **`cs_invoices.stripe_payment_intent_id/stripe_transfer_id`** | Migration `2026_07_09_000001_add_stripe_columns_to_cs_invoices` | Finances displays "paid via ····" line |
+### What was in "Plans / Proposals" that shipped ✅
+
+| Rev 2 section | Rev 3 status |
+|---|---|
+| §0.5 Alignment with P0/P1 — describing partial state | ✅ All P0/P1 items landed in main |
+| §0.6 Payment context per Continuity page | ✅ Payment surface built; still needs Vue integration |
+| §0.7 CS Engagement Contract Workflow | ✅ **BUILT** — batch3 |
+| §0.8 Dispute System | ✅ **BUILT** — batch3 |
+| §0.9 Tier Limits Envification | ✅ **BUILT** |
+| §0.10 W-9 Decision — soft-warn | ✅ **APPLIED** |
+| §0.11 Native "Add Card" | ✅ Provider done; CS + BP need `storePaymentMethod` handler (30 min) |
+
+### What remains ⚠️ / ❌
+
+| Item | Status |
+|---|---|
+| Continuity Plan Vue rebuild | ❌ Legacy 644L static |
+| Continuity Stewards Vue rebuild | ❌ Legacy 1177L static |
+| Support Stewards Vue rebuild | ❌ Legacy 786L static |
+| Important Documents Vue rebuild | ❌ Legacy 945L static |
+| Vault Vue rebuild | ❌ Legacy 120L broken stub |
+| Finances Vue | ✅ Rebuilt in P0 |
+| "Open dispute" button placement in 3 Finances tables | ⚠️ 1.5 hr |
+| CS + BP `storePaymentMethod` handler methods | ⚠️ 30 min |
+| 7 email blade templates (CS engagement + disputes) | ⚠️ 2 hr |
+| Founding member perks | ❌ Blocked on Dr. Chapman |
+
+---
+
+## ⚠️ Standing findings (Rev 3 refresh)
+
+**1. Settings.vue** — Rev 2 flagged as stub. **Rev 3: fully complete all 4 portals** (~2000L with 21 panels, subscription mgmt for Provider/CS/BP, real Connect Express onboarding, MFA, sessions, danger zone).
+
+**2. Continuity pages design-only or broken:**
+- `Finances.vue` — ✅ rebuilt (P0)
+- ContinuityPlan / ContinuityStewards / SupportStewards / ImportantDocuments / Vault — ❌ still legacy static
+
+**3. ~30 write actions have no route yet** — Rev 3: many landed. See §STEP 4 matrix.
+
+---
+
+## 🔗 STEP 0.5 — Alignment with landed batches
+
+The following upstream work has landed and MUST be honored by the Vue rebuild — every page must consume these, not re-implement.
+
+### From P0 batch (subscription + peer-payment plumbing)
+| Feature | Consumer |
+|---|---|
+| Stripe Connect Express onboarding (all 3 paid portals) | Finances checks `stripeConnected` before showing peer-payment CTAs |
+| `chargeProviderToCs` engine | Finances "Pay CS invoice" |
+| `chargeProviderToBp` engine | Finances "Pay BP invoice" |
+| `releaseServiceSessionPayout` | (Client→Provider session flow) |
+| CS invoice CRUD (`cs.invoices.*`) | Continuity Stewards page links |
+| `stripe_payment_method_id` mirroring | Finances assumes card set correctly |
+| `cs_invoices.stripe_payment_intent_id/transfer_id` (migration `2026_07_09_000001`) | Finances "paid via ····" line |
 
 ### From P1 batch
-| Feature | Where | Consumers in Continuity Group |
-|---|---|---|
-| **`account.updated` webhook** | `StripeEventListener` match block | `stripeConnected` flips automatically; no polling |
-| **CS `escalate()` route + method** | `cs.continuity.escalate` | Not directly touched by Provider pages, but referenced in the Provider incident-simulator UI |
-| **CS Providers accept/decline routes** | `cs.providers.accept/decline` | Provider ContinuityStewards page must know that pending → active can happen at any time (poll or Inertia reload on visibility) |
-| **BP contract/milestone/invoice field-shape fix** | `ContractService::getForBp`, `InvoiceService::getForBp`, `MilestonesController::index` | Finances "Recent BP contracts" section uses the same shape (payment_type, client_name, amount_cents) |
+| Feature | Consumer |
+|---|---|
+| `account.updated` webhook | `stripeConnected` flips automatically |
+| CS `escalate()` | Provider incident-simulator UI |
+| CS accept/decline routes | Provider ContinuityStewards reload logic |
+| BP field-shape fix (`payment_type`, `client_name`, `amount_cents`, real milestone statuses) | Finances "Recent BP contracts" |
 
-### 🔴 Non-negotiable naming (do not drift back)
-- Money: always **`total_cents` / `amount_cents`** — never `amount_dollars` or bare `amount` on the wire.
-- Provider is called **`practitioner_id`** on `cs_invoices`, `bp_invoices`, `bp_contracts`. Not `provider_id`.
-- Continuity Steward: **`cs_id`**. Business Partner: **`bp_id`**.
-- Payment types on `bp_contracts`: **`one_time | milestone`**. Not `fixed | hourly`.
-- Milestone statuses: **`pending | submitted | approved | rejected | paid`**. Not `open | completed`.
-- Invoice statuses: **`draft | sent | overdue | paid | void`**. Not `pending | open | cancelled`.
+### From batch3
+| Feature | Consumer |
+|---|---|
+| CS Engagement Contract fields (`plan_stewards.fee_cents/payment_terms/auto_charge/engagement_document_id`) | Continuity Stewards page display + amend UI |
+| `IncidentService::completeTask/maybeReadyForClosure/verifyClosure/closeWithInvoice/autoClose` | Continuity Plan / Continuity Management |
+| Events: `IncidentReadyForClosure`, `IncidentClosureVerified`, `IncidentAutoClosed`, `CsInvoiceAutoGenerated` | Notification lines in Continuity Plan status card |
+| `IncidentAutoCloseCheckJob` (hourly) | Background |
+| Dispute system (data + service + Vue) | Finances "Open dispute" button |
+| Native Add Card (`AddCardModal.vue` + SetupIntent) | Settings billing panel |
+| Tier limits envified (4 env vars) | Continuity Stewards + Support Stewards |
 
-Any Vue page in this group that uses the wrong name is a bug — the P0/P1 field-mismatch cleanup is now the authoritative naming.
+### 🔴 Non-negotiable naming rules
+- Money: `total_cents` / `amount_cents` (never dollars on the wire)
+- Provider FK: `practitioner_id` (on `cs_invoices` / `bp_invoices` / `bp_contracts`)
+- CS FK: `cs_id` · BP FK: `bp_id`
+- BP `payment_type`: `one_time | milestone`
+- Milestone status: `pending | submitted | approved | rejected | paid`
+- Invoice status: `draft | sent | overdue | paid | void | disputed`
+
+Any Vue page using wrong names = bug.
 
 ---
 
-## 💸 STEP 0.6 — Payment context per Continuity page (NEW)
+## 💸 STEP 0.6 — Payment context per Continuity page
 
-Each page's touch surface into the peer-payment layer (Stripe Connect destination charges — Aegis never holds funds).
-
-### Finances — the money hub
-**Reads:**
-- Provider's own subscription state (SubscriptionService)
-- Cards on file (`paymentMethods` — Cashier)
-- Provider's `stripe_id` (customer), `stripe_payment_method_id` (default PM), `stripe_account_id` + `stripe_connected` (for services-mode earnings)
-- All CS invoices billed to provider (`CsInvoice` where `practitioner_id = user->id`)
-- All BP invoices billed to provider (`BpInvoice` where `practitioner_id = user->id`)
-- Recent payment history (`PractitionerPayment`) — spend + service-session earnings
-- All BP contracts (their totals, milestones, milestone-paid state) for spend summary
+### Finances ✅ REBUILT (P0)
+**Consumes:** `subscription`, `paymentMethods`, `csInvoices`, `bpInvoices`, `paymentHistory`, `earnings`, `totalSpendCents`, `outstandingCents`, `stripeConnected`, `has_valid_default_pm`.
 
 **Writes:**
-- Pay CS invoice → `provider.finances.cs-invoice.pay` → `PayoutService::chargeProviderToCs`
-- Pay BP invoice → `provider.jobs.bp-invoice.pay` → `PayoutService::chargeProviderToBp`
-- (Cards, subscription, autopay all live under Settings billing panel — Finances just displays)
+- Pay CS invoice → `provider.finances.cs-invoice.pay` → `chargeProviderToCs`
+- Pay BP invoice → `provider.jobs.bp-invoice.pay` → `chargeProviderToBp`
 
-**Zero-hold rule visible in copy:** every peer-payment CTA must display "Funds transfer directly to <recipient> via Stripe Connect. Aegis does not hold or take a cut." This is a legal + trust requirement per attorney direction — escrow language is banned.
+**🆕 Rev 3 pending additions:**
+1. "Open dispute" button next to paid/sent invoices within 60 days (component exists, just needs button placement + `subject={type,id,amount_cents,label}` prop)
+2. Disputed invoice row highlighting (gold `Disputed` badge, pay button disabled)
+3. "Add card" opens `AddCardModal` instead of Stripe Portal link (Provider-native flow ready)
 
----
+**Zero-hold rule visible in copy:** every CTA displays "Funds transfer directly to <recipient> via Stripe Connect. Aegis does not hold or take a cut."
 
-### Continuity Plan — money is indirect
-**Reads:** tier caps (drive CS/SS count limits). Does not touch peer payments directly, but:
-- The **agreed CS fee** for the plan lives on `plan_stewards.fee_cents` (proposed — see §CS Engagement Contract below). Displayed on the plan when reviewing "who executes and at what cost."
-- The Professional Will UI includes payment-authorization language: "In the event of my incapacitation/death, my Continuity Steward is authorized to draw against the payment method on file up to the pre-agreed fee for services rendered."
+### Continuity Plan ⚠️ REBUILD PENDING
+- 🆕 Agreed CS fee on `plan_stewards.fee_cents` displayed when reviewing "who executes and at what cost"
+- 🆕 Professional Will UI includes payment-authorization language: "In the event of my incapacitation/death, my Continuity Steward is authorized to draw against the payment method on file up to the pre-agreed fee for services rendered"
+- **Writes:** Sign action must confirm the payment authorization alongside incident/task confirmations (critical for death/incapacitation scenarios)
 
-**Writes:** Sign action must confirm the payment authorization above alongside incident/task confirmations. This is critical because in a death/incapacitation scenario the CS may need to charge without the Provider present — the signed Plan is the legal artifact enabling that.
-
----
-
-### Continuity Stewards — where the CS engagement contract lives
-**Reads:**
-- Active + pending CS designations (`plan_stewards` where `steward_type = continuity_steward`)
-- For each active CS: their `stripe_connected` flag (via User model) → show "Ready to receive payment" or "CS hasn't finished Stripe Connect setup yet"
-- Recent invoices from CS (`CsInvoice` where `cs_id = this cs and practitioner_id = current user`)
-- Recent payouts to CS (`CsPayout` for the same pair)
+### Continuity Stewards ⚠️ REBUILD PENDING
+**Reads:** active + pending CS designations, each CS's `stripe_connected` flag, recent invoices from CS, recent payouts to CS.
 
 **Writes:**
-- Designate CS — includes `agreed_fee_cents` and `payment_terms` fields when inviting a Business CS. Invited CS defaults to 0 (unpaid family/colleague).
-- Update fee — `plan_stewards.fee_cents` may be amended (both parties sign amendment doc)
-- Cancel designation — check for outstanding invoices; block cancellation if any invoice is `sent` or `overdue`.
+- 🆕 Designate CS — include `agreed_fee_cents` + `payment_terms` fields (Business CS); Invited CS defaults to 0
+- 🆕 Update fee — requires amendment doc signed by both parties
+- Cancel designation — block if outstanding sent/overdue/disputed invoices exist
 
-**Gating rule:** if `plan_stewards.fee_cents > 0` and the CS's `stripe_connected != 1`, warn the Provider ("Marcus hasn't finished Stripe setup. Payment will queue until he completes onboarding.") Do not block designation — the CS may still act in an incident with unpaid volunteer intent.
+**Gating:** if `fee_cents > 0` and CS's `stripe_connected != 1`, warn ("Marcus hasn't finished Stripe setup. Payment will queue until he completes onboarding.") — don't block.
 
----
+**🆕 Fee-per-activation display card:**
+- "Agreed fee per activation: $250.00" next to CS name
+- "Payment terms: On close" chip
+- "Auto-charge on close: Yes/No" toggle
+- Link to signed engagement document (if `engagement_document_id` present)
 
-### Support Stewards — no direct payment surface
-SS are unpaid (family, office manager). No Stripe Connect onboarding, no invoicing. But:
-- SS is a trigger for **auto-close verification** (see §CS Engagement Contract Workflow). If Provider is unavailable when tasks complete, SS receives the "verify closure" ping.
-- SS activity is required to authorize the delayed charge (only if Provider is dead/incapacitated). In normal flow, Provider verifies closure themselves.
+### Support Stewards ⚠️ REBUILD PENDING
+SS unpaid — no Connect Express, no invoicing. But:
+- 🆕 SS is trigger for auto-close verification (72h Provider-unavailable fallback)
+- 🆕 SS activity authorizes the delayed charge only if Provider is dead/incapacitated
 
-**Writes:** verification action on incident close (see below).
+**Writes:** verification action `POST /support-steward/incidents/{incident}/verify-closure` (route exists in batch3).
 
----
+### Important Documents ⚠️ REBUILD PENDING
+Professional Will + CS engagement agreement live here as first-class documents. Any change to `plan_stewards.fee_cents` requires an amendment document signed by both parties before the number is persisted — enforced at service layer.
 
-### Important Documents — the contractual layer
-The Professional Will and CS engagement agreement live here as first-class documents.
-**Reads:** documents by plan + counterparty.
-**Writes:** sign/countersign chain. The signed CS engagement agreement is the artifact that establishes `plan_stewards.fee_cents` legally — if there's ever a dispute (see §Disputes), this document is Exhibit A.
-
-**Rule:** any change to `plan_stewards.fee_cents` requires an amendment document signed by both parties before the number is persisted. Direct edit of the numeric field without an amendment doc is disallowed at the service layer.
-
----
-
-### Vault — indirect payment surface
-Vault stores financial documents (banking info, tax records, insurance policies) that the CS needs post-incident. Not a payment page itself, but:
-- The CS engagement contract PDF is stored in `credentials` zone with `permitted_steward_ids` = [designated CS(s)]
-- Provider's payment authorization document is stored in `emergency` zone
-
-No writes affect Stripe. Vault access after incident is what unlocks the CS's ability to submit their post-incident invoice.
+### Vault ❌ REBUILD PENDING
+Zones: `standard / emergency / credentials / roster`. CS engagement contract PDF in `credentials` with `permitted_steward_ids = [designated CS(s)]`. Payment authorization document in `emergency`.
 
 ---
 
-## 🤝 STEP 0.7 — CS Engagement Contract Workflow (NEW)
+## 🤝 STEP 0.7 — CS Engagement Contract Workflow ✅ BUILT
 
-**Answers your Point 3:** yes we should model this as a real contract. Existing `plan_stewards` gives us the assignment; we need to add the fee + payment terms + auto-close/auto-invoice mechanics.
-
-### Data model changes (migration required)
-
-Add columns to `plan_stewards`:
-```sql
-ALTER TABLE plan_stewards
-  ADD COLUMN fee_cents INT DEFAULT 0 AFTER responsibilities,
-  ADD COLUMN payment_terms ENUM('on_close','net_30','net_60') DEFAULT 'on_close' AFTER fee_cents,
-  ADD COLUMN auto_charge TINYINT(1) DEFAULT 0 AFTER payment_terms,
-  ADD COLUMN engagement_document_id CHAR(36) NULL AFTER auto_charge;
+### Data model (in production)
+`plan_stewards` migration `2026_07_10_000001`:
+```
+fee_cents INT DEFAULT 0
+payment_terms ENUM('on_close','net_30','net_60') DEFAULT 'on_close'
+auto_charge TINYINT(1) DEFAULT 0
+engagement_document_id CHAR(36) NULL
 ```
 
-Rationale:
-- `fee_cents` = agreed compensation per activation (not per hour, not per month — a per-incident retainer). If the Provider's plan is never activated, the CS is never paid.
-- `payment_terms` = when to invoice/charge. Default `on_close` (immediate on incident close) fits the vast majority of use cases; `net_30/net_60` are for institutional relationships.
-- `auto_charge` = if `1` AND Provider has verified the closure OR is deceased AND has a card on file, fire the destination charge automatically without waiting for Provider action. Default `0` (requires manual Provider approval).
-- `engagement_document_id` = FK to the countersigned engagement agreement in `continuity_documents`. Required if `fee_cents > 0`.
-
-### Task completion + verification flow
-
-Existing model already has:
-- `incident_tasks` (one row per task assigned to the CS on incident activation)
-- `IncidentService::activate()` generates them from `plan_tasks` on `activate`
-- `IncidentService::close(summary)` marks incident closed (Provider or CS can call today)
-
-New flow proposal:
-
+### Task completion + verification flow (in production)
 ```
 [ INCIDENT ACTIVE ]
-   │
-   │  CS works through incident_tasks, marks each complete
-   │  (existing: incident_tasks.completed_at)
-   │
-   │  When all tasks in the incident are completed:
-   ▼
+   IncidentService::completeTask(task, cs) — CS marks each task complete
+   When all CS tasks complete:
 [ TASKS COMPLETE — VERIFICATION PENDING ]
-   │
-   │  System notifies Provider + Support Steward:
-   │    "All continuity tasks are complete. Please verify closure."
-   │  Both channels: notification + email.
-   │
-   │  Provider or SS clicks "Verify closure" → incident.verified_by_id set
-   │  IF Provider is dead/incapacitated:
-   │    Provider will not verify; SS's verification is sufficient
-   │    (per Professional Will payment authorization)
-   │
-   │  If NOBODY verifies within 7 days:
-   │    Auto-verify + auto-close (with prominent activity log note)
-   ▼
+   IncidentReadyForClosure event → email Provider + SS
+   ([READY_FOR_CLOSURE] marker added to incident.summary for idempotency)
+   Provider or SS clicks "Verify closure" → incident.verified_by_id set
+   IF Provider is dead/incapacitated: SS verification sufficient
+   IF nobody verifies within CS_INCIDENT_AUTOCLOSE_DAYS (default 7):
+     IncidentAutoCloseCheckJob → autoClose() → system verifies + closes
 [ INCIDENT CLOSED ]
-   │
-   │  IF plan_steward.fee_cents > 0:
-   │    Auto-create CsInvoice for the pre-agreed fee
-   │    Attach the incident_id + engagement_document_id for audit
-   │
-   │  IF plan_steward.auto_charge = 1 AND payment_terms = 'on_close'
-   │  AND provider has a default PM AND CS has stripe_connected = 1:
-   │    Immediately fire PayoutService::chargeProviderToCs
-   │    Invoice status: draft → paid in one step
-   │  ELSE:
-   │    Invoice status: draft → sent (Provider pays manually via Finances)
-   ▼
+   IncidentService::closeWithInvoice(incident, cs, summary):
+     close() re-seals vault + fans out
+     IF plan_steward.fee_cents > 0:
+       Auto-create CsInvoice (status: sent)
+       CsInvoiceAutoGenerated event → email Provider
+       IF auto_charge=1 AND payment_terms='on_close' AND both parties Stripe-ready:
+         Immediately fire chargeProviderToCs()
+         Success: invoice → paid; write PractitionerPayment + CsPayout
+         Failure: invoice remains sent (Provider pays manually)
 [ PAID / OUTSTANDING ]
 ```
 
-### Who can mark tasks complete
-- **CS only.** They executed them.
+### Who can do what
+| Action | CS | Provider | SS | System |
+|---|---|---|---|---|
+| Mark task complete | ✅ | ❌ | ❌ | ❌ |
+| Verify closure | ❌ | ✅ | ✅ (after 72h) | ✅ (after 7d) |
+| Close incident with invoice | ✅ | ✅ (bypass invoice) | ❌ | ✅ (auto-close) |
 
-### Who can verify closure (in this order of preference)
-1. **Provider** — normal flow, they're alive and available.
-2. **Support Steward** — if Provider is unavailable within 72 hours of task-complete notification.
-3. **System auto-verify** — if neither responds in 7 days.
+**Why SS cannot close:** verifying is family/staff-level authority; closing releases money → too much power without professional context.
 
-### Who can *initiate* close
-- **CS** — normal flow, after all tasks complete and verification received.
-- **Provider** — can close any time (bypasses fee if `payment_terms = 'on_close'`, but respects `fee_cents` — the money is still owed for work done).
-- **Admin** — dispute resolution scenario.
-
-### Who **cannot** close
-- **SS** — they can only *verify*, not *close*. Closing releases money; too much power for a family member without professional context.
-
-### New routes needed
-- `POST /continuity-steward/incidents/{incident}/verify-closure` — Provider OR SS calls this (Provider portal + SS portal both have the route)
-- `POST /provider/incidents/{incident}/verify-closure` — same handler, provider path
-- `POST /support-steward/incidents/{incident}/verify-closure` — same handler, SS path
-- `POST /continuity-steward/incidents/{incident}/close-with-invoice` — CS-initiated close that atomically closes + generates invoice + optionally auto-charges
-
-### New event
-- `IncidentReadyForClosure` — fired when last task completed; triggers verification-request email to Provider + SS
-- `IncidentAutoClosed` — fired when 7-day timer expires; triggers "auto-closed" email to all parties
-- `CsInvoiceAutoGenerated` — fired on close-with-invoice; sends invoice email to Provider
-
-### Backwards compatibility
-- Existing incidents (verified_by_id = null) still supported — the flow is opt-in per `plan_steward.fee_cents > 0`. Zero-fee designations behave exactly as today.
+### What's still needed
+- Vue UI in Continuity Plan sign-ceremony to capture `fee_cents` + `payment_terms` + `auto_charge`
+- Vue UI in Continuity Stewards page to display + amend fee
+- 4 email blade templates: `emails.incident.30-ready-for-closure`, `.31-closure-verified`, `.32-auto-closed`, `emails.cs.60-auto-invoice-generated`
 
 ---
 
-## ⚖️ STEP 0.8 — Dispute System (NEW — answers your Point 7)
-
-**Verdict:** yes, we need this. It's the standard peer-marketplace escape valve. Without it, Aegis becomes an unbounded liability when parties disagree.
+## ⚖️ STEP 0.8 — Dispute System ✅ BUILT
 
 ### Scope
-Disputes are opened by either party over:
-1. **A specific invoice** (CS invoice, BP invoice) — recipient claims work not delivered, or payer claims payment unfair
-2. **A specific payout** (BP milestone payment, service session) — either side claims fraud/error
-3. **A CS engagement** (rare — usually the payment above covers it)
+Disputes over: (1) a specific invoice — CS or BP, (2) a specific payout — BP, (3) a session — Client→Provider, (4) a CS engagement (rare). Aegis mediates + provides audit trail; money moves via Stripe rails.
 
-Aegis does NOT arbitrate outcome — we mediate + provide the audit trail. Actual money movement uses Stripe's dispute rails (refunds, ACH reversal). Aegis is the coordination + evidence layer.
+### Data model (in production)
+- `disputes` — polymorphic subject, disputer/respondent, reason, amount, status, resolution
+- `dispute_messages` — thread (author role: disputer/respondent/admin)
+- `InvoiceStatus::Disputed` — new enum + migration to extend `cs_invoices.status` + `bp_invoices.status` ENUMs
 
-### Data model (new tables)
-
-```sql
-CREATE TABLE disputes (
-    id CHAR(36) PRIMARY KEY,
-    disputer_id CHAR(36) NOT NULL,          -- who opened it
-    respondent_id CHAR(36) NOT NULL,        -- other party
-    subject_type VARCHAR(32) NOT NULL,      -- 'cs_invoice' | 'bp_invoice' | 'bp_payout' | 'session' | 'engagement'
-    subject_id CHAR(36) NOT NULL,           -- morph to the record
-    reason ENUM(
-      'non_delivery',
-      'quality_issue',
-      'unauthorized_charge',
-      'duplicate_charge',
-      'wrong_amount',
-      'other'
-    ) NOT NULL,
-    amount_disputed_cents INT NOT NULL DEFAULT 0,
-    description TEXT NOT NULL,              -- disputer's opening statement
-    status ENUM('open','under_review','awaiting_response','resolved','closed_no_action') DEFAULT 'open',
-    resolution ENUM('refund_full','refund_partial','pay_full','pay_partial','no_action','stripe_dispute_escalated') NULL,
-    resolution_cents INT NULL,              -- if refund_partial or pay_partial
-    resolution_summary TEXT NULL,
-    resolved_by CHAR(36) NULL,              -- admin user
-    opened_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    respondent_replied_at TIMESTAMP NULL,
-    resolved_at TIMESTAMP NULL,
-    closed_at TIMESTAMP NULL,
-    INDEX idx_disputer (disputer_id),
-    INDEX idx_respondent (respondent_id),
-    INDEX idx_subject (subject_type, subject_id),
-    INDEX idx_status (status)
-);
-
-CREATE TABLE dispute_messages (
-    id CHAR(36) PRIMARY KEY,
-    dispute_id CHAR(36) NOT NULL,
-    author_id CHAR(36) NOT NULL,
-    author_role ENUM('disputer','respondent','admin') NOT NULL,
-    body TEXT NOT NULL,
-    attachment_url VARCHAR(500) NULL,       -- to a vault item or upload
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_dispute (dispute_id, created_at)
-);
+### Workflow (in production)
+```
+[ open ] → disputer files → email respondent + admin → status: awaiting_response
+             Invoice auto-freezes to InvoiceStatus::Disputed (blocks pay)
+[ awaiting_response ] — respondent has DISPUTE_RESPONDENT_REPLY_DAYS (default 5) to reply
+             Reply → status: under_review
+             No reply → status: under_review anyway
+[ under_review ] — admin decides:
+             refund_full → Stripe refund fires; invoice stays disputed
+             refund_partial → partial Stripe refund fires
+             pay_full → dismiss; invoice unfreezes to sent
+             pay_partial → partial payment stands; invoice unfreezes
+             no_action → dismiss; invoice unfreezes
+             stripe_dispute_escalated → beyond our scope; Stripe chargeback route
+[ resolved ] — both parties emailed
+[ closed_no_action ] — auto-closed DISPUTE_CLOSE_AFTER_RESOLUTION_DAYS after (reserved)
 ```
 
-### Workflow
-```
-[ OPEN ]  disputer files → email to respondent + admin
-   │  respondent has 5 business days to reply
-   ▼
-[ AWAITING_RESPONSE ]
-   │  respondent posts reply → status: under_review
-   │  respondent doesn't reply in 5 days → status: under_review anyway (default judgment risk noted)
-   ▼
-[ UNDER_REVIEW ]  admin reviews thread, escalates if needed
-   │
-   ├─ Admin decides: refund_full → Stripe refund via chargeRefunded path
-   ├─ Admin decides: refund_partial → Stripe partial refund
-   ├─ Admin decides: pay_full → dismiss dispute, no money moves
-   ├─ Admin decides: no_action → dispute frivolous, both parties notified
-   └─ Admin decides: stripe_dispute_escalated → beyond our scope, party can file Stripe chargeback
-   ▼
-[ RESOLVED ]
-   │
-   ▼
-[ CLOSED ]  (7 days after resolution, no further messages)
-```
+### Portal touchpoints (all built)
+- **Provider** — `provider/Disputes.vue`, `provider/DisputeDetail.vue`, routes `provider.disputes.index/store/show/reply`
+- **CS** — same shape under `cs.disputes.*`
+- **BP** — same shape under `bp.disputes.*`
+- **Admin** — queue + resolution: `admin/Disputes.vue`, `admin/DisputeDetail.vue`, routes `admin.disputes.index/show/reply/resolve`
+- **Reusable modal** — `OpenDisputeModal.vue`
 
-### Payment freeze rule
-When a dispute opens against a `cs_invoice` or `bp_invoice` still in `sent`/`overdue`:
-- Invoice status auto-changes to `disputed` (new status — needs to be added to `InvoiceStatus` enum: `draft | sent | overdue | disputed | paid | void`)
-- Payer cannot pay through Finances until dispute is resolved
-
-When a dispute opens against a `bp_payout` or `cs_payout` that already fired:
-- No automatic reversal (money already moved via Stripe Connect)
-- Admin can trigger Stripe `refunds->create` from admin dispute screen
-- Payer notified: "You may also file a Stripe chargeback directly if unresolved"
-
-### Portal touchpoints
-- **Provider** — Finances: "Open dispute" button next to any paid invoice/payout within 60 days; "My disputes" tab
-- **CS** — Finances: same button on invoices they issued; "My disputes" tab
-- **BP** — Finances: same
-- **Admin** — new `admin.disputes.*` routes; queue view, individual dispute detail with resolution actions
-- **All parties** — email on open, on reply, on resolution
-
-### What Aegis does NOT do
-- Not a court. If admin resolution is unacceptable, party can pursue Stripe chargeback + civil suit.
-- Not an escrow. We never hold funds; refunds go through Stripe's normal rails.
-- Not lawyers. Resolution decisions are non-binding on external legal action.
-
-**Implementation effort estimate:** ~2 days (migrations + models + service + Admin dashboard + inline "Open dispute" modals across Provider/CS/BP Finances).
+### What's still needed
+1. "Open dispute" button placement in Provider Finances (CS + BP invoice tables), CS Invoices, BP Invoices — 60-day cutoff on paid invoices. ~1.5 hr.
+2. 3 email blade templates: `emails.disputes.70-opened`, `.71-replied`, `.72-resolved`
 
 ---
 
-## 📊 STEP 0.9 — Tier Limits Customization (NEW — answers your Point 6)
+## 📊 STEP 0.9 — Tier Limits Envification ✅ SHIPPED
 
-Current state: `config/aegis.php` hardcodes tier limits.
-
-Change: swap each numeric limit to `env('TIER_LIMIT_…', default)` so ops/admin can tune without a deploy. Deploy this now (small change); shift to database-backed admin panel later.
-
-Config diff (in `config/aegis.php`):
+`config/aegis.php` now reads:
 ```php
 'tier_limits' => [
     'access' => [
         'max_continuity_stewards' => (int) env('TIER_ACCESS_MAX_CS', 1),
         'max_support_stewards'    => (int) env('TIER_ACCESS_MAX_SS', 1),
-        // (bools unchanged; can be envified later if needed)
     ],
     'practice' => [
         'max_continuity_stewards' => (int) env('TIER_PRACTICE_MAX_CS', 2),
@@ -359,213 +261,243 @@ Config diff (in `config/aegis.php`):
 ],
 ```
 
-Default keeps behaviour identical. `.env` values override at runtime.
-
-**Access `max_support_stewards` decision:** default `1` (matches config today). If Dr. Chapman confirms she meant `2`, flip via env: `TIER_ACCESS_MAX_SS=2`. Do NOT hardcode until she signs off.
-
-Follow-up in later phase: move all of `tier_limits` into a `tier_configs` DB table with an admin UI. But env is enough for now.
+Defaults preserve prior behaviour. **⏳ Blocked on Dr. Chapman:** whether `TIER_ACCESS_MAX_SS` should be 1 (default) or 2 (verbally suggested). See `AEGIS_CHAPMAN_PENDING_ITEMS.md`.
 
 ---
 
-## 🧾 STEP 0.10 — W-9 Gating Decision (NEW — answers your Point 2)
+## 🧾 STEP 0.10 — W-9 Gating ✅ APPLIED
 
-**Question:** do BP/CS need a verified W-9 on file before receiving payment?
+**Decision:** soft-warn, do NOT hard-block. Stripe Connect destination charges → Stripe is Payment Settlement Entity → Stripe issues 1099-K. Hard-block breaks Invited-CS-as-family use case.
 
-**Analysis:**
-- Aegis uses **Stripe Connect Express destination charges** — money moves directly from payer's Stripe customer to recipient's Stripe Connect account. Aegis never holds funds.
-- Under IRS rules, when Aegis facilitates a payment via a Payment Settlement Entity (Stripe), **Stripe** — not Aegis — issues the 1099-K to the recipient if thresholds are met.
-- Upwork requires W-9 because they route payments through their own accounts (they ARE a payment settlement entity for that flow). Aegis does not.
-- Aegis's only tax exposure: if we ever paid a BP/CS directly from an Aegis account (not the case today).
+**Applied:** `Provider/FinancesController::payCSInvoice` mirrors `JobPostingsController::payBPInvoice` — logs `ActivityService` warning if W-9 not verified; payment goes through.
 
-**Recommendation: SOFT WARN, DO NOT HARD-BLOCK.**
-
-Rationale:
-1. Not legally required for the destination-charge flow (Stripe handles reporting).
-2. Hard-block would break the family/colleague Invited-CS use case — a sister acting as an unpaid CS shouldn't need a W-9.
-3. Best-practice audit trail — keep the current soft warning that fires an `ActivityService` warning log on payment-without-W-9. Admin can see the aggregate.
-4. When a BP/CS crosses Stripe's 1099-K threshold (currently $600 for the tax year), Stripe collects the W-9 equivalent directly for their own reporting — Aegis isn't in that loop.
-
-**Action:** keep the existing soft warn in `JobPostingsController::payBPInvoice` (already there). Add the same soft warn to `FinancesController::payCSInvoice` for symmetry. **Do not add a `TaxDocStatus::Required` gate.**
-
-If Dr. Chapman later wants Aegis to also file its own 1099-NEC for BPs (independent contractor reporting for the platform's own tax records), we revisit. That's a business decision, not a payment blocker.
+⏳ **Reversible if Dr. Chapman later wants hard-block.**
 
 ---
 
-## 💳 STEP 0.11 — Native "Add Card" Flow (NEW — answers your Point 5)
+## 💳 STEP 0.11 — Native "Add Card" Flow
 
-**Clarification of the earlier concern:**
+**Rev 3 status:** batch3 delivered `AddCardModal.vue` + `PaymentMethodSetupController::createSetupIntent` for all 3 paid portals.
 
-Cards live in two conceptual buckets:
-1. **Subscription card** — pays Aegis for the user's own subscription. Handled by Cashier via `updateDefaultPaymentMethod`. Stored on the Stripe customer (`users.stripe_id`).
-2. **Peer-payment card** — Provider uses it to pay BPs/CSs. Same Stripe customer, same PM id — but we also mirror it to `users.stripe_payment_method_id` so the peer-charge methods (`chargeProviderToBp/Cs`, `releaseServiceSessionPayout`) can find it without a Stripe roundtrip.
+- Provider ✅ — setup-intent → Elements → confirmCardSetup → POST to `provider.settings.payment.store` → Cashier + mirror to `stripe_payment_method_id`
+- CS ⚠️ — setup-intent works; missing `storePaymentMethod` on `CS/SettingsController`
+- BP ⚠️ — same as CS
 
-The mirroring is done at three points (all now correct after P0):
-- `OnboardingController::subscribe()` on signup
-- `SubscriptionService::setDefaultPaymentMethod()` when user picks a saved card as default
-- `Provider/SettingsController::storePaymentMethod()` when user adds a new card
+**Fix (30 min):** Add `storePaymentMethod()` to CS + BP `SettingsController` mirroring the Provider one; add routes; wire `AddCardModal` `storeRoute` prop in CS + BP Settings billing panels.
 
-**Current UX gap (the "Add card" issue):**
-In `Provider/Settings.vue` billing panel, the "Add card" button links to the **Stripe Customer Portal** (external). User leaves the app to add a card. Works, but breaks flow.
-
-**"Native" would mean:** in-app modal with Stripe Elements (cardNumber/cardExpiry/cardCvc inputs, same as `OnboardingPayment.vue`) that captures the card and POSTs to `provider.settings.payment.store` — user never leaves the app.
-
-**Scope:**
-- Providers, Business CS, Business Partners all subscribe and need this. Same modal, three portals.
-- Provider is the only one that also uses their card for peer payments — but that's already handled by the same PM save.
-- Not urgent. The Stripe Portal path works today. This is a Q4 polish item.
-
-**Decision:** defer to post-launch. Track as UX debt.
+**Fallback:** Stripe Portal for CS + BP.
 
 ---
 
-## STEP 0 — Settings (unchanged — see original)
+## STEP 1 — Continuity Group page purposes (unchanged)
 
-Already delivered separately.
-
----
-
-## STEP 1 — Continuity Group page purposes (unchanged — see original doc for full detail)
-
-Six pages: Finances (DONE per P0), Continuity Plan, Continuity Stewards, Support Stewards, Important Documents, Vault.
+Six pages: Finances (✅), Continuity Plan, Continuity Stewards, Support Stewards, Important Documents, Vault.
 
 ---
 
-## STEP 2 — Continuity Lifecycle Map (updated to include payment triggers)
+## STEP 2 — Continuity Lifecycle Map (Rev 3 with payment triggers)
 
 ```
-[ FINANCES ] — subscription active (Access $29/mo · Practice $49/mo)
-     │  sets tier caps (Access: 1 CS + 1 SS · Practice: 2 CS + 4 SS)
-     │  card on file (used for both subscription AND peer payments)
+[ FINANCES ] — Access $29/mo · Practice $49/mo
+     │  tier caps · card on file (subscription AND peer payments — same PM)
      ▼
-[ CONTINUITY PLAN ]  status: draft ──────────────┐
-     │  configure incident types (3 default + 4 opt-in)
-     │  define per-incident task lists            │
+[ CONTINUITY PLAN ] status: draft ──────────────┐
+     │  configure incident types                 │
      │  Provider consents to payment authorization│
-     ▼                                            │ (must exist to sign)
-[ CONTINUITY STEWARDS ] designate CS → pending → active
-     │  agree on fee_cents + payment_terms + auto_charge
-     │  Business CS: verify stripe_connected = 1
-     │  Invited CS: fee_cents = 0 (volunteer)
-     │  authorization matrix (which CS per incident)
+     ▼                                            │
+[ CONTINUITY STEWARDS ] designate → pending → active
+     │  🆕 fee_cents + payment_terms + auto_charge
+     │  Business CS: verify stripe_connected=1
+     │  Invited CS: fee_cents=0 (volunteer)
      └──────────────► back to PLAN: SIGN ◄────────┘
                         status: draft → ACTIVE
-                        (needs ≥1 enabled config + ≥1 ACTIVE CS)
      ▼
-[ SUPPORT STEWARDS ] designate SS → pending → active   (SS = incident trigger + payment verifier)
+[ SUPPORT STEWARDS ] designate → pending → active (SS = trigger + payment verifier)
      ▼
 [ IMPORTANT DOCUMENTS ] request → sign → countersign → fully_executed
-     │                  (CS engagement agreement lives here — legally binds fee_cents)
+     │  (CS engagement agreement — legally binds fee_cents)
      ▼
-[ VAULT ] owner uploads freely; attest; SEALED to stewards
+[ VAULT ] uploads → attest → SEALED to stewards
      │
      ▼
-══════ CRITICAL INCIDENT ══════
- SS reports → CS verifies → activate():
-   • generates incident_tasks from plan_tasks
-   • fires VaultUnsealed → assigned stewards gain scoped read
+════════ CRITICAL INCIDENT ════════
+ SS reports → CS verifies → activate()
  CS works through tasks, marks each complete →
-   when all tasks complete:
-     ─ IncidentReadyForClosure event → email Provider + SS
-     ─ Provider verifies closure → close()
-     ─ OR SS verifies closure (if Provider unavailable > 72h) → close()
-     ─ OR system auto-closes after 7 days
+   🆕 when all CS tasks complete:
+     • IncidentReadyForClosure → email Provider + SS
+     • Provider verifies → close()
+     • OR SS verifies (Provider unavailable > 72h) → close()
+     • OR system auto-closes after 7 days
  On close():
    • Re-seals vault
-   • IF plan_steward.fee_cents > 0:
-       auto-create CsInvoice
-       IF auto_charge = 1 AND provider PM present AND CS stripe_connected:
+   🆕 IF plan_steward.fee_cents > 0:
+       Auto-create CsInvoice (status: sent)
+       IF auto_charge=1 AND both parties Stripe-ready:
          chargeProviderToCs() fires immediately → paid
-       ELSE:
-         invoice sent → provider pays via Finances (manual)
+       ELSE: invoice sent → Provider pays via Finances
 ```
 
 ---
 
-## STEP 3 — Recommended Conversion Order (updated)
+## STEP 3 — Recommended Conversion Order (Rev 3)
 
-| Order | Page | Why | Complexity | Demo priority |
+| Order | Page | Rev 3 Status | Complexity | Demo priority |
 |---|---|---|---|---|
-| 0 | **Settings** | Done ✅ | — | — |
-| 1 | **Finances** | Done ✅ (P0 batch) | — | — |
-| 2 | **Continuity Plan** | Add `fee_cents` agreement UI in sign-ceremony. Core signing flow drives all downstream state. | High | Critical |
-| 3 | **Continuity Stewards** | Add fee/payment-terms fields on designate + invite. Show CS Stripe Connect readiness. | High | Critical |
-| 4 | **Support Stewards** | Mirrors CS with less. Add "verify closure" action to SS incident detail. | Medium | High |
-| 5 | **Important Documents** | Add CS engagement agreement template with `fee_cents` merge tag. | Medium | High |
-| 6 | **Vault** | Rebuild from broken stub. | Medium | Critical |
+| 0 | Settings | ✅ Done | — | — |
+| 1 | Finances | ✅ Done (P0) | — | — |
+| 2 | **Continuity Plan** | ❌ Legacy static | High | Critical — add `fee_cents` in sign-ceremony |
+| 3 | **Continuity Stewards** | ❌ Legacy static | High | Critical — fee/payment-terms/auto-charge + Stripe Connect readiness |
+| 4 | **Support Stewards** | ❌ Legacy static | Medium | High — "verify closure" action |
+| 5 | **Important Documents** | ❌ Legacy static | Medium | High — CS engagement agreement template |
+| 6 | **Vault** | ❌ Legacy static | Medium | Critical — rebuild against `zones/planStatus/attestedAt/totalCount` |
 
-New parallel workstream (can start any time):
-| Order | Feature | Complexity | Depends on |
-|---|---|---|---|
-| P2-A | Tier limits envification | Trivial | — |
-| P2-B | Dispute system (data model + service + admin dashboard + inline "Open dispute" modals) | Medium (~2 days) | Finances (done) |
-| P2-C | CS Engagement Contract migration + service methods + auto-close flow | Medium (~1.5 days) | Continuity Plan + CS pages |
-| P2-D | Native "Add card" Stripe Elements modal | Small (~2 hr) | — (defer) |
-
----
-
-## STEP 4 — Gaps + Risks (unchanged — see original doc)
-
-Plus new items:
-- **Escrow / dispute payment freeze** — `InvoiceStatus::Disputed` new enum case + migration to update ENUM
-- **Incident auto-close scheduler** — cronjob checking incidents in `verification_pending` state older than 7 days, fires `IncidentAutoClosed`
-- **Task completion tracking** — `incident_tasks.completed_at` already exists; need `IncidentService::maybeReadyForClosure(incident)` triggered on every task completion
+### Parallel workstreams (unblocked, can start anytime)
+| # | Item | Effort |
+|---|---|---|
+| P-A | CS + BP `storePaymentMethod` handlers | 30 min |
+| P-B | "Open dispute" button placement in 3 Finances tables | 1.5 hr |
+| P-C | 7 email blade templates | 2 hr |
+| P-D | Admin payout UI end-to-end QA | 2 hr |
 
 ---
 
-## STEP 5 — Demo-readiness data (updated)
+## STEP 4 — Gaps + Risks (Rev 3)
 
-Additions to p_sarah seed:
-- CS engagement with `cs_marcus`: `fee_cents = 25000` ($250 per activation), `payment_terms = 'on_close'`, `auto_charge = 0`
-- Countersigned engagement document with the fee terms
-- One resolved dispute (past example) in dispute_messages table for demo
+### Backend completeness ✅
+All services complete: `PlanService`, `StewardService`, `VaultService`, `IncidentService` (🆕 batch3 methods), `PayoutService` (all 4 flows), `DisputeService` (🆕 batch3).
+
+### Prototype-action → Laravel-route coverage matrix
+Legend: ✅ routed · 🟡 method exists no route · ❌ no backend
+
+| Prototype action | Page | Status |
+|---|---|---|
+| save_draft / create draft | Plan | ✅ `plan.store` |
+| delete_draft | Plan | ❌ |
+| save_incident_config | Plan | 🟡 `configureIncident()` exists |
+| add_task / replace_tasks / remove_task | Plan | 🟡 |
+| finalize_sign / sign | Plan | ✅ `plan.sign` |
+| attest_vault | Plan/Vault | ✅ |
+| begin_annual_review / complete | Plan | ✅ |
+| add_steward / invite_external | CS/SS | ✅ |
+| remove steward | CS/SS | ✅ |
+| set_authorization (matrix) | CS | ✅ |
+| update_role | CS/SS | ❌ (method exists) |
+| activate succession | CS | ❌ (method exists) |
+| resend_invite / cancel_invite | CS/SS | ❌ |
+| suspend / reinstate | SS | ❌ |
+| grant_access levels | CS/Vault | ❌ (only IDs) |
+| share vault item | Vault | 🟡 |
+| add_credential / add_client / add_item | Vault | 🟡 (generic `vault.upload`) |
+| update_item / delete_item | Vault | 🟡 (destroy only) |
+| set_permissions | Vault | ✅ |
+| request document / send_for_signature | Docs | ✅ |
+| sign | Docs | ✅ |
+| countersign | Docs | ❌ (method exists) |
+| amend / renew / terminate / apply_template / set_status | Docs | ❌ |
+| request_release | Docs | ❌ (method exists) |
+| add_payment_method | Finances | ✅ (Provider); ⚠️ CS/BP need handler |
+| set_default_method / remove_payment_method | Settings | ✅ Provider |
+| set_autopay | Settings | ❌ |
+| approve_invoice / pay | Finances | ✅ (chargeProviderToCs/Bp) |
+| set_contract_status | Finances | ❌ |
+| set_steward_payment_model | Finances | ⚠️ Partial — `fee_cents` migration done; UI pending |
+| open_dispute | Finances | ✅ backend · ⚠️ button placement |
+| verify_incident_closure | Plan | ✅ backend · ❌ UI |
+| complete_task | Plan | ✅ backend · ❌ UI |
+| close_with_invoice | Plan | ✅ backend · ❌ UI |
+
+**Wire for demo (curated):** `resend_invite`, `cancel_invite`, `countersign`, `update_role` (CS), `suspend`/`reinstate` (SS).
+
+**Defer behind "coming soon":** `delete_draft`, `activate_succession`, `grant_access levels`, `amend`/`renew`/`terminate` (Docs), `set_autopay`, `set_contract_status`.
+
+### Vue wiring debt (per page)
+| Page | On-disk | Debt |
+|---|---|---|
+| Settings | ✅ ~2000L | Done |
+| Finances | ✅ 304L real Inertia | Done (P0) |
+| ContinuityPlan | ❌ 644L hardcoded | Consume `plan/tasks/incidentConfigs/stewards/documents`; wire sign/attest/review/task/config; 🆕 add `fee_cents` in sign-ceremony |
+| ContinuityStewards | ❌ 1177L hardcoded | Consume `stewards/pendingInvitations/tierLimits`; wire invite/remove/authorize; 🆕 add fee display + amend + `stripe_connected` readiness |
+| SupportStewards | ❌ 786L hardcoded | Consume `stewards/pendingInvitations`; wire designate/remove/suspend/reinstate; 🆕 add "verify closure" |
+| ImportantDocuments | ❌ 945L hardcoded | Consume `documents/pendingSignatures`; wire request/sign/countersign; 🆕 add CS engagement agreement template |
+| Vault | ❌ 120L broken | Full rebuild against `zones/planStatus/attestedAt/totalCount` + real routes; drop fake unseal ceremony |
 
 ---
 
-## STEP 6 — Demo Scripts (unchanged — see original doc)
+## STEP 5 — Demo-readiness data (Rev 3)
 
-Add new beat to **Continuity Stewards** demo:
+**p_sarah must have:**
+- Practice tier + card on file (real Stripe sub)
+- Plan `plan_sarah` active/signed, 3 incidents + task lists
+- `cs_marcus` active CS + 1 pending CS invite
+- 🆕 CS engagement with `cs_marcus`: `fee_cents=25000` ($250), `payment_terms='on_close'`, `auto_charge=0`
+- 🆕 Countersigned engagement document referenced from `plan_stewards.engagement_document_id`
+- `ss_linda` active SS
+- One `fully_executed` + one `pending_sign` document
+- Vault items across all 4 zones + `vault_attested_at`
+- 🆕 One resolved dispute (past example) for demo
+
+**Incident sim:** `?emergency=true/false` toggle. **Reset:** `php artisan migrate:fresh --seed`.
+
+### Tier gating
+- **Access $29/mo:** 1 CS, 1 SS (env-tunable). No services/network/referrals.
+- **Practice $49/mo:** 2 CS, 4 SS (env-tunable). + services, jobs, network/referrals.
+- **Upgrade prompts:** use `AegisUpgradeModal` (Access→Practice) — distinct from `UpgradeCSModal` (Invited→Business CS).
+
+---
+
+## STEP 6 — Demo Scripts (Rev 3 additions)
+
+### Continuity Stewards — new beat
 > "Marcus's agreed fee is $250 per activation. If an incident is verified and closed, that fee auto-invoices to me — I approve payment from Finances. If I'm deceased, my Support Steward Linda can verify closure on my behalf and the payment goes through automatically per the payment authorization I signed with the Plan."
 
-Add new beat to **Vault** demo:
-> "Vault seal isn't just about privacy — it's the mechanism that gates Marcus's ability to submit an invoice. He can't bill me for services until the incident is verified activated, meaning he actually did the work."
+### Vault — new beat
+> "Vault seal isn't just about privacy — it's the mechanism that gates Marcus's ability to submit an invoice. He can't bill me for services until the incident is verified activated."
+
+### 🆕 Disputes (Provider) — new short beat
+> "If something goes wrong on a payment — say Marcus billed me but the incident wasn't legitimately closed — I open a dispute from Finances. The invoice freezes; an Aegis admin mediates; no funds move until it's resolved. We never hold the money — refunds go through Stripe's normal rails."
 
 ---
 
-## Pre-flight checklist before writing Vue (updated)
+## Pre-flight checklist before writing Vue (Rev 3)
 
 ### Settings
-- Done ✅
+- ✅ All 4 portals done
 
-### Continuity Group (unchanged foundations)
-- [ ] Vault zones resolved to `standard/emergency/credentials/roster`
-- [ ] SS tier cap locked to `4` (Practice) — confirm Access is 1 or 2 with client
-- [ ] DocumentStatus enum reconciled to service strings
-- [ ] `critical_incidents.verified_by_id` vs `verified_by_cs_id` column name verified
-- [ ] 🟡 demo-path routes added
-- [ ] Curated ❌ demo routes added
-- [ ] Confirm domain seed rows exist
-- [ ] Confirm `inc_sarah_active` toggles vault state
+### Continuity Group foundations
+- ✅ Vault zones resolved to `standard/emergency/credentials/roster`
+- ✅ SS tier caps env-tunable
+- ⏳ SS Access tier cap default (1 or 2) pending Dr. Chapman
+- ✅ DocumentStatus enum reconciled
+- ✅ `critical_incidents.verified_by_id` verified in migration
+- ✅ 🟡 demo-path routes for `save_incident_config`, task CRUD, vault item CRUD via existing service methods (need Vue wiring)
+- ❌ Curated demo routes (`resend_invite`, `cancel_invite`, `countersign`, `update_role` CS, `suspend`/`reinstate` SS)
+- ⏳ Confirm demo seed rows (`plan_sarah`, `cs_marcus`, `ss_linda`)
 
-### Continuity Group — payment-context additions (NEW)
-- [ ] Migration: `plan_stewards.fee_cents`, `payment_terms`, `auto_charge`, `engagement_document_id`
-- [ ] Migration: `cs_invoices` (already added via P0) and `bp_invoices` — add `Disputed` to InvoiceStatus enum
-- [ ] Migration: `disputes` + `dispute_messages` tables
-- [ ] Migration: `incident_tasks.completed_at` — verify column exists (if not, add)
-- [ ] `PayoutService::chargeProviderToCs` — verified working from P0 ✅
-- [ ] `PayoutService::chargeProviderToBp` — verified working from P0 ✅
-- [ ] `IncidentService::maybeReadyForClosure(incident)` — new method, checks all tasks complete → fires event
-- [ ] `IncidentService::verifyClosure(incident, verifier)` — new method, callable from Provider or SS
-- [ ] `IncidentService::closeWithInvoice(incident, closer)` — new method, auto-generates CsInvoice on close if fee_cents > 0
-- [ ] Event: `IncidentReadyForClosure`, `IncidentAutoClosed`, `CsInvoiceAutoGenerated` — registered in `AppServiceProvider`
-- [ ] Email templates: task-complete verification request, auto-close notice, auto-generated invoice notice
-- [ ] Scheduler: `IncidentAutoCloseCheckJob` — runs hourly, closes stale verification-pending incidents
-- [ ] Native peer-payment CTAs on Continuity Stewards page pointing to Finances
-- [ ] Dispute open modal available from Provider/CS/BP Finances
-- [ ] Admin disputes queue
+### 🆕 Batch3 additions honored
+- ✅ CS engagement fields on `plan_stewards` — migration done
+- ⏳ `fee_cents` UI in Continuity Plan sign-ceremony
+- ⏳ Fee display + amend UI in Continuity Stewards
+- ⏳ SS "verify closure" action in Support Stewards
+- ⏳ CS engagement agreement template in Important Documents
+- ✅ `disputes` + `dispute_messages` — migrations done
+- ✅ `InvoiceStatus::Disputed` on both invoice tables — migration done
+- ✅ Dispute UI: list + detail per portal — done
+- ⏳ "Open dispute" button placement in 3 Finances tables
+- ✅ `IncidentAutoCloseCheckJob` scheduled hourly
+- ✅ 7 new event handlers wired in `SendEmailNotificationListener`
+- ⏳ 7 email blade templates
+- ⏳ Native peer-payment CTAs on Continuity Stewards page (link to Finances)
+- ✅ `OpenDisputeModal.vue` — component built
+- ✅ Admin disputes queue — done
 
 ---
 
 ## Revision log
 
-- **Rev 1 (initial):** Base plan for Settings + 6 Continuity pages
-- **Rev 2 (2026-07):** Aligned with P0/P1 batches; added Payment Context per page (§0.6); CS Engagement Contract Workflow (§0.7); Dispute System (§0.8); Tier Limits Envification (§0.9); W-9 Decision (§0.10); Native Add Card scope (§0.11); updated Lifecycle Map + Demo Scripts + Pre-flight checklist with payment items
+- **Rev 1** — initial base plan for Settings + 6 Continuity pages
+- **Rev 2** (2026-07-08) — aligned with P0/P1; added Payment Context, CS Engagement Contract Workflow (proposed), Dispute System (proposed), Tier Envification, W-9 Decision, Native Add Card scope
+- **Rev 3** (2026-07-09) — batch3 items marked shipped; refocused on 5 remaining Provider Vue pages; updated demo scripts and pre-flight checklist
+
+---
+
+*Rev 3 — validated against live repo commit `9351e14`*
