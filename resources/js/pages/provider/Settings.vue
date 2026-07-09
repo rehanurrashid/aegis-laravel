@@ -201,9 +201,23 @@
                   </select>
                 </div>
               </div>
+              <div class="form-group" style="margin-top:20px;max-width:260px">
+                <label class="form-label">Timezone</label>
+                <select class="form-select" v-model="availTimezone">
+                  <option value="America/New_York">Eastern Time (ET)</option>
+                  <option value="America/Chicago">Central Time (CT)</option>
+                  <option value="America/Denver">Mountain Time (MT)</option>
+                  <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                  <option value="America/Phoenix">Arizona (no DST)</option>
+                  <option value="Pacific/Honolulu">Hawaii (HST)</option>
+                  <option value="America/Anchorage">Alaska (AKST)</option>
+                  <option value="UTC">UTC</option>
+                </select>
+                <div class="form-hint" style="margin-top:4px">Used for scheduling, reminders, and calendar display</div>
+              </div>
               <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
-                <button type="button" class="btn btn-primary" :disabled="availSaving" @click="saveAvailability">
-                  <AegisIcon name="check" :size="13" /> Save Schedule
+                <button type="button" class="btn btn-primary btn-sm" :disabled="availSaving" @click="saveAvailability">
+                  <AegisIcon name="check" :size="13" /> Save
                 </button>
               </div>
             </div>
@@ -1024,7 +1038,7 @@ const nav = [
     { key: 'myservices',    label: 'My Services Settings',       icon: 'grid',  lockedForAccess: true },
     { key: 'privacy',       label: 'Privacy & Visibility',       icon: 'shield' },
     { key: 'network',       label: 'Network Settings',           icon: 'network' },
-    { key: 'appearance',    label: 'Appearance & Timezone',      icon: 'settings' },
+    { key: 'appearance',    label: 'Appearance',                 icon: 'settings' },
     { key: 'integrations',  label: 'Integrations',               icon: 'link' },
 
   ]},
@@ -1217,7 +1231,9 @@ const emailToggles = [
 // ─── Availability ───────────────────────────────────────────────────────────────
 // ─── Availability & Hours ────────────────────────────────────────────────────────
 // Hydrate from meta.availability (saved as { mon: { on, from, to }, ... })
-const _savedHours = props.meta?.availability ?? {};
+const _savedHours  = props.meta?.availability ?? {};
+const _savedAppearance = props.meta?.appearance ?? {};
+const availTimezone = ref(_savedAppearance.timezone ?? 'America/New_York');
 const _dayDefaults = {
   mon: { on: true,  from: '09:00', to: '17:00' },
   tue: { on: true,  from: '09:00', to: '17:00' },
@@ -1244,9 +1260,10 @@ function saveAvailability() {
   const hours = Object.fromEntries(
     weekDays.map(d => [d.key, { on: d.on, from: d.from, to: d.to }])
   );
-  router.put(route('provider.profile.availability'), { hours }, {
+  // Also save timezone alongside availability
+  router.put(route('provider.profile.availability'), { hours, timezone: availTimezone.value }, {
     preserveScroll: true,
-    onSuccess: () => { toast.success('Availability schedule saved.'); },
+    onSuccess: () => { toast.success('Availability saved.'); },
     onError:   () => { toast.error('Could not save availability.'); },
     onFinish:  () => { availSaving.value = false; },
   });

@@ -201,6 +201,13 @@ class ProfileService
         if (array_key_exists('telehealth', $availability)) {
             $this->setMeta($user, 'network_telehealth', (bool) $availability['telehealth'], 'boolean');
         }
+        // Timezone is stored inside the appearance blob so SettingsAppearance reads it back
+        if (!empty($availability['timezone'])) {
+            $appearance = $this->getMeta($user, 'appearance', []);
+            if (!is_array($appearance)) $appearance = [];
+            $appearance['timezone'] = $availability['timezone'];
+            $this->setMeta($user, 'appearance', $appearance);
+        }
         return $user->fresh();
     }
 

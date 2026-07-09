@@ -16,6 +16,7 @@ class UpdateAvailabilityRequest extends FormRequest
             'hours'      => 'nullable|array',
             'accepting'  => 'nullable|boolean',
             'telehealth' => 'nullable|boolean',
+            'timezone'   => 'nullable|string|max:64',
         ];
     }
 }
