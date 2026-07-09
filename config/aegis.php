@@ -262,16 +262,16 @@ return [
     */
     'tier_limits' => [
         'access' => [
-            'max_continuity_stewards' => 1,
-            'max_support_stewards'    => 1,
+            'max_continuity_stewards' => (int) env('TIER_ACCESS_MAX_CS', 1),
+            'max_support_stewards'    => (int) env('TIER_ACCESS_MAX_SS', 1),
             'referrals'               => false,
             'services_mode'           => false,
             'network_search'          => 'limited',
             'job_postings'            => false,
         ],
         'practice' => [
-            'max_continuity_stewards' => 2,
-            'max_support_stewards'    => 4,
+            'max_continuity_stewards' => (int) env('TIER_PRACTICE_MAX_CS', 2),
+            'max_support_stewards'    => (int) env('TIER_PRACTICE_MAX_SS', 4),
             'referrals'               => true,
             'services_mode'           => true,
             'network_search'          => 'full',
