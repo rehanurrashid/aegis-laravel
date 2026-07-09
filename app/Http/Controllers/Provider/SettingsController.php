@@ -645,4 +645,21 @@ class SettingsController extends Controller
             ->with('success', 'Stripe Connect setup complete. Your account is now active for receiving payments.');
     }
 
+    public function updateReferral(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'accepting'   => 'boolean',
+            'autoAccept'  => 'boolean',
+            'suggestAlts' => 'boolean',
+            'autoArchive' => 'boolean',
+        ]);
+        $user = $request->user();
+        $this->profiles->saveMeta($user, 'referral_prefs', $data, 'json');
+        // Mirror network_accepting for search/referral visibility
+        if (array_key_exists('accepting', $data)) {
+            $this->profiles->saveMeta($user, 'network_accepting', $data['accepting'] ? '1' : '0', 'string');
+        }
+        return back()->with('success', 'Referral preferences saved.');
+    }
+
 }

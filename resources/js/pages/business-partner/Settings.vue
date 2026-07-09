@@ -131,9 +131,9 @@
               <div class="stripe-status" :class="user?.stripe_account_id && !user.stripe_account_id.startsWith('acct_demo') ? 'is-connected' : 'is-disconnected'">
                 <div style="flex:1">
                   <div style="font-size:14px;font-weight:700;color:var(--text)">Stripe Connect</div>
-                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">{{ user?.stripe_account_id && !user.stripe_account_id.startsWith('acct_demo') ? 'Payouts go to your connected bank account within 2 business days.' : 'Connect Stripe to receive payouts from practitioners.' }}</div>
+                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">{ user?.stripe_account_id && !user.stripe_account_id.startsWith('acct_demo') ? 'Payouts go to your connected bank account within 2 business days.' : 'Connect Stripe to receive payouts from practitioners.' }</div>
                 </div>
-                <span class="badge" :class="user?.stripe_account_id && !user.stripe_account_id.startsWith('acct_demo') ? 'badge-green' : 'badge-gray'">{{ user?.stripe_account_id && !user.stripe_account_id.startsWith('acct_demo') ? 'Connected' : 'Not Connected' }}</span>
+                <span class="badge" :class="user?.stripe_account_id && !user.stripe_account_id.startsWith('acct_demo') ? 'badge-green' : 'badge-gray'">{ user?.stripe_account_id && !user.stripe_account_id.startsWith('acct_demo') ? 'Connected' : 'Not Connected' }</span>
                 <a v-if="user?.stripe_account_id && !user.stripe_account_id.startsWith('acct_demo')" :href="route('bp.settings.billing.portal')" class="btn btn-outline btn-sm" target="_blank">Manage</a>
                 <a v-else :href="route('bp.settings.connect.onboard')" class="btn btn-primary btn-sm">Connect Stripe</a>
               </div>
@@ -212,7 +212,7 @@
                     <AegisIcon name="alert-triangle" :size="18" style="color:var(--orange)" />
                     <div>
                       <div style="font-size:13px;font-weight:700;color:var(--text)">Your subscription was cancelled</div>
-                      <div style="font-size:12px;color:var(--text-2)">Access ends {{ formatDate(sub.ends_at) }}. Reactivate before then to keep your account.</div>
+                      <div style="font-size:12px;color:var(--text-2)">Access ends { formatDate(sub.ends_at) }. Reactivate before then to keep your account.</div>
                     </div>
                     <button type="button" class="btn btn-gold btn-sm" @click="resumeBpPlan" :disabled="planBusy">Reactivate</button>
                   </div>
@@ -229,9 +229,9 @@
 
               <!-- Active -->
               <div v-if="subStatus !== 'none'" class="st-current-plan">
-                <div class="st-current-meta">Business Partner Professional &mdash; {{ sub.current_billing === 'annual' ? '$57.50/mo (billed $690/yr)' : '$69/mo' }}</div>
+                <div class="st-current-meta">Business Partner Professional &mdash; { sub.current_billing === 'annual' ? '$57.50/mo (billed $690/yr)' : '$69/mo' }</div>
                 <div v-if="sub.current_period" class="st-current-meta" style="font-size:12px;color:var(--text-3)">
-                  Current period: {{ formatDate(sub.current_period.start) }} → {{ formatDate(sub.current_period.end) }}
+                  Current period: { formatDate(sub.current_period.start) } → { formatDate(sub.current_period.end) }
                 </div>
               </div>
 
@@ -247,8 +247,8 @@
                 <div class="st-plan-tier current">
                   <span class="st-plan-tier-badge"><AegisIcon name="check" :size="11" /> Your Plan</span>
                   <div class="st-plan-tier-name">Business Partner</div>
-                  <div class="st-plan-tier-price">${{ billingAnnual ? '57.50' : '69' }}<span>/mo</span></div>
-                  <div class="st-plan-tier-alt">{{ billingAnnual ? 'billed $690/yr (save 2 months)' : 'or $690/yr (save 2 months)' }}</div>
+                  <div class="st-plan-tier-price">${ billingAnnual ? '57.50' : '69' }<span>/mo</span></div>
+                  <div class="st-plan-tier-alt">{ billingAnnual ? 'billed $690/yr (save 2 months)' : 'or $690/yr (save 2 months)' }</div>
                   <ul class="st-plan-feats">
                     <li v-for="f in bpFeatures" :key="f"><AegisIcon name="check" :size="12" /> {{ f }}</li>
                   </ul>
@@ -257,7 +257,7 @@
                     type="button" class="btn btn-gold btn-sm st-plan-cta"
                     @click="swapBpPlan" :disabled="planBusy || !bpPriceId"
                   >
-                    Switch to {{ billingAnnual ? 'Annual' : 'Monthly' }} billing
+                    Switch to { billingAnnual ? 'Annual' : 'Monthly' } billing
                   </button>
                   <button v-else type="button" class="btn btn-outline btn-sm st-plan-cta" disabled>
                     Your current plan
@@ -300,8 +300,8 @@
               <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
                 <div style="flex:1;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-2)">
                   <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:4px">Current</div>
-                  <div style="font-family:var(--font-serif);font-size:14px;font-weight:700;color:var(--text)">Business Partner — {{ sub.current_billing === 'annual' ? 'Annual' : 'Monthly' }}</div>
-                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">{{ sub.current_billing === 'annual' ? '$57.50/mo (billed $690/yr)' : '$69/mo' }}</div>
+                  <div style="font-family:var(--font-serif);font-size:14px;font-weight:700;color:var(--text)">Business Partner — { sub.current_billing === 'annual' ? 'Annual' : 'Monthly' }</div>
+                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">{ sub.current_billing === 'annual' ? '$57.50/mo (billed $690/yr)' : '$69/mo' }</div>
                 </div>
                 <AegisIcon name="arrow-right" :size="16" style="color:var(--text-3);flex-shrink:0" />
                 <div style="flex:1;padding:12px 14px;border:1px solid var(--gold-dark);border-radius:var(--radius);background:var(--icon-bg-gold)">
@@ -363,7 +363,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import { useToast } from '@/composables/useToast';
 import AppLayout              from '@/layouts/AppLayout.vue';
 import SettingsAccount        from '@/components/settings/SettingsAccount.vue';
@@ -517,6 +517,26 @@ function savePrivacy() {
     show_team_members:  bpPrivacy.showTeamMembers,
   }, { preserveScroll: true, onSuccess: () => toast.success('Privacy settings saved.') });
 }
+
+onMounted(() => {
+  const params = new URLSearchParams(window.location.search);
+  const tab    = params.get('tab');
+  const anchor = params.get('anchor');
+  if (tab) section.value = tab;
+  if (anchor) {
+    nextTick(() => {
+      setTimeout(() => {
+        const el = document.getElementById('settings-anchor-' + anchor);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          el.style.transition = 'background 0.3s';
+          el.style.background = 'var(--icon-bg-gold)';
+          setTimeout(() => { el.style.background = ''; }, 1200);
+        }
+      }, 150);
+    });
+  }
+});
 </script>
 
 <style scoped>

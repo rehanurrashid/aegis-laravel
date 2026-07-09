@@ -199,7 +199,7 @@
               <template v-if="sub.on_grace_period">
                 <div class="st-perks-band" style="border-color:var(--orange);background:var(--orange-light);">
                   <AegisIcon name="alert-triangle" :size="16" style="color:var(--orange)" />
-                  <div style="font-size:13px;color:var(--text-2)">Subscription cancelled — access ends {{ formatDate(sub.ends_at) }}. <button type="button" class="btn btn-gold btn-sm" @click="resumeCsPlan" :disabled="planBusy">Reactivate</button></div>
+                  <div style="font-size:13px;color:var(--text-2)">Subscription cancelled — access ends { formatDate(sub.ends_at) }. <button type="button" class="btn btn-gold btn-sm" @click="resumeCsPlan" :disabled="planBusy">Reactivate</button></div>
                 </div>
               </template>
               <template v-else-if="subStatus === 'past_due'">
@@ -209,8 +209,8 @@
                 </div>
               </template>
               <div v-if="subStatus !== 'none'" class="st-current-plan">
-                <div class="st-current-meta">Business CS — {{ sub.current_billing === 'annual' ? '$35.75/mo (billed $429/yr)' : '$49/mo' }}</div>
-                <div v-if="sub.current_period" class="st-current-meta" style="font-size:12px;color:var(--text-3)">Current period: {{ formatDate(sub.current_period.start) }} → {{ formatDate(sub.current_period.end) }}</div>
+                <div class="st-current-meta">Business CS — { sub.current_billing === 'annual' ? '$35.75/mo (billed $429/yr)' : '$49/mo' }</div>
+                <div v-if="sub.current_period" class="st-current-meta" style="font-size:12px;color:var(--text-3)">Current period: { formatDate(sub.current_period.start) } → { formatDate(sub.current_period.end) }</div>
               </div>
               <div v-if="subStatus !== 'none'" class="st-cycle-toggle">
                 <span :class="{ active: !billingAnnual }">Monthly</span>
@@ -219,7 +219,7 @@
               </div>
               <div v-if="subStatus !== 'none'" style="margin:12px 0">
                 <button v-if="billingAnnual !== (sub.current_billing === 'annual')" type="button" class="btn btn-gold btn-sm" @click="swapCsPlan" :disabled="planBusy || !csPriceId">
-                  Switch to {{ billingAnnual ? 'Annual' : 'Monthly' }} billing
+                  Switch to { billingAnnual ? 'Annual' : 'Monthly' } billing
                 </button>
               </div>
               <div v-if="(subStatus === 'active' || subStatus === 'trialing')" style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border);margin-top:8px">
@@ -256,8 +256,8 @@
               <div class="stripe-status" :class="stripeReady ? 'is-connected' : 'is-disconnected'" style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface-2);border-radius:var(--radius);border:1px solid var(--border)">
                 <AegisIcon :name="stripeReady ? 'check-circle' : 'alert-triangle'" :size="20" :style="stripeReady ? 'color:var(--green-dark)' : 'color:var(--gold-dark)'" />
                 <div style="flex:1">
-                  <div style="font-size:14px;font-weight:700;color:var(--text)">{{ stripeReady ? 'Stripe Connect ready' : 'Stripe Connect required' }}</div>
-                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">{{ stripeReady ? 'Practitioner invoice payments transfer directly to your connected Stripe account. Aegis never holds funds.' : 'Connect your Stripe account to receive invoice payments from practitioners you steward.' }}</div>
+                  <div style="font-size:14px;font-weight:700;color:var(--text)">{ stripeReady ? 'Stripe Connect ready' : 'Stripe Connect required' }</div>
+                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">{ stripeReady ? 'Practitioner invoice payments transfer directly to your connected Stripe account. Aegis never holds funds.' : 'Connect your Stripe account to receive invoice payments from practitioners you steward.' }</div>
                 </div>
                 <a v-if="!stripeReady" :href="route('cs.settings.connect.onboard')" class="btn btn-primary btn-sm">Connect Stripe</a>
                 <a v-else :href="route('cs.settings.connect.onboard')" class="btn btn-outline btn-sm">Reconfigure</a>
@@ -271,8 +271,8 @@
               <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
                 <div style="flex:1;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface-2)">
                   <div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-3);margin-bottom:4px">Current</div>
-                  <div style="font-family:var(--font-serif);font-size:14px;font-weight:700;color:var(--text)">Business CS — {{ sub.current_billing === 'annual' ? 'Annual' : 'Monthly' }}</div>
-                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">{{ sub.current_billing === 'annual' ? '$35.75/mo (billed $429/yr)' : '$49/mo' }}</div>
+                  <div style="font-family:var(--font-serif);font-size:14px;font-weight:700;color:var(--text)">Business CS — { sub.current_billing === 'annual' ? 'Annual' : 'Monthly' }</div>
+                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">{ sub.current_billing === 'annual' ? '$35.75/mo (billed $429/yr)' : '$49/mo' }</div>
                 </div>
                 <AegisIcon name="arrow-right" :size="16" style="color:var(--text-3);flex-shrink:0" />
                 <div style="flex:1;padding:12px 14px;border:1px solid var(--gold-dark);border-radius:var(--radius);background:var(--icon-bg-gold)">
@@ -332,7 +332,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import { useToast } from '@/composables/useToast';
 import AppLayout              from '@/layouts/AppLayout.vue';
 import SettingsAccount        from '@/components/settings/SettingsAccount.vue';
@@ -436,9 +436,10 @@ const initials    = computed(() => displayName.value.split(' ').map(p => p[0]).j
 const i = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
 const nav = [
   { group: 'Account', items: [
-    { key: 'profile',    label: 'Profile & Identity',  icon: 'lock' },
-    { key: 'security',   label: 'Security & 2FA',      icon: 'bell' },
-    { key: 'messaging',     label: 'Messaging',         icon: 'mail' },
+    { key: 'profile',    label: 'Profile & Identity',  icon: 'user' },
+    { key: 'account',    label: 'Account & Login',     icon: 'lock' },
+    { key: 'security',   label: 'Security & 2FA',      icon: 'shield' },
+    { key: 'messaging',  label: 'Messaging',           icon: 'mail' },
   ]},
   { group: 'Steward Role', items: [
     { key: 'cs-steward',  label: 'CS Role Settings',      icon: 'lock' },
@@ -488,6 +489,26 @@ function savePrivacy() {
     creds:    csPrivacy.creds,
   }, { preserveScroll: true, onSuccess: () => toast.success('Privacy settings saved.') });
 }
+
+onMounted(() => {
+  const params = new URLSearchParams(window.location.search);
+  const tab    = params.get('tab');
+  const anchor = params.get('anchor');
+  if (tab) section.value = tab;
+  if (anchor) {
+    nextTick(() => {
+      setTimeout(() => {
+        const el = document.getElementById('settings-anchor-' + anchor);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          el.style.transition = 'background 0.3s';
+          el.style.background = 'var(--icon-bg-gold)';
+          setTimeout(() => { el.style.background = ''; }, 1200);
+        }
+      }, 150);
+    });
+  }
+});
 </script>
 
 <style scoped>

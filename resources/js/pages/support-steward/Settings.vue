@@ -195,7 +195,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import { useToast } from '@/composables/useToast';
 import AppLayout              from '@/layouts/AppLayout.vue';
 import SettingsAccount        from '@/components/settings/SettingsAccount.vue';
@@ -207,9 +207,11 @@ import SettingsEmailPrefs     from '@/components/settings/SettingsEmailPrefs.vue
 import SettingsDangerZone     from '@/components/settings/SettingsDangerZone.vue';
 
 const props = defineProps({
-  user:       { type: Object,  default: () => ({}) },
-  meta:       { type: Object,  default: () => ({}) },
-  mfaEnabled: { type: Boolean, default: false },
+  user:         { type: Object,  default: () => ({}) },
+  meta:         { type: Object,  default: () => ({}) },
+  mfaEnabled:   { type: Boolean, default: false },
+  sessions:     { type: Array,   default: () => [] },
+  mfaMethod:    { type: String,  default: '' },
 });
 
 const toast = useToast();
@@ -269,6 +271,26 @@ function savePrivacy() {
     location: ssPrivacy.location,
   }, { preserveScroll: true, onSuccess: () => toast.success('Privacy settings saved.') });
 }
+
+onMounted(() => {
+  const params = new URLSearchParams(window.location.search);
+  const tab    = params.get('tab');
+  const anchor = params.get('anchor');
+  if (tab) section.value = tab;
+  if (anchor) {
+    nextTick(() => {
+      setTimeout(() => {
+        const el = document.getElementById('settings-anchor-' + anchor);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          el.style.transition = 'background 0.3s';
+          el.style.background = 'var(--icon-bg-gold)';
+          setTimeout(() => { el.style.background = ''; }, 1200);
+        }
+      }, 150);
+    });
+  }
+});
 </script>
 
 <style scoped>

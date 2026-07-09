@@ -431,4 +431,30 @@ class SettingsController extends Controller
         return back()->with('success', 'Privacy settings saved.');
     }
 
+    public function storePaymentMethod(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $data = $request->validate([
+            'payment_method_id' => 'required|string|starts_with:pm_',
+            'set_default'       => 'boolean',
+        ]);
+        $user = $request->user();
+
+        // Demo guard
+        if (str_starts_with($data['payment_method_id'], 'pm_demo_')) {
+            return back()->with('success', 'Demo payment method saved (not sent to Stripe).');
+        }
+
+        if (!$user->hasStripeId()) {
+            $user->createAsStripeCustomer(['name' => $user->display_name, 'email' => $user->email]);
+        }
+
+        if (!empty($data['set_default'])) {
+            $user->updateDefaultPaymentMethod($data['payment_method_id']);
+            $user->update(['stripe_payment_method_id' => $data['payment_method_id']]);
+        } else {
+            $user->addPaymentMethod($data['payment_method_id']);
+        }
+        return back()->with('success', 'Payment method saved.');
+    }
+
 }

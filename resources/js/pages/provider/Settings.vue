@@ -247,7 +247,7 @@
               <div class="section-label">Incoming Referrals</div>
               <div v-for="row in referralIncoming" :key="row.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ row.label }}</div><div class="toggle-desc">{{ row.desc }}</div></div><button type="button" class="toggle" :class="{ on: referralPrefs[row.key] }" @click="referralPrefs[row.key] = !referralPrefs[row.key]" :aria-pressed="referralPrefs[row.key]"></button></div>
 
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Referral preferences saved.')"><AegisIcon name="check" :size="14" /> Save</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="saveReferralPrefs"><AegisIcon name="check" :size="14" /> Save</button></div>
             </div>
           </div>
           </div><!-- end tier-blurred -->
@@ -866,115 +866,16 @@
 
     <!-- MODALS -->
 
-    <AegisModal v-model="modals.revokeAll" title="Revoke All Sessions" size="sm">
-      <p style="font-size:14px;color:var(--text-2)">This will sign out all devices except your current session. You'll need to log in again on other devices.</p>
-      <template #footer>
-        <button type="button" class="btn btn-outline btn-sm" @click="modals.revokeAll = false">Cancel</button>
-        <button type="button" class="btn btn-danger btn-sm" @click="modals.revokeAll = false; toast.success('All other sessions revoked.')">Revoke All</button>
-      </template>
-    </AegisModal>
-
-    <AegisModal v-model="modals.setup2fa" title="Set Up Two-Factor Auth" size="md">
-      <p style="font-size:14px;color:var(--text-2);margin-bottom:14px">Scan the QR code with your authenticator app, then enter the 6-digit code below to verify.</p>
-      <div class="st-qr-box">
-        <div class="st-qr-ico"><AegisIcon name="phone" :size="22" /></div>
-        <div class="st-qr-cap">QR code would appear here</div>
-        <div class="st-qr-secret">JBSW Y3DP EHPK 3PXP</div>
-      </div>
-      <div class="form-group"><label class="form-label">Verification Code</label><input class="form-input st-otp" maxlength="6" placeholder="123456" v-model="tfaCode" /></div>
-      <template #footer>
-        <button type="button" class="btn btn-outline btn-sm" @click="modals.setup2fa = false">Cancel</button>
-        <button type="button" class="btn btn-primary btn-sm" @click="modals.setup2fa = false; toast.success('2FA method added!')">Verify &amp; Enable</button>
-      </template>
-    </AegisModal>
-
-    <AegisModal v-model="modals.viewBackup" title="Backup Codes" size="md">
-      <p style="font-size:13px;color:var(--text-3);margin-bottom:14px">Store these in a secure place. Each code can only be used once.</p>
-      <div class="st-codes-grid">
-        <div v-for="code in backupCodes" :key="code.value" class="st-code" :class="{ used: code.used }">{{ code.value }}</div>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline btn-sm" @click="toast.success('Codes copied.')"><AegisIcon name="clipboard" :size="14" /> Copy All</button>
-        <button type="button" class="btn btn-primary btn-sm" @click="toast.success('New codes generated.')">Regenerate</button>
-        <button type="button" class="btn btn-ghost btn-sm" @click="modals.viewBackup = false">Close</button>
-      </template>
-    </AegisModal>
-
-    <AegisModal v-model="modals.exportSettings" title="Export Settings" size="md">
-      <p style="font-size:14px;color:var(--text-2);margin-bottom:14px">Export your settings as a JSON file to back up or transfer to another account.</p>
-      <div class="form-group">
-        <label class="form-label">Include in Export</label>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
-          <label v-for="opt in exportOptions" :key="opt.key" style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" v-model="opt.checked" /> {{ opt.label }}</label>
-        </div>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline btn-sm" @click="modals.exportSettings = false">Cancel</button>
-        <button type="button" class="btn btn-primary btn-sm" @click="modals.exportSettings = false; toast.success('Settings exported as aegis-settings.json.')"><AegisIcon name="download" :size="14" /> Export JSON</button>
-      </template>
-    </AegisModal>
-
-    <AegisModal v-model="modals.exportData" title="Export All Data" size="md">
-      <p style="font-size:14px;color:var(--text-2);margin-bottom:14px">Your HIPAA-compliant data export will be prepared and emailed to you within 24 hours. It includes:</p>
-      <ul class="st-export-list">
-        <li>Full profile and demographics</li>
-        <li>Client records (de-identified as required)</li>
-        <li>Referral history</li>
-        <li>Agreements and contracts</li>
-        <li>Document vault (encrypted zip)</li>
-        <li>Network and communication logs</li>
-      </ul>
-      <template #footer>
-        <button type="button" class="btn btn-outline btn-sm" @click="modals.exportData = false">Cancel</button>
-        <button type="button" class="btn btn-primary btn-sm" @click="modals.exportData = false; toast.success('Export request submitted. Check your email in 24 hours.')">Request Export</button>
-      </template>
-    </AegisModal>
-
-    <AegisModal v-model="modals.pauseAccount" title="Pause Account" size="md">
-      <p style="font-size:14px;color:var(--text-2);margin-bottom:14px">While paused, you won't appear in search results or receive new referrals. Existing connections and data are preserved.</p>
-      <div class="form-row form-row-2">
-        <div class="form-group"><label class="form-label">Pause Until</label><input class="form-input" type="date" v-model="pauseForm.until" /></div>
-        <div class="form-group"><label class="form-label">Reason</label><select class="form-select" v-model="pauseForm.reason"><option value="leave">Medical Leave</option><option value="vacation">Vacation</option><option value="parental">Parental Leave</option><option value="sabbatical">Sabbatical</option><option value="other">Other</option></select></div>
-      </div>
-      <div class="form-group"><label class="form-label">Away Message for Network</label><textarea class="form-textarea" rows="3" v-model="pauseForm.message" placeholder="Let your network know why you're away…"></textarea></div>
-      <template #footer>
-        <button type="button" class="btn btn-outline btn-sm" @click="modals.pauseAccount = false">Cancel</button>
-        <button type="button" class="btn btn-primary btn-sm" @click="modals.pauseAccount = false; toast.success('Account paused successfully.')">Pause Account</button>
-      </template>
-    </AegisModal>
 
 
 
-    <AegisModal v-model="modals.deleteAccount" title="Delete Account" size="md">
-      <div style="background:var(--red-light);border:1px solid var(--border-dark);border-radius:var(--radius);padding:14px;margin-bottom:16px;font-size:13px;color:var(--red)"><strong>This action is permanent and cannot be undone.</strong> All your data will be queued for deletion after 30 days.</div>
-      <div class="form-group" style="margin-bottom:12px"><label class="form-label">Please transfer your active clients before deleting</label><select class="form-select" v-model="deleteForm.transferTo"><option value="">– Select receiving provider –</option></select></div>
-      <div class="form-group"><label class="form-label">Type <strong>DELETE MY ACCOUNT</strong> to confirm</label><input class="form-input" v-model="deleteForm.confirm" placeholder="DELETE MY ACCOUNT" /></div>
-      <template #footer>
-        <button type="button" class="btn btn-outline btn-sm" @click="modals.deleteAccount = false">Cancel</button>
-        <button type="button" class="btn btn-danger btn-sm" :disabled="deleteForm.confirm !== 'DELETE MY ACCOUNT'" @click="confirmDelete"><AegisIcon name="trash" :size="14" /> Permanently Delete</button>
-      </template>
-    </AegisModal>
 
-    <AegisModal v-model="modals.addIntegration" title="Add Integration" size="lg">
-      <div class="form-row form-row-2">
-        <div v-for="opt in integrationOptions" :key="opt.name" class="app-row" style="cursor:pointer;border:1px solid var(--border);border-radius:var(--radius);padding:12px" @click="toast.info('Redirecting to OAuth…'); modals.addIntegration = false">
-          <div class="app-logo"><AegisIcon :name="opt.icon" :size="20" /></div>
-          <div class="app-info"><div class="app-name">{{ opt.name }}</div><div class="app-desc">{{ opt.desc }}</div></div>
-        </div>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline btn-sm" @click="modals.addIntegration = false">Close</button>
-      </template>
-    </AegisModal>
 
-    <AegisModal v-model="modals.newApiKey" title="Create API Key" size="md">
-      <div class="form-group"><label class="form-label">Key Name</label><input class="form-input" v-model="newKeyName" placeholder="e.g. Production Key" /></div>
-      <div class="st-key-warn"><AegisIcon name="alert-triangle" :size="15" /> Store this key somewhere safe. It will only be shown once.</div>
-      <template #footer>
-        <button type="button" class="btn btn-outline btn-sm" @click="modals.newApiKey = false">Cancel</button>
-        <button type="button" class="btn btn-primary btn-sm" @click="modals.newApiKey = false; toast.success('API key created.')"><AegisIcon name="key" :size="13" /> Create Key</button>
-      </template>
-    </AegisModal>
+
+
+
+
+
 
   <!-- Tier upgrade modal for gated sections -->
   <SettingsTierUpgradeModal
@@ -1635,10 +1536,7 @@ const newKeyName = ref('');
 
 // ─── Modals ───────────────────────────────────────────────────────────────────────
 const modals = reactive({
-  revokeAll: false, setup2fa: false, viewBackup: false,
-  exportSettings: false, exportData: false,
-  pauseAccount: false, transferRecords: false, deleteAccount: false,
-  addIntegration: false, newApiKey: false,
+
   showUpgrade: false,
 });
 
@@ -1697,6 +1595,19 @@ const exportOptions = reactive([
   { key: 'referrals',     label: 'Referral preferences', checked: false },
   { key: 'integrations',  label: 'Integrations config',  checked: false },
 ]);
+
+function saveReferralPrefs() {
+  router.put(route('provider.settings.referral'), {
+    accepting:   referralPrefs.accepting,
+    autoAccept:  referralPrefs.autoAccept,
+    suggestAlts: referralPrefs.suggestAlts,
+    autoArchive: referralPrefs.autoArchive,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Referral preferences saved.'),
+    onError:   () => toast.error('Could not save referral preferences.'),
+  });
+}
 </script>
 
 <style scoped>

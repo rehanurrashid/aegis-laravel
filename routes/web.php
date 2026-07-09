@@ -354,6 +354,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::put('/settings/vault-alerts',      [ProviderSettingsController::class, 'updateVaultAlerts'])->name('settings.vault-alerts');
         Route::put('/settings/agreement-alerts',  [ProviderSettingsController::class, 'updateAgreementAlerts'])->name('settings.agreement-alerts');
         Route::put('/settings/network-settings',  [ProviderSettingsController::class, 'updateNetworkSettings'])->name('settings.network-settings');
+        Route::put('/settings/referral',          [ProviderSettingsController::class, 'updateReferral'])->name('settings.referral');
         Route::put('/settings/services-settings', [ProviderSettingsController::class, 'updateServicesSettings'])->name('settings.services-settings');
         Route::put('/settings/privacy-settings',  [ProviderSettingsController::class, 'updatePrivacySettings'])->name('settings.privacy-settings');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
@@ -472,6 +473,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:contin
         Route::get('/settings/connect/return',  [CsSettingsController::class, 'connectReturn'])->name('settings.connect.return');
         // Native "Add card" — Stripe SetupIntent client_secret
         Route::post('/settings/payment-method/setup-intent', [\App\Http\Controllers\ContinuitySteward\PaymentMethodSetupController::class, 'createSetupIntent'])->name('settings.payment.setup-intent');
+        Route::post('/settings/payment-method',           [CsSettingsController::class, 'storePaymentMethod'])->name('settings.payment.store');
 
         // Disputes
         Route::get('/disputes',                             [\App\Http\Controllers\ContinuitySteward\DisputesController::class, 'index'])->name('disputes.index');
@@ -637,6 +639,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:busine
         Route::get('/settings/billing-portal',       [BpSettingsController::class, 'billingPortal'])->name('settings.billing.portal');
         // Native "Add card" — Stripe SetupIntent client_secret
         Route::post('/settings/payment-method/setup-intent', [\App\Http\Controllers\BusinessPartner\PaymentMethodSetupController::class, 'createSetupIntent'])->name('settings.payment.setup-intent');
+        Route::post('/settings/payment-method',           [BpSettingsController::class, 'storePaymentMethod'])->name('settings.payment.store');
 
         // Disputes
         Route::get('/disputes',                             [\App\Http\Controllers\BusinessPartner\DisputesController::class, 'index'])->name('disputes.index');

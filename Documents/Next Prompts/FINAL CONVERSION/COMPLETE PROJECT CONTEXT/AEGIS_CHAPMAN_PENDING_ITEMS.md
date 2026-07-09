@@ -134,7 +134,7 @@ Copy-paste into your email client. Adjust the greeting per your usual tone with 
 
 ---
 
-Hi Dr. Chapman,
+Hi Carizma,
 
 Wrapping up the last major build items on Aegis. Five things need your call before I can lock them down — most are one-line answers, except the founding member perks which need a bit more thought.
 
@@ -154,7 +154,6 @@ Wrapping up the last major build items on Aegis. Five things need your call befo
 
 Once these are settled, we can close out the remaining build work. Nothing else is blocked on your side — the CS engagement contract flow, the dispute system, native card capture, and all the peer-payment flows are already built and working.
 
-Happy to jump on a 20-minute call for #2 if it's easier than typing.
 
 Thanks,
 Arslan
