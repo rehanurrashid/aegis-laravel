@@ -201,9 +201,9 @@
                   </select>
                 </div>
               </div>
-              <div class="form-group" style="margin-top:20px;max-width:260px">
+              <div style="margin-top:20px;max-width:260px">
                 <label class="form-label">Timezone</label>
-                <select class="form-select" v-model="availTimezone">
+                <select class="form-select" v-model="availTimezone" data-no-enhance>
                   <option value="America/New_York">Eastern Time (ET)</option>
                   <option value="America/Chicago">Central Time (CT)</option>
                   <option value="America/Denver">Mountain Time (MT)</option>
@@ -213,7 +213,7 @@
                   <option value="America/Anchorage">Alaska (AKST)</option>
                   <option value="UTC">UTC</option>
                 </select>
-                <div class="form-hint" style="margin-top:4px">Used for scheduling, reminders, and calendar display</div>
+                <div class="form-hint" style="margin-top:6px">Used for scheduling, reminders, and calendar display</div>
               </div>
               <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
                 <button type="button" class="btn btn-primary btn-sm" :disabled="availSaving" @click="saveAvailability">
@@ -1025,7 +1025,7 @@ const nav = [
 
 
   ]},
-  { group: 'Clinical', items: [
+  { group: 'Schedule', items: [
     { key: 'availability', label: 'Availability & Hours',  icon: 'calendar' },
   ]},
   { group: 'Operations', items: [
