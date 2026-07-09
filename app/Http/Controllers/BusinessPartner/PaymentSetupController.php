@@ -16,15 +16,15 @@ class PaymentSetupController extends Controller
     {
         $user = $request->user();
         return Inertia::render('BusinessPartner/PaymentSetup', [
-            'stripeConnectStatus' => $user->stripe_connect_account_id ? 'connected' : 'disconnected',
-            'accountDetails'      => ['account_id' => $user->stripe_connect_account_id],
+            'stripeConnectStatus' => $user->stripe_account_id ? 'connected' : 'disconnected',
+            'accountDetails'      => ['account_id' => $user->stripe_account_id],
         ]);
     }
 
     public function connect(Request $request): RedirectResponse
     {
         $data = $request->validate(['account_id' => 'required|string|max:100']);
-        $request->user()->update(['stripe_connect_account_id' => $data['account_id']]);
+        $request->user()->update(['stripe_account_id' => $data['account_id'], 'stripe_connected' => true]);
         return back()->with('success', 'Stripe Connect linked.');
     }
 }

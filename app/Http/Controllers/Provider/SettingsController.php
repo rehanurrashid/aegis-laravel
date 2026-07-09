@@ -544,6 +544,8 @@ class SettingsController extends Controller
             }
             if (!empty($data['set_default'])) {
                 $user->updateDefaultPaymentMethod($data['payment_method_id']);
+                // Mirror to users.stripe_payment_method_id so peer-payment charges can use it
+                $user->update(['stripe_payment_method_id' => $data['payment_method_id']]);
             } else {
                 $user->addPaymentMethod($data['payment_method_id']);
             }
@@ -574,4 +576,73 @@ class SettingsController extends Controller
             return back()->withErrors(['payment' => $e->getMessage()]);
         }
     }
+    // ── Stripe Connect Express Onboarding ────────────────────────────────────
+
+    /**
+     * Generate a Stripe Connect Express AccountLink and redirect the user.
+     * If no Connect account exists yet, create one first.
+     */
+    public function connectOnboard(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        if (!config('services.stripe.secret')) {
+            return back()->withErrors(['connect' => 'Stripe is not configured. Set STRIPE_SECRET in .env.']);
+        }
+
+        try {
+            $stripe = new \Stripe\StripeClient(config('services.stripe.secret'));
+
+            // Create Express account if none exists yet
+            if (!$user->stripe_account_id || str_starts_with((string) $user->stripe_account_id, 'acct_demo_')) {
+                $account = $stripe->accounts->create([
+                    'type'         => 'express',
+                    'email'        => $user->email,
+                    'capabilities' => ['transfers' => ['requested' => true]],
+                    'metadata'     => ['user_id' => $user->id, 'portal' => 'provider'],
+                ]);
+                $user->update(['stripe_account_id' => $account->id, 'stripe_connected' => false]);
+            }
+
+            $accountLink = $stripe->accountLinks->create([
+                'account'     => $user->stripe_account_id,
+                'refresh_url' => route('provider.settings.connect.onboard'),
+                'return_url'  => route('provider.settings.connect.return'),
+                'type'        => 'account_onboarding',
+            ]);
+
+            return redirect($accountLink->url);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('[Stripe Connect] onboard failed', [
+                'user_id' => $user->id,
+                'error'   => $e->getMessage(),
+            ]);
+            return back()->withErrors(['connect' => 'Could not start Stripe Connect setup. ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Return URL after Stripe Connect Express onboarding completes.
+     * Stripe does NOT send account.updated immediately — we check manually and sync.
+     */
+    public function connectReturn(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        if ($user->stripe_account_id && config('services.stripe.secret')
+            && !str_starts_with((string) $user->stripe_account_id, 'acct_demo_')) {
+            try {
+                $stripe  = new \Stripe\StripeClient(config('services.stripe.secret'));
+                $account = $stripe->accounts->retrieve($user->stripe_account_id);
+                $connected = $account->charges_enabled && $account->payouts_enabled && $account->details_submitted;
+                $user->update(['stripe_connected' => $connected ? 1 : 0]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('[Stripe Connect] return sync failed', ['error' => $e->getMessage()]);
+            }
+        }
+
+        return redirect()->route('provider.settings.index', ['tab' => 'integrations'])
+            ->with('success', 'Stripe Connect setup complete. Your account is now active for receiving payments.');
+    }
+
 }

@@ -231,6 +231,95 @@ class PayoutService
         }
     }
 
+    // ── CS invoice payment ────────────────────────────────────────────────────────
+
+    /**
+     * Provider → CS destination charge. Mirrors chargeProviderToBp() exactly
+     * but the recipient is a Continuity Steward rather than a Business Partner.
+     *
+     * Used when a Provider pays a CS invoice.
+     *
+     * @throws \RuntimeException on Stripe error or missing account details
+     */
+    public function chargeProviderToCs(
+        User   $provider,
+        User   $cs,
+        int    $amountCents,
+        string $currency = 'usd',
+        array  $meta = [],
+        string $description = ''
+    ): array {
+        // ── Demo / stub detection ─────────────────────────────────────────────
+        $isDemoProvider = str_starts_with((string) $provider->stripe_id, 'cus_demo_')
+            || str_starts_with((string) $provider->stripe_payment_method_id, 'pm_demo_');
+        $isDemoCs = str_starts_with((string) $cs->stripe_account_id, 'acct_demo_');
+
+        if ($isDemoProvider || $isDemoCs) {
+            return [
+                'stripe_payment_intent_id' => 'pi_demo_' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(16)),
+                'stripe_transfer_id'       => null,
+                'status'                   => 'paid',
+                'stub'                     => true,
+                'stub_reason'              => 'Demo mode — no real Stripe objects.',
+            ];
+        }
+
+        // ── Guards ────────────────────────────────────────────────────────────
+        if (!$provider->stripe_id || !$provider->stripe_payment_method_id) {
+            throw new \RuntimeException('No payment method on file. Please add a card in Settings → Billing before paying this invoice.');
+        }
+
+        $csAccount  = $cs->stripe_account_id;
+        $isRealAcct = $csAccount && preg_match('/^acct_[a-zA-Z0-9]{16,}$/', $csAccount);
+        if (!$isRealAcct) {
+            throw new \RuntimeException('CS has not connected a Stripe account yet. They must complete payment setup before payment can be released.');
+        }
+
+        if (!config('services.stripe.secret')) {
+            return [
+                'stripe_payment_intent_id' => 'pi_stub_' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(16)),
+                'stripe_transfer_id'       => null,
+                'status'                   => 'pending',
+                'stub'                     => true,
+                'stub_reason'              => 'Stripe not configured (sandbox mode).',
+            ];
+        }
+
+        // ── Live Stripe destination charge ────────────────────────────────────
+        try {
+            $stripe = new \Stripe\StripeClient(config('services.stripe.secret'));
+            $intent = $stripe->paymentIntents->create([
+                'amount'               => $amountCents,
+                'currency'             => strtolower($currency),
+                'customer'             => $provider->stripe_id,
+                'payment_method'       => $provider->stripe_payment_method_id,
+                'confirm'              => true,
+                'automatic_payment_methods' => ['enabled' => true, 'allow_redirects' => 'never'],
+                'transfer_data'        => ['destination' => $csAccount],
+                'on_behalf_of'         => $csAccount,
+                'description'          => $description ?: 'Aegis CS invoice payment',
+                'metadata'             => array_merge($meta, [
+                    'provider_id' => $provider->id,
+                    'cs_id'       => $cs->id,
+                ]),
+            ]);
+            return [
+                'stripe_payment_intent_id' => $intent->id,
+                'stripe_transfer_id'       => $intent->transfer_data->destination_payment ?? null,
+                'status'                   => $intent->status === 'succeeded' ? 'paid' : 'pending',
+                'stub'                     => false,
+            ];
+        } catch (\Stripe\Exception\CardException $e) {
+            throw new \RuntimeException('Card declined: ' . $e->getMessage());
+        } catch (\Stripe\Exception\InvalidRequestException $e) {
+            throw new \RuntimeException('Stripe error: ' . $e->getMessage());
+        } catch (\Stripe\Exception\AuthenticationException $e) {
+            throw new \RuntimeException('Stripe authentication failed. Check STRIPE_SECRET in .env.');
+        } catch (\Throwable $e) {
+            throw new \RuntimeException('Payment failed: ' . $e->getMessage());
+        }
+    }
+
     // ── Contract payment helpers ───────────────────────────────────────────────
 
     /**

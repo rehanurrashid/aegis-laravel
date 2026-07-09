@@ -341,6 +341,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         // Finances
         Route::get('/finances', [ProviderFinancesController::class, 'index'])->name('finances.index');
         Route::post('/finances/payment-method', [ProviderFinancesController::class, 'storePaymentMethod'])->name('finances.payment.store');
+        Route::post('/finances/cs-invoices/{invoice}/pay', [ProviderFinancesController::class, 'payCSInvoice'])->name('finances.cs-invoice.pay');
 
         // Settings
         Route::get('/settings', [ProviderSettingsController::class, 'index'])->name('settings.index');
@@ -371,6 +372,8 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
 
         // Subscription — Settings.vue panel-subscription
         Route::get( '/settings/billing-portal',        [ProviderSettingsController::class, 'billingPortal'])->name('settings.billing.portal');
+        Route::get('/settings/connect/onboard',  [ProviderSettingsController::class, 'connectOnboard'])->name('settings.connect.onboard');
+        Route::get('/settings/connect/return',   [ProviderSettingsController::class, 'connectReturn'])->name('settings.connect.return');
         Route::post('/settings/subscription/swap',     [ProviderSettingsController::class, 'swapPlan'])->name('settings.subscription.swap');
         Route::post('/settings/subscription/cancel',   [ProviderSettingsController::class, 'cancelPlan'])->name('settings.subscription.cancel');
         Route::post('/settings/subscription/resume',   [ProviderSettingsController::class, 'resumePlan'])->name('settings.subscription.resume');

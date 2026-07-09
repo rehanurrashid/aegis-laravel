@@ -15,7 +15,10 @@ use Inertia\Response;
 
 class FinancesController extends Controller
 {
-    public function __construct(private SubscriptionService $subscriptions) {}
+    public function __construct(
+        private SubscriptionService $subscriptions,
+        private \App\Services\PayoutService $payouts,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -59,4 +62,56 @@ class FinancesController extends Controller
         }
         return back()->with('success', 'Payment method saved.');
     }
+    public function payCSInvoice(Request $request, \App\Models\CsInvoice $invoice): \Illuminate\Http\RedirectResponse
+    {
+        $provider = $request->user();
+
+        // Guard: must be the provider this invoice is billed to
+        if ($invoice->provider_id !== $provider->id) {
+            abort(403, 'Not authorised to pay this invoice.');
+        }
+
+        if ($invoice->status === 'paid') {
+            return back()->withErrors(['invoice' => 'This invoice has already been paid.']);
+        }
+
+        $cs = \App\Models\User::find($invoice->cs_id);
+        if (!$cs) {
+            return back()->withErrors(['invoice' => 'Continuity Steward not found.']);
+        }
+
+        try {
+            $result = $this->payouts->chargeProviderToCs(
+                provider:    $provider,
+                cs:          $cs,
+                amountCents: $invoice->amount_cents,
+                meta:        ['cs_invoice_id' => $invoice->id],
+                description: 'CS invoice payment — Aegis',
+            );
+
+            $invoice->update([
+                'status'                   => $result['status'],
+                'stripe_payment_intent_id' => $result['stripe_payment_intent_id'],
+                'paid_at'                  => $result['status'] === 'paid' ? now() : null,
+            ]);
+
+            // Record in practitioner_payments
+            \App\Models\PractitionerPayment::create([
+                'id'                       => 'pp_' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(12)),
+                'practitioner_id'          => $provider->id,
+                'kind'                     => 'cs_fee',
+                'amount_cents'             => $invoice->amount_cents,
+                'currency'                 => 'usd',
+                'stripe_payment_intent_id' => $result['stripe_payment_intent_id'],
+                'status'                   => $result['status'],
+                'paid_at'                  => $result['status'] === 'paid' ? now() : null,
+                'description'              => 'CS invoice #' . $invoice->id,
+            ]);
+
+            return back()->with('success', 'Invoice paid successfully.');
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['invoice' => $e->getMessage()]);
+        }
+    }
+
 }

@@ -67,9 +67,22 @@ class AdminPaymentService
 
     public function refundPayment(User $admin, PractitionerPayment $payment, int $amountCents): PractitionerPayment
     {
-        if (config('services.stripe.secret')) {
-            $stripe = new StripeClient(config('services.stripe.secret'));
-            // $stripe->refunds->create(['payment_intent' => $payment->stripe_payment_intent_id, 'amount' => $amountCents]);
+        if (config('services.stripe.secret') && $payment->stripe_payment_intent_id
+            && !str_starts_with($payment->stripe_payment_intent_id, 'pi_demo_')
+            && !str_starts_with($payment->stripe_payment_intent_id, 'pi_stub_')) {
+            try {
+                $stripe = new StripeClient(config('services.stripe.secret'));
+                $stripe->refunds->create([
+                    'payment_intent' => $payment->stripe_payment_intent_id,
+                    'amount'         => $amountCents,
+                ]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('[AdminPaymentService] refund failed', [
+                    'payment_id' => $payment->id,
+                    'error'      => $e->getMessage(),
+                ]);
+                throw $e;
+            }
         }
         $payment->update(['status' => 'refunded']);
         $this->audit($admin, 'refund_payment', $payment->id, 'practitioner_payment', ['amount_cents' => $amountCents]);

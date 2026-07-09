@@ -833,7 +833,7 @@
                       <a :href="route('provider.settings.billing.portal')" class="btn btn-ghost btn-xs" target="_blank">Dashboard <AegisIcon name="external-link" :size="12" /></a>
                     </div>
                     <div v-else class="stripe-setup-actions">
-                      <a :href="route('provider.settings.billing.portal')" class="btn btn-primary btn-sm"><AegisIcon name="external-link" :size="13" /> Connect Stripe Account</a>
+                      <a :href="route('provider.settings.connect.onboard')" class="btn btn-primary btn-sm"><AegisIcon name="external-link" :size="13" /> Connect Stripe Account</a>
                       <span style="font-size:12px;color:var(--text-4)">You'll be redirected to Stripe to complete setup</span>
                     </div>
                   </div>

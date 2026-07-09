@@ -282,15 +282,53 @@ class StripeEventListener
         $user = User::where('stripe_id', $customerId)->first();
         if (!$user) return;
 
-        $user->update([
+        // Save pm_type/pm_last_four for display, AND stripe_payment_method_id for peer charges
+        $updates = [
             'pm_type'      => $pm['card']['brand'] ?? ($pm['type'] ?? null),
             'pm_last_four' => $pm['card']['last4'] ?? null,
-        ]);
+        ];
+        // Only set stripe_payment_method_id if this is being attached as default
+        // (payment_method.attached fires for any attachment; we set it if no existing default)
+        if (!$user->stripe_payment_method_id && isset($pm['id'])) {
+            $updates['stripe_payment_method_id'] = $pm['id'];
+        }
+        $user->update($updates);
 
         Log::info('[STRIPE_WEBHOOK] payment method attached', [
             'user_id' => $user->id,
             'brand'   => $pm['card']['brand'] ?? null,
             'last4'   => $pm['card']['last4'] ?? null,
+        ]);
+    }
+
+    /**
+     * account.updated — fired by Stripe when a Connect Express account completes onboarding.
+     * Flips stripe_connected = 1 when charges_enabled && payouts_enabled.
+     */
+    private function handleAccountUpdated(array $payload): void
+    {
+        $account = $payload['data']['object'] ?? [];
+        $acctId  = $account['id'] ?? null;
+        if (!$acctId) return;
+
+        $chargesEnabled  = (bool) ($account['charges_enabled']  ?? false);
+        $payoutsEnabled  = (bool) ($account['payouts_enabled']  ?? false);
+        $detailsSubmitted = (bool) ($account['details_submitted'] ?? false);
+
+        $user = \App\Models\User::where('stripe_account_id', $acctId)->first();
+        if (!$user) {
+            Log::info('[STRIPE_WEBHOOK] account.updated — no user found', ['acct_id' => $acctId]);
+            return;
+        }
+
+        $isConnected = $chargesEnabled && $payoutsEnabled && $detailsSubmitted;
+        $user->update(['stripe_connected' => $isConnected ? 1 : 0]);
+
+        Log::info('[STRIPE_WEBHOOK] account.updated — stripe_connected synced', [
+            'user_id'         => $user->id,
+            'stripe_connected' => $isConnected,
+            'charges_enabled' => $chargesEnabled,
+            'payouts_enabled' => $payoutsEnabled,
         ]);
     }
 
