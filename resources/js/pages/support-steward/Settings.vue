@@ -185,7 +185,7 @@
             pause-route="ss.settings.account.pause"
             resume-route="ss.settings.account.resume"
             export-route="ss.settings.account.export"
-            :is-paused="isAccountPaused"
+            :initial-paused="isAccountPaused"
           />
         </div>
 

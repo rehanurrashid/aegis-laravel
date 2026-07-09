@@ -86,7 +86,8 @@
                     <div style="font-size:13px;font-weight:700;color:var(--text)">Practitioner Portal</div>
                     <div style="font-size:12px;color:var(--text-3)">Profile settings, referrals, continuity plan — {{ tierLabel }}</div>
                   </div>
-                  <span class="badge badge-green">Active</span>
+                  <span v-if="!isAccountPaused" class="badge badge-green">Active</span>
+                  <span v-else class="badge badge-orange">Paused</span>
                   <a :href="route('provider.profile.index')" class="btn-icon" data-tooltip="Edit practitioner profile"><AegisIcon name="edit" :size="14" /></a>
                 </div>
                 <div v-if="user?.has_cs_portal" class="list-group-item">
@@ -854,7 +855,7 @@
             pause-route="provider.settings.account.pause"
             resume-route="provider.settings.account.resume"
             export-route="provider.settings.account.export"
-            :is-paused="isAccountPaused"
+            :initial-paused="isAccountPaused"
           />
         </div>
 

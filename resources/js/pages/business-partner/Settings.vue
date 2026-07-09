@@ -353,7 +353,7 @@
             pause-route="bp.settings.account.pause"
             resume-route="bp.settings.account.resume"
             export-route="bp.settings.account.export"
-            :is-paused="isAccountPaused"
+            :initial-paused="isAccountPaused"
           />
         </div>
 

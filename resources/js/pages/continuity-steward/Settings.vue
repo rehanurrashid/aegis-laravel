@@ -302,7 +302,7 @@
             pause-route="cs.settings.account.pause"
             resume-route="cs.settings.account.resume"
             export-route="cs.settings.account.export"
-            :is-paused="isAccountPaused"
+            :initial-paused="isAccountPaused"
           />
         </div>
       </div>

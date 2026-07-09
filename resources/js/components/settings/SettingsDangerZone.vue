@@ -176,7 +176,7 @@
 
 <script setup>
 import { ref, reactive, computed } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { useToast } from '@/composables/useToast';
 
 const props = defineProps({
@@ -184,11 +184,15 @@ const props = defineProps({
   pauseRoute:  { type: String, default: 'provider.settings.account.pause'  },
   resumeRoute: { type: String, default: 'provider.settings.account.resume' },
   exportRoute: { type: String, default: 'provider.settings.account.export' },
-  isPaused:    { type: Boolean, default: false },
+  initialPaused: { type: Boolean, default: false },  // fallback if auth props not available
 });
 
 const toast  = useToast();
 const modals = reactive({ export: false, pause: false, resume: false, delete: false });
+
+// Read pause state directly from Inertia shared props — always up to date after any POST
+const _page   = usePage();
+const isPaused = computed(() => _page.props.auth?.user?.is_paused ?? props.initialPaused ?? false);
 
 // ── Export ───────────────────────────────────────────────────────────────────
 const exportOptions = reactive([
