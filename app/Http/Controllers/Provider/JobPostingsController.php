@@ -10,6 +10,7 @@ use App\Http\Requests\Business\JobStatusRequest;
 use App\Http\Requests\Business\ProposalNoteRequest;
 use App\Http\Requests\Business\ProposalStageRequest;
 use App\Models\BpMilestone;
+use App\Models\BpInvoice;
 use App\Http\Requests\Business\UpdateJobRequest;
 use App\Models\BpContract;
 use App\Models\BpEngagementRequest;
@@ -32,6 +33,8 @@ class JobPostingsController extends Controller
         private ProposalService $proposals,
         private ContractService $contracts,
         private MessagingService $messaging,
+        private \App\Services\InvoiceService $invoices,
+        private \App\Services\PayoutService $payouts,
         private PayoutService $payouts,
     ) {}
 
@@ -328,4 +331,61 @@ class JobPostingsController extends Controller
             return back()->withErrors(['milestone' => $e->getMessage()]);
         }
     }
+    /**
+     * Gap 5: Provider pays a BP-issued invoice directly.
+     * Uses chargeProviderToBp() (destination charge) then calls InvoiceService::recordPayment().
+     *
+     * Decision: soft W-9 gate — warn in activity log but don't hard-block,
+     * since BP may not yet have uploaded their W-9 during onboarding.
+     * Hard block only enforced by admin if compliance requires it.
+     */
+    public function payBPInvoice(Request $request, BpInvoice $invoice): RedirectResponse
+    {
+        $provider = $request->user();
+
+        if ($invoice->practitioner_id !== $provider->id) {
+            abort(403, 'Not authorised to pay this invoice.');
+        }
+
+        if ($invoice->status === 'paid') {
+            return back()->withErrors(['invoice' => 'This invoice has already been paid.']);
+        }
+
+        $bp = \App\Models\User::find($invoice->bp_id);
+        if (!$bp) {
+            return back()->withErrors(['invoice' => 'Business Partner not found.']);
+        }
+
+        // Gap 9 soft W-9 gate: warn if W-9 not verified but don't block
+        $w9 = $bp->bpTaxDocuments()->where('doc_type', 'w9')->latest()->first();
+        if (!$w9 || $w9->status !== \App\Enums\TaxDocStatus::Verified) {
+            app(\App\Services\ActivityService::class)->log(
+                $provider->id, 'provider', 'job_postings', \App\Enums\ActivitySeverity::Warning,
+                'invoice_pay_no_w9', 'Payment issued without verified W-9',
+                'BP ' . ($bp->display_name ?? $bp->id) . ' does not have a verified W-9 on file. Payment proceeded — admin notified.',
+                'bp_invoice', $invoice->id, null, 'log', $provider->id,
+            );
+        }
+
+        try {
+            $result = $this->payouts->chargeProviderToBp(
+                provider:    $provider,
+                bp:          $bp,
+                amountCents: $invoice->total_cents,
+                meta:        ['bp_invoice_id' => $invoice->id, 'invoice_number' => $invoice->invoice_number],
+                description: 'BP invoice ' . $invoice->invoice_number . ' — Aegis',
+            );
+
+            $this->invoices->recordPayment(
+                invoice:       $invoice,
+                amountCents:   $invoice->total_cents,
+                stripeChargeId: $result['stripe_payment_intent_id'],
+            );
+
+            return back()->with('success', 'Invoice ' . $invoice->invoice_number . ' paid successfully.');
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['invoice' => $e->getMessage()]);
+        }
+    }
+
 }

@@ -338,4 +338,62 @@ class SettingsController extends Controller
         return back()->with('success', 'Export request submitted. Your data will be emailed to ' . $user->email . ' within 24 hours.');
     }
 
+    // ── Stripe Connect Express Onboarding ────────────────────────────────────
+
+    public function connectOnboard(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $user = $request->user();
+
+        if (!config('services.stripe.secret')) {
+            return back()->withErrors(['connect' => 'Stripe is not configured.']);
+        }
+
+        try {
+            $stripe = new \Stripe\StripeClient(config('services.stripe.secret'));
+
+            if (!$user->stripe_account_id || str_starts_with((string) $user->stripe_account_id, 'acct_demo_')) {
+                $account = $stripe->accounts->create([
+                    'type'         => 'express',
+                    'email'        => $user->email,
+                    'capabilities' => ['transfers' => ['requested' => true]],
+                    'metadata'     => ['user_id' => $user->id, 'portal' => 'continuity_steward'],
+                ]);
+                $user->update(['stripe_account_id' => $account->id, 'stripe_connected' => false]);
+            }
+
+            $link = $stripe->accountLinks->create([
+                'account'     => $user->stripe_account_id,
+                'refresh_url' => route('cs.settings.connect.onboard'),
+                'return_url'  => route('cs.settings.connect.return'),
+                'type'        => 'account_onboarding',
+            ]);
+
+            return redirect($link->url);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('[Stripe Connect CS] onboard failed', ['user_id' => $user->id, 'error' => $e->getMessage()]);
+            return back()->withErrors(['connect' => 'Could not start Stripe Connect setup: ' . $e->getMessage()]);
+        }
+    }
+
+    public function connectReturn(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $user = $request->user();
+
+        if ($user->stripe_account_id && config('services.stripe.secret')
+            && !str_starts_with((string) $user->stripe_account_id, 'acct_demo_')) {
+            try {
+                $stripe  = new \Stripe\StripeClient(config('services.stripe.secret'));
+                $account = $stripe->accounts->retrieve($user->stripe_account_id);
+                $user->update([
+                    'stripe_connected' => ($account->charges_enabled && $account->payouts_enabled && $account->details_submitted) ? 1 : 0,
+                ]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('[Stripe Connect CS] return sync failed', ['error' => $e->getMessage()]);
+            }
+        }
+
+        return redirect()->route('cs.settings.index', ['tab' => 'integrations'])
+            ->with('success', 'Stripe Connect setup complete. You can now receive payments from providers.');
+    }
+
 }

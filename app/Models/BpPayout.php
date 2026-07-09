@@ -35,5 +35,10 @@ class BpPayout extends Model
         return $this->belongsTo(User::class, 'bp_id');
     }
 
+    public function provider(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'provider_id');
+    }
+
     public function scopePaid($q) { return $q->where('status', PayoutStatus::Paid->value); }
 }

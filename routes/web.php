@@ -269,6 +269,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::delete('/support-services/contracts/{contract}/milestones/{milestone}', [ProviderJobPostingsController::class, 'destroyMilestone'])->name('jobs.contract.milestones.destroy');
         Route::post('/support-services/contracts/{contract}/milestones/{milestone}/approve', [ProviderJobPostingsController::class, 'approveMilestone'])->name('jobs.contract.milestones.approve');
         Route::post('/support-services/contracts/{contract}/milestones/{milestone}/pay', [ProviderJobPostingsController::class, 'payMilestone'])->name('jobs.contract.milestones.pay');
+        Route::post('/support-services/bp-invoices/{invoice}/pay', [ProviderJobPostingsController::class, 'payBPInvoice'])->name('jobs.bp-invoice.pay');
 
         // Continuity Documents
         Route::get('/important-documents', [DocumentsController::class, 'index'])->name('documents.index');
@@ -445,6 +446,8 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:contin
         Route::post('/settings/subscription/cancel', [CsSettingsController::class, 'cancelPlan'])->name('settings.subscription.cancel');
         Route::post('/settings/subscription/resume', [CsSettingsController::class, 'resumePlan'])->name('settings.subscription.resume');
         Route::get('/settings/billing-portal',       [CsSettingsController::class, 'billingPortal'])->name('settings.billing.portal');
+        Route::get('/settings/connect/onboard', [CsSettingsController::class, 'connectOnboard'])->name('settings.connect.onboard');
+        Route::get('/settings/connect/return',  [CsSettingsController::class, 'connectReturn'])->name('settings.connect.return');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
         Route::put('/settings/account', [CsSettingsController::class, 'updateAccount'])->name('settings.account');
         Route::put('/settings/messaging', [CsSettingsController::class, 'updateMessaging'])->name('settings.messaging');

@@ -23,16 +23,25 @@ class AdminPayoutService
 
     public function listPending(): Collection
     {
-        return BpPayout::whereIn('status', ['pending', 'failed'])
+        return BpPayout::with(['provider:id,display_name', 'bp:id,display_name'])
+            ->whereIn('status', ['pending', 'failed'])
             ->orderBy('created_at')
-            ->get();
+            ->get()
+            ->map(fn($p) => array_merge($p->toArray(), [
+                'provider_name' => $p->provider?->display_name,
+                'bp_name'       => $p->bp?->display_name,
+            ]));
     }
 
     public function listAll(?string $status = null): Collection
     {
-        $q = BpPayout::query();
+        $q = BpPayout::with(['provider:id,display_name', 'bp:id,display_name']);
         if ($status !== null) $q->where('status', $status);
-        return $q->orderByDesc('created_at')->limit(500)->get();
+        return $q->orderByDesc('created_at')->limit(500)->get()
+            ->map(fn($p) => array_merge($p->toArray(), [
+                'provider_name' => $p->provider?->display_name,
+                'bp_name'       => $p->bp?->display_name,
+            ]));
     }
 
     /**
