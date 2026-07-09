@@ -120,6 +120,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Business\SubscriptionTierChanged::class,  Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Business\MaatAddonChanged::class,         Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Account\SubscriptionRenewalUpcoming::class, Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Stripe\PaymentFailed::class,              Listeners\SendEmailNotificationListener::class);
 
         // Document events
         Event::listen(Events\Document\DocumentRequested::class,        Listeners\SendEmailNotificationListener::class);

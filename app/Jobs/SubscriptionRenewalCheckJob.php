@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Events\Stripe\SubscriptionRenewalUpcoming;
+use App\Events\Account\SubscriptionRenewalUpcoming;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
@@ -40,12 +40,16 @@ class SubscriptionRenewalCheckJob implements ShouldQueue
 
         // Cashier stores subscriptions in `subscriptions` table; we query it directly
         // since we can't guarantee the Cashier subscription manager is available here.
+        // Query active subscriptions not scheduled for cancellation
+        // Cashier stores next renewal date on Stripe; locally we just find active subs
+        // and let Stripe's invoice.upcoming webhook (7 days before) handle the actual reminder.
+        // This job is a fallback for subscriptions where webhook may have been missed.
+        $windowStart = $window->copy()->startOfDay();
+        $windowEnd   = $window->copy()->endOfDay();
+
         $subs = \Illuminate\Support\Facades\DB::table('subscriptions')
-            ->whereNotNull('stripe_status')
             ->where('stripe_status', 'active')
-            ->whereDate('trial_ends_at', $window)->orWhereDate(
-                \Illuminate\Support\Facades\DB::raw('DATE(renews_at)'), $window->toDateString()
-            )
+            ->whereNull('ends_at')  // not scheduled for cancellation
             ->get();
 
         foreach ($subs as $sub) {
@@ -54,7 +58,7 @@ class SubscriptionRenewalCheckJob implements ShouldQueue
                 continue;
             }
 
-            $renewalDate = Carbon::parse($sub->trial_ends_at ?? $sub->renews_at ?? $sub->current_period_end ?? now()->addDays(7));
+            $renewalDate = Carbon::parse($sub->trial_ends_at ?? $sub->ends_at ?? now()->addDays(7));
             $priceId     = $sub->stripe_price ?? null;
             $tier        = $priceId ? (config("aegis.stripe_price_to_tier.{$priceId}") ?? 'Standard') : 'Standard';
 

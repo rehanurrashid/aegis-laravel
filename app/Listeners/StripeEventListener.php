@@ -6,9 +6,11 @@ namespace App\Listeners;
 
 use App\Models\StripeWebhookEvent;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use App\Events\Stripe\PaymentFailed;
+use App\Events\Account\SubscriptionRenewalUpcoming;
 use App\Events\Stripe\PaymentReceived;
 use Laravel\Cashier\Events\WebhookReceived;
 
@@ -332,7 +334,16 @@ class StripeEventListener
             'due_date'     => $invoice['next_payment_attempt'] ?? null,
         ]);
 
-        // TODO: dispatch SubscriptionRenewalUpcoming event when reminder email template is ready
+        $amountCents = (int) ($invoice['amount_due'] ?? 0);
+        $renewalDate = isset($invoice['next_payment_attempt'])
+            ? \Carbon\Carbon::createFromTimestamp($invoice['next_payment_attempt'])->toFormattedDateString()
+            : 'soon';
+
+        $sub      = $user->subscription('default');
+        $priceId  = $sub?->stripe_price;
+        $tier     = $priceId ? (config("aegis.stripe_price_to_tier.{$priceId}") ?? 'Standard') : 'Standard';
+
+        event(new SubscriptionRenewalUpcoming($user, $amountCents, $renewalDate, $tier));
     }
 
     /**

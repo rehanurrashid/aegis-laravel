@@ -31,6 +31,7 @@ use App\Events\Business\SubscriptionCancelled;
 use App\Events\Business\SubscriptionTierChanged;
 use App\Events\Business\MaatAddonChanged;
 use App\Events\Account\SubscriptionRenewalUpcoming;
+use App\Events\Stripe\PaymentFailed;
 use App\Events\Document\DocumentRequested;
 use App\Events\Document\DocumentReleaseRequested;
 use App\Events\Document\DocumentUpdated;
@@ -156,6 +157,7 @@ class SendEmailNotificationListener
             $event instanceof SubscriptionTierChanged => $this->subscriptionTierChanged($event),
             $event instanceof MaatAddonChanged        => $this->maatAddonChanged($event),
             $event instanceof SubscriptionRenewalUpcoming => $this->subscriptionRenewalUpcoming($event),
+            $event instanceof PaymentFailed              => $this->paymentFailed($event),
             $event instanceof DocumentRequested       => $this->documentRequested($event),
             $event instanceof DocumentReleaseRequested => $this->documentReleaseRequested($event),
             $event instanceof DocumentUpdated         => $this->documentUpdated($event),
@@ -786,6 +788,23 @@ class SendEmailNotificationListener
                 'amount_cents' => $e->amountCents  ?? 0,
             ],
         ]];
+    }
+
+    private function paymentFailed(PaymentFailed $e): array
+    {
+        $user = $e->user;
+        return [
+            'to'        => $user->email,
+            'subject'   => 'Payment failed — action required',
+            'template'  => 'admin.53-payment-failed',
+            'variables' => [
+                'display_name'   => $user->display_name,
+                'amount'         => '$' . number_format($e->amountCents / 100, 2),
+                'failure_reason' => $e->failureReason,
+                'next_retry'     => $e->retryDate ?? 'No retry scheduled',
+                'update_url'     => url('/provider/settings?tab=invoices'),
+            ],
+        ];
     }
 
     private function documentRequested(DocumentRequested $e): array {
