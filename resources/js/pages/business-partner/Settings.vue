@@ -87,7 +87,7 @@
 
         <div v-show="section === \'messaging\'" class="settings-panel">
           <SettingsMessaging update-route="bp.settings.messaging"
-            :meta="meta" messages-route="bp.messages.index" subtitle="Control how practitioners can reach your business on Aegis" :who-options="[\'Practitioners I\'m connected with\']" :meta="meta" />
+            :meta="meta" messages-route="bp.messages" subtitle="Control how practitioners can reach your business on Aegis" :who-options="[\'Practitioners I\'m connected with\']" :meta="meta" />
         </div>
 
         <div v-show="section === \'email-prefs\'" class="settings-panel">
@@ -113,7 +113,7 @@
               </div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Visible in Provider Network</div><div class="toggle-desc">Allow practitioners to discover your business in the Aegis network search</div></div><button type="button" class="toggle" :class="{ on: bpBizPrefs.networkVisible }" @click="bpBizPrefs.networkVisible = !bpBizPrefs.networkVisible" :aria-pressed="bpBizPrefs.networkVisible"></button></div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Accepting Job Proposals</div><div class="toggle-desc">Allow practitioners to send direct job proposals to your business</div></div><button type="button" class="toggle" :class="{ on: bpBizPrefs.proposalsOpen }" @click="bpBizPrefs.proposalsOpen = !bpBizPrefs.proposalsOpen" :aria-pressed="bpBizPrefs.proposalsOpen"></button></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success(\'Business settings saved.\')"><AegisIcon name="check" :size="16" /> Save Business Settings</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="saveBusinessPrefs"><AegisIcon name="check" :size="16" /> Save Business Settings</button></div>
             </div>
           </div>
         </div>
@@ -146,7 +146,7 @@
                 </select>
                 <div class="form-hint">Controls how often accumulated earnings are swept to your bank.</div>
               </div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success(\'Payout settings saved.\')"><AegisIcon name="check" :size="16" /> Save Payout Settings</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="savePayoutPrefs"><AegisIcon name="check" :size="16" /> Save Payout Settings</button></div>
             </div>
           </div>
         </div>
@@ -174,7 +174,7 @@
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Appear in Business Partner Search</div><div class="toggle-desc">Let practitioners find your business when searching for services</div></div><button type="button" class="toggle" :class="{ on: bpPrivacy.search }" @click="bpPrivacy.search = !bpPrivacy.search" :aria-pressed="bpPrivacy.search"></button></div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Show Location on Profile</div><div class="toggle-desc">Display your business city/region to Practitioner Partners</div></div><button type="button" class="toggle" :class="{ on: bpPrivacy.location }" @click="bpPrivacy.location = !bpPrivacy.location" :aria-pressed="bpPrivacy.location"></button></div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Services and Fees Visible to Practitioner Partners</div><div class="toggle-desc">Display your Services and Fees to Practitioner Partners</div></div><button type="button" class="toggle" :class="{ on: bpPrivacy.rates }" @click="bpPrivacy.rates = !bpPrivacy.rates" :aria-pressed="bpPrivacy.rates"></button></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success(\'Privacy settings saved.\')"><AegisIcon name="check" :size="13" /> Save Privacy Settings</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="savePrivacy"><AegisIcon name="check" :size="13" /> Save Privacy Settings</button></div>
             </div>
           </div>
         </div>
@@ -495,6 +495,28 @@ const privacyLevels = [
   { key: \'network\', name: \'Network\',  desc: \'Only Practitioner Partners I am connected with\', icon: \'link\' },
   { key: \'private\', name: \'Unlisted\', desc: \'Not shown in search — direct link only\',          icon: \'lock\' },
 ];
+
+function saveBusinessPrefs() {
+  router.put(route('bp.settings.business-prefs'), {
+    visible_in_search:  bpBusiness.visibleInSearch,
+    accept_direct_hire: bpBusiness.acceptDirectHire,
+    show_rates:         bpBusiness.showRates,
+  }, { preserveScroll: true, onSuccess: () => toast.success('Business settings saved.') });
+}
+function savePayoutPrefs() {
+  router.put(route('bp.settings.payout-prefs'), {
+    payout_frequency: bpPayout.frequency,
+    minimum_payout:   bpPayout.minimumPayout,
+  }, { preserveScroll: true, onSuccess: () => toast.success('Payout preferences saved.') });
+}
+function savePrivacy() {
+  router.put(route('bp.settings.privacy'), {
+    level:              bpPrivacy.level,
+    search:             bpPrivacy.search,
+    show_contracts:     bpPrivacy.showContracts,
+    show_team_members:  bpPrivacy.showTeamMembers,
+  }, { preserveScroll: true, onSuccess: () => toast.success('Privacy settings saved.') });
+}
 </script>
 
 <style scoped>

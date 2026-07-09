@@ -465,6 +465,9 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:contin
         Route::post('/settings/subscription/cancel', [CsSettingsController::class, 'cancelPlan'])->name('settings.subscription.cancel');
         Route::post('/settings/subscription/resume', [CsSettingsController::class, 'resumePlan'])->name('settings.subscription.resume');
         Route::get('/settings/billing-portal',       [CsSettingsController::class, 'billingPortal'])->name('settings.billing.portal');
+        Route::put('/settings/role-prefs',   [CsSettingsController::class, 'updateRolePrefs'])->name('settings.role-prefs');
+        Route::put('/settings/vault-prefs',   [CsSettingsController::class, 'updateVaultPrefs'])->name('settings.vault-prefs');
+        Route::put('/settings/privacy',       [CsSettingsController::class, 'updatePrivacy'])->name('settings.privacy');
         Route::get('/settings/connect/onboard', [CsSettingsController::class, 'connectOnboard'])->name('settings.connect.onboard');
         Route::get('/settings/connect/return',  [CsSettingsController::class, 'connectReturn'])->name('settings.connect.return');
         // Native "Add card" — Stripe SetupIntent client_secret
@@ -542,6 +545,9 @@ Route::middleware(['auth', 'verified.email', 'role:support_steward', 'check.lock
         Route::put('/settings/email-prefs', [SsSettingsController::class, 'updateEmailPrefs'])->name('settings.email-prefs');
         Route::put('/settings/appearance', [SsSettingsController::class, 'updateAppearance'])->name('settings.appearance');
         Route::delete('/settings/sessions', [SsSettingsController::class, 'revokeAllSessions'])->name('settings.sessions.revoke-all');
+        Route::put('/settings/role-prefs',   [SsSettingsController::class, 'updateRolePrefs'])->name('settings.role-prefs');
+        Route::put('/settings/agreement-prefs', [SsSettingsController::class, 'updateAgreementPrefs'])->name('settings.agreement-prefs');
+        Route::put('/settings/privacy',       [SsSettingsController::class, 'updatePrivacy'])->name('settings.privacy');
         Route::delete('/settings/account',     [SsSettingsController::class, 'deleteAccount'])->name('settings.account.delete');
         Route::post('/settings/account/pause', [SsSettingsController::class, 'pauseAccount'])->name('settings.account.pause');
         Route::post('/settings/account/resume',[SsSettingsController::class, 'resumeAccount'])->name('settings.account.resume');
@@ -643,6 +649,11 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:busine
         Route::put('/settings/email-prefs', [BpSettingsController::class, 'updateEmailPrefs'])->name('settings.email-prefs');
         Route::put('/settings/appearance', [BpSettingsController::class, 'updateAppearance'])->name('settings.appearance');
         Route::delete('/settings/sessions', [BpSettingsController::class, 'revokeAllSessions'])->name('settings.sessions.revoke-all');
+        Route::put('/settings/business-prefs', [BpSettingsController::class, 'updateBusinessPrefs'])->name('settings.business-prefs');
+        Route::put('/settings/payout-prefs',  [BpSettingsController::class, 'updatePayoutPrefs'])->name('settings.payout-prefs');
+        Route::put('/settings/privacy',       [BpSettingsController::class, 'updatePrivacy'])->name('settings.privacy');
+        Route::get('/settings/connect/onboard', [BpSettingsController::class, 'connectOnboard'])->name('settings.connect.onboard');
+        Route::get('/settings/connect/return',  [BpSettingsController::class, 'connectReturn'])->name('settings.connect.return');
         Route::delete('/settings/account',     [BpSettingsController::class, 'deleteAccount'])->name('settings.account.delete');
         Route::post('/settings/account/pause', [BpSettingsController::class, 'pauseAccount'])->name('settings.account.pause');
         Route::post('/settings/account/resume',[BpSettingsController::class, 'resumeAccount'])->name('settings.account.resume');

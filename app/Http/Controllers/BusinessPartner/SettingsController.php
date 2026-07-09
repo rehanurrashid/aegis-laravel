@@ -367,4 +367,84 @@ class SettingsController extends Controller
         return redirect()->route('bp.settings.index', ['section' => 'billing'])
             ->with('success', 'Stripe Connect setup complete. You can now receive payouts from practitioners.');
     }
+    public function updateBusinessPrefs(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $data = $request->validate([
+            'visible_in_search'  => 'boolean',
+            'accept_direct_hire' => 'boolean',
+            'show_rates'         => 'boolean',
+        ]);
+        $user = $request->user();
+        $this->profiles->saveMeta($user, 'bp_business_prefs', $data, 'json');
+        return back()->with('success', 'Business settings saved.');
+    }
+
+    public function updatePayoutPrefs(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $data = $request->validate([
+            'payout_frequency' => 'required|string|in:weekly,biweekly,monthly',
+            'minimum_payout'   => 'nullable|integer|min:0',
+        ]);
+        $user = $request->user();
+        $this->profiles->saveMeta($user, 'bp_payout_prefs', $data, 'json');
+        return back()->with('success', 'Payout preferences saved.');
+    }
+
+    public function updatePrivacy(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $data = $request->validate([
+            'level'             => 'required|string|in:public,network,private',
+            'search'            => 'boolean',
+            'show_contracts'    => 'boolean',
+            'show_team_members' => 'boolean',
+        ]);
+        $user = $request->user();
+        $this->profiles->saveMeta($user, 'bp_privacy', $data, 'json');
+        return back()->with('success', 'Privacy settings saved.');
+    }
+
+    public function connectOnboard(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $user = $request->user();
+        if (!config('services.stripe.secret')) {
+            return back()->withErrors(['connect' => 'Stripe is not configured.']);
+        }
+        try {
+            $stripe = new \Stripe\StripeClient(config('services.stripe.secret'));
+            if (!$user->stripe_account_id || str_starts_with((string) $user->stripe_account_id, 'acct_demo_')) {
+                $account = $stripe->accounts->create([
+                    'type'         => 'express',
+                    'email'        => $user->email,
+                    'capabilities' => ['transfers' => ['requested' => true]],
+                    'metadata'     => ['user_id' => $user->id, 'portal' => 'business_partner'],
+                ]);
+                $user->update(['stripe_account_id' => $account->id, 'stripe_connected' => false]);
+            }
+            $link = $stripe->accountLinks->create([
+                'account'     => $user->stripe_account_id,
+                'refresh_url' => route('bp.settings.connect.onboard'),
+                'return_url'  => route('bp.settings.connect.return'),
+                'type'        => 'account_onboarding',
+            ]);
+            return redirect($link->url);
+        } catch (\Throwable $e) {
+            return back()->withErrors(['connect' => 'Could not start Stripe Connect setup: ' . $e->getMessage()]);
+        }
+    }
+
+    public function connectReturn(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $user = $request->user();
+        if ($user->stripe_account_id && config('services.stripe.secret')
+            && !str_starts_with((string) $user->stripe_account_id, 'acct_demo_')) {
+            try {
+                $stripe  = new \Stripe\StripeClient(config('services.stripe.secret'));
+                $account = $stripe->accounts->retrieve($user->stripe_account_id);
+                $user->update(['stripe_connected' => ($account->charges_enabled && $account->payouts_enabled && $account->details_submitted) ? 1 : 0]);
+            } catch (\Throwable $e) {}
+        }
+        return redirect()->route('bp.settings.index', ['tab' => 'bp-payout'])
+            ->with('success', 'Stripe Connect setup complete. You can now receive payments from providers.');
+    }
+
 }

@@ -86,7 +86,7 @@
         </div>
 
         <div v-show="section === \'messaging\'" class="settings-panel">
-          <SettingsMessaging update-route="ss.settings.messaging" messages-route="ss.messages.index" subtitle="Control who can reach you and how you appear to assigned practitioners" :meta="meta" />
+          <SettingsMessaging update-route="ss.settings.messaging" messages-route="ss.messages" subtitle="Control who can reach you and how you appear to assigned practitioners" :meta="meta" />
         </div>
 
         <div v-show="section === \'email-prefs\'" class="settings-panel">
@@ -103,7 +103,7 @@
             </div>
             <div class="card-body">
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Show Name on Provider Public Profile</div><div class="toggle-desc">Allow your name to appear as "Support Steward" on your providers\' public Aegis pages</div></div><button type="button" class="toggle" :class="{ on: ssRolePrefs.showOnProfile }" @click="ssRolePrefs.showOnProfile = !ssRolePrefs.showOnProfile" :aria-pressed="ssRolePrefs.showOnProfile"></button></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success(\'SS settings saved.\')"><AegisIcon name="check" :size="16" /> Save SS Settings</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="saveRolePrefs"><AegisIcon name="check" :size="16" /> Save SS Settings</button></div>
             </div>
           </div>
         </div>
@@ -131,7 +131,7 @@
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Expiry Reminder (30 days before)</div><div class="toggle-desc">Notify me 30 days before any agreement or attestation is due</div></div><button type="button" class="toggle" :class="{ on: agreementPrefs.expiryReminder }" @click="agreementPrefs.expiryReminder = !agreementPrefs.expiryReminder" :aria-pressed="agreementPrefs.expiryReminder"></button></div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Notify Me When New Agreements Arrive</div><div class="toggle-desc">Alert me when a practitioner sends a new or amended agreement for my signature</div></div><button type="button" class="toggle" :class="{ on: agreementPrefs.incomingNotify }" @click="agreementPrefs.incomingNotify = !agreementPrefs.incomingNotify" :aria-pressed="agreementPrefs.incomingNotify"></button></div>
               <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
-                <button type="button" class="btn btn-outline btn-sm" @click="toast.success(\'Preferences saved.\')"><AegisIcon name="check" :size="13" /> Save Preferences</button>
+                <button type="button" class="btn btn-outline btn-sm" @click="saveAgreementPrefs"><AegisIcon name="check" :size="13" /> Save Preferences</button>
                 <a :href="route(\'ss.documents.index\')" class="btn btn-primary"><AegisIcon name="edit" :size="13" /> Complete Attestation</a>
               </div>
             </div>
@@ -150,7 +150,7 @@
               <div class="alert alert-info" style="margin-bottom:16px"><div class="alert-icon"><AegisIcon name="info" :size="16" /></div><div class="alert-content" style="font-size:12px">Your profile is only visible to the practitioners who have designated you as their Support Steward. It does not appear in any public directory or search.</div></div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Show Location to My Practitioners</div><div class="toggle-desc">Display your general city/region to practitioners you support</div></div><button type="button" class="toggle" :class="{ on: ssPrivacy.location }" @click="ssPrivacy.location = !ssPrivacy.location" :aria-pressed="ssPrivacy.location"></button></div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Show Contact Details to My Practitioners</div><div class="toggle-desc">Let your assigned practitioners see your phone and email</div></div><button type="button" class="toggle" :class="{ on: ssPrivacy.contact }" @click="ssPrivacy.contact = !ssPrivacy.contact" :aria-pressed="ssPrivacy.contact"></button></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success(\'Privacy settings saved.\')"><AegisIcon name="check" :size="13" /> Save Privacy Settings</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="savePrivacy"><AegisIcon name="check" :size="13" /> Save Privacy Settings</button></div>
             </div>
           </div>
         </div>
@@ -247,6 +247,28 @@ const ssNotifCategories = [
 const ssRolePrefs    = reactive({ showOnProfile: true });
 const ssPrivacy      = reactive({ location: true, contact: true });
 const agreementPrefs = reactive({ expiryReminder: true, incomingNotify: true });
+
+function saveRolePrefs() {
+  router.put(route('ss.settings.role-prefs'), {
+    accept_urgent:     ssRolePrefs.acceptUrgent,
+    notify_on_assign:  ssRolePrefs.notifyOnAssign,
+    max_practitioners: ssRolePrefs.maxPractitioners,
+  }, { preserveScroll: true, onSuccess: () => toast.success('Support Steward settings saved.') });
+}
+function saveAgreementPrefs() {
+  router.put(route('ss.settings.agreement-prefs'), {
+    auto_accept_renewals: ssAgreementPrefs.autoAcceptRenewals,
+    notify_expiry:        ssAgreementPrefs.notifyExpiry,
+    expiry_days_notice:   ssAgreementPrefs.expiryDaysNotice,
+  }, { preserveScroll: true, onSuccess: () => toast.success('Agreement preferences saved.') });
+}
+function savePrivacy() {
+  router.put(route('ss.settings.privacy'), {
+    level:    ssPrivacy.level,
+    search:   ssPrivacy.search,
+    location: ssPrivacy.location,
+  }, { preserveScroll: true, onSuccess: () => toast.success('Privacy settings saved.') });
+}
 </script>
 
 <style scoped>

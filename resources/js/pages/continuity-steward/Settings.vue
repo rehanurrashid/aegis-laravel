@@ -81,7 +81,7 @@
             :saved-categories="meta?.notify_categories ?? []" subtitle="Delivery channels unified across portals. Per-category preferences apply to your Continuity Steward role." :notif-categories="csNotifCategories" />
         </div>
         <div v-show="section === \'messaging\'" class="settings-panel">
-          <SettingsMessaging update-route="cs.settings.messaging" messages-route="cs.messages.index" subtitle="Control who can reach you and how you appear to assigned practitioners" :meta="meta">
+          <SettingsMessaging update-route="cs.settings.messaging" messages-route="cs.messages" subtitle="Control who can reach you and how you appear to assigned practitioners" :meta="meta">
             <template #extra-toggles>
               <div class="toggle-row">
                 <div class="toggle-info"><div class="toggle-label">Critical Incident Thread Auto-Flag</div><div class="toggle-desc">Messages sent during an active incident are automatically marked as legal record</div></div>
@@ -105,7 +105,7 @@
               <div class="section-label">Role Visibility</div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Show Name on Provider Public Profile</div><div class="toggle-desc">Allow your name to appear as "Continuity Steward" on your providers\' public Aegis pages</div></div><button type="button" class="toggle" :class="{ on: csRolePrefs.showOnProfile }" @click="csRolePrefs.showOnProfile = !csRolePrefs.showOnProfile" :aria-pressed="csRolePrefs.showOnProfile"></button></div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Request Vault Access on Assignment</div><div class="toggle-desc">Automatically request emergency vault access when assigned to a new provider</div></div><button type="button" class="toggle" :class="{ on: csRolePrefs.vaultAccess }" @click="csRolePrefs.vaultAccess = !csRolePrefs.vaultAccess" :aria-pressed="csRolePrefs.vaultAccess"></button></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success(\'CS settings saved.\')"><AegisIcon name="check" :size="16" /> Save CS Settings</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="saveRolePrefs"><AegisIcon name="check" :size="16" /> Save CS Settings</button></div>
             </div>
           </div>
         </div>
@@ -121,7 +121,7 @@
               <div class="alert alert-info" style="margin-bottom:16px"><div class="alert-icon"><AegisIcon name="info" :size="16" /></div><div class="alert-content" style="font-size:12px">Your vault access level is set by each practitioner individually. Access to sealed zones is only released when a critical incident is verified.</div></div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Notify Me When I Access a Vault</div><div class="toggle-desc">Receive a confirmation log entry whenever you open or download a document from a provider\'s vault</div></div><button type="button" class="toggle" :class="{ on: vaultNotifyPrefs.notifyAccess }" @click="vaultNotifyPrefs.notifyAccess = !vaultNotifyPrefs.notifyAccess" :aria-pressed="vaultNotifyPrefs.notifyAccess"></button></div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Notify Me on Emergency Vault Unlock</div><div class="toggle-desc">Alert me immediately when an emergency vault becomes accessible during an active incident</div></div><button type="button" class="toggle" :class="{ on: vaultNotifyPrefs.notifyUnlock }" @click="vaultNotifyPrefs.notifyUnlock = !vaultNotifyPrefs.notifyUnlock" :aria-pressed="vaultNotifyPrefs.notifyUnlock"></button></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success(\'Vault settings saved.\')"><AegisIcon name="check" :size="13" /> Save</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="saveVaultPrefs"><AegisIcon name="check" :size="13" /> Save</button></div>
             </div>
           </div>
         </div>
@@ -147,7 +147,7 @@
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Appear in CS Search Results</div><div class="toggle-desc">Let practitioners find you when searching for a Continuity Steward</div></div><button type="button" class="toggle" :class="{ on: csPrivacy.search }" @click="csPrivacy.search = !csPrivacy.search" :aria-pressed="csPrivacy.search"></button></div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Show Location on Profile</div><div class="toggle-desc">Display your general city/region on your public CS profile</div></div><button type="button" class="toggle" :class="{ on: csPrivacy.location }" @click="csPrivacy.location = !csPrivacy.location" :aria-pressed="csPrivacy.location"></button></div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Show Credentials on Profile</div><div class="toggle-desc">Display your professional credentials and title publicly</div></div><button type="button" class="toggle" :class="{ on: csPrivacy.creds }" @click="csPrivacy.creds = !csPrivacy.creds" :aria-pressed="csPrivacy.creds"></button></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success(\'Privacy settings saved.\')"><AegisIcon name="check" :size="13" /> Save Privacy Settings</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="savePrivacy"><AegisIcon name="check" :size="13" /> Save Privacy Settings</button></div>
             </div>
           </div>
         </div>
@@ -467,6 +467,27 @@ const privacyLevels = [
   { key: \'network\', name: \'Network\',  desc: \'Practitioners I am connected with only\', icon: \'link\' },
   { key: \'private\', name: \'Unlisted\', desc: \'Not shown in search — invite only\',      icon: \'lock\' },
 ];
+
+function saveRolePrefs() {
+  router.put(route('cs.settings.role-prefs'), {
+    show_on_profile: csRolePrefs.showOnProfile,
+    vault_access:    csRolePrefs.vaultAccess,
+  }, { preserveScroll: true, onSuccess: () => toast.success('CS settings saved.') });
+}
+function saveVaultPrefs() {
+  router.put(route('cs.settings.vault-prefs'), {
+    notify_access: vaultNotifyPrefs.notifyAccess,
+    notify_unlock: vaultNotifyPrefs.notifyUnlock,
+  }, { preserveScroll: true, onSuccess: () => toast.success('Vault preferences saved.') });
+}
+function savePrivacy() {
+  router.put(route('cs.settings.privacy'), {
+    level:    csPrivacy.level,
+    search:   csPrivacy.search,
+    location: csPrivacy.location,
+    creds:    csPrivacy.creds,
+  }, { preserveScroll: true, onSuccess: () => toast.success('Privacy settings saved.') });
+}
 </script>
 
 <style scoped>

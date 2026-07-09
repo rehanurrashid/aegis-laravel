@@ -396,4 +396,39 @@ class SettingsController extends Controller
             ->with('success', 'Stripe Connect setup complete. You can now receive payments from providers.');
     }
 
+    public function updateRolePrefs(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $data = $request->validate([
+            'show_on_profile' => 'boolean',
+            'vault_access'    => 'boolean',
+        ]);
+        $user = $request->user();
+        $this->profiles->saveMeta($user, 'cs_role_prefs', $data, 'json');
+        return back()->with('success', 'CS settings saved.');
+    }
+
+    public function updateVaultPrefs(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $data = $request->validate([
+            'notify_access' => 'boolean',
+            'notify_unlock' => 'boolean',
+        ]);
+        $user = $request->user();
+        $this->profiles->saveMeta($user, 'vault_notify_prefs', $data, 'json');
+        return back()->with('success', 'Vault notification preferences saved.');
+    }
+
+    public function updatePrivacy(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $data = $request->validate([
+            'level'    => 'required|string|in:public,network,private',
+            'search'   => 'boolean',
+            'location' => 'boolean',
+            'creds'    => 'boolean',
+        ]);
+        $user = $request->user();
+        $this->profiles->saveMeta($user, 'cs_privacy', $data, 'json');
+        return back()->with('success', 'Privacy settings saved.');
+    }
+
 }

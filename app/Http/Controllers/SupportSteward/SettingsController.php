@@ -258,4 +258,40 @@ class SettingsController extends Controller
         return back()->with('success', 'Export request submitted. Your data will be emailed to ' . $user->email . ' within 24 hours.');
     }
 
+    public function updateRolePrefs(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $data = $request->validate([
+            'accept_urgent'       => 'boolean',
+            'notify_on_assign'    => 'boolean',
+            'max_practitioners'   => 'nullable|integer|min:1|max:50',
+        ]);
+        $user = $request->user();
+        $this->profiles->saveMeta($user, 'ss_role_prefs', $data, 'json');
+        return back()->with('success', 'Support Steward settings saved.');
+    }
+
+    public function updateAgreementPrefs(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $data = $request->validate([
+            'auto_accept_renewals' => 'boolean',
+            'notify_expiry'        => 'boolean',
+            'expiry_days_notice'   => 'nullable|integer|min:1|max:90',
+        ]);
+        $user = $request->user();
+        $this->profiles->saveMeta($user, 'ss_agreement_prefs', $data, 'json');
+        return back()->with('success', 'Agreement preferences saved.');
+    }
+
+    public function updatePrivacy(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $data = $request->validate([
+            'level'    => 'required|string|in:public,network,private',
+            'search'   => 'boolean',
+            'location' => 'boolean',
+        ]);
+        $user = $request->user();
+        $this->profiles->saveMeta($user, 'ss_privacy', $data, 'json');
+        return back()->with('success', 'Privacy settings saved.');
+    }
+
 }
