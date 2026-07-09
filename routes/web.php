@@ -351,6 +351,8 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::put('/settings/vault-alerts',      [ProviderSettingsController::class, 'updateVaultAlerts'])->name('settings.vault-alerts');
         Route::put('/settings/agreement-alerts',  [ProviderSettingsController::class, 'updateAgreementAlerts'])->name('settings.agreement-alerts');
         Route::put('/settings/network-settings',  [ProviderSettingsController::class, 'updateNetworkSettings'])->name('settings.network-settings');
+        Route::put('/settings/services-settings', [ProviderSettingsController::class, 'updateServicesSettings'])->name('settings.services-settings');
+        Route::put('/settings/privacy-settings',  [ProviderSettingsController::class, 'updatePrivacySettings'])->name('settings.privacy-settings');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
         Route::put('/settings/account', [ProviderSettingsController::class, 'updateAccount'])->name('settings.account');
         Route::put('/settings/appearance', [ProviderSettingsController::class, 'updateAppearance'])->name('settings.appearance');

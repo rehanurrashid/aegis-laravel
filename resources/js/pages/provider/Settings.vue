@@ -375,24 +375,18 @@
                 <div class="form-group"><label class="form-label">Buffer Between Sessions</label><select class="form-select" v-model="servicesPrefs.sessionBuffer"><option value="none">None</option><option value="15min">15 min</option><option value="30min">30 min</option><option value="1hr">1 hour</option></select><div class="form-hint">Minimum gap between consecutive bookings</div></div>
               </div>
               <div class="section-label">Payment &amp; Rates</div>
-              <div class="rate-payment-block">
-                <div class="rate-field">
-                  <label class="form-label">Default Hourly Rate</label>
-                  <div class="rate-input-wrap">
-                    <span class="rate-currency">$</span>
-                    <input class="form-input" type="number" v-model="servicesPrefs.hourlyRate" placeholder="0" min="0" />
-                  </div>
-                  <div class="form-hint">Shown on your public profile when Services mode is on</div>
-                </div>
-                <div class="rate-payment-info">
-                  <AegisIcon name="credit-card" :size="18" />
-                  <div>
-                    <div style="font-size:13px;font-weight:700;color:var(--text)">Stripe Connect</div>
-                    <div style="font-size:12px;color:var(--text-3);margin-top:1px">Payments go directly to your Stripe account. <a :href="route('provider.settings.billing.portal')" style="color:var(--gold-dark)">Manage →</a></div>
-                  </div>
+              <div class="form-group" style="max-width:200px">
+                <label class="form-label">Default Hourly Rate</label>
+                <div class="rate-input-wrap">
+                  <span class="rate-currency">$</span>
+                  <input class="form-input" type="number" v-model="servicesPrefs.hourlyRate" placeholder="0" min="0" />
                 </div>
               </div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Services settings saved.')"><AegisIcon name="check" :size="13" /> Save Services Settings</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
+                <button type="button" class="btn btn-primary btn-sm" :disabled="servicesSettingsSaving" @click="saveServicesSettings">
+                  <AegisIcon name="check" :size="13" /> Save Services Settings
+                </button>
+              </div>
             </div>
           </div>
           </div><!-- end tier-blurred -->
@@ -419,7 +413,11 @@
                 </div>
               </div>
               <div v-for="row in privacyToggles" :key="row.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ row.label }}</div><div class="toggle-desc">{{ row.desc }}</div></div><button type="button" class="toggle" :class="{ on: privacy[row.key] }" @click="privacy[row.key] = !privacy[row.key]" :aria-pressed="privacy[row.key]"></button></div>
-              <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="toast.success('Privacy settings saved.')"><AegisIcon name="check" :size="13" /> Save Privacy Settings</button></div>
+              <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
+                <button type="button" class="btn btn-primary btn-sm" :disabled="privacySaving" @click="savePrivacySettings">
+                  <AegisIcon name="check" :size="13" /> Save Privacy Settings
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1320,15 +1318,66 @@ const agreementNotifToggles = [
 ];
 
 // ─── My Services prefs ───────────────────────────────────────────────────────────
+const _svcMeta = props.meta?.services_prefs ?? {};
 const servicesPrefs = reactive({
-  mode: false, showPublic: true, acceptBookings: true, autoConfirm: false,
-  showPricing: true, bpDiscoverable: true, acceptProposals: false,
-  slidingScale: true, bookingExpiry: '48h', sessionBuffer: '30min',
-  hourlyRate: '', paymentMethod: 'stripe',
+  mode:            _svcMeta.mode            ?? false,
+  showPublic:      _svcMeta.showPublic      ?? true,
+  acceptBookings:  _svcMeta.acceptBookings  ?? true,
+  showPricing:     _svcMeta.showPricing     ?? true,
+  bpDiscoverable:  _svcMeta.bpDiscoverable  ?? true,
+  bookingExpiry:   _svcMeta.bookingExpiry   ?? '48h',
+  sessionBuffer:   _svcMeta.sessionBuffer   ?? '30min',
+  hourlyRate:      _svcMeta.hourlyRate      ?? '',
 });
+const servicesSettingsSaving = ref(false);
+function saveServicesSettings() {
+  servicesSettingsSaving.value = true;
+  router.put(route('provider.settings.services-settings'), {
+    mode:           servicesPrefs.mode,
+    showPublic:     servicesPrefs.showPublic,
+    acceptBookings: servicesPrefs.acceptBookings,
+    showPricing:    servicesPrefs.showPricing,
+    bpDiscoverable: servicesPrefs.bpDiscoverable,
+    bookingExpiry:  servicesPrefs.bookingExpiry,
+    sessionBuffer:  servicesPrefs.sessionBuffer,
+    hourlyRate:     servicesPrefs.hourlyRate,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Services settings saved.'),
+    onError:   () => toast.error('Could not save services settings.'),
+    onFinish:  () => { servicesSettingsSaving.value = false; },
+  });
+}
 
 // ─── Privacy ──────────────────────────────────────────────────────────────────────
-const privacy = reactive({ level: 'network', search: true, networkShow: true, ratings: true, location: true, referralStats: true, demographics: true });
+const _privacyMeta = props.meta?.privacy_prefs ?? {};
+const privacy = reactive({
+  level:        _privacyMeta.level        ?? 'network',
+  search:       _privacyMeta.search       ?? true,
+  networkShow:  _privacyMeta.networkShow  ?? true,
+  ratings:      _privacyMeta.ratings      ?? true,
+  location:     _privacyMeta.location     ?? true,
+  referralStats:_privacyMeta.referralStats ?? true,
+  demographics: _privacyMeta.demographics ?? true,
+});
+const privacySaving = ref(false);
+function savePrivacySettings() {
+  privacySaving.value = true;
+  router.put(route('provider.settings.privacy-settings'), {
+    level:         privacy.level,
+    search:        privacy.search,
+    networkShow:   privacy.networkShow,
+    ratings:       privacy.ratings,
+    location:      privacy.location,
+    referralStats: privacy.referralStats,
+    demographics:  privacy.demographics,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Privacy settings saved.'),
+    onError:   () => toast.error('Could not save privacy settings.'),
+    onFinish:  () => { privacySaving.value = false; },
+  });
+}
 const privacyLevels = [
   { key: 'public',  name: 'Public',  desc: 'Visible to all Aegis providers', icon: 'eye'     },
   { key: 'network', name: 'Network', desc: 'Connected providers only',        icon: 'network' },

@@ -31,6 +31,19 @@ class SettingsController extends Controller
         // Return ALL meta so Vue can populate every panel
         $meta = $user->meta->pluck('typed_value', 'meta_key')->toArray();
 
+        // Synthesize privacy_prefs from user columns + individual meta keys if not yet saved as blob
+        if (empty($meta['privacy_prefs'])) {
+            $meta['privacy_prefs'] = [
+                'level'         => $user->practitioner_public ? 'public' : 'network',
+                'search'        => true,
+                'networkShow'   => true,
+                'ratings'       => isset($meta['show_ratings'])       ? (bool) $meta['show_ratings']       : true,
+                'location'      => true,
+                'referralStats' => isset($meta['show_referral_stats']) ? (bool) $meta['show_referral_stats'] : true,
+                'demographics'  => isset($meta['show_demographics'])   ? (bool) $meta['show_demographics']   : true,
+            ];
+        }
+
         // Active sessions (not revoked)
         $currentSessionId = $request->session()->getId();
 
@@ -211,6 +224,99 @@ class SettingsController extends Controller
         ]);
         $this->profiles->saveMeta($request->user(), 'notify_network', $data, 'json');
         return back()->with('success', 'Network settings saved.');
+    }
+
+    public function updateServicesSettings(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'mode'           => 'nullable|boolean',
+            'showPublic'     => 'nullable|boolean',
+            'acceptBookings' => 'nullable|boolean',
+            'showPricing'    => 'nullable|boolean',
+            'bpDiscoverable' => 'nullable|boolean',
+            'bookingExpiry'  => 'nullable|string|in:24h,48h,72h,1week',
+            'sessionBuffer'  => 'nullable|string|in:none,15min,30min,1hr',
+            'hourlyRate'     => 'nullable|numeric|min:0|max:9999',
+        ]);
+
+        $user = $request->user();
+
+        // Store full prefs blob
+        $this->profiles->saveMeta($user, 'services_prefs', $data, 'json');
+
+        // Mirror the services mode toggle to the meta key used by the sidebar/profile badge
+        if (array_key_exists('mode', $data)) {
+            $this->profiles->saveMeta($user, 'services_mode', $data['mode'] ? '1' : '0', 'string');
+        }
+
+        $this->activity->log(
+            $user->id,
+            'provider',
+            'account',
+            \App\Enums\ActivitySeverity::Info,
+            'services_settings_updated',
+            'Services settings updated',
+            'You updated your My Services preferences.',
+            null, null, null,
+            'log',
+            $user->id,
+        );
+
+        return back()->with('success', 'Services settings saved.');
+    }
+
+    public function updatePrivacySettings(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'level'         => 'nullable|string|in:public,network,private',
+            'search'        => 'nullable|boolean',
+            'networkShow'   => 'nullable|boolean',
+            'ratings'       => 'nullable|boolean',
+            'location'      => 'nullable|boolean',
+            'referralStats' => 'nullable|boolean',
+            'demographics'  => 'nullable|boolean',
+        ]);
+
+        $user = $request->user();
+
+        // Store full prefs blob
+        $this->profiles->saveMeta($user, 'privacy_prefs', $data, 'json');
+
+        // Mirror individual keys used by public profile service
+        if (array_key_exists('ratings', $data)) {
+            $this->profiles->saveMeta($user, 'show_ratings', $data['ratings'] ? '1' : '0', 'string');
+        }
+        if (array_key_exists('referralStats', $data)) {
+            $this->profiles->saveMeta($user, 'show_referral_stats', $data['referralStats'] ? '1' : '0', 'string');
+        }
+        if (array_key_exists('demographics', $data)) {
+            $this->profiles->saveMeta($user, 'show_demographics', $data['demographics'] ? '1' : '0', 'string');
+        }
+
+        // Mirror visibility level to the three practitioner_public / cs_public columns
+        if (!empty($data['level'])) {
+            $isPublic = $data['level'] === 'public';
+            $user->update([
+                'practitioner_public'     => $isPublic || $data['level'] === 'network',
+                'cs_public'               => $isPublic || $data['level'] === 'network',
+                'business_partner_public' => $isPublic,
+            ]);
+        }
+
+        $this->activity->log(
+            $user->id,
+            'provider',
+            'account',
+            \App\Enums\ActivitySeverity::Info,
+            'privacy_settings_updated',
+            'Privacy settings updated',
+            'You updated your privacy and visibility preferences.',
+            null, null, null,
+            'log',
+            $user->id,
+        );
+
+        return back()->with('success', 'Privacy settings saved.');
     }
 
     public function updateAppearance(Request $request): RedirectResponse
