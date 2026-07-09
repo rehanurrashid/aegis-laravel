@@ -13,7 +13,7 @@
           v-for="th in themes" :key="th.key"
           @click="setTheme(th.key)"
           style="cursor:pointer;border-radius:var(--radius);overflow:hidden;transition:border-color var(--transition)"
-          :style="{ border: form.theme === th.key ? '1px solid var(--gold-dark)' : '1px solid var(--border)' }"
+          :style="{ border: (!form.darkMode && form.theme === th.key) ? '1px solid var(--gold-dark)' : '1px solid var(--border)' }"
         >
           <div style="height:48px" :style="{ background: th.swatch }"></div>
           <div style="padding:8px 10px;background:var(--surface)">
@@ -56,9 +56,9 @@ const form = useForm({
 });
 
 const themes = [
-  { key: 'gold',      label: 'Aegis Gold',  desc: 'Classic warm gold (default)', swatch: 'linear-gradient(135deg,var(--gold-dark) 0%,var(--gold) 100%)' },
-  { key: 'gold-dark', label: 'Gold Dark',   desc: 'Deep rich gold palette',       swatch: 'linear-gradient(135deg,#8c6a1e 0%,#b8922e 100%)'  },
-  { key: 'slate',     label: 'Slate Blue',  desc: 'Cool professional slate tone',  swatch: 'linear-gradient(135deg,#2a5f8f 0%,#4a90c4 100%)' },
+  { key: 'gold',      label: 'Aegis Gold',  desc: 'Classic warm gold (default)', swatch: 'linear-gradient(135deg,#a0813e 0%,#c4a96a 100%)' },
+  { key: 'gold-dark', label: 'Gold Dark',   desc: 'Deep rich gold palette',       swatch: 'linear-gradient(135deg,#8c6a1e 0%,#b8922e 100%)' },
+  { key: 'slate',     label: 'Slate Blue',  desc: 'Cool professional slate tone',  swatch: 'linear-gradient(135deg,#2a6a9a 0%,#4a90c4 100%)' },
 ];
 
 // Theme class map: setting key → body CSS class
@@ -85,11 +85,13 @@ function applyToBody(theme, darkMode) {
 
 function setTheme(key) {
   form.theme = key;
-  applyToBody(key, form.darkMode);
+  form.darkMode = false; // selecting a color theme turns off dark mode
+  applyToBody(key, false);
 }
 
 function setDarkMode(val) {
   form.darkMode = val;
+  if (val) form.theme = 'gold'; // dark mode clears theme selection back to default
   applyToBody(form.theme, val);
 }
 
