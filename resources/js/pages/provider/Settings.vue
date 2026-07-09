@@ -324,6 +324,10 @@
             </div>
             <div class="card-body">
               <div class="section-label">Active Agreements</div>
+              <div v-if="activeAgreements.length === 0" style="padding:18px 0;display:flex;align-items:center;gap:10px;color:var(--text-3)">
+                <AegisIcon name="file-text" :size="16" />
+                <span style="font-size:13px">No active steward agreements found.</span>
+              </div>
               <div v-for="ag in activeAgreements" :key="ag.title" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)"><div><div style="font-size:13px;font-weight:700;color:var(--text)">{{ ag.title }}</div><div style="font-size:12px;color:var(--text-3);margin-top:2px">{{ ag.meta }}</div></div><span class="badge badge-green" style="flex-shrink:0">Active</span></div>
               <div class="section-label" style="margin-top:20px">Agreement Alerts</div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Agreement Expiry Reminder</div><div class="toggle-desc">Notify me 30 days before any steward agreement or attestation is due</div></div><button type="button" class="toggle" :class="{ on: agreementPrefs.expiryReminder }" @click="agreementPrefs.expiryReminder = !agreementPrefs.expiryReminder" :aria-pressed="agreementPrefs.expiryReminder"></button></div>
