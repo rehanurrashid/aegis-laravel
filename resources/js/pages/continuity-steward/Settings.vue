@@ -244,6 +244,27 @@
             </div>
           </div>
 
+          <!-- BUSINESS CS: Stripe Connect account (receive payouts from providers) -->
+          <div class="st-card" style="margin-top:14px">
+            <div class="st-card-head">
+              <div class="st-card-head-l">
+                <span class="st-card-ico"><AegisIcon name="credit-card" :size="17" /></span>
+                <div><div class="st-card-title">Payouts &amp; Stripe Connect</div><div class="st-card-sub">How you receive practitioner invoice payments</div></div>
+              </div>
+            </div>
+            <div class="st-card-body">
+              <div class="stripe-status" :class="stripeReady ? \'is-connected\' : \'is-disconnected\'" style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface-2);border-radius:var(--radius);border:1px solid var(--border)">
+                <AegisIcon :name="stripeReady ? \'check-circle\' : \'alert-triangle\'" :size="20" :style="stripeReady ? \'color:var(--green-dark)\' : \'color:var(--gold-dark)\'" />
+                <div style="flex:1">
+                  <div style="font-size:14px;font-weight:700;color:var(--text)">{{ stripeReady ? \'Stripe Connect ready\' : \'Stripe Connect required\' }}</div>
+                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">{{ stripeReady ? \'Practitioner invoice payments transfer directly to your connected Stripe account. Aegis never holds funds.\' : \'Connect your Stripe account to receive invoice payments from practitioners you steward.\' }}</div>
+                </div>
+                <a v-if="!stripeReady" :href="route(\'cs.settings.connect.onboard\')" class="btn btn-primary btn-sm">Connect Stripe</a>
+                <a v-else :href="route(\'cs.settings.connect.onboard\')" class="btn btn-outline btn-sm">Reconfigure</a>
+              </div>
+            </div>
+          </div>
+
           <!-- CS Plan Swap Confirmation -->
           <AegisModal v-model="confirmCsSwap" title="Confirm Billing Change" size="md">
             <div style="margin-bottom:16px">
@@ -345,6 +366,10 @@ const csMonthlyId      = computed(() => prices.value.cs_business_monthly ?? null
 const csAnnualId       = computed(() => prices.value.cs_business_annual  ?? null);
 const csPriceId        = computed(() => billingAnnual.value ? csAnnualId.value : csMonthlyId.value);
 const stripeInvoices   = computed(() => sub.value.invoices ?? []);
+const stripeReady      = computed(() => {
+  const acct = props.user?.stripe_account_id;
+  return !!acct && !String(acct).startsWith('acct_demo_') && !!props.user?.stripe_connected;
+});
 const planBusy         = ref(false);
 const confirmCsCancel  = ref(false);
 const confirmCsResume  = ref(false);

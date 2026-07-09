@@ -240,6 +240,11 @@ class OnboardingController extends Controller
         // Attach card as default payment method (Cashier)
         $user->updateDefaultPaymentMethod($pmId);
 
+        // Mirror to users.stripe_payment_method_id so peer-payment charges
+        // (Provider → BP, Provider → CS, Client → Provider service sessions)
+        // can find the card without a second Stripe roundtrip.
+        $user->forceFill(['stripe_payment_method_id' => $pmId])->save();
+
         // Create the Stripe subscription
         $this->subscriptionService->subscribe($user, $priceId, $pmId);
 

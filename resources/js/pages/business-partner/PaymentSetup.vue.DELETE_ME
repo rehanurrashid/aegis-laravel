@@ -1,0 +1,11 @@
+DELETE THIS FILE:
+  resources/js/pages/business-partner/PaymentSetup.vue
+
+REASON:
+  Fake bank-account / ACH / debit-card / PayPal form that never
+  touched Stripe. It posted to `bp.payment-setup.store` which does
+  not exist. Replaced by the Stripe Connect Express flow driven
+  from BP Settings → Billing → "Connect Stripe" button.
+
+  All BP payout onboarding now lives in Settings.vue and calls
+  bp.settings.connect.onboard.

@@ -4,12 +4,23 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Provider;
 
+use App\Enums\ActivitySeverity;
+use App\Enums\InvoiceStatus;
+use App\Enums\PayoutStatus;
+use App\Enums\PractitionerPaymentKind;
+use App\Enums\PractitionerPaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\BpInvoice;
+use App\Models\CsInvoice;
+use App\Models\CsPayout;
 use App\Models\PractitionerPayment;
+use App\Models\User;
+use App\Services\ActivityService;
+use App\Services\PayoutService;
 use App\Services\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -17,65 +28,161 @@ class FinancesController extends Controller
 {
     public function __construct(
         private SubscriptionService $subscriptions,
-        private \App\Services\PayoutService $payouts,
+        private PayoutService $payouts,
+        private ActivityService $activity,
     ) {}
 
     public function index(Request $request): Response
     {
         $user = $request->user();
-        return Inertia::render('Provider/Finances', [
+
+        // Provider-issued spend history (subscription, MAAT, CS fees, BP invoices, sessions)
+        $paymentHistory = PractitionerPayment::where('practitioner_id', $user->id)
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get()
+            ->map(fn (PractitionerPayment $p) => [
+                'id'           => $p->id,
+                'kind'         => $p->kind instanceof PractitionerPaymentKind ? $p->kind->value : (string) $p->kind,
+                'kind_label'   => $p->kind instanceof PractitionerPaymentKind ? $p->kind->label() : (string) $p->kind,
+                'amount_cents' => (int) $p->amount_cents,
+                'status'       => $p->status instanceof PractitionerPaymentStatus ? $p->status->value : (string) $p->status,
+                'method'       => $p->payment_method_label ?? '—',
+                'date'         => optional($p->paid_at ?? $p->created_at)->format('M j, Y') ?? '—',
+            ])->values();
+
+        // Outstanding CS invoices (billed to this provider)
+        $csInvoices = CsInvoice::where('practitioner_id', $user->id)
+            ->with(['cs:id,display_name,slug'])
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get()
+            ->map(function (CsInvoice $inv) {
+                $status = $inv->status instanceof InvoiceStatus ? $inv->status->value : (string) $inv->status;
+                return [
+                    'id'             => $inv->id,
+                    'invoice_number' => $inv->invoice_number,
+                    'cs_name'        => $inv->cs?->display_name ?? '—',
+                    'total_cents'    => (int) $inv->total_cents,
+                    'status'         => $status,
+                    'issued_at'      => $inv->issued_at?->format('M j, Y'),
+                    'due_at'         => $inv->due_at?->format('M j, Y'),
+                    'payable'        => in_array($status, [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value], true),
+                ];
+            });
+
+        // Outstanding BP invoices (billed to this provider)
+        $bpInvoices = BpInvoice::where('practitioner_id', $user->id)
+            ->with(['bp:id,display_name,slug'])
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get()
+            ->map(function (BpInvoice $inv) {
+                $status = $inv->status instanceof InvoiceStatus ? $inv->status->value : (string) $inv->status;
+                return [
+                    'id'             => $inv->id,
+                    'invoice_number' => $inv->invoice_number,
+                    'bp_name'        => $inv->bp?->display_name ?? '—',
+                    'total_cents'    => (int) $inv->total_cents,
+                    'status'         => $status,
+                    'issued_at'      => $inv->issued_at?->format('M j, Y'),
+                    'due_at'         => $inv->due_at?->format('M j, Y'),
+                    'payable'        => in_array($status, [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value], true),
+                ];
+            });
+
+        // Provider earnings (as recipient) — service sessions
+        $earnings = PractitionerPayment::where('practitioner_id', $user->id)
+            ->where('kind', PractitionerPaymentKind::ServiceSession->value)
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get()
+            ->map(fn (PractitionerPayment $p) => [
+                'id'           => $p->id,
+                'amount_cents' => (int) $p->amount_cents,
+                'status'       => $p->status instanceof PractitionerPaymentStatus ? $p->status->value : (string) $p->status,
+                'date'         => optional($p->paid_at ?? $p->created_at)->format('M j, Y') ?? '—',
+            ])->values();
+
+        // Aggregate spend / outstanding
+        $totalSpend = PractitionerPayment::where('practitioner_id', $user->id)
+            ->where('status', PractitionerPaymentStatus::Paid->value)
+            ->whereIn('kind', [
+                PractitionerPaymentKind::CsFee->value,
+                PractitionerPaymentKind::BpInvoice->value,
+                PractitionerPaymentKind::Subscription->value,
+                PractitionerPaymentKind::MaatAddon->value,
+            ])
+            ->sum('amount_cents');
+
+        $outstanding = $csInvoices->where('payable', true)->sum('total_cents')
+                     + $bpInvoices->where('payable', true)->sum('total_cents');
+
+        return Inertia::render('provider/Finances', [
             'subscription'    => $this->subscriptions->getStatus($user),
-            'paymentMethods'  => method_exists($user, 'paymentMethods') ? $user->paymentMethods() : [],
-            'invoiceHistory'  => PractitionerPayment::where('practitioner_id', $user->id)
-                                    ->orderByDesc('created_at')->limit(50)->get()
-                                    ->map(fn($p) => [
-                                        'id'           => $p->id,
-                                        'kind'         => $p->kind instanceof \App\Enums\PractitionerPaymentKind ? $p->kind->value : (string) $p->kind,
-                                        'kind_label'   => $p->kind instanceof \App\Enums\PractitionerPaymentKind ? $p->kind->label() : (string) $p->kind,
-                                        'amount'       => '$' . number_format($p->amount_cents / 100, 2),
-                                        'amount_cents' => $p->amount_cents,
-                                        'status'       => $p->status instanceof \App\Enums\PractitionerPaymentStatus ? $p->status->value : (string) $p->status,
-                                        'status_label' => $p->status instanceof \App\Enums\PractitionerPaymentStatus ? $p->status->label() : (string) $p->status,
-                                        'method'       => $p->payment_method_label ?? '—',
-                                        'date'         => $p->paid_at?->format('M j, Y') ?? $p->created_at?->format('M j, Y') ?? '—',
-                                    ])->values(),
-            'csServiceFees'   => BpInvoice::where('practitioner_id', $user->id)
-                                    ->orderByDesc('issued_at')->limit(50)->get(),
-            'serviceEarnings' => PractitionerPayment::where('practitioner_id', $user->id)
-                                    ->where('kind', \App\Enums\PractitionerPaymentKind::ServiceSession->value)
-                                    ->orderByDesc('created_at')->limit(50)->get()
-                                    ->map(fn($p) => [
-                                        'id'           => $p->id,
-                                        'amount'       => '$' . number_format($p->amount_cents / 100, 2),
-                                        'amount_cents' => $p->amount_cents,
-                                        'status'       => $p->status instanceof \App\Enums\PractitionerPaymentStatus ? $p->status->value : (string) $p->status,
-                                        'date'         => $p->created_at?->format('M j, Y') ?? '—',
-                                    ])->values(),
+            'paymentMethods'  => method_exists($user, 'paymentMethods') ? collect($user->paymentMethods())->map(fn ($pm) => [
+                'id'        => $pm->id,
+                'brand'     => $pm->card->brand ?? 'card',
+                'last4'     => $pm->card->last4 ?? '••••',
+                'exp_month' => $pm->card->exp_month ?? null,
+                'exp_year'  => $pm->card->exp_year ?? null,
+                'is_default'=> $user->stripe_payment_method_id === $pm->id,
+            ])->values() : [],
+            'csInvoices'      => $csInvoices,
+            'bpInvoices'      => $bpInvoices,
+            'paymentHistory'  => $paymentHistory,
+            'earnings'        => $earnings,
+            'totalSpendCents' => (int) $totalSpend,
+            'outstandingCents'=> (int) $outstanding,
+            'stripeConnected' => (bool) $user->stripe_connected,
         ]);
     }
 
     public function storePaymentMethod(Request $request): RedirectResponse
     {
-        $data = $request->validate(['payment_method_id' => 'required|string']);
-        if (method_exists($request->user(), 'updateDefaultPaymentMethod')) {
-            $request->user()->updateDefaultPaymentMethod($data['payment_method_id']);
+        $data = $request->validate([
+            'payment_method_id' => 'required|string|starts_with:pm_',
+            'set_default'       => 'nullable|boolean',
+        ]);
+        $user = $request->user();
+        try {
+            if (!$user->hasStripeId()) {
+                $user->createAsStripeCustomer(['name' => $user->display_name, 'email' => $user->email]);
+            }
+            if (!empty($data['set_default'])) {
+                $user->updateDefaultPaymentMethod($data['payment_method_id']);
+                // Mirror to users.stripe_payment_method_id so peer-payment charges can find it
+                $user->update(['stripe_payment_method_id' => $data['payment_method_id']]);
+            } else {
+                $user->addPaymentMethod($data['payment_method_id']);
+            }
+            return back()->with('success', 'Payment method saved.');
+        } catch (\Throwable $e) {
+            return back()->withErrors(['payment' => 'Could not save payment method. ' . $e->getMessage()]);
         }
-        return back()->with('success', 'Payment method saved.');
     }
-    public function payCSInvoice(Request $request, \App\Models\CsInvoice $invoice): \Illuminate\Http\RedirectResponse
+
+    public function payCSInvoice(Request $request, CsInvoice $invoice): RedirectResponse
     {
         $provider = $request->user();
 
-        // Guard: must be the provider this invoice is billed to
-        if ($invoice->provider_id !== $provider->id) {
+        // Guard: this invoice must be billed to the current provider
+        if ($invoice->practitioner_id !== $provider->id) {
             abort(403, 'Not authorised to pay this invoice.');
         }
 
-        if ($invoice->status === 'paid') {
+        $status = $invoice->status instanceof InvoiceStatus ? $invoice->status->value : (string) $invoice->status;
+        if ($status === InvoiceStatus::Paid->value) {
             return back()->withErrors(['invoice' => 'This invoice has already been paid.']);
         }
+        if ($status === InvoiceStatus::Void->value) {
+            return back()->withErrors(['invoice' => 'This invoice has been voided.']);
+        }
+        if ($status === InvoiceStatus::Draft->value) {
+            return back()->withErrors(['invoice' => 'This invoice has not been sent yet.']);
+        }
 
-        $cs = \App\Models\User::find($invoice->cs_id);
+        $cs = User::find($invoice->cs_id);
         if (!$cs) {
             return back()->withErrors(['invoice' => 'Continuity Steward not found.']);
         }
@@ -84,34 +191,67 @@ class FinancesController extends Controller
             $result = $this->payouts->chargeProviderToCs(
                 provider:    $provider,
                 cs:          $cs,
-                amountCents: $invoice->amount_cents,
-                meta:        ['cs_invoice_id' => $invoice->id],
-                description: 'CS invoice payment — Aegis',
+                amountCents: (int) $invoice->total_cents,
+                meta:        ['cs_invoice_id' => $invoice->id, 'invoice_number' => $invoice->invoice_number],
+                description: 'CS invoice ' . $invoice->invoice_number . ' — Aegis',
             );
 
+            // Persist the invoice
             $invoice->update([
-                'status'                   => $result['status'],
+                'status'                   => $result['status'] === 'paid' ? InvoiceStatus::Paid->value : $status,
                 'stripe_payment_intent_id' => $result['stripe_payment_intent_id'],
+                'stripe_transfer_id'       => $result['stripe_transfer_id'] ?? null,
                 'paid_at'                  => $result['status'] === 'paid' ? now() : null,
             ]);
 
-            // Record in practitioner_payments
-            \App\Models\PractitionerPayment::create([
-                'id'                       => 'pp_' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(12)),
-                'practitioner_id'          => $provider->id,
-                'kind'                     => 'cs_fee',
-                'amount_cents'             => $invoice->amount_cents,
-                'currency'                 => 'usd',
-                'stripe_payment_intent_id' => $result['stripe_payment_intent_id'],
-                'status'                   => $result['status'],
-                'paid_at'                  => $result['status'] === 'paid' ? now() : null,
-                'description'              => 'CS invoice #' . $invoice->id,
+            // Record on provider side (spend history)
+            PractitionerPayment::create([
+                'id'                   => (string) Str::uuid(),
+                'practitioner_id'      => $provider->id,
+                'kind'                 => PractitionerPaymentKind::CsFee->value,
+                'amount_cents'         => (int) $invoice->total_cents,
+                'currency'             => 'USD',
+                'status'               => $result['status'] === 'paid'
+                                            ? PractitionerPaymentStatus::Paid->value
+                                            : PractitionerPaymentStatus::Pending->value,
+                'payment_method_label' => 'CS Invoice ' . $invoice->invoice_number,
+                'stripe_charge_id'     => $result['stripe_payment_intent_id'],
+                'stripe_transfer_id'   => $result['stripe_transfer_id'] ?? null,
+                'paid_at'              => $result['status'] === 'paid' ? now() : null,
             ]);
 
-            return back()->with('success', 'Invoice paid successfully.');
+            // Record on CS side (payout history)
+            CsPayout::create([
+                'id'                => (string) Str::uuid(),
+                'cs_id'             => $cs->id,
+                'amount_cents'      => (int) $invoice->total_cents,
+                'currency'          => 'USD',
+                'status'            => $result['status'] === 'paid' ? PayoutStatus::Paid->value : PayoutStatus::Pending->value,
+                'description'       => 'CS invoice ' . $invoice->invoice_number,
+                'stripe_payout_id'  => $result['stripe_transfer_id'] ?? $result['stripe_payment_intent_id'],
+                'paid_at'           => $result['status'] === 'paid' ? now() : null,
+            ]);
+
+            // Activity fan-out — provider log + CS notification
+            $this->activity->log(
+                $provider->id, 'provider', 'finances',
+                ActivitySeverity::Info,
+                'cs_invoice_paid', 'CS invoice paid',
+                'You paid invoice ' . $invoice->invoice_number . ' for $' . number_format($invoice->total_cents / 100, 2) . ' to ' . ($cs->display_name ?? 'your CS') . '.',
+                CsInvoice::class, $invoice->id, $cs->id, 'log', $provider->id,
+            );
+
+            $this->activity->log(
+                $cs->id, 'continuity_steward', 'finances',
+                ActivitySeverity::Info,
+                'cs_payout_received', 'Payment received',
+                'You received $' . number_format($invoice->total_cents / 100, 2) . ' for invoice ' . $invoice->invoice_number . '.',
+                CsInvoice::class, $invoice->id, $provider->id, 'notification', $provider->id,
+            );
+
+            return back()->with('success', 'Invoice ' . $invoice->invoice_number . ' paid successfully.');
         } catch (\RuntimeException $e) {
             return back()->withErrors(['invoice' => $e->getMessage()]);
         }
     }
-
 }

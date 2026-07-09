@@ -20,7 +20,8 @@ class CsInvoice extends Model
 
     protected $fillable = [
         'id', 'cs_id', 'practitioner_id', 'invoice_number', 'status',
-        'total_cents', 'currency', 'issued_at', 'due_at', 'paid_at',
+        'total_cents', 'currency', 'stripe_payment_intent_id', 'stripe_transfer_id',
+        'issued_at', 'due_at', 'paid_at',
     ];
 
     protected $casts = [

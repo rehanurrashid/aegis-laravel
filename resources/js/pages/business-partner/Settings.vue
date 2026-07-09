@@ -134,8 +134,8 @@
                   <div style="font-size:12px;color:var(--text-3);margin-top:2px">{{ user?.stripe_account_id && !user.stripe_account_id.startsWith(\'acct_demo\') ? \'Payouts go to your connected bank account within 2 business days.\' : \'Connect Stripe to receive payouts from practitioners.\' }}</div>
                 </div>
                 <span class="badge" :class="user?.stripe_account_id && !user.stripe_account_id.startsWith(\'acct_demo\') ? \'badge-green\' : \'badge-gray\'">{{ user?.stripe_account_id && !user.stripe_account_id.startsWith(\'acct_demo\') ? \'Connected\' : \'Not Connected\' }}</span>
-                <a v-if="user?.stripe_account_id && !user.stripe_account_id.startsWith(\'acct_demo\')" :href="route(\'bp.settings.stripe.dashboard\')" class="btn btn-outline btn-sm" target="_blank">Manage</a>
-                <a v-else :href="route(\'bp.settings.stripe.connect\')" class="btn btn-primary btn-sm">Connect Stripe</a>
+                <a v-if="user?.stripe_account_id && !user.stripe_account_id.startsWith(\'acct_demo\')" :href="route(\'bp.settings.billing.portal\')" class="btn btn-outline btn-sm" target="_blank">Manage</a>
+                <a v-else :href="route(\'bp.settings.connect.onboard\')" class="btn btn-primary btn-sm">Connect Stripe</a>
               </div>
               <div class="form-group" style="margin-bottom:14px;margin-top:18px">
                 <label class="form-label">Payout Schedule</label>

@@ -376,6 +376,10 @@ class SubscriptionService
     public function setDefaultPaymentMethod(User $user, string $paymentMethodId): void
     {
         $user->updateDefaultPaymentMethod($paymentMethodId);
+        // Mirror to users.stripe_payment_method_id so peer-payment charges
+        // (chargeProviderToBp / chargeProviderToCs / releaseServiceSessionPayout)
+        // pick up the newly default card.
+        $user->forceFill(['stripe_payment_method_id' => $paymentMethodId])->save();
     }
 
     /**
