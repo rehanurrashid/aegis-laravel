@@ -12,6 +12,7 @@ use App\Services\ProfileService;
 use App\Services\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -25,7 +26,7 @@ class SettingsController extends Controller
 
     public function index(Request $request): Response
     {
-        $user = $request->user()->load('meta', 'sessions');
+        $user = $request->user()->load('meta', 'sessions', 'continuityPlans.stewards.steward');
 
         // Return ALL meta so Vue can populate every panel
         $meta = $user->meta->pluck('typed_value', 'meta_key')->toArray();
@@ -63,14 +64,39 @@ class SettingsController extends Controller
             ->where('created_at', '<', $user->created_at)
             ->count() < 100;
 
+        // Active steward agreements for Agreements & Contracts panel
+        $activeAgreements = collect();
+        foreach ($user->continuityPlans as $plan) {
+            foreach ($plan->stewards()->where('status', 'active')->with('steward')->get() as $ps) {
+                $stewardName = $ps->steward?->display_name ?? 'Unknown';
+                $roleLabel   = match($ps->role instanceof \BackedEnum ? $ps->role->value : (string) $ps->role) {
+                    'continuity' => 'Continuity Steward Agreement',
+                    'support'    => 'Support Steward Agreement',
+                    default      => ucfirst((string) ($ps->role instanceof \BackedEnum ? $ps->role->value : $ps->role)) . ' Steward Agreement',
+                };
+                $signedNote  = $ps->signed_at
+                    ? 'Signed ' . \Carbon\Carbon::parse($ps->signed_at)->format('M j, Y')
+                    : 'Pending signature';
+                $reviewNote  = $ps->review_due_at
+                    ? ' · Due ' . \Carbon\Carbon::parse($ps->review_due_at)->format('M j, Y')
+                    : ' · Reviewed annually';
+                $activeAgreements->push([
+                    'title'  => $roleLabel,
+                    'meta'   => "{$stewardName} — {$signedNote}{$reviewNote}",
+                    'status' => 'active',
+                ]);
+            }
+        }
+
         return Inertia::render('Provider/Settings', [
-            'user'         => $userArr,
-            'meta'         => $meta,
-            'mfaEnabled'   => (bool) $user->two_factor_enabled,
-            'mfaMethod'    => $user->mfaToken?->method ?? '',
-            'sessions'     => $sessions,
-            'subscription' => $this->subscriptions->getFullSubscriptionData($user),
-            'pricing'      => config('aegis.pricing'),
+            'user'             => $userArr,
+            'meta'             => $meta,
+            'mfaEnabled'       => (bool) $user->two_factor_enabled,
+            'mfaMethod'        => $user->mfaToken?->method ?? '',
+            'sessions'         => $sessions,
+            'subscription'     => $this->subscriptions->getFullSubscriptionData($user),
+            'pricing'          => config('aegis.pricing'),
+            'activeAgreements' => $activeAgreements->values(),
         ]);
     }
 

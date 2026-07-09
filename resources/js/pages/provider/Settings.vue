@@ -984,13 +984,14 @@ import SettingsAppearance   from '@/components/settings/SettingsAppearance.vue';
 import SettingsDangerZone   from '@/components/settings/SettingsDangerZone.vue';
 
 const props = defineProps({
-  user:         { type: Object,  default: () => ({}) },
-  meta:         { type: Object,  default: () => ({}) },
-  mfaEnabled:   { type: Boolean, default: false },
-  mfaMethod:    { type: String,   default: '' },
-  sessions:     { type: Array,   default: () => [] },
-  subscription: { type: Object,  default: () => ({}) },
-  pricing:      { type: Object,  default: () => ({}) },
+  user:             { type: Object,  default: () => ({}) },
+  meta:             { type: Object,  default: () => ({}) },
+  mfaEnabled:       { type: Boolean, default: false },
+  mfaMethod:        { type: String,  default: '' },
+  sessions:         { type: Array,   default: () => [] },
+  subscription:     { type: Object,  default: () => ({}) },
+  pricing:          { type: Object,  default: () => ({}) },
+  activeAgreements: { type: Array,   default: () => [] },
 });
 
 const toast = useToast();
@@ -1302,10 +1303,7 @@ const vaultPrefs = reactive({
   notifyAccess: _vaultMeta.notifyAccess ?? true,
   notifyUnlock: _vaultMeta.notifyUnlock ?? true,
 });
-const activeAgreements = [
-  { title: 'Continuity Steward Agreement', meta: 'Marcus Chen — Signed Jun 15, 2024 · Reviewed annually' },
-  { title: 'Support Steward Agreement',    meta: 'Linda Johnson — Signed Oct 5, 2024 · Annual re-attestation required' },
-];
+const activeAgreements = computed(() => props.activeAgreements ?? []);
 const _agreementMeta = props.meta?.notify_agreements ?? {};
 const agreementPrefs = reactive({
   expiryReminder:    _agreementMeta.expiryReminder    ?? true,
