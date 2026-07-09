@@ -571,7 +571,7 @@
               </div>
               <div class="card-subtitle">Visibility, booking preferences, and payment — managed in Account Settings</div>
             </div>
-            <a :href="'/provider/settings?tab=services-mode'" class="btn btn-primary btn-sm">
+            <a :href="route('provider.settings.index') + '?tab=myservices'" class="btn btn-primary btn-sm">
               <AegisIcon name="settings" :size="13" /> Open Settings
             </a>
           </div>
@@ -583,7 +583,7 @@
                 </div>
                 <div class="setting-desc">Services Mode · Show in search · Accept requests · Show pricing</div>
               </div>
-              <a :href="'/provider/settings?tab=services-mode'" class="btn btn-outline btn-sm">
+              <a :href="route('provider.settings.index') + '?tab=myservices&anchor=services-mode'" class="btn btn-outline btn-sm">
                 <AegisIcon name="chevron-right" :size="13" /> Edit
               </a>
             </div>
@@ -594,7 +594,7 @@
                 </div>
                 <div class="setting-desc">Manual approval · Request expiry · Buffer between sessions</div>
               </div>
-              <a :href="'/provider/settings?tab=services-mode'" class="btn btn-outline btn-sm">
+              <a :href="route('provider.settings.index') + '?tab=myservices&anchor=booking-preferences'" class="btn btn-outline btn-sm">
                 <AegisIcon name="chevron-right" :size="13" /> Edit
               </a>
             </div>
@@ -605,7 +605,7 @@
                 </div>
                 <div class="setting-desc">Hourly rate · Payment method · Sliding scale</div>
               </div>
-              <a :href="'/provider/settings?tab=services-mode'" class="btn btn-outline btn-sm">
+              <a :href="route('provider.settings.index') + '?tab=myservices&anchor=payment-rates'" class="btn btn-outline btn-sm">
                 <AegisIcon name="chevron-right" :size="13" /> Edit
               </a>
             </div>

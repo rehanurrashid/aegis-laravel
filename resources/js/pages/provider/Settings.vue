@@ -375,19 +375,19 @@
               <a :href="route('provider.services.index')" class="btn btn-outline btn-sm"><AegisIcon name="briefcase" :size="13" /> My Services</a>
             </div>
             <div class="card-body">
-              <div class="section-label">Services Mode</div>
+              <div class="section-label" id="settings-anchor-services-mode">Services Mode</div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Integrative Business Services Mode</div><div class="toggle-desc">Offer supervision, consultation, training, and other practitioner-to-practitioner services. Enables the <strong>My Services</strong> section in your sidebar and displays the <strong>Integrative Business Services</strong> badge on your profile.</div></div><button type="button" class="toggle" :class="{ on: servicesPrefs.mode }" @click="servicesPrefs.mode = !servicesPrefs.mode" :aria-pressed="servicesPrefs.mode"></button></div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Show Services on Public Profile</div><div class="toggle-desc">Display your service offerings on your public provider profile</div></div><button type="button" class="toggle" :class="{ on: servicesPrefs.showPublic }" @click="servicesPrefs.showPublic = !servicesPrefs.showPublic" :aria-pressed="servicesPrefs.showPublic"></button></div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Accept Booking Requests</div><div class="toggle-desc">Allow other providers and organizations to submit booking requests for your services</div></div><button type="button" class="toggle" :class="{ on: servicesPrefs.acceptBookings }" @click="servicesPrefs.acceptBookings = !servicesPrefs.acceptBookings" :aria-pressed="servicesPrefs.acceptBookings"></button></div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Show Pricing Publicly</div><div class="toggle-desc">Providers can see your rates before submitting a booking request</div></div><button type="button" class="toggle" :class="{ on: servicesPrefs.showPricing }" @click="servicesPrefs.showPricing = !servicesPrefs.showPricing" :aria-pressed="servicesPrefs.showPricing"></button></div>
               <div class="section-label">Visibility in Job Marketplace</div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Visible to Business Partners</div><div class="toggle-desc">Allow Business Partners to find and contact you about service contracts</div></div><button type="button" class="toggle" :class="{ on: servicesPrefs.bpDiscoverable }" @click="servicesPrefs.bpDiscoverable = !servicesPrefs.bpDiscoverable" :aria-pressed="servicesPrefs.bpDiscoverable"></button></div>
-              <div class="section-label">Booking Preferences</div>
+              <div class="section-label" id="settings-anchor-booking-preferences">Booking Preferences</div>
               <div class="form-row form-row-2" style="margin-top:6px">
                 <div class="form-group"><label class="form-label">Booking Request Expiry</label><select class="form-select" v-model="servicesPrefs.bookingExpiry"><option value="24h">24 hours</option><option value="48h">48 hours</option><option value="72h">72 hours</option><option value="1week">1 week</option></select><div class="form-hint">Requests expire if not responded to within this window</div></div>
                 <div class="form-group"><label class="form-label">Buffer Between Sessions</label><select class="form-select" v-model="servicesPrefs.sessionBuffer"><option value="none">None</option><option value="15min">15 min</option><option value="30min">30 min</option><option value="1hr">1 hour</option></select><div class="form-hint">Minimum gap between consecutive bookings</div></div>
               </div>
-              <div class="section-label">Payment &amp; Rates</div>
+              <div class="section-label" id="settings-anchor-payment-rates">Payment &amp; Rates</div>
               <div class="form-group" style="max-width:200px">
                 <label class="form-label">Default Hourly Rate</label>
                 <div class="rate-input-wrap">
@@ -1641,14 +1641,29 @@ const modals = reactive({
 
 // ─── URL param routing (?tab=billing&upgrade=1) ───────────────────────────────
 onMounted(() => {
-  const params = new URLSearchParams(window.location.search)
-  const tab    = params.get('tab')
+  const params  = new URLSearchParams(window.location.search)
+  const tab     = params.get('tab')
+  const anchor  = params.get('anchor')
   const upgrade = params.get('upgrade')
   if (tab) section.value = tab
   if (upgrade === '1') {
-    // Ensure billing section is active, then open modal
     section.value = 'billing'
     modals.showUpgrade = true
+  }
+  // Scroll to a sub-section anchor after the panel renders
+  if (anchor) {
+    nextTick(() => {
+      setTimeout(() => {
+        const el = document.getElementById('settings-anchor-' + anchor)
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          // Highlight briefly
+          el.style.transition = 'background 0.3s'
+          el.style.background = 'var(--icon-bg-gold)'
+          setTimeout(() => { el.style.background = '' }, 1200)
+        }
+      }, 150) // small delay for panel to render
+    })
   }
 })
 // Sync TomSelect disabled state when a day is toggled on/off
