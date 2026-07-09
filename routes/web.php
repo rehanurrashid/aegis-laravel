@@ -46,6 +46,7 @@ use App\Http\Controllers\BusinessPartner\FinancesController as BpFinancesControl
 use App\Http\Controllers\BusinessPartner\InvoicesController;
 use App\Http\Controllers\BusinessPartner\JobsController;
 use App\Http\Controllers\BusinessPartner\MilestonesController;
+use App\Http\Controllers\BusinessPartner\PaymentSetupController as BpPaymentController;
 use App\Http\Controllers\BusinessPartner\ProfileController as BpProfileController;
 use App\Http\Controllers\BusinessPartner\ProposalsController;
 use App\Http\Controllers\BusinessPartner\SettingsController as BpSettingsController;
@@ -403,6 +404,9 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:contin
         Route::get('/providers', [CsProvidersController::class, 'index'])->name('providers.index');
         Route::get('/providers/{provider}/plan', [CsProvidersController::class, 'plan'])->name('providers.plan');
         Route::post('/providers/{provider}/plan/countersign', [CsProvidersController::class, 'countersign'])->name('providers.plan.countersign');
+        Route::get('/providers/{provider}', [CsProvidersController::class, 'show'])->name('providers.show');
+        Route::post('/providers/invitations/{invitation}/accept',  [CsProvidersController::class, 'acceptInvitation'])->name('providers.accept');
+        Route::post('/providers/invitations/{invitation}/decline', [CsProvidersController::class, 'declineInvitation'])->name('providers.decline');
 
         // Tasks
         Route::get('/my-tasks', [CsTasksController::class, 'index'])->name('tasks.index');
@@ -415,6 +419,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:contin
         Route::post('/continuity-management/{incident}/verify', [ContinuityManagementController::class, 'verify'])->name('continuity.verify');
         Route::post('/continuity-management/{incident}/activate', [ContinuityManagementController::class, 'activate'])->name('continuity.activate');
         Route::post('/continuity-management/{incident}/close', [ContinuityManagementController::class, 'close'])->name('continuity.close');
+        Route::post('/continuity-management/{incident}/escalate', [ContinuityManagementController::class, 'escalate'])->name('continuity.escalate');
         Route::post('/continuity-management/{incident}/update', [ContinuityManagementController::class, 'update'])->name('continuity.update');
 
         // Incidents (dedicated read view + steward update; complements continuity-management actions)
@@ -433,12 +438,6 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:contin
         Route::get('/finances', [CsFinancesController::class, 'index'])->name('finances.index');
         Route::post('/finances/invoice', [CsFinancesController::class, 'storeInvoice'])->name('finances.invoice.store');
         Route::post('/finances/fee-amendment', [CsFinancesController::class, 'feeAmendment'])->name('finances.amend');
-
-        // CS Invoices (issue to practitioner → drives Provider→CS destination charge on pay)
-        Route::get('/invoices',                     [\App\Http\Controllers\ContinuitySteward\InvoicesController::class, 'index'])->name('invoices.index');
-        Route::post('/invoices',                    [\App\Http\Controllers\ContinuitySteward\InvoicesController::class, 'store'])->name('invoices.store');
-        Route::post('/invoices/{invoice}/send',     [\App\Http\Controllers\ContinuitySteward\InvoicesController::class, 'send'])->name('invoices.send');
-        Route::post('/invoices/{invoice}/void',     [\App\Http\Controllers\ContinuitySteward\InvoicesController::class, 'void'])->name('invoices.void');
 
         // Profile
         Route::get('/profile', [CsProfileController::class, 'index'])->name('profile.index');
@@ -587,6 +586,10 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:busine
         Route::post('/tax-documents/w9', [TaxDocumentsController::class, 'submitW9'])->name('tax.w9');
         Route::delete('/tax-documents/{document}', [TaxDocumentsController::class, 'destroy'])->name('tax.destroy');
 
+        // Stripe Connect setup
+        Route::get('/payment-setup', [BpPaymentController::class, 'index'])->name('payment.index');
+        Route::post('/payment-setup/connect', [BpPaymentController::class, 'connect'])->name('payment.connect');
+
         // Team (agency only)
         Route::get('/team', [TeamController::class, 'index'])->name('team.index');
         Route::post('/team/invite', [TeamController::class, 'invite'])->name('team.invite');
@@ -604,8 +607,6 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:busine
         Route::post('/settings/subscription/cancel', [BpSettingsController::class, 'cancelPlan'])->name('settings.subscription.cancel');
         Route::post('/settings/subscription/resume', [BpSettingsController::class, 'resumePlan'])->name('settings.subscription.resume');
         Route::get('/settings/billing-portal',       [BpSettingsController::class, 'billingPortal'])->name('settings.billing.portal');
-        Route::get('/settings/connect/onboard',      [BpSettingsController::class, 'connectOnboard'])->name('settings.connect.onboard');
-        Route::get('/settings/connect/return',       [BpSettingsController::class, 'connectReturn'])->name('settings.connect.return');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
         Route::put('/settings/account', [BpSettingsController::class, 'updateAccount'])->name('settings.account');
         Route::put('/settings/messaging', [BpSettingsController::class, 'updateMessaging'])->name('settings.messaging');

@@ -1,5 +1,8 @@
 <!--
   pages/continuity-steward/ContinuityManagement.vue — incident management hub.
+  Actions post to cs.continuity.* routes (not cs.continuity-management.*):
+    - escalate needs reason (min 5 chars)
+    - close needs summary (min 10 chars)
 -->
 <template>
   <AppLayout>
@@ -21,10 +24,10 @@
         </div>
       </div>
       <div class="incident-strip-actions">
-        <button type="button" class="btn btn-outline" @click="openModal('escalateModal')">
+        <button type="button" class="btn btn-outline" @click="openEscalate = true">
           Escalate
         </button>
-        <button type="button" class="btn btn-primary" @click="openModal('resolveModal')">
+        <button type="button" class="btn btn-primary" @click="openResolve = true">
           Mark resolved
         </button>
       </div>
@@ -56,41 +59,78 @@
       <ActivityFeed :events="timeline" />
     </AegisCard>
 
-    <!-- Escalate -->
-    <AegisConfirm
-      :model-value="isOpen('escalateModal').value"
-      title="Escalate to Support Steward"
-      primary-label="Notify all Support Stewards"
-      @update:model-value="(v) => !v && closeModal('escalateModal')"
-      @confirm="escalate"
-    >
-      <p>This notifies all designated Support Stewards and creates priority tasks for each.</p>
-    </AegisConfirm>
+    <!-- Escalate modal -->
+    <AegisModal v-model="openEscalate" title="Escalate to Support Stewards" size="md">
+      <p style="font-size:13.5px;color:var(--text-2);margin-bottom:12px">
+        This notifies all designated Support Stewards for this plan and creates priority tasks for each.
+      </p>
+      <div class="form-group">
+        <label class="form-label">Reason for escalation</label>
+        <textarea
+          v-model="escalateReason"
+          class="form-input"
+          rows="4"
+          minlength="5"
+          maxlength="2000"
+          placeholder="Explain what prompted this escalation…"
+        ></textarea>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-outline btn-sm" @click="openEscalate = false">Cancel</button>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          :disabled="busy || (escalateReason?.length ?? 0) < 5"
+          @click="escalate"
+        >
+          {{ busy ? 'Notifying…' : 'Notify Support Stewards' }}
+        </button>
+      </template>
+    </AegisModal>
 
-    <!-- Resolve -->
-    <AegisConfirm
-      :model-value="isOpen('resolveModal').value"
-      title="Mark incident resolved?"
-      primary-label="Yes, resolve incident"
-      @update:model-value="(v) => !v && closeModal('resolveModal')"
-      @confirm="resolve"
-    >
-      <p>Closes the incident and re-seals the vault. The full incident report is preserved.</p>
-    </AegisConfirm>
+    <!-- Resolve modal -->
+    <AegisModal v-model="openResolve" title="Mark incident resolved" size="md">
+      <p style="font-size:13.5px;color:var(--text-2);margin-bottom:12px">
+        Closes the incident and re-seals the vault. The full incident report is preserved for the practitioner and stewards.
+      </p>
+      <div class="form-group">
+        <label class="form-label">Closing summary</label>
+        <textarea
+          v-model="resolveSummary"
+          class="form-input"
+          rows="4"
+          minlength="10"
+          maxlength="2000"
+          placeholder="Summarize actions taken, outcomes, and any handoffs…"
+        ></textarea>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-outline btn-sm" @click="openResolve = false">Cancel</button>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          :disabled="busy || (resolveSummary?.length ?? 0) < 10"
+          @click="resolve"
+        >
+          {{ busy ? 'Closing…' : 'Close incident' }}
+        </button>
+      </template>
+    </AegisModal>
   </AppLayout>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
-import AegisCard from '@/components/ui/AegisCard.vue'
-import AegisBadge from '@/components/ui/AegisBadge.vue'
-import AegisConfirm from '@/components/ui/AegisConfirm.vue'
+import AegisHeroBanner from '@/components/ui/AegisHeroBanner.vue'
+import AegisCard       from '@/components/ui/AegisCard.vue'
+import AegisBadge      from '@/components/ui/AegisBadge.vue'
 import AegisEmptyState from '@/components/ui/AegisEmptyState.vue'
-import ActivityFeed from '@/components/features/ActivityFeed.vue'
-import { useModal } from '@/composables/useModal'
-import { useToast } from '@/composables/useToast'
+import AegisIcon       from '@/components/ui/AegisIcon.vue'
+import AegisModal      from '@/components/ui/AegisModal.vue'
+import ActivityFeed    from '@/components/features/ActivityFeed.vue'
+import { useToast }    from '@/composables/useToast'
 import { useActivity } from '@/composables/useActivity'
 
 const props = defineProps({
@@ -100,20 +140,57 @@ const props = defineProps({
   timeline:       { type: Array,  default: () => [] },
 })
 
-const { openModal, closeModal, isOpen } = useModal()
-const toast = useToast()
+const toast    = useToast()
 const activity = useActivity()
+
+const openEscalate   = ref(false)
+const openResolve    = ref(false)
+const escalateReason = ref('')
+const resolveSummary = ref('')
+const busy           = ref(false)
 
 const hasActiveIncident = computed(() => !!props.activeIncident)
 
 function escalate() {
-  router.post(route('cs.continuity-management.escalate', { incident: props.activeIncident.id }), {}, {
-    onSuccess: () => { toast.success('Support Stewards notified.'); closeModal('escalateModal') },
-  })
+  if (!props.activeIncident) return
+  busy.value = true
+  router.post(
+    route('cs.continuity.escalate', { incident: props.activeIncident.id }),
+    { reason: escalateReason.value },
+    {
+      preserveScroll: true,
+      onSuccess: () => {
+        toast.success('Support Stewards notified.')
+        openEscalate.value = false
+        escalateReason.value = ''
+      },
+      onFinish: () => { busy.value = false },
+    }
+  )
 }
+
 function resolve() {
-  router.post(route('cs.continuity-management.resolve', { incident: props.activeIncident.id }), {}, {
-    onSuccess: () => { toast.success('Incident resolved.'); closeModal('resolveModal') },
-  })
+  if (!props.activeIncident) return
+  busy.value = true
+  router.post(
+    route('cs.continuity.close', { incident: props.activeIncident.id }),
+    { summary: resolveSummary.value },
+    {
+      preserveScroll: true,
+      onSuccess: () => {
+        toast.success('Incident closed.')
+        openResolve.value = false
+        resolveSummary.value = ''
+      },
+      onFinish: () => { busy.value = false },
+    }
+  )
 }
 </script>
+
+<style scoped>
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: 11px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; color: var(--text-2); }
+.form-input { padding: 10px 12px; font-size: 13.5px; color: var(--text); background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; }
+.form-input:focus { border-color: var(--gold); outline: none; box-shadow: 0 0 0 3px rgba(196,169,106,.18); }
+</style>

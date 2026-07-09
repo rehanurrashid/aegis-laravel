@@ -82,6 +82,7 @@ class StripeEventListener
                 'transfer.created'               => $this->handleTransferCreated($payload),
                 'transfer.paid'                  => $this->handleTransferPaid($payload),
                 'transfer.failed'                => $this->handleTransferFailed($payload),
+                'account.updated'                => $this->handleAccountUpdated($payload),
                 default                          => Log::info('[STRIPE_WEBHOOK] no handler (ignored)', ['type' => $type]),
             };
 

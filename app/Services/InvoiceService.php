@@ -181,8 +181,26 @@ class InvoiceService
     public function getForBp(string $bpId): Collection
     {
         return BpInvoice::where('bp_id', $bpId)
+            ->with(['practitioner:id,display_name,slug', 'contract:id,title'])
             ->orderByDesc('created_at')
-            ->get();
+            ->get()
+            ->map(function (BpInvoice $inv) {
+                $status = $inv->status instanceof \BackedEnum ? $inv->status->value : (string) $inv->status;
+                return [
+                    'id'             => $inv->id,
+                    'invoice_number' => $inv->invoice_number,
+                    'client_name'    => $inv->practitioner?->display_name ?? '—',
+                    'contract_id'    => $inv->contract_id,
+                    'contract_title' => $inv->contract?->title,
+                    'total_cents'    => (int) $inv->total_cents,
+                    'subtotal_cents' => (int) $inv->subtotal_cents,
+                    'currency'       => $inv->currency ?? 'USD',
+                    'status'         => $status,
+                    'issued_at'      => $inv->issued_at?->toDateString(),
+                    'due_at'         => $inv->due_at?->toDateString(),
+                    'paid_at'        => $inv->paid_at?->toDateString(),
+                ];
+            });
     }
 
     private function recalculateTotals(BpInvoice $invoice): void

@@ -1,5 +1,10 @@
 <!--
   pages/continuity-steward/Providers.vue — practitioners served by this CS.
+
+  Routes used:
+    cs.providers.plan             GET  /providers/{provider}/plan          (Open button)
+    cs.providers.accept           POST /providers/invitations/{invitation}/accept
+    cs.providers.decline          POST /providers/invitations/{invitation}/decline
 -->
 <template>
   <AppLayout>
@@ -40,7 +45,7 @@
             <td>{{ p.last_attested_at ? activity.timeAgo(p.last_attested_at) : 'Never' }}</td>
             <td>{{ p.vault_count }} items</td>
             <td>
-              <a :href="route('cs.providers.show', { provider: p.id })" class="btn btn-sm btn-outline">Open</a>
+              <a :href="route('cs.providers.plan', { provider: p.id })" class="btn btn-sm btn-outline">Open</a>
             </td>
           </tr>
         </tbody>
@@ -52,11 +57,18 @@
         <li v-for="p in pending" :key="p.id" class="pending-row">
           <div>
             <div class="pending-name">{{ p.display_name }}</div>
-            <div class="pending-meta">Requested {{ activity.timeAgo(p.requested_at) }}</div>
+            <div class="pending-meta">
+              <span v-if="p.role">Role: {{ p.role }} · </span>
+              Requested {{ p.requested_at ? activity.timeAgo(p.requested_at) : 'recently' }}
+            </div>
           </div>
           <div class="pending-actions">
-            <button type="button" class="btn btn-sm btn-primary" @click="respond(p, 'accept')">Accept</button>
-            <button type="button" class="btn btn-sm btn-ghost btn-danger-ghost" @click="respond(p, 'decline')">Decline</button>
+            <button type="button" class="btn btn-sm btn-primary" :disabled="busy === p.id" @click="respond(p, 'accept')">
+              {{ busy === p.id ? '…' : 'Accept' }}
+            </button>
+            <button type="button" class="btn btn-sm btn-ghost btn-danger-ghost" :disabled="busy === p.id" @click="respond(p, 'decline')">
+              Decline
+            </button>
           </div>
         </li>
       </ul>
@@ -72,9 +84,11 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
+import AegisHeroBanner from '@/components/ui/AegisHeroBanner.vue'
+import AegisStatChip   from '@/components/ui/AegisStatChip.vue'
 import AegisCard from '@/components/ui/AegisCard.vue'
 import AegisBadge from '@/components/ui/AegisBadge.vue'
 import AegisEmptyState from '@/components/ui/AegisEmptyState.vue'
@@ -91,12 +105,28 @@ const activity = useActivity()
 const { profileHref } = useProfileRoute()
 const toast = useToast()
 
+const busy = ref(null)
+
 const incidentCount = computed(() => props.providers.filter((p) => p.incident_active).length)
 
 function respond(p, action) {
-  router.post(route(`cs.providers.${action}`, { provider: p.id }), {}, {
-    preserveScroll: true,
-    onSuccess: () => toast.success(`Designation ${action === 'accept' ? 'accepted' : 'declined'}.`),
-  })
+  busy.value = p.id
+  router.post(
+    route(`cs.providers.${action}`, { invitation: p.id }),
+    {},
+    {
+      preserveScroll: true,
+      onSuccess: () => toast.success(`Designation ${action === 'accept' ? 'accepted' : 'declined'}.`),
+      onFinish:  () => { busy.value = null },
+    }
+  )
 }
 </script>
+
+<style scoped>
+.pending-list    { display: flex; flex-direction: column; gap: 8px; list-style: none; padding: 0; margin: 0; }
+.pending-row     { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.pending-name    { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.pending-meta    { font-size: 12px; color: var(--text-3); }
+.pending-actions { display: flex; gap: 8px; }
+</style>

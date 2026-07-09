@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Business\CreateInvoiceRequest;
 use App\Models\BpContract;
 use App\Models\BpInvoice;
+use App\Services\ContractService;
 use App\Services\InvoiceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,12 +17,20 @@ use Inertia\Response;
 
 class InvoicesController extends Controller
 {
-    public function __construct(private InvoiceService $invoices) {}
+    public function __construct(
+        private InvoiceService  $invoices,
+        private ContractService $contracts,
+    ) {}
 
     public function index(Request $request): Response
     {
-        return Inertia::render('BusinessPartner/Invoices', [
-            'invoices' => $this->invoices->getForBp($request->user()->id),
+        $bpId = $request->user()->id;
+        return Inertia::render('business-partner/Invoices', [
+            'invoices'  => $this->invoices->getForBp($bpId),
+            // Active contracts fuel the "Create invoice" dropdown.
+            'contracts' => $this->contracts->getForBp($bpId)
+                            ->filter(fn ($c) => $c['status'] === 'active')
+                            ->values(),
         ]);
     }
 
@@ -29,7 +38,7 @@ class InvoicesController extends Controller
     {
         $data = $request->validated();
         $contract = BpContract::findOrFail($data['contract_id']);
-        $this->authorize('create', [\App\Models\BpInvoice::class, $contract]);
+        $this->authorize('create', [BpInvoice::class, $contract]);
 
         $invoice = $this->invoices->create($contract, $request->user(), $data);
         foreach ($data['line_items'] as $li) {

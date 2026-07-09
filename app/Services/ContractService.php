@@ -230,7 +230,23 @@ class ContractService
     public function getForBp(string $bpId): Collection
     {
         return BpContract::where('bp_id', $bpId)
+            ->with(['practitioner:id,display_name,slug'])
             ->orderByDesc('created_at')
-            ->get();
+            ->get()
+            ->map(function (BpContract $c) {
+                $status = $c->status instanceof \BackedEnum ? $c->status->value : (string) $c->status;
+                return [
+                    'id'                => $c->id,
+                    'title'             => $c->title,
+                    'client_name'       => $c->practitioner?->display_name ?? '—',
+                    'practitioner_id'   => $c->practitioner_id,
+                    'payment_type'      => $c->payment_type,      // one_time | milestone
+                    'amount_cents'      => (int) $c->total_value_cents,
+                    'status'            => $status,                // active | completed | cancelled
+                    'signed_at'         => $c->signed_at?->toDateString(),
+                    'completed_at'      => $c->completed_at?->toDateString(),
+                    'created_at'        => $c->created_at?->toDateString(),
+                ];
+            });
     }
 }

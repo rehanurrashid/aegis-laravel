@@ -1,19 +1,21 @@
 <!--
   pages/business-partner/Milestones.vue — work milestones across contracts.
+  Statuses from bp_milestones enum: pending | submitted | approved | rejected | paid.
 -->
 <template>
   <AppLayout>
     <AegisHeroBanner
       eyebrow="Work"
       title="Milestones"
-      :subtitle="`${openCount} open · ${overdueCount} overdue`"
+      :subtitle="`${pendingCount} pending · ${overdueCount} overdue`"
     />
 
     <div class="stat-chips-row">
-      <AegisStatChip icon="flag-2" :value="openCount" label="Open" bg-color="var(--icon-bg-gold)" icon-color="var(--gold-dark)" />
+      <AegisStatChip icon="flag-2" :value="pendingCount" label="Pending" bg-color="var(--icon-bg-gold)" icon-color="var(--gold-dark)" />
+      <AegisStatChip icon="send" :value="submittedCount" label="Submitted" bg-color="var(--icon-bg-blue)" icon-color="var(--blue-dark)" />
+      <AegisStatChip icon="check-circle" :value="paidCount" label="Paid" bg-color="var(--icon-bg-green)" icon-color="var(--green-dark)" />
       <AegisStatChip icon="alert-triangle" :value="overdueCount" label="Overdue" bg-color="var(--icon-bg-red)" icon-color="var(--red-dark)" />
-      <AegisStatChip icon="check-circle" :value="completedCount" label="Completed" bg-color="var(--icon-bg-green)" icon-color="var(--green-dark)" />
-      <AegisStatChip icon="dollar" :value="pricing.formatCents(openValue)" label="Open value" />
+      <AegisStatChip icon="dollar" :value="pricing.formatCents(pendingValue)" label="Pending value" />
     </div>
 
     <AegisCard v-if="milestones.length">
@@ -31,20 +33,20 @@
         <tbody>
           <tr v-for="m in milestones" :key="m.id" :class="{ 'is-overdue': isOverdue(m) }">
             <td class="data-table-primary">{{ m.title }}</td>
-            <td>
-              <a :href="route('bp.contracts.show', { contract: m.contract_id })">{{ m.contract_title }}</a>
-            </td>
-            <td>{{ m.due_at ? activity.timeAgo(m.due_at) : '—' }}</td>
+            <td>{{ m.contract_title }}</td>
+            <td>{{ m.due_at ? formatDue(m.due_at) : '—' }}</td>
             <td>{{ pricing.formatCents(m.amount_cents) }}</td>
             <td><AegisBadge :label="m.status" :variant="variant(m.status)" /></td>
             <td>
               <button
-                v-if="m.status === 'open'"
+                v-if="m.status === 'pending'"
                 type="button"
                 class="btn btn-sm btn-primary"
+                :disabled="busy === m.id"
                 @click="submit(m)"
               >
-                Submit
+                <AegisIcon name="send" :size="12" />
+                {{ busy === m.id ? 'Submitting…' : 'Submit' }}
               </button>
             </td>
           </tr>
@@ -57,32 +59,57 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
-import AegisCard from '@/components/ui/AegisCard.vue'
-import AegisBadge from '@/components/ui/AegisBadge.vue'
+import AegisHeroBanner from '@/components/ui/AegisHeroBanner.vue'
+import AegisStatChip   from '@/components/ui/AegisStatChip.vue'
+import AegisCard       from '@/components/ui/AegisCard.vue'
+import AegisBadge      from '@/components/ui/AegisBadge.vue'
 import AegisEmptyState from '@/components/ui/AegisEmptyState.vue'
-import { useActivity } from '@/composables/useActivity'
-import { useToast } from '@/composables/useToast'
+import AegisIcon       from '@/components/ui/AegisIcon.vue'
+import { useToast }    from '@/composables/useToast'
 import { usePricingStore } from '@/stores/pricing'
 
 const props = defineProps({ milestones: { type: Array, default: () => [] } })
-const activity = useActivity()
 const toast = useToast()
 const pricing = usePricingStore()
 
-const openCount      = computed(() => props.milestones.filter((m) => m.status === 'open').length)
-const completedCount = computed(() => props.milestones.filter((m) => m.status === 'completed').length)
-const overdueCount   = computed(() => props.milestones.filter((m) => isOverdue(m)).length)
-const openValue      = computed(() => props.milestones.filter((m) => m.status === 'open').reduce((s, m) => s + (m.amount_cents || 0), 0))
+const busy = ref(null)
 
-function isOverdue(m) { return m.status === 'open' && m.due_at && new Date(m.due_at) < Date.now() }
-function variant(s) { return { open: 'gold', submitted: 'blue', completed: 'green', cancelled: 'neutral' }[s] ?? 'neutral' }
+const pendingCount   = computed(() => props.milestones.filter((m) => m.status === 'pending').length)
+const submittedCount = computed(() => props.milestones.filter((m) => m.status === 'submitted' || m.status === 'approved').length)
+const paidCount      = computed(() => props.milestones.filter((m) => m.status === 'paid').length)
+const overdueCount   = computed(() => props.milestones.filter((m) => isOverdue(m)).length)
+const pendingValue   = computed(() => props.milestones.filter((m) => m.status === 'pending').reduce((s, m) => s + (m.amount_cents || 0), 0))
+
+function isOverdue(m) { return m.status === 'pending' && m.due_at && new Date(m.due_at) < Date.now() }
+
+function variant(s) {
+  return {
+    pending:   'gold',
+    submitted: 'blue',
+    approved:  'blue',
+    paid:      'green',
+    rejected:  'red',
+  }[s] ?? 'neutral'
+}
+
+function formatDue(iso) {
+  const d = new Date(iso)
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
 
 function submit(m) {
+  busy.value = m.id
   router.post(route('bp.milestones.submit', { milestone: m.id }), {}, {
+    preserveScroll: true,
     onSuccess: () => toast.success('Milestone submitted for review.'),
+    onFinish:  () => { busy.value = null },
   })
 }
 </script>
+
+<style scoped>
+.is-overdue td { background: rgba(220, 38, 38, 0.05); }
+</style>

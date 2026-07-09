@@ -25,7 +25,7 @@ class ContinuityManagementController extends Controller
             ->where('status', 'active')
             ->pluck('plan_id');
 
-        return Inertia::render('ContinuitySteward/ContinuityManagement', [
+        return Inertia::render('continuity-steward/ContinuityManagement', [
             'activeIncidents' => CriticalIncident::whereIn('plan_id', $planIds)
                 ->whereIn('status', ['reported', 'verified', 'active'])->get(),
             'closedIncidents' => CriticalIncident::whereIn('plan_id', $planIds)
@@ -53,6 +53,16 @@ class ContinuityManagementController extends Controller
         $summary = $request->validate(['summary' => 'required|string|min:10|max:2000'])['summary'];
         $this->incidents->close($incident, $request->user(), $summary);
         return back()->with('success', 'Incident closed.');
+    }
+
+    public function escalate(Request $request, CriticalIncident $incident): RedirectResponse
+    {
+        $this->authorize('update', $incident);
+        $reason = $request->validate([
+            'reason' => 'required|string|min:5|max:2000',
+        ])['reason'];
+        $this->incidents->escalate($incident, $reason);
+        return back()->with('success', 'Incident escalated — Support Stewards notified.');
     }
 
     public function update(Request $request, CriticalIncident $incident): RedirectResponse
