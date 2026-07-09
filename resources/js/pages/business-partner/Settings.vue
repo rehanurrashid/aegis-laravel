@@ -2,7 +2,7 @@
   <AppLayout :user="user" portal="business_partner" activePage="settings" pageTitle="Settings">
     <AegisHeroBanner eyebrow="Business Partner" title="Business Account" quiet>
       <template #actions>
-        <a :href="route(\'bp.activity\') + \'?event_type=account\'" class="btn-hero-ghost is-on-light">
+        <a :href="route('bp.activity') + '?event_type=account'" class="btn-hero-ghost is-on-light">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
       </template>
@@ -18,7 +18,7 @@
             <div class="settings-nav-label">{{ grp.group }}</div>
             <button v-for="it in grp.items" :key="it.key" type="button"
               class="settings-nav-item" :class="{ active: section === it.key }"
-              :style="it.danger ? \'color:var(--red)\' : \'\'" @click="section = it.key">
+              :style="it.danger ? 'color:var(--red)' : ''" @click="section = it.key">
               <span class="s-nav-icon"><AegisIcon :name="it.icon" :size="15" /></span>{{ it.label }}
             </button>
           </div>
@@ -26,7 +26,7 @@
       </div>
       <div class="settings-content">
 
-        <div v-show="section === \'profile\'" class="settings-panel">
+        <div v-show="section === 'profile'" class="settings-panel">
           <div class="alert alert-info" style="margin-bottom:16px">
             <div class="alert-icon"><AegisIcon name="users" :size="18" /></div>
             <div class="alert-content"><strong>Unified identity across all portals.</strong> Your display name, email, and phone are shared across every portal you have access to.</div>
@@ -37,7 +37,7 @@
                 <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="briefcase" :size="16" /></div>
                 <div><div class="card-title">Profile Summary</div><div class="card-subtitle">Your public-facing identity on Aegis</div></div>
               </div>
-              <a :href="route(\'bp.profile.edit\')" class="btn btn-primary btn-sm"><AegisIcon name="edit" :size="13" /> Edit Full Profile</a>
+              <a :href="route('bp.profile.index')" class="btn btn-primary btn-sm"><AegisIcon name="edit" :size="13" /> Edit Full Profile</a>
             </div>
             <div class="card-body">
               <div class="list-group">
@@ -49,7 +49,7 @@
                   <div style="flex:1">
                     <div style="font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--text)">{{ displayName }}</div>
                     <div style="font-size:12px;color:var(--text-4);margin-top:4px;display:flex;gap:14px;flex-wrap:wrap">
-                      <span style="display:flex;align-items:center;gap:4px"><AegisIcon name="mail" :size="12" /> {{ user?.email ?? \'\'  }}</span>
+                      <span style="display:flex;align-items:center;gap:4px"><AegisIcon name="mail" :size="12" /> {{ user?.email ?? ''  }}</span>
                     </div>
                   </div>
                   <span class="badge badge-gold">BP</span>
@@ -59,7 +59,7 @@
           </div>
         </div>
 
-        <div v-show="section === \'account\'" class="settings-panel">
+        <div v-show="section === 'account'" class="settings-panel">
           <SettingsAccount
             :user="user"
             :sessions="sessions"
@@ -70,7 +70,7 @@
           />
         </div>
 
-        <div v-show="section === \'security\'" class="settings-panel">
+        <div v-show="section === 'security'" class="settings-panel">
           <SettingsSecurity enable-mfa-route="bp.settings.mfa.enable" disable-mfa-route="bp.settings.mfa.disable" verify-mfa-route="bp.settings.mfa.verify"
             backup-codes-route="bp.settings.mfa.backup-codes"
             enable-email-mfa-route="bp.settings.mfa.enable-email"
@@ -79,23 +79,23 @@
             :user-email="user?.email ?? ''" />
         </div>
 
-        <div v-show="section === \'notifications\'" class="settings-panel">
+        <div v-show="section === 'notifications'" class="settings-panel">
           <SettingsNotifications update-route="bp.settings.notifications"
             :saved-prefs="meta?.notify_prefs ?? {}"
             :saved-categories="meta?.notify_categories ?? []" subtitle="Choose how you receive alerts about your business activity on Aegis." :notif-categories="bpNotifCategories" />
         </div>
 
-        <div v-show="section === \'messaging\'" class="settings-panel">
+        <div v-show="section === 'messaging'" class="settings-panel">
           <SettingsMessaging update-route="bp.settings.messaging"
-            :meta="meta" messages-route="bp.messages" subtitle="Control how practitioners can reach your business on Aegis" :who-options="[\'Practitioners I\'m connected with\']" :meta="meta" />
+            :meta="meta" messages-route="bp.messages" subtitle="Control how practitioners can reach your business on Aegis" :who-options="['Practitioners I'm connected with']" :meta="meta" />
         </div>
 
-        <div v-show="section === \'email-prefs\'" class="settings-panel">
+        <div v-show="section === 'email-prefs'" class="settings-panel">
           <SettingsEmailPrefs update-route="bp.settings.email-prefs" activity-label="Business Activity Summary" activity-desc="Digest of proposal responses, contract milestones, and invoice activity" :meta="meta" />
         </div>
 
         <!-- BP BUSINESS ACCOUNT SETTINGS -->
-        <div v-show="section === \'bp-business\'" class="settings-panel">
+        <div v-show="section === 'bp-business'" class="settings-panel">
           <div class="card">
             <div class="card-header">
               <div class="card-title-group">
@@ -119,7 +119,7 @@
         </div>
 
         <!-- BP PAYOUT / STRIPE CONNECT -->
-        <div v-show="section === \'bp-payout\'" class="settings-panel">
+        <div v-show="section === 'bp-payout'" class="settings-panel">
           <div class="card">
             <div class="card-header">
               <div class="card-title-group">
@@ -128,14 +128,14 @@
               </div>
             </div>
             <div class="card-body">
-              <div class="stripe-status" :class="user?.stripe_account_id && !user.stripe_account_id.startsWith(\'acct_demo\') ? \'is-connected\' : \'is-disconnected\'">
+              <div class="stripe-status" :class="user?.stripe_account_id && !user.stripe_account_id.startsWith('acct_demo') ? 'is-connected' : 'is-disconnected'">
                 <div style="flex:1">
                   <div style="font-size:14px;font-weight:700;color:var(--text)">Stripe Connect</div>
-                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">{{ user?.stripe_account_id && !user.stripe_account_id.startsWith(\'acct_demo\') ? \'Payouts go to your connected bank account within 2 business days.\' : \'Connect Stripe to receive payouts from practitioners.\' }}</div>
+                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">{{ user?.stripe_account_id && !user.stripe_account_id.startsWith('acct_demo') ? 'Payouts go to your connected bank account within 2 business days.' : 'Connect Stripe to receive payouts from practitioners.' }}</div>
                 </div>
-                <span class="badge" :class="user?.stripe_account_id && !user.stripe_account_id.startsWith(\'acct_demo\') ? \'badge-green\' : \'badge-gray\'">{{ user?.stripe_account_id && !user.stripe_account_id.startsWith(\'acct_demo\') ? \'Connected\' : \'Not Connected\' }}</span>
-                <a v-if="user?.stripe_account_id && !user.stripe_account_id.startsWith(\'acct_demo\')" :href="route(\'bp.settings.billing.portal\')" class="btn btn-outline btn-sm" target="_blank">Manage</a>
-                <a v-else :href="route(\'bp.settings.connect.onboard\')" class="btn btn-primary btn-sm">Connect Stripe</a>
+                <span class="badge" :class="user?.stripe_account_id && !user.stripe_account_id.startsWith('acct_demo') ? 'badge-green' : 'badge-gray'">{{ user?.stripe_account_id && !user.stripe_account_id.startsWith('acct_demo') ? 'Connected' : 'Not Connected' }}</span>
+                <a v-if="user?.stripe_account_id && !user.stripe_account_id.startsWith('acct_demo')" :href="route('bp.settings.billing.portal')" class="btn btn-outline btn-sm" target="_blank">Manage</a>
+                <a v-else :href="route('bp.settings.connect.onboard')" class="btn btn-primary btn-sm">Connect Stripe</a>
               </div>
               <div class="form-group" style="margin-bottom:14px;margin-top:18px">
                 <label class="form-label">Payout Schedule</label>
@@ -152,7 +152,7 @@
         </div>
 
         <!-- PRIVACY -->
-        <div v-show="section === \'privacy\'" class="settings-panel">
+        <div v-show="section === 'privacy'" class="settings-panel">
           <div class="card">
             <div class="card-header">
               <div class="card-title-group">
@@ -179,7 +179,7 @@
           </div>
         </div>
 
-        <div v-show="section === \'appearance\'" class="settings-panel">
+        <div v-show="section === 'appearance'" class="settings-panel">
           <SettingsAppearance update-route="bp.settings.appearance" :meta="meta" />
         </div>
 
@@ -363,16 +363,16 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from \'vue\';
-import { useToast } from \'@/composables/useToast\';
-import AppLayout              from \'@/layouts/AppLayout.vue\';
-import SettingsAccount        from \'@/components/settings/SettingsAccount.vue\';
-import SettingsSecurity       from \'@/components/settings/SettingsSecurity.vue\';
-import SettingsNotifications  from \'@/components/settings/SettingsNotifications.vue\';
-import SettingsAppearance     from \'@/components/settings/SettingsAppearance.vue\';
-import SettingsMessaging      from \'@/components/settings/SettingsMessaging.vue\';
-import SettingsEmailPrefs     from \'@/components/settings/SettingsEmailPrefs.vue\';
-import SettingsDangerZone     from \'@/components/settings/SettingsDangerZone.vue\';
+import { ref, reactive, computed } from 'vue';
+import { useToast } from '@/composables/useToast';
+import AppLayout              from '@/layouts/AppLayout.vue';
+import SettingsAccount        from '@/components/settings/SettingsAccount.vue';
+import SettingsSecurity       from '@/components/settings/SettingsSecurity.vue';
+import SettingsNotifications  from '@/components/settings/SettingsNotifications.vue';
+import SettingsAppearance     from '@/components/settings/SettingsAppearance.vue';
+import SettingsMessaging      from '@/components/settings/SettingsMessaging.vue';
+import SettingsEmailPrefs     from '@/components/settings/SettingsEmailPrefs.vue';
+import SettingsDangerZone     from '@/components/settings/SettingsDangerZone.vue';
 
 const props = defineProps({
   user:         { type: Object,  default: () => ({}) },
@@ -387,7 +387,7 @@ const props = defineProps({
 const toast = useToast();
 // Sessions — passed from controller via props
 const sessions = computed(() => props.sessions ?? []);
-const section     = ref(\'profile\');
+const section     = ref('profile');
 const billingAnnual = ref(false);
 const sub                  = computed(() => props.subscription ?? {});
 const subStatus            = computed(() => sub.value.status || 'none');
@@ -456,44 +456,44 @@ function doBpResume() {
   });
 }
 
-const displayName = computed(() => props.user?.display_name || \'TechCare Solutions\');
-const initials    = computed(() => displayName.value.split(\' \').map(p => p[0]).join(\'\').slice(0, 2).toUpperCase());
+const displayName = computed(() => props.user?.display_name || 'TechCare Solutions');
+const initials    = computed(() => displayName.value.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase());
 
-const i = \'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"\';
+const i = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
 const nav = [
-  { group: \'Account\', items: [
-    { key: \'profile\',  label: \'Profile & Identity\', icon: 'lock' },
-    { key: \'security\', label: \'Security & 2FA\',     icon: 'bell' },
-    { key: \'messaging\',     label: \'Messaging\',         icon: 'mail' },
+  { group: 'Account', items: [
+    { key: 'profile',  label: 'Profile & Identity', icon: 'lock' },
+    { key: 'security', label: 'Security & 2FA',     icon: 'bell' },
+    { key: 'messaging',     label: 'Messaging',         icon: 'mail' },
   ]},
-  { group: \'Business\', items: [
-    { key: \'bp-business\', label: \'Business Account\',    icon: 'credit-card' },
-    { key: \'privacy\',     label: \'Privacy & Visibility\',  icon: 'settings' },
-    { key: \'billing\',    label: \'Subscription & Plan\',  icon: 'alert-triangle' },
+  { group: 'Business', items: [
+    { key: 'bp-business', label: 'Business Account',    icon: 'credit-card' },
+    { key: 'privacy',     label: 'Privacy & Visibility',  icon: 'settings' },
+    { key: 'billing',    label: 'Subscription & Plan',  icon: 'alert-triangle' },
   ]},
 ];
 
 const bpNotifCategories = [
-  { key: \'proposals\',  label: \'Job Proposal Activity\',  desc: \'When a practitioner responds to, accepts, or declines a proposal\',          push: true,  email: true, inapp: true  },
-  { key: \'milestones\', label: \'Contract Milestones\',    desc: \'When a contract milestone is reached, due, or requires action\',               push: true,  email: true, inapp: true  },
-  { key: \'payments\',   label: \'Invoice & Payments\',     desc: \'Payment confirmations, failed charges, and upcoming invoices\',                push: false, email: true, inapp: true  },
-  { key: \'messages\',   label: \'New Messages\',           desc: \'When a practitioner or Aegis support sends you a message\',                    push: true,  email: false, inapp: true  },
-  { key: \'agreements\', label: \'Agreement Alerts\',       desc: \'Signing requests, renewals, and expiry warnings on business agreements\',      push: true,  email: true, inapp: true  },
-  { key: \'network\',    label: \'Network Updates\',        desc: \'New connection requests and approvals from practitioners\',                    push: false, email: true, inapp: true  },
-  { key: \'jobs\',       label: \'Job Posting Activity\',   desc: \'Applications, views, and status changes on your active job postings\',         push: true,  email: true, inapp: true  },
-  { key: \'platform\',   label: \'Platform Updates\',       desc: \'New Aegis features and maintenance windows\',                                  push: false, email: false, inapp: false },
+  { key: 'proposals',  label: 'Job Proposal Activity',  desc: 'When a practitioner responds to, accepts, or declines a proposal',          push: true,  email: true, inapp: true  },
+  { key: 'milestones', label: 'Contract Milestones',    desc: 'When a contract milestone is reached, due, or requires action',               push: true,  email: true, inapp: true  },
+  { key: 'payments',   label: 'Invoice & Payments',     desc: 'Payment confirmations, failed charges, and upcoming invoices',                push: false, email: true, inapp: true  },
+  { key: 'messages',   label: 'New Messages',           desc: 'When a practitioner or Aegis support sends you a message',                    push: true,  email: false, inapp: true  },
+  { key: 'agreements', label: 'Agreement Alerts',       desc: 'Signing requests, renewals, and expiry warnings on business agreements',      push: true,  email: true, inapp: true  },
+  { key: 'network',    label: 'Network Updates',        desc: 'New connection requests and approvals from practitioners',                    push: false, email: true, inapp: true  },
+  { key: 'jobs',       label: 'Job Posting Activity',   desc: 'Applications, views, and status changes on your active job postings',         push: true,  email: true, inapp: true  },
+  { key: 'platform',   label: 'Platform Updates',       desc: 'New Aegis features and maintenance windows',                                  push: false, email: false, inapp: false },
 ];
 
-const bpBizPrefs   = reactive({ businessType: \'agency\', networkVisible: true, proposalsOpen: true });
-const bpPayoutPrefs = reactive({ schedule: \'weekly\' });
-const bpPrivacy    = reactive({ level: \'public\', search: true, location: true, rates: false });
+const bpBizPrefs   = reactive({ businessType: 'agency', networkVisible: true, proposalsOpen: true });
+const bpPayoutPrefs = reactive({ schedule: 'weekly' });
+const bpPrivacy    = reactive({ level: 'public', search: true, location: true, rates: false });
 const modals       = reactive({ cancelSub: false });
-const cancelForm   = reactive({ reason: \'expensive\' });
+const cancelForm   = reactive({ reason: 'expensive' });
 
 const privacyLevels = [
-  { key: \'public\',  name: \'Public\',   desc: \'Visible to all Practitioner Partners on Aegis\', icon: \'eye\'  },
-  { key: \'network\', name: \'Network\',  desc: \'Only Practitioner Partners I am connected with\', icon: \'link\' },
-  { key: \'private\', name: \'Unlisted\', desc: \'Not shown in search — direct link only\',          icon: \'lock\' },
+  { key: 'public',  name: 'Public',   desc: 'Visible to all Practitioner Partners on Aegis', icon: 'eye'  },
+  { key: 'network', name: 'Network',  desc: 'Only Practitioner Partners I am connected with', icon: 'link' },
+  { key: 'private', name: 'Unlisted', desc: 'Not shown in search — direct link only',          icon: 'lock' },
 ];
 
 function saveBusinessPrefs() {

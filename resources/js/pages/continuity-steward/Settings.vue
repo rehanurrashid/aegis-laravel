@@ -2,7 +2,7 @@
   <AppLayout :user="user" portal="continuity_steward" activePage="settings" pageTitle="Settings">
     <AegisHeroBanner eyebrow="Continuity Steward" title="Continuity Steward Settings" quiet>
       <template #actions>
-        <a :href="route(\'cs.activity\') + \'?event_type=account\'" class="btn-hero-ghost is-on-light">
+        <a :href="route('cs.activity') + '?event_type=account'" class="btn-hero-ghost is-on-light">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
       </template>
@@ -18,14 +18,14 @@
             <div class="settings-nav-label">{{ grp.group }}</div>
             <button v-for="it in grp.items" :key="it.key" type="button"
               class="settings-nav-item" :class="{ active: section === it.key }"
-              :style="it.danger ? \'color:var(--red)\' : \'\'" @click="section = it.key">
+              :style="it.danger ? 'color:var(--red)' : ''" @click="section = it.key">
               <span class="s-nav-icon"><AegisIcon :name="it.icon" :size="15" /></span>{{ it.label }}
             </button>
           </div>
         </template>
       </div>
       <div class="settings-content">
-        <div v-show="section === \'profile\'" class="settings-panel">
+        <div v-show="section === 'profile'" class="settings-panel">
           <div class="alert alert-info" style="margin-bottom:16px">
             <div class="alert-icon"><AegisIcon name="users" :size="18" /></div>
             <div class="alert-content"><strong>Unified identity across all portals.</strong> Your photo, display name, email, and phone are shared across every portal you have access to.</div>
@@ -36,7 +36,7 @@
                 <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="user" :size="16" /></div>
                 <div><div class="card-title">Profile Summary</div><div class="card-subtitle">Your public-facing identity on Aegis</div></div>
               </div>
-              <a :href="route(\'cs.profile.edit\')" class="btn btn-primary btn-sm"><AegisIcon name="edit" :size="13" /> Edit Full Profile</a>
+              <a :href="route('cs.profile.index')" class="btn btn-primary btn-sm"><AegisIcon name="edit" :size="13" /> Edit Full Profile</a>
             </div>
             <div class="card-body">
               <div class="list-group">
@@ -48,7 +48,7 @@
                   <div style="flex:1">
                     <div style="font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--text)">{{ displayName }}</div>
                     <div style="font-size:12px;color:var(--text-4);margin-top:4px;display:flex;gap:14px;flex-wrap:wrap">
-                      <span style="display:flex;align-items:center;gap:4px"><AegisIcon name="mail" :size="12" /> {{ user?.email ?? \'\'  }}</span>
+                      <span style="display:flex;align-items:center;gap:4px"><AegisIcon name="mail" :size="12" /> {{ user?.email ?? ''  }}</span>
                     </div>
                   </div>
                   <span class="badge badge-blue">CS</span>
@@ -57,7 +57,7 @@
             </div>
           </div>
         </div>
-        <div v-show="section === \'account\'" class="settings-panel">
+        <div v-show="section === 'account'" class="settings-panel">
           <SettingsAccount
             :user="user"
             :sessions="sessions"
@@ -67,7 +67,7 @@
             revoke-all-route="cs.settings.sessions.revoke-all"
           />
         </div>
-        <div v-show="section === \'security\'" class="settings-panel">
+        <div v-show="section === 'security'" class="settings-panel">
           <SettingsSecurity enable-mfa-route="cs.settings.mfa.enable" disable-mfa-route="cs.settings.mfa.disable" verify-mfa-route="cs.settings.mfa.verify"
             backup-codes-route="cs.settings.mfa.backup-codes"
             enable-email-mfa-route="cs.settings.mfa.enable-email"
@@ -75,12 +75,12 @@
             :mfa-method="mfaMethod" :mfa-enabled="mfaEnabled"
             :user-email="user?.email ?? ''" />
         </div>
-        <div v-show="section === \'notifications\'" class="settings-panel">
+        <div v-show="section === 'notifications'" class="settings-panel">
           <SettingsNotifications update-route="cs.settings.notifications"
             :saved-prefs="meta?.notify_prefs ?? {}"
             :saved-categories="meta?.notify_categories ?? []" subtitle="Delivery channels unified across portals. Per-category preferences apply to your Continuity Steward role." :notif-categories="csNotifCategories" />
         </div>
-        <div v-show="section === \'messaging\'" class="settings-panel">
+        <div v-show="section === 'messaging'" class="settings-panel">
           <SettingsMessaging update-route="cs.settings.messaging" messages-route="cs.messages" subtitle="Control who can reach you and how you appear to assigned practitioners" :meta="meta">
             <template #extra-toggles>
               <div class="toggle-row">
@@ -90,10 +90,10 @@
             </template>
           </SettingsMessaging>
         </div>
-        <div v-show="section === \'email-prefs\'" class="settings-panel">
+        <div v-show="section === 'email-prefs'" class="settings-panel">
           <SettingsEmailPrefs update-route="cs.settings.email-prefs" activity-label="Stewardship Activity Summary" activity-desc="Digest of plan changes, attestations, and coverage events" :meta="meta" />
         </div>
-        <div v-show="section === \'cs-steward\'" class="settings-panel">
+        <div v-show="section === 'cs-steward'" class="settings-panel">
           <div class="card">
             <div class="card-header">
               <div class="card-title-group">
@@ -103,13 +103,13 @@
             </div>
             <div class="card-body">
               <div class="section-label">Role Visibility</div>
-              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Show Name on Provider Public Profile</div><div class="toggle-desc">Allow your name to appear as "Continuity Steward" on your providers\' public Aegis pages</div></div><button type="button" class="toggle" :class="{ on: csRolePrefs.showOnProfile }" @click="csRolePrefs.showOnProfile = !csRolePrefs.showOnProfile" :aria-pressed="csRolePrefs.showOnProfile"></button></div>
+              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Show Name on Provider Public Profile</div><div class="toggle-desc">Allow your name to appear as "Continuity Steward" on your providers' public Aegis pages</div></div><button type="button" class="toggle" :class="{ on: csRolePrefs.showOnProfile }" @click="csRolePrefs.showOnProfile = !csRolePrefs.showOnProfile" :aria-pressed="csRolePrefs.showOnProfile"></button></div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Request Vault Access on Assignment</div><div class="toggle-desc">Automatically request emergency vault access when assigned to a new provider</div></div><button type="button" class="toggle" :class="{ on: csRolePrefs.vaultAccess }" @click="csRolePrefs.vaultAccess = !csRolePrefs.vaultAccess" :aria-pressed="csRolePrefs.vaultAccess"></button></div>
               <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="saveRolePrefs"><AegisIcon name="check" :size="16" /> Save CS Settings</button></div>
             </div>
           </div>
         </div>
-        <div v-show="section === \'documents-s\'" class="settings-panel">
+        <div v-show="section === 'documents-s'" class="settings-panel">
           <div class="card">
             <div class="card-header">
               <div class="card-title-group">
@@ -119,13 +119,13 @@
             </div>
             <div class="card-body">
               <div class="alert alert-info" style="margin-bottom:16px"><div class="alert-icon"><AegisIcon name="info" :size="16" /></div><div class="alert-content" style="font-size:12px">Your vault access level is set by each practitioner individually. Access to sealed zones is only released when a critical incident is verified.</div></div>
-              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Notify Me When I Access a Vault</div><div class="toggle-desc">Receive a confirmation log entry whenever you open or download a document from a provider\'s vault</div></div><button type="button" class="toggle" :class="{ on: vaultNotifyPrefs.notifyAccess }" @click="vaultNotifyPrefs.notifyAccess = !vaultNotifyPrefs.notifyAccess" :aria-pressed="vaultNotifyPrefs.notifyAccess"></button></div>
+              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Notify Me When I Access a Vault</div><div class="toggle-desc">Receive a confirmation log entry whenever you open or download a document from a provider's vault</div></div><button type="button" class="toggle" :class="{ on: vaultNotifyPrefs.notifyAccess }" @click="vaultNotifyPrefs.notifyAccess = !vaultNotifyPrefs.notifyAccess" :aria-pressed="vaultNotifyPrefs.notifyAccess"></button></div>
               <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Notify Me on Emergency Vault Unlock</div><div class="toggle-desc">Alert me immediately when an emergency vault becomes accessible during an active incident</div></div><button type="button" class="toggle" :class="{ on: vaultNotifyPrefs.notifyUnlock }" @click="vaultNotifyPrefs.notifyUnlock = !vaultNotifyPrefs.notifyUnlock" :aria-pressed="vaultNotifyPrefs.notifyUnlock"></button></div>
               <div class="btn-group" style="justify-content:flex-end;margin-top:16px"><button type="button" class="btn btn-primary" @click="saveVaultPrefs"><AegisIcon name="check" :size="13" /> Save</button></div>
             </div>
           </div>
         </div>
-        <div v-show="section === \'privacy\'" class="settings-panel">
+        <div v-show="section === 'privacy'" class="settings-panel">
           <div class="card">
             <div class="card-header">
               <div class="card-title-group">
@@ -151,11 +151,11 @@
             </div>
           </div>
         </div>
-        <div v-show="section === \'appearance\'" class="settings-panel">
+        <div v-show="section === 'appearance'" class="settings-panel">
           <SettingsAppearance update-route="cs.settings.appearance" :meta="meta" />
         </div>
         <!-- BILLING — Business CS only / Invited CS sees no-cost notice -->
-        <div v-show="section === \'billing\'" class="settings-panel">
+        <div v-show="section === 'billing'" class="settings-panel">
 
           <!-- INVITED CS -->
           <div v-if="isInvitedCs" class="card">
@@ -169,7 +169,7 @@
             <div class="card-body">
               <div class="alert alert-info" style="margin-bottom:18px">
                 <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
-                <div class="alert-content"><strong>Full Continuity Steward access — at no cost.</strong><br>Covered by your linked provider\'s Aegis subscription.</div>
+                <div class="alert-content"><strong>Full Continuity Steward access — at no cost.</strong><br>Covered by your linked provider's Aegis subscription.</div>
               </div>
               <div v-if="user?.linked_provider_name" style="background:var(--icon-bg-gold);border:1px solid var(--badge-border-gold);border-radius:var(--radius);padding:16px 18px;margin-bottom:18px;display:flex;align-items:center;gap:14px">
                 <div class="stat-chip-icon" style="width:40px;height:40px;flex-shrink:0;background:var(--gold-dark);color:var(--text-inverted)"><AegisIcon name="user" :size="16" /></div>
@@ -177,7 +177,7 @@
                   <div style="font-size:11px;text-transform:uppercase;color:var(--text-3);margin-bottom:3px">Your Linked Provider</div>
                   <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text)">{{ user.linked_provider_name }}</div>
                 </div>
-                <a :href="route(\'cs.providers.index\')" class="btn btn-outline btn-sm"><AegisIcon name="external-link" :size="13" /> View Provider</a>
+                <a :href="route('cs.providers.index')" class="btn btn-outline btn-sm"><AegisIcon name="external-link" :size="13" /> View Provider</a>
               </div>
               <div class="alert alert-gold" style="margin:0">
                 <div class="alert-icon"><AegisIcon name="star" :size="16" /></div>
@@ -193,7 +193,7 @@
                 <span class="st-card-ico"><AegisIcon name="star" :size="17" /></span>
                 <div><div class="st-card-title">Subscription &amp; Plan</div><div class="st-card-sub">Business Continuity Steward</div></div>
               </div>
-              <a :href="route(\'cs.settings.billing.portal\')" class="btn btn-outline btn-sm" target="_blank"><AegisIcon name="external-link" :size="13" /> Manage in Stripe</a>
+              <a :href="route('cs.settings.billing.portal')" class="btn btn-outline btn-sm" target="_blank"><AegisIcon name="external-link" :size="13" /> Manage in Stripe</a>
             </div>
             <div class="st-card-body">
               <template v-if="sub.on_grace_period">
@@ -202,27 +202,27 @@
                   <div style="font-size:13px;color:var(--text-2)">Subscription cancelled — access ends {{ formatDate(sub.ends_at) }}. <button type="button" class="btn btn-gold btn-sm" @click="resumeCsPlan" :disabled="planBusy">Reactivate</button></div>
                 </div>
               </template>
-              <template v-else-if="subStatus === \'past_due\'">
+              <template v-else-if="subStatus === 'past_due'">
                 <div class="st-perks-band" style="border-color:var(--red-light);background:var(--surface-2);">
                   <AegisIcon name="alert-triangle" :size="16" style="color:var(--red)" />
-                  <div style="font-size:13px;color:var(--text-2)">Payment failed — <a :href="route(\'cs.settings.billing.portal\')" style="color:var(--red)">update your payment method</a>.</div>
+                  <div style="font-size:13px;color:var(--text-2)">Payment failed — <a :href="route('cs.settings.billing.portal')" style="color:var(--red)">update your payment method</a>.</div>
                 </div>
               </template>
-              <div v-if="subStatus !== \'none\'" class="st-current-plan">
-                <div class="st-current-meta">Business CS — {{ sub.current_billing === \'annual\' ? \'$35.75/mo (billed $429/yr)\' : \'$49/mo\' }}</div>
+              <div v-if="subStatus !== 'none'" class="st-current-plan">
+                <div class="st-current-meta">Business CS — {{ sub.current_billing === 'annual' ? '$35.75/mo (billed $429/yr)' : '$49/mo' }}</div>
                 <div v-if="sub.current_period" class="st-current-meta" style="font-size:12px;color:var(--text-3)">Current period: {{ formatDate(sub.current_period.start) }} → {{ formatDate(sub.current_period.end) }}</div>
               </div>
-              <div v-if="subStatus !== \'none\'" class="st-cycle-toggle">
+              <div v-if="subStatus !== 'none'" class="st-cycle-toggle">
                 <span :class="{ active: !billingAnnual }">Monthly</span>
                 <button type="button" class="toggle" :class="{ on: billingAnnual }" @click="billingAnnual = !billingAnnual" :aria-pressed="billingAnnual"></button>
                 <span :class="{ active: billingAnnual }">Annual <span class="st-save-pill">Save ~27%</span></span>
               </div>
-              <div v-if="subStatus !== \'none\'" style="margin:12px 0">
-                <button v-if="billingAnnual !== (sub.current_billing === \'annual\')" type="button" class="btn btn-gold btn-sm" @click="swapCsPlan" :disabled="planBusy || !csPriceId">
-                  Switch to {{ billingAnnual ? \'Annual\' : \'Monthly\' }} billing
+              <div v-if="subStatus !== 'none'" style="margin:12px 0">
+                <button v-if="billingAnnual !== (sub.current_billing === 'annual')" type="button" class="btn btn-gold btn-sm" @click="swapCsPlan" :disabled="planBusy || !csPriceId">
+                  Switch to {{ billingAnnual ? 'Annual' : 'Monthly' }} billing
                 </button>
               </div>
-              <div v-if="(subStatus === \'active\' || subStatus === \'trialing\')" style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border);margin-top:8px">
+              <div v-if="(subStatus === 'active' || subStatus === 'trialing')" style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border);margin-top:8px">
                 <div style="font-size:13px;color:var(--text-3)">Need to cancel your Business CS plan?</div>
                 <button type="button" class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red)" @click="confirmCsCancel = true" :disabled="planBusy">Cancel Plan</button>
               </div>
@@ -235,7 +235,7 @@
                     <tr v-for="inv in stripeInvoices" :key="inv.id">
                       <td>{{ formatDate(inv.paid_at || inv.created) }}</td>
                       <td>{{ formatCents(inv.amount_cents) }}</td>
-                      <td><span v-if="inv.status === \'paid\'" style="color:var(--green);font-weight:600;display:inline-flex;align-items:center;gap:4px"><AegisIcon name="check" :size="13" />Paid</span><span v-else style="color:var(--text-3)">{{ inv.status }}</span></td>
+                      <td><span v-if="inv.status === 'paid'" style="color:var(--green);font-weight:600;display:inline-flex;align-items:center;gap:4px"><AegisIcon name="check" :size="13" />Paid</span><span v-else style="color:var(--text-3)">{{ inv.status }}</span></td>
                       <td><a v-if="inv.pdf_url" :href="inv.pdf_url" target="_blank" class="btn btn-ghost btn-xs" data-tooltip="Download PDF"><AegisIcon name="download" :size="14" /></a></td>
                     </tr>
                   </tbody>
@@ -253,14 +253,14 @@
               </div>
             </div>
             <div class="st-card-body">
-              <div class="stripe-status" :class="stripeReady ? \'is-connected\' : \'is-disconnected\'" style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface-2);border-radius:var(--radius);border:1px solid var(--border)">
-                <AegisIcon :name="stripeReady ? \'check-circle\' : \'alert-triangle\'" :size="20" :style="stripeReady ? \'color:var(--green-dark)\' : \'color:var(--gold-dark)\'" />
+              <div class="stripe-status" :class="stripeReady ? 'is-connected' : 'is-disconnected'" style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface-2);border-radius:var(--radius);border:1px solid var(--border)">
+                <AegisIcon :name="stripeReady ? 'check-circle' : 'alert-triangle'" :size="20" :style="stripeReady ? 'color:var(--green-dark)' : 'color:var(--gold-dark)'" />
                 <div style="flex:1">
-                  <div style="font-size:14px;font-weight:700;color:var(--text)">{{ stripeReady ? \'Stripe Connect ready\' : \'Stripe Connect required\' }}</div>
-                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">{{ stripeReady ? \'Practitioner invoice payments transfer directly to your connected Stripe account. Aegis never holds funds.\' : \'Connect your Stripe account to receive invoice payments from practitioners you steward.\' }}</div>
+                  <div style="font-size:14px;font-weight:700;color:var(--text)">{{ stripeReady ? 'Stripe Connect ready' : 'Stripe Connect required' }}</div>
+                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">{{ stripeReady ? 'Practitioner invoice payments transfer directly to your connected Stripe account. Aegis never holds funds.' : 'Connect your Stripe account to receive invoice payments from practitioners you steward.' }}</div>
                 </div>
-                <a v-if="!stripeReady" :href="route(\'cs.settings.connect.onboard\')" class="btn btn-primary btn-sm">Connect Stripe</a>
-                <a v-else :href="route(\'cs.settings.connect.onboard\')" class="btn btn-outline btn-sm">Reconfigure</a>
+                <a v-if="!stripeReady" :href="route('cs.settings.connect.onboard')" class="btn btn-primary btn-sm">Connect Stripe</a>
+                <a v-else :href="route('cs.settings.connect.onboard')" class="btn btn-outline btn-sm">Reconfigure</a>
               </div>
             </div>
           </div>
@@ -309,7 +309,7 @@
           </AegisModal>
 
           <AegisModal v-model="confirmCsCancel" title="Cancel your subscription?" size="sm">
-            <p style="font-size:14px;color:var(--text);margin-bottom:12px">Your Business CS subscription will end <strong>{{ formatDate(sub.current_period?.end) || \'at the end of the current period\' }}</strong>.</p>
+            <p style="font-size:14px;color:var(--text);margin-bottom:12px">Your Business CS subscription will end <strong>{{ formatDate(sub.current_period?.end) || 'at the end of the current period' }}</strong>.</p>
             <template #footer>
               <button type="button" class="btn btn-outline btn-sm" @click="confirmCsCancel = false">Keep Subscription</button>
               <button type="button" class="btn btn-danger btn-sm" @click="cancelCsPlan" :disabled="planBusy">Cancel Subscription</button>
@@ -317,7 +317,7 @@
           </AegisModal>
         </div>
 
-        <div v-show="section === \'danger\'" class="settings-panel">
+        <div v-show="section === 'danger'" class="settings-panel">
           <SettingsDangerZone
             delete-route="cs.settings.account.delete"
             pause-route="cs.settings.account.pause"
@@ -332,16 +332,16 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from \'vue\';
-import { useToast } from \'@/composables/useToast\';
-import AppLayout              from \'@/layouts/AppLayout.vue\';
-import SettingsAccount        from \'@/components/settings/SettingsAccount.vue\';
-import SettingsSecurity       from \'@/components/settings/SettingsSecurity.vue\';
-import SettingsNotifications  from \'@/components/settings/SettingsNotifications.vue\';
-import SettingsAppearance     from \'@/components/settings/SettingsAppearance.vue\';
-import SettingsMessaging      from \'@/components/settings/SettingsMessaging.vue\';
-import SettingsEmailPrefs     from \'@/components/settings/SettingsEmailPrefs.vue\';
-import SettingsDangerZone     from \'@/components/settings/SettingsDangerZone.vue\';
+import { ref, reactive, computed } from 'vue';
+import { useToast } from '@/composables/useToast';
+import AppLayout              from '@/layouts/AppLayout.vue';
+import SettingsAccount        from '@/components/settings/SettingsAccount.vue';
+import SettingsSecurity       from '@/components/settings/SettingsSecurity.vue';
+import SettingsNotifications  from '@/components/settings/SettingsNotifications.vue';
+import SettingsAppearance     from '@/components/settings/SettingsAppearance.vue';
+import SettingsMessaging      from '@/components/settings/SettingsMessaging.vue';
+import SettingsEmailPrefs     from '@/components/settings/SettingsEmailPrefs.vue';
+import SettingsDangerZone     from '@/components/settings/SettingsDangerZone.vue';
 
 const props = defineProps({
   user:         { type: Object,  default: () => ({}) },
@@ -428,44 +428,44 @@ function doCsResume() {
   });
 }
 
-const section = ref(\'profile\');
-const isInvitedCs = computed(() => !props.user?.cs_account_type || props.user.cs_account_type === \'invited\' || !!props.user.linked_provider_id);
-const displayName = computed(() => props.user?.display_name || \'Marcus Webb\');
-const initials    = computed(() => displayName.value.split(\' \').map(p => p[0]).join(\'\').slice(0, 2).toUpperCase());
+const section = ref('profile');
+const isInvitedCs = computed(() => !props.user?.cs_account_type || props.user.cs_account_type === 'invited' || !!props.user.linked_provider_id);
+const displayName = computed(() => props.user?.display_name || 'Marcus Webb');
+const initials    = computed(() => displayName.value.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase());
 
-const i = \'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"\';
+const i = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
 const nav = [
-  { group: \'Account\', items: [
-    { key: \'profile\',    label: \'Profile & Identity\',  icon: 'lock' },
-    { key: \'security\',   label: \'Security & 2FA\',      icon: 'bell' },
-    { key: \'messaging\',     label: \'Messaging\',         icon: 'mail' },
+  { group: 'Account', items: [
+    { key: 'profile',    label: 'Profile & Identity',  icon: 'lock' },
+    { key: 'security',   label: 'Security & 2FA',      icon: 'bell' },
+    { key: 'messaging',     label: 'Messaging',         icon: 'mail' },
   ]},
-  { group: \'Steward Role\', items: [
-    { key: \'cs-steward\',  label: \'CS Role Settings\',      icon: 'lock' },
-    { key: \'privacy\',     label: \'Privacy & Visibility\',  icon: 'settings' },
-    { key: \'billing\',    label: \'Subscription & Plan\',  icon: 'alert-triangle' },
+  { group: 'Steward Role', items: [
+    { key: 'cs-steward',  label: 'CS Role Settings',      icon: 'lock' },
+    { key: 'privacy',     label: 'Privacy & Visibility',  icon: 'settings' },
+    { key: 'billing',    label: 'Subscription & Plan',  icon: 'alert-triangle' },
   ]},
 ];
 
 const csNotifCategories = [
-  { key: \'incident\',    label: \'Incident Triggers\',    desc: \'When a critical incident is reported for one of my assigned providers\',    push: true,  email: true, inapp: true  },
-  { key: \'plan\',        label: \'Plan Changes\',          desc: \'When a practitioner updates or amends their continuity plan\',               push: true,  email: true, inapp: true  },
-  { key: \'attestation\', label: \'Attestation Requests\', desc: \'When a pending plan attestation requires my sign-off\',                      push: true,  email: true, inapp: true  },
-  { key: \'agreements\',  label: \'Agreement Alerts\',     desc: \'Signing requests, renewals, and expiry warnings on stewardship agreements\', push: true,  email: true, inapp: true  },
-  { key: \'messages\',    label: \'New Messages\',         desc: \'From assigned practitioners or Aegis support\',                              push: true,  email: false, inapp: true  },
-  { key: \'docs\',        label: \'Document Access\',      desc: \'When vault documents are accessed on behalf of a provider I steward\',       push: false, email: true, inapp: true  },
-  { key: \'coverage\',    label: \'Coverage Activation\',  desc: \'When continuity coverage for one of my providers is formally activated\',    push: true,  email: true, inapp: true  },
-  { key: \'checkin\',     label: \'Check-in Reminders\',   desc: \'Scheduled reminders to review and certify practitioner plans\',             push: true,  email: true, inapp: true  },
+  { key: 'incident',    label: 'Incident Triggers',    desc: 'When a critical incident is reported for one of my assigned providers',    push: true,  email: true, inapp: true  },
+  { key: 'plan',        label: 'Plan Changes',          desc: 'When a practitioner updates or amends their continuity plan',               push: true,  email: true, inapp: true  },
+  { key: 'attestation', label: 'Attestation Requests', desc: 'When a pending plan attestation requires my sign-off',                      push: true,  email: true, inapp: true  },
+  { key: 'agreements',  label: 'Agreement Alerts',     desc: 'Signing requests, renewals, and expiry warnings on stewardship agreements', push: true,  email: true, inapp: true  },
+  { key: 'messages',    label: 'New Messages',         desc: 'From assigned practitioners or Aegis support',                              push: true,  email: false, inapp: true  },
+  { key: 'docs',        label: 'Document Access',      desc: 'When vault documents are accessed on behalf of a provider I steward',       push: false, email: true, inapp: true  },
+  { key: 'coverage',    label: 'Coverage Activation',  desc: 'When continuity coverage for one of my providers is formally activated',    push: true,  email: true, inapp: true  },
+  { key: 'checkin',     label: 'Check-in Reminders',   desc: 'Scheduled reminders to review and certify practitioner plans',             push: true,  email: true, inapp: true  },
 ];
 
 const csRolePrefs      = reactive({ showOnProfile: true, vaultAccess: true });
 const vaultNotifyPrefs = reactive({ notifyAccess: true, notifyUnlock: true });
-const csPrivacy        = reactive({ level: \'public\', search: true, location: true, creds: true });
+const csPrivacy        = reactive({ level: 'public', search: true, location: true, creds: true });
 
 const privacyLevels = [
-  { key: \'public\',  name: \'Public\',   desc: \'Visible to all practitioners on Aegis\', icon: \'eye\'  },
-  { key: \'network\', name: \'Network\',  desc: \'Practitioners I am connected with only\', icon: \'link\' },
-  { key: \'private\', name: \'Unlisted\', desc: \'Not shown in search — invite only\',      icon: \'lock\' },
+  { key: 'public',  name: 'Public',   desc: 'Visible to all practitioners on Aegis', icon: 'eye'  },
+  { key: 'network', name: 'Network',  desc: 'Practitioners I am connected with only', icon: 'link' },
+  { key: 'private', name: 'Unlisted', desc: 'Not shown in search — invite only',      icon: 'lock' },
 ];
 
 function saveRolePrefs() {
