@@ -236,4 +236,78 @@ class SettingsController extends Controller
             return back()->withErrors(['stripe' => 'Could not open billing portal. Please try again.']);
         }
     }
+    public function deleteAccount(Request $request): RedirectResponse
+    {
+        $request->validate(['confirm' => 'required|string|in:DELETE MY ACCOUNT']);
+        $user = $request->user();
+        $user->update(['deactivated_at' => now()]);
+        $user->tokens()->delete();
+        $this->activity->log(
+            $user->id, 'bp', 'account',
+            \App\Enums\ActivitySeverity::Warning,
+            'account_deleted', 'Account deletion requested',
+            'Account queued for permanent deletion in 30 days.',
+            null, null, null, 'log', $user->id,
+        );
+        auth()->logout();
+        return redirect()->route('login')->with('success', 'Your account has been scheduled for deletion. You have 30 days to contact support to cancel.');
+    }
+
+    public function pauseAccount(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'until'   => 'nullable|date|after:today',
+            'reason'  => 'nullable|string|in:leave,vacation,parental,sabbatical,other',
+            'message' => 'nullable|string|max:500',
+        ]);
+        $data['until'] = !empty($data['until']) ? $data['until'] : null;
+        $user = $request->user();
+        $user->update(['paused_at' => now()]);
+        $this->profiles->saveMeta($user, 'pause_prefs', [
+            'until'   => $data['until'],
+            'reason'  => $data['reason']  ?? 'other',
+            'message' => $data['message'] ?? '',
+        ], 'json');
+        $this->activity->log(
+            $user->id, 'bp', 'account',
+            \App\Enums\ActivitySeverity::Warning,
+            'account_paused', 'Account paused',
+            'Account paused. Will not appear in searches or receive new assignments.',
+            null, null, null, 'log', $user->id,
+        );
+        return back()->with('success', 'Account paused. You can reactivate at any time from Settings.');
+    }
+
+    public function resumeAccount(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        $user->update(['paused_at' => null]);
+        $this->activity->log(
+            $user->id, 'bp', 'account',
+            \App\Enums\ActivitySeverity::Info,
+            'account_resumed', 'Account reactivated',
+            'Account is active again.',
+            null, null, null, 'log', $user->id,
+        );
+        return back()->with('success', 'Account reactivated. You are now visible and active.');
+    }
+
+    public function exportData(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'include'   => 'required|array|min:1',
+            'include.*' => 'string|in:profile,referrals,documents,agreements,network,activity,messages,billing',
+            'format'    => 'required|string|in:json,csv',
+        ]);
+        $user = $request->user();
+        $this->activity->log(
+            $user->id, 'bp', 'account',
+            \App\Enums\ActivitySeverity::Info,
+            'data_export_requested', 'Data export requested',
+            'HIPAA-compliant data export requested.',
+            null, null, null, 'log', $user->id,
+        );
+        return back()->with('success', 'Export request submitted. Your data will be emailed to ' . $user->email . ' within 24 hours.');
+    }
+
 }

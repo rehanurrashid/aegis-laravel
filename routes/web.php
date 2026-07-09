@@ -448,6 +448,10 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:contin
         Route::put('/settings/email-prefs', [CsSettingsController::class, 'updateEmailPrefs'])->name('settings.email-prefs');
         Route::put('/settings/appearance', [CsSettingsController::class, 'updateAppearance'])->name('settings.appearance');
         Route::delete('/settings/sessions', [CsSettingsController::class, 'revokeAllSessions'])->name('settings.sessions.revoke-all');
+        Route::delete('/settings/account',     [CsSettingsController::class, 'deleteAccount'])->name('settings.account.delete');
+        Route::post('/settings/account/pause', [CsSettingsController::class, 'pauseAccount'])->name('settings.account.pause');
+        Route::post('/settings/account/resume',[CsSettingsController::class, 'resumeAccount'])->name('settings.account.resume');
+        Route::post('/settings/export-data',   [CsSettingsController::class, 'exportData'])->name('settings.account.export');
         Route::delete('/settings/sessions/{session}', [CsSettingsController::class, 'revokeSession'])->name('settings.sessions.revoke');
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::get('/settings/mfa/backup-codes', [MfaController::class, 'backupCodes'])->name('settings.mfa.backup-codes');
@@ -505,6 +509,10 @@ Route::middleware(['auth', 'verified.email', 'role:support_steward', 'check.lock
         Route::put('/settings/email-prefs', [SsSettingsController::class, 'updateEmailPrefs'])->name('settings.email-prefs');
         Route::put('/settings/appearance', [SsSettingsController::class, 'updateAppearance'])->name('settings.appearance');
         Route::delete('/settings/sessions', [SsSettingsController::class, 'revokeAllSessions'])->name('settings.sessions.revoke-all');
+        Route::delete('/settings/account',     [SsSettingsController::class, 'deleteAccount'])->name('settings.account.delete');
+        Route::post('/settings/account/pause', [SsSettingsController::class, 'pauseAccount'])->name('settings.account.pause');
+        Route::post('/settings/account/resume',[SsSettingsController::class, 'resumeAccount'])->name('settings.account.resume');
+        Route::post('/settings/export-data',   [SsSettingsController::class, 'exportData'])->name('settings.account.export');
         Route::delete('/settings/sessions/{session}', [SsSettingsController::class, 'revokeSession'])->name('settings.sessions.revoke');
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::get('/settings/mfa/backup-codes', [MfaController::class, 'backupCodes'])->name('settings.mfa.backup-codes');
@@ -595,6 +603,10 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:busine
         Route::put('/settings/email-prefs', [BpSettingsController::class, 'updateEmailPrefs'])->name('settings.email-prefs');
         Route::put('/settings/appearance', [BpSettingsController::class, 'updateAppearance'])->name('settings.appearance');
         Route::delete('/settings/sessions', [BpSettingsController::class, 'revokeAllSessions'])->name('settings.sessions.revoke-all');
+        Route::delete('/settings/account',     [BpSettingsController::class, 'deleteAccount'])->name('settings.account.delete');
+        Route::post('/settings/account/pause', [BpSettingsController::class, 'pauseAccount'])->name('settings.account.pause');
+        Route::post('/settings/account/resume',[BpSettingsController::class, 'resumeAccount'])->name('settings.account.resume');
+        Route::post('/settings/export-data',   [BpSettingsController::class, 'exportData'])->name('settings.account.export');
         Route::delete('/settings/sessions/{session}', [BpSettingsController::class, 'revokeSession'])->name('settings.sessions.revoke');
         Route::post('/settings/mfa/enable', [MfaController::class, 'enable'])->name('settings.mfa.enable');
         Route::get('/settings/mfa/backup-codes', [MfaController::class, 'backupCodes'])->name('settings.mfa.backup-codes');

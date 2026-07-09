@@ -349,13 +349,11 @@
 
         <div v-show="section === 'danger'" class="settings-panel">
           <SettingsDangerZone
-            title="Account Closure &amp; Data Management"
-            pause-label="Pause Account"
-            pause-desc="Temporarily suspend your business account. All active contracts will be flagged."
-            deactivate-label="Deactivate Account"
-            deactivate-desc="Permanently deactivate this Business Partner account. All active contracts will be flagged for termination."
-            deactivate-button-label="Deactivate Account"
-            :show-transfer="true"
+            delete-route="bp.settings.account.delete"
+            pause-route="bp.settings.account.pause"
+            resume-route="bp.settings.account.resume"
+            export-route="bp.settings.account.export"
+            :is-paused="isAccountPaused"
           />
         </div>
 

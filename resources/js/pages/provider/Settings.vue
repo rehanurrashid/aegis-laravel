@@ -854,7 +854,7 @@
             pause-route="provider.settings.account.pause"
             resume-route="provider.settings.account.resume"
             export-route="provider.settings.account.export"
-            :is-paused="usePage().props.auth?.user?.is_paused ?? false"
+            :is-paused="isAccountPaused"
           />
         </div>
 
@@ -1051,6 +1051,8 @@ const nav = [
 const section = ref('profile');
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
+const _inertiaPage    = usePage();
+const isAccountPaused = computed(() => _inertiaPage.props.auth?.user?.is_paused ?? false);
 const displayName = computed(() => props.user?.display_name || 'Dr. Sarah Johnson');
 const initials    = computed(() => displayName.value.replace(/^Dr\.?\s+/i, '').split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase());
 const tierLabel   = computed(() => props.user?.tier === 'practice' ? 'Continuity Practice' : 'Continuity Access');

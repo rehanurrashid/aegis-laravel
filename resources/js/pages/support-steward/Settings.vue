@@ -180,7 +180,13 @@
         </div>
 
         <div v-show="section === \'danger\'" class="settings-panel">
-          <SettingsDangerZone title="Account Closure &amp; Data Management" pause-label="Pause Stewardship" pause-desc="Temporarily suspend your support duties. Your practitioners will be notified." deactivate-label="Deactivate Account" deactivate-desc="Permanently deactivate your Support Steward account." deactivate-button-label="Deactivate" />
+          <SettingsDangerZone
+            delete-route="ss.settings.account.delete"
+            pause-route="ss.settings.account.pause"
+            resume-route="ss.settings.account.resume"
+            export-route="ss.settings.account.export"
+            :is-paused="isAccountPaused"
+          />
         </div>
 
       </div>

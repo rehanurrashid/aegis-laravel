@@ -297,7 +297,13 @@
         </div>
 
         <div v-show="section === \'danger\'" class="settings-panel">
-          <SettingsDangerZone title="Account and Service Changes" pause-label="Pause Stewardship" pause-desc="Temporarily suspend your stewardship duties. Your practitioners will be notified." deactivate-label="Deactivate Account" deactivate-desc="Permanently deactivate your Continuity Steward account." deactivate-button-label="Deactivate" />
+          <SettingsDangerZone
+            delete-route="cs.settings.account.delete"
+            pause-route="cs.settings.account.pause"
+            resume-route="cs.settings.account.resume"
+            export-route="cs.settings.account.export"
+            :is-paused="isAccountPaused"
+          />
         </div>
       </div>
     </div>

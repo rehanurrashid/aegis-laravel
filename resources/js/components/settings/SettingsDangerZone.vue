@@ -1,4 +1,20 @@
 <template>
+  <!-- ── Resume Account Modal ──────────────────────────────────────────────── -->
+  <AegisModal v-model="modals.resume" title="Reactivate Account" size="sm">
+    <div class="alert alert-gold" style="margin-bottom:0">
+      <div class="alert-icon"><AegisIcon name="check" :size="16" /></div>
+      <div class="alert-content" style="font-size:13px">
+        Your account will be visible again in search results and you'll start receiving referrals and assignments.
+      </div>
+    </div>
+    <template #footer>
+      <button type="button" class="btn btn-ghost btn-sm" @click="modals.resume = false">Cancel</button>
+      <button type="button" class="btn btn-primary btn-sm" :disabled="resumeSaving" @click="submitResume">
+        <AegisIcon name="check" :size="13" /> Reactivate Account
+      </button>
+    </template>
+  </AegisModal>
+
   <!-- ── Export Data Modal ───────────────────────────────────────────────────── -->
   <AegisModal v-model="modals.export" title="Export Your Data" size="md">
     <p style="font-size:14px;color:var(--text-2);margin-bottom:16px">
@@ -137,7 +153,7 @@
         <button v-if="!isPaused" type="button" class="btn btn-outline btn-sm" @click="modals.pause = true">
           <AegisIcon name="activity" :size="13" /> Pause
         </button>
-        <button v-else type="button" class="btn btn-primary btn-sm" :disabled="resumeSaving" @click="submitResume">
+        <button v-else type="button" class="btn btn-primary btn-sm" @click="modals.resume = true">
           <AegisIcon name="check" :size="13" /> Reactivate
         </button>
       </div>
@@ -172,7 +188,7 @@ const props = defineProps({
 });
 
 const toast  = useToast();
-const modals = reactive({ export: false, pause: false, delete: false });
+const modals = reactive({ export: false, pause: false, resume: false, delete: false });
 
 // ── Export ───────────────────────────────────────────────────────────────────
 const exportOptions = reactive([
@@ -230,7 +246,7 @@ function submitResume() {
   resumeSaving.value = true;
   router.post(route(props.resumeRoute), {}, {
     preserveScroll: true,
-    onSuccess: () => { toast.success('Account reactivated. You are now visible in search results.'); },
+    onSuccess: () => { modals.resume = false; toast.success('Account reactivated. You are now visible in search results.'); },
     onError:   () => { toast.error('Could not reactivate account.'); },
     onFinish:  () => { resumeSaving.value = false; },
   });
