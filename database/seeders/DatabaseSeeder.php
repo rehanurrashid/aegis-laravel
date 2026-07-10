@@ -16,7 +16,7 @@ class DatabaseSeeder extends Seeder
             MfaTokenSeeder::class,
             UserMetaSeeder::class,
             UserSessionSeeder::class,
-            SubscriptionSeeder::class,
+            // SubscriptionSeeder removed — subscriptions are created via real Stripe onboarding only
 
             // Layer 2 — plans + stewards
             PlanSeeder::class,

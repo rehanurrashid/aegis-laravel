@@ -8,103 +8,26 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Seeds real Stripe subscription data for demo users.
+ * SubscriptionSeeder — intentionally empty.
  *
- * These are LIVE Stripe IDs from the MA'AT Practice Firm account.
- * They are safe to re-seed on migrate:fresh — Laravel Cashier reads
- * them from the local DB and does NOT call Stripe on every request.
+ * Subscription data for demo users (p_sarah, p_rehan) has been removed.
+ * Subscriptions are now created through the real Stripe onboarding flow only.
  *
- * Stripe subscription checks (EnsureSubscriptionActive) only query
- * the local `subscriptions` table for stripe_status = 'active'.
- *
- * ┌──────────────────────────────────────────────────────────────┐
- * │ subscriptions.id = 1 (auto-increment bigint)                │
- * │ user_id          = p_sarah                                  │
- * │ stripe_id        = sub_1Tr3QvHnj73y5cBfBd6U6JCv            │
- * │ stripe_status    = active                                   │
- * │ stripe_price     = price_1TqSraHnj73y5cBfjxtPipio          │
- * └──────────────────────────────────────────────────────────────┘
- * ┌──────────────────────────────────────────────────────────────┐
- * │ subscription_items.subscription_id = 1 (FK)                 │
- * │ stripe_id        = si_UqkwHQA2jkCD0k                       │
- * │ stripe_product   = prod_Uq99iMpIwmgPTa                     │
- * │ stripe_price     = price_1TqSraHnj73y5cBfjxtPipio          │
- * └──────────────────────────────────────────────────────────────┘
+ * The wipe block below is kept so that migrate:fresh + db:seed on an existing
+ * database does not leave stale Cashier rows behind.
  */
 class SubscriptionSeeder extends Seeder
 {
     public function run(): void
     {
-        $now = now();
+        // Remove any previously seeded demo subscriptions
+        foreach (['p_sarah', 'p_rehan'] as $userId) {
+            DB::table('subscription_items')
+                ->whereIn('subscription_id', function ($q) use ($userId) {
+                    $q->select('id')->from('subscriptions')->where('user_id', $userId);
+                })->delete();
 
-        // ── Wipe existing demo subscriptions to avoid duplicate stripe_id errors ──
-        DB::table('subscription_items')
-            ->whereIn('subscription_id', function ($q) {
-                $q->select('id')
-                  ->from('subscriptions')
-                  ->where('user_id', 'p_sarah');
-            })->delete();
-
-        DB::table('subscriptions')
-            ->where('user_id', 'p_sarah')
-            ->delete();
-
-        // ── p_sarah — Practice tier, active Stripe subscription ────────────────
-        $subId = DB::table('subscriptions')->insertGetId([
-            'user_id'       => 'p_sarah',
-            'type'          => 'default',
-            'stripe_id'     => 'sub_1Tr3QvHnj73y5cBfBd6U6JCv',
-            'stripe_status' => 'active',
-            'stripe_price'  => 'price_1TqSraHnj73y5cBfjxtPipio',
-            'quantity'      => 1,
-            'trial_ends_at' => null,
-            'ends_at'       => null,
-            'created_at'    => $now,
-            'updated_at'    => $now,
-        ]);
-
-        DB::table('subscription_items')->insert([
-            'subscription_id' => $subId,
-            'stripe_id'       => 'si_UqkwHQA2jkCD0k',
-            'stripe_product'  => 'prod_Uq99iMpIwmgPTa',
-            'stripe_price'    => 'price_1TqSraHnj73y5cBfjxtPipio',
-            'quantity'        => 1,
-            'created_at'      => $now,
-            'updated_at'      => $now,
-        ]);
-        // ── p_rehan — same tier as p_sarah, real email for testing ──────────────
-        DB::table('subscription_items')
-            ->whereIn('subscription_id', function ($q) {
-                $q->select('id')
-                  ->from('subscriptions')
-                  ->where('user_id', 'p_rehan');
-            })->delete();
-
-        DB::table('subscriptions')
-            ->where('user_id', 'p_rehan')
-            ->delete();
-
-        $rehanSubId = DB::table('subscriptions')->insertGetId([
-            'user_id'       => 'p_rehan',
-            'type'          => 'default',
-            'stripe_id'     => 'sub_demo_rehan_practice',          // fake — not called against Stripe
-            'stripe_status' => 'active',
-            'stripe_price'  => 'price_1TqSraHnj73y5cBfjxtPipio',  // real price ID — same plan as Sarah
-            'quantity'      => 1,
-            'trial_ends_at' => null,
-            'ends_at'       => null,
-            'created_at'    => $now,
-            'updated_at'    => $now,
-        ]);
-
-        DB::table('subscription_items')->insert([
-            'subscription_id' => $rehanSubId,
-            'stripe_id'       => 'si_demo_rehan_practice_item',    // fake — not called against Stripe
-            'stripe_product'  => 'prod_Uq99iMpIwmgPTa',
-            'stripe_price'    => 'price_1TqSraHnj73y5cBfjxtPipio',
-            'quantity'        => 1,
-            'created_at'      => $now,
-            'updated_at'      => $now,
-        ]);
+            DB::table('subscriptions')->where('user_id', $userId)->delete();
+        }
     }
 }
