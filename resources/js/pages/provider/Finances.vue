@@ -1930,7 +1930,7 @@ function paymentTypeLabel(t) {
 .stripe-setup-desc      { font-size: 13px; color: var(--text-2); line-height: 1.5; margin-bottom: 12px; }
 .stripe-setup-connected { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .stripe-setup-actions   { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.app-status-connected   { font-size: 12px; font-weight: 600; color: var(--green-dark); background: var(--green-light); padding: 3px 10px; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 5px; }
+.app-status-connected   { font-size: 12px; font-weight: 600; color: var(--green-dark); background: var(--green-light); border: 1px solid rgba(34,197,94,0.35); padding: 3px 10px; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 5px; }
 .integrations-empty     { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 36px 20px; text-align: center; color: var(--text-3); }
 
 /* ── Finances layout: sidebar + content ── */

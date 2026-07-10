@@ -1843,7 +1843,7 @@ function saveReferralPrefs() {
 .api-key-value { font-size: 12px; font-family: monospace; color: var(--text-3); background: var(--surface-3); padding: 4px 10px; border-radius: var(--radius-sm); letter-spacing: 1px; }
 
 /* INTEGRATIONS */
-.app-status-connected { font-size: 12px; font-weight: 600; color: var(--green); background: var(--green-light); padding: 3px 10px; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 5px; }
+.app-status-connected { font-size: 12px; font-weight: 600; color: var(--green); background: var(--green-light); border: 1px solid rgba(34,197,94,0.35); padding: 3px 10px; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 5px; }
 
 /* DANGER ZONE */
 .danger-zone { border: 1px solid color-mix(in srgb, var(--red) 28%, transparent); border-radius: var(--radius-lg); padding: 20px 24px; background: var(--red-light); }
