@@ -1698,9 +1698,9 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 .st-plan-tier-price { font-size: 26px; font-weight: 700; color: var(--gold-dark); margin: 8px 0 4px; }
 .st-plan-tier-price span { font-size: 13px; color: var(--text-3); font-weight: 600; }
 .st-plan-tier-alt { font-size: 11px; color: var(--text-4); margin-bottom: 12px; }
-.st-plan-feats { font-size: 12px; color: var(--text-2); line-height: 2; margin-top: 12px; text-align: left; display: flex; flex-direction: column; gap: 2px; }
+.st-plan-feats { font-size: 12px; color: var(--text-2); line-height: 2; margin-top: 12px; margin-bottom: 10px; text-align: left; display: flex; flex-direction: column; gap: 2px; }
 .st-plan-feats span { display: flex; align-items: center; gap: 6px; }
-.st-plan-cta { width: 100%; margin-top: auto; padding-top: 14px; }
+.st-plan-cta { width: 100%; margin-top: auto; }
 .st-included-head { font-size: 11px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; color: var(--text-4); }
 .st-note { font-size: 12.5px; color: var(--text-3); }
 .st-addon-card { display: flex; align-items: flex-start; gap: 16px; padding: 18px; border: 1px solid var(--badge-border-gold); border-radius: var(--radius-lg); background: var(--icon-bg-gold); }
