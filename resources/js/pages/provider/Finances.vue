@@ -751,16 +751,16 @@
             <span class="fin-card-icon"><AegisIcon name="credit-card" :size="15" /></span>
             Saved Payment Methods
           </div>
-          <button type="button" class="btn btn-dark" @click="modals.addPayment = true">
-            <AegisIcon name="plus" :size="12" /> Add Method
-          </button>
+          <a :href="route('provider.settings.index') + '?section=payment_methods'" class="btn btn-outline">
+            <AegisIcon name="settings" :size="12" /> Manage
+          </a>
         </div>
         <div class="card-body">
           <div class="alert alert-info" style="margin-bottom:16px;">
             <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
             <div class="alert-content">
               <div class="alert-title">One Card, All Payments</div>
-              <div>Your active payment method funds every Aegis charge — subscription, CS fees, BP invoices, and clinical sessions. Aegis never sees or stores your full card number.</div>
+              <div>Your active payment method funds every Aegis charge — subscription, CS fees, BP invoices, and clinical sessions. To add or remove cards, visit <a :href="route('provider.settings.index') + '?section=payment_methods'" style="color:var(--gold-dark);font-weight:600;">Settings → Payment Methods</a>.</div>
             </div>
           </div>
 
@@ -768,7 +768,7 @@
             v-if="!paymentMethods.length"
             icon="credit-card"
             title="No payment methods"
-            description="Add a card or bank account to pay Business Partners and manage your Aegis subscription."
+            description="Add a card in Settings → Payment Methods to fund your Aegis charges."
             style="padding:24px 0;"
           />
           <div v-else>
@@ -779,21 +779,13 @@
               <div class="pm-info">
                 <div class="pm-name">
                   {{ (pm.brand || 'card').toUpperCase() }} ···· {{ pm.last4 }}
-                  <AegisBadge v-if="pm.is_default" label="Default · funds all payments" variant="gold" style="margin-left:6px;" />
                 </div>
                 <div class="pm-meta">
                   {{ pm.method_type === 'bank' ? 'ACH / Bank Transfer' : (pm.exp_month ? 'Expires ' + pm.exp_month + '/' + pm.exp_year : 'On file') }}
                 </div>
               </div>
               <div class="pm-card-btns">
-                <template v-if="!pm.is_default">
-                  <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Set as default" @click="setDefaultPm(pm)">
-                    <AegisIcon name="check" :size="12" />
-                  </button>
-                  <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Remove" @click="openRemoveCard(pm)">
-                    <AegisIcon name="trash" :size="12" />
-                  </button>
-                </template>
+                <AegisIcon v-if="pm.is_default" name="shield-check" :size="16" class="pm-default-icon" data-tooltip="Default payment method" />
               </div>
             </div>
           </div>
@@ -1957,4 +1949,5 @@ function paymentTypeLabel(t) {
 }
 .spin { animation: fin-spin 0.7s linear infinite; display: inline-block; }
 @keyframes fin-spin { to { transform: rotate(360deg); } }
+.pm-default-icon  { color: var(--gold-dark); flex-shrink: 0; }
 </style>
