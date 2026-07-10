@@ -282,6 +282,7 @@ class FinancesController extends Controller
                 'status'         => $status,
                 'kind'           => $kind,
                 'modal_type'     => $cat['modal'],
+                'stripe_invoice_id' => in_array($kind, ['subscription', 'maat_addon', 'refund'], true) ? $p->stripe_charge_id : null,
                 'sort_ts'        => $p->paid_at?->toIso8601String() ?? $p->created_at->toIso8601String(),
             ];
         })->sortByDesc('sort_ts')->values();

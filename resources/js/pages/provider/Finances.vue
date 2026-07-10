@@ -1458,9 +1458,16 @@ function openViewInvoice(inv)    { activeInvoice.value = inv; modals.value.viewR
  */
 function openTxReceipt(tx) {
   if (tx.modal_type === 'subscription') {
-    // Point user to subscription invoices tab where they can open Stripe invoice
+    // Try to match against a loaded subscription invoice by Stripe invoice ID
+    const matched = props.subscriptionData?.invoices?.find(i => i.id === tx.stripe_invoice_id)
+    if (matched) {
+      activeSubInvoice.value = matched
+      modals.value.subInvoice = true
+      return
+    }
+    // Fallback: switch to subscription tab so user can find it manually
     activeTab.value = 'subscription'
-    toast.info('Opening subscription invoices — click the invoice icon to view details on Stripe.')
+    toast.info('Subscription invoice not found in recent history — check the Subscription tab.')
     return
   }
   if (tx.modal_type === 'cs_invoice') {
