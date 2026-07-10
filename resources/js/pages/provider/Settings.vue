@@ -1416,7 +1416,7 @@ const modals = reactive({
 // ─── URL param routing (?tab=billing&upgrade=1) ───────────────────────────────
 onMounted(() => {
   const params  = new URLSearchParams(window.location.search)
-  const tab     = params.get('tab')
+  const tab     = params.get('tab') || params.get('section')
   const anchor  = params.get('anchor')
   const upgrade = params.get('upgrade')
   if (tab) section.value = tab
