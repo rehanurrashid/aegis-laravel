@@ -81,31 +81,59 @@
     </div>
 
     <!-- ══ TABS ══ -->
-    <div class="tabs-primary fin-tabs" role="tablist" style="margin-bottom:24px;">
-      <button type="button" class="tab-primary" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
-        <AegisIcon name="activity" :size="14" /> Overview
-      </button>
-      <button type="button" class="tab-primary" :class="{ active: activeTab === 'executor' }" @click="activeTab = 'executor'">
-        <AegisIcon name="shield" :size="14" /> CS Wallet
-      </button>
-      <button type="button" class="tab-primary" :class="{ active: activeTab === 'bp' }" @click="activeTab = 'bp'">
-        <AegisIcon name="file-text" :size="14" /> Business Partners
-        <span v-if="bpPendingCount > 0" class="tab-count">{{ bpPendingCount }}</span>
-      </button>
-      <button type="button" class="tab-primary" :class="{ active: activeTab === 'sessions' }" @click="activeTab = 'sessions'">
-        <AegisIcon name="heart" :size="14" /> Clinical Sessions
-        <span v-if="sessionPendingCount > 0" class="tab-count">{{ sessionPendingCount }}</span>
-      </button>
-      <button type="button" class="tab-primary" :class="{ active: activeTab === 'subscription' }" @click="activeTab = 'subscription'">
-        <AegisIcon name="star" :size="14" /> Subscription
-      </button>
-      <button type="button" class="tab-primary" :class="{ active: activeTab === 'methods' }" @click="activeTab = 'methods'">
-        <AegisIcon name="credit-card" :size="14" /> Payment Methods
-      </button>
-      <button type="button" class="tab-primary" :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">
-        <AegisIcon name="clock" :size="14" /> Transactions
-      </button>
-    </div>
+    <!-- ══ FINANCES LAYOUT: LEFT SIDEBAR + CONTENT ══ -->
+    <div class="fin-layout">
+
+      <!-- LEFT SIDEBAR NAV -->
+      <nav class="fin-sidebar" role="tablist" aria-label="Finance sections">
+        <div class="fin-sidebar-section">
+          <div class="nav-section-label">Activity</div>
+
+          <button type="button" role="tab" class="nav-item" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
+            <span class="nav-icon"><AegisIcon name="activity" :size="18" /></span>
+            <span class="nav-label">Overview</span>
+          </button>
+
+          <button type="button" role="tab" class="nav-item" :class="{ active: activeTab === 'executor' }" @click="activeTab = 'executor'">
+            <span class="nav-icon"><AegisIcon name="shield" :size="18" /></span>
+            <span class="nav-label">CS Wallet</span>
+          </button>
+
+          <button type="button" role="tab" class="nav-item" :class="{ active: activeTab === 'bp' }" @click="activeTab = 'bp'">
+            <span class="nav-icon"><AegisIcon name="file-text" :size="18" /></span>
+            <span class="nav-label">Business Partners</span>
+            <span v-if="bpPendingCount > 0" class="nav-badge" style="background:var(--orange);color:#fff;">{{ bpPendingCount }}</span>
+          </button>
+
+          <button type="button" role="tab" class="nav-item" :class="{ active: activeTab === 'sessions' }" @click="activeTab = 'sessions'">
+            <span class="nav-icon"><AegisIcon name="heart" :size="18" /></span>
+            <span class="nav-label">Clinical Sessions</span>
+            <span v-if="sessionPendingCount > 0" class="nav-badge" style="background:var(--teal-dark);color:#fff;">{{ sessionPendingCount }}</span>
+          </button>
+        </div>
+
+        <div class="fin-sidebar-section">
+          <div class="nav-section-label">Manage</div>
+
+          <button type="button" role="tab" class="nav-item" :class="{ active: activeTab === 'subscription' }" @click="activeTab = 'subscription'">
+            <span class="nav-icon"><AegisIcon name="star" :size="18" /></span>
+            <span class="nav-label">Subscription</span>
+          </button>
+
+          <button type="button" role="tab" class="nav-item" :class="{ active: activeTab === 'methods' }" @click="activeTab = 'methods'">
+            <span class="nav-icon"><AegisIcon name="credit-card" :size="18" /></span>
+            <span class="nav-label">Payment Methods</span>
+          </button>
+
+          <button type="button" role="tab" class="nav-item" :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">
+            <span class="nav-icon"><AegisIcon name="clock" :size="18" /></span>
+            <span class="nav-label">Transactions</span>
+          </button>
+        </div>
+      </nav>
+
+      <!-- CONTENT AREA -->
+      <div class="fin-content">
 
     <!-- ══════════════════════════════ TAB: OVERVIEW ══════════════════════════════ -->
     <div v-show="activeTab === 'overview'">
@@ -830,6 +858,9 @@
         </div>
       </div>
     </div>
+
+      </div><!-- /fin-content -->
+    </div><!-- /fin-layout -->
 
     <!-- ══════════════════════════════ MODALS ══════════════════════════════ -->
 
@@ -1760,9 +1791,50 @@ function paymentTypeLabel(t) {
 .btn-dark        { background: var(--text); border: 1px solid var(--text); color: var(--text-inverted); font-size: 13px; font-weight: 700; }
 .btn-dark:hover  { background: var(--text-2); border-color: var(--text-2); }
 
-/* ── Finances tab bar — 7 tabs, wraps to 2 rows cleanly ── */
-.fin-tabs { flex-wrap: wrap; overflow-x: visible; }
-.fin-tabs .tab-primary { padding: 11px 16px; font-size: 13px; }
-/* Row break: after the 4th tab (BP), the last 3 drop to row 2 aligned left */
-.fin-tabs .tab-primary:nth-child(5) { margin-left: 0; }
+/* ── Finances layout: sidebar + content ── */
+.fin-layout  { display: flex; align-items: flex-start; gap: 20px; }
+
+.fin-sidebar {
+  width: 212px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 8px 0 12px;
+  position: sticky;
+  top: 20px;
+}
+
+.fin-sidebar-section { padding: 0; }
+.fin-sidebar-section + .fin-sidebar-section { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--border); }
+
+/* Override nav-item padding to be tighter inside the card */
+.fin-sidebar .nav-item  { padding: 5px 12px; gap: 10px; border-radius: 0; }
+.fin-sidebar .nav-icon  { width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0; }
+.fin-sidebar .nav-label { font-size: 13px; font-weight: 500; }
+.fin-sidebar .nav-section-label { padding: 10px 16px 4px; font-size: 9px; letter-spacing: .9px; }
+
+/* Active state: left gold bar + gold icon */
+.fin-sidebar .nav-item.active { position: relative; }
+.fin-sidebar .nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 4px; bottom: 4px;
+  width: 3px;
+  background: var(--gold-dark);
+  border-radius: 0 3px 3px 0;
+}
+
+.fin-content { flex: 1; min-width: 0; }
+
+@media (max-width: 800px) {
+  .fin-layout  { flex-direction: column; }
+  .fin-sidebar { width: 100%; position: static; display: flex; gap: 0; padding: 4px 8px; flex-wrap: wrap; }
+  .fin-sidebar-section { display: flex; flex-wrap: wrap; gap: 0; border: none !important; margin: 0 !important; padding: 0 !important; }
+  .fin-sidebar .nav-section-label { display: none; }
+  .fin-sidebar .nav-item  { padding: 7px 12px; border-radius: var(--radius-sm); gap: 6px; width: auto; flex: 0 0 auto; }
+  .fin-sidebar .nav-icon  { display: none; }
+  .fin-sidebar .nav-item.active::before { display: none; }
+  .fin-sidebar .nav-item.active { background: var(--badge-bg-gold); color: var(--gold-dark); border-radius: var(--radius-sm); }
+}
 </style>
