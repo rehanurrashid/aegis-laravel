@@ -819,13 +819,6 @@
             </div>
           </div>
 
-          <!-- Placeholder for future integrations -->
-          <div class="integrations-empty">
-            <AegisIcon name="link" :size="28" />
-            <div style="font-size:14px;font-weight:600;color:var(--text);margin-top:10px;">No additional integrations yet</div>
-            <div style="font-size:13px;color:var(--text-3);margin-top:4px;">More integrations — EHR systems, practice management, scheduling — coming soon.</div>
-          </div>
-
         </div>
       </div>
     </div>
