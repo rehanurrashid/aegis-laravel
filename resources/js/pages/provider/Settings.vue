@@ -82,8 +82,9 @@
                     <div style="font-size:13px;font-weight:700;color:var(--text)">Practitioner Portal</div>
                     <div style="font-size:12px;color:var(--text-3)">Profile settings, referrals, continuity plan — {{ tierLabel }}</div>
                   </div>
-                  <span v-if="!isAccountPaused" class="badge badge-green">Active</span>
-                  <span v-else class="badge badge-orange">Paused</span>
+                  <span v-if="currentPortal === 'provider'" class="badge badge-gold">Current</span>
+                  <span v-else-if="isAccountPaused" class="badge badge-orange">Paused</span>
+                  <span v-else class="badge badge-green">Active</span>
                   <a :href="route('provider.profile.index')" class="btn-icon" data-tooltip="Edit practitioner profile"><AegisIcon name="edit" :size="14" /></a>
                 </div>
                 <div v-if="user?.has_cs_portal" class="list-group-item">
@@ -92,7 +93,8 @@
                     <div style="font-size:13px;font-weight:700;color:var(--text)">Continuity Steward Portal</div>
                     <div style="font-size:12px;color:var(--text-3)">Emergency response, client continuity oversight</div>
                   </div>
-                  <span class="badge badge-blue">Active</span>
+                  <span v-if="currentPortal === 'continuity_steward'" class="badge badge-gold">Current</span>
+                  <span v-else class="badge badge-blue">Active</span>
                   <a :href="route('cs.dashboard')" class="btn-icon" data-tooltip="Open CS Portal"><AegisIcon name="external-link" :size="14" /></a>
                 </div>
                 <div v-if="user?.has_ss_portal" class="list-group-item">
@@ -101,7 +103,8 @@
                     <div style="font-size:13px;font-weight:700;color:var(--text)">Support Steward Portal</div>
                     <div style="font-size:12px;color:var(--text-3)">Administrative and operational support for providers</div>
                   </div>
-                  <span class="badge badge-teal">Active</span>
+                  <span v-if="currentPortal === 'support_steward'" class="badge badge-gold">Current</span>
+                  <span v-else class="badge badge-teal">Active</span>
                   <a :href="route('ss.dashboard')" class="btn-icon" data-tooltip="Open SS Portal"><AegisIcon name="external-link" :size="14" /></a>
                 </div>
               </div>
@@ -953,6 +956,7 @@ const section = ref('profile');
 // ─── Profile ──────────────────────────────────────────────────────────────────
 const _inertiaPage    = usePage();
 const isAccountPaused = computed(() => _inertiaPage.props.auth?.user?.is_paused ?? false);
+const currentPortal   = computed(() => _inertiaPage.props.auth?.portal ?? 'provider');
 const displayName = computed(() => props.user?.display_name || 'Dr. Sarah Johnson');
 const initials    = computed(() => displayName.value.replace(/^Dr\.?\s+/i, '').split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase());
 const tierLabel   = computed(() => props.user?.tier === 'practice' ? 'Continuity Practice' : 'Continuity Access');
