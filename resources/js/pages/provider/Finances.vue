@@ -81,29 +81,29 @@
     </div>
 
     <!-- ══ TABS ══ -->
-    <div class="tabs-primary" role="tablist" style="margin-bottom:24px;">
+    <div class="tabs-primary fin-tabs" role="tablist" style="margin-bottom:24px;">
       <button type="button" class="tab-primary" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
-        <AegisIcon name="activity" :size="15" /> Overview
+        <AegisIcon name="activity" :size="14" /> Overview
       </button>
       <button type="button" class="tab-primary" :class="{ active: activeTab === 'executor' }" @click="activeTab = 'executor'">
-        <AegisIcon name="shield" :size="15" /> CS Wallet
+        <AegisIcon name="shield" :size="14" /> CS Wallet
       </button>
       <button type="button" class="tab-primary" :class="{ active: activeTab === 'bp' }" @click="activeTab = 'bp'">
-        <AegisIcon name="file-text" :size="15" /> Business Partners
+        <AegisIcon name="file-text" :size="14" /> Business Partners
         <span v-if="bpPendingCount > 0" class="tab-count">{{ bpPendingCount }}</span>
       </button>
       <button type="button" class="tab-primary" :class="{ active: activeTab === 'sessions' }" @click="activeTab = 'sessions'">
-        <AegisIcon name="heart" :size="15" /> Clinical Sessions
+        <AegisIcon name="heart" :size="14" /> Clinical Sessions
         <span v-if="sessionPendingCount > 0" class="tab-count">{{ sessionPendingCount }}</span>
       </button>
       <button type="button" class="tab-primary" :class="{ active: activeTab === 'subscription' }" @click="activeTab = 'subscription'">
-        <AegisIcon name="star" :size="15" /> Subscription
+        <AegisIcon name="star" :size="14" /> Subscription
       </button>
       <button type="button" class="tab-primary" :class="{ active: activeTab === 'methods' }" @click="activeTab = 'methods'">
-        <AegisIcon name="credit-card" :size="15" /> Payment Methods
+        <AegisIcon name="credit-card" :size="14" /> Payment Methods
       </button>
       <button type="button" class="tab-primary" :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">
-        <AegisIcon name="clock" :size="15" /> Transactions
+        <AegisIcon name="clock" :size="14" /> Transactions
       </button>
     </div>
 
@@ -1759,4 +1759,10 @@ function paymentTypeLabel(t) {
 /* ── Misc ── */
 .btn-dark        { background: var(--text); border: 1px solid var(--text); color: var(--text-inverted); font-size: 13px; font-weight: 700; }
 .btn-dark:hover  { background: var(--text-2); border-color: var(--text-2); }
+
+/* ── Finances tab bar — 7 tabs, wraps to 2 rows cleanly ── */
+.fin-tabs { flex-wrap: wrap; overflow-x: visible; }
+.fin-tabs .tab-primary { padding: 11px 16px; font-size: 13px; }
+/* Row break: after the 4th tab (BP), the last 3 drop to row 2 aligned left */
+.fin-tabs .tab-primary:nth-child(5) { margin-left: 0; }
 </style>

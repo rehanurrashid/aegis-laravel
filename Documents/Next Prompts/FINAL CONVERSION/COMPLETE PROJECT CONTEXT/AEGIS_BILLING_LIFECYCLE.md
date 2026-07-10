@@ -476,11 +476,22 @@ Rev 3 batch3 wired 7 new events to `SendEmailNotificationListener` with `templat
 ### Gap 4 — Continuity Group Provider Vue pages (SEPARATE WORKSTREAM)
 `ContinuityPlan.vue`, `ContinuityStewards.vue`, `SupportStewards.vue`, `ImportantDocuments.vue`, `Vault.vue` — still legacy static prototypes. See `CONTINUITY_GROUP_CONVERSION_PLAN.md` for the plan.
 
-### Gap 5 — Founding Member perks (BLOCKED ON DR. CHAPMAN)
-Config exists (`founding_member` section). No DB column or assignment logic. See `AEGIS_CHAPMAN_PENDING_ITEMS.md`.
+### Gap 5 — Founding Member perks (PARTIALLY UNBLOCKED — 1 question remaining)
 
-### Gap 6 — Access tier `max_support_stewards` (BLOCKED ON DR. CHAPMAN)
-`.env`-tunable now. Default 1. Dr. Chapman has verbally suggested 2 but needs confirmation.
+**Confirmed 2026-07-09 by Dr. Chapman:**
+- Duration: for life of active membership
+- Slots: 5,000 practitioners · 100 Business CS · 100 Business Partners
+- Perks: +2 CS slots for life · pricing lock · Founding badge · early access · 1 News spotlight
+- Spotlight mechanics: News page only, MAAT posts internally, no member self-serve
+
+**`config/aegis.php` already updated** with correct slot counts, perk flags, and BP founding entry.
+
+**Still blocked on:** cancel + re-subscribe behaviour — if a founder fully cancels and re-subscribes later, do they retain founding status? This one answer gates the DB schema (`users.founding_tier` as permanent flag vs needing `forfeited_at` timestamp). See `AEGIS_CHAPMAN_PENDING_ITEMS.md` §2.1.
+
+**Effort once unblocked:** ~1–2 days — migration, steward-cap modifier, founder badge in Provider Settings, admin slot-fill tile.
+
+### Gap 6 — Access tier `max_support_stewards` ✅ RESOLVED
+`.env` `TIER_ACCESS_MAX_SS` confirmed at **2** — Dr. Chapman's attached document lists "2 Support Stewards" under Continuity Access. Current `.env` is already `TIER_ACCESS_MAX_SS=2`. No action needed.
 
 ## 36. Stack & Architecture
 
@@ -560,7 +571,7 @@ npm ci && npm run build
 1. Add `storePaymentMethod` methods to CS + BP `SettingsController` (§35 Gap 1) — 30 min
 2. Create 7 blade templates for CS engagement + dispute emails (§35 Gap 2) — 2 hr
 3. Wire "Open dispute" buttons in Finances tables (§35 Gap 3) — 1.5 hr
-4. Confirm `TIER_ACCESS_MAX_SS` with Dr. Chapman — pending
+4. ~~Confirm `TIER_ACCESS_MAX_SS` with Dr. Chapman~~ ✅ confirmed at 2 — already set in `.env`
 5. Continuity Group Vue rebuild — separate workstream per `CONTINUITY_GROUP_CONVERSION_PLAN.md`
 
 ## 39. Appendix — Test Cards, Demo Users & Prototype vs Laravel
@@ -569,18 +580,22 @@ _(Test cards + demo users unchanged. `p_sarah` real Stripe sub `sub_1Tr3QvHnj73y
 
 ---
 
-## Quick-Fix Summary (Prioritised) — Rev 3
+## Quick-Fix Summary (Prioritised) — Rev 4
 
 | Priority | Gap | File | Est time |
 |---|---|---|---|
 | 🔴 P1 | CS + BP `storePaymentMethod` methods | CS/BP `SettingsController` | 30 min |
 | 🟡 P2 | 7 email blade templates | `resources/views/emails/{incident,cs,disputes}/*` | 2 hr |
-| 🟡 P2 | "Open dispute" buttons in Finances tables | Provider/CS/BP `Finances.vue` + `Invoices.vue` | 1.5 hr |
+| 🟡 P2 | "Open dispute" buttons in Finances tables | Provider/CS/BP `Finances.vue` | 1.5 hr |
 | 🟡 P2 | Continuity Group Vue rebuild | 5 legacy Provider pages | Separate workstream |
-| 🟢 P3 | Confirm `TIER_ACCESS_MAX_SS` | Dr. Chapman call | 5 min once decided |
-| 🟢 P3 | Founding Member perks | Requires 4 product answers | TBD |
+| 🟢 P3 | Founding Member DB build | `users` migration + steward-cap modifier + Settings badge | 1–2 days — blocked on §2.1 cancel/re-subscribe answer |
+| ✅ done | `TIER_ACCESS_MAX_SS` confirmed = 2 | `.env` already correct | — |
+| ✅ done | Signature mechanics → Option B | Informs Continuity Plan sign-ceremony UI | — |
+| ✅ done | W-9 → soft-warn final | No code change needed | — |
+| ⏳ hold | Onboarding/pricing copy | Wait for Dr. Chapman presentation feedback | — |
 
 ---
 
+*Rev 4 — updated 2026-07-09 after Dr. Chapman email. Founding member perks confirmed, 2 items remain pending.*
 *Rev 3 — validated against live repo commit `9351e14` on 2026-07-09*
 *Rev 2 — commit `2cd19de` on 2026-07-08*

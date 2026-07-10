@@ -198,22 +198,61 @@ return [
 
         /*
         |----------------------------------------------------------------------
-        | Founding Member Perks (awaiting scoping confirmation per §8.6)
-        | First 100 practitioners per tier get bonus perks automatically applied.
+        | Founding Member Perks — CONFIRMED by Dr. Chapman 2026-07-09
+        |
+        | Slots: first 5,000 practitioners (Access + Practice combined),
+        |        first 100 Business CS, first 100 Business Partners.
+        |
+        | Duration: for life of active Aegis membership.
+        | Cancel + re-subscribe status: PENDING Chapman confirmation.
+        |
+        | Spotlight placement: News page only. MAAT selects featured
+        | business internally and posts — no member self-serve redemption.
+        | Scheduling is rotating/availability basis.
+        |
+        | Pricing lock: founders retain introductory pricing through
+        | Aegis' first platform-wide pricing adjustment.
+        |
+        | Implementation note: users.founding_tier column + assignment
+        | logic NOT YET BUILT — awaiting cancel/re-subscribe answer
+        | before building the DB schema.
         |----------------------------------------------------------------------
         */
         'founding_member' => [
             'access' => [
-                'label'    => '2 additional CS free for life + 1 marketing ad/yr',
-                'max_slot' => 100,
+                'label'       => '2 additional CS for life of membership + badge + early access + pricing lock + spotlight',
+                'max_slot'    => 5000,
+                'cs_bonus'    => 2,        // extra CS slots on top of tier cap
+                'pricing_lock'=> true,     // retain intro price through first platform adjustment
+                'badge'       => true,
+                'early_access'=> true,
+                'spotlight'   => 1,        // one spotlight inclusion; MAAT-driven, News page
             ],
             'practice' => [
-                'label'    => '2 additional CS free for life + 2 marketing ads/yr',
-                'max_slot' => 100,
+                'label'       => '2 additional CS for life of membership + badge + early access + pricing lock + spotlight',
+                'max_slot'    => 5000,
+                'cs_bonus'    => 2,
+                'pricing_lock'=> true,
+                'badge'       => true,
+                'early_access'=> true,
+                'spotlight'   => 1,
             ],
             'cs' => [
-                'label'    => '50% off Continuity Steward Training',
-                'max_slot' => 25,
+                'label'       => '50% off Continuity Steward Training + badge + early access + spotlight',
+                'max_slot'    => 100,
+                'training_discount_pct' => 50,
+                'training_discounted_slots' => 25,   // up to 25 discounted training placements
+                'badge'       => true,
+                'early_access'=> true,
+                'spotlight'   => 1,
+            ],
+            'bp' => [
+                'label'       => 'Badge + early access + pricing lock + spotlight',
+                'max_slot'    => 100,
+                'pricing_lock'=> true,
+                'badge'       => true,
+                'early_access'=> true,
+                'spotlight'   => 1,
             ],
         ],
 
