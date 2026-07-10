@@ -8,6 +8,10 @@ use App\Http\Controllers\Controller;
 use App\Models\UserMeta;
 use App\Models\UserSession;
 use App\Services\ActivityService;
+use App\Events\Business\SubscriptionTierChanged;
+use App\Events\Business\SubscriptionCancelled;
+use App\Events\Business\MaatAddonChanged;
+use App\Events\Auth\AccountClosed;
 use App\Services\ProfileService;
 use App\Services\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
@@ -376,6 +380,13 @@ class SettingsController extends Controller
     {
         $user = $request->user();
         $this->profiles->revokeSession($user, $session);
+        $this->activity->log(
+            $user->id, $user->role?->portal() ?? 'provider', 'settings',
+            \App\Enums\ActivitySeverity::Warning,
+            'session_revoked', 'Session revoked',
+            'A session was remotely terminated from your security settings.',
+            null, null, null, 'log', $user->id,
+        );
         return back()->with('success', 'Session revoked.');
     }
 
@@ -384,6 +395,13 @@ class SettingsController extends Controller
         $user  = $request->user();
         // Keep the current Laravel session intact; revoke all UserSession records
         $this->profiles->revokeAllSessions($user);
+        $this->activity->log(
+            $user->id, $user->role?->portal() ?? 'provider', 'settings',
+            \App\Enums\ActivitySeverity::Warning,
+            'all_sessions_revoked', 'All sessions terminated',
+            'All active sessions were signed out from your security settings.',
+            null, null, null, 'log', $user->id,
+        );
         return back()->with('success', 'All sessions revoked.');
     }
 
@@ -402,6 +420,8 @@ class SettingsController extends Controller
             'Account queued for permanent deletion in 30 days.',
             null, null, null, 'log', $user->id,
         );
+
+        event(new AccountClosed($user, 'user_requested'));
 
         auth()->logout();
         return redirect('/login')->with('success', 'Your account has been scheduled for deletion. You have 30 days to change your mind by contacting support.');
@@ -524,6 +544,10 @@ class SettingsController extends Controller
                 null, 'log', $user->id,
             );
 
+            if (in_array($result['direction'], ['upgrade', 'downgrade'], true)) {
+                event(new SubscriptionTierChanged($user, $result['direction'], $user->tier?->value));
+            }
+
             return back()->with('success', $msg);
         } catch (\Throwable $e) {
             return back()->withErrors(['subscription' => $e->getMessage()]);
@@ -544,6 +568,8 @@ class SettingsController extends Controller
                 \App\Models\User::class, $user->id,
                 null, 'log', $user->id,
             );
+
+            event(new SubscriptionCancelled($user));
 
             return back()->with('success', 'Your subscription will end at the current billing period.');
         } catch (\Throwable $e) {
@@ -607,6 +633,8 @@ class SettingsController extends Controller
                 null, 'log', $user->id,
             );
 
+            event(new MaatAddonChanged($user, $data['enable'] ? 'active' : 'removed'));
+
             return back()->with('success', $msg);
         } catch (\Throwable $e) {
             return back()->withErrors(['maat' => $e->getMessage()]);
@@ -632,6 +660,13 @@ class SettingsController extends Controller
                 $user->updateDefaultPaymentMethod($data['payment_method_id']);
                 $user->update(['stripe_payment_method_id' => $data['payment_method_id']]);
             }
+            $this->activity->log(
+                $user->id, $user->role?->portal() ?? 'provider', 'settings',
+                \App\Enums\ActivitySeverity::Info,
+                'payment_method_added', 'Payment method added',
+                'A new payment method was added to your account.',
+                null, null, null, 'log', $user->id,
+            );
             return back()->with('success', 'Payment method saved.');
         } catch (\Throwable $e) {
             return back()->withErrors(['payment' => 'Could not save payment method. ' . $e->getMessage()]);
@@ -641,8 +676,16 @@ class SettingsController extends Controller
     public function setDefaultPaymentMethod(Request $request): RedirectResponse
     {
         $data = $request->validate(['payment_method_id' => 'required|string|starts_with:pm_']);
+        $user = $request->user();
         try {
-            $this->subscriptions->setDefaultPaymentMethod($request->user(), $data['payment_method_id']);
+            $this->subscriptions->setDefaultPaymentMethod($user, $data['payment_method_id']);
+            $this->activity->log(
+                $user->id, $user->role?->portal() ?? 'provider', 'settings',
+                \App\Enums\ActivitySeverity::Info,
+                'payment_method_default_set', 'Default payment method updated',
+                'Your default payment method was updated.',
+                null, null, null, 'log', $user->id,
+            );
             return back()->with('success', 'Default payment method updated.');
         } catch (\Throwable $e) {
             return back()->withErrors(['payment' => $e->getMessage()]);
@@ -652,8 +695,16 @@ class SettingsController extends Controller
     public function removePaymentMethod(Request $request): RedirectResponse
     {
         $data = $request->validate(['payment_method_id' => 'required|string|starts_with:pm_']);
+        $user = $request->user();
         try {
-            $this->subscriptions->removePaymentMethod($request->user(), $data['payment_method_id']);
+            $this->subscriptions->removePaymentMethod($user, $data['payment_method_id']);
+            $this->activity->log(
+                $user->id, $user->role?->portal() ?? 'provider', 'settings',
+                \App\Enums\ActivitySeverity::Info,
+                'payment_method_removed', 'Payment method removed',
+                'A payment method was removed from your account.',
+                null, null, null, 'log', $user->id,
+            );
             return back()->with('success', 'Payment method removed.');
         } catch (\Throwable $e) {
             return back()->withErrors(['payment' => $e->getMessage()]);
@@ -723,6 +774,14 @@ class SettingsController extends Controller
                 \Illuminate\Support\Facades\Log::warning('[Stripe Connect] return sync failed', ['error' => $e->getMessage()]);
             }
         }
+
+        $this->activity->log(
+            $user->id, $user->role?->portal() ?? 'provider', 'settings',
+            \App\Enums\ActivitySeverity::Info,
+            'stripe_connect_completed', 'Stripe Connect linked',
+            'Your Stripe Connect account was successfully linked.',
+            null, null, null, 'log', $user->id,
+        );
 
         return redirect()->route('provider.settings.index', ['section' => 'stripe_connect'])
             ->with('success', 'Stripe Connect setup complete. Your account is now active for receiving payments.');

@@ -10,6 +10,10 @@ use App\Services\ActivityService;
 use App\Services\ProfileService;
 use App\Services\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
+use App\Events\Business\SubscriptionTierChanged;
+use App\Events\Business\SubscriptionCancelled;
+use App\Events\Auth\AccountClosed;
+
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -178,13 +182,29 @@ class SettingsController extends Controller
 
     public function revokeSession(Request $request, string $session): RedirectResponse
     {
-        $this->profiles->revokeSession($request->user(), $session);
+        $user = $request->user();
+        $this->profiles->revokeSession($user, $session);
+        $this->activity->log(
+            $user->id, 'bp', 'settings',
+            \App\Enums\ActivitySeverity::Warning,
+            'session_revoked', 'Session revoked',
+            'A session was remotely terminated from your security settings.',
+            null, null, null, 'log', $user->id,
+        );
         return back()->with('success', 'Session revoked.');
     }
 
     public function revokeAllSessions(Request $request): RedirectResponse
     {
-        $this->profiles->revokeAllSessions($request->user());
+        $user = $request->user();
+        $this->profiles->revokeAllSessions($user);
+        $this->activity->log(
+            $user->id, 'bp', 'settings',
+            \App\Enums\ActivitySeverity::Warning,
+            'all_sessions_revoked', 'All sessions terminated',
+            'All active sessions were signed out from your security settings.',
+            null, null, null, 'log', $user->id,
+        );
         return back()->with('success', 'All sessions revoked.');
     }
 
@@ -192,13 +212,31 @@ class SettingsController extends Controller
     {
         $data = $request->validate(['price_id' => ['required', 'string', 'starts_with:price_']]);
 
+        $user = $request->user();
         try {
-            $result = $this->subscriptions->changePlan($request->user(), $data['price_id']);
+            $result = $this->subscriptions->changePlan($user, $data['price_id']);
             $msg = match ($result['direction']) {
                 'upgrade'   => 'Plan upgraded successfully.',
                 'downgrade' => 'Plan will change at your next billing cycle.',
                 default     => 'Plan unchanged.',
             };
+            $actionMap = [
+                'upgrade'        => ['subscription_upgraded',   'Plan upgraded',   'Subscription plan updated.'],
+                'downgrade'      => ['subscription_downgraded', 'Plan downgraded', 'Plan change scheduled for next cycle.'],
+                'switch-annual'  => ['subscription_changed',    'Billing changed', 'Switched to annual billing.'],
+                'switch-monthly' => ['subscription_changed',    'Billing changed', 'Switched to monthly billing.'],
+            ];
+            [$action, $title, $desc] = $actionMap[$result['direction']] ?? ['subscription_changed', 'Plan changed', $msg];
+            $this->activity->log(
+                $user->id, 'bp', 'settings',
+                \App\Enums\ActivitySeverity::Info,
+                $action, $title, $desc,
+                \App\Models\User::class, $user->id,
+                null, 'log', $user->id,
+            );
+            if (in_array($result['direction'], ['upgrade', 'downgrade'], true)) {
+                event(new SubscriptionTierChanged($user, $result['direction'], 'bp_business'));
+            }
             return back()->with('success', $msg);
         } catch (\Throwable $e) {
             return back()->withErrors(['subscription' => $e->getMessage()]);
@@ -207,8 +245,18 @@ class SettingsController extends Controller
 
     public function cancelPlan(Request $request): RedirectResponse
     {
+        $user = $request->user();
         try {
-            $this->subscriptions->cancel($request->user());
+            $this->subscriptions->cancel($user);
+            $this->activity->log(
+                $user->id, 'bp', 'settings',
+                \App\Enums\ActivitySeverity::Warning,
+                'subscription_cancelled', 'Subscription cancelled',
+                'You cancelled your Business Partner subscription. Access continues until end of billing period.',
+                \App\Models\User::class, $user->id,
+                null, 'log', $user->id,
+            );
+            event(new SubscriptionCancelled($user));
             return back()->with('success', 'Your subscription will end at the current billing period.');
         } catch (\Throwable $e) {
             return back()->withErrors(['subscription' => $e->getMessage()]);
@@ -217,8 +265,17 @@ class SettingsController extends Controller
 
     public function resumePlan(Request $request): RedirectResponse
     {
+        $user = $request->user();
         try {
-            $this->subscriptions->reactivate($request->user());
+            $this->subscriptions->reactivate($user);
+            $this->activity->log(
+                $user->id, 'bp', 'settings',
+                \App\Enums\ActivitySeverity::Info,
+                'subscription_reactivated', 'Subscription reactivated',
+                'You reactivated your Business Partner subscription.',
+                \App\Models\User::class, $user->id,
+                null, 'log', $user->id,
+            );
             return back()->with('success', 'Your subscription has been reactivated.');
         } catch (\Throwable $e) {
             return back()->withErrors(['subscription' => $e->getMessage()]);
@@ -250,6 +307,7 @@ class SettingsController extends Controller
             'Account queued for permanent deletion in 30 days.',
             null, null, null, 'log', $user->id,
         );
+        event(new AccountClosed($user, 'user_requested'));
         auth()->logout();
         return redirect()->route('login')->with('success', 'Your account has been scheduled for deletion. You have 30 days to contact support to cancel.');
     }
@@ -365,6 +423,13 @@ class SettingsController extends Controller
             }
         }
 
+        $this->activity->log(
+            $request->user()->id, 'bp', 'settings',
+            \App\Enums\ActivitySeverity::Info,
+            'stripe_connect_completed', 'Stripe Connect linked',
+            'Your Stripe Connect account was successfully linked.',
+            null, null, null, 'log', $request->user()->id,
+        );
         return redirect()->route('bp.settings.index', ['section' => 'stripe_connect'])
             ->with('success', 'Stripe Connect setup complete. You can now receive payouts from practitioners.');
     }
@@ -437,6 +502,13 @@ class SettingsController extends Controller
             $user->addPaymentMethod($data['payment_method_id']);
             $user->updateDefaultPaymentMethod($data['payment_method_id']);
             $user->update(['stripe_payment_method_id' => $data['payment_method_id']]);
+            $this->activity->log(
+                $user->id, 'bp', 'settings',
+                \App\Enums\ActivitySeverity::Info,
+                'payment_method_default_set', 'Default payment method updated',
+                'Your default payment method was updated.',
+                null, null, null, 'log', $user->id,
+            );
             return back()->with('success', 'Default payment method updated.');
         } catch (\Throwable $e) {
             return back()->withErrors(['payment' => $e->getMessage()]);
@@ -448,6 +520,13 @@ class SettingsController extends Controller
         $data = $request->validate(['payment_method_id' => 'required|string|starts_with:pm_']);
         try {
             $request->user()->stripe()->paymentMethods->detach($data['payment_method_id']);
+            $this->activity->log(
+                $request->user()->id, 'bp', 'settings',
+                \App\Enums\ActivitySeverity::Info,
+                'payment_method_removed', 'Payment method removed',
+                'A payment method was removed from your account.',
+                null, null, null, 'log', $request->user()->id,
+            );
             return back()->with('success', 'Payment method removed.');
         } catch (\Throwable $e) {
             return back()->withErrors(['payment' => $e->getMessage()]);
