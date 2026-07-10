@@ -1989,8 +1989,8 @@ p {
 .btn-outline:hover { color: var(--gold-dark); background: var(--surface-2); }
 
 /* Ghost */
-.btn-ghost { background: transparent; color: var(--text-2); }
-.btn-ghost:hover { background: var(--surface-3); color: var(--text); }
+.btn-ghost { background: transparent; color: var(--text-2); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--surface-3); color: var(--text); border-color: var(--border-dark); }
 
 /* Danger */
 .btn-danger { background: var(--red); color: #fff; }

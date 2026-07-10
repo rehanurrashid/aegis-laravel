@@ -226,42 +226,6 @@
                 <div style="font-size:13px;color:var(--text-3)">Need to cancel your Business CS plan?</div>
                 <button type="button" class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red)" @click="confirmCsCancel = true" :disabled="planBusy">Cancel Plan</button>
               </div>
-              <div v-if="stripeInvoices.length > 0">
-                <div class="st-divider"></div>
-                <div class="st-subhead" style="margin-bottom:12px">Invoice History</div>
-                <table class="billing-table">
-                  <thead><tr><th>Date</th><th>Amount</th><th>Status</th><th></th></tr></thead>
-                  <tbody>
-                    <tr v-for="inv in stripeInvoices" :key="inv.id">
-                      <td>{{ formatDate(inv.paid_at || inv.created) }}</td>
-                      <td>{{ formatCents(inv.amount_cents) }}</td>
-                      <td><span v-if="inv.status === 'paid'" style="color:var(--green);font-weight:600;display:inline-flex;align-items:center;gap:4px"><AegisIcon name="check" :size="13" />Paid</span><span v-else style="color:var(--text-3)">{{ inv.status }}</span></td>
-                      <td><a v-if="inv.pdf_url" :href="inv.pdf_url" target="_blank" class="btn btn-ghost btn-xs" data-tooltip="Download PDF"><AegisIcon name="download" :size="14" /></a></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- BUSINESS CS: Stripe Connect account (receive payouts from providers) -->
-          <div class="st-card" style="margin-top:14px">
-            <div class="st-card-head">
-              <div class="st-card-head-l">
-                <span class="st-card-ico"><AegisIcon name="credit-card" :size="17" /></span>
-                <div><div class="st-card-title">Payouts &amp; Stripe Connect</div><div class="st-card-sub">How you receive practitioner invoice payments</div></div>
-              </div>
-            </div>
-            <div class="st-card-body">
-              <div class="stripe-status" :class="stripeReady ? 'is-connected' : 'is-disconnected'" style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface-2);border-radius:var(--radius);border:1px solid var(--border)">
-                <AegisIcon :name="stripeReady ? 'check-circle' : 'alert-triangle'" :size="20" :style="stripeReady ? 'color:var(--green-dark)' : 'color:var(--gold-dark)'" />
-                <div style="flex:1">
-                  <div style="font-size:14px;font-weight:700;color:var(--text)">{ stripeReady ? 'Stripe Connect ready' : 'Stripe Connect required' }</div>
-                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">{ stripeReady ? 'Practitioner invoice payments transfer directly to your connected Stripe account. Aegis never holds funds.' : 'Connect your Stripe account to receive invoice payments from practitioners you steward.' }</div>
-                </div>
-                <a v-if="!stripeReady" :href="route('cs.settings.connect.onboard')" class="btn btn-primary btn-sm">Connect Stripe</a>
-                <a v-else :href="route('cs.settings.connect.onboard')" class="btn btn-outline btn-sm">Reconfigure</a>
-              </div>
             </div>
           </div>
 
@@ -317,7 +281,36 @@
           </AegisModal>
         </div>
 
-        <div v-show="section === 'danger'" class="settings-panel">
+        <!-- PAYMENT METHODS -->
+        <div v-show="section === 'payment_methods'" class="settings-panel">
+          <SettingsPaymentMethods
+            :payment-methods="paymentMethods"
+            setup-intent-route="cs.settings.payment.setup-intent"
+            store-route="cs.settings.payment.store"
+            default-route="cs.settings.payment.default"
+            remove-route="cs.settings.payment.remove"
+          />
+        </div>
+
+        <!-- SUBSCRIPTION INVOICES -->
+        <div v-show="section === 'subscription_invoices'" class="settings-panel">
+          <SettingsSubscriptionInvoices
+            :invoices="subscriptionInvoices"
+            portal-label="Business Continuity Steward Subscription"
+          />
+        </div>
+
+        <!-- STRIPE CONNECT -->
+        <div v-show="section === 'stripe_connect'" class="settings-panel">
+          <SettingsStripeConnect
+            :connected="stStripeConnected"
+            onboard-route="cs.settings.connect.onboard"
+            portal-route="cs.settings.billing.portal"
+            description="Connect your Stripe account to receive invoice payments from practitioners you steward. Funds go directly to your bank account — Aegis never holds your money."
+          />
+        </div>
+
+        <div v-show="section === 'danger'"  class="settings-panel">
           <SettingsDangerZone
             delete-route="cs.settings.account.delete"
             pause-route="cs.settings.account.pause"
@@ -328,12 +321,17 @@
         </div>
       </div>
     </div>
+  <!-- PM modals -->
+
   </AppLayout>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
-import { useToast } from '@/composables/useToast';
+import { router } from '@inertiajs/vue3';
+import { useToast }   from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
+import AddCardModal   from '@/components/modals/AddCardModal.vue';
 import AppLayout              from '@/layouts/AppLayout.vue';
 import SettingsAccount        from '@/components/settings/SettingsAccount.vue';
 import SettingsSecurity       from '@/components/settings/SettingsSecurity.vue';
@@ -341,7 +339,10 @@ import SettingsNotifications  from '@/components/settings/SettingsNotifications.
 import SettingsAppearance     from '@/components/settings/SettingsAppearance.vue';
 import SettingsMessaging      from '@/components/settings/SettingsMessaging.vue';
 import SettingsEmailPrefs     from '@/components/settings/SettingsEmailPrefs.vue';
-import SettingsDangerZone     from '@/components/settings/SettingsDangerZone.vue';
+import SettingsDangerZone          from '@/components/settings/SettingsDangerZone.vue';
+import SettingsPaymentMethods     from '@/components/settings/SettingsPaymentMethods.vue';
+import SettingsSubscriptionInvoices from '@/components/settings/SettingsSubscriptionInvoices.vue';
+import SettingsStripeConnect      from '@/components/settings/SettingsStripeConnect.vue';
 
 const props = defineProps({
   user:         { type: Object,  default: () => ({}) },
@@ -349,11 +350,51 @@ const props = defineProps({
   mfaEnabled:   { type: Boolean, default: false },
   mfaMethod:    { type: String,   default: '' },
   sessions:     { type: Array,   default: () => [] },
-  subscription: { type: Object,  default: () => null },
-  pricing:      { type: Object,  default: () => ({}) },
+  subscription:   { type: Object,  default: () => null },
+  paymentMethods: { type: Array,   default: () => [] },
+  pricing:        { type: Object,  default: () => ({}) },
 });
 
 const toast = useToast();
+const { confirmAction } = useConfirm();
+
+// ── Payment Methods ────────────────────────────────────────────────────────────
+const stActivePm      = ref(null);
+const stRemovingCard  = ref(false);
+const stShowAddCard   = ref(false);
+const stShowRemove    = ref(false);
+const stActiveSubInv  = ref(null);
+const stSubInvOpen    = ref(false);
+
+const subscriptionInvoices = computed(() => sub.value.invoices ?? []);
+const stStripeConnected    = computed(() => !!(props.user?.stripe_connected));
+
+function stSetDefaultPm(pm) {
+  confirmAction(
+    `Set ${(pm.brand || 'card').toUpperCase()} ···· ${pm.last4} as your default payment method?`,
+    () => router.post(route('cs.settings.payment.default'), { payment_method_id: pm.id }, {
+      preserveScroll: true,
+      onSuccess: () => toast.success('Default payment method updated.'),
+      onError:   () => toast.error('Could not update default.'),
+    })
+  );
+}
+function stOpenRemove(pm) { stActivePm.value = pm; stShowRemove.value = true; }
+function stDoRemove() {
+  if (!stActivePm.value || stRemovingCard.value) return;
+  stRemovingCard.value = true;
+  router.delete(route('cs.settings.payment.remove'), {
+    data: { payment_method_id: stActivePm.value.id },
+    preserveScroll: true,
+    onSuccess: () => { stShowRemove.value = false; toast.info('Payment method removed.'); },
+    onError:   () => toast.error('Could not remove payment method.'),
+    onFinish:  () => { stRemovingCard.value = false; },
+  });
+}
+function stOpenSubInv(inv) { stActiveSubInv.value = inv; stSubInvOpen.value = true; }
+function stFormatCents(c) { return '$' + (Number(c ?? 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function stFormatDate(d) { if (!d) return '—'; if (typeof d === 'number') return new Date(d * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); return d; }
+function stStatusVariant(s) { return { paid: 'green', sent: 'blue', open: 'blue', active: 'green', trialing: 'blue', past_due: 'gold', draft: 'neutral', void: 'neutral', canceled: 'neutral', overdue: 'red' }[s] ?? 'neutral'; }
 // Sessions — passed from controller via props
 const sessions = computed(() => props.sessions ?? []);
 
@@ -444,7 +485,10 @@ const nav = [
   { group: 'Steward Role', items: [
     { key: 'cs-steward',  label: 'CS Role Settings',      icon: 'lock' },
     { key: 'privacy',     label: 'Privacy & Visibility',  icon: 'settings' },
-    { key: 'billing',    label: 'Subscription & Plan',  icon: 'alert-triangle' },
+    { key: 'billing',             label: 'Subscription & Plan',    icon: 'star' },
+    { key: 'payment_methods',     label: 'Payment Methods',          icon: 'credit-card' },
+    { key: 'subscription_invoices', label: 'Subscription Invoices',  icon: 'file-text' },
+    { key: 'stripe_connect',      label: 'Stripe Connect',           icon: 'link' },
   ]},
 ];
 
@@ -540,4 +584,50 @@ onMounted(() => {
 .privacy-level-name { font-size: 13px; font-weight: 700; color: var(--text); }
 .privacy-level-desc { font-size: 11px; color: var(--text-3); margin-top: 2px; }
 @media (max-width: 1000px) { .settings-layout { grid-template-columns: 1fr; } .settings-sidebar { position: static; } }
+
+/* ── Shared PM / invoice styles ── */
+.pm-card { display:flex;align-items:center;gap:14px;padding:14px 18px;border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:10px;background:var(--surface);box-shadow:var(--shadow-sm); }
+.pm-card.default { border-color:var(--gold-dark);background:var(--badge-bg-gold); }
+.pm-logo { width:48px;height:32px;border-radius:var(--radius-sm);background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+.pm-info { flex:1; }
+.pm-name { font-size:13px;font-weight:700;color:var(--text); }
+.pm-meta { font-size:12px;color:var(--text-3);margin-top:2px; }
+.pm-card-btns { display:flex;gap:6px;align-items:center; }
+.pm-default-icon { color:var(--gold-dark);flex-shrink:0; }
+.sub-invoice-table .sub-inv-row { cursor:pointer; }
+.sub-invoice-table .sub-inv-row:hover td { background:var(--surface-2); }
+.sub-inv-product { font-size:13px;font-weight:600;color:var(--text); }
+.sub-inv-desc { font-size:11px;color:var(--text-4);margin-top:2px;font-family:var(--font-mono,monospace); }
+.tx-date { font-size:13px;color:var(--text-2);white-space:nowrap; }
+.sub-inv-modal { display:flex;flex-direction:column;gap:0; }
+.sim-header { display:flex;align-items:center;gap:14px;padding:18px 20px;background:var(--badge-bg-gold);border:1px solid var(--badge-border-gold);border-radius:var(--radius);margin-bottom:16px; }
+.sim-logo { width:44px;height:44px;border-radius:var(--radius);background:var(--gold-dark);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+.sim-brand { flex:1; }
+.sim-from { font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--text); }
+.sim-sub { font-size:12px;color:var(--text-3);margin-top:2px; }
+.sim-status-block { text-align:right;flex-shrink:0; }
+.sim-date { font-size:12px;color:var(--text-3);margin-top:5px; }
+.sim-number-row { display:flex;align-items:center;gap:10px;margin-bottom:14px; }
+.sim-number-label { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-4); }
+.sim-number { font-family:var(--font-mono,monospace);font-size:13px;font-weight:600;color:var(--text-2);background:var(--surface-2);padding:3px 10px;border-radius:var(--radius-sm);border:1px solid var(--border); }
+.sim-items { border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px; }
+.sim-item { display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--surface); }
+.sim-item-icon { width:32px;height:32px;border-radius:var(--radius-sm);background:var(--green-light);color:var(--green-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+.sim-item-name { flex:1;font-size:14px;font-weight:600;color:var(--text); }
+.sim-item-price { font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--text);white-space:nowrap; }
+.sim-totals { border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px; }
+.sim-total-row { display:flex;justify-content:space-between;align-items:center;padding:10px 16px;font-size:13px;color:var(--text-2);border-bottom:1px solid var(--border); }
+.sim-total-row:last-child { border-bottom:none; }
+.sim-total-row--main { font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--text);background:var(--surface-2);padding:14px 16px; }
+.sim-fine-print { display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-4);padding:10px 14px;background:var(--surface-2);border-radius:var(--radius-sm);border:1px solid var(--border);line-height:1.5; }
+.stripe-setup-card { border:1px solid var(--badge-border-gold);border-radius:var(--radius-lg);background:var(--icon-bg-gold);overflow:hidden; }
+.stripe-setup-inner { display:flex;gap:16px;padding:18px 20px;align-items:flex-start; }
+.stripe-setup-icon { width:44px;height:44px;border-radius:var(--radius);background:var(--gold-dark);color:var(--text-inverted);display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+.stripe-setup-body { flex:1;min-width:0; }
+.stripe-setup-title { font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px; }
+.stripe-setup-desc { font-size:13px;color:var(--text-2);line-height:1.5;margin-bottom:12px; }
+.stripe-setup-actions { display:flex;align-items:center;gap:12px;flex-wrap:wrap; }
+.app-status-connected { font-size:12px;font-weight:600;color:var(--green-dark);background:var(--green-light);border:1px solid rgba(34,197,94,.35);padding:3px 10px;border-radius:var(--radius-full);display:inline-flex;align-items:center;gap:5px; }
+.st-spin { animation:st-spin-kf 0.7s linear infinite;display:inline-block; }
+@keyframes st-spin-kf { to { transform:rotate(360deg); } }
 </style>
