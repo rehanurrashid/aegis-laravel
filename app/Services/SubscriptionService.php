@@ -203,18 +203,37 @@ class SubscriptionService
                 // Recent invoice history (last 12)
                 $invList = $stripe->invoices->all(['customer' => $user->stripe_id, 'limit' => 12]);
                 foreach ($invList->data as $inv) {
-                    // Resolve a human-readable product name from the first line item.
-                    // Prefer the Stripe Product name; fall back to line description.
                     $lineItem    = $inv->lines->data[0] ?? null;
                     $productName = null;
-                    try {
-                        $productId   = $lineItem?->price?->product ?? null;
-                        if ($productId) {
-                            $product     = $stripe->products->retrieve($productId);
-                            $productName = $product->name ?? null;
-                        }
-                    } catch (\Throwable) {}
-                    $productName = $productName ?? $lineItem?->description ?? 'Aegis subscription';
+
+                    // 1. Try price nickname (e.g. "Continuity Practice — Monthly")
+                    $priceNickname = $lineItem?->price?->nickname ?? null;
+                    if ($priceNickname) {
+                        $productName = $priceNickname;
+                    }
+
+                    // 2. Try fetching the Stripe Product name
+                    if (!$productName) {
+                        try {
+                            $productId = $lineItem?->price?->product ?? null;
+                            if ($productId) {
+                                $product     = $stripe->products->retrieve($productId);
+                                $productName = $product->name ?? null;
+                            }
+                        } catch (\Throwable) {}
+                    }
+
+                    // 3. Parse the description — strip "N × " prefix and " (at $X.XX / period)" suffix
+                    if (!$productName && $lineItem?->description) {
+                        $desc = $lineItem->description;
+                        // Strip "1 × " prefix
+                        $desc = preg_replace('/^\d+\s*[×x]\s*/u', '', $desc);
+                        // Strip " (at $X.XX / ...)" suffix
+                        $desc = preg_replace('/\s*\(at\s*\$[\d.,]+\s*\/[^)]*\)/i', '', $desc);
+                        $productName = trim($desc) ?: null;
+                    }
+
+                    $productName = $productName ?? 'Aegis Subscription';
 
                     $invoices[] = [
                         'id'           => $inv->id,
@@ -223,7 +242,7 @@ class SubscriptionService
                         'status'       => $inv->status,
                         'paid_at'      => $inv->status_transitions->paid_at ?? null,
                         'created'      => $inv->created,
-                        'description'  => $inv->lines->data[0]->description ?? 'Aegis subscription',
+                        'description'  => $lineItem?->description ?? 'Aegis Subscription',
                         'product_name' => $productName,
                         'pdf_url'      => $inv->invoice_pdf,
                         'hosted_url'   => $inv->hosted_invoice_url,
