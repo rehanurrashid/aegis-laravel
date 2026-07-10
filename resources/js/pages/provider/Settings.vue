@@ -13,19 +13,15 @@
 
       <!-- SIDEBAR NAV -->
       <div class="settings-sidebar">
-        <div class="settings-sidebar-header">
-          <div class="settings-sidebar-header-icon"><AegisIcon name="settings" :size="16" /></div>
-          <div><h3>Settings</h3></div>
-        </div>
         <template v-for="grp in nav" :key="grp.group">
-          <div class="settings-nav-group">
-            <div class="settings-nav-label">{{ grp.group }}</div>
+          <div class="page-sidebar-group">
+            <div class="page-sidebar-label">{{ grp.group }}</div>
             <button v-for="it in grp.items" :key="it.key" type="button"
-              class="settings-nav-item" :class="{ active: section === it.key, 'is-locked': it.lockedForAccess && isAccessTier }"
+              class="page-sidebar-item" :class="{ active: section === it.key, 'is-locked': it.lockedForAccess && isAccessTier }"
               :style="it.danger ? 'color:var(--red)' : ''" @click="navClick(it)">
-              <span class="s-nav-icon"><AegisIcon :name="it.icon" :size="15" /></span>
+              <span class="page-sidebar-icon"><AegisIcon :name="it.icon" :size="15" /></span>
               {{ it.label }}
-              <span v-if="it.badge" class="s-nav-badge">{{ it.badge }}</span>
+              <span v-if="it.badge" class="page-sidebar-badge">{{ it.badge }}</span>
             </button>
           </div>
         </template>
@@ -1614,20 +1610,8 @@ function saveReferralPrefs() {
 .settings-layout { display: grid; grid-template-columns: 240px 1fr; gap: 22px; align-items: start; padding: 0 var(--page-x, 24px) 40px; }
 
 /* SIDEBAR */
+/* settings-sidebar: wrapper kept; nav uses global .page-sidebar-* classes */
 .settings-sidebar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); position: sticky; top: 80px; }
-.settings-sidebar-header { padding: 18px 20px; border-bottom: 1px solid var(--border); background: var(--surface-2); display: flex; align-items: center; gap: 10px; }
-.settings-sidebar-header-icon { width: 34px; height: 34px; border-radius: var(--radius); background: var(--icon-bg-gold); color: var(--gold-dark); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.settings-sidebar-header h3 { font-family: var(--font-serif); font-size: 15px; font-weight: 700; color: var(--text); }
-.settings-nav-group { padding: 6px 0; border-bottom: 1px solid var(--border); }
-.settings-nav-group:last-child { border-bottom: none; }
-.settings-nav-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-4); padding: 4px 14px; }
-.settings-nav-item { width: 100%; display: flex; align-items: center; gap: 8px; padding: 7px 14px; font-size: 13px; color: var(--text-2); cursor: pointer; border: none; background: none; border-left: 3px solid transparent; transition: all var(--transition); text-align: left; position: relative; }
-.settings-nav-item:hover { background: var(--surface-2); color: var(--text); }
-.settings-nav-item.active { background: var(--badge-bg-gold); color: var(--text); font-weight: 600; box-shadow: var(--shadow-xs); border-left-color: transparent; }
-.settings-nav-item.active::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--gold-dark); }
-.s-nav-icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.s-nav-icon :deep(svg) { width: 15px; height: 15px; }
-.s-nav-badge { margin-left: auto; background: var(--icon-bg-gold); color: var(--gold-dark); border: 1px solid var(--badge-border-gold); font-size: 10px; padding: 1px 7px; border-radius: var(--radius-full); font-weight: 700; }
 
 /* PANELS */
 .settings-content { min-width: 0; }
@@ -1969,8 +1953,8 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 }
 .settings-panel { position: relative; }
 /* Locked nav item */
-.settings-nav-item.is-locked { opacity: 0.6; }
-.settings-nav-item.is-locked:hover { opacity: 0.8; }
+.page-sidebar-item.is-locked { opacity: 0.6; }
+.page-sidebar-item.is-locked:hover { opacity: 0.8; }
 .s-nav-lock {
   margin-left: auto;
   color: var(--gold-dark);

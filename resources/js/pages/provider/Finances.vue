@@ -37,7 +37,7 @@
     <!-- ══ STAT CHIPS with dynamic tooltips ══ -->
     <div class="stat-chips-row">
       <AegisStatChip
-        icon="activity"
+        icon="dollar"
         :value="formatMoney(totalSpendCents / 100)"
         label="Total Spend"
         bg-color="var(--badge-bg-gold)"
@@ -46,7 +46,7 @@
       <AegisStatChip
         icon="alert-triangle"
         :value="formatMoney(pendingInvoiceTotal / 100)"
-        :label="pendingInvoiceCount + ' Pending Invoices'"
+        :label="pendingInvoiceCount + ' Pending'"
         :tooltip="pendingBreakdownTooltip"
         bg-color="var(--orange-light)"
         icon-color="var(--orange-dark)"
@@ -56,15 +56,15 @@
         :value="activeContractCount"
         label="Active Contracts"
         :tooltip="activeContractsBreakdownTooltip"
-        bg-color="var(--badge-bg-gold)"
-        icon-color="var(--gold-dark)"
-      />
-      <AegisStatChip
-        icon="check-circle"
-        :value="subscription?.status === 'active' ? 'Active' : (subscription?.tier || 'None')"
-        label="Subscription"
         bg-color="var(--green-light)"
         icon-color="var(--green-dark)"
+      />
+      <AegisStatChip
+        icon="star"
+        :value="subscription?.tier || 'None'"
+        label="Subscription"
+        bg-color="var(--blue-light)"
+        icon-color="var(--blue-dark)"
       />
     </div>
 
@@ -73,7 +73,10 @@
       <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
       <div class="alert-content">
         <div class="alert-title">Payments Awaiting Your Approval</div>
-        <div>{{ firstPendingDesc }}</div>
+        <div>
+          {{ firstPendingName }} — {{ firstPendingAmount }}
+          <template v-if="pendingInvoiceCount > 1"> and {{ pendingInvoiceCount - 1 }} more</template>
+        </div>
         <div style="margin-top:10px;">
           <button type="button" class="btn btn-primary" @click="goToPendingTab">Review Invoices</button>
         </div>
@@ -84,52 +87,43 @@
     <!-- ══ FINANCES LAYOUT: LEFT SIDEBAR + CONTENT ══ -->
     <div class="fin-layout">
 
-      <!-- LEFT SIDEBAR NAV — matches settings-sidebar pattern -->
-      <nav class="fin-sidebar" role="tablist" aria-label="Finance sections">
+      <!-- LEFT SIDEBAR NAV — uses global .page-sidebar classes -->
+      <nav class="page-sidebar" role="tablist" aria-label="Finance sections" style="width:220px;flex-shrink:0;">
 
-        <!-- Activity group -->
-        <div class="fin-nav-group">
-          <div class="fin-nav-label">Activity</div>
-
-          <button type="button" role="tab" class="fin-nav-item" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
-            <span class="fin-nav-icon"><AegisIcon name="activity" :size="15" /></span>
+        <div class="page-sidebar-group">
+          <div class="page-sidebar-label">Activity</div>
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
+            <span class="page-sidebar-icon"><AegisIcon name="activity" :size="15" /></span>
             Overview
           </button>
-
-          <button type="button" role="tab" class="fin-nav-item" :class="{ active: activeTab === 'executor' }" @click="activeTab = 'executor'">
-            <span class="fin-nav-icon"><AegisIcon name="shield" :size="15" /></span>
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'executor' }" @click="activeTab = 'executor'">
+            <span class="page-sidebar-icon"><AegisIcon name="shield" :size="15" /></span>
             CS Wallet
           </button>
-
-          <button type="button" role="tab" class="fin-nav-item" :class="{ active: activeTab === 'bp' }" @click="activeTab = 'bp'">
-            <span class="fin-nav-icon"><AegisIcon name="file-text" :size="15" /></span>
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'bp' }" @click="activeTab = 'bp'">
+            <span class="page-sidebar-icon"><AegisIcon name="file-text" :size="15" /></span>
             Business Partners
-            <span v-if="bpPendingCount > 0" class="fin-nav-badge">{{ bpPendingCount }}</span>
+            <span v-if="bpPendingCount > 0" class="page-sidebar-badge">{{ bpPendingCount }}</span>
           </button>
-
-          <button type="button" role="tab" class="fin-nav-item" :class="{ active: activeTab === 'sessions' }" @click="activeTab = 'sessions'">
-            <span class="fin-nav-icon"><AegisIcon name="heart" :size="15" /></span>
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'sessions' }" @click="activeTab = 'sessions'">
+            <span class="page-sidebar-icon"><AegisIcon name="heart" :size="15" /></span>
             Clinical Sessions
-            <span v-if="sessionPendingCount > 0" class="fin-nav-badge">{{ sessionPendingCount }}</span>
+            <span v-if="sessionPendingCount > 0" class="page-sidebar-badge">{{ sessionPendingCount }}</span>
           </button>
         </div>
 
-        <!-- Manage group -->
-        <div class="fin-nav-group">
-          <div class="fin-nav-label">Manage</div>
-
-          <button type="button" role="tab" class="fin-nav-item" :class="{ active: activeTab === 'subscription' }" @click="activeTab = 'subscription'">
-            <span class="fin-nav-icon"><AegisIcon name="star" :size="15" /></span>
+        <div class="page-sidebar-group">
+          <div class="page-sidebar-label">Manage</div>
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'subscription' }" @click="activeTab = 'subscription'">
+            <span class="page-sidebar-icon"><AegisIcon name="star" :size="15" /></span>
             Subscription
           </button>
-
-          <button type="button" role="tab" class="fin-nav-item" :class="{ active: activeTab === 'methods' }" @click="activeTab = 'methods'">
-            <span class="fin-nav-icon"><AegisIcon name="credit-card" :size="15" /></span>
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'methods' }" @click="activeTab = 'methods'">
+            <span class="page-sidebar-icon"><AegisIcon name="credit-card" :size="15" /></span>
             Payment Methods
           </button>
-
-          <button type="button" role="tab" class="fin-nav-item" :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">
-            <span class="fin-nav-icon"><AegisIcon name="clock" :size="15" /></span>
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">
+            <span class="page-sidebar-icon"><AegisIcon name="clock" :size="15" /></span>
             Transactions
           </button>
         </div>
@@ -374,8 +368,7 @@
 
     <!-- ══════════════════════════════ TAB: BUSINESS PARTNERS ══════════════════════════════ -->
     <div v-show="activeTab === 'bp'">
-      <div class="pill-wrap">
-        <div class="tabs-pill">
+      <div class="tabs-pill" style="margin-bottom:20px;display:inline-flex;">
           <button type="button" class="tab-pill" :class="{ active: bpFilter === 'all' }" @click="bpFilter = 'all'">
             All <span v-if="allBpItems > 0" class="badge-pill">{{ allBpItems }}</span>
           </button>
@@ -386,7 +379,6 @@
             Active <span v-if="activeContracts.length > 0" class="badge-pill">{{ activeContracts.length }}</span>
           </button>
         </div>
-      </div>
 
       <AegisEmptyState
         v-if="!bpInvoices.length && !activeContracts.length"
@@ -1580,14 +1572,8 @@ function doExport() {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
-const firstPendingDesc = computed(() => {
-  if (!props.upcomingPayments?.length) return ''
-  const f = props.upcomingPayments[0]
-  let s = `${f.recipient} — ${formatCents(f.total_cents)}`
-  if (f.due_at) s += ` (due ${f.due_at})`
-  if (props.pendingInvoiceCount > 1) s += ` and ${props.pendingInvoiceCount - 1} more`
-  return s
-})
+const firstPendingName   = computed(() => props.upcomingPayments?.[0]?.recipient ?? '—')
+const firstPendingAmount = computed(() => formatCents(props.upcomingPayments?.[0]?.total_cents ?? 0))
 
 function goToPendingTab() {
   const b = props.pendingBreakdown
@@ -1737,9 +1723,7 @@ function paymentTypeLabel(t) {
 .btn-primary-full:hover { background: var(--text-2); }
 .invoice-actions .btn-icon { width: 40px; height: 40px; }
 
-/* ── Pill wrap (background container for tabs-pill on BP tab) ── */
-.pill-wrap { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; margin-bottom: 20px; }
-.pill-wrap .tabs-pill { margin: 0; }
+/* ── BP tab sub-filter pills — self-contained, no overflow ── */
 
 /* ── Payment method cards ── */
 .pm-card          { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 10px; background: var(--surface); box-shadow: var(--shadow-sm); }
@@ -1804,101 +1788,15 @@ function paymentTypeLabel(t) {
 
 /* ── Finances layout: sidebar + content ── */
 .fin-layout  { display: flex; align-items: flex-start; gap: 22px; }
-
-/* Sidebar — mirrors .settings-sidebar exactly */
-.fin-sidebar {
-  width: 220px;
-  flex-shrink: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
-  position: sticky;
-  top: 80px;
-}
-
-/* Nav groups — mirrors .settings-nav-group */
-.fin-nav-group { padding: 6px 0; border-bottom: 1px solid var(--border); }
-.fin-nav-group:last-child { border-bottom: none; }
-
-/* Group label — mirrors .settings-nav-label */
-.fin-nav-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--text-4);
-  padding: 4px 14px;
-}
-
-/* Nav items — mirrors .settings-nav-item, keeps left-border design */
-.fin-nav-item {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
-  font-size: 13px;
-  color: var(--text-2);
-  cursor: pointer;
-  border: none;
-  border-left: 3px solid transparent;
-  background: none;
-  transition: all var(--transition);
-  text-align: left;
-  position: relative;
-}
-.fin-nav-item:hover { background: var(--surface-2); color: var(--text); }
-.fin-nav-item.active {
-  background: var(--badge-bg-gold);
-  color: var(--text);
-  font-weight: 600;
-  box-shadow: var(--shadow-xs);
-  border-left-color: transparent;
-}
-.fin-nav-item.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: var(--gold-dark);
-}
-
-/* Icon — mirrors .s-nav-icon */
-.fin-nav-icon {
-  width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-/* Badge — mirrors .s-nav-badge */
-.fin-nav-badge {
-  margin-left: auto;
-  background: var(--icon-bg-gold);
-  color: var(--gold-dark);
-  border: 1px solid var(--badge-border-gold);
-  font-size: 10px;
-  padding: 1px 7px;
-  border-radius: var(--radius-full);
-  font-weight: 700;
-}
-
 .fin-content { flex: 1; min-width: 0; }
 
 @media (max-width: 860px) {
   .fin-layout  { flex-direction: column; }
-  .fin-sidebar { width: 100%; position: static; }
-  .fin-nav-group { display: flex; flex-wrap: wrap; gap: 0; padding: 4px 6px; }
-  .fin-nav-label { display: none; }
-  .fin-nav-item  { width: auto; flex: 0 0 auto; border-left: none; border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; }
-  .fin-nav-item.active { background: var(--badge-bg-gold); color: var(--text); border-left-color: transparent; font-weight: 600; }
-  .fin-nav-icon  { display: none; }
+  .page-sidebar { width: 100% !important; position: static; }
+  .page-sidebar-group { display: flex; flex-wrap: wrap; padding: 4px 6px; }
+  .page-sidebar-label { display: none; }
+  .page-sidebar-item  { width: auto; flex: 0 0 auto; border-left: none; border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; }
+  .page-sidebar-item.active::before { display: none; }
+  .page-sidebar-icon  { display: none; }
 }
 </style>

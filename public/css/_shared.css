@@ -6944,3 +6944,110 @@ html.theme-slate body {
   padding-top: 10px;
   border-top: 1px dashed var(--border);
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   PAGE-SIDEBAR NAV — canonical in-page left sidebar navigation.
+   Used by Finances, Settings, EditProfile and any future page
+   with a left-sidebar tab/section selector.
+
+   Component inventory:
+     .page-sidebar          — sticky card wrapper
+     .page-sidebar-group    — section block with bottom divider
+     .page-sidebar-label    — uppercase group heading
+     .page-sidebar-item     — nav row (button or anchor)
+     .page-sidebar-icon     — 18×18 icon slot
+     .page-sidebar-badge    — numeric badge (right-edge)
+
+   Active-state design (keep as-is, do NOT override):
+     background: var(--badge-bg-gold)
+     font-weight: 600
+     box-shadow: var(--shadow-xs)
+     ::before  → 3px gold left bar (position: absolute, left: 0)
+   ══════════════════════════════════════════════════════════════════ */
+
+.page-sidebar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 80px;
+}
+
+.page-sidebar-group {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.page-sidebar-group:last-child { border-bottom: none; }
+
+.page-sidebar-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-4);
+  padding: 8px 14px 4px;
+}
+
+.page-sidebar-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-2);
+  cursor: pointer;
+  border: none;
+  border-left: 3px solid transparent;
+  background: none;
+  text-align: left;
+  text-decoration: none;
+  position: relative;
+  transition: background var(--transition), color var(--transition);
+}
+.page-sidebar-item:hover { background: var(--surface-2); color: var(--text); }
+.page-sidebar-item.active {
+  background: var(--badge-bg-gold);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: var(--shadow-xs);
+  border-left-color: transparent;
+}
+.page-sidebar-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--gold-dark);
+}
+
+.page-sidebar-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-3);
+  transition: color var(--transition);
+}
+.page-sidebar-item:hover  .page-sidebar-icon { color: var(--gold-dark); }
+.page-sidebar-item.active .page-sidebar-icon { color: var(--gold-dark); }
+
+.page-sidebar-badge {
+  margin-left: auto;
+  background: var(--badge-bg-gold);
+  color: var(--gold-dark);
+  border: 1px solid var(--badge-border-gold);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  line-height: 1.5;
+}

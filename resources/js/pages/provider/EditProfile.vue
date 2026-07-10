@@ -74,19 +74,18 @@
     <div class="ep-layout">
 
       <!-- ─── LEFT NAV ─── -->
-      <div class="ep-nav">
-        <div class="ep-nav-section-label">Profile</div>
-
-        <a v-for="item in mainNavItems" :key="item.key"
-           class="ep-nav-item" :class="{ active: activeSection === item.key }"
-           href="#" @click.prevent="activeSection = item.key">
-          <div class="ep-nav-icon"><AegisIcon :name="item.icon" :size="16" /></div>
-          <span class="ep-nav-label">{{ item.label }}</span>
-          <div class="ep-nav-check"><AegisIcon name="check-badge" :size="16" class="aegis-icon-filled" /></div>
-        </a>
-
-
-      </div><!-- /.ep-nav -->
+      <div class="page-sidebar ep-nav-wrap">
+        <div class="page-sidebar-group">
+          <div class="page-sidebar-label">Profile</div>
+          <a v-for="item in mainNavItems" :key="item.key"
+             class="page-sidebar-item" :class="{ active: activeSection === item.key }"
+             href="#" @click.prevent="activeSection = item.key">
+            <span class="page-sidebar-icon"><AegisIcon :name="item.icon" :size="15" /></span>
+            <span style="flex:1;line-height:1.3;">{{ item.label }}</span>
+            <span class="ep-nav-check"><AegisIcon name="check-badge" :size="15" class="aegis-icon-filled" /></span>
+          </a>
+        </div>
+      </div><!-- /.ep-nav-wrap -->
 
       <!-- ─── RIGHT CONTENT ─── -->
       <div>
@@ -1532,40 +1531,12 @@ const lastSavedLabel = computed(() => {
   align-items: start;
 }
 
-/* ─── Left nav ─── */
-.ep-nav {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 10px 8px;
-  box-shadow: var(--shadow-xs);
-  position: sticky;
-  top: 84px;
-}
-.ep-nav-section-label {
-  font-family: var(--font-sans);
-  font-size: 10px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 1px;
-  color: var(--text-4);
-  padding: 14px 12px 8px;
-}
-.ep-nav-section-label:first-child { padding-top: 6px; }
-.ep-nav-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 12px; border-radius: var(--radius-sm);
-  font-family: var(--font-sans); font-size: 13px; font-weight: 500;
-  color: var(--text-2); cursor: pointer; text-decoration: none;
-  transition: background var(--transition), color var(--transition), box-shadow var(--transition);
-}
-.ep-nav-item:hover { background: var(--surface-2); color: var(--text); }
-.ep-nav-item:hover .ep-nav-icon { color: var(--gold-dark); }
-.ep-nav-item.active { background: var(--badge-bg-gold); color: var(--gold-dark); font-weight: 600; }
-.ep-nav-item.active .ep-nav-icon { color: var(--gold-dark); }
-.ep-nav-icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--text-3); transition: color var(--transition); }
-.ep-nav-label { flex: 1; line-height: 1.3; }
+/* ─── Left nav — uses global .page-sidebar-* classes ─── */
+.ep-nav-wrap { position: sticky; top: 84px; }
+/* check-badge completion indicator */
 .ep-nav-check { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--gold-dark); opacity: 0.7; transition: opacity var(--transition); }
-.ep-nav-item:hover .ep-nav-check, .ep-nav-item.active .ep-nav-check { opacity: 1; }
-.ep-nav-divider { height: 1px; background: var(--border); margin: 10px 12px; }
+.page-sidebar-item:hover .ep-nav-check,
+.page-sidebar-item.active .ep-nav-check { opacity: 1; }
 
 /* ─── Sections ─── */
 .ep-section { animation: epSectionIn 0.22s ease; }
@@ -1681,9 +1652,12 @@ details > div > div:first-child > .ep-cat { margin-top: 0; }
 /* ─── Responsive ─── */
 @media (max-width: 960px) {
   .ep-layout { grid-template-columns: 1fr; }
-  .ep-nav { position: static; display: flex; flex-wrap: wrap; gap: 4px; padding: 10px; }
-  .ep-nav-section-label { display: none; }
-  .ep-nav-divider { display: none; }
+  .ep-nav-wrap { position: static; }
+  .page-sidebar.ep-nav-wrap .page-sidebar-group { display: flex; flex-wrap: wrap; padding: 4px 6px; }
+  .page-sidebar.ep-nav-wrap .page-sidebar-label { display: none; }
+  .page-sidebar.ep-nav-wrap .page-sidebar-item { width: auto; flex: 0 0 auto; border-left: none; border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; }
+  .page-sidebar.ep-nav-wrap .page-sidebar-item.active::before { display: none; }
+  .page-sidebar.ep-nav-wrap .page-sidebar-icon { display: none; }
 }
 @media (max-width: 680px) {
   .ep-ins-grid { grid-template-columns: 1fr 1fr; }

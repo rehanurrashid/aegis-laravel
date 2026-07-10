@@ -201,6 +201,20 @@ const modals = reactive({ /* one key per modal */ })
 2. **Activity link always in hero actions** — `btn-hero-ghost is-on-light`, icon `activity` size 14, `route('activity.index', {module:'<slug>'})`.
 3. **Stat chips** — `.stat-chips-row` + `AegisStatChip`. Icon tile is gold (`--badge-bg-gold`/`--gold-dark`). Sibling of hero.
 4. **Single menu** → `.tabs-segmented` + `.tab-pill` (12px icons). **Two-tier** → `.tabs-twotier > .tabs-primary` (15px icons) + `.tabs-segmented` sub-tabs.
+4a. **In-page left sidebar nav** (7+ sections, or when a page has its own sub-section navigation) → use the global `.page-sidebar` system from `_shared.css`. Never invent bespoke `ep-nav-*`, `fin-nav-*`, `settings-nav-*` classes. Structure:
+    ```html
+    <div class="page-sidebar">
+      <div class="page-sidebar-group">
+        <div class="page-sidebar-label">Group Name</div>
+        <button class="page-sidebar-item" :class="{ active: … }">
+          <span class="page-sidebar-icon"><AegisIcon name="x" :size="15" /></span>
+          Label
+          <span class="page-sidebar-badge">N</span>  <!-- optional -->
+        </button>
+      </div>
+    </div>
+    ```
+    Active state is defined globally: `--badge-bg-gold` bg · `--text` color · `font-weight:600` · `box-shadow:var(--shadow-xs)` · 3px `--gold-dark` left bar via `::before`. Do NOT override in scoped CSS. Wrap in a flex layout: `<div style="display:flex;gap:22px;align-items:flex-start">` with `<div style="flex:1;min-width:0">` for the content area.
 5. **Modals** → `AegisModal v-model="modals.xxx"`. Size `sm/md/lg/xl` only (multi-step = `xl`). Never `modal-id=`, never `ui.openModal()`.
 6. **Modal titles plain text** — no icon inside `.modal-title`. Close button is built into AegisModal.
 7. **Multi-step modals** use the global `.modal-steps` row (`.modal-step` + `.modal-step-num` + `.modal-step-divider`); JS drives `.active`/`.done`; inject `check` icon size 12 on done steps.
