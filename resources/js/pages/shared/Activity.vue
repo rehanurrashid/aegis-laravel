@@ -116,22 +116,24 @@
     <div class="activity-shell">
 
       <!-- Left: category sidebar -->
-      <aside class="activity-categories">
-        <div class="activity-categories-head">Categories</div>
-        <button
-          v-for="cat in categoryCounts"
-          :key="cat.key || 'all'"
-          type="button"
-          class="activity-cat-item"
-          :class="{ 'is-active': localFilters.event_type === cat.key }"
-          @click="setEventType(cat.key)"
-        >
-          <span class="activity-cat-label">
-            <AegisIcon :name="cat.icon" :size="14" />
-            {{ cat.label }}
-          </span>
-          <span class="activity-cat-count">{{ cat.count }}</span>
-        </button>
+      <aside class="page-sidebar activity-categories">
+        <div class="page-sidebar-group">
+          <div class="page-sidebar-label">Categories</div>
+          <div class="activity-cat-scroll">
+            <button
+              v-for="cat in categoryCounts"
+              :key="cat.key || 'all'"
+              type="button"
+              class="page-sidebar-item"
+              :class="{ active: localFilters.event_type === cat.key }"
+              @click="setEventType(cat.key)"
+            >
+              <AegisIcon :name="cat.icon" :size="14" />
+              <span class="activity-cat-label">{{ cat.label }}</span>
+              <span class="activity-cat-count">{{ cat.count }}</span>
+            </button>
+          </div>
+        </div>
       </aside>
 
       <!-- Right: event feed -->
@@ -561,6 +563,16 @@ function submitExport() {
   margin-top: 1.25rem;
   margin-bottom: 1rem;
   flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg);
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  margin-left: -0.25rem;
+  margin-right: -0.25rem;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
 }
 .activity-search {
   display: inline-flex;
@@ -593,64 +605,29 @@ function submitExport() {
   align-items: start;
 }
 
-/* Categories sidebar */
-.activity-categories {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 0.75rem;
-  box-shadow: var(--shadow-sm);
-  position: sticky;
-  top: 1rem;
+/* Categories sidebar — uses global .page-sidebar / .page-sidebar-group / .page-sidebar-item */
+.activity-categories { top: 57px; }
+.activity-cat-scroll {
+  max-height: 400px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
-.activity-categories-head {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  color: var(--text-4);
-  padding: 0.25rem 0.5rem 0.625rem;
-}
-.activity-cat-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.475rem 0.625rem;
-  background: transparent;
-  border: 0;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  color: var(--text-2);
-  cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast);
-  text-align: left;
-}
-.activity-cat-item:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
-.activity-cat-item.is-active {
-  background: var(--badge-bg-gold);
-  color: var(--gold-dark);
-  font-weight: 600;
-}
-.activity-cat-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
+.activity-cat-scroll::-webkit-scrollbar { width: 4px; }
+.activity-cat-scroll::-webkit-scrollbar-track { background: transparent; }
+.activity-cat-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.activity-cat-label { flex: 1; }
 .activity-cat-count {
   font-size: 11px;
   font-weight: 700;
   background: var(--surface-2);
   color: var(--text-3);
-  padding: 0.125rem 0.5rem;
+  padding: 0.1rem 0.45rem;
   border-radius: var(--radius-full);
   border: 1px solid var(--border);
+  margin-left: auto;
 }
-.activity-cat-item.is-active .activity-cat-count {
+.page-sidebar-item.active .activity-cat-count {
   background: var(--surface);
   color: var(--gold-dark);
   border-color: var(--soft-gold);
