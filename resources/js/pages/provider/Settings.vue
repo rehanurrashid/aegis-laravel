@@ -758,14 +758,6 @@
 
         <!-- PAYMENT METHODS -->
         <div v-show="section === 'payment_methods'" class="settings-panel">
-          <AegisHeroBanner eyebrow="Provider Portal" title="Payment Methods" subtitle="Manage the cards used to fund all Aegis charges." quiet>
-            <template #actions>
-              <a :href="route('provider.activity')" class="btn-hero-ghost is-on-light">
-                <AegisIcon name="activity" :size="14" /> Activity
-              </a>
-            </template>
-          </AegisHeroBanner>
-
           <div class="st-card">
             <div class="st-card-head">
               <div class="st-card-head-l">
@@ -824,14 +816,6 @@
 
         <!-- SUBSCRIPTION INVOICES -->
         <div v-show="section === 'subscription_invoices'" class="settings-panel">
-          <AegisHeroBanner eyebrow="Provider Portal" title="Subscription Invoices" subtitle="Your Aegis billing history and receipts." quiet>
-            <template #actions>
-              <a :href="route('provider.activity')" class="btn-hero-ghost is-on-light">
-                <AegisIcon name="activity" :size="14" /> Activity
-              </a>
-            </template>
-          </AegisHeroBanner>
-
           <div class="st-card">
             <div class="st-card-head">
               <div class="st-card-head-l">
@@ -877,6 +861,49 @@
                 description="Your subscription invoices will appear here after your first billing cycle."
                 style="padding:32px 0;"
               />
+            </div>
+          </div>
+        </div>
+
+        <!-- STRIPE CONNECT -->
+        <div v-show="section === 'stripe_connect'" class="settings-panel">
+          <div class="st-card">
+            <div class="st-card-head">
+              <div class="st-card-head-l">
+                <span class="st-card-ico"><AegisIcon name="link" :size="17" /></span>
+                <div>
+                  <div class="st-card-title">Stripe Connect</div>
+                  <div class="st-card-sub">Receive payments from clients via your connected Stripe account</div>
+                </div>
+              </div>
+              <span v-if="stStripeConnected" class="app-status-connected" style="font-size:12px;">
+                <AegisIcon name="check" :size="13" /> Connected
+              </span>
+            </div>
+            <div class="st-card-body">
+              <div class="stripe-setup-card">
+                <div class="stripe-setup-inner">
+                  <div class="stripe-setup-icon"><AegisIcon name="credit-card" :size="22" /></div>
+                  <div class="stripe-setup-body">
+                    <div class="stripe-setup-title">Stripe Connect Express</div>
+                    <div class="stripe-setup-desc">
+                      Connect your Stripe account to <strong>receive</strong> payments from clients booking your services. Aegis uses Stripe Connect — funds go directly to your bank account. Aegis never holds your money.
+                    </div>
+                    <div v-if="stStripeConnected" class="stripe-setup-connected">
+                      <span class="app-status-connected"><AegisIcon name="check" :size="13" /> Connected</span>
+                      <a :href="route('provider.settings.billing.portal')" class="btn btn-ghost" target="_blank">
+                        <AegisIcon name="external-link" :size="12" /> Stripe Dashboard
+                      </a>
+                    </div>
+                    <div v-else class="stripe-setup-actions">
+                      <a :href="route('provider.settings.connect.onboard')" class="btn btn-primary">
+                        <AegisIcon name="external-link" :size="13" /> Connect Stripe Account
+                      </a>
+                      <span style="font-size:12px;color:var(--text-4);">You'll be redirected to Stripe to complete setup</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1061,6 +1088,7 @@ const nav = [
     { key: 'billing',       label: 'Subscription & Plan', icon: 'star' },
     { key: 'payment_methods',       label: 'Payment Methods',       icon: 'credit-card' },
     { key: 'subscription_invoices', label: 'Subscription Invoices', icon: 'file-text' },
+    { key: 'stripe_connect',        label: 'Stripe Connect',        icon: 'link' },
   ]},
 
   { group: 'Account Closure & Data Management', items: [
@@ -1479,6 +1507,7 @@ const prices            = computed(() => sub.value.prices || {});
 const stripeInvoices    = computed(() => sub.value.invoices || []);
 const stripePaymentMethods    = computed(() => sub.value.payment_methods || []);
 const subscriptionInvoices    = computed(() => sub.value.invoices || []);
+const stStripeConnected       = computed(() => !!(props.user?.stripe_connected));
 const currentBillingIsAnnual = computed(() => {
   const p = sub.value.price_id;
   return p === prices.value.access_annual || p === prices.value.practice_annual;
@@ -2214,4 +2243,5 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 .sim-fine-print   { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-4); padding: 10px 14px; background: var(--surface-2); border-radius: var(--radius-sm); border: 1px solid var(--border); line-height: 1.5; }
 .tx-date          { font-size: 13px; color: var(--text-2); white-space: nowrap; }
 .tx-amount-out    { font-weight: 700; color: var(--text); }
+
 </style>

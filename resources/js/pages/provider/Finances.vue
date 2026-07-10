@@ -128,7 +128,7 @@
           </button>
           <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'integrations' }" @click="activeTab = 'integrations'">
             <span class="page-sidebar-icon"><AegisIcon name="link" :size="15" /></span>
-            Integrations
+            Stripe Connect
           </button>
         </div>
 
@@ -886,36 +886,33 @@
         <div class="card-header">
           <div class="card-title fin-card-title">
             <span class="fin-card-icon"><AegisIcon name="link" :size="15" /></span>
-            Integrations
+            Stripe Connect
           </div>
+          <a :href="route('provider.settings.index') + '?section=stripe_connect'" class="btn btn-outline">
+            <AegisIcon name="settings" :size="12" /> Manage
+          </a>
         </div>
         <div class="card-body">
-
-          <!-- Stripe Connect -->
-          <div class="stripe-setup-card" style="margin-bottom:20px;">
+          <div class="stripe-setup-card">
             <div class="stripe-setup-inner">
               <div class="stripe-setup-icon"><AegisIcon name="credit-card" :size="22" /></div>
               <div class="stripe-setup-body">
                 <div class="stripe-setup-title">Stripe Connect</div>
                 <div class="stripe-setup-desc">
-                  Connect your Stripe account to <strong>receive</strong> payments from clients booking your services. Aegis uses Stripe Connect — funds go directly to your bank account. Aegis never holds your money.
+                  Connect your Stripe account to <strong>receive</strong> payments from clients booking your services. Funds go directly to your bank — Aegis never holds your money.
                 </div>
                 <div v-if="stripeConnected" class="stripe-setup-connected">
                   <span class="app-status-connected"><AegisIcon name="check" :size="13" /> Connected</span>
-                  <a :href="route('provider.settings.billing.portal')" class="btn btn-ghost btn-sm" target="_blank">
-                    <AegisIcon name="external-link" :size="12" /> Stripe Dashboard
-                  </a>
                 </div>
                 <div v-else class="stripe-setup-actions">
-                  <a :href="route('provider.settings.connect.onboard')" class="btn btn-primary">
-                    <AegisIcon name="external-link" :size="13" /> Connect Stripe Account
+                  <span class="app-status-disconnected"><AegisIcon name="alert-circle" :size="13" /> Not connected</span>
+                  <a :href="route('provider.settings.index') + '?section=stripe_connect'" class="btn btn-primary">
+                    <AegisIcon name="settings" :size="13" /> Set up in Settings
                   </a>
-                  <span style="font-size:12px;color:var(--text-4);">You'll be redirected to Stripe to complete setup</span>
                 </div>
               </div>
             </div>
           </div>
-
         </div>
       </div>
     </div>
@@ -1950,4 +1947,5 @@ function paymentTypeLabel(t) {
 .spin { animation: fin-spin 0.7s linear infinite; display: inline-block; }
 @keyframes fin-spin { to { transform: rotate(360deg); } }
 .pm-default-icon  { color: var(--gold-dark); flex-shrink: 0; }
+.app-status-disconnected { font-size: 12px; font-weight: 600; color: var(--red); background: var(--red-light); padding: 3px 10px; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 5px; }
 </style>
