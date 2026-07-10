@@ -48,23 +48,23 @@
         :value="formatMoney(pendingInvoiceTotal / 100)"
         :label="pendingInvoiceCount + ' Pending'"
         :tooltip="pendingBreakdownTooltip"
-        bg-color="var(--orange-light)"
-        icon-color="var(--orange-dark)"
+        bg-color="var(--badge-bg-gold)"
+        icon-color="var(--gold-dark)"
       />
       <AegisStatChip
         icon="file-text"
         :value="activeContractCount"
         label="Active Contracts"
         :tooltip="activeContractsBreakdownTooltip"
-        bg-color="var(--green-light)"
-        icon-color="var(--green-dark)"
+        bg-color="var(--badge-bg-gold)"
+        icon-color="var(--gold-dark)"
       />
       <AegisStatChip
         icon="star"
         :value="subscription?.tier || 'None'"
         label="Subscription"
-        bg-color="var(--blue-light)"
-        icon-color="var(--blue-dark)"
+        bg-color="var(--badge-bg-gold)"
+        icon-color="var(--gold-dark)"
       />
     </div>
 
