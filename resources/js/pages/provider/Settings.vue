@@ -233,7 +233,7 @@
               <div class="settings-tier-gate-icon"><AegisIcon name="lock" :size="22" /></div>
               <div class="settings-tier-gate-title">Referrals require Continuity Practice</div>
               <div class="settings-tier-gate-body">Send and receive patient referrals, access the full Integrative Network, and manage referral preferences — all included in Continuity Practice.</div>
-              <button type="button" class="btn btn-gold" @click="section = 'billing'; modals.showUpgrade = true"><AegisIcon name="star" :size="14" /> Upgrade to Continuity Practice</button>
+              <button type="button" class="btn btn-gold" @click="section = 'billing'; showTierModal = true"><AegisIcon name="star" :size="14" /> Upgrade to Continuity Practice</button>
             </div>
           </div>
           <div :class="{ 'settings-tier-blurred': isAccessTier }">
@@ -364,7 +364,7 @@
               <div class="settings-tier-gate-icon"><AegisIcon name="lock" :size="22" /></div>
               <div class="settings-tier-gate-title">My Services requires Continuity Practice</div>
               <div class="settings-tier-gate-body">Offer supervision, consultation, training, and other peer services through Aegis. Enables the My Services sidebar and the Integrative Business Services badge on your profile.</div>
-              <button type="button" class="btn btn-gold" @click="section = 'billing'; modals.showUpgrade = true"><AegisIcon name="star" :size="14" /> Upgrade to Continuity Practice</button>
+              <button type="button" class="btn btn-gold" @click="section = 'billing'; showTierModal = true"><AegisIcon name="star" :size="14" /> Upgrade to Continuity Practice</button>
             </div>
           </div>
           <div :class="{ 'settings-tier-blurred': isAccessTier }">
@@ -716,19 +716,6 @@
           </AegisModal>
 
           <!-- Change Plan / Upgrade modal — opened from sidebar Upgrade ↗ link -->
-          <AegisModal v-model="modals.showUpgrade" title="Change Plan" size="sm">
-            <p style="font-size:14px;color:var(--text-2);margin-bottom:14px">Upgrades take effect immediately. Downgrades to a reduced service package take effect at the start of the next billing cycle.</p>
-            <div style="background:var(--surface-2);border-radius:var(--radius);padding:14px;font-size:13px;color:var(--text-2);">
-              To learn more about available service packages or discuss custom support needs, contact
-              <a href="mailto:support@aegis.com" style="color:var(--gold-dark);">support@aegis.com</a>.
-            </div>
-            <template #footer>
-              <button type="button" class="btn btn-outline" @click="modals.showUpgrade = false">Cancel</button>
-              <button type="button" class="btn btn-primary" @click="modals.showUpgrade = false; section = 'billing'">
-                View Plans
-              </button>
-            </template>
-          </AegisModal>
         </div>
 
 
@@ -1527,7 +1514,7 @@ onMounted(() => {
   if (tab) section.value = tab
   if (upgrade === '1') {
     section.value = 'billing'
-    modals.showUpgrade = true
+    showTierModal.value = true
   }
   // Scroll to a sub-section anchor after the panel renders
   if (anchor) {
@@ -1698,7 +1685,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 .st-save-pill { background: var(--green-light); color: var(--green-dark); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: var(--radius-full); }
 .st-plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 680px; margin: 0 auto; }
 .st-plan-tier { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; text-align: center; position: relative; background: var(--surface); transition: border-color var(--transition); display: flex; flex-direction: column; }
-.st-plan-tier.current { border-color: var(--gold-dark); background: var(--icon-bg-gold); }
+.st-plan-tier.current { border-color: var(--gold-dark); background: var(--badge-bg-gold); padding-top: 40px; }
 .st-plan-tier-badge { display: inline-flex; align-items: center; justify-content: center; gap: 5px; background: var(--gold-dark); color: var(--text-inverted); font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: var(--radius-full); letter-spacing: 0.5px; position: absolute; top: 12px; left: 12px; }
 .st-plan-tier-name { font-family: var(--font-serif); font-size: 18px; font-weight: 700; color: var(--text); }
 .st-plan-tier-price { font-size: 26px; font-weight: 700; color: var(--gold-dark); margin: 8px 0 4px; }

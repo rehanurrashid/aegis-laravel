@@ -42,7 +42,7 @@
         </span>
         <div v-if="portal === 'provider' && isAccessTier" class="sidebar-access-pill">
           <span>Continuity Access</span>
-          <Link :href="r('provider.settings.index') + '?tab=subscription&upgrade=1'" class="sidebar-access-upgrade">Upgrade ↗</Link>
+          <button type="button" class="sidebar-access-upgrade" @click="goToUpgrade()">Upgrade ↗</button>
         </div>
       </div>
     </div>
@@ -51,23 +51,35 @@
     <nav class="sidebar-nav" id="sidebarNav" role="navigation" aria-label="Main navigation">
       <template v-for="(items, section) in navSections" :key="section">
         <div class="nav-section-label">{{ section }}</div>
-        <Link
-          v-for="item in items"
-          :key="item.key"
-          class="nav-item"
-          :class="{ active: activePage === item.key || (item.key === 'profile' && isOnOwnProfile), 'is-locked': item.locked }"
-          :href="item.href"
-          :aria-current="(activePage === item.key || (item.key === 'profile' && isOnOwnProfile)) ? 'page' : 'false'"
-          :data-label="item.label"
-          @click="handleNavClick($event, item)"
-        >
-          <span class="nav-icon"><AegisIcon :name="item.icon" :size="14" /></span>
-          <span class="nav-label">{{ item.label }}</span>
-          <span v-if="item.badge" class="nav-badge" :class="item.badgeType">{{ item.badge }}</span>
-          <span v-if="item.locked" class="nav-lock" data-tooltip="Upgrade to unlock">
-            <AegisIcon name="lock" :size="12" />
-          </span>
-        </Link>
+        <template v-for="item in items" :key="item.key">
+          <!-- Locked items: render as button to block all navigation -->
+          <button
+            v-if="item.locked"
+            type="button"
+            class="nav-item is-locked"
+            :data-label="item.label"
+            @click="openUpgradeModal(item.label)"
+          >
+            <span class="nav-icon"><AegisIcon :name="item.icon" :size="14" /></span>
+            <span class="nav-label">{{ item.label }}</span>
+            <span class="nav-lock" data-tooltip="Upgrade to unlock">
+              <AegisIcon name="lock" :size="12" />
+            </span>
+          </button>
+          <!-- Unlocked items: normal Inertia Link -->
+          <Link
+            v-else
+            class="nav-item"
+            :class="{ active: activePage === item.key || (item.key === 'profile' && isOnOwnProfile) }"
+            :href="item.href"
+            :aria-current="(activePage === item.key || (item.key === 'profile' && isOnOwnProfile)) ? 'page' : 'false'"
+            :data-label="item.label"
+          >
+            <span class="nav-icon"><AegisIcon :name="item.icon" :size="14" /></span>
+            <span class="nav-label">{{ item.label }}</span>
+            <span v-if="item.badge" class="nav-badge" :class="item.badgeType">{{ item.badge }}</span>
+          </Link>
+        </template>
       </template>
     </nav>
 
@@ -213,12 +225,9 @@ const financesBadge = computed(() => activeDisputeCount.value > 0 ? String(activ
 const showUpgradeModal = ref(false)
 const upgradeFeature   = ref('')
 
-function handleNavClick(event, item) {
-  if (item.locked) {
-    event.preventDefault()
-    upgradeFeature.value = item.label
-    showUpgradeModal.value = true
-  }
+function openUpgradeModal(label) {
+  upgradeFeature.value   = label
+  showUpgradeModal.value = true
 }
 
 function goToUpgrade() {
@@ -542,11 +551,15 @@ onBeforeUnmount(() => {
   width: fit-content;
 }
 .sidebar-access-upgrade {
-  color: var(--gold-dark);
-  text-decoration: none;
-  font-weight: 700;
+  background: none;
+  border: none;
   border-left: 1px solid var(--border);
   padding-left: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--gold-dark);
+  font-weight: 700;
 }
 .sidebar-access-upgrade:hover { color: var(--text); }
 
