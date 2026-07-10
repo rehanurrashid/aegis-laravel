@@ -565,54 +565,77 @@
     <!-- ══════════════════════════════ TAB: SUBSCRIPTION ══════════════════════════════ -->
     <div v-show="activeTab === 'subscription'">
 
-      <!-- Plan summary card -->
-      <div class="card sub-plan-card" style="margin-bottom:18px;">
-        <div class="sub-plan-body">
-          <div class="sub-plan-left">
-            <div class="sub-plan-icon">
-              <AegisIcon name="star" :size="22" />
-            </div>
+      <!-- ── Cart-style plan card ── -->
+      <div class="sub-cart" style="margin-bottom:18px;">
+
+        <!-- Header strip -->
+        <div class="sub-cart-head">
+          <div class="sub-cart-head-left">
+            <div class="sub-cart-logo"><AegisIcon name="star" :size="18" /></div>
             <div>
-              <div class="sub-plan-name">Continuity {{ subscription?.tier === 'practice' ? 'Practice' : subscription?.tier === 'access' ? 'Access' : (subscription?.tier || 'None') }}</div>
-              <div class="sub-plan-meta">
-                <AegisBadge
-                  :label="subscription?.status || 'inactive'"
-                  :variant="subscription?.status === 'active' ? 'green' : subscription?.status === 'past_due' ? 'red' : 'neutral'"
-                />
-                <AegisBadge v-if="subscription?.has_maat_addon" label="MAAT Add-on" variant="gold" />
-                <span v-if="subscription?.ends_at" class="sub-ends-on">
-                  <AegisIcon name="alert-triangle" :size="12" /> Ends {{ formatSubscriptionDate(subscription.ends_at) }}
-                </span>
-              </div>
+              <div class="sub-cart-brand">Aegis Platform</div>
+              <div class="sub-cart-type">Practice Continuity Subscription</div>
             </div>
           </div>
-          <a :href="route('provider.settings.index') + '?section=billing'" class="btn btn-outline">
+          <a :href="route('provider.settings.index') + '?section=billing'" class="btn btn-outline btn-sm">
             <AegisIcon name="external-link" :size="12" /> Manage Plan
           </a>
         </div>
 
-        <!-- Stats row -->
-        <div class="sub-stats-row">
-          <div class="sub-stat">
-            <div class="sub-stat-label">Plan</div>
-            <div class="sub-stat-val">{{ subscription?.tier === 'practice' ? 'Continuity Practice' : subscription?.tier === 'access' ? 'Continuity Access' : '—' }}</div>
+        <!-- Line items — plan + add-on -->
+        <div class="sub-cart-items">
+          <div class="sub-cart-item">
+            <div class="sub-cart-item-icon"><AegisIcon name="check-circle" :size="16" /></div>
+            <div class="sub-cart-item-info">
+              <div class="sub-cart-item-name">
+                {{ subscription?.tier === 'practice' ? 'Continuity Practice' : subscription?.tier === 'access' ? 'Continuity Access' : 'Aegis Plan' }}
+              </div>
+              <div class="sub-cart-item-desc">
+                {{ subscription?.status === 'active' ? 'Active — renews monthly' : subscription?.status === 'past_due' ? 'Payment past due' : subscription?.status || 'Inactive' }}
+              </div>
+            </div>
+            <div class="sub-cart-item-price">
+              {{ subscription?.tier === 'practice' ? '$49' : subscription?.tier === 'access' ? '$29' : '—' }}
+              <span class="sub-cart-item-per">/mo</span>
+            </div>
+            <AegisBadge
+              :label="subscription?.status || 'inactive'"
+              :variant="subscription?.status === 'active' ? 'green' : subscription?.status === 'past_due' ? 'red' : 'neutral'"
+            />
           </div>
-          <div class="sub-stat">
-            <div class="sub-stat-label">Billing</div>
-            <div class="sub-stat-val">{{ subscriptionInvoices.length ? 'Monthly' : '—' }}</div>
+
+          <div v-if="subscription?.has_maat_addon" class="sub-cart-item sub-cart-item--addon">
+            <div class="sub-cart-item-icon sub-cart-item-icon--gold"><AegisIcon name="shield" :size="16" /></div>
+            <div class="sub-cart-item-info">
+              <div class="sub-cart-item-name">MAAT Professional CS Add-on</div>
+              <div class="sub-cart-item-desc">Certified Continuity Steward · 4-hr emergency response</div>
+            </div>
+            <div class="sub-cart-item-price">+$29<span class="sub-cart-item-per">/mo</span></div>
+            <AegisBadge label="Active" variant="gold" />
           </div>
-          <div class="sub-stat">
-            <div class="sub-stat-label">Invoices</div>
-            <div class="sub-stat-val">{{ subscriptionInvoices.length }}</div>
+        </div>
+
+        <!-- Total footer -->
+        <div class="sub-cart-total">
+          <div class="sub-cart-total-label">
+            <AegisIcon name="credit-card" :size="13" />
+            Billed monthly to your default card
           </div>
-          <div class="sub-stat">
-            <div class="sub-stat-label">MAAT Add-on</div>
-            <div class="sub-stat-val">{{ subscription?.has_maat_addon ? 'Active' : 'Not active' }}</div>
+          <div class="sub-cart-total-amount">
+            {{ subscription?.has_maat_addon
+               ? (subscription?.tier === 'practice' ? '$78' : '$58')
+               : (subscription?.tier === 'practice' ? '$49' : subscription?.tier === 'access' ? '$29' : '—') }}<span class="sub-cart-item-per">/mo</span>
           </div>
+        </div>
+
+        <!-- Grace / past-due alert -->
+        <div v-if="subscription?.ends_at" class="sub-cart-alert">
+          <AegisIcon name="alert-triangle" :size="14" />
+          Subscription ends {{ formatSubscriptionDate(subscription.ends_at) }} — reactivate in Settings to maintain access.
         </div>
       </div>
 
-      <!-- Invoice history -->
+      <!-- ── Invoice history ── -->
       <div class="card">
         <div class="card-header">
           <div class="card-title fin-card-title">
@@ -637,9 +660,9 @@
                 <td style="padding-left:20px;" class="tx-date">{{ formatSubscriptionDate(inv.date || inv.created) }}</td>
                 <td>
                   <div class="sub-inv-product">{{ inv.product_name || 'Aegis Subscription' }}</div>
-                  <div class="sub-inv-desc">{{ inv.number || inv.id }}</div>
+                  <div class="sub-inv-desc">#{{ inv.number || inv.id }}</div>
                 </td>
-                <td class="tx-amount-out" style="font-size:14px;">{{ formatCents(inv.amount_cents) }}</td>
+                <td class="tx-amount-out" style="font-size:14px;white-space:nowrap;">{{ formatCents(inv.amount_cents) }}</td>
                 <td><AegisBadge :label="inv.status" :variant="statusVariant(inv.status)" /></td>
                 <td style="padding-right:20px;text-align:right;">
                   <button type="button" class="btn-icon btn-icon-sm" data-tooltip="View invoice" @click.stop="openSubInvoice(inv)">
@@ -650,8 +673,7 @@
             </tbody>
           </table>
           <AegisEmptyState
-            v-else
-            icon="file-text"
+            v-else icon="file-text"
             title="No invoices yet"
             description="Your subscription invoices will appear here after your first billing cycle."
             style="padding:32px 0;"
@@ -661,34 +683,53 @@
     </div>
 
     <!-- ══ SUB INVOICE MODAL ══ -->
-    <AegisModal v-model="modals.subInvoice" :title="activeSubInvoice ? 'Invoice — ' + (activeSubInvoice.number || activeSubInvoice.id) : 'Invoice'" size="lg">
-      <div v-if="activeSubInvoice">
-        <div class="vim-header">
-          <div>
-            <div class="vim-vendor">Aegis Platform</div>
-            <div class="vim-vendor-sub">Subscription Invoice</div>
+    <AegisModal v-model="modals.subInvoice" title="Subscription Invoice" size="lg">
+      <div v-if="activeSubInvoice" class="sub-inv-modal">
+
+        <!-- Branded header -->
+        <div class="sim-header">
+          <div class="sim-logo"><AegisIcon name="star" :size="20" /></div>
+          <div class="sim-brand">
+            <div class="sim-from">Aegis Platform</div>
+            <div class="sim-sub">Practice Continuity Subscription</div>
           </div>
-          <div class="vim-date-block">
-            <div class="vim-date-label">Invoice Date</div>
-            <div class="vim-date-value">{{ formatSubscriptionDate(activeSubInvoice.date || activeSubInvoice.created) }}</div>
-          </div>
-        </div>
-        <div class="vim-receipt">
-          <div class="vim-receipt-row">
-            <span>{{ activeSubInvoice.product_name || 'Aegis Subscription' }}</span>
-            <span>{{ formatCents(activeSubInvoice.amount_cents) }}</span>
-          </div>
-          <div class="vim-receipt-row">
-            <span class="vim-inv-number">Invoice #{{ activeSubInvoice.number || activeSubInvoice.id }}</span>
-            <span><AegisBadge :label="activeSubInvoice.status" :variant="statusVariant(activeSubInvoice.status)" /></span>
-          </div>
-          <div class="vim-receipt-row total">
-            <span>Total paid</span>
-            <span>{{ formatCents(activeSubInvoice.amount_cents) }}</span>
+          <div class="sim-status-block">
+            <AegisBadge :label="activeSubInvoice.status" :variant="statusVariant(activeSubInvoice.status)" />
+            <div class="sim-date">{{ formatSubscriptionDate(activeSubInvoice.date || activeSubInvoice.created) }}</div>
           </div>
         </div>
-        <div class="vim-fine-print">
-          Aegis platform subscription charged to your default card on file. Card details are tokenized and managed by Stripe.
+
+        <!-- Invoice number -->
+        <div class="sim-number-row">
+          <span class="sim-number-label">Invoice #</span>
+          <span class="sim-number">{{ activeSubInvoice.number || activeSubInvoice.id }}</span>
+        </div>
+
+        <!-- Line items -->
+        <div class="sim-items">
+          <div class="sim-item">
+            <div class="sim-item-icon"><AegisIcon name="check-circle" :size="15" /></div>
+            <div class="sim-item-name">{{ activeSubInvoice.product_name || 'Aegis Subscription' }}</div>
+            <div class="sim-item-price">{{ formatCents(activeSubInvoice.amount_cents) }}</div>
+          </div>
+        </div>
+
+        <!-- Totals -->
+        <div class="sim-totals">
+          <div class="sim-total-row">
+            <span>Subtotal</span>
+            <span>{{ formatCents(activeSubInvoice.amount_cents) }}</span>
+          </div>
+          <div class="sim-total-row sim-total-row--main">
+            <span>{{ activeSubInvoice.status === 'paid' ? 'Total paid' : 'Amount due' }}</span>
+            <span>{{ formatCents(activeSubInvoice.amount_cents) }}</span>
+          </div>
+        </div>
+
+        <!-- Fine print -->
+        <div class="sim-fine-print">
+          <AegisIcon name="shield" :size="12" />
+          Charged to your default card on file. Card details are securely tokenized by Stripe — Aegis never stores your full card number.
         </div>
       </div>
       <template #footer>
@@ -1767,26 +1808,57 @@ function paymentTypeLabel(t) {
 .pm-meta          { font-size: 12px; color: var(--text-3); margin-top: 2px; }
 .pm-card-btns     { display: flex; gap: 6px; }
 
-/* ── Subscription tab ── */
-.sub-plan-card    { overflow: hidden; }
-.sub-plan-body    { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 22px; border-bottom: 1px solid var(--border); }
-.sub-plan-left    { display: flex; align-items: center; gap: 14px; }
-.sub-plan-icon    { width: 48px; height: 48px; border-radius: var(--radius); background: var(--badge-bg-gold); color: var(--gold-dark); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.sub-plan-name    { font-family: var(--font-serif); font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.2; text-transform: capitalize; }
-.sub-plan-meta    { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
-.sub-ends-on      { font-size: 12px; color: var(--orange-dark); display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
-.sub-stats-row    { display: grid; grid-template-columns: repeat(4, 1fr); }
-.sub-stat         { padding: 14px 22px; border-right: 1px solid var(--border); }
-.sub-stat:last-child { border-right: none; }
-.sub-stat-label   { font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--text-4); margin-bottom: 5px; }
-.sub-stat-val     { font-family: var(--font-serif); font-size: 15px; font-weight: 700; color: var(--text); text-transform: capitalize; }
+/* ── Subscription cart card ── */
+.sub-cart             { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
+.sub-cart-head        { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 22px; background: var(--badge-bg-gold); border-bottom: 1px solid var(--badge-border-gold); }
+.sub-cart-head-left   { display: flex; align-items: center; gap: 12px; }
+.sub-cart-logo        { width: 40px; height: 40px; border-radius: var(--radius); background: var(--gold-dark); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sub-cart-brand       { font-family: var(--font-serif); font-size: 16px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.sub-cart-type        { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.sub-cart-items       { padding: 8px 0; }
+.sub-cart-item        { display: flex; align-items: center; gap: 14px; padding: 14px 22px; border-bottom: 1px solid var(--border); }
+.sub-cart-item:last-child { border-bottom: none; }
+.sub-cart-item--addon { background: var(--surface-2); }
+.sub-cart-item-icon   { width: 34px; height: 34px; border-radius: var(--radius-sm); background: var(--green-light); color: var(--green-dark); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sub-cart-item-icon--gold { background: var(--badge-bg-gold); color: var(--gold-dark); }
+.sub-cart-item-info   { flex: 1; min-width: 0; }
+.sub-cart-item-name   { font-size: 14px; font-weight: 700; color: var(--text); }
+.sub-cart-item-desc   { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.sub-cart-item-price  { font-family: var(--font-serif); font-size: 20px; font-weight: 700; color: var(--text); white-space: nowrap; margin-right: 10px; }
+.sub-cart-item-per    { font-family: var(--font-sans); font-size: 12px; font-weight: 400; color: var(--text-3); }
+.sub-cart-total       { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; background: var(--surface-2); border-top: 1px solid var(--border); }
+.sub-cart-total-label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-3); font-weight: 600; }
+.sub-cart-total-amount { font-family: var(--font-serif); font-size: 22px; font-weight: 700; color: var(--text); }
+.sub-cart-alert       { display: flex; align-items: center; gap: 8px; padding: 10px 22px; background: var(--orange-light); border-top: 1px solid var(--soft-gold); font-size: 12px; color: var(--orange-dark); font-weight: 600; }
 
-/* Invoice table rows */
+/* ── Invoice table rows ── */
 .sub-invoice-table .sub-inv-row { cursor: pointer; }
 .sub-invoice-table .sub-inv-row:hover td { background: var(--surface-2); }
 .sub-inv-product  { font-size: 13px; font-weight: 600; color: var(--text); }
 .sub-inv-desc     { font-size: 11px; color: var(--text-4); margin-top: 2px; font-family: var(--font-mono, monospace); }
-.vim-inv-number   { font-size: 11px; color: var(--text-3); font-family: var(--font-mono, monospace); }
+
+/* ── Subscription Invoice Modal ── */
+.sub-inv-modal    { display: flex; flex-direction: column; gap: 0; }
+.sim-header       { display: flex; align-items: center; gap: 14px; padding: 18px 20px; background: var(--badge-bg-gold); border: 1px solid var(--badge-border-gold); border-radius: var(--radius); margin-bottom: 16px; }
+.sim-logo         { width: 44px; height: 44px; border-radius: var(--radius); background: var(--gold-dark); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sim-brand        { flex: 1; }
+.sim-from         { font-family: var(--font-serif); font-size: 16px; font-weight: 700; color: var(--text); }
+.sim-sub          { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.sim-status-block { text-align: right; flex-shrink: 0; }
+.sim-date         { font-size: 12px; color: var(--text-3); margin-top: 5px; }
+.sim-number-row   { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.sim-number-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text-4); }
+.sim-number       { font-family: var(--font-mono, monospace); font-size: 13px; font-weight: 600; color: var(--text-2); background: var(--surface-2); padding: 3px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.sim-items        { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 14px; }
+.sim-item         { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--surface); }
+.sim-item-icon    { width: 32px; height: 32px; border-radius: var(--radius-sm); background: var(--green-light); color: var(--green-dark); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sim-item-name    { flex: 1; font-size: 14px; font-weight: 600; color: var(--text); }
+.sim-item-price   { font-family: var(--font-serif); font-size: 16px; font-weight: 700; color: var(--text); white-space: nowrap; }
+.sim-totals       { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 14px; }
+.sim-total-row    { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; font-size: 13px; color: var(--text-2); border-bottom: 1px solid var(--border); }
+.sim-total-row:last-child { border-bottom: none; }
+.sim-total-row--main { font-family: var(--font-serif); font-size: 16px; font-weight: 700; color: var(--text); background: var(--surface-2); padding: 14px 16px; }
+.sim-fine-print   { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-4); padding: 10px 14px; background: var(--surface-2); border-radius: var(--radius-sm); border: 1px solid var(--border); line-height: 1.5; }
 
 /* ── Spending controls ── */
 .spending-input-wrap { display: flex; align-items: center; gap: 6px; }
