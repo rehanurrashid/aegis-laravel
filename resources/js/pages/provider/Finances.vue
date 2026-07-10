@@ -1129,6 +1129,7 @@
       v-model="modals.addPayment"
       setup-intent-route="provider.settings.payment.setup-intent"
       store-route="provider.finances.payment.store"
+      @saved="activeTab = 'methods'"
     />
 
     <!-- Remove Card -->

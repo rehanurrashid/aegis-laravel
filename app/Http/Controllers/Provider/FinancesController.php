@@ -802,9 +802,11 @@ class FinancesController extends Controller
             } else {
                 $user->addPaymentMethod($data['payment_method_id']);
             }
-            return back()->with('success', 'Payment method saved.');
+            return redirect()->route('provider.finances.index', ['tab' => 'methods'])
+                ->with('success', 'Payment method saved.');
         } catch (\Throwable $e) {
-            return back()->withErrors(['payment' => 'Could not save payment method. ' . $e->getMessage()]);
+            return redirect()->route('provider.finances.index', ['tab' => 'methods'])
+                ->withErrors(['payment' => 'Could not save payment method. ' . $e->getMessage()]);
         }
     }
 
