@@ -126,6 +126,10 @@
             <span class="page-sidebar-icon"><AegisIcon name="clock" :size="15" /></span>
             Transactions
           </button>
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'integrations' }" @click="activeTab = 'integrations'">
+            <span class="page-sidebar-icon"><AegisIcon name="link" :size="15" /></span>
+            Integrations
+          </button>
         </div>
 
       </nav>
@@ -569,7 +573,7 @@
             Current Subscription
           </div>
           <a :href="route('provider.settings.index') + '?section=billing'" class="btn btn-outline">
-            <AegisIcon name="external-link" :size="12" /> Manage in Settings
+            <AegisIcon name="external-link" :size="12" /> Upgrade / Change Plan
           </a>
         </div>
         <div class="card-body">
@@ -841,6 +845,53 @@
               @change="txPage = $event"
             />
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════ TAB: INTEGRATIONS ══════════════════════════════ -->
+    <div v-show="activeTab === 'integrations'">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title fin-card-title">
+            <span class="fin-card-icon"><AegisIcon name="link" :size="15" /></span>
+            Integrations
+          </div>
+        </div>
+        <div class="card-body">
+
+          <!-- Stripe Connect -->
+          <div class="stripe-setup-card" style="margin-bottom:20px;">
+            <div class="stripe-setup-inner">
+              <div class="stripe-setup-icon"><AegisIcon name="credit-card" :size="22" /></div>
+              <div class="stripe-setup-body">
+                <div class="stripe-setup-title">Stripe Connect</div>
+                <div class="stripe-setup-desc">
+                  Connect your Stripe account to <strong>receive</strong> payments from clients booking your services. Aegis uses Stripe Connect — funds go directly to your bank account. Aegis never holds your money.
+                </div>
+                <div v-if="stripeConnected" class="stripe-setup-connected">
+                  <span class="app-status-connected"><AegisIcon name="check" :size="13" /> Connected</span>
+                  <a :href="route('provider.settings.billing.portal')" class="btn btn-ghost btn-sm" target="_blank">
+                    <AegisIcon name="external-link" :size="12" /> Stripe Dashboard
+                  </a>
+                </div>
+                <div v-else class="stripe-setup-actions">
+                  <a :href="route('provider.settings.connect.onboard')" class="btn btn-primary">
+                    <AegisIcon name="external-link" :size="13" /> Connect Stripe Account
+                  </a>
+                  <span style="font-size:12px;color:var(--text-4);">You'll be redirected to Stripe to complete setup</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Placeholder for future integrations -->
+          <div class="integrations-empty">
+            <AegisIcon name="link" :size="28" />
+            <div style="font-size:14px;font-weight:600;color:var(--text);margin-top:10px;">No additional integrations yet</div>
+            <div style="font-size:13px;color:var(--text-3);margin-top:4px;">More integrations — EHR systems, practice management, scheduling — coming soon.</div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -1250,7 +1301,7 @@ const props = defineProps({
 const activeTab = ref('overview')
 
 // Deep-link: ?tab=methods lands directly on Payment Methods (from Settings)
-const validTabs = ['overview','executor','bp','sessions','subscription','methods','history']
+const validTabs = ['overview','executor','bp','sessions','subscription','methods','history','integrations']
 onMounted(() => {
   const t = new URLSearchParams(window.location.search).get('tab')
   if (t && validTabs.includes(t)) activeTab.value = t
@@ -1772,6 +1823,18 @@ function paymentTypeLabel(t) {
 /* ── Misc ── */
 .btn-dark        { background: var(--text); border: 1px solid var(--text); color: var(--text-inverted); font-size: 13px; font-weight: 700; }
 .btn-dark:hover  { background: var(--text-2); border-color: var(--text-2); }
+
+/* ── Integrations tab ── */
+.stripe-setup-card      { border: 1px solid var(--badge-border-gold); border-radius: var(--radius-lg); background: var(--icon-bg-gold); overflow: hidden; }
+.stripe-setup-inner     { display: flex; gap: 16px; padding: 18px 20px; align-items: flex-start; }
+.stripe-setup-icon      { width: 44px; height: 44px; border-radius: var(--radius); background: var(--gold-dark); color: var(--text-inverted); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.stripe-setup-body      { flex: 1; min-width: 0; }
+.stripe-setup-title     { font-family: var(--font-serif); font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.stripe-setup-desc      { font-size: 13px; color: var(--text-2); line-height: 1.5; margin-bottom: 12px; }
+.stripe-setup-connected { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.stripe-setup-actions   { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.app-status-connected   { font-size: 12px; font-weight: 600; color: var(--green-dark); background: var(--green-light); padding: 3px 10px; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 5px; }
+.integrations-empty     { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 36px 20px; text-align: center; color: var(--text-3); }
 
 /* ── Finances layout: sidebar + content ── */
 .fin-layout  { display: flex; align-items: flex-start; gap: 22px; }

@@ -724,131 +724,6 @@
 
 
         <!-- BILLING & INVOICES (invoices) - KEPT AS-IS, wired to Stripe -->
-        <div v-show="section === 'invoices'" class="settings-panel">
-          <div class="st-card">
-            <div class="st-card-head">
-              <div class="st-card-head-l">
-                <span class="st-card-ico"><AegisIcon name="credit-card" :size="17" /></span>
-                <div><div class="st-card-title">Billing &amp; Payment</div><div class="st-card-sub">Payment methods and invoice history</div></div>
-              </div>
-              <div style="display:flex;gap:8px;">
-                <a :href="route('provider.settings.billing.portal')" class="btn btn-outline btn-sm">
-                  <AegisIcon name="external-link" :size="13" />
-                  Manage in Stripe
-                </a>
-              </div>
-            </div>
-            <div class="st-card-body">
-
-              <!-- Financial controls (existing local toggles — cosmetic only) -->
-
-              <div class="st-divider"></div>
-
-              <!-- Payment methods — from Stripe -->
-              <div class="st-pm-header">
-                <div class="st-subhead" style="margin-bottom:0">Payment Methods</div>
-                <a :href="route('provider.finances.index') + '?tab=methods'" class="btn btn-outline btn-sm">
-                  <AegisIcon name="credit-card" :size="13" /> Manage Payment Methods
-                </a>
-              </div>
-              <div v-if="stripePaymentMethods.length === 0" class="st-pm-empty">
-                <AegisIcon name="credit-card" :size="18" />
-                <span>No payment methods on file. <a :href="route('provider.finances.index')" style="color:var(--gold-dark)">Add one in Finances →</a></span>
-              </div>
-              <div v-else class="st-pm-list">
-                <div v-for="pm in stripePaymentMethods" :key="pm.id" class="st-pay-row">
-                  <span class="st-pay-ico"><AegisIcon name="credit-card" :size="16" /></span>
-                  <div class="st-pay-info">
-                    <div class="st-pay-num">{{ formatCardBrand(pm.brand) }} ending in {{ pm.last4 }}</div>
-                    <div class="st-pay-exp">Expires {{ pm.exp }}<span v-if="pm.default"> · Default</span></div>
-                  </div>
-                  <span v-if="pm.default" class="st-badge-green"><AegisIcon name="check" :size="11" /> Default</span>
-                </div>
-              </div>
-
-              <div class="st-divider"></div>
-
-              <!-- Invoice history — from Stripe -->
-              <div class="st-subhead" style="margin-bottom:12px">Invoice History</div>
-              <div v-if="stripeInvoices.length === 0" class="inv-empty">
-                <AegisIcon name="receipt" :size="24" />
-                <div>No invoices yet. Your first invoice will appear after your first billing cycle.</div>
-              </div>
-              <table v-else class="billing-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Description</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="inv in stripeInvoices" :key="inv.id">
-                    <td>{{ formatDate(inv.paid_at || inv.created) }}</td>
-                    <td>{{ inv.product_name || inv.description }}</td>
-                    <td>${{ (inv.amount_cents / 100).toFixed(2) }}</td>
-                    <td>
-                      <span v-if="inv.status === 'paid'" style="color:var(--green);font-weight:600;display:inline-flex;align-items:center;gap:4px;">
-                        <AegisIcon name="check" :size="14" />Paid
-                      </span>
-                      <span v-else-if="inv.status === 'open'" style="color:var(--gold-dark);font-weight:600;">Open</span>
-                      <span v-else style="color:var(--text-3);font-weight:500;">{{ inv.status }}</span>
-                    </td>
-                    <td>
-                      <a v-if="inv.pdf_url" :href="inv.pdf_url" target="_blank" rel="noopener" class="btn btn-ghost btn-xs" data-tooltip="Download PDF">
-                        <AegisIcon name="download" :size="14" />
-                      </a>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-
-        <!-- INTEGRATIONS & APPS -->
-        <div v-show="section === 'integrations'" class="settings-panel">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title-group">
-                <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="activity" :size="16" /></div>
-                <div><div class="card-title">Integrations &amp; Connected Apps</div><div class="card-subtitle">Third-party apps connected to your Aegis account</div></div>
-              </div>
-
-            </div>
-            <div class="card-body">
-              <!-- Stripe Connect Setup -->
-              <div class="stripe-setup-card" style="margin-bottom:20px">
-                <div class="stripe-setup-inner">
-                  <div class="stripe-setup-icon"><AegisIcon name="credit-card" :size="22" /></div>
-                  <div class="stripe-setup-body">
-                    <div class="stripe-setup-title">Stripe Connect</div>
-                    <div class="stripe-setup-desc">Connect your Stripe account to receive payments for services. Aegis uses Stripe Connect — funds go directly to your account.</div>
-                    <div v-if="user?.stripe_account_id && !user.stripe_account_id.startsWith('acct_demo')" class="stripe-setup-connected">
-                      <span class="app-status-connected"><AegisIcon name="check" :size="13" /> Connected — {{ user.stripe_account_id }}</span>
-                      <a :href="route('provider.settings.billing.portal')" class="btn btn-ghost btn-xs" target="_blank">Dashboard <AegisIcon name="external-link" :size="12" /></a>
-                    </div>
-                    <div v-else class="stripe-setup-actions">
-                      <a :href="route('provider.settings.connect.onboard')" class="btn btn-primary btn-sm"><AegisIcon name="external-link" :size="13" /> Connect Stripe Account</a>
-                      <span style="font-size:12px;color:var(--text-4)">You'll be redirected to Stripe to complete setup</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="integrations-empty">
-                <AegisIcon name="activity" :size="28" />
-                <div style="font-size:14px;font-weight:600;color:var(--text);margin-top:10px">No additional integrations yet</div>
-                <div style="font-size:13px;color:var(--text-3);margin-top:4px">Connect third-party apps via the Add Integration button. Stripe Connect is managed above.</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-
-
         <!-- ACCOUNT ACTIONS (danger) -->
         <div v-show="section === 'changes'" class="settings-panel">
           <SettingsDangerZone
@@ -939,12 +814,10 @@ const nav = [
     { key: 'privacy',       label: 'Privacy & Visibility',       icon: 'shield' },
     { key: 'network',       label: 'Network Settings',           icon: 'network' },
     { key: 'appearance',    label: 'Appearance',                 icon: 'settings' },
-    { key: 'integrations',  label: 'Integrations',               icon: 'link' },
 
   ]},
-  { group: 'Billing', items: [
+  { group: 'Plan', items: [
     { key: 'billing',  label: 'Subscription & Plan', icon: 'star' },
-    { key: 'invoices', label: 'Billing & Invoices',  icon: 'credit-card' },
   ]},
 
   { group: 'Account Closure & Data Management', items: [
