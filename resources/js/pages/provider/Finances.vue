@@ -1,16 +1,14 @@
 <!--
-  pages/provider/Finances.vue — Full 5-tab financial page.
-  100% visual parity with finances.php.
+  pages/provider/Finances.vue — Practitioner finances hub.
 
-  Tabs: Overview · CS Wallet · Business Partners · Payment Methods · Transactions
+  All 4 payment flows:
+    1. Aegis subscription     (Provider → Aegis, Cashier)
+    2. Business Partners      (Provider → BP, Stripe Connect)
+    3. Continuity Stewards    (Provider → CS, Stripe Connect)
+    4. Clinical Sessions      (Provider → other Provider, Stripe Connect)
 
-  Props (Prompt 2 wiring pass):
-    subscription, paymentMethods, csInvoices, bpInvoices, paymentHistory,
-    earnings, totalSpendCents, outstandingCents, stripeConnected,
-    has_valid_default_pm, disputes,
-    csStewards, upcomingPayments, recentTransactions, spendBreakdown,
-    allInvoices, activeContracts, pendingInvoiceTotal, pendingInvoiceCount,
-    activeContractCount, csAgreedTotal
+  Tabs: Overview · CS Wallet · Business Partners · Clinical Sessions ·
+         Subscription · Payment Methods · Transactions
 -->
 <template>
   <AppLayout :user="$page.props.auth.user" portal="practitioner" activePage="finances" pageTitle="Finances">
@@ -19,11 +17,12 @@
     <AegisHeroBanner
       eyebrow="Provider Portal"
       title="Aegis Finances"
-      subtitle="All outgoing payments — Continuity Stewards, Business Partners &amp; Aegis subscription"
+      subtitle="Your subscription, all peer payments, and financial history in one place."
       quiet
     >
       <template #actions>
-        <a :href="route('provider.activity')" class="btn-hero-ghost is-on-light" data-tooltip="Module activity">
+        <a :href="route('provider.activity') + '?event_type=payment'"
+           class="btn-hero-ghost is-on-light" data-tooltip="Payment activity log">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
         <button type="button" class="btn-hero-ghost is-on-light" @click="modals.export = true">
@@ -35,25 +34,48 @@
       </template>
     </AegisHeroBanner>
 
-    <!-- ══ STAT CHIPS ══ -->
+    <!-- ══ STAT CHIPS with dynamic tooltips ══ -->
     <div class="stat-chips-row">
-      <AegisStatChip icon="activity"       :value="formatMoney(totalSpendCents / 100)"      label="Total Spend"       bg-color="var(--badge-bg-gold)"  icon-color="var(--gold-dark)" />
-      <AegisStatChip icon="shield"         :value="formatMoney(csAgreedTotal / 100)"         label="Agreed CS Fees"    bg-color="var(--badge-bg-gold)"  icon-color="var(--gold-dark)" />
-      <AegisStatChip icon="alert-triangle" :value="formatMoney(pendingInvoiceTotal / 100)"   label="Pending Invoices"  bg-color="var(--orange-light)"   icon-color="var(--orange-dark)" />
-      <AegisStatChip icon="file-text"      :value="activeContractCount"                       label="Active Contracts"  bg-color="var(--badge-bg-gold)"  icon-color="var(--gold-dark)" />
+      <AegisStatChip
+        icon="activity"
+        :value="formatMoney(totalSpendCents / 100)"
+        label="Total Spend"
+        bg-color="var(--badge-bg-gold)"
+        icon-color="var(--gold-dark)"
+      />
+      <AegisStatChip
+        icon="alert-triangle"
+        :value="formatMoney(pendingInvoiceTotal / 100)"
+        :label="pendingInvoiceCount + ' Pending Invoices'"
+        :tooltip="pendingBreakdownTooltip"
+        bg-color="var(--orange-light)"
+        icon-color="var(--orange-dark)"
+      />
+      <AegisStatChip
+        icon="file-text"
+        :value="activeContractCount"
+        label="Active Contracts"
+        :tooltip="activeContractsBreakdownTooltip"
+        bg-color="var(--badge-bg-gold)"
+        icon-color="var(--gold-dark)"
+      />
+      <AegisStatChip
+        icon="check-circle"
+        :value="subscription?.status === 'active' ? 'Active' : (subscription?.tier || 'None')"
+        label="Subscription"
+        bg-color="var(--green-light)"
+        icon-color="var(--green-dark)"
+      />
     </div>
 
     <!-- ══ PENDING INVOICE ALERT ══ -->
     <div v-if="pendingInvoiceCount > 0" class="alert alert-warning" style="margin-bottom:12px;">
       <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
       <div class="alert-content">
-        <div class="alert-title">Invoice Approval Required</div>
-        <div>
-          {{ firstPendingDesc }}
-          <a href="#" @click.prevent="activeTab = 'bp'" style="color:inherit;font-weight:700;text-decoration:none;"> Review now →</a>
-        </div>
+        <div class="alert-title">Payments Awaiting Your Approval</div>
+        <div>{{ firstPendingDesc }}</div>
         <div style="margin-top:10px;">
-          <button type="button" class="btn btn-primary" @click="activeTab = 'bp'">Review Invoices</button>
+          <button type="button" class="btn btn-primary" @click="goToPendingTab">Review Invoices</button>
         </div>
       </div>
     </div>
@@ -68,7 +90,14 @@
       </button>
       <button type="button" class="tab-primary" :class="{ active: activeTab === 'bp' }" @click="activeTab = 'bp'">
         <AegisIcon name="file-text" :size="15" /> Business Partners
-        <span v-if="pendingInvoiceCount > 0" class="tab-count">{{ pendingInvoiceCount }}</span>
+        <span v-if="bpPendingCount > 0" class="tab-count">{{ bpPendingCount }}</span>
+      </button>
+      <button type="button" class="tab-primary" :class="{ active: activeTab === 'sessions' }" @click="activeTab = 'sessions'">
+        <AegisIcon name="heart" :size="15" /> Clinical Sessions
+        <span v-if="sessionPendingCount > 0" class="tab-count">{{ sessionPendingCount }}</span>
+      </button>
+      <button type="button" class="tab-primary" :class="{ active: activeTab === 'subscription' }" @click="activeTab = 'subscription'">
+        <AegisIcon name="star" :size="15" /> Subscription
       </button>
       <button type="button" class="tab-primary" :class="{ active: activeTab === 'methods' }" @click="activeTab = 'methods'">
         <AegisIcon name="credit-card" :size="15" /> Payment Methods
@@ -78,9 +107,7 @@
       </button>
     </div>
 
-    <!-- ══════════════════════════════
-         TAB: OVERVIEW
-    ══════════════════════════════ -->
+    <!-- ══════════════════════════════ TAB: OVERVIEW ══════════════════════════════ -->
     <div v-show="activeTab === 'overview'">
       <div class="two-col">
 
@@ -94,17 +121,21 @@
             <AegisBadge label="By recipient · to date" variant="neutral" />
           </div>
           <div class="card-body">
-            <div v-if="spendBreakdown.length" class="spend-bd">
+            <div class="spend-bd">
               <div class="spend-bd-total">
-                <div class="spend-bd-total-val">{{ formatMoney(spendTotal) }}</div>
+                <div class="spend-bd-total-val">{{ formatMoney(totalSpendCents / 100) }}</div>
                 <div class="spend-bd-total-lbl">total spend to date</div>
               </div>
-              <div class="spend-bd-bar">
+
+              <!-- Always show all 3 bars even at 0 -->
+              <div class="spend-bd-bar" v-if="totalSpendCents > 0">
                 <span
-                  v-for="item in spendBreakdown" :key="item.label"
+                  v-for="item in spendBreakdown.filter(i => i.pct > 0)" :key="item.label"
                   :style="{ background: item.color, width: item.pct + '%' }"
                 ></span>
               </div>
+              <div class="spend-bd-bar spend-bd-bar--empty" v-else></div>
+
               <div class="spend-bd-list">
                 <div v-for="item in spendBreakdown" :key="item.label" class="spend-bd-row">
                   <span class="spend-bd-dot" :style="{ background: item.color }"></span>
@@ -114,11 +145,10 @@
                 </div>
               </div>
             </div>
-            <div v-else class="spend-bd-empty">No spend recorded yet.</div>
           </div>
         </div>
 
-        <!-- Upcoming Payments -->
+        <!-- Upcoming Payments — all 3 peer types -->
         <div class="card">
           <div class="card-header">
             <div class="card-title fin-card-title">
@@ -128,31 +158,44 @@
             <AegisBadge :label="upcomingPayments.length + ' due'" variant="gold" />
           </div>
           <div class="card-body">
-            <div v-if="upcomingPayments.length">
+            <div v-if="upcomingPayments.length" class="upcoming-list">
               <div
-                v-for="inv in upcomingPayments" :key="inv.id"
+                v-for="inv in upcomingPayments.slice(0, 6)" :key="inv.id"
                 class="upcoming-row clickable"
-                data-tooltip="View invoice"
+                data-tooltip="View details"
                 @click="openViewInvoice(inv)"
               >
                 <div class="upcoming-date-badge" :class="{ 'upcoming-date-badge--urgent': inv.is_urgent }">
-                  <div class="upcoming-month" :class="{ 'upcoming-text--urgent': inv.is_urgent }">{{ inv.due_month }}</div>
-                  <div class="upcoming-day"   :class="{ 'upcoming-text--urgent': inv.is_urgent }">{{ inv.due_day }}</div>
+                  <div class="upcoming-month">{{ inv.due_month }}</div>
+                  <div class="upcoming-day">{{ inv.due_day }}</div>
                 </div>
                 <div class="upcoming-info">
-                  <div class="upcoming-name">{{ inv.bp_name }} — {{ inv.contract_title || 'Invoice' }}</div>
+                  <div class="upcoming-name">
+                    {{ inv.recipient }}
+                    <span class="upcoming-kind-badge" :class="'upcoming-kind-badge--' + inv.payment_type">
+                      {{ paymentTypeLabel(inv.payment_type) }}
+                    </span>
+                  </div>
                   <div class="upcoming-desc">
-                    {{ inv.notes_short }}
-                    <AegisBadge label="Awaiting approval" variant="gold" style="margin-left:4px;" />
+                    {{ inv.contract_title || inv.service_title || 'Invoice ' + inv.invoice_number }}
                   </div>
                 </div>
                 <div>
-                  <div class="upcoming-amount" :class="{ 'upcoming-amount--urgent': inv.is_urgent }">{{ formatCents(inv.total_cents) }}</div>
-                  <div class="upcoming-type"><AegisIcon name="chevron-right" :size="12" /> Review</div>
+                  <div class="upcoming-amount" :class="{ 'upcoming-amount--urgent': inv.is_urgent }">
+                    {{ formatCents(inv.total_cents) }}
+                  </div>
+                  <div class="upcoming-type">
+                    <AegisIcon name="chevron-right" :size="12" /> View
+                  </div>
                 </div>
               </div>
+              <div v-if="upcomingPayments.length > 6" class="upcoming-more" @click="activeTab = 'bp'">
+                +{{ upcomingPayments.length - 6 }} more · view all →
+              </div>
             </div>
-            <div v-else style="text-align:center;padding:20px;color:var(--text-3);font-size:13px;">No pending invoices.</div>
+            <div v-else style="text-align:center;padding:20px;color:var(--text-3);font-size:13px;">
+              No upcoming payments.
+            </div>
           </div>
         </div>
       </div>
@@ -178,10 +221,7 @@
             <tbody>
               <tr v-for="tx in recentTransactions.slice(0, 5)" :key="tx.id">
                 <td class="tx-date">{{ tx.date }}</td>
-                <td>
-                  <a v-if="tx.payee_url" :href="tx.payee_url" class="tx-payee-link">{{ tx.payee }}</a>
-                  <span v-else class="tx-payee">{{ tx.payee }}</span>
-                </td>
+                <td class="tx-payee">{{ tx.payee }}</td>
                 <td class="tx-desc">{{ tx.description }}</td>
                 <td>
                   <span class="tx-cat-wrap">
@@ -191,7 +231,7 @@
                 </td>
                 <td class="tx-method">{{ tx.method }}</td>
                 <td :class="tx.amount < 0 ? 'tx-amount-out' : 'tx-amount-in'">
-                  {{ tx.amount < 0 ? '-' : '+' }}${{ Math.abs(tx.amount).toLocaleString() }}
+                  {{ tx.amount < 0 ? '-' : '+' }}${{ Math.abs(tx.amount / 100).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                 </td>
                 <td><AegisBadge :label="tx.status" :variant="statusVariant(tx.status)" /></td>
                 <td class="tx-action">
@@ -201,7 +241,9 @@
                 </td>
               </tr>
               <tr v-if="!recentTransactions.length">
-                <td colspan="8" style="text-align:center;padding:24px;color:var(--text-3);font-size:13px;">No transactions yet.</td>
+                <td colspan="8" style="text-align:center;padding:24px;color:var(--text-3);font-size:13px;">
+                  No transactions yet.
+                </td>
               </tr>
             </tbody>
           </table>
@@ -209,19 +251,13 @@
       </div>
     </div>
 
-    <!-- ══════════════════════════════
-         TAB: CS WALLET
-    ══════════════════════════════ -->
+    <!-- ══════════════════════════════ TAB: CS WALLET ══════════════════════════════ -->
     <div v-show="activeTab === 'executor'">
-
-      <!-- Inner stat chips -->
       <div class="stat-chips-row" style="margin-bottom:24px;">
         <AegisStatChip icon="shield" :value="formatMoney(csAgreedTotal / 100)" label="Agreed CS Fees"       bg-color="var(--badge-bg-gold)" icon-color="var(--gold-dark)" />
-        <AegisStatChip icon="users" :value="csStewards.length"                  label="Active Stewards"      bg-color="var(--badge-bg-gold)" icon-color="var(--gold-dark)" />
-        <AegisStatChip icon="shield" :value="formatMoney(csAgreedTotal / 100)" label="Agreed Standby Fees"  bg-color="var(--badge-bg-gold)" icon-color="var(--gold-dark)" />
+        <AegisStatChip icon="users"  :value="csStewards.length"                  label="Active Stewards"      bg-color="var(--badge-bg-gold)" icon-color="var(--gold-dark)" />
       </div>
 
-      <!-- Provisional copy note -->
       <div class="alert alert-info" style="margin-bottom:20px;">
         <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
         <div class="alert-content">
@@ -230,7 +266,6 @@
         </div>
       </div>
 
-      <!-- Empty state -->
       <AegisEmptyState
         v-if="!csStewards.length"
         icon="shield"
@@ -242,7 +277,6 @@
         </template>
       </AegisEmptyState>
 
-      <!-- Per-CS cards -->
       <div v-for="cs in csStewards" :key="cs.id" class="cspay-card">
         <div class="cspay-body">
           <div class="cspay-top">
@@ -252,9 +286,8 @@
             <div class="cspay-id">
               <div class="cspay-name-row">
                 <a :href="profileHref(cs.slug, 'cs')" target="_blank" class="cspay-name">{{ cs.display_name }}</a>
-                <AegisBadge :label="payModelLabel(cs.payment_model)" variant="gold" />
-                <span class="connect-pill" :class="cs.stripe_connected ? 'is-connected' : 'is-not-connected'"
-                  :data-tooltip="cs.stripe_connected ? 'This recipient can receive direct payments via Stripe.' : 'This recipient has not finished Stripe Connect onboarding, so direct payments cannot be routed to them yet.'">
+                <AegisBadge :label="payTermsLabel(cs.payment_model)" variant="gold" />
+                <span class="connect-pill" :class="cs.stripe_connected ? 'is-connected' : 'is-not-connected'">
                   <span class="status-dot"></span>
                   {{ cs.stripe_connected ? 'Stripe Connected' : 'Not Connected' }}
                 </span>
@@ -268,7 +301,7 @@
               <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Update payment model" @click="openChangePayModel(cs)">
                 <AegisIcon name="settings" :size="13" />
               </button>
-              <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Cancel agreement" @click="modals.cancelCsAgreement = true; activeCs = cs">
+              <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Cancel agreement" @click="openCancelCs(cs)">
                 <AegisIcon name="trash" :size="13" />
               </button>
             </div>
@@ -276,68 +309,63 @@
 
           <div class="cspay-meta">
             <div class="cspay-meta-item">
-              <div class="cspay-meta-label">Agreed Standby Fee</div>
+              <div class="cspay-meta-label">Agreed Fee per Activation</div>
               <div class="cspay-meta-value amount">{{ formatCents(cs.fee_cents) }}</div>
             </div>
             <div class="cspay-meta-item">
-              <div class="cspay-meta-label">Fee Model</div>
-              <div class="cspay-meta-value">{{ payModelLabel(cs.payment_model) }}</div>
+              <div class="cspay-meta-label">Payment Terms</div>
+              <div class="cspay-meta-value">{{ payTermsLabel(cs.payment_model) }}</div>
+            </div>
+            <div class="cspay-meta-item">
+              <div class="cspay-meta-label">Auto-charge</div>
+              <div class="cspay-meta-value">{{ cs.auto_charge ? 'Enabled' : 'Manual' }}</div>
             </div>
           </div>
 
-          <!-- Stripe not connected warning -->
           <div v-if="!cs.stripe_connected" class="cspay-note cspay-note--warning" style="margin-bottom:10px;">
             <span class="cspay-note-icon--warning"><AegisIcon name="alert-triangle" :size="16" /></span>
             <p>
               <strong>{{ cs.display_name }} hasn't finished Stripe Connect onboarding.</strong>
-              Until they do, the agreed fee can't be routed to them automatically when an incident is verified. Ask them to complete payment setup in their portal.
+              Until they do, the agreed fee can't be routed to them automatically. Ask them to complete payment setup in their portal.
             </p>
           </div>
 
-          <!-- Provisional copy info note -->
           <div class="cspay-note">
-            <span style="color:var(--gold-dark);flex-shrink:0;margin-top:1px;"><AegisIcon name="shield" :size="16" /></span>
+            <span class="cspay-note-icon"><AegisIcon name="shield" :size="16" /></span>
             <p>
-              The agreed standby fee of <strong>{{ formatCents(cs.fee_cents) }}</strong> is charged directly to {{ cs.display_name }} through your saved Stripe payment authorization when a critical incident is verified. Aegis does not hold these funds.
+              The agreed fee of <strong>{{ formatCents(cs.fee_cents) }}</strong> is charged directly to {{ cs.display_name }} through your saved Stripe payment authorization when a critical incident is verified. Aegis does not hold these funds.
             </p>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ══════════════════════════════
-         TAB: BUSINESS PARTNERS
-    ══════════════════════════════ -->
+    <!-- ══════════════════════════════ TAB: BUSINESS PARTNERS ══════════════════════════════ -->
     <div v-show="activeTab === 'bp'">
-
-      <div class="bp-toolbar">
+      <div class="pill-wrap">
         <div class="tabs-pill">
           <button type="button" class="tab-pill" :class="{ active: bpFilter === 'all' }" @click="bpFilter = 'all'">
-            All <span v-if="allInvoices.length" class="badge-pill">{{ allInvoices.length }}</span>
+            All <span v-if="allBpItems > 0" class="badge-pill">{{ allBpItems }}</span>
           </button>
           <button type="button" class="tab-pill" :class="{ active: bpFilter === 'pending' }" @click="bpFilter = 'pending'">
-            Pending <span v-if="bpInvoices.length" class="badge-pill">{{ bpInvoices.length }}</span>
+            Pending <span v-if="bpInvoices.length > 0" class="badge-pill">{{ bpInvoices.length }}</span>
           </button>
           <button type="button" class="tab-pill" :class="{ active: bpFilter === 'active' }" @click="bpFilter = 'active'">
-            Active <span v-if="activeContracts.length" class="badge-pill">{{ activeContracts.length }}</span>
+            Active <span v-if="activeContracts.length > 0" class="badge-pill">{{ activeContracts.length }}</span>
           </button>
         </div>
-        <button type="button" class="btn btn-dark" @click="modals.hireBP = true">
-          <AegisIcon name="plus" :size="13" /> Hire Business Partner
-        </button>
       </div>
 
-      <!-- Empty state -->
       <AegisEmptyState
-        v-if="!allInvoices.length && !activeContracts.length"
+        v-if="!bpInvoices.length && !activeContracts.length"
         icon="file-text"
         title="No Business Partners yet"
-        description="Hire a Business Partner to manage billing, legal, IT, and other practice services."
+        description="Business Partners are hired via the Support Services marketplace. Contracts and invoices appear here."
       >
         <template #action>
-          <button type="button" class="btn btn-primary" @click="modals.hireBP = true">
-            <AegisIcon name="plus" :size="13" /> Hire Business Partner
-          </button>
+          <a :href="route('provider.jobs.index')" class="btn btn-primary">
+            <AegisIcon name="plus" :size="13" /> Go to Support Services
+          </a>
         </template>
       </AegisEmptyState>
 
@@ -385,7 +413,7 @@
               <button type="button" class="btn-icon" data-tooltip="View invoice" @click="openViewInvoice(inv)">
                 <AegisIcon name="eye" :size="15" />
               </button>
-              <button type="button" class="btn-icon" data-tooltip="Dispute" @click="openBpDispute(inv)">
+              <button type="button" class="btn-icon" data-tooltip="Dispute this invoice" @click="openBpDispute(inv)">
                 <AegisIcon name="alert-triangle" :size="15" />
               </button>
               <button type="button" class="btn-icon btn-icon-danger" data-tooltip="Reject" @click="openRejectInvoice(inv)">
@@ -403,8 +431,6 @@
             <div class="invoice-status">
               <AegisBadge label="Active Contract" variant="green" />
               <span class="invoice-status-right">
-                <AegisBadge v-if="con.autopay_enabled" label="Auto-Pay On" variant="gold" icon="clock" />
-                <span v-if="con.billing_type === 'retainer'" class="invoice-auto"><AegisIcon name="check" :size="13" /> Monthly retainer</span>
                 <span class="connect-pill" :class="con.bp_connected ? 'is-connected' : 'is-not-connected'">
                   <span class="status-dot"></span>{{ con.bp_connected ? 'Stripe Connected' : 'Not Connected' }}
                 </span>
@@ -417,12 +443,12 @@
               </div>
               <div>
                 <div class="invoice-amount">{{ formatCents(con.total_cents) }}</div>
-                <div class="invoice-period">{{ con.billing_type ? con.billing_type.charAt(0).toUpperCase() + con.billing_type.slice(1) : '' }}</div>
+                <div class="invoice-period">{{ con.billing_type_label }}</div>
               </div>
             </div>
             <div class="invoice-meta">
               <div>
-                <div class="invoice-meta-label">Contract</div>
+                <div class="invoice-meta-label">Contract Term</div>
                 <div class="invoice-meta-value">{{ con.term }}</div>
               </div>
               <div>
@@ -430,19 +456,19 @@
                 <div class="invoice-meta-value">{{ con.last_paid || '—' }}</div>
               </div>
               <div>
-                <div class="invoice-meta-label">Amount</div>
-                <div class="invoice-meta-value">{{ formatCents(con.total_cents) }} / mo</div>
+                <div class="invoice-meta-label">Total Value</div>
+                <div class="invoice-meta-value">{{ formatCents(con.total_cents) }}</div>
               </div>
             </div>
             <div class="invoice-actions">
-              <button type="button" class="btn-icon" data-tooltip="Payment history" @click="openBpHistory(con)">
-                <AegisIcon name="clock" :size="15" />
+              <a :href="route('provider.jobs.index')" class="btn btn-outline" data-tooltip="Open in Support Services">
+                <AegisIcon name="external-link" :size="13" /> Manage
+              </a>
+              <button type="button" class="btn-icon" data-tooltip="View contract" @click="openViewContract(con)">
+                <AegisIcon name="file-text" :size="15" />
               </button>
               <button type="button" class="btn-icon" data-tooltip="Auto-pay settings" @click="openAutoPay(con)">
                 <AegisIcon name="settings" :size="15" />
-              </button>
-              <button type="button" class="btn-icon" data-tooltip="View contract" @click="openViewContract(con)">
-                <AegisIcon name="file-text" :size="15" />
               </button>
               <button type="button" class="btn-icon btn-icon-danger" data-tooltip="Cancel contract" @click="openCancelContract(con)">
                 <AegisIcon name="trash" :size="15" />
@@ -453,12 +479,151 @@
       </template>
     </div>
 
-    <!-- ══════════════════════════════
-         TAB: PAYMENT METHODS
-    ══════════════════════════════ -->
-    <div v-show="activeTab === 'methods'">
+    <!-- ══════════════════════════════ TAB: CLINICAL SESSIONS ══════════════════════════════ -->
+    <div v-show="activeTab === 'sessions'">
+      <div class="alert alert-info" style="margin-bottom:20px;">
+        <div class="alert-icon"><AegisIcon name="heart" :size="18" /></div>
+        <div class="alert-content">
+          <div class="alert-title">Clinical Sessions You've Booked</div>
+          <div>Sessions where you are the client (booking another practitioner's clinical service). Payment routes directly to the provider via Stripe Connect when you confirm completion.</div>
+        </div>
+      </div>
 
-      <!-- Saved Payment Methods -->
+      <AegisEmptyState
+        v-if="!clientSessions.length"
+        icon="heart"
+        title="No clinical sessions booked"
+        description="Sessions you book from other practitioners' service listings appear here."
+      >
+        <template #action>
+          <a :href="route('provider.services.index') + '?tab=explore'" class="btn btn-primary">Explore Services</a>
+        </template>
+      </AegisEmptyState>
+
+      <div v-for="ses in clientSessions" :key="ses.id" class="invoice-card session-card">
+        <div class="invoice-body">
+          <div class="invoice-status">
+            <AegisBadge :label="ses.status" :variant="statusVariant(ses.status)" />
+            <span class="invoice-status-right">
+              <span class="connect-pill" :class="ses.practitioner_connected ? 'is-connected' : 'is-not-connected'">
+                <span class="status-dot"></span>{{ ses.practitioner_connected ? 'Stripe Connected' : 'Not Connected' }}
+              </span>
+            </span>
+          </div>
+          <div class="invoice-head">
+            <div>
+              <div class="invoice-vendor">{{ ses.practitioner_name }}</div>
+              <div class="invoice-service">{{ ses.service_title }}</div>
+            </div>
+            <div>
+              <div class="invoice-amount">{{ formatCents(ses.total_cents) }}</div>
+              <div class="invoice-period">{{ ses.issued_month }}</div>
+            </div>
+          </div>
+          <div class="invoice-meta">
+            <div>
+              <div class="invoice-meta-label">Session ID</div>
+              <div class="invoice-meta-value">#{{ ses.invoice_number }}</div>
+            </div>
+            <div>
+              <div class="invoice-meta-label">Scheduled</div>
+              <div class="invoice-meta-value">{{ ses.scheduled_at || '—' }}</div>
+            </div>
+            <div>
+              <div class="invoice-meta-label">Payment Status</div>
+              <div class="invoice-meta-value">{{ ses.status === 'completed' ? 'Paid' : 'Awaiting confirmation' }}</div>
+            </div>
+          </div>
+          <div class="invoice-actions">
+            <a :href="route('provider.services.index') + '?tab=bookings'" class="btn btn-outline">
+              <AegisIcon name="external-link" :size="13" /> View in My Services
+            </a>
+            <button type="button" class="btn-icon" data-tooltip="View receipt" @click="openViewInvoice(ses)">
+              <AegisIcon name="eye" :size="15" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════ TAB: SUBSCRIPTION ══════════════════════════════ -->
+    <div v-show="activeTab === 'subscription'">
+      <div class="card" style="margin-bottom:18px;">
+        <div class="card-header">
+          <div class="card-title fin-card-title">
+            <span class="fin-card-icon"><AegisIcon name="star" :size="15" /></span>
+            Current Subscription
+          </div>
+          <a :href="route('provider.settings.index') + '?section=billing'" class="btn btn-outline">
+            <AegisIcon name="external-link" :size="12" /> Manage in Settings
+          </a>
+        </div>
+        <div class="card-body">
+          <div class="sub-summary">
+            <div>
+              <div class="sub-tier">{{ subscription?.tier || 'None' }}</div>
+              <div class="sub-status">
+                <AegisBadge
+                  :label="subscription?.status || 'inactive'"
+                  :variant="subscription?.status === 'active' ? 'green' : 'neutral'"
+                />
+                <span v-if="subscription?.has_maat_addon" style="margin-left:6px;">
+                  <AegisBadge label="MAAT Add-on" variant="gold" />
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title fin-card-title">
+            <span class="fin-card-icon"><AegisIcon name="file-text" :size="15" /></span>
+            Subscription Invoices
+          </div>
+          <AegisBadge :label="subscriptionInvoices.length + ' invoices'" variant="neutral" />
+        </div>
+        <div class="card-body" style="padding:0;">
+          <table v-if="subscriptionInvoices.length" class="table" style="margin:0;">
+            <thead>
+              <tr>
+                <th style="padding-left:22px;">Date</th>
+                <th>Invoice #</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th style="padding-right:22px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="inv in subscriptionInvoices" :key="inv.id">
+                <td style="padding-left:22px;">{{ formatSubscriptionDate(inv.date) }}</td>
+                <td class="mono">{{ inv.number || '—' }}</td>
+                <td>{{ inv.product_name || 'Aegis subscription' }}</td>
+                <td>{{ formatCents(inv.amount_cents) }}</td>
+                <td><AegisBadge :label="inv.status" :variant="statusVariant(inv.status)" /></td>
+                <td style="padding-right:22px;text-align:right;">
+                  <a v-if="inv.hosted_invoice_url" :href="inv.hosted_invoice_url" target="_blank" class="btn-icon btn-icon-sm" data-tooltip="View invoice">
+                    <AegisIcon name="external-link" :size="12" />
+                  </a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <AegisEmptyState
+            v-else
+            icon="file-text"
+            title="No subscription invoices yet"
+            description="Your Aegis subscription invoices appear here once billing starts."
+            style="padding:32px 0;"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════ TAB: PAYMENT METHODS ══════════════════════════════ -->
+    <div v-show="activeTab === 'methods'">
       <div class="card" style="margin-bottom:18px;">
         <div class="card-header">
           <div class="card-title fin-card-title">
@@ -470,6 +635,14 @@
           </button>
         </div>
         <div class="card-body">
+          <div class="alert alert-info" style="margin-bottom:16px;">
+            <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
+            <div class="alert-content">
+              <div class="alert-title">One Card, All Payments</div>
+              <div>Your active payment method funds every Aegis charge — subscription, CS fees, BP invoices, and clinical sessions. Aegis never sees or stores your full card number.</div>
+            </div>
+          </div>
+
           <AegisEmptyState
             v-if="!paymentMethods.length"
             icon="credit-card"
@@ -478,47 +651,28 @@
             style="padding:24px 0;"
           />
           <div v-else>
-            <div
-              v-for="pm in paymentMethods" :key="pm.id"
-              class="pm-card"
-              :class="{ default: pm.is_default }"
-            >
+            <div v-for="pm in paymentMethods" :key="pm.id" class="pm-card" :class="{ default: pm.is_default }">
               <div class="pm-logo">
-                <AegisIcon :name="pm.method_type === 'bank' ? 'activity' : 'credit-card'" :size="20" />
+                <AegisIcon :name="pm.method_type === 'bank' ? 'building' : 'credit-card'" :size="20" />
               </div>
               <div class="pm-info">
                 <div class="pm-name">
-                  {{ pm.method_type === 'bank'
-                      ? pm.brand + ' ···· ' + pm.last4
-                      : pm.brand + ' ending in ' + pm.last4 }}
-                  <AegisBadge v-if="pm.is_default" label="Default" variant="gold" style="margin-left:6px;" />
+                  {{ (pm.brand || 'card').toUpperCase() }} ···· {{ pm.last4 }}
+                  <AegisBadge v-if="pm.is_default" label="Default · funds all payments" variant="gold" style="margin-left:6px;" />
                 </div>
                 <div class="pm-meta">
-                  {{ pm.method_type === 'bank'
-                      ? 'ACH / Bank Transfer'
-                      : 'Expires ' + pm.exp_month + '/' + pm.exp_year }}
+                  {{ pm.method_type === 'bank' ? 'ACH / Bank Transfer' : (pm.exp_month ? 'Expires ' + pm.exp_month + '/' + pm.exp_year : 'On file') }}
                 </div>
               </div>
-              <div class="pm-card-actions">
-                <span v-if="pm.purpose" class="pm-purpose">{{ pm.purpose }}</span>
-                <div class="pm-card-btns">
-                  <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Edit" @click="activePm = pm; modals.editCard = true">
-                    <AegisIcon name="pencil" :size="12" />
+              <div class="pm-card-btns">
+                <template v-if="!pm.is_default">
+                  <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Set as default" @click="setDefaultPm(pm)">
+                    <AegisIcon name="check" :size="12" />
                   </button>
-                  <template v-if="!pm.is_default">
-                    <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Set as default" @click="setDefaultPm(pm)">
-                      <AegisIcon name="check" :size="12" />
-                    </button>
-                    <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Remove" @click="activePm = pm; modals.removeCard = true">
-                      <AegisIcon name="trash" :size="12" />
-                    </button>
-                  </template>
-                  <template v-else>
-                    <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Default card">
-                      <AegisIcon name="check" :size="12" />
-                    </button>
-                  </template>
-                </div>
+                  <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Remove" @click="activePm = pm; modals.removeCard = true">
+                    <AegisIcon name="trash" :size="12" />
+                  </button>
+                </template>
               </div>
             </div>
           </div>
@@ -542,43 +696,54 @@
             <button
               type="button"
               class="toggle"
-              :class="{ on: spendingControls.autoPay }"
-              :aria-pressed="spendingControls.autoPay"
-              @click="spendingControls.autoPay = !spendingControls.autoPay"
+              :class="{ on: spendControlsForm.auto_pay }"
+              :aria-pressed="spendControlsForm.auto_pay"
+              @click="spendControlsForm.auto_pay = !spendControlsForm.auto_pay"
             ></button>
           </div>
           <div class="setting-row">
             <div class="setting-info">
               <div class="setting-label">Require Approval for Invoices Over</div>
               <div class="setting-desc">Invoices above this threshold require manual approval before payment</div>
+              <div v-if="spendControlsForm.errors.approval_threshold" class="form-error">
+                {{ spendControlsForm.errors.approval_threshold }}
+              </div>
             </div>
             <div class="spending-input-wrap">
               <span class="spending-prefix">$</span>
-              <input class="form-input form-input-sm" type="number" v-model="spendingControls.approvalThreshold" style="width:90px;text-align:right;">
+              <input class="form-input form-input-sm" type="number" min="0" max="1000000"
+                v-model.number="spendControlsForm.approval_threshold"
+                :class="{ 'is-error': spendControlsForm.errors.approval_threshold }"
+                style="width:110px;text-align:right;">
             </div>
           </div>
           <div class="setting-row">
             <div class="setting-info">
               <div class="setting-label">Monthly Spend Limit Alert</div>
               <div class="setting-desc">Get notified when your total monthly spend exceeds this amount</div>
+              <div v-if="spendControlsForm.errors.monthly_limit" class="form-error">
+                {{ spendControlsForm.errors.monthly_limit }}
+              </div>
             </div>
             <div class="spending-input-wrap">
               <span class="spending-prefix">$</span>
-              <input class="form-input form-input-sm" type="number" v-model="spendingControls.monthlyLimit" style="width:100px;text-align:right;">
+              <input class="form-input form-input-sm" type="number" min="0" max="10000000"
+                v-model.number="spendControlsForm.monthly_limit"
+                :class="{ 'is-error': spendControlsForm.errors.monthly_limit }"
+                style="width:120px;text-align:right;">
             </div>
           </div>
           <div class="setting-save-row">
-            <button type="button" class="btn btn-primary" @click="saveSpendingControls">
-              <AegisIcon name="check" :size="13" /> Save Controls
+            <button type="button" class="btn btn-primary" :disabled="spendControlsForm.processing" @click="saveSpendingControls">
+              <AegisIcon name="check" :size="13" />
+              {{ spendControlsForm.processing ? 'Saving…' : 'Save Controls' }}
             </button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ══════════════════════════════
-         TAB: TRANSACTIONS
-    ══════════════════════════════ -->
+    <!-- ══════════════════════════════ TAB: TRANSACTIONS ══════════════════════════════ -->
     <div v-show="activeTab === 'history'">
       <div class="card">
         <div class="card-header">
@@ -586,29 +751,37 @@
             <span class="fin-card-icon"><AegisIcon name="clock" :size="15" /></span>
             Full Transaction History
           </div>
-          <button type="button" class="btn btn-outline" @click="modals.export = true">
-            <AegisIcon name="download" :size="12" /> Export CSV
-          </button>
         </div>
         <div class="card-body">
+          <!-- Single-line toolbar: search 6-col + 3 selects 6-col split into 3 -->
           <div class="fin-toolbar">
-            <div class="input-group" style="flex:1;min-width:160px;">
+            <div class="input-group fin-toolbar-search">
               <span class="input-group-icon"><AegisIcon name="search" :size="13" /></span>
               <input class="form-input form-input-sm" type="text" v-model="txSearch" placeholder="Search…">
             </div>
-            <select class="form-select form-select-sm" v-model="txCatFilter" style="min-width:140px;">
-              <option value="">All Categories</option>
-              <option value="executor">CS Finance</option>
-              <option value="bp">Business Partner</option>
-              <option value="aegis">Subscription</option>
-            </select>
-            <select class="form-select form-select-sm" v-model="txStatusFilter">
-              <option value="">All Statuses</option>
-              <option value="paid">Paid</option>
-              <option value="pending">Pending</option>
-              <option value="failed">Failed</option>
-            </select>
+            <div class="fin-toolbar-filters">
+              <select class="form-select form-select-sm" v-model="txCatFilter">
+                <option value="">All Categories</option>
+                <option value="cs">CS Finance</option>
+                <option value="bp">Business Partner</option>
+                <option value="session">Clinical Session</option>
+                <option value="subscription">Subscription</option>
+                <option value="refund">Refund</option>
+              </select>
+              <select class="form-select form-select-sm" v-model="txStatusFilter">
+                <option value="">All Statuses</option>
+                <option value="paid">Paid</option>
+                <option value="pending">Pending</option>
+                <option value="failed">Failed</option>
+                <option value="refunded">Refunded</option>
+              </select>
+              <select class="form-select form-select-sm" v-model="txSortOrder">
+                <option value="desc">Newest first</option>
+                <option value="asc">Oldest first</option>
+              </select>
+            </div>
           </div>
+
           <div style="overflow-x:auto;border-top:1px solid var(--border);margin:0 -20px;">
             <table class="table fin-tx-table" style="margin:0;">
               <thead>
@@ -617,12 +790,9 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="tx in filteredTransactions" :key="tx.id">
+                <tr v-for="tx in paginatedTransactions" :key="tx.id">
                   <td class="tx-date">{{ tx.date }}</td>
-                  <td>
-                    <a v-if="tx.payee_url" :href="tx.payee_url" class="tx-payee-link">{{ tx.payee }}</a>
-                    <span v-else class="tx-payee">{{ tx.payee }}</span>
-                  </td>
+                  <td class="tx-payee">{{ tx.payee }}</td>
                   <td class="tx-desc">{{ tx.description }}</td>
                   <td>
                     <span class="tx-cat-wrap">
@@ -632,7 +802,7 @@
                   </td>
                   <td class="tx-method">{{ tx.method }}</td>
                   <td :class="tx.amount < 0 ? 'tx-amount-out' : 'tx-amount-in'">
-                    {{ tx.amount < 0 ? '-' : '+' }}${{ Math.abs(tx.amount).toLocaleString() }}
+                    {{ tx.amount < 0 ? '-' : '+' }}${{ Math.abs(tx.amount / 100).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                   </td>
                   <td><AegisBadge :label="tx.status" :variant="statusVariant(tx.status)" /></td>
                   <td class="tx-action">
@@ -641,13 +811,16 @@
                     </button>
                   </td>
                 </tr>
-                <tr v-if="!filteredTransactions.length">
-                  <td colspan="8" style="text-align:center;padding:24px;color:var(--text-3);font-size:13px;">No transactions match your filters.</td>
+                <tr v-if="!paginatedTransactions.length">
+                  <td colspan="8" style="text-align:center;padding:24px;color:var(--text-3);font-size:13px;">
+                    No transactions match your filters.
+                  </td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <div style="text-align:center;padding:16px 0 0;">
+
+          <div v-if="txTotalPages > 1" style="padding:16px 0 0;display:flex;justify-content:center;">
             <AegisPagination
               :current-page="txPage"
               :total-pages="txTotalPages"
@@ -658,49 +831,44 @@
       </div>
     </div>
 
-    <!-- ══════════════════════════════════════
-         MODALS
-    ══════════════════════════════════════ -->
+    <!-- ══════════════════════════════ MODALS ══════════════════════════════ -->
 
-    <!-- Approve Invoice -->
-    <AegisModal v-model="modals.approveInvoice" title="Approve Invoice" size="lg">
+    <!-- Approve BP Invoice -->
+    <AegisModal v-model="modals.approveInvoice" title="Approve &amp; Pay Invoice" size="lg">
       <div v-if="activeInvoice">
         <div class="alert alert-success" style="margin-bottom:14px;">
           <div class="alert-icon"><AegisIcon name="check" :size="18" /></div>
           <div class="alert-content">
             <strong>Invoice #{{ activeInvoice.invoice_number }} · {{ activeInvoice.bp_name }}</strong>
-            — {{ formatCents(activeInvoice.total_cents) }} will be charged to your default card and routed directly to {{ activeInvoice.bp_name }}.
+            — {{ formatCents(activeInvoice.total_cents) }} will be charged to your default card and routed directly to {{ activeInvoice.bp_name }} via Stripe Connect.
           </div>
         </div>
         <div class="receipt">
           <div class="receipt-row"><span>{{ activeInvoice.contract_title || 'Services' }}</span><span>{{ formatCents(activeInvoice.total_cents) }}</span></div>
           <div class="receipt-row total"><span>Total</span><span>{{ formatCents(activeInvoice.total_cents) }}</span></div>
         </div>
-        <div class="form-group" style="margin-top:14px;">
-          <label class="form-label">Notes (optional)</label>
-          <textarea class="form-textarea" rows="2" v-model="approveNote" placeholder="Add a note for your records…"></textarea>
-        </div>
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.approveInvoice = false">Cancel</button>
-        <button type="button" class="btn btn-success" @click="doApproveBpInvoice">
-          <AegisIcon name="check" :size="13" /> Approve &amp; Pay {{ activeInvoice ? formatCents(activeInvoice.total_cents) : '' }}
+        <button type="button" class="btn btn-success" :disabled="paying === activeInvoice?.id" @click="doApproveBpInvoice">
+          <AegisIcon name="check" :size="13" />
+          {{ paying === activeInvoice?.id ? 'Processing…' : ('Approve & Pay ' + (activeInvoice ? formatCents(activeInvoice.total_cents) : '')) }}
         </button>
       </template>
     </AegisModal>
 
-    <!-- Reject Invoice -->
+    <!-- Reject BP Invoice -->
     <AegisModal v-model="modals.rejectInvoice" title="Reject Invoice" size="lg">
       <div v-if="activeInvoice">
         <div class="alert alert-danger" style="margin-bottom:14px;">
           <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
           <div class="alert-content">
-            <strong>Rejecting this invoice will notify {{ activeInvoice.bp_name }}.</strong> They can revise and resubmit.
+            <strong>Rejecting will notify {{ activeInvoice.bp_name }}.</strong> They can revise and resubmit.
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">Reason for Rejection <span class="required">*</span></label>
-          <select class="form-select" v-model="rejectReason">
+          <select class="form-select" v-model="rejectForm.reason" :class="{ 'is-error': rejectForm.errors.reason }">
             <option>Incorrect amount</option>
             <option>Services not delivered</option>
             <option>Duplicate invoice</option>
@@ -708,177 +876,96 @@
             <option>Missing documentation</option>
             <option>Other</option>
           </select>
+          <div v-if="rejectForm.errors.reason" class="form-error">{{ rejectForm.errors.reason }}</div>
         </div>
         <div class="form-group">
           <label class="form-label">Message to Business Partner</label>
-          <textarea class="form-textarea" rows="3" v-model="rejectMessage" placeholder="Explain the rejection so they can resubmit correctly…"></textarea>
+          <textarea class="form-textarea" rows="3" v-model="rejectForm.message"
+            :class="{ 'is-error': rejectForm.errors.message }"
+            placeholder="Explain the rejection so they can resubmit correctly…"></textarea>
         </div>
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.rejectInvoice = false">Cancel</button>
-        <button type="button" class="btn btn-danger" @click="doRejectInvoice">
-          <AegisIcon name="x" :size="13" /> Reject Invoice
+        <button type="button" class="btn btn-danger" :disabled="rejectForm.processing" @click="doRejectInvoice">
+          <AegisIcon name="x" :size="13" /> {{ rejectForm.processing ? 'Rejecting…' : 'Reject Invoice' }}
         </button>
       </template>
     </AegisModal>
 
-    <!-- View Receipt / Invoice -->
-    <AegisModal v-model="modals.viewReceipt" :title="activeInvoice ? 'Invoice #' + activeInvoice.invoice_number : 'Invoice'" size="lg">
-      <div v-if="activeInvoice">
-        <div style="display:flex;justify-content:space-between;margin-bottom:16px;">
-          <div>
-            <div class="vr-vendor">{{ activeInvoice.bp_name }}</div>
-            <div class="vr-vendor-sub">Business Partner</div>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-size:12px;color:var(--text-3);">Invoice Date</div>
-            <div style="font-size:13px;font-weight:700;color:var(--text);">{{ activeInvoice.issued_at || '—' }}</div>
-          </div>
-        </div>
-        <div class="receipt">
-          <div class="receipt-row"><span>{{ activeInvoice.contract_title || 'Services' }}</span><span>{{ formatCents(activeInvoice.total_cents) }}</span></div>
-          <div class="receipt-row total"><span>Total Due</span><span>{{ formatCents(activeInvoice.total_cents) }}</span></div>
-        </div>
-        <div v-if="activeInvoice.due_at" style="font-size:12px;color:var(--text-3);margin-top:12px;text-align:center;">
-          Due: {{ activeInvoice.due_at }}
-        </div>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-ghost" @click="toast.success('Invoice downloaded as PDF')">
-          <AegisIcon name="download" :size="12" /> Download PDF
-        </button>
-        <button v-if="activeInvoice && activeInvoice.payable" type="button" class="btn btn-success" @click="modals.viewReceipt = false; openApproveInvoice(activeInvoice)">
-          <AegisIcon name="check" :size="13" /> Approve &amp; Pay
-        </button>
-        <button v-else type="button" class="btn btn-outline" @click="modals.viewReceipt = false">Close</button>
-      </template>
-    </AegisModal>
+    <!-- Centralized View Invoice (all payment types) -->
+    <ViewInvoiceModal
+      v-model="modals.viewReceipt"
+      :invoice="activeInvoice"
+      :can-approve="activeInvoice?.kind !== 'subscription'"
+      @approve="handleReceiptApprove"
+    />
 
     <!-- Cancel CS Agreement -->
     <AegisModal v-model="modals.cancelCsAgreement" title="Cancel Continuity Steward Agreement" size="lg">
       <div class="alert alert-danger" style="margin-bottom:14px;">
         <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
         <div class="alert-content">
-          <strong>Cancelling your Continuity Steward agreement leaves your practice without succession coverage.</strong> Aegis strongly recommends having at least one active Continuity Steward at all times.
+          <strong>Cancelling leaves your practice without succession coverage.</strong> Aegis strongly recommends at least one active Continuity Steward at all times.
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Cancellation Reason</label>
-        <select class="form-select" v-model="cancelCsReason">
+        <label class="form-label">Cancellation Reason <span class="required">*</span></label>
+        <select class="form-select" v-model="cancelCsForm.reason" :class="{ 'is-error': cancelCsForm.errors.reason }">
           <option>Replacing with another Continuity Steward</option>
           <option>Continuity Steward resigned</option>
           <option>Mutual termination</option>
           <option>Practice closing</option>
           <option>Other</option>
         </select>
+        <div v-if="cancelCsForm.errors.reason" class="form-error">{{ cancelCsForm.errors.reason }}</div>
       </div>
-      <p style="font-size:12px;color:var(--text-3);margin-top:4px;">Cancelling ends the payment authorization for this Continuity Steward. No funds are held by Aegis, so there is nothing to refund — any saved authorization simply stops.</p>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.cancelCsAgreement = false">Keep Agreement</button>
-        <button type="button" class="btn btn-danger" @click="doCancelCsAgreement">
+        <button type="button" class="btn btn-danger" :disabled="cancelCsForm.processing" @click="doCancelCsAgreement">
           <AegisIcon name="x" :size="13" /> Cancel Agreement
         </button>
       </template>
     </AegisModal>
 
     <!-- Cancel BP Contract -->
-    <AegisModal v-model="modals.cancelBpContract" :title="'Cancel Contract'" size="lg">
+    <AegisModal v-model="modals.cancelBpContract" title="Cancel Contract" size="lg">
       <div class="alert alert-danger" style="margin-bottom:14px;">
         <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
         <div class="alert-content">
-          <strong>Cancelling {{ activeContract ? 'your contract with ' + activeContract.bp_name : 'this contract' }} will stop scheduled payments.</strong> Per contract terms, 30-day notice is required. You will be charged for the current billing cycle.
+          <strong>Cancelling {{ activeContract ? 'your contract with ' + activeContract.bp_name : 'this contract' }} will stop scheduled payments.</strong> Per contract terms, 30-day notice is required.
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Cancellation Date</label>
-        <input class="form-input" type="date" v-model="cancelDate">
-        <div class="form-hint">30-day notice period from today</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Reason</label>
-        <select class="form-select" v-model="cancelBpReason">
+        <label class="form-label">Reason <span class="required">*</span></label>
+        <select class="form-select" v-model="cancelContractForm.reason" :class="{ 'is-error': cancelContractForm.errors.reason }">
           <option>Switching to different provider</option>
           <option>No longer needed</option>
           <option>Cost reduction</option>
           <option>Service quality issues</option>
           <option>Other</option>
         </select>
+        <div v-if="cancelContractForm.errors.reason" class="form-error">{{ cancelContractForm.errors.reason }}</div>
       </div>
       <div class="form-group">
-        <label class="form-label">Feedback for provider (optional)</label>
-        <textarea class="form-textarea" rows="2" v-model="cancelBpFeedback" placeholder="Let the Business Partner know why you're cancelling…"></textarea>
+        <label class="form-label">Feedback (optional)</label>
+        <textarea class="form-textarea" rows="2" v-model="cancelContractForm.feedback"
+          placeholder="Let the Business Partner know why you're cancelling…"></textarea>
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.cancelBpContract = false">Keep Contract</button>
-        <button type="button" class="btn btn-danger" @click="doCancelBpContract">
+        <button type="button" class="btn btn-danger" :disabled="cancelContractForm.processing" @click="doCancelBpContract">
           <AegisIcon name="x" :size="13" /> Send Cancellation Notice
         </button>
       </template>
     </AegisModal>
 
-    <!-- Hire Business Partner -->
-    <AegisModal v-model="modals.hireBP" title="Hire Business Partner" size="lg">
-      <div class="form-group">
-        <label class="form-label">Search Business Partner</label>
-        <div class="input-group">
-          <span class="input-group-icon"><AegisIcon name="search" :size="14" /></span>
-          <input class="form-input" v-model="hireBpSearch" placeholder="Search by name, service type, or category…">
-        </div>
-      </div>
-      <div class="row-2">
-        <div class="form-group">
-          <label class="form-label">Service Category</label>
-          <select class="form-select" v-model="hireBpCategory">
-            <option>Medical Billing</option><option>IT Services</option><option>Legal Counsel</option>
-            <option>Accounting &amp; Tax</option><option>Marketing</option><option>HR &amp; Staffing</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Contract Type</label>
-          <select class="form-select" v-model="hireBpContractType">
-            <option>Monthly Retainer</option><option>Hourly</option><option>Fixed Project</option><option>Milestone-Based</option>
-          </select>
-        </div>
-      </div>
-      <div class="row-2">
-        <div class="form-group">
-          <label class="form-label">Budget / Rate</label>
-          <input class="form-input" v-model="hireBpBudget" placeholder="e.g. $1,500/month">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Start Date</label>
-          <input class="form-input" type="date" v-model="hireBpStart">
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Scope of Work</label>
-        <textarea class="form-textarea" rows="3" v-model="hireBpScope" placeholder="Describe what services you need…"></textarea>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Assign Payment Method</label>
-        <select class="form-select" v-model="hireBpPaymentMethod">
-          <option v-for="pm in paymentMethods" :key="pm.id" :value="pm.id">
-            {{ pm.brand }} ···· {{ pm.last4 }}{{ pm.is_default ? ' (default)' : '' }}
-          </option>
-        </select>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.hireBP = false">Cancel</button>
-        <button type="button" class="btn btn-ghost" @click="modals.hireBP = false; toast.success('Posted to Business Partner marketplace')">
-          <AegisIcon name="search" :size="12" /> Post &amp; Find Partners
-        </button>
-        <button type="button" class="btn btn-primary" @click="modals.hireBP = false; toast.success('Contract proposal sent')">
-          <AegisIcon name="send" :size="12" /> Send Proposal
-        </button>
-      </template>
-    </AegisModal>
-
-    <!-- Auto-Pay Settings -->
+    <!-- Auto-Pay Settings (BP contract) -->
     <AegisModal v-model="modals.autoPay" :title="'Auto-Pay Settings' + (activeContract ? ' — ' + activeContract.bp_name : '')" size="lg">
       <div class="setting-row" style="margin-bottom:14px;">
         <div class="setting-info">
           <div class="setting-label">Enable Auto-Pay</div>
-          <div class="setting-desc">Automatically charge your selected method when an invoice is due. Payment routes directly to the Business Partner — Aegis holds no funds.</div>
+          <div class="setting-desc">Automatically charge your default method when an invoice is due. Payment routes directly to the Business Partner.</div>
         </div>
         <button
           type="button"
@@ -898,14 +985,6 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Payment Method</label>
-        <select class="form-select" v-model="autoPayForm.method_id">
-          <option v-for="pm in paymentMethods" :key="pm.id" :value="pm.id">
-            {{ pm.brand }} ···· {{ pm.last4 }}{{ pm.is_default ? ' (default)' : '' }}
-          </option>
-        </select>
-      </div>
-      <div class="form-group">
         <label class="form-label">Notify me before charge</label>
         <select class="form-select" v-model="autoPayForm.notify">
           <option value="3_days">3 days before</option>
@@ -920,7 +999,7 @@
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.autoPay = false">Cancel</button>
-        <button type="button" class="btn btn-primary" @click="doSaveAutoPay">
+        <button type="button" class="btn btn-primary" :disabled="autoPayForm.processing" @click="doSaveAutoPay">
           <AegisIcon name="check" :size="13" /> Save Settings
         </button>
       </template>
@@ -931,87 +1010,32 @@
       <div v-if="activeContract" class="contract-preview">
         <div class="contract-preview-title">Aegis Service Agreement</div>
         <div class="contract-preview-row"><strong>Business Partner:</strong> {{ activeContract.bp_name }}</div>
-        <div class="contract-preview-row"><strong>Services:</strong> {{ activeContract.scope || activeContract.title }}</div>
-        <div class="contract-preview-row"><strong>Payment:</strong> {{ formatCents(activeContract.total_cents) }} · {{ activeContract.billing_type }}</div>
+        <div class="contract-preview-row"><strong>Services:</strong> {{ activeContract.title }}</div>
+        <div class="contract-preview-row"><strong>Payment Type:</strong> {{ activeContract.billing_type_label }}</div>
+        <div class="contract-preview-row"><strong>Total Value:</strong> {{ formatCents(activeContract.total_cents) }}</div>
         <div class="contract-preview-row"><strong>Term:</strong> {{ activeContract.term }}</div>
         <div class="contract-preview-row"><strong>Termination:</strong> 30-day written notice</div>
       </div>
       <template #footer>
-        <button type="button" class="btn btn-ghost" @click="toast.success('Contract downloaded')">
-          <AegisIcon name="download" :size="12" /> Download PDF
-        </button>
+        <a v-if="activeContract" :href="route('provider.jobs.index')" class="btn btn-ghost">
+          <AegisIcon name="external-link" :size="12" /> Open in Support Services
+        </a>
         <button type="button" class="btn btn-outline" @click="modals.viewContract = false">Close</button>
       </template>
     </AegisModal>
 
-    <!-- Add Payment Method -->
-    <AegisModal v-model="modals.addPayment" title="Add Payment Method" size="lg">
-      <div class="tabs-pill" style="margin-bottom:16px;">
-        <button type="button" class="tab-pill" :class="{ active: addPayType === 'card' }" @click="addPayType = 'card'">
-          <AegisIcon name="credit-card" :size="13" /> Credit/Debit Card
-        </button>
-        <button type="button" class="tab-pill" :class="{ active: addPayType === 'bank' }" @click="addPayType = 'bank'">
-          <AegisIcon name="activity" :size="13" /> Bank Account (ACH)
-        </button>
-      </div>
-
-      <div v-show="addPayType === 'card'">
-        <div class="form-group"><label class="form-label">Cardholder Name</label><input class="form-input" v-model="addPayForm.cardholder" placeholder="Dr. Sarah Johnson"></div>
-        <div class="form-group"><label class="form-label">Card Number</label><input class="form-input" v-model="addPayForm.cardNumber" placeholder="1234 5678 9012 3456" maxlength="19"></div>
-        <div class="row-2">
-          <div class="form-group"><label class="form-label">Expiry</label><input class="form-input" v-model="addPayForm.expiry" placeholder="MM / YY"></div>
-          <div class="form-group"><label class="form-label">CVV</label><input class="form-input" type="password" v-model="addPayForm.cvv" placeholder="•••" maxlength="4"></div>
-        </div>
-        <div class="form-hint"><AegisIcon name="shield" :size="12" /> Card details are securely tokenized by Stripe. Aegis never sees or stores your full card number.</div>
-      </div>
-
-      <div v-show="addPayType === 'bank'">
-        <div class="form-group"><label class="form-label">Account Holder Name</label><input class="form-input" v-model="addPayForm.bankHolder" placeholder="Dr. Sarah Johnson"></div>
-        <div class="form-group"><label class="form-label">Routing Number</label><input class="form-input" v-model="addPayForm.routingNumber" placeholder="9-digit routing number" maxlength="9"></div>
-        <div class="form-group"><label class="form-label">Account Number</label><input class="form-input" v-model="addPayForm.accountNumber" placeholder="Account number"></div>
-        <div class="form-group"><label class="form-label">Account Type</label><select class="form-select" v-model="addPayForm.accountType"><option>Checking</option><option>Savings</option><option>Business Checking</option></select></div>
-      </div>
-
-      <div class="form-group" style="margin-top:4px;">
-        <label class="form-label">Use this card for</label>
-        <select class="form-select" v-model="addPayForm.purpose">
-          <option>All payments (default)</option>
-          <option>Business Partner payments only</option>
-          <option>Continuity Steward finance only</option>
-          <option>Aegis subscription only</option>
-        </select>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.addPayment = false">Cancel</button>
-        <button type="button" class="btn btn-primary" @click="doAddPayment">
-          <AegisIcon name="check" :size="13" /> Save Payment Method
-        </button>
-      </template>
-    </AegisModal>
-
-    <!-- Edit Card -->
-    <AegisModal v-model="modals.editCard" title="Edit Payment Method" size="sm">
-      <div class="form-group"><label class="form-label">Nickname (optional)</label><input class="form-input" v-model="editCardNickname" placeholder="e.g. Business Card"></div>
-      <div class="form-group">
-        <label class="form-label">Use this card for</label>
-        <select class="form-select" v-model="editCardPurpose">
-          <option>All payments (default)</option>
-          <option>Business Partner payments only</option>
-          <option>Continuity Steward finance only</option>
-          <option>Aegis subscription only</option>
-        </select>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.editCard = false">Cancel</button>
-        <button type="button" class="btn btn-primary" @click="modals.editCard = false; toast.success('Payment method updated')">
-          <AegisIcon name="check" :size="13" /> Save Changes
-        </button>
-      </template>
-    </AegisModal>
+    <!-- Add Payment Method (centralized AddCardModal) -->
+    <AddCardModal
+      v-model="modals.addPayment"
+      setup-intent-route="provider.settings.payment.setup-intent"
+      store-route="provider.finances.payment.store"
+    />
 
     <!-- Remove Card -->
     <AegisModal v-model="modals.removeCard" title="Remove Payment Method" size="sm">
-      <p style="font-size:13px;color:var(--text-2);">Are you sure you want to remove this payment method? Any contracts assigned to it will fall back to your default card.</p>
+      <p style="font-size:13px;color:var(--text-2);">
+        Remove this payment method? If it's the only card on file, subscription renewal and peer payments will fail until a new card is added.
+      </p>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.removeCard = false">Cancel</button>
         <button type="button" class="btn btn-danger" @click="doRemoveCard">
@@ -1020,96 +1044,130 @@
       </template>
     </AegisModal>
 
-    <!-- Export Report -->
+    <!-- Export Report — with client-side validation -->
     <AegisModal v-model="modals.export" title="Export Financial Report" size="lg">
       <div class="row-2">
-        <div class="form-group"><label class="form-label">From</label><input class="form-input" type="date" v-model="exportForm.from"></div>
-        <div class="form-group"><label class="form-label">To</label><input class="form-input" type="date" v-model="exportForm.to"></div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Include</label>
-        <div class="export-checks">
-          <label class="form-check"><input type="checkbox" v-model="exportForm.allTx"><span class="form-check-label">All transactions</span></label>
-          <label class="form-check"><input type="checkbox" v-model="exportForm.csActivity"><span class="form-check-label">Continuity Steward payment activity</span></label>
-          <label class="form-check"><input type="checkbox" v-model="exportForm.bpInvoices"><span class="form-check-label">Business Partner invoices</span></label>
-          <label class="form-check"><input type="checkbox" v-model="exportForm.subscription"><span class="form-check-label">Aegis subscription</span></label>
+        <div class="form-group">
+          <label class="form-label">From <span class="required">*</span></label>
+          <input class="form-input" type="date" v-model="exportForm.from"
+            :class="{ 'is-error': !!exportErrors.from }" @blur="validateExport">
+          <div v-if="exportErrors.from" class="form-error">{{ exportErrors.from }}</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">To <span class="required">*</span></label>
+          <input class="form-input" type="date" v-model="exportForm.to"
+            :class="{ 'is-error': !!exportErrors.to }" @blur="validateExport">
+          <div v-if="exportErrors.to" class="form-error">{{ exportErrors.to }}</div>
         </div>
       </div>
-      <div class="form-group"><label class="form-label">Format</label><select class="form-select" v-model="exportForm.format"><option>CSV</option><option>PDF</option><option>Excel (.xlsx)</option></select></div>
+      <div class="form-group">
+        <label class="form-label">Include payment types <span class="required">*</span></label>
+        <div class="export-checks">
+          <label class="form-check">
+            <input type="checkbox" value="cs" v-model="exportForm.includes">
+            <span class="form-check-label">Continuity Steward payments</span>
+          </label>
+          <label class="form-check">
+            <input type="checkbox" value="bp" v-model="exportForm.includes">
+            <span class="form-check-label">Business Partner payments</span>
+          </label>
+          <label class="form-check">
+            <input type="checkbox" value="sessions" v-model="exportForm.includes">
+            <span class="form-check-label">Clinical session payments</span>
+          </label>
+          <label class="form-check">
+            <input type="checkbox" value="subscription" v-model="exportForm.includes">
+            <span class="form-check-label">Aegis subscription</span>
+          </label>
+        </div>
+        <div v-if="exportErrors.includes" class="form-error">{{ exportErrors.includes }}</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Format</label>
+        <select class="form-select" v-model="exportForm.format">
+          <option value="csv">CSV</option>
+          <option value="pdf" disabled>PDF (coming soon)</option>
+          <option value="xlsx" disabled>Excel (coming soon)</option>
+        </select>
+      </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.export = false">Cancel</button>
-        <button type="button" class="btn btn-primary" @click="modals.export = false; toast.success('Report exported successfully')">
-          <AegisIcon name="download" :size="13" /> Export Report
+        <button type="button" class="btn btn-primary" :disabled="exportProcessing" @click="doExport">
+          <AegisIcon name="download" :size="13" />
+          {{ exportProcessing ? 'Preparing…' : 'Download Report' }}
         </button>
       </template>
     </AegisModal>
 
     <!-- Payment Arrangement History (CS) -->
     <AegisModal v-model="modals.payArrangement" title="Payment Arrangement History" size="lg">
-      <div style="padding:0;">
+      <div v-if="activeCs" style="padding:0;">
         <div class="table-wrap">
           <table class="table">
             <thead>
               <tr><th style="padding-left:22px;">Date</th><th>Event</th><th>Amount</th><th style="padding-right:22px;">Status</th></tr>
             </thead>
             <tbody>
-              <tr v-if="activeCs">
-                <td style="padding-left:22px;">Mar 15, 2025</td>
-                <td>Authorization renewed</td>
-                <td>{{ formatCents(activeCs.fee_cents) }}</td>
-                <td style="padding-right:22px;"><AegisBadge label="Active" variant="green" /></td>
-              </tr>
-              <tr v-if="activeCs">
-                <td style="padding-left:22px;">Mar 15, 2024</td>
-                <td>Direct-pay authorization signed</td>
-                <td>{{ formatCents(activeCs.fee_cents) }}</td>
+              <tr>
+                <td style="padding-left:22px;">{{ new Date().toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}) }}</td>
+                <td>Current authorization</td>
+                <td>{{ formatCents(activeCs.fee_cents) }} / activation</td>
                 <td style="padding-right:22px;"><AegisBadge label="Active" variant="green" /></td>
               </tr>
             </tbody>
           </table>
         </div>
-        <p style="font-size:12px;color:var(--text-3);padding:14px 22px 0;">No funds have changed hands. These are the authorization events; the agreed fee is charged directly to your Continuity Steward only when a critical incident is verified.</p>
+        <p style="font-size:12px;color:var(--text-3);padding:14px 22px 0;">
+          No funds have changed hands. The agreed fee is charged directly to {{ activeCs.display_name }} only when a critical incident is verified. Aegis holds no funds.
+        </p>
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.payArrangement = false">Close</button>
       </template>
     </AegisModal>
 
-    <!-- Change Pay Model (CS) -->
-    <AegisModal v-model="modals.changePayModel" title="Update Payment Model" size="lg">
+    <!-- Change CS Payment Model -->
+    <AegisModal v-model="modals.changePayModel" title="Update Payment Terms" size="lg">
       <p style="font-size:13px;color:var(--text-2);margin-bottom:16px;">
-        Choose the fee structure for <strong>{{ activeCs?.display_name || 'this Continuity Steward' }}</strong>. This is a standby arrangement — Aegis holds no funds; the agreed fee is collected through your saved Stripe authorization when a critical incident is verified.
+        Choose payment terms for <strong>{{ activeCs?.display_name || 'this Continuity Steward' }}</strong>. The agreed fee is collected through your saved payment authorization when a critical incident is verified.
       </p>
       <div v-for="opt in payModelOptions" :key="opt.value"
            class="role-option"
-           :class="{ selected: selectedPayModel === opt.value }"
-           @click="selectedPayModel = opt.value"
+           :class="{ selected: payModelForm.payment_model === opt.value }"
+           @click="payModelForm.payment_model = opt.value"
       >
         <div style="flex:1;min-width:0;">
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text);cursor:pointer;margin:0;">
-            <input type="radio" name="paymodel" :value="opt.value" v-model="selectedPayModel" style="accent-color:var(--gold-dark);width:16px;height:16px;flex-shrink:0;margin:0;">
+            <input type="radio" name="paymodel" :value="opt.value" v-model="payModelForm.payment_model"
+              style="accent-color:var(--gold-dark);width:16px;height:16px;flex-shrink:0;margin:0;">
             <AegisIcon :name="opt.icon" :size="14" /> {{ opt.label }}
           </label>
           <div style="font-size:12px;color:var(--text-3);margin-top:4px;padding-left:24px;">{{ opt.desc }}</div>
         </div>
       </div>
+
+      <div class="form-group" style="margin-top:14px;">
+        <label class="form-label">Fee per Activation ($)</label>
+        <input class="form-input" type="number" min="0" v-model.number="payModelFeeUsd" placeholder="e.g. 900">
+        <div class="form-hint">Fee charged when an incident is verified and closed.</div>
+      </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.changePayModel = false">Cancel</button>
-        <button type="button" class="btn btn-primary" @click="doSavePayModel">
-          <AegisIcon name="check" :size="13" /> Update Payment Model
+        <button type="button" class="btn btn-primary" :disabled="payModelForm.processing" @click="doSavePayModel">
+          <AegisIcon name="check" :size="13" /> Update Payment Terms
         </button>
       </template>
     </AegisModal>
 
-    <!-- CS + BP Confirm-pay modals (from previous wiring pass) -->
-    <AegisModal v-model="modals.confirmCsPay" title="Confirm payment" size="sm">
+    <!-- CS + BP Confirm-pay modals -->
+    <AegisModal v-model="modals.confirmCsPay" title="Confirm CS Payment" size="sm">
       <p v-if="csTarget">
         Pay <strong>{{ formatCents(csTarget.total_cents) }}</strong> to
         <strong>{{ csTarget.cs_name }}</strong> for invoice
         <strong>{{ csTarget.invoice_number }}</strong>?
       </p>
-      <p class="text-muted" style="font-size:12px;margin-top:8px;">
-        Funds are transferred directly to your Continuity Steward's Stripe account. Aegis does not hold or take a cut of this payment.
+      <p style="font-size:12px;color:var(--text-3);margin-top:8px;">
+        Funds transfer directly to your Continuity Steward's Stripe account via Stripe Connect. Aegis holds no funds.
       </p>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.confirmCsPay = false">Cancel</button>
@@ -1119,24 +1177,7 @@
       </template>
     </AegisModal>
 
-    <AegisModal v-model="modals.confirmBpPay" title="Confirm payment" size="sm">
-      <p v-if="bpTarget">
-        Pay <strong>{{ formatCents(bpTarget.total_cents) }}</strong> to
-        <strong>{{ bpTarget.bp_name }}</strong> for invoice
-        <strong>{{ bpTarget.invoice_number }}</strong>?
-      </p>
-      <p class="text-muted" style="font-size:12px;margin-top:8px;">
-        Funds are transferred directly to your Business Partner's Stripe account. Aegis does not hold or take a cut of this payment.
-      </p>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.confirmBpPay = false">Cancel</button>
-        <button type="button" class="btn btn-primary" :disabled="paying === bpTarget?.id" @click="doPayBp">
-          {{ paying === bpTarget?.id ? 'Processing…' : 'Pay now' }}
-        </button>
-      </template>
-    </AegisModal>
-
-    <!-- Open Dispute modal (wired in previous pass) -->
+    <!-- Open Dispute -->
     <OpenDisputeModal
       v-model="modals.openDispute"
       :subject="disputeTarget"
@@ -1148,66 +1189,97 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { router, useForm } from '@inertiajs/vue3'
-import AppLayout         from '@/layouts/AppLayout.vue'
-import OpenDisputeModal  from '@/components/modals/OpenDisputeModal.vue'
-import AegisPagination   from '@/components/ui/AegisPagination.vue'
-import { useToast }      from '@/composables/useToast'
-import { useProfileRoute } from '@/composables/useProfileRoute'
+import { ref, computed, reactive } from 'vue'
+import { router, useForm }         from '@inertiajs/vue3'
+import AppLayout                   from '@/layouts/AppLayout.vue'
+import OpenDisputeModal            from '@/components/modals/OpenDisputeModal.vue'
+import AddCardModal                from '@/components/modals/AddCardModal.vue'
+import ViewInvoiceModal            from '@/components/modals/ViewInvoiceModal.vue'
+import AegisPagination             from '@/components/ui/AegisPagination.vue'
+import { useToast }                from '@/composables/useToast'
+import { useProfileRoute }         from '@/composables/useProfileRoute'
 
 const toast = useToast()
 const { profileHref } = useProfileRoute()
 
-// ── Props (Prompt 1: all static-placeholder; Prompt 2 wires real data) ──
 const props = defineProps({
-  subscription:          { type: Object,  default: () => ({}) },
-  paymentMethods:        { type: Array,   default: () => [] },
-  csInvoices:            { type: Array,   default: () => [] },
-  bpInvoices:            { type: Array,   default: () => [] },
-  allInvoices:           { type: Array,   default: () => [] },
-  activeContracts:       { type: Array,   default: () => [] },
-  csStewards:            { type: Array,   default: () => [] },
-  upcomingPayments:      { type: Array,   default: () => [] },
-  recentTransactions:    { type: Array,   default: () => [] },
-  spendBreakdown:        { type: Array,   default: () => [] },
-  paymentHistory:        { type: Array,   default: () => [] },
-  earnings:              { type: Array,   default: () => [] },
-  disputes:              { type: Array,   default: () => [] },
-  totalSpendCents:       { type: Number,  default: 0 },
-  outstandingCents:      { type: Number,  default: 0 },
-  csAgreedTotal:         { type: Number,  default: 0 },
-  pendingInvoiceTotal:   { type: Number,  default: 0 },
-  pendingInvoiceCount:   { type: Number,  default: 0 },
-  activeContractCount:   { type: Number,  default: 0 },
-  stripeConnected:       { type: Boolean, default: false },
-  has_valid_default_pm:  { type: Boolean, default: false },
+  subscription:            { type: Object,  default: () => ({}) },
+  subscriptionInvoices:    { type: Array,   default: () => [] },
+  paymentMethods:          { type: Array,   default: () => [] },
+  csInvoices:              { type: Array,   default: () => [] },
+  bpInvoices:              { type: Array,   default: () => [] },
+  clientSessions:          { type: Array,   default: () => [] },
+  allInvoices:             { type: Array,   default: () => [] },
+  activeContracts:         { type: Array,   default: () => [] },
+  csStewards:              { type: Array,   default: () => [] },
+  upcomingPayments:        { type: Array,   default: () => [] },
+  recentTransactions:      { type: Array,   default: () => [] },
+  spendBreakdown:          { type: Array,   default: () => [] },
+  disputes:                { type: Array,   default: () => [] },
+  totalSpendCents:         { type: Number,  default: 0 },
+  outstandingCents:        { type: Number,  default: 0 },
+  csAgreedTotal:           { type: Number,  default: 0 },
+  pendingInvoiceTotal:     { type: Number,  default: 0 },
+  pendingInvoiceCount:     { type: Number,  default: 0 },
+  pendingBreakdown:        { type: Object,  default: () => ({ bp: {count:0, total_cents:0}, cs: {count:0, total_cents:0}, session: {count:0, total_cents:0} }) },
+  activeContractCount:     { type: Number,  default: 0 },
+  activeContractBreakdown: { type: Object,  default: () => ({ bp: 0, cs: 0, session: 0 }) },
+  stripeConnected:         { type: Boolean, default: false },
+  has_valid_default_pm:    { type: Boolean, default: false },
+  spendingControls:        { type: Object,  default: () => ({ auto_pay: false, approval_threshold: 500, monthly_limit: 5000 }) },
 })
 
-// ── Tab state ────────────────────────────────────────────────────────────
+// ── Tab + BP filter state ───────────────────────────────────────────────
 const activeTab = ref('overview')
+const bpFilter  = ref('all')
 
-// ── BP filter ────────────────────────────────────────────────────────────
-const bpFilter = ref('all')
+const bpPendingCount      = computed(() => props.pendingBreakdown?.bp?.count ?? 0)
+const sessionPendingCount = computed(() => props.pendingBreakdown?.session?.count ?? 0)
+const allBpItems          = computed(() => props.bpInvoices.length + props.activeContracts.length)
 
-// ── Transaction search/filter ────────────────────────────────────────────
-const txSearch      = ref('')
-const txCatFilter   = ref('')
+// ── Tooltips ─────────────────────────────────────────────────────────────
+const pendingBreakdownTooltip = computed(() => {
+  const p = props.pendingBreakdown
+  const parts = []
+  if (p.bp?.count)      parts.push(`${p.bp.count} Business Partner`)
+  if (p.cs?.count)      parts.push(`${p.cs.count} Continuity Steward`)
+  if (p.session?.count) parts.push(`${p.session.count} Clinical Session`)
+  return parts.length ? parts.join(' · ') : 'No pending invoices'
+})
+
+const activeContractsBreakdownTooltip = computed(() => {
+  const b = props.activeContractBreakdown
+  const parts = []
+  if (b.bp)      parts.push(`${b.bp} Business Partner contract${b.bp !== 1 ? 's' : ''}`)
+  if (b.cs)      parts.push(`${b.cs} CS agreement${b.cs !== 1 ? 's' : ''}`)
+  if (b.session) parts.push(`${b.session} clinical session${b.session !== 1 ? 's' : ''}`)
+  return parts.length ? parts.join(' · ') : 'No active contracts'
+})
+
+// ── Transaction table (with pagination) ─────────────────────────────────
+const txSearch       = ref('')
+const txCatFilter    = ref('')
 const txStatusFilter = ref('')
-const txPage        = ref(1)
-const TX_PER_PAGE   = 10
+const txSortOrder    = ref('desc')
+const txPage         = ref(1)
+const TX_PER_PAGE    = 10
 
 const filteredTransactions = computed(() => {
-  let list = props.recentTransactions
+  let list = [...(props.recentTransactions ?? [])]
   if (txSearch.value) {
     const q = txSearch.value.toLowerCase()
     list = list.filter(t => (t.payee + t.description + t.category_label).toLowerCase().includes(q))
   }
-  if (txCatFilter.value) list = list.filter(t => t.cat === txCatFilter.value)
+  if (txCatFilter.value)    list = list.filter(t => t.cat === txCatFilter.value)
   if (txStatusFilter.value) list = list.filter(t => t.status === txStatusFilter.value)
+  if (txSortOrder.value === 'asc') list = list.reverse()
   return list
 })
 const txTotalPages = computed(() => Math.max(1, Math.ceil(filteredTransactions.value.length / TX_PER_PAGE)))
+const paginatedTransactions = computed(() => {
+  const start = (txPage.value - 1) * TX_PER_PAGE
+  return filteredTransactions.value.slice(start, start + TX_PER_PAGE)
+})
 
 // ── Active refs ──────────────────────────────────────────────────────────
 const activeInvoice  = ref(null)
@@ -1217,255 +1289,306 @@ const activePm       = ref(null)
 
 // ── Modals ───────────────────────────────────────────────────────────────
 const modals = ref({
-  approveInvoice:    false,
-  rejectInvoice:     false,
-  viewReceipt:       false,
-  cancelCsAgreement: false,
-  cancelBpContract:  false,
-  hireBP:            false,
-  autoPay:           false,
-  viewContract:      false,
-  addPayment:        false,
-  editCard:          false,
-  removeCard:        false,
-  export:            false,
-  payArrangement:    false,
-  changePayModel:    false,
-  confirmCsPay:      false,
-  confirmBpPay:      false,
-  openDispute:       false,
+  approveInvoice: false, rejectInvoice: false, viewReceipt: false,
+  cancelCsAgreement: false, cancelBpContract: false, autoPay: false,
+  viewContract: false, addPayment: false, removeCard: false, export: false,
+  payArrangement: false, changePayModel: false, confirmCsPay: false, openDispute: false,
 })
 
-// ── Pay CS (wired) ───────────────────────────────────────────────────────
+// ── Payment forms (Inertia) ──────────────────────────────────────────────
 const paying   = ref(null)
 const csTarget = ref(null)
-const bpTarget = ref(null)
+
 function askPayCs(inv) { csTarget.value = inv; modals.value.confirmCsPay = true }
-function askPayBp(inv) { bpTarget.value = inv; modals.value.confirmBpPay = true }
 
 function doPayCs() {
   if (!csTarget.value) return
   paying.value = csTarget.value.id
   router.post(route('provider.finances.cs-invoice.pay', { invoice: csTarget.value.id }), {}, {
     preserveScroll: true,
-    onSuccess: () => { modals.value.confirmCsPay = false; csTarget.value = null },
-    onFinish:  () => { paying.value = null },
+    onSuccess: () => { modals.value.confirmCsPay = false; csTarget.value = null; toast.success('CS invoice paid.') },
+    onError:  () => toast.error('Payment failed. Please check your default payment method.'),
+    onFinish: () => { paying.value = null },
   })
 }
-function doPayBp() {
-  if (!bpTarget.value) return
-  paying.value = bpTarget.value.id
-  router.post(route('provider.jobs.bp-invoice.pay', { invoice: bpTarget.value.id }), {}, {
-    preserveScroll: true,
-    onSuccess: () => { modals.value.confirmBpPay = false; bpTarget.value = null },
-    onFinish:  () => { paying.value = null },
-  })
-}
-
-// ── Dispute (wired) ──────────────────────────────────────────────────────
-const disputeTarget = ref(null)
-
-const activeDisputes   = computed(() => (props.disputes ?? []).filter(d =>
-  ['open', 'awaiting_response', 'under_review'].includes(d.status)
-))
-const resolvedDisputes = computed(() => (props.disputes ?? []).filter(d =>
-  d.status === 'resolved' || d.status === 'closed_no_action'
-))
-
-function canDispute(inv) {
-  if (!['paid', 'sent'].includes(inv.status)) return false
-  if (inv.status === 'disputed') return false
-  if (!props.has_valid_default_pm) return false
-  if (!inv.issued_at) return true
-  return (Date.now() - new Date(inv.issued_at).getTime()) / 86400000 <= 60
-}
-
-function openBpDispute(inv) {
-  disputeTarget.value = {
-    type:         'bp_invoice',
-    id:           inv.id,
-    amount_cents: inv.total_cents,
-    label:        `BP Invoice ${inv.invoice_number} · ${inv.bp_name}`,
-  }
-  modals.value.openDispute = true
-}
-
-// ── Invoice actions ──────────────────────────────────────────────────────
-const approveNote   = ref('')
-const rejectReason  = ref('Incorrect amount')
-const rejectMessage = ref('')
-const rejectForm    = useForm({ reason: 'Incorrect amount', message: '' })
-
-function openApproveInvoice(inv) { activeInvoice.value = inv; approveNote.value = ''; modals.value.approveInvoice = true }
-function openRejectInvoice(inv)  { activeInvoice.value = inv; modals.value.rejectInvoice = true }
-function openViewInvoice(inv)    { activeInvoice.value = inv; modals.value.viewReceipt = true }
-function openTxReceipt(tx)       { if (tx.inv_id) { activeInvoice.value = props.allInvoices?.find(i => i.id === tx.inv_id) || null; modals.value.viewReceipt = true } else { toast.info('Subscription receipts are issued directly by Aegis billing.') } }
 
 function doApproveBpInvoice() {
   if (!activeInvoice.value) return
   paying.value = activeInvoice.value.id
   router.post(route('provider.jobs.bp-invoice.pay', { invoice: activeInvoice.value.id }), {}, {
     preserveScroll: true,
-    onSuccess: () => { modals.value.approveInvoice = false; toast.success('Payment sent — routed directly to the recipient via Stripe') },
+    onSuccess: () => { modals.value.approveInvoice = false; toast.success('Payment sent — routed directly to the recipient via Stripe Connect.') },
     onError: () => toast.error('Payment failed. Please check your default payment method.'),
     onFinish: () => { paying.value = null },
   })
 }
-function doRejectInvoice()    {
+
+// ── Dispute ──────────────────────────────────────────────────────────────
+const disputeTarget = ref(null)
+function openBpDispute(inv) {
+  disputeTarget.value = {
+    type: 'bp_invoice',
+    id: inv.id,
+    amount_cents: inv.total_cents,
+    label: `BP Invoice ${inv.invoice_number} · ${inv.bp_name}`,
+  }
+  modals.value.openDispute = true
+}
+
+// ── Invoice modal actions ────────────────────────────────────────────────
+function openApproveInvoice(inv) { activeInvoice.value = inv; modals.value.approveInvoice = true }
+function openRejectInvoice(inv)  { activeInvoice.value = inv; rejectForm.reason = 'Incorrect amount'; rejectForm.message = ''; modals.value.rejectInvoice = true }
+function openViewInvoice(inv)    { activeInvoice.value = inv; modals.value.viewReceipt = true }
+
+/**
+ * Open the correct receipt modal for a transaction row. Maps each payment
+ * kind back to its source invoice/session record so the modal shows the
+ * right receipt shape.
+ */
+function openTxReceipt(tx) {
+  if (tx.modal_type === 'subscription') {
+    // Point user to subscription invoices tab where they can open Stripe invoice
+    activeTab.value = 'subscription'
+    toast.info('Opening subscription invoices — click the invoice icon to view details on Stripe.')
+    return
+  }
+  if (tx.modal_type === 'cs_invoice') {
+    const inv = props.csInvoices.find(i => tx.description.includes(i.invoice_number))
+    if (inv) { activeInvoice.value = { ...inv, kind: 'cs_invoice' }; modals.value.viewReceipt = true; return }
+  }
+  if (tx.modal_type === 'bp_invoice') {
+    const inv = props.bpInvoices.find(i => tx.description.includes(i.invoice_number))
+    if (inv) { activeInvoice.value = { ...inv, kind: 'bp_invoice' }; modals.value.viewReceipt = true; return }
+  }
+  if (tx.modal_type === 'session') {
+    const ses = props.clientSessions[0]
+    if (ses) { activeInvoice.value = { ...ses, kind: 'session' }; modals.value.viewReceipt = true; return }
+  }
+  toast.info('Receipt details are not available for this transaction.')
+}
+
+function handleReceiptApprove(inv) {
+  modals.value.viewReceipt = false
+  if (inv.kind === 'bp_invoice') { activeInvoice.value = inv; modals.value.approveInvoice = true }
+  else if (inv.kind === 'cs_invoice') { askPayCs({ ...inv, cs_name: inv.cs_name }) }
+}
+
+// ── Form: Reject Invoice ─────────────────────────────────────────────────
+const rejectForm = useForm({ reason: 'Incorrect amount', message: '' })
+function doRejectInvoice() {
   if (!activeInvoice.value) return
-  rejectForm.reason = rejectReason.value
-  rejectForm.message = rejectMessage.value
   rejectForm.post(route('provider.finances.bp-invoice.reject', { invoice: activeInvoice.value.id }), {
     preserveScroll: true,
-    onSuccess: () => { modals.value.rejectInvoice = false; rejectForm.reset() },
+    onSuccess: () => { modals.value.rejectInvoice = false; rejectForm.reset(); toast.success('Invoice rejected — Business Partner notified.') },
+    onError:   () => toast.error('Please check the form.'),
   })
 }
 
-// ── Contract actions ─────────────────────────────────────────────────────
-const cancelDate          = ref('')
-const cancelBpReason      = ref('No longer needed')
-const cancelBpFeedback    = ref('')
-const cancelContractForm  = useForm({ reason: 'No longer needed', feedback: '' })
-
-function openCancelContract(con) { activeContract.value = con; modals.value.cancelBpContract = true }
+// ── Form: Cancel BP Contract ─────────────────────────────────────────────
+const cancelContractForm = useForm({ reason: 'No longer needed', feedback: '' })
+function openCancelContract(con) { activeContract.value = con; cancelContractForm.reset(); modals.value.cancelBpContract = true }
 function openViewContract(con)   { activeContract.value = con; modals.value.viewContract = true }
-function doCancelBpContract()    {
+function doCancelBpContract() {
   if (!activeContract.value) return
-  cancelContractForm.reason = cancelBpReason.value
-  cancelContractForm.feedback = cancelBpFeedback.value
   cancelContractForm.post(route('provider.finances.bp-contract.cancel', { contract: activeContract.value.id }), {
     preserveScroll: true,
-    onSuccess: () => { modals.value.cancelBpContract = false; cancelContractForm.reset() },
+    onSuccess: () => { modals.value.cancelBpContract = false; toast.info('Cancellation notice sent — contract cancelled.') },
   })
 }
-function openBpHistory(con)      { activeContract.value = con; activeTab.value = 'history'; txSearch.value = con.bp_name }
 
-// ── Auto-pay ─────────────────────────────────────────────────────────────
+// ── Form: Auto-pay ────────────────────────────────────────────────────────
+const autoPayForm = useForm({ enabled: false, day: '1st', method_id: '', notify: '3_days', limit: '' })
 function openAutoPay(con) {
   activeContract.value = con
-  autoPayForm.enabled   = !!con.autopay_enabled
-  autoPayForm.day       = con.autopay_day || '1st'
-  autoPayForm.method_id = con.autopay_method_id || ''
-  autoPayForm.notify    = con.autopay_notify || '3_days'
-  autoPayForm.limit     = con.autopay_limit ?? ''
+  autoPayForm.enabled = !!con.autopay_enabled
+  autoPayForm.day = '1st'; autoPayForm.notify = '3_days'; autoPayForm.limit = ''
   modals.value.autoPay = true
 }
 function doSaveAutoPay() {
   if (!activeContract.value) return
   autoPayForm.post(route('provider.finances.bp-contract.autopay', { contract: activeContract.value.id }), {
     preserveScroll: true,
-    onSuccess: () => { modals.value.autoPay = false },
+    onSuccess: () => { modals.value.autoPay = false; toast.success(autoPayForm.enabled ? 'Auto-pay enabled.' : 'Auto-pay turned off.') },
   })
 }
 
-// ── CS actions ───────────────────────────────────────────────────────────
-const cancelCsReason   = ref('Replacing with another Continuity Steward')
-const selectedPayModel = ref('retainer')
-const cancelCsForm     = useForm({ reason: 'Replacing with another Continuity Steward' })
-const payModelForm     = useForm({ payment_model: 'retainer' })
-const autoPayForm      = useForm({ enabled: false, day: '1st', method_id: '', notify: '3_days', limit: '' })
-const payModelOptions   = [
-  { value: 'retainer',         label: 'Retainer',             icon: 'clock',    desc: 'A recurring standby retainer keeps the Continuity Steward engaged and ready to act.' },
-  { value: 'annual_fee',       label: 'Annual Fee',           icon: 'calendar', desc: 'A single annual standby fee for the arrangement.' },
-  { value: 'retainer_annual',  label: 'Retainer + Annual Fee',icon: 'shield',   desc: 'Combines a recurring retainer with an annual standby fee.' },
-]
-
-function openPayArrangement(cs) { activeCs.value = cs; modals.value.payArrangement = true }
-function openChangePayModel(cs) { activeCs.value = cs; selectedPayModel.value = cs.payment_model || 'retainer'; modals.value.changePayModel = true }
-function doCancelCsAgreement()  {
+// ── Form: Cancel CS Agreement ────────────────────────────────────────────
+const cancelCsForm = useForm({ reason: 'Replacing with another Continuity Steward' })
+function openCancelCs(cs) { activeCs.value = cs; cancelCsForm.reset(); modals.value.cancelCsAgreement = true }
+function doCancelCsAgreement() {
   if (!activeCs.value) return
-  cancelCsForm.reason = cancelCsReason.value
   cancelCsForm.post(route('provider.finances.cs-steward.cancel', { steward: activeCs.value.id }), {
     preserveScroll: true,
-    onSuccess: () => { modals.value.cancelCsAgreement = false; cancelCsForm.reset() },
+    onSuccess: () => { modals.value.cancelCsAgreement = false; toast.info('Continuity Steward agreement cancelled.') },
   })
 }
-function doSavePayModel()       {
+
+// ── Form: CS Pay Model ────────────────────────────────────────────────────
+const payModelForm = useForm({ payment_model: 'on_close', fee_cents: 0 })
+const payModelFeeUsd = ref(0)
+const payModelOptions = [
+  { value: 'on_close', label: 'Pay on Close',      icon: 'check',    desc: 'Invoice due immediately when the incident closes.' },
+  { value: 'net_30',   label: 'Net 30',            icon: 'calendar', desc: 'Invoice due 30 days after incident close.' },
+  { value: 'net_60',   label: 'Net 60',            icon: 'calendar', desc: 'Invoice due 60 days after incident close (institutional CS).' },
+]
+function openPayArrangement(cs) { activeCs.value = cs; modals.value.payArrangement = true }
+function openChangePayModel(cs) {
+  activeCs.value = cs
+  payModelForm.payment_model = cs.payment_model || 'on_close'
+  payModelForm.fee_cents = cs.fee_cents || 0
+  payModelFeeUsd.value = (cs.fee_cents || 0) / 100
+  modals.value.changePayModel = true
+}
+function doSavePayModel() {
   if (!activeCs.value) return
-  payModelForm.payment_model = selectedPayModel.value
+  payModelForm.fee_cents = Math.round(Number(payModelFeeUsd.value) * 100)
   payModelForm.put(route('provider.finances.cs-steward.pay-model', { steward: activeCs.value.id }), {
     preserveScroll: true,
-    onSuccess: () => { modals.value.changePayModel = false },
+    onSuccess: () => { modals.value.changePayModel = false; toast.success('Payment terms updated.') },
   })
 }
 
 // ── Payment methods ──────────────────────────────────────────────────────
-const editCardNickname = ref('')
-const editCardPurpose  = ref('All payments (default)')
-const addPayType       = ref('card')
-const addPayForm       = ref({ cardholder: '', cardNumber: '', expiry: '', cvv: '', bankHolder: '', routingNumber: '', accountNumber: '', accountType: 'Checking', purpose: 'All payments (default)' })
-
-function setDefaultPm(pm)  {
+function setDefaultPm(pm) {
   router.post(route('provider.settings.payment.default'), { payment_method_id: pm.id }, {
     preserveScroll: true,
-    onSuccess: () => toast.success('Default payment method updated'),
-    onError: () => toast.error('Could not update default payment method.'),
+    onSuccess: () => toast.success('Default payment method updated.'),
+    onError:   () => toast.error('Could not update default payment method.'),
   })
 }
-function doRemoveCard()    {
+function doRemoveCard() {
   if (!activePm.value) return
   router.delete(route('provider.settings.payment.remove'), {
     data: { payment_method_id: activePm.value.id },
     preserveScroll: true,
-    onSuccess: () => { modals.value.removeCard = false; toast.info('Payment method removed') },
-    onError: () => toast.error('Could not remove payment method.'),
+    onSuccess: () => { modals.value.removeCard = false; toast.info('Payment method removed.') },
+    onError:   () => toast.error('Could not remove payment method.'),
   })
 }
-function doAddPayment()    { modals.value.addPayment = false; toast.info('Add a card via Settings → Billing, then return here.') }
 
 // ── Spending controls ─────────────────────────────────────────────────────
-const spendingControls = ref({ autoPay: true, approvalThreshold: 500, monthlyLimit: 5000 })
-const spendControlsForm = useForm({ auto_pay: true, approval_threshold: 500, monthly_limit: 5000 })
+const spendControlsForm = useForm({
+  auto_pay:            props.spendingControls?.auto_pay ?? false,
+  approval_threshold:  props.spendingControls?.approval_threshold ?? 500,
+  monthly_limit:       props.spendingControls?.monthly_limit ?? 5000,
+})
 function saveSpendingControls() {
-  spendControlsForm.auto_pay           = spendingControls.value.autoPay
-  spendControlsForm.approval_threshold = spendingControls.value.approvalThreshold
-  spendControlsForm.monthly_limit      = spendingControls.value.monthlyLimit
+  // Client-side validation
+  spendControlsForm.errors = {}
+  if (spendControlsForm.approval_threshold < 0) spendControlsForm.errors.approval_threshold = 'Must be zero or greater.'
+  if (spendControlsForm.monthly_limit < 0)      spendControlsForm.errors.monthly_limit = 'Must be zero or greater.'
+  if (Object.keys(spendControlsForm.errors).length) return
+
   spendControlsForm.post(route('provider.finances.spending-controls'), {
     preserveScroll: true,
-    onSuccess: () => toast.success('Spending controls saved'),
-    onError: () => toast.error('Could not save spending controls.'),
+    onSuccess: () => toast.success('Spending controls saved.'),
+    onError:   () => toast.error('Please check the form.'),
   })
 }
 
-// ── Export ────────────────────────────────────────────────────────────────
-const exportForm = ref({ from: '2026-01-01', to: '2026-02-28', allTx: true, csActivity: true, bpInvoices: true, subscription: false, format: 'CSV' })
+// ── Export report — client-side validation + backend post ────────────────
+const exportForm = reactive({
+  from:     new Date(new Date().setDate(1)).toISOString().slice(0, 10),
+  to:       new Date().toISOString().slice(0, 10),
+  includes: ['cs', 'bp', 'sessions', 'subscription'],
+  format:   'csv',
+})
+const exportErrors = reactive({ from: '', to: '', includes: '' })
+const exportProcessing = ref(false)
 
-// ── Hire BP form ──────────────────────────────────────────────────────────
-const hireBpSearch = ref(''); const hireBpCategory = ref('Medical Billing'); const hireBpContractType = ref('Monthly Retainer')
-const hireBpBudget = ref(''); const hireBpStart = ref(''); const hireBpScope = ref(''); const hireBpPaymentMethod = ref('')
+function validateExport() {
+  exportErrors.from = ''; exportErrors.to = ''; exportErrors.includes = ''
+  let ok = true
+  if (!exportForm.from) { exportErrors.from = 'Start date is required.'; ok = false }
+  if (!exportForm.to)   { exportErrors.to   = 'End date is required.'; ok = false }
+  if (exportForm.from && exportForm.to && new Date(exportForm.from) > new Date(exportForm.to)) {
+    exportErrors.to = 'End date must be on or after start date.'
+    ok = false
+  }
+  if (!exportForm.includes.length) { exportErrors.includes = 'Choose at least one payment type.'; ok = false }
+  return ok
+}
+
+function doExport() {
+  if (!validateExport()) return
+  exportProcessing.value = true
+  // Post to backend which returns a file download
+  const form = document.createElement('form')
+  form.method = 'POST'
+  form.action = route('provider.finances.export')
+  form.style.display = 'none'
+  const addField = (n, v) => {
+    const i = document.createElement('input')
+    i.type = 'hidden'; i.name = n; i.value = v
+    form.appendChild(i)
+  }
+  addField('_token', document.querySelector('meta[name="csrf-token"]')?.content || '')
+  addField('from', exportForm.from)
+  addField('to', exportForm.to)
+  addField('format', exportForm.format)
+  exportForm.includes.forEach(k => addField('includes[]', k))
+  document.body.appendChild(form)
+  form.submit()
+  setTimeout(() => {
+    document.body.removeChild(form)
+    exportProcessing.value = false
+    modals.value.export = false
+    toast.success('Report downloaded.')
+  }, 500)
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────
-const spendTotal = computed(() => props.spendBreakdown.reduce((s, d) => s + d.amount, 0))
-
 const firstPendingDesc = computed(() => {
   if (!props.upcomingPayments?.length) return ''
   const f = props.upcomingPayments[0]
-  let s = `${f.bp_name} submitted an invoice for ${formatCents(f.total_cents)}`
-  if (f.due_at) s += ` — due ${f.due_at}`
-  if (props.pendingInvoiceCount > 1) s += ` (+${props.pendingInvoiceCount - 1} more)`
+  let s = `${f.recipient} — ${formatCents(f.total_cents)}`
+  if (f.due_at) s += ` (due ${f.due_at})`
+  if (props.pendingInvoiceCount > 1) s += ` and ${props.pendingInvoiceCount - 1} more`
   return s
 })
 
+function goToPendingTab() {
+  const b = props.pendingBreakdown
+  if (b.bp?.count > 0)          activeTab.value = 'bp'
+  else if (b.session?.count > 0) activeTab.value = 'sessions'
+  else                           activeTab.value = 'executor'
+}
+
 function formatCents(cents) {
-  const n = Number(cents ?? 0) / 100
-  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return '$' + (Number(cents ?? 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function formatMoney(n) {
   return '$' + Math.round(Number(n ?? 0)).toLocaleString()
 }
 
+function formatSubscriptionDate(d) {
+  if (!d) return '—'
+  if (typeof d === 'number') return new Date(d * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return d
+}
+
 function statusVariant(s) {
   return {
     active: 'green', trialing: 'blue', past_due: 'gold', canceled: 'neutral',
     paid: 'green', sent: 'blue', overdue: 'red', draft: 'neutral', void: 'neutral',
-    disputed: 'gold',
-    pending: 'gold', failed: 'red', refunded: 'neutral', partially_refunded: 'gold',
+    open: 'blue', uncollectible: 'red',
+    disputed: 'gold', pending: 'gold', failed: 'red', refunded: 'neutral', partially_refunded: 'gold',
+    scheduled: 'blue', completed: 'green', cancelled: 'neutral', no_show: 'red',
   }[s] ?? 'neutral'
 }
 
-function payModelLabel(model) {
-  return { retainer: 'Retainer', annual_fee: 'Annual Fee', retainer_annual: 'Retainer + Annual Fee' }[model] ?? 'Retainer'
+function payTermsLabel(term) {
+  return {
+    on_close: 'Pay on Close',
+    net_30:   'Net 30',
+    net_60:   'Net 60',
+    retainer: 'Retainer',
+  }[term] ?? 'Pay on Close'
+}
+
+function paymentTypeLabel(t) {
+  return { bp: 'BP', cs: 'CS', session: 'Session' }[t] ?? ''
 }
 </script>
 
@@ -1485,44 +1608,46 @@ function payModelLabel(model) {
 .spend-bd-total-lbl  { font-size: 12px; color: var(--text-3); font-weight: 600; }
 .spend-bd-bar        { display: flex; height: 14px; border-radius: var(--radius-full); overflow: hidden; background: var(--surface-3); gap: 2px; }
 .spend-bd-bar span   { height: 100%; min-width: 4px; transition: width 0.8s ease; }
-.spend-bd-bar span:first-child { border-radius: var(--radius-full) 0 0 var(--radius-full); }
-.spend-bd-bar span:last-child  { border-radius: 0 var(--radius-full) var(--radius-full) 0; }
+.spend-bd-bar--empty { background: var(--surface-3); }
 .spend-bd-list  { display: flex; flex-direction: column; }
 .spend-bd-row   { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
 .spend-bd-row:last-child { border-bottom: none; padding-bottom: 0; }
 .spend-bd-dot   { width: 10px; height: 10px; border-radius: var(--radius-full); flex-shrink: 0; }
-.spend-bd-name  { flex: 1; font-size: 13px; font-weight: 600; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spend-bd-name  { flex: 1; font-size: 13px; font-weight: 600; color: var(--text-2); }
 .spend-bd-amt   { font-size: 13px; font-weight: 700; color: var(--text); }
 .spend-bd-pct   { font-size: 11px; font-weight: 700; color: var(--text-4); width: 40px; text-align: right; flex-shrink: 0; }
-.spend-bd-empty { text-align: center; padding: 20px; color: var(--text-3); font-size: 13px; }
 
 /* ── Upcoming payments ── */
+.upcoming-list            { display: flex; flex-direction: column; }
 .upcoming-row             { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border); }
-.upcoming-row.clickable   { margin: 0 -8px; padding: 12px 8px; border-radius: var(--radius-sm); transition: background var(--transition); cursor: pointer; }
+.upcoming-row.clickable   { margin: 0 -8px; padding: 12px 8px; border-radius: var(--radius-sm); cursor: pointer; }
 .upcoming-row.clickable:hover { background: var(--surface-2); }
-.upcoming-row:last-child  { border-bottom: none; padding-bottom: 0; }
-.upcoming-row:first-child { padding-top: 0; }
+.upcoming-row:last-child  { border-bottom: none; }
 .upcoming-date-badge      { width: 44px; height: 44px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; }
 .upcoming-date-badge--urgent { background: var(--orange-light); border-color: var(--orange); }
 .upcoming-month           { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-3); }
 .upcoming-day             { font-family: var(--font-serif); font-size: 17px; font-weight: 700; color: var(--text); line-height: 1; }
-.upcoming-text--urgent    { color: var(--orange-dark); }
 .upcoming-info            { flex: 1; min-width: 0; }
-.upcoming-name            { font-size: 13px; font-weight: 700; color: var(--text); }
-.upcoming-desc            { font-size: 12px; color: var(--text-3); margin-top: 1px; }
+.upcoming-name            { font-size: 13px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.upcoming-kind-badge      { font-size: 9px; font-weight: 700; letter-spacing: 0.4px; padding: 2px 6px; border-radius: var(--radius-full); text-transform: uppercase; }
+.upcoming-kind-badge--bp  { background: var(--green-light);  color: var(--green-dark); }
+.upcoming-kind-badge--cs  { background: var(--badge-bg-gold); color: var(--gold-dark); }
+.upcoming-kind-badge--session { background: var(--teal-light); color: var(--teal-dark); }
+.upcoming-desc            { font-size: 12px; color: var(--text-3); margin-top: 2px; }
 .upcoming-amount          { font-family: var(--font-serif); font-size: 16px; font-weight: 700; color: var(--text); text-align: right; white-space: nowrap; }
 .upcoming-amount--urgent  { color: var(--orange-dark); }
 .upcoming-type            { font-size: 11px; color: var(--text-4); margin-top: 1px; text-align: right; }
+.upcoming-more            { padding: 10px 0; text-align: center; font-size: 12px; color: var(--gold-dark); cursor: pointer; font-weight: 600; }
+.upcoming-more:hover      { color: var(--text); }
 
 /* ── CS payment cards ── */
-.cspay-card        { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: 14px; transition: box-shadow var(--transition); }
-.cspay-card:hover  { box-shadow: var(--shadow); }
+.cspay-card        { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: 14px; }
 .cspay-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--gold-dark); }
 .cspay-body        { padding: 22px 24px; }
 .cspay-top         { display: flex; align-items: center; gap: 14px; }
 .cspay-id          { flex: 1; min-width: 0; }
 .cspay-name-row    { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-.cspay-name        { font-family: var(--font-serif); font-size: 16px; font-weight: 600; color: var(--text); letter-spacing: -0.01em; text-decoration: none; }
+.cspay-name        { font-family: var(--font-serif); font-size: 16px; font-weight: 600; color: var(--text); text-decoration: none; }
 .cspay-name:hover  { color: var(--gold-dark); }
 .cspay-role        { font-size: 12px; color: var(--text-3); margin-top: 3px; }
 .cspay-actions     { display: flex; gap: 6px; flex-shrink: 0; }
@@ -1531,8 +1656,12 @@ function payModelLabel(model) {
 .cspay-meta-label  { font-size: 10px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-4); margin-bottom: 7px; }
 .cspay-meta-value  { font-family: var(--font-serif); font-weight: 600; color: var(--text); line-height: 1; font-size: 15px; }
 .cspay-meta-value.amount { font-size: 22px; }
-.cspay-note        { display: flex; align-items: flex-start; gap: 10px; padding: 13px 15px; border-radius: var(--radius); background: var(--blue-light); border: 1px solid rgba(74,144,196,0.3); }
+.cspay-note        { display: flex; align-items: flex-start; gap: 10px; padding: 13px 15px; border-radius: var(--radius); background: var(--blue-light); border: 1px solid var(--soft-blue); }
 .cspay-note p      { font-size: 12px; color: var(--text-2); line-height: 1.5; margin: 0; }
+.cspay-note-icon         { color: var(--gold-dark); flex-shrink: 0; margin-top: 1px; }
+.cspay-note-icon--warning { color: var(--orange-dark); flex-shrink: 0; margin-top: 1px; }
+.cspay-note--warning     { background: var(--orange-light); border-color: var(--soft-gold); }
+.cspay-note--warning p   { color: var(--orange-dark); }
 
 /* ── Stripe Connect pill ── */
 .connect-pill         { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; padding: 3px 9px; border-radius: var(--radius-full); white-space: nowrap; }
@@ -1542,57 +1671,64 @@ function payModelLabel(model) {
 .connect-pill.is-connected .status-dot     { background: var(--green-dark); }
 .connect-pill.is-not-connected .status-dot { background: var(--orange-dark); }
 
-/* ── Invoice cards (BP) ── */
-.invoice-card        { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: 14px; transition: box-shadow var(--transition); }
-.invoice-card:hover  { box-shadow: var(--shadow); }
+/* ── Invoice cards ── */
+.invoice-card        { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: 14px; }
 .invoice-card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; }
 .invoice-card.pending-approval::before { background: var(--orange); }
 .invoice-card.active-contract::before  { background: var(--green); }
+.invoice-card.session-card::before     { background: var(--teal); }
 .invoice-body        { padding: 22px 24px 20px; }
 .invoice-status      { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
-.invoice-status-right { display: inline-flex; align-items: center; gap: 10px; }
+.invoice-status-right { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .invoice-auto        { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-4); }
 .invoice-head        { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
-.invoice-vendor      { font-family: var(--font-serif); font-size: 20px; font-weight: 600; color: var(--text); line-height: 1.2; letter-spacing: -0.01em; }
+.invoice-vendor      { font-family: var(--font-serif); font-size: 20px; font-weight: 600; color: var(--text); line-height: 1.2; }
 .invoice-service     { font-size: 13px; color: var(--text-3); margin-top: 5px; }
-.invoice-amount      { font-family: var(--font-serif); font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; text-align: right; white-space: nowrap; }
+.invoice-amount      { font-family: var(--font-serif); font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; text-align: right; }
 .invoice-period      { font-size: 12px; color: var(--text-4); margin-top: 5px; text-align: right; }
 .invoice-meta        { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 18px; padding: 16px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-bottom: 18px; }
 .invoice-meta-label  { font-size: 10px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-4); margin-bottom: 5px; }
 .invoice-meta-value  { font-size: 13px; font-weight: 600; color: var(--text-2); }
 .invoice-meta-value.due { color: var(--orange-dark); font-weight: 700; }
 .invoice-actions     { display: flex; align-items: center; gap: 10px; }
-.btn-primary-full    { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 40px; padding: 0 18px; border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: 13px; font-weight: 700; background: var(--text); color: var(--text-inverted); border: none; cursor: pointer; transition: background var(--transition); }
+.btn-primary-full    { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 40px; padding: 0 18px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; background: var(--text); color: var(--text-inverted); border: none; cursor: pointer; }
 .btn-primary-full:hover { background: var(--text-2); }
-.invoice-actions .btn-icon { width: 40px; height: 40px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--border-dark); color: var(--text-3); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background var(--transition), border-color var(--transition), color var(--transition); }
-.invoice-actions .btn-icon:hover { background: var(--surface-2); border-color: var(--text-4); color: var(--text); }
-.invoice-actions .btn-icon.btn-icon-danger:hover { background: var(--red-light); border-color: rgba(160,45,34,0.4); color: var(--red-dark); }
+.invoice-actions .btn-icon { width: 40px; height: 40px; }
 
-/* ── BP toolbar ── */
-.bp-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+/* ── Pill wrap (background container for tabs-pill on BP tab) ── */
+.pill-wrap { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px; margin-bottom: 20px; }
+.pill-wrap .tabs-pill { margin: 0; }
 
 /* ── Payment method cards ── */
-.pm-card          { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 10px; background: var(--surface); transition: border-color var(--transition), box-shadow var(--transition); box-shadow: var(--shadow-sm); }
-.pm-card:hover    { border-color: var(--soft-gold); }
+.pm-card          { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 10px; background: var(--surface); box-shadow: var(--shadow-sm); }
 .pm-card.default  { border-color: var(--gold-dark); background: var(--badge-bg-gold); }
 .pm-logo          { width: 48px; height: 32px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .pm-info          { flex: 1; }
 .pm-name          { font-size: 13px; font-weight: 700; color: var(--text); }
 .pm-meta          { font-size: 12px; color: var(--text-3); margin-top: 2px; }
-.pm-purpose       { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; padding: 2px 8px; border-radius: var(--radius-full); background: var(--surface-3); color: var(--text-3); }
-.pm-card-actions  { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .pm-card-btns     { display: flex; gap: 6px; }
+
+/* ── Subscription tab ── */
+.sub-summary { display: flex; align-items: center; justify-content: space-between; }
+.sub-tier    { font-family: var(--font-serif); font-size: 22px; font-weight: 700; color: var(--text); text-transform: capitalize; }
+.sub-status  { margin-top: 6px; }
+.mono        { font-family: var(--font-mono, monospace); font-size: 12px; color: var(--text-2); }
 
 /* ── Spending controls ── */
 .spending-input-wrap { display: flex; align-items: center; gap: 6px; }
 .spending-prefix     { font-size: 14px; font-weight: 700; color: var(--text-3); }
 .setting-save-row    { display: flex; justify-content: flex-end; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
 
-/* ── Transaction table ── */
-.fin-toolbar     { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+/* ── Transaction table + toolbar (single-line: 6-6 grid) ── */
+.fin-toolbar         { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: center; margin-bottom: 16px; }
+.fin-toolbar-search  { min-width: 0; }
+.fin-toolbar-filters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+@media (max-width: 720px) {
+  .fin-toolbar         { grid-template-columns: 1fr; }
+  .fin-toolbar-filters { grid-template-columns: 1fr 1fr 1fr; }
+}
 .fin-tx-table    { width: 100%; }
 .tx-date         { padding-left: 20px; white-space: nowrap; color: var(--text-3); }
-.tx-payee-link   { font-weight: 700; color: var(--gold-dark); text-decoration: none; }
 .tx-payee        { font-weight: 700; color: var(--text); }
 .tx-desc         { font-size: 13px; color: var(--text-2); }
 .tx-method       { font-size: 12px; color: var(--text-3); }
@@ -1602,17 +1738,13 @@ function payModelLabel(model) {
 .tx-amount-out   { font-weight: 700; color: var(--red-dark); }
 .tx-amount-in    { font-weight: 700; color: var(--green-dark); }
 
-/* ── Receipt ── */
+/* ── Receipt (for approve modal) ── */
 .receipt      { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
 .receipt-row  { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; }
 .receipt-row.total { border-top: 1px solid var(--border-dark); font-weight: 700; font-size: 14px; padding-top: 10px; margin-top: 4px; }
 
-/* ── View receipt ── */
-.vr-vendor     { font-size: 16px; font-weight: 700; color: var(--text); font-family: var(--font-serif); }
-.vr-vendor-sub { font-size: 12px; color: var(--text-3); }
-
 /* ── Contract preview ── */
-.contract-preview       { background: var(--surface-2); border-radius: var(--radius); padding: 16px; font-size: 12px; color: var(--text-2); line-height: 1.8; border: 1px solid var(--border); }
+.contract-preview       { background: var(--surface-2); border-radius: var(--radius); padding: 16px; font-size: 13px; color: var(--text-2); line-height: 1.8; border: 1px solid var(--border); }
 .contract-preview-title { font-family: var(--font-serif); font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
 .contract-preview-row   { color: var(--text-2); }
 
@@ -1620,19 +1752,11 @@ function payModelLabel(model) {
 .export-checks { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
 
 /* ── Role option (pay model selector) ── */
-.role-option          { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 8px; cursor: pointer; transition: border-color var(--transition), background var(--transition); }
+.role-option          { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 8px; cursor: pointer; }
 .role-option:hover    { background: var(--surface-2); border-color: var(--border-dark); }
 .role-option.selected { border-color: var(--gold-dark); background: var(--badge-bg-gold); }
-.role-option:last-child { margin-bottom: 0; }
-
-/* ── CS note warning variant ── */
-.cspay-note--warning               { background: var(--orange-light); border-color: var(--soft-gold); }
-.cspay-note--warning p             { color: var(--orange-dark); }
-.cspay-note-icon--warning          { color: var(--orange-dark); flex-shrink: 0; margin-top: 1px; }
 
 /* ── Misc ── */
-.btn-dark        { background: var(--text); border: 1px solid var(--text); color: var(--text-inverted); font-family: var(--font-sans); font-size: 13px; font-weight: 700; }
-.btn-dark:hover  { background: var(--text-2); border-color: var(--text-2); box-shadow: var(--shadow-sm); }
-.text-muted      { color: var(--text-4); }
-.action-cell     { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.btn-dark        { background: var(--text); border: 1px solid var(--text); color: var(--text-inverted); font-size: 13px; font-weight: 700; }
+.btn-dark:hover  { background: var(--text-2); border-color: var(--text-2); }
 </style>

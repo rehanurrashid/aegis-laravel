@@ -350,6 +350,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::post('/finances/cs-stewards/{steward}/cancel', [ProviderFinancesController::class, 'cancelCsAgreement'])->name('finances.cs-steward.cancel');
         Route::put('/finances/cs-stewards/{steward}/pay-model', [ProviderFinancesController::class, 'updateCsPayModel'])->name('finances.cs-steward.pay-model');
         Route::post('/finances/spending-controls', [ProviderFinancesController::class, 'saveSpendingControls'])->name('finances.spending-controls');
+        Route::post('/finances/export', [ProviderFinancesController::class, 'exportReport'])->name('finances.export');
 
         // Settings
         Route::get('/settings', [ProviderSettingsController::class, 'index'])->name('settings.index');

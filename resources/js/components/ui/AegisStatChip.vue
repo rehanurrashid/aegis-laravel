@@ -8,7 +8,7 @@
   using CSS variables ONLY (never hex literals).
 -->
 <template>
-  <div class="stat-chip">
+  <div class="stat-chip" :data-tooltip="tooltip || null">
     <div
       class="stat-chip-icon"
       :style="{ background: bgColor, color: iconColor }"
@@ -29,5 +29,6 @@ defineProps({
   label:     { type: String, required: true },
   bgColor:   { type: String, default: 'var(--icon-bg-gold)' },
   iconColor: { type: String, default: 'var(--gold-dark)' },
+  tooltip:   { type: String, default: '' },
 })
 </script>
