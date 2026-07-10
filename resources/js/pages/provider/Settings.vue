@@ -1611,7 +1611,7 @@ function saveReferralPrefs() {
 </script>
 
 <style scoped>
-.settings-layout { display: grid; grid-template-columns: 240px 1fr; gap: 22px; align-items: start; padding: 0 var(--page-x, 24px) 40px; }
+.settings-layout { display: grid; grid-template-columns: 240px 1fr; gap: 22px; align-items: start; padding-bottom: 40px; }
 
 /* SIDEBAR */
 /* settings-sidebar: wrapper kept; nav uses global .page-sidebar-* classes */

@@ -144,7 +144,6 @@
               <span class="fin-card-icon"><AegisIcon name="activity" :size="15" /></span>
               Spend Breakdown
             </div>
-            <AegisBadge label="By recipient · to date" variant="neutral" />
           </div>
           <div class="card-body">
             <div class="spend-bd">
@@ -187,31 +186,22 @@
             <div v-if="upcomingPayments.length" class="upcoming-list">
               <div
                 v-for="inv in upcomingPayments.slice(0, 6)" :key="inv.id"
-                class="upcoming-row clickable"
-                data-tooltip="View details"
+                class="upcoming-row"
                 @click="openViewInvoice(inv)"
               >
-                <div class="upcoming-date-badge" :class="{ 'upcoming-date-badge--urgent': inv.is_urgent }">
-                  <div class="upcoming-month">{{ inv.due_month }}</div>
-                  <div class="upcoming-day">{{ inv.due_day }}</div>
-                </div>
+                <span class="upcoming-kind-badge" :class="'upcoming-kind-badge--' + inv.payment_type">
+                  {{ paymentTypeLabel(inv.payment_type) }}
+                </span>
                 <div class="upcoming-info">
-                  <div class="upcoming-name">
-                    {{ inv.recipient }}
-                    <span class="upcoming-kind-badge" :class="'upcoming-kind-badge--' + inv.payment_type">
-                      {{ paymentTypeLabel(inv.payment_type) }}
-                    </span>
-                  </div>
-                  <div class="upcoming-desc">
-                    {{ inv.contract_title || inv.service_title || 'Invoice ' + inv.invoice_number }}
-                  </div>
+                  <div class="upcoming-name">{{ inv.recipient }}</div>
+                  <div class="upcoming-desc">{{ inv.contract_title || inv.service_title || ('Invoice #' + inv.invoice_number) }}</div>
                 </div>
-                <div>
+                <div class="upcoming-right">
                   <div class="upcoming-amount" :class="{ 'upcoming-amount--urgent': inv.is_urgent }">
                     {{ formatCents(inv.total_cents) }}
                   </div>
-                  <div class="upcoming-type">
-                    <AegisIcon name="chevron-right" :size="12" /> View
+                  <div class="upcoming-due" :class="{ 'upcoming-due--urgent': inv.is_urgent }">
+                    {{ inv.due_month }} {{ inv.due_day }}
                   </div>
                 </div>
               </div>
@@ -1645,28 +1635,25 @@ function paymentTypeLabel(t) {
 .spend-bd-amt   { font-size: 13px; font-weight: 700; color: var(--text); }
 .spend-bd-pct   { font-size: 11px; font-weight: 700; color: var(--text-4); width: 40px; text-align: right; flex-shrink: 0; }
 
-/* ── Upcoming payments ── */
-.upcoming-list            { display: flex; flex-direction: column; }
-.upcoming-row             { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border); }
-.upcoming-row.clickable   { margin: 0 -8px; padding: 12px 8px; border-radius: var(--radius-sm); cursor: pointer; }
-.upcoming-row.clickable:hover { background: var(--surface-2); }
-.upcoming-row:last-child  { border-bottom: none; }
-.upcoming-date-badge      { width: 44px; height: 44px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; }
-.upcoming-date-badge--urgent { background: var(--orange-light); border-color: var(--orange); }
-.upcoming-month           { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-3); }
-.upcoming-day             { font-family: var(--font-serif); font-size: 17px; font-weight: 700; color: var(--text); line-height: 1; }
-.upcoming-info            { flex: 1; min-width: 0; }
-.upcoming-name            { font-size: 13px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.upcoming-kind-badge      { font-size: 9px; font-weight: 700; letter-spacing: 0.4px; padding: 2px 6px; border-radius: var(--radius-full); text-transform: uppercase; }
+/* ── Upcoming payments — minimal ── */
+.upcoming-list  { display: flex; flex-direction: column; }
+.upcoming-row   { display: flex; align-items: center; gap: 10px; padding: 10px 8px; border-bottom: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: background var(--transition); }
+.upcoming-row:hover { background: var(--surface-2); }
+.upcoming-row:last-child { border-bottom: none; }
+.upcoming-info  { flex: 1; min-width: 0; overflow: hidden; }
+.upcoming-name  { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.upcoming-desc  { font-size: 11px; color: var(--text-4); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.upcoming-right { text-align: right; flex-shrink: 0; }
+.upcoming-amount        { font-size: 13px; font-weight: 700; color: var(--text); white-space: nowrap; }
+.upcoming-amount--urgent { color: var(--orange-dark); }
+.upcoming-due           { font-size: 11px; color: var(--text-4); margin-top: 1px; }
+.upcoming-due--urgent   { color: var(--orange-dark); font-weight: 600; }
+.upcoming-kind-badge      { font-size: 9px; font-weight: 700; letter-spacing: 0.4px; padding: 2px 7px; border-radius: var(--radius-full); text-transform: uppercase; flex-shrink: 0; white-space: nowrap; }
 .upcoming-kind-badge--bp  { background: var(--green-light);  color: var(--green-dark); }
 .upcoming-kind-badge--cs  { background: var(--badge-bg-gold); color: var(--gold-dark); }
 .upcoming-kind-badge--session { background: var(--teal-light); color: var(--teal-dark); }
-.upcoming-desc            { font-size: 12px; color: var(--text-3); margin-top: 2px; }
-.upcoming-amount          { font-family: var(--font-serif); font-size: 16px; font-weight: 700; color: var(--text); text-align: right; white-space: nowrap; }
-.upcoming-amount--urgent  { color: var(--orange-dark); }
-.upcoming-type            { font-size: 11px; color: var(--text-4); margin-top: 1px; text-align: right; }
-.upcoming-more            { padding: 10px 0; text-align: center; font-size: 12px; color: var(--gold-dark); cursor: pointer; font-weight: 600; }
-.upcoming-more:hover      { color: var(--text); }
+.upcoming-more  { padding: 8px 0; text-align: center; font-size: 12px; color: var(--gold-dark); cursor: pointer; font-weight: 600; }
+.upcoming-more:hover { color: var(--text); }
 
 /* ── CS payment cards ── */
 .cspay-card        { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: 14px; }

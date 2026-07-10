@@ -1526,8 +1526,8 @@ const lastSavedLabel = computed(() => {
 /* ─── Two-column layout ─── */
 .ep-layout {
   display: grid;
-  grid-template-columns: 240px 1fr;
-  gap: 20px;
+  grid-template-columns: 220px 1fr;
+  gap: 22px;
   align-items: start;
 }
 
