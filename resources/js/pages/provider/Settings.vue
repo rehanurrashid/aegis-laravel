@@ -529,13 +529,13 @@
                   <div class="st-current-meta">{{ billingMetaLine }}</div>
                 </div>
                 <template v-if="subStatus === 'none'">
-                  <button type="button" class="btn btn-gold btn-sm" @click="goToPricing">Choose a Plan</button>
+                  <button type="button" class="btn btn-gold" @click="goToPricing">Choose a Plan</button>
                 </template>
                 <template v-else-if="subOnGracePeriod">
-                  <button type="button" class="btn btn-gold btn-sm" @click="resumePlan" :disabled="planBusy"><AegisIcon name="refresh" :size="13" /> Reactivate</button>
+                  <button type="button" class="btn btn-gold" @click="resumePlan" :disabled="planBusy"><AegisIcon name="refresh" :size="13" /> Reactivate</button>
                 </template>
                 <template v-else>
-                  <button type="button" class="btn btn-outline btn-sm" @click="confirmCancel = true" :disabled="planBusy">Cancel Plan</button>
+                  <button type="button" class="btn btn-outline" @click="confirmCancel = true" :disabled="planBusy">Cancel Plan</button>
                 </template>
               </div>
 
@@ -571,10 +571,10 @@
                   <div class="st-plan-feats">
                     <span v-for="f in accessFeatures" :key="f"><AegisIcon name="check" :size="13" /> {{ f }}</span>
                   </div>
-                  <button v-if="currentTier === 'access' && !isSwapAllowed('access')" type="button" class="btn btn-outline btn-sm st-plan-cta" disabled>
+                  <button v-if="currentTier === 'access' && !isSwapAllowed('access')" type="button" class="btn btn-outline st-plan-cta" disabled>
                     Your current plan
                   </button>
-                  <button v-else type="button" class="btn btn-outline btn-sm st-plan-cta" @click="swapPlan('access')" :disabled="planBusy || !accessPriceId">
+                  <button v-else type="button" class="btn btn-outline st-plan-cta" @click="swapPlan('access')" :disabled="planBusy || !accessPriceId">
                     {{ currentTier === 'practice' ? 'Downgrade to Access' : swapButtonLabel('access') }}
                   </button>
                 </div>
@@ -590,10 +590,10 @@
                   <div class="st-plan-feats">
                     <span v-for="f in practiceFeatures" :key="f"><AegisIcon name="check" :size="13" /> {{ f }}</span>
                   </div>
-                  <button v-if="currentTier === 'practice' && !isSwapAllowed('practice')" type="button" class="btn btn-outline btn-sm st-plan-cta" disabled>
+                  <button v-if="currentTier === 'practice' && !isSwapAllowed('practice')" type="button" class="btn btn-outline st-plan-cta" disabled>
                     Your current plan
                   </button>
-                  <button v-else type="button" class="btn btn-gold btn-sm st-plan-cta" @click="swapPlan('practice')" :disabled="planBusy || !practicePriceId">
+                  <button v-else type="button" class="btn btn-gold st-plan-cta" @click="swapPlan('practice')" :disabled="planBusy || !practicePriceId">
                     {{ currentTier === 'access' ? 'Upgrade to Practice' : swapButtonLabel('practice') }}
                   </button>
                 </div>
@@ -625,11 +625,11 @@
                     </div>
                   </div>
                   <div class="st-addon-foot">
-                    <button v-if="hasMaat" type="button" class="btn btn-outline btn-sm" @click="toggleMaat(false)" :disabled="maatBusy">Remove MAAT</button>
+                    <button v-if="hasMaat" type="button" class="btn btn-outline" @click="toggleMaat(false)" :disabled="maatBusy">Remove MAAT</button>
                     <button
                       v-else
                       type="button"
-                      class="btn btn-gold btn-sm"
+                      class="btn btn-gold"
                       @click="toggleMaat(true)"
                       :disabled="maatBusy || currentTier !== 'practice'"
                       :data-tooltip="currentTier !== 'practice' ? 'Upgrade to Continuity Practice to add MAAT' : null"
@@ -675,8 +675,8 @@
               </div>
             </div>
             <template #footer>
-              <button type="button" class="btn btn-outline btn-sm" @click="confirmSwap = false">Go Back</button>
-              <button type="button" :class="pendingSwap.direction === 'downgrade' ? 'btn btn-outline btn-sm' : 'btn btn-gold btn-sm'" @click="doSwapPlan" :disabled="planBusy">
+              <button type="button" class="btn btn-outline" @click="confirmSwap = false">Go Back</button>
+              <button type="button" :class="pendingSwap.direction === 'downgrade' ? 'btn btn-outline' : 'btn btn-gold'" @click="doSwapPlan" :disabled="planBusy">
                 <AegisIcon :name="pendingSwap.direction === 'downgrade' ? 'trending-down' : 'check'" :size="13" />
                 {{ pendingSwap.direction === 'downgrade' ? 'Confirm Downgrade' : 'Confirm Change' }}
               </button>
@@ -692,8 +692,8 @@
               <AegisIcon name="check" :size="13" style="margin-right:4px" /> Your access will be fully restored immediately.
             </div>
             <template #footer>
-              <button type="button" class="btn btn-outline btn-sm" @click="confirmResume = false">Cancel</button>
-              <button type="button" class="btn btn-gold btn-sm" @click="doResumePlan" :disabled="planBusy">
+              <button type="button" class="btn btn-outline" @click="confirmResume = false">Cancel</button>
+              <button type="button" class="btn btn-gold" @click="doResumePlan" :disabled="planBusy">
                 <AegisIcon name="refresh" :size="13" /> Reactivate
               </button>
             </template>
@@ -727,11 +727,11 @@
               </div>
             </template>
             <template #footer>
-              <button type="button" class="btn btn-outline btn-sm" @click="confirmMaat = false">Go Back</button>
-              <button v-if="pendingMaat.enable" type="button" class="btn btn-gold btn-sm" @click="doToggleMaat" :disabled="maatBusy">
+              <button type="button" class="btn btn-outline" @click="confirmMaat = false">Go Back</button>
+              <button v-if="pendingMaat.enable" type="button" class="btn btn-gold" @click="doToggleMaat" :disabled="maatBusy">
                 <AegisIcon name="shield" :size="13" /> Add MAAT Service
               </button>
-              <button v-else type="button" class="btn btn-danger btn-sm" @click="doToggleMaat" :disabled="maatBusy">
+              <button v-else type="button" class="btn btn-danger" @click="doToggleMaat" :disabled="maatBusy">
                 Remove MAAT
               </button>
             </template>
@@ -742,8 +742,8 @@
             <p style="font-size:14px;color:var(--text);margin-bottom:12px">Your subscription will remain active until <strong>{{ formatDate(sub.current_period?.end) || 'the end of the current period' }}</strong>. After that, you'll lose access to your portal.</p>
             <p style="font-size:13px;color:var(--text-3);margin-bottom:0">You can reactivate any time before then.</p>
             <template #footer>
-              <button type="button" class="btn btn-outline btn-sm" @click="confirmCancel = false">Keep Subscription</button>
-              <button type="button" class="btn btn-danger btn-sm" @click="cancelPlan" :disabled="planBusy">Cancel Subscription</button>
+              <button type="button" class="btn btn-outline" @click="confirmCancel = false">Keep Subscription</button>
+              <button type="button" class="btn btn-danger" @click="cancelPlan" :disabled="planBusy">Cancel Subscription</button>
             </template>
           </AegisModal>
 
@@ -755,8 +755,8 @@
               <a href="mailto:support@aegis.com" style="color:var(--gold-dark);">support@aegis.com</a>.
             </div>
             <template #footer>
-              <button type="button" class="btn btn-outline btn-sm" @click="modals.showUpgrade = false">Cancel</button>
-              <button type="button" class="btn btn-primary btn-sm" @click="modals.showUpgrade = false; section = 'billing'">
+              <button type="button" class="btn btn-outline" @click="modals.showUpgrade = false">Cancel</button>
+              <button type="button" class="btn btn-primary" @click="modals.showUpgrade = false; section = 'billing'">
                 View Plans
               </button>
             </template>
