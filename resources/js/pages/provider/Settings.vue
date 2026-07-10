@@ -868,7 +868,7 @@
                         <a :href="route('provider.settings.billing.portal')" class="btn btn-outline" target="_blank">
                           <AegisIcon name="external-link" :size="12" /> Stripe Dashboard
                         </a>
-                        <a :href="route('provider.settings.connect.onboard')" class="btn btn-ghost">
+                        <a :href="route('provider.settings.connect.onboard')" class="btn btn-outline">
                           <AegisIcon name="refresh-cw" :size="12" /> Reconnect
                         </a>
                       </template>

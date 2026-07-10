@@ -908,8 +908,8 @@
                   <span v-else class="app-status-disconnected">
                     <AegisIcon name="alert-circle" :size="13" /> Not connected
                   </span>
-                  <a :href="route('provider.settings.index') + '?section=stripe_connect'" class="btn btn-outline">
-                    <AegisIcon name="settings" :size="12" /> {{ stripeConnected ? 'Manage in Settings' : 'Set up in Settings' }}
+                  <a v-if="stripeConnected" :href="route('provider.settings.index') + '?section=stripe_connect'" class="btn btn-outline">
+                    <AegisIcon name="settings" :size="12" /> Manage in Settings
                   </a>
                 </div>
               </div>
@@ -1949,5 +1949,5 @@ function paymentTypeLabel(t) {
 .spin { animation: fin-spin 0.7s linear infinite; display: inline-block; }
 @keyframes fin-spin { to { transform: rotate(360deg); } }
 .pm-default-icon  { color: var(--gold-dark); flex-shrink: 0; }
-.app-status-disconnected { font-size: 12px; font-weight: 600; color: var(--red); background: var(--red-light); padding: 3px 10px; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 5px; }
+.app-status-disconnected { font-size: 12px; font-weight: 600; color: var(--red); background: var(--red-light); border: 1px solid rgba(224,92,92,0.35); padding: 3px 10px; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 5px; }
 </style>
