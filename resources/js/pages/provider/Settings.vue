@@ -507,63 +507,6 @@
                   <AegisIcon name="chevron-right" :size="13" class="st-shortcut-arrow" />
                 </a>
               </div>
-
-              <!-- ── Payment Methods ─────────────────────────────────── -->
-              <div class="st-card" style="margin-top:18px;">
-                <div class="st-card-head">
-                  <div class="st-card-head-l">
-                    <span class="st-card-ico"><AegisIcon name="credit-card" :size="17" /></span>
-                    <div><div class="st-card-title">Payment Methods</div><div class="st-card-sub">Cards used to fund all Aegis charges</div></div>
-                  </div>
-                  <button type="button" class="btn btn-dark" @click="stShowAddCard = true">
-                    <AegisIcon name="plus" :size="12" /> Add Method
-                  </button>
-                </div>
-                <div class="st-card-body">
-                  <div class="alert alert-info" style="margin-bottom:16px;">
-                    <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
-                    <div class="alert-content">
-                      <div class="alert-title">One Card, All Payments</div>
-                      <div>Your active payment method funds every Aegis charge — subscription, CS fees, BP invoices, and clinical sessions. Aegis never sees or stores your full card number.</div>
-                    </div>
-                  </div>
-
-                  <AegisEmptyState
-                    v-if="!paymentMethods.length"
-                    icon="credit-card"
-                    title="No payment methods"
-                    description="Add a card to pay Business Partners and manage your Aegis subscription."
-                    style="padding:24px 0;"
-                  />
-                  <div v-else>
-                    <div v-for="pm in paymentMethods" :key="pm.id" class="pm-card" :class="{ default: pm.is_default }">
-                      <div class="pm-logo">
-                        <AegisIcon :name="pm.method_type === 'bank' ? 'building' : 'credit-card'" :size="20" />
-                      </div>
-                      <div class="pm-info">
-                        <div class="pm-name">
-                          {{ (pm.brand || 'card').toUpperCase() }} ···· {{ pm.last4 }}
-                          <AegisBadge v-if="pm.is_default" label="Default · funds all payments" variant="gold" style="margin-left:6px;" />
-                        </div>
-                        <div class="pm-meta">
-                          {{ pm.method_type === 'bank' ? 'ACH / Bank Transfer' : (pm.exp_month ? 'Expires ' + pm.exp_month + '/' + pm.exp_year : 'On file') }}
-                        </div>
-                      </div>
-                      <div class="pm-card-btns">
-                        <template v-if="!pm.is_default">
-                          <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Set as default" @click="stSetDefaultPm(pm)">
-                            <AegisIcon name="check" :size="12" />
-                          </button>
-                          <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Remove" @click="stOpenRemoveCard(pm)">
-                            <AegisIcon name="trash" :size="12" />
-                          </button>
-                        </template>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               <!-- Founding Member perk banner — first 100 practitioners -->
               <div v-if="user?.is_founding_member && subStatus !== 'none'" class="st-founding-banner">
                 <AegisIcon name="star" :size="16" />
@@ -813,6 +756,72 @@
         </div>
 
 
+        <!-- PAYMENT METHODS -->
+        <div v-show="section === 'payment_methods'" class="settings-panel">
+          <AegisHeroBanner eyebrow="Provider Portal" title="Payment Methods" subtitle="Manage the cards used to fund all Aegis charges." quiet>
+            <template #actions>
+              <a :href="route('provider.activity.index', { event_type: 'finances' })" class="btn-hero-ghost is-on-light">
+                <AegisIcon name="activity" :size="14" /> Activity
+              </a>
+            </template>
+          </AegisHeroBanner>
+
+          <div class="st-card">
+            <div class="st-card-head">
+              <div class="st-card-head-l">
+                <span class="st-card-ico"><AegisIcon name="credit-card" :size="17" /></span>
+                <div><div class="st-card-title">Saved Payment Methods</div><div class="st-card-sub">Cards used to fund all Aegis charges</div></div>
+              </div>
+              <button type="button" class="btn btn-dark" @click="stShowAddCard = true">
+                <AegisIcon name="plus" :size="12" /> Add Method
+              </button>
+            </div>
+            <div class="st-card-body">
+              <div class="alert alert-info" style="margin-bottom:16px;">
+                <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
+                <div class="alert-content">
+                  <div class="alert-title">One Card, All Payments</div>
+                  <div>Your active payment method funds every Aegis charge — subscription, CS fees, BP invoices, and clinical sessions. Aegis never sees or stores your full card number.</div>
+                </div>
+              </div>
+
+              <AegisEmptyState
+                v-if="!paymentMethods.length"
+                icon="credit-card"
+                title="No payment methods"
+                description="Add a card to pay Business Partners and manage your Aegis subscription."
+                style="padding:24px 0;"
+              />
+              <div v-else>
+                <div v-for="pm in paymentMethods" :key="pm.id" class="pm-card" :class="{ default: pm.is_default }">
+                  <div class="pm-logo">
+                    <AegisIcon :name="pm.method_type === 'bank' ? 'building' : 'credit-card'" :size="20" />
+                  </div>
+                  <div class="pm-info">
+                    <div class="pm-name">
+                      {{ (pm.brand || 'card').toUpperCase() }} ···· {{ pm.last4 }}
+                      <AegisBadge v-if="pm.is_default" label="Default · funds all payments" variant="gold" style="margin-left:6px;" />
+                    </div>
+                    <div class="pm-meta">
+                      {{ pm.method_type === 'bank' ? 'ACH / Bank Transfer' : (pm.exp_month ? 'Expires ' + pm.exp_month + '/' + pm.exp_year : 'On file') }}
+                    </div>
+                  </div>
+                  <div class="pm-card-btns">
+                    <template v-if="!pm.is_default">
+                      <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Set as default" @click="stSetDefaultPm(pm)">
+                        <AegisIcon name="check" :size="12" />
+                      </button>
+                      <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Remove" @click="stOpenRemoveCard(pm)">
+                        <AegisIcon name="trash" :size="12" />
+                      </button>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- BILLING & INVOICES (invoices) - KEPT AS-IS, wired to Stripe -->
         <!-- ACCOUNT ACTIONS (danger) -->
         <div v-show="section === 'changes'" class="settings-panel">
@@ -937,8 +946,9 @@ const nav = [
     { key: 'appearance',    label: 'Appearance',                 icon: 'settings' },
 
   ]},
-  { group: 'Plan', items: [
-    { key: 'billing',  label: 'Plan & Billing', icon: 'star' },
+  { group: 'Subscription & Payments', items: [
+    { key: 'billing',       label: 'Subscription & Plan', icon: 'star' },
+    { key: 'payment_methods', label: 'Payment Methods',    icon: 'credit-card' },
   ]},
 
   { group: 'Account Closure & Data Management', items: [
