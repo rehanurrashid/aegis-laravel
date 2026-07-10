@@ -59,6 +59,7 @@
           :href="item.href"
           :aria-current="(activePage === item.key || (item.key === 'profile' && isOnOwnProfile)) ? 'page' : 'false'"
           :data-label="item.label"
+          @click="handleNavClick($event, item)"
         >
           <span class="nav-icon"><AegisIcon :name="item.icon" :size="14" /></span>
           <span class="nav-label">{{ item.label }}</span>
@@ -90,7 +91,7 @@
 
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
-import { Link, usePage } from '@inertiajs/vue3'
+import { Link, usePage, router } from '@inertiajs/vue3'
 import AegisIcon from '@/components/ui/AegisIcon.vue'
 import { useUiStore } from '@/stores/ui'
 
@@ -202,6 +203,13 @@ const activeDisputeCount = computed(() => {
 const financesBadge = computed(() => activeDisputeCount.value > 0 ? String(activeDisputeCount.value) : '')
 
 // ── Nav sections ───────────────────────────────────────────────────────
+function handleNavClick(event, item) {
+  if (item.locked) {
+    event.preventDefault()
+    router.visit(route('provider.settings.index', { section: 'billing', upgrade: '1' }))
+  }
+}
+
 const navSections = computed(() => {
   switch (portal.value) {
 
