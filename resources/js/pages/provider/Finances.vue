@@ -578,7 +578,7 @@
             </div>
           </div>
           <a :href="route('provider.settings.index') + '?section=billing'" class="btn btn-outline btn-sm">
-            <AegisIcon name="external-link" :size="12" /> Manage Plan
+            <AegisIcon name="settings" :size="12" /> Manage Plan
           </a>
         </div>
 

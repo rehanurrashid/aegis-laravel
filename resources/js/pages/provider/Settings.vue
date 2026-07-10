@@ -822,6 +822,65 @@
           </div>
         </div>
 
+        <!-- SUBSCRIPTION INVOICES -->
+        <div v-show="section === 'subscription_invoices'" class="settings-panel">
+          <AegisHeroBanner eyebrow="Provider Portal" title="Subscription Invoices" subtitle="Your Aegis billing history and receipts." quiet>
+            <template #actions>
+              <a :href="route('provider.activity')" class="btn-hero-ghost is-on-light">
+                <AegisIcon name="activity" :size="14" /> Activity
+              </a>
+            </template>
+          </AegisHeroBanner>
+
+          <div class="st-card">
+            <div class="st-card-head">
+              <div class="st-card-head-l">
+                <span class="st-card-ico"><AegisIcon name="file-text" :size="17" /></span>
+                <div>
+                  <div class="st-card-title">Subscription Invoices</div>
+                  <div class="st-card-sub">Billing history for your Aegis subscription</div>
+                </div>
+              </div>
+              <AegisBadge :label="subscriptionInvoices.length + (subscriptionInvoices.length === 1 ? ' invoice' : ' invoices')" variant="neutral" />
+            </div>
+            <div class="st-card-body" style="padding:0;">
+              <table v-if="subscriptionInvoices.length" class="table sub-invoice-table" style="margin:0;">
+                <thead>
+                  <tr>
+                    <th style="padding-left:20px;">Date</th>
+                    <th>Plan</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th style="padding-right:20px;"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="inv in subscriptionInvoices" :key="inv.id" class="sub-inv-row" @click="stOpenSubInvoice(inv)">
+                    <td style="padding-left:20px;" class="tx-date">{{ stFormatDate(inv.date || inv.created) }}</td>
+                    <td>
+                      <div class="sub-inv-product">{{ inv.product_name || 'Aegis Subscription' }}</div>
+                      <div class="sub-inv-desc">#{{ inv.number || inv.id }}</div>
+                    </td>
+                    <td class="tx-amount-out" style="font-size:14px;white-space:nowrap;">{{ stFormatCents(inv.amount_cents) }}</td>
+                    <td><AegisBadge :label="inv.status" :variant="stStatusVariant(inv.status)" /></td>
+                    <td style="padding-right:20px;text-align:right;">
+                      <button type="button" class="btn-icon btn-icon-sm" data-tooltip="View invoice" @click.stop="stOpenSubInvoice(inv)">
+                        <AegisIcon name="eye" :size="12" />
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <AegisEmptyState
+                v-else icon="file-text"
+                title="No invoices yet"
+                description="Your subscription invoices will appear here after your first billing cycle."
+                style="padding:32px 0;"
+              />
+            </div>
+          </div>
+        </div>
+
         <!-- BILLING & INVOICES (invoices) - KEPT AS-IS, wired to Stripe -->
         <!-- ACCOUNT ACTIONS (danger) -->
         <div v-show="section === 'changes'" class="settings-panel">
@@ -856,6 +915,57 @@
     :locked-feature-note="tierModalFeature"
     @upgrade="section = 'billing'"
   />
+
+  <!-- ── Subscription Invoice modal ───────────────────── -->
+  <AegisModal v-model="stSubInvoiceOpen" title="Subscription Invoice" size="lg">
+    <div v-if="stActiveSubInvoice" class="sub-inv-modal">
+      <div class="sim-header">
+        <div class="sim-logo"><AegisIcon name="star" :size="20" /></div>
+        <div class="sim-brand">
+          <div class="sim-from">Aegis Platform</div>
+          <div class="sim-sub">Practice Continuity Subscription</div>
+        </div>
+        <div class="sim-status-block">
+          <AegisBadge :label="stActiveSubInvoice.status" :variant="stStatusVariant(stActiveSubInvoice.status)" />
+          <div class="sim-date">{{ stFormatDate(stActiveSubInvoice.date || stActiveSubInvoice.created) }}</div>
+        </div>
+      </div>
+      <div class="sim-number-row">
+        <span class="sim-number-label">Invoice #</span>
+        <span class="sim-number">{{ stActiveSubInvoice.number || stActiveSubInvoice.id }}</span>
+      </div>
+      <div class="sim-items">
+        <div class="sim-item">
+          <div class="sim-item-icon"><AegisIcon name="check-circle" :size="15" /></div>
+          <div class="sim-item-name">{{ stActiveSubInvoice.product_name || 'Aegis Subscription' }}</div>
+          <div class="sim-item-price">{{ stFormatCents(stActiveSubInvoice.amount_cents) }}</div>
+        </div>
+      </div>
+      <div class="sim-totals">
+        <div class="sim-total-row">
+          <span>Subtotal</span>
+          <span>{{ stFormatCents(stActiveSubInvoice.amount_cents) }}</span>
+        </div>
+        <div class="sim-total-row sim-total-row--main">
+          <span>{{ stActiveSubInvoice.status === 'paid' ? 'Total paid' : 'Amount due' }}</span>
+          <span>{{ stFormatCents(stActiveSubInvoice.amount_cents) }}</span>
+        </div>
+      </div>
+      <div class="sim-fine-print">
+        <AegisIcon name="shield" :size="12" />
+        Charged to your default card on file. Card details are securely tokenized by Stripe — Aegis never stores your full card number.
+      </div>
+    </div>
+    <template #footer>
+      <a v-if="stActiveSubInvoice?.pdf_url" :href="stActiveSubInvoice.pdf_url" target="_blank" class="btn btn-ghost">
+        <AegisIcon name="download" :size="12" /> Download PDF
+      </a>
+      <a v-if="stActiveSubInvoice?.hosted_url" :href="stActiveSubInvoice.hosted_url" target="_blank" class="btn btn-outline">
+        <AegisIcon name="external-link" :size="12" /> View on Stripe
+      </a>
+      <button v-if="!stActiveSubInvoice?.hosted_url && !stActiveSubInvoice?.pdf_url" type="button" class="btn btn-outline" @click="stSubInvoiceOpen = false">Close</button>
+    </template>
+  </AegisModal>
 
   <!-- ── Payment Methods modals ───────────────────── -->
   <AddCardModal
@@ -949,7 +1059,8 @@ const nav = [
   ]},
   { group: 'Subscription & Payments', items: [
     { key: 'billing',       label: 'Subscription & Plan', icon: 'star' },
-    { key: 'payment_methods', label: 'Payment Methods',    icon: 'credit-card' },
+    { key: 'payment_methods',       label: 'Payment Methods',       icon: 'credit-card' },
+    { key: 'subscription_invoices', label: 'Subscription Invoices', icon: 'file-text' },
   ]},
 
   { group: 'Account Closure & Data Management', items: [
@@ -1366,7 +1477,8 @@ const currentTier       = computed(() => sub.value.tier || props.user?.tier || n
 const hasMaat           = computed(() => !!sub.value.has_maat_addon);
 const prices            = computed(() => sub.value.prices || {});
 const stripeInvoices    = computed(() => sub.value.invoices || []);
-const stripePaymentMethods = computed(() => sub.value.payment_methods || []);
+const stripePaymentMethods    = computed(() => sub.value.payment_methods || []);
+const subscriptionInvoices    = computed(() => sub.value.invoices || []);
 const currentBillingIsAnnual = computed(() => {
   const p = sub.value.price_id;
   return p === prices.value.access_annual || p === prices.value.practice_annual;
@@ -1574,6 +1686,22 @@ function stDoRemoveCard() {
     onError:   () => toast.error('Could not remove payment method.'),
     onFinish:  () => { stRemovingCard.value = false; },
   });
+}
+
+// ─── Subscription Invoices ────────────────────────────────────────────────────────
+const stActiveSubInvoice = ref(null)
+const stSubInvoiceOpen   = ref(false)
+function stOpenSubInvoice(inv) { stActiveSubInvoice.value = inv; stSubInvoiceOpen.value = true }
+function stFormatCents(cents) {
+  return '$' + (Number(cents ?? 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+function stFormatDate(d) {
+  if (!d) return '—'
+  if (typeof d === 'number') return new Date(d * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return d
+}
+function stStatusVariant(s) {
+  return { active:'green', paid:'green', sent:'blue', open:'blue', trialing:'blue', past_due:'gold', draft:'neutral', void:'neutral', canceled:'neutral', uncollectible:'red', overdue:'red' }[s] ?? 'neutral'
 }
 
 // ─── URL param routing (?tab=billing&upgrade=1) ───────────────────────────────
@@ -2057,4 +2185,33 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 .pm-card-btns     { display: flex; gap: 6px; }
 .st-spin          { animation: st-spin-kf 0.7s linear infinite; display: inline-block; }
 @keyframes st-spin-kf { to { transform: rotate(360deg); } }
+
+/* ── Subscription invoice table + modal (mirrors Finances.vue) ── */
+.sub-invoice-table .sub-inv-row { cursor: pointer; }
+.sub-invoice-table .sub-inv-row:hover td { background: var(--surface-2); }
+.sub-inv-product  { font-size: 13px; font-weight: 600; color: var(--text); }
+.sub-inv-desc     { font-size: 11px; color: var(--text-4); margin-top: 2px; font-family: var(--font-mono, monospace); }
+.sub-inv-modal    { display: flex; flex-direction: column; gap: 0; }
+.sim-header       { display: flex; align-items: center; gap: 14px; padding: 18px 20px; background: var(--badge-bg-gold); border: 1px solid var(--badge-border-gold); border-radius: var(--radius); margin-bottom: 16px; }
+.sim-logo         { width: 44px; height: 44px; border-radius: var(--radius); background: var(--gold-dark); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sim-brand        { flex: 1; }
+.sim-from         { font-family: var(--font-serif); font-size: 16px; font-weight: 700; color: var(--text); }
+.sim-sub          { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.sim-status-block { text-align: right; flex-shrink: 0; }
+.sim-date         { font-size: 12px; color: var(--text-3); margin-top: 5px; }
+.sim-number-row   { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.sim-number-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text-4); }
+.sim-number       { font-family: var(--font-mono, monospace); font-size: 13px; font-weight: 600; color: var(--text-2); background: var(--surface-2); padding: 3px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+.sim-items        { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 14px; }
+.sim-item         { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--surface); }
+.sim-item-icon    { width: 32px; height: 32px; border-radius: var(--radius-sm); background: var(--green-light); color: var(--green-dark); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sim-item-name    { flex: 1; font-size: 14px; font-weight: 600; color: var(--text); }
+.sim-item-price   { font-family: var(--font-serif); font-size: 16px; font-weight: 700; color: var(--text); white-space: nowrap; }
+.sim-totals       { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 14px; }
+.sim-total-row    { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; font-size: 13px; color: var(--text-2); border-bottom: 1px solid var(--border); }
+.sim-total-row:last-child { border-bottom: none; }
+.sim-total-row--main { font-family: var(--font-serif); font-size: 16px; font-weight: 700; color: var(--text); background: var(--surface-2); padding: 14px 16px; }
+.sim-fine-print   { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-4); padding: 10px 14px; background: var(--surface-2); border-radius: var(--radius-sm); border: 1px solid var(--border); line-height: 1.5; }
+.tx-date          { font-size: 13px; color: var(--text-2); white-space: nowrap; }
+.tx-amount-out    { font-weight: 700; color: var(--text); }
 </style>
