@@ -8,17 +8,6 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-/**
- * FinancesSeeder — supplements InvoiceSeeder + BpSeeder + ServiceSeeder
- * so every UI state on Finances.vue renders for p_sarah:
- *   - 4-5 upcoming payments (BP + CS + Session mix)
- *   - Full spend history across all 4 payment kinds
- *   - Active CS agreements with fee_cents > 0
- *   - Default payment method
- *   - Sample dispute (resolved)
- *
- * Idempotent: all inserts use updateOrInsert.
- */
 class FinancesSeeder extends Seeder
 {
     public function run(): void
@@ -38,8 +27,41 @@ class FinancesSeeder extends Seeder
         ]);
 
         // ─────────────────────────────────────────────────────────────
-        // 2. BP Invoices — 3 sent + 1 overdue + 1 paid for p_sarah
-        //    Gives us 4 upcoming payments from BP alone.
+        // 2. BP Contracts — MUST come before BP Invoices (FK constraint)
+        // ─────────────────────────────────────────────────────────────
+        $contracts = [
+            [
+                'id' => 'contract_nexus_sarah', 'practitioner_id' => 'p_sarah',
+                'bp_id' => 'bp_team_owner', 'title' => 'Marketing & Patient Acquisition',
+                'status' => 'active', 'total_value_cents' => 65000, 'payment_type' => 'one_time',
+                'started_at' => $now->copy()->subMonths(3), 'completed_at' => null,
+                'signed_at' => $now->copy()->subMonths(3),
+                'created_at' => $now->copy()->subMonths(3), 'updated_at' => $now->copy()->subMonths(3),
+            ],
+            [
+                'id' => 'contract_acme_sarah_billing', 'practitioner_id' => 'p_sarah',
+                'bp_id' => 'bp_acme', 'title' => 'Billing Management & AR Recovery',
+                'status' => 'active', 'total_value_cents' => 145000, 'payment_type' => 'one_time',
+                'started_at' => $now->copy()->subMonths(4), 'completed_at' => null,
+                'signed_at' => $now->copy()->subMonths(4),
+                'created_at' => $now->copy()->subMonths(4), 'updated_at' => $now->copy()->subMonths(4),
+            ],
+            [
+                'id' => 'contract_jamal_sarah_cred', 'practitioner_id' => 'p_sarah',
+                'bp_id' => 'bp_jamal', 'title' => 'Credentialing — Aetna, Humana, Optum',
+                'status' => 'active', 'total_value_cents' => 180000, 'payment_type' => 'milestone',
+                'started_at' => $now->copy()->subMonths(2), 'completed_at' => null,
+                'signed_at' => $now->copy()->subMonths(2),
+                'created_at' => $now->copy()->subMonths(2), 'updated_at' => $now->copy()->subDays(5),
+            ],
+        ];
+        foreach ($contracts as $c) {
+            $c['deleted_at'] = null;
+            DB::table('bp_contracts')->updateOrInsert(['id' => $c['id']], $c);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 3. BP Invoices (contracts must exist first)
         // ─────────────────────────────────────────────────────────────
         $bpInvoices = [
             [
@@ -98,7 +120,7 @@ class FinancesSeeder extends Seeder
         }
 
         // ─────────────────────────────────────────────────────────────
-        // 3. CS Invoices — 1 sent, 1 paid, 1 disputed
+        // 4. CS Invoices
         // ─────────────────────────────────────────────────────────────
         $csInvoices = [
             [
@@ -127,64 +149,13 @@ class FinancesSeeder extends Seeder
             DB::table('cs_invoices')->updateOrInsert(['id' => $inv['id']], $inv);
         }
 
-        // ─────────────────────────────────────────────────────────────
-        // 4. Additional client sessions (p_sarah as client)
-        //    ss_sarah_client_1 already exists (couples with p_maria);
-        //    add a completed one so spend history shows service_session kind.
-        // ─────────────────────────────────────────────────────────────
-        if (\Illuminate\Support\Facades\Schema::hasTable('service_sessions')) {
-            DB::table('service_sessions')->updateOrInsert(
-                ['id' => 'ss_sarah_client_2'],
-                [
-                    'id' => 'ss_sarah_client_2',
-                    'service_id' => 'svc_maria_couples',
-                    'practitioner_id' => 'p_maria',
-                    'client_id' => 'p_sarah',
-                    'status' => 'completed',
-                    'scheduled_at' => $now->copy()->subDays(30)->setTime(14, 0),
-                    'completed_at' => $now->copy()->subDays(30)->setTime(15, 0),
-                    'amount_cents' => 18000,
-                    'timezone' => 'America/Chicago',
-                    'share_notes_with_client' => 0,
-                    'deleted_at' => null,
-                    'created_at' => $now->copy()->subDays(35),
-                    'updated_at' => $now->copy()->subDays(30),
-                ]
-            );
-        }
+        // service_sessions skipped — service_request_id is NOT NULL with no default.
+        // Clinical session demo data comes from ServiceSeeder (ss_sarah_client_1 etc.).
 
         // ─────────────────────────────────────────────────────────────
-        // 5. Active BP Contracts for p_sarah
-        // ─────────────────────────────────────────────────────────────
-        $contracts = [
-            [
-                'id' => 'contract_nexus_sarah', 'practitioner_id' => 'p_sarah',
-                'bp_id' => 'bp_team_owner', 'title' => 'Marketing & Patient Acquisition',
-                'status' => 'active', 'total_value_cents' => 65000, 'payment_type' => 'one_time',
-                'started_at' => $now->copy()->subMonths(3), 'completed_at' => null,
-                'signed_at' => $now->copy()->subMonths(3),
-                'created_at' => $now->copy()->subMonths(3), 'updated_at' => $now->copy()->subMonths(3),
-            ],
-            [
-                'id' => 'contract_jamal_sarah_cred', 'practitioner_id' => 'p_sarah',
-                'bp_id' => 'bp_jamal', 'title' => 'Credentialing — Aetna, Humana, Optum',
-                'status' => 'active', 'total_value_cents' => 180000, 'payment_type' => 'milestone',
-                'started_at' => $now->copy()->subMonths(2), 'completed_at' => null,
-                'signed_at' => $now->copy()->subMonths(2),
-                'created_at' => $now->copy()->subMonths(2), 'updated_at' => $now->copy()->subDays(5),
-            ],
-        ];
-        foreach ($contracts as $c) {
-            $c['deleted_at'] = null;
-            DB::table('bp_contracts')->updateOrInsert(['id' => $c['id']], $c);
-        }
-
-        // ─────────────────────────────────────────────────────────────
-        // 6. Practitioner Payments — full transaction history for p_sarah
-        //    Kinds covered: subscription, cs_fee, bp_invoice, service_session
+        // 6. Practitioner Payments — CS fees, BP, sessions (no subscription — real from Stripe)
         // ─────────────────────────────────────────────────────────────
         $payments = [
-            // CS Fee
             [
                 'id' => 'pp_sarah_csfee_1', 'practitioner_id' => 'p_sarah',
                 'kind' => 'cs_fee', 'amount_cents' => 90000, 'currency' => 'USD',
@@ -195,7 +166,6 @@ class FinancesSeeder extends Seeder
                 'created_at' => $now->copy()->subMonths(5)->subDays(20),
                 'updated_at' => $now->copy()->subMonths(5)->subDays(20),
             ],
-            // BP Invoice
             [
                 'id' => 'pp_sarah_bp_acme', 'practitioner_id' => 'p_sarah',
                 'kind' => 'bp_invoice', 'amount_cents' => 19200, 'currency' => 'USD',
@@ -205,17 +175,6 @@ class FinancesSeeder extends Seeder
                 'paid_at' => $now->copy()->subMonths(1)->subDays(20),
                 'created_at' => $now->copy()->subMonths(1)->subDays(20),
                 'updated_at' => $now->copy()->subMonths(1)->subDays(20),
-            ],
-            // Service session (Sarah as client of Maria's couples therapy)
-            [
-                'id' => 'pp_sarah_session_1', 'practitioner_id' => 'p_sarah',
-                'kind' => 'service_session', 'amount_cents' => 18000, 'currency' => 'USD',
-                'status' => 'paid',
-                'payment_method_label' => 'Session ss_sarah_client_2 · Maria Rodriguez',
-                'stripe_charge_id' => 'ch_demo_session_maria_1',
-                'paid_at' => $now->copy()->subDays(30),
-                'created_at' => $now->copy()->subDays(30),
-                'updated_at' => $now->copy()->subDays(30),
             ],
         ];
         foreach ($payments as $p) {
@@ -242,7 +201,7 @@ class FinancesSeeder extends Seeder
         }
 
         // ─────────────────────────────────────────────────────────────
-        // 8. Sample dispute (resolved) — proves the disputes section
+        // 8. Sample dispute (resolved)
         // ─────────────────────────────────────────────────────────────
         if (DB::getSchemaBuilder()->hasTable('disputes')) {
             DB::table('disputes')->updateOrInsert(
@@ -273,8 +232,8 @@ class FinancesSeeder extends Seeder
         // ─────────────────────────────────────────────────────────────
         $prefs = [
             'fin_autopay_enabled'          => '1',
-            'fin_approval_threshold_cents' => '50000',   // $500
-            'fin_monthly_limit_cents'      => '500000',  // $5,000
+            'fin_approval_threshold_cents' => '50000',
+            'fin_monthly_limit_cents'      => '500000',
         ];
         foreach ($prefs as $key => $value) {
             $ex = DB::table('user_meta')->where('user_id', 'p_sarah')->where('meta_key', $key)->first();
