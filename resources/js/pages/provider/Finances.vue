@@ -1459,7 +1459,7 @@ function openViewInvoice(inv)    { activeInvoice.value = inv; modals.value.viewR
 function openTxReceipt(tx) {
   if (tx.modal_type === 'subscription') {
     // Try to match against a loaded subscription invoice by Stripe invoice ID
-    const matched = props.subscriptionData?.invoices?.find(i => i.id === tx.stripe_invoice_id)
+    const matched = props.subscriptionInvoices?.find(i => i.id === tx.stripe_invoice_id)
     if (matched) {
       activeSubInvoice.value = matched
       modals.value.subInvoice = true
