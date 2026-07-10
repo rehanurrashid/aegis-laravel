@@ -626,12 +626,11 @@ class SettingsController extends Controller
             if (!$user->hasStripeId()) {
                 $user->createAsStripeCustomer(['name' => $user->display_name, 'email' => $user->email]);
             }
+            // Always attach first — updateDefaultPaymentMethod can fail on unattached PMs
+            $user->addPaymentMethod($data['payment_method_id']);
             if (!empty($data['set_default'])) {
                 $user->updateDefaultPaymentMethod($data['payment_method_id']);
-                // Mirror to users.stripe_payment_method_id so peer-payment charges can use it
                 $user->update(['stripe_payment_method_id' => $data['payment_method_id']]);
-            } else {
-                $user->addPaymentMethod($data['payment_method_id']);
             }
             return back()->with('success', 'Payment method saved.');
         } catch (\Throwable $e) {

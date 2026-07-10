@@ -861,7 +861,7 @@
   <AddCardModal
     v-model="stShowAddCard"
     setup-intent-route="provider.settings.payment.setup-intent"
-    store-route="provider.finances.payment.store"
+    store-route="provider.settings.payment.store"
   />
 
   <AegisModal v-model="stShowRemove" title="Remove Payment Method" size="sm">
