@@ -1593,7 +1593,7 @@ function saveReferralPrefs() {
 
 /* SIDEBAR */
 /* settings-sidebar: wrapper kept; nav uses global .page-sidebar-* classes */
-.settings-sidebar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); position: sticky; top: 0; }
+.settings-sidebar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); position: sticky; top: 80px; }
 .settings-sidebar-scroll { max-height: 400px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 .settings-sidebar-scroll::-webkit-scrollbar { width: 4px; }
 .settings-sidebar-scroll::-webkit-scrollbar-track { background: transparent; }

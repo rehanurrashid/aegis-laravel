@@ -559,7 +559,7 @@ onMounted(() => {
 
 <style scoped>
 .settings-layout { display: grid; grid-template-columns: 240px 1fr; gap: 22px; align-items: start; padding: 0 var(--page-x, 24px) 40px; }
-.settings-sidebar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); position: sticky; top: 0; }
+.settings-sidebar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); position: sticky; top: 80px; }
 .settings-sidebar-scroll { max-height: 400px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
 .settings-sidebar-scroll::-webkit-scrollbar { width: 4px; }
 .settings-sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
