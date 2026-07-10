@@ -116,8 +116,7 @@ watch(() => props.modelValue, async (isOpen) => {
     await ensureStripeJs()
     stripe = window.Stripe(stripeKey)
 
-    // 3. Mount Elements (wait a tick so the DOM targets are attached)
-    await nextTick()
+    // 3. Build Elements instance (no DOM access yet)
     elements = stripe.elements({
       clientSecret,
       appearance: { theme: 'stripe' },
@@ -127,6 +126,11 @@ watch(() => props.modelValue, async (isOpen) => {
     cardExpiry = elements.create('cardExpiry')
     cardCvc    = elements.create('cardCvc')
 
+    // 4. Reveal the form (clears the spinner), then wait for Vue to paint the
+    //    mount-target divs before calling .mount() on each element.
+    loading.value = false
+    await nextTick()
+
     cardNumber.mount('#acm-card-number')
     cardExpiry.mount('#acm-card-expiry')
     cardCvc.mount('#acm-card-cvc')
@@ -135,6 +139,7 @@ watch(() => props.modelValue, async (isOpen) => {
   } catch (e) {
     loadError.value = e.message || 'Could not initialize card entry.'
   } finally {
+    // Guard: only clear loading if an error path left it true
     loading.value = false
   }
 })
