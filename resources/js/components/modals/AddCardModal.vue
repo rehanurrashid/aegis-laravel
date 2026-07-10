@@ -247,7 +247,7 @@ async function submit() {
     }, {
       preserveScroll: true,
       onSuccess: () => {
-        toast.success('Card saved.')
+        // Server flash ('Payment method saved.') already triggers a toast via app.js — no second toast here.
         emit('saved')
         emit('update:modelValue', false)
       },

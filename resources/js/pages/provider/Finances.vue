@@ -1298,9 +1298,11 @@ import AddCardModal                from '@/components/modals/AddCardModal.vue'
 import ViewInvoiceModal            from '@/components/modals/ViewInvoiceModal.vue'
 import AegisPagination             from '@/components/ui/AegisPagination.vue'
 import { useToast }                from '@/composables/useToast'
+import { useConfirm }              from '@/composables/useConfirm'
 import { useProfileRoute }         from '@/composables/useProfileRoute'
 
 const toast = useToast()
+const { confirmAction } = useConfirm()
 const { profileHref } = useProfileRoute()
 
 const props = defineProps({
@@ -1569,11 +1571,16 @@ function doSavePayModel() {
 
 // ── Payment methods ──────────────────────────────────────────────────────
 function setDefaultPm(pm) {
-  router.post(route('provider.settings.payment.default'), { payment_method_id: pm.id }, {
-    preserveScroll: true,
-    onSuccess: () => toast.success('Default payment method updated.'),
-    onError:   () => toast.error('Could not update default payment method.'),
-  })
+  confirmAction(
+    `Set ${(pm.brand || 'card').toUpperCase()} ···· ${pm.last4} as your default payment method? It will fund all Aegis charges going forward.`,
+    () => {
+      router.post(route('provider.settings.payment.default'), { payment_method_id: pm.id }, {
+        preserveScroll: true,
+        onSuccess: () => toast.success('Default payment method updated.'),
+        onError:   () => toast.error('Could not update default payment method.'),
+      })
+    }
+  )
 }
 function doRemoveCard() {
   if (!activePm.value) return
