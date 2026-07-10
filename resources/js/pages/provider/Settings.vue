@@ -233,7 +233,7 @@
               <div class="settings-tier-gate-icon"><AegisIcon name="lock" :size="22" /></div>
               <div class="settings-tier-gate-title">Referrals require Continuity Practice</div>
               <div class="settings-tier-gate-body">Send and receive patient referrals, access the full Integrative Network, and manage referral preferences — all included in Continuity Practice.</div>
-              <button type="button" class="btn btn-gold" @click="section = 'billing'; showTierModal = true"><AegisIcon name="star" :size="14" /> Upgrade to Continuity Practice</button>
+              <button type="button" class="btn btn-gold" @click="router.visit(route('provider.settings.index', { section: 'billing', upgrade: '1' }))"><AegisIcon name="star" :size="14" /> Upgrade to Continuity Practice</button>
             </div>
           </div>
           <div :class="{ 'settings-tier-blurred': isAccessTier }">
@@ -364,7 +364,7 @@
               <div class="settings-tier-gate-icon"><AegisIcon name="lock" :size="22" /></div>
               <div class="settings-tier-gate-title">My Services requires Continuity Practice</div>
               <div class="settings-tier-gate-body">Offer supervision, consultation, training, and other peer services through Aegis. Enables the My Services sidebar and the Integrative Business Services badge on your profile.</div>
-              <button type="button" class="btn btn-gold" @click="section = 'billing'; showTierModal = true"><AegisIcon name="star" :size="14" /> Upgrade to Continuity Practice</button>
+              <button type="button" class="btn btn-gold" @click="router.visit(route('provider.settings.index', { section: 'billing', upgrade: '1' }))"><AegisIcon name="star" :size="14" /> Upgrade to Continuity Practice</button>
             </div>
           </div>
           <div :class="{ 'settings-tier-blurred': isAccessTier }">
