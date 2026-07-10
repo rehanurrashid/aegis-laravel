@@ -677,7 +677,7 @@
             <template #footer>
               <button type="button" class="btn btn-outline" @click="confirmSwap = false">Go Back</button>
               <button type="button" :class="pendingSwap.direction === 'downgrade' ? 'btn btn-outline' : 'btn btn-gold'" @click="doSwapPlan" :disabled="planBusy">
-                <AegisIcon :name="pendingSwap.direction === 'downgrade' ? 'trending-down' : 'check'" :size="13" />
+                <AegisIcon :name="pendingSwap.direction === 'downgrade' ? 'chevron-down' : 'check'" :size="13" />
                 {{ pendingSwap.direction === 'downgrade' ? 'Confirm Downgrade' : 'Confirm Change' }}
               </button>
             </template>
