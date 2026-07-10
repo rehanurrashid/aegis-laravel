@@ -790,7 +790,7 @@
                   <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Set as default" @click="setDefaultPm(pm)">
                     <AegisIcon name="check" :size="12" />
                   </button>
-                  <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Remove" @click="activePm = pm; modals.removeCard = true">
+                  <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Remove" @click="openRemoveCard(pm)">
                     <AegisIcon name="trash" :size="12" />
                   </button>
                 </template>
@@ -1581,6 +1581,10 @@ function setDefaultPm(pm) {
       })
     }
   )
+}
+function openRemoveCard(pm) {
+  activePm.value = pm
+  modals.value.removeCard = true
 }
 function doRemoveCard() {
   if (!activePm.value) return
