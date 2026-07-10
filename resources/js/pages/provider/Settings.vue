@@ -13,6 +13,7 @@
 
       <!-- SIDEBAR NAV -->
       <div class="settings-sidebar">
+        <div class="settings-sidebar-scroll">
         <template v-for="grp in nav" :key="grp.group">
           <div class="page-sidebar-group">
             <div class="page-sidebar-label">{{ grp.group }}</div>
@@ -25,6 +26,7 @@
             </button>
           </div>
         </template>
+        </div>
       </div>
 
       <div class="settings-content" ref="settingsContent">
@@ -1591,7 +1593,11 @@ function saveReferralPrefs() {
 
 /* SIDEBAR */
 /* settings-sidebar: wrapper kept; nav uses global .page-sidebar-* classes */
-.settings-sidebar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); position: sticky; top: 150px; max-height: 400px; overflow-y: auto; overflow-x: hidden; }
+.settings-sidebar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); position: sticky; top: 0; }
+.settings-sidebar-scroll { max-height: 400px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.settings-sidebar-scroll::-webkit-scrollbar { width: 4px; }
+.settings-sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+.settings-sidebar-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
 /* PANELS */
 .settings-content { min-width: 0; }
