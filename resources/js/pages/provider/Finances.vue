@@ -235,13 +235,12 @@
           <table class="table fin-tx-table" style="margin:0;">
             <thead>
               <tr>
-                <th>Date</th><th>Payee</th><th>Description</th><th>Category</th><th>Method</th><th>Amount</th><th>Status</th><th></th>
+                <th>Date</th><th>Description</th><th>Category</th><th>Amount</th><th>Status</th><th></th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="tx in recentTransactions.slice(0, 5)" :key="tx.id">
                 <td class="tx-date">{{ tx.date }}</td>
-                <td class="tx-payee">{{ tx.payee }}</td>
                 <td class="tx-desc">{{ tx.description }}</td>
                 <td>
                   <span class="tx-cat-wrap">
@@ -249,7 +248,6 @@
                     {{ tx.category_label }}
                   </span>
                 </td>
-                <td class="tx-method">{{ tx.method }}</td>
                 <td :class="tx.amount < 0 ? 'tx-amount-out' : 'tx-amount-in'">
                   {{ tx.amount < 0 ? '-' : '+' }}${{ Math.abs(tx.amount / 100).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                 </td>
@@ -261,7 +259,7 @@
                 </td>
               </tr>
               <tr v-if="!recentTransactions.length">
-                <td colspan="8" style="text-align:center;padding:24px;color:var(--text-3);font-size:13px;">
+                <td colspan="6" style="text-align:center;padding:24px;color:var(--text-3);font-size:13px;">
                   No transactions yet.
                 </td>
               </tr>
@@ -742,13 +740,12 @@
             <table class="table fin-tx-table" style="margin:0;">
               <thead>
                 <tr>
-                  <th>Date</th><th>Payee</th><th>Description</th><th>Category</th><th>Method</th><th>Amount</th><th>Status</th><th></th>
+                  <th>Date</th><th>Description</th><th>Category</th><th>Amount</th><th>Status</th><th></th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="tx in paginatedTransactions" :key="tx.id">
                   <td class="tx-date">{{ tx.date }}</td>
-                  <td class="tx-payee">{{ tx.payee }}</td>
                   <td class="tx-desc">{{ tx.description }}</td>
                   <td>
                     <span class="tx-cat-wrap">
@@ -756,7 +753,6 @@
                       {{ tx.category_label }}
                     </span>
                   </td>
-                  <td class="tx-method">{{ tx.method }}</td>
                   <td :class="tx.amount < 0 ? 'tx-amount-out' : 'tx-amount-in'">
                     {{ tx.amount < 0 ? '-' : '+' }}${{ Math.abs(tx.amount / 100).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) }}
                   </td>
@@ -768,7 +764,7 @@
                   </td>
                 </tr>
                 <tr v-if="!paginatedTransactions.length">
-                  <td colspan="8" style="text-align:center;padding:24px;color:var(--text-3);font-size:13px;">
+                  <td colspan="6" style="text-align:center;padding:24px;color:var(--text-3);font-size:13px;">
                     No transactions match your filters.
                   </td>
                 </tr>
