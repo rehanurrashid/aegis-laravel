@@ -481,32 +481,6 @@
             <div class="st-card-body">
 
               <!-- ── Quick actions — link out to Finances ─────────────────── -->
-              <div class="st-billing-shortcuts">
-                <a :href="route('provider.finances.index') + '?tab=subscription'" class="st-shortcut-btn">
-                  <span class="st-shortcut-icon"><AegisIcon name="file-text" :size="16" /></span>
-                  <div>
-                    <div class="st-shortcut-label">Invoice History</div>
-                    <div class="st-shortcut-sub">View & download receipts</div>
-                  </div>
-                  <AegisIcon name="chevron-right" :size="13" class="st-shortcut-arrow" />
-                </a>
-                <a :href="route('provider.finances.index') + '?tab=integrations'" class="st-shortcut-btn">
-                  <span class="st-shortcut-icon"><AegisIcon name="link" :size="16" /></span>
-                  <div>
-                    <div class="st-shortcut-label">Stripe Connect</div>
-                    <div class="st-shortcut-sub">Receive service payments</div>
-                  </div>
-                  <AegisIcon name="chevron-right" :size="13" class="st-shortcut-arrow" />
-                </a>
-                <a :href="route('provider.finances.index') + '?tab=history'" class="st-shortcut-btn">
-                  <span class="st-shortcut-icon"><AegisIcon name="clock" :size="16" /></span>
-                  <div>
-                    <div class="st-shortcut-label">Transactions</div>
-                    <div class="st-shortcut-sub">Full payment history</div>
-                  </div>
-                  <AegisIcon name="chevron-right" :size="13" class="st-shortcut-arrow" />
-                </a>
-              </div>
               <!-- Founding Member perk banner — first 100 practitioners -->
               <div v-if="user?.is_founding_member && subStatus !== 'none'" class="st-founding-banner">
                 <AegisIcon name="star" :size="16" />
