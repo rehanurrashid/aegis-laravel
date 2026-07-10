@@ -5,13 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\HasCommonSettingsMethods;
 use App\Models\UserMeta;
 use App\Models\UserSession;
 use App\Services\ActivityService;
-use App\Events\Business\SubscriptionTierChanged;
-use App\Events\Business\SubscriptionCancelled;
 use App\Events\Business\MaatAddonChanged;
-use App\Events\Auth\AccountClosed;
 use App\Services\ProfileService;
 use App\Services\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
@@ -23,6 +21,7 @@ use Inertia\Response;
 
 class SettingsController extends Controller
 {
+    use HasCommonSettingsMethods;
     public function __construct(
         private ActivityService $activity,
         private ProfileService $profiles,
@@ -152,51 +151,7 @@ class SettingsController extends Controller
         }
     }
 
-    public function updateAccount(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'phone' => ['nullable', 'string', 'max:40'],
-        ]);
 
-        $user = $request->user();
-        $user->forceFill([
-            'phone' => $data['phone'] ?? null,
-        ])->save();
-
-        $this->activity->log(
-            $user->id,
-            $user->role?->portal() ?? 'provider',
-            'account',
-            \App\Enums\ActivitySeverity::Info,
-            'phone_updated',
-            'Phone number updated',
-            'You updated your contact phone number.',
-            null, null, null,
-            'log',
-            $user->id,
-        );
-
-        return back()->with('success', 'Account details updated.');
-    }
-
-    public function updateNotifications(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'categories'       => 'nullable|array',
-            'categories.*.key'   => 'required|string|max:64',
-            'categories.*.push'  => 'nullable|boolean',
-            'categories.*.email' => 'nullable|boolean',
-            'categories.*.inapp' => 'nullable|boolean',
-        ]);
-
-        $user = $request->user();
-
-        if (!empty($data['categories'])) {
-            $this->profiles->saveMeta($user, 'notify_categories', $data['categories'], 'json');
-        }
-
-        return back()->with('success', 'Notification preferences saved.');
-    }
 
     public function updateSecurityAlerts(Request $request): RedirectResponse
     {
@@ -358,146 +313,12 @@ class SettingsController extends Controller
         return back()->with('success', 'Privacy settings saved.');
     }
 
-    public function updateAppearance(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'theme'    => 'nullable|string|in:gold,gold-dark,slate',
-            'darkMode' => 'nullable|boolean',
-            'timezone' => 'nullable|string|max:64',
-        ]);
 
-        $user = $request->user();
-        $this->profiles->saveMeta($user, 'appearance', [
-            'theme'     => $data['theme']    ?? 'gold',
-            'dark_mode' => (bool) ($data['darkMode'] ?? false),
-            'timezone'  => $data['timezone'] ?? 'America/New_York',
-        ], 'json');
 
-        return back()->with('success', 'Appearance settings saved.');
-    }
 
-    public function revokeSession(Request $request, string $session): RedirectResponse
-    {
-        $user = $request->user();
-        $this->profiles->revokeSession($user, $session);
-        $this->activity->log(
-            $user->id, $user->role?->portal() ?? 'provider', 'settings',
-            \App\Enums\ActivitySeverity::Warning,
-            'session_revoked', 'Session revoked',
-            'A session was remotely terminated from your security settings.',
-            null, null, null, 'log', $user->id,
-        );
-        return back()->with('success', 'Session revoked.');
-    }
 
-    public function revokeAllSessions(Request $request): RedirectResponse
-    {
-        $user  = $request->user();
-        // Keep the current Laravel session intact; revoke all UserSession records
-        $this->profiles->revokeAllSessions($user);
-        $this->activity->log(
-            $user->id, $user->role?->portal() ?? 'provider', 'settings',
-            \App\Enums\ActivitySeverity::Warning,
-            'all_sessions_revoked', 'All sessions terminated',
-            'All active sessions were signed out from your security settings.',
-            null, null, null, 'log', $user->id,
-        );
-        return back()->with('success', 'All sessions revoked.');
-    }
 
-    public function deleteAccount(Request $request): RedirectResponse
-    {
-        $request->validate(['confirm' => 'required|string|in:DELETE MY ACCOUNT']);
 
-        $user = $request->user();
-        $user->update(['deactivated_at' => now()]);
-        $user->tokens()->delete();
-
-        $this->activity->log(
-            $user->id, 'provider', 'account',
-            \App\Enums\ActivitySeverity::Warning,
-            'account_deleted', 'Account deletion requested',
-            'Account queued for permanent deletion in 30 days.',
-            null, null, null, 'log', $user->id,
-        );
-
-        event(new AccountClosed($user, 'user_requested'));
-
-        auth()->logout();
-        return redirect('/login')->with('success', 'Your account has been scheduled for deletion. You have 30 days to change your mind by contacting support.');
-    }
-
-    public function pauseAccount(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'until'   => 'nullable|date|after:today',
-            'reason'  => 'nullable|string|in:leave,vacation,parental,sabbatical,other',
-            'message' => 'nullable|string|max:500',
-        ]);
-
-        // Treat empty string as null for until
-        $data['until'] = !empty($data['until']) ? $data['until'] : null;
-
-        $user = $request->user();
-        // Store pause state in user_meta (paused_at is on subscriptions table, not users)
-        $this->profiles->saveMeta($user, 'account_paused', '1', 'string');
-        $this->profiles->saveMeta($user, 'pause_prefs', [
-            'until'   => $data['until']   ?? null,
-            'reason'  => $data['reason']  ?? 'other',
-            'message' => $data['message'] ?? '',
-        ], 'json');
-
-        $this->activity->log(
-            $user->id, 'provider', 'account',
-            \App\Enums\ActivitySeverity::Warning,
-            'account_paused', 'Account paused',
-            'Your account has been paused. You will not appear in searches or receive referrals.',
-            null, null, null, 'log', $user->id,
-        );
-
-        return back()->with('success', 'Account paused successfully. You can reactivate at any time.');
-    }
-
-    public function resumeAccount(Request $request): RedirectResponse
-    {
-        $user = $request->user();
-        $this->profiles->saveMeta($user, 'account_paused', '0', 'string');
-
-        $this->activity->log(
-            $user->id, 'provider', 'account',
-            \App\Enums\ActivitySeverity::Info,
-            'account_resumed', 'Account reactivated',
-            'Your account is active again.',
-            null, null, null, 'log', $user->id,
-        );
-
-        return back()->with('success', 'Account reactivated. You are now visible in search results.');
-    }
-
-    public function exportData(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'include' => 'required|array|min:1',
-            'include.*' => 'string|in:profile,referrals,documents,agreements,network,activity,messages,billing',
-            'format' => 'required|string|in:json,csv',
-        ]);
-
-        $user = $request->user();
-
-        $this->activity->log(
-            $user->id, 'provider', 'account',
-            \App\Enums\ActivitySeverity::Info,
-            'data_export_requested', 'Data export requested',
-            'A HIPAA-compliant export of your data has been requested and will be emailed within 24 hours.',
-            null, null, null, 'log', $user->id,
-        );
-
-        // TODO: dispatch ExportUserDataJob::dispatch($user, $data['include'], $data['format']);
-
-        return back()->with('success', 'Export request submitted. Your data will be emailed to ' . $user->email . ' within 24 hours.');
-    }
-
-    // ── Subscription management ──────────────────────────────────────────
 
     public function billingPortal(Request $request): RedirectResponse
     {
@@ -516,87 +337,8 @@ class SettingsController extends Controller
         }
     }
 
-    public function swapPlan(Request $request): RedirectResponse
-    {
-        $data = $request->validate(['price_id' => ['required', 'string', 'starts_with:price_']]);
-        $user = $request->user();
-        try {
-            $result = $this->subscriptions->changePlan($user, $data['price_id']);
-            $msg = match ($result['direction']) {
-                'upgrade'   => 'Plan upgraded. Prorated charge added to your account.',
-                'downgrade' => 'Plan will change at the next billing cycle.',
-                default     => 'Plan unchanged.',
-            };
 
-            $actionMap = [
-                'upgrade'        => ['subscription_upgraded',   'Plan upgraded',   'You upgraded your Aegis subscription plan.'],
-                'downgrade'      => ['subscription_downgraded', 'Plan downgraded', 'You downgraded your Aegis subscription plan. Change takes effect at next cycle.'],
-                'switch-annual'  => ['subscription_changed',    'Billing changed', 'You switched to annual billing.'],
-                'switch-monthly' => ['subscription_changed',    'Billing changed', 'You switched to monthly billing.'],
-            ];
-            [$action, $title, $desc] = $actionMap[$result['direction']] ?? ['subscription_changed', 'Plan changed', $msg];
 
-            $this->activity->log(
-                $user->id, 'provider', 'account',
-                \App\Enums\ActivitySeverity::Info,
-                $action, $title, $desc,
-                \App\Models\User::class, $user->id,
-                null, 'log', $user->id,
-            );
-
-            if (in_array($result['direction'], ['upgrade', 'downgrade'], true)) {
-                event(new SubscriptionTierChanged($user, $result['direction'], $user->tier?->value));
-            }
-
-            return back()->with('success', $msg);
-        } catch (\Throwable $e) {
-            return back()->withErrors(['subscription' => $e->getMessage()]);
-        }
-    }
-
-    public function cancelPlan(Request $request): RedirectResponse
-    {
-        $user = $request->user();
-        try {
-            $this->subscriptions->cancel($user);
-
-            $this->activity->log(
-                $user->id, 'provider', 'account',
-                \App\Enums\ActivitySeverity::Warning,
-                'subscription_cancelled', 'Subscription cancelled',
-                'You cancelled your Aegis subscription. Access continues until the end of the current billing period.',
-                \App\Models\User::class, $user->id,
-                null, 'log', $user->id,
-            );
-
-            event(new SubscriptionCancelled($user));
-
-            return back()->with('success', 'Your subscription will end at the current billing period.');
-        } catch (\Throwable $e) {
-            return back()->withErrors(['subscription' => $e->getMessage()]);
-        }
-    }
-
-    public function resumePlan(Request $request): RedirectResponse
-    {
-        $user = $request->user();
-        try {
-            $this->subscriptions->reactivate($user);
-
-            $this->activity->log(
-                $user->id, 'provider', 'account',
-                \App\Enums\ActivitySeverity::Info,
-                'subscription_reactivated', 'Subscription reactivated',
-                'You reactivated your Aegis subscription.',
-                \App\Models\User::class, $user->id,
-                null, 'log', $user->id,
-            );
-
-            return back()->with('success', 'Your subscription has been reactivated.');
-        } catch (\Throwable $e) {
-            return back()->withErrors(['subscription' => $e->getMessage()]);
-        }
-    }
 
     public function toggleMaat(Request $request): RedirectResponse
     {
@@ -643,137 +385,32 @@ class SettingsController extends Controller
 
     // ── Payment methods ───────────────────────────────────────────────────
 
-    public function storePaymentMethod(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'payment_method_id' => 'required|string|starts_with:pm_',
-            'set_default'       => 'nullable|boolean',
-        ]);
-        $user = $request->user();
-        try {
-            if (!$user->hasStripeId()) {
-                $user->createAsStripeCustomer(['name' => $user->display_name, 'email' => $user->email]);
-            }
-            // Always attach first — updateDefaultPaymentMethod can fail on unattached PMs
-            $user->addPaymentMethod($data['payment_method_id']);
-            if (!empty($data['set_default'])) {
-                $user->updateDefaultPaymentMethod($data['payment_method_id']);
-                $user->update(['stripe_payment_method_id' => $data['payment_method_id']]);
-            }
-            $this->activity->log(
-                $user->id, $user->role?->portal() ?? 'provider', 'settings',
-                \App\Enums\ActivitySeverity::Info,
-                'payment_method_added', 'Payment method added',
-                'A new payment method was added to your account.',
-                null, null, null, 'log', $user->id,
-            );
-            return back()->with('success', 'Payment method saved.');
-        } catch (\Throwable $e) {
-            return back()->withErrors(['payment' => 'Could not save payment method. ' . $e->getMessage()]);
-        }
-    }
 
-    public function setDefaultPaymentMethod(Request $request): RedirectResponse
-    {
-        $data = $request->validate(['payment_method_id' => 'required|string|starts_with:pm_']);
-        $user = $request->user();
-        try {
-            $this->subscriptions->setDefaultPaymentMethod($user, $data['payment_method_id']);
-            $this->activity->log(
-                $user->id, $user->role?->portal() ?? 'provider', 'settings',
-                \App\Enums\ActivitySeverity::Info,
-                'payment_method_default_set', 'Default payment method updated',
-                'Your default payment method was updated.',
-                null, null, null, 'log', $user->id,
-            );
-            return back()->with('success', 'Default payment method updated.');
-        } catch (\Throwable $e) {
-            return back()->withErrors(['payment' => $e->getMessage()]);
-        }
-    }
 
-    public function removePaymentMethod(Request $request): RedirectResponse
-    {
-        $data = $request->validate(['payment_method_id' => 'required|string|starts_with:pm_']);
-        $user = $request->user();
-        try {
-            $this->subscriptions->removePaymentMethod($user, $data['payment_method_id']);
-            $this->activity->log(
-                $user->id, $user->role?->portal() ?? 'provider', 'settings',
-                \App\Enums\ActivitySeverity::Info,
-                'payment_method_removed', 'Payment method removed',
-                'A payment method was removed from your account.',
-                null, null, null, 'log', $user->id,
-            );
-            return back()->with('success', 'Payment method removed.');
-        } catch (\Throwable $e) {
-            return back()->withErrors(['payment' => $e->getMessage()]);
-        }
-    }
-    // ── Stripe Connect Express Onboarding ────────────────────────────────────
 
-    /**
-     * Generate a Stripe Connect Express AccountLink and redirect the user.
-     * If no Connect account exists yet, create one first.
-     */
     public function connectOnboard(Request $request): RedirectResponse
     {
-        $user = $request->user();
-
         if (!config('services.stripe.secret')) {
             return back()->withErrors(['connect' => 'Stripe is not configured. Set STRIPE_SECRET in .env.']);
         }
-
         try {
-            $stripe = new \Stripe\StripeClient(config('services.stripe.secret'));
-
-            // Create Express account if none exists yet
-            if (!$user->stripe_account_id || str_starts_with((string) $user->stripe_account_id, 'acct_demo_')) {
-                $account = $stripe->accounts->create([
-                    'type'         => 'express',
-                    'email'        => $user->email,
-                    'capabilities' => ['transfers' => ['requested' => true]],
-                    'metadata'     => ['user_id' => $user->id, 'portal' => 'provider'],
-                ]);
-                $user->update(['stripe_account_id' => $account->id, 'stripe_connected' => false]);
-            }
-
-            $accountLink = $stripe->accountLinks->create([
-                'account'     => $user->stripe_account_id,
-                'refresh_url' => route('provider.settings.connect.onboard'),
-                'return_url'  => route('provider.settings.connect.return'),
-                'type'        => 'account_onboarding',
-            ]);
-
-            return redirect($accountLink->url);
+            $url = $this->getConnectOnboardUrl(
+                $request->user(), 'provider',
+                'provider.settings.connect.onboard',
+                'provider.settings.connect.return'
+            );
+            return redirect($url);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('[Stripe Connect] onboard failed', [
-                'user_id' => $user->id,
-                'error'   => $e->getMessage(),
-            ]);
+            Log::error('[Stripe Connect] onboard failed', ['user_id' => $request->user()->id, 'error' => $e->getMessage()]);
             return back()->withErrors(['connect' => 'Could not start Stripe Connect setup. ' . $e->getMessage()]);
         }
     }
 
-    /**
-     * Return URL after Stripe Connect Express onboarding completes.
-     * Stripe does NOT send account.updated immediately — we check manually and sync.
-     */
+    /** Return URL after Stripe Connect Express onboarding completes. */
     public function connectReturn(Request $request): RedirectResponse
     {
         $user = $request->user();
-
-        if ($user->stripe_account_id && config('services.stripe.secret')
-            && !str_starts_with((string) $user->stripe_account_id, 'acct_demo_')) {
-            try {
-                $stripe  = new \Stripe\StripeClient(config('services.stripe.secret'));
-                $account = $stripe->accounts->retrieve($user->stripe_account_id);
-                $connected = $account->charges_enabled && $account->payouts_enabled && $account->details_submitted;
-                $user->update(['stripe_connected' => $connected ? 1 : 0]);
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning('[Stripe Connect] return sync failed', ['error' => $e->getMessage()]);
-            }
-        }
+        $this->syncStripeConnectStatus($user);
 
         $this->activity->log(
             $user->id, $user->role?->portal() ?? 'provider', 'settings',
