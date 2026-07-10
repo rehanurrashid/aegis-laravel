@@ -53,7 +53,7 @@
           <a href="#" @click.prevent="activeTab = 'bp'" style="color:inherit;font-weight:700;text-decoration:none;"> Review now →</a>
         </div>
         <div style="margin-top:10px;">
-          <button type="button" class="btn btn-primary btn-sm" @click="activeTab = 'bp'">Review Invoices</button>
+          <button type="button" class="btn btn-primary" @click="activeTab = 'bp'">Review Invoices</button>
         </div>
       </div>
     </div>
@@ -164,7 +164,7 @@
             <span class="fin-card-icon"><AegisIcon name="file-text" :size="15" /></span>
             Recent Transactions
           </div>
-          <button type="button" class="btn btn-outline btn-sm" @click="activeTab = 'history'">
+          <button type="button" class="btn btn-outline" @click="activeTab = 'history'">
             <AegisIcon name="chevron-right" :size="12" /> View All
           </button>
         </div>
@@ -237,7 +237,7 @@
         title="No Continuity Stewards yet"
         description="Designate a Continuity Steward in your Continuity Plan to manage payment arrangements here."
       >
-        <template #actions>
+        <template #action>
           <a :href="route('provider.stewards.index')" class="btn btn-primary">Manage CS</a>
         </template>
       </AegisEmptyState>
@@ -286,9 +286,9 @@
           </div>
 
           <!-- Stripe not connected warning -->
-          <div v-if="!cs.stripe_connected" class="cspay-note" style="background:var(--orange-light);border-color:rgba(232,169,74,0.35);margin-bottom:10px;">
-            <span style="color:var(--orange-dark);flex-shrink:0;margin-top:1px;"><AegisIcon name="alert-triangle" :size="16" /></span>
-            <p style="color:var(--orange-dark);">
+          <div v-if="!cs.stripe_connected" class="cspay-note cspay-note--warning" style="margin-bottom:10px;">
+            <span class="cspay-note-icon--warning"><AegisIcon name="alert-triangle" :size="16" /></span>
+            <p>
               <strong>{{ cs.display_name }} hasn't finished Stripe Connect onboarding.</strong>
               Until they do, the agreed fee can't be routed to them automatically when an incident is verified. Ask them to complete payment setup in their portal.
             </p>
@@ -322,7 +322,7 @@
             Active <span v-if="activeContracts.length" class="badge-pill">{{ activeContracts.length }}</span>
           </button>
         </div>
-        <button type="button" class="btn btn-dark btn-sm" @click="modals.hireBP = true">
+        <button type="button" class="btn btn-dark" @click="modals.hireBP = true">
           <AegisIcon name="plus" :size="13" /> Hire Business Partner
         </button>
       </div>
@@ -334,7 +334,7 @@
         title="No Business Partners yet"
         description="Hire a Business Partner to manage billing, legal, IT, and other practice services."
       >
-        <template #actions>
+        <template #action>
           <button type="button" class="btn btn-primary" @click="modals.hireBP = true">
             <AegisIcon name="plus" :size="13" /> Hire Business Partner
           </button>
@@ -403,9 +403,7 @@
             <div class="invoice-status">
               <AegisBadge label="Active Contract" variant="green" />
               <span class="invoice-status-right">
-                <AegisBadge v-if="con.autopay_enabled" label="Auto-Pay On" variant="gold">
-                  <template #icon><AegisIcon name="clock" :size="11" /></template>
-                </AegisBadge>
+                <AegisBadge v-if="con.autopay_enabled" label="Auto-Pay On" variant="gold" icon="clock" />
                 <span v-if="con.billing_type === 'retainer'" class="invoice-auto"><AegisIcon name="check" :size="13" /> Monthly retainer</span>
                 <span class="connect-pill" :class="con.bp_connected ? 'is-connected' : 'is-not-connected'">
                   <span class="status-dot"></span>{{ con.bp_connected ? 'Stripe Connected' : 'Not Connected' }}
@@ -467,7 +465,7 @@
             <span class="fin-card-icon"><AegisIcon name="credit-card" :size="15" /></span>
             Saved Payment Methods
           </div>
-          <button type="button" class="btn btn-dark btn-sm" @click="modals.addPayment = true">
+          <button type="button" class="btn btn-dark" @click="modals.addPayment = true">
             <AegisIcon name="plus" :size="12" /> Add Method
           </button>
         </div>
@@ -588,7 +586,7 @@
             <span class="fin-card-icon"><AegisIcon name="clock" :size="15" /></span>
             Full Transaction History
           </div>
-          <button type="button" class="btn btn-outline btn-sm" @click="modals.export = true">
+          <button type="button" class="btn btn-outline" @click="modals.export = true">
             <AegisIcon name="download" :size="12" /> Export CSV
           </button>
         </div>
@@ -1114,8 +1112,8 @@
         Funds are transferred directly to your Continuity Steward's Stripe account. Aegis does not hold or take a cut of this payment.
       </p>
       <template #footer>
-        <button type="button" class="btn btn-outline btn-sm" @click="modals.confirmCsPay = false">Cancel</button>
-        <button type="button" class="btn btn-primary btn-sm" :disabled="paying === csTarget?.id" @click="doPayCs">
+        <button type="button" class="btn btn-outline" @click="modals.confirmCsPay = false">Cancel</button>
+        <button type="button" class="btn btn-primary" :disabled="paying === csTarget?.id" @click="doPayCs">
           {{ paying === csTarget?.id ? 'Processing…' : 'Pay now' }}
         </button>
       </template>
@@ -1131,8 +1129,8 @@
         Funds are transferred directly to your Business Partner's Stripe account. Aegis does not hold or take a cut of this payment.
       </p>
       <template #footer>
-        <button type="button" class="btn btn-outline btn-sm" @click="modals.confirmBpPay = false">Cancel</button>
-        <button type="button" class="btn btn-primary btn-sm" :disabled="paying === bpTarget?.id" @click="doPayBp">
+        <button type="button" class="btn btn-outline" @click="modals.confirmBpPay = false">Cancel</button>
+        <button type="button" class="btn btn-primary" :disabled="paying === bpTarget?.id" @click="doPayBp">
           {{ paying === bpTarget?.id ? 'Processing…' : 'Pay now' }}
         </button>
       </template>
@@ -1543,6 +1541,17 @@ function payModelLabel(model) {
 
 /* ── Export checks ── */
 .export-checks { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+
+/* ── Role option (pay model selector) ── */
+.role-option          { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 8px; cursor: pointer; transition: border-color var(--transition), background var(--transition); }
+.role-option:hover    { background: var(--surface-2); border-color: var(--border-dark); }
+.role-option.selected { border-color: var(--gold-dark); background: var(--badge-bg-gold); }
+.role-option:last-child { margin-bottom: 0; }
+
+/* ── CS note warning variant ── */
+.cspay-note--warning               { background: var(--orange-light); border-color: var(--soft-gold); }
+.cspay-note--warning p             { color: var(--orange-dark); }
+.cspay-note-icon--warning          { color: var(--orange-dark); flex-shrink: 0; margin-top: 1px; }
 
 /* ── Misc ── */
 .btn-dark        { background: var(--text); border: 1px solid var(--text); color: var(--text-inverted); font-family: var(--font-sans); font-size: 13px; font-weight: 700; }
