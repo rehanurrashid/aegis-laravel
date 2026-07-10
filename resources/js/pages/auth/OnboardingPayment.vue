@@ -506,6 +506,7 @@ function switchAccount() { router.post(route('logout')) }
 .ob-stripe-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:40px 20px; color:var(--text-2); font-size:12px; }
 .ob-stripe-spinner { width:24px; height:24px; border:2px solid var(--border); border-top-color:var(--gold); border-radius:var(--radius-full); animation:spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+.ob-spin { animation: spin 0.7s linear infinite; display: inline-block; }
 
 /* Buttons */
 .ob-btn-full { width:100%; padding:12px 22px; border-radius:var(--radius-full); font-size:13px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
