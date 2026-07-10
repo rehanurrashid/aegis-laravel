@@ -863,17 +863,21 @@
                     <div class="stripe-setup-desc">
                       Connect your Stripe account to <strong>receive</strong> payments from clients booking your services. Aegis uses Stripe Connect — funds go directly to your bank account. Aegis never holds your money.
                     </div>
-                    <div v-if="stStripeConnected" class="stripe-setup-connected">
-                      <span class="app-status-connected"><AegisIcon name="check" :size="13" /> Connected</span>
-                      <a :href="route('provider.settings.billing.portal')" class="btn btn-ghost" target="_blank">
-                        <AegisIcon name="external-link" :size="12" /> Stripe Dashboard
-                      </a>
-                    </div>
-                    <div v-else class="stripe-setup-actions">
-                      <a :href="route('provider.settings.connect.onboard')" class="btn btn-primary">
-                        <AegisIcon name="external-link" :size="13" /> Connect Stripe Account
-                      </a>
-                      <span style="font-size:12px;color:var(--text-4);">You'll be redirected to Stripe to complete setup</span>
+                    <div class="stripe-setup-actions">
+                      <template v-if="stStripeConnected">
+                        <a :href="route('provider.settings.billing.portal')" class="btn btn-outline" target="_blank">
+                          <AegisIcon name="external-link" :size="12" /> Stripe Dashboard
+                        </a>
+                        <a :href="route('provider.settings.connect.onboard')" class="btn btn-ghost">
+                          <AegisIcon name="refresh-cw" :size="12" /> Reconnect
+                        </a>
+                      </template>
+                      <template v-else>
+                        <a :href="route('provider.settings.connect.onboard')" class="btn btn-primary">
+                          <AegisIcon name="external-link" :size="13" /> Connect Stripe Account
+                        </a>
+                        <span style="font-size:12px;color:var(--text-4);">You'll be redirected to Stripe to complete setup</span>
+                      </template>
                     </div>
                   </div>
                 </div>
@@ -1882,7 +1886,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 .st-cycle-toggle .active { color: var(--text-2); }
 .st-save-pill { background: var(--green-light); color: var(--green-dark); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: var(--radius-full); }
 .st-plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 680px; margin: 0 auto; }
-.st-plan-tier { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; text-align: center; position: relative; background: var(--surface); transition: border-color var(--transition); }
+.st-plan-tier { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; text-align: center; position: relative; background: var(--surface); transition: border-color var(--transition); display: flex; flex-direction: column; }
 .st-plan-tier.current { border-color: var(--gold-dark); background: var(--icon-bg-gold); }
 .st-plan-tier-badge { display: inline-flex; align-items: center; gap: 5px; background: var(--gold-dark); color: var(--text-inverted); font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: var(--radius-full); letter-spacing: 0.5px; margin-bottom: 10px; }
 .st-plan-tier-name { font-family: var(--font-serif); font-size: 18px; font-weight: 700; color: var(--text); }
@@ -1891,7 +1895,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 .st-plan-tier-alt { font-size: 11px; color: var(--text-4); margin-bottom: 12px; }
 .st-plan-feats { font-size: 12px; color: var(--text-2); line-height: 2; margin-top: 12px; text-align: left; display: flex; flex-direction: column; gap: 2px; }
 .st-plan-feats span { display: flex; align-items: center; gap: 6px; }
-.st-plan-cta { width: 100%; margin-top: 14px; }
+.st-plan-cta { width: 100%; margin-top: auto; padding-top: 14px; }
 .st-included-head { font-size: 11px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; color: var(--text-4); }
 .st-note { font-size: 12.5px; color: var(--text-3); }
 .st-addon-card { display: flex; align-items: flex-start; gap: 16px; padding: 18px; border: 1px solid var(--badge-border-gold); border-radius: var(--radius-lg); background: var(--icon-bg-gold); }

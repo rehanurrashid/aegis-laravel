@@ -901,13 +901,15 @@
                 <div class="stripe-setup-desc">
                   Connect your Stripe account to <strong>receive</strong> payments from clients booking your services. Funds go directly to your bank — Aegis never holds your money.
                 </div>
-                <div v-if="stripeConnected" class="stripe-setup-connected">
-                  <span class="app-status-connected"><AegisIcon name="check" :size="13" /> Connected</span>
-                </div>
-                <div v-else class="stripe-setup-actions">
-                  <span class="app-status-disconnected"><AegisIcon name="alert-circle" :size="13" /> Not connected</span>
-                  <a :href="route('provider.settings.index') + '?section=stripe_connect'" class="btn btn-primary">
-                    <AegisIcon name="settings" :size="13" /> Set up in Settings
+                <div class="stripe-setup-connected">
+                  <span v-if="stripeConnected" class="app-status-connected">
+                    <AegisIcon name="check" :size="13" /> Connected
+                  </span>
+                  <span v-else class="app-status-disconnected">
+                    <AegisIcon name="alert-circle" :size="13" /> Not connected
+                  </span>
+                  <a :href="route('provider.settings.index') + '?section=stripe_connect'" class="btn btn-outline">
+                    <AegisIcon name="settings" :size="12" /> {{ stripeConnected ? 'Manage in Settings' : 'Set up in Settings' }}
                   </a>
                 </div>
               </div>
