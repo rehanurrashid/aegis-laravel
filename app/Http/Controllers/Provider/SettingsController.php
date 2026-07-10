@@ -466,13 +466,31 @@ class SettingsController extends Controller
     public function swapPlan(Request $request): RedirectResponse
     {
         $data = $request->validate(['price_id' => ['required', 'string', 'starts_with:price_']]);
+        $user = $request->user();
         try {
-            $result = $this->subscriptions->changePlan($request->user(), $data['price_id']);
+            $result = $this->subscriptions->changePlan($user, $data['price_id']);
             $msg = match ($result['direction']) {
                 'upgrade'   => 'Plan upgraded. Prorated charge added to your account.',
                 'downgrade' => 'Plan will change at the next billing cycle.',
                 default     => 'Plan unchanged.',
             };
+
+            $actionMap = [
+                'upgrade'        => ['subscription_upgraded',   'Plan upgraded',   'You upgraded your Aegis subscription plan.'],
+                'downgrade'      => ['subscription_downgraded', 'Plan downgraded', 'You downgraded your Aegis subscription plan. Change takes effect at next cycle.'],
+                'switch-annual'  => ['subscription_changed',    'Billing changed', 'You switched to annual billing.'],
+                'switch-monthly' => ['subscription_changed',    'Billing changed', 'You switched to monthly billing.'],
+            ];
+            [$action, $title, $desc] = $actionMap[$result['direction']] ?? ['subscription_changed', 'Plan changed', $msg];
+
+            $this->activity->log(
+                $user->id, 'provider', 'account',
+                \App\Enums\ActivitySeverity::Info,
+                $action, $title, $desc,
+                \App\Models\User::class, $user->id,
+                null, 'log', $user->id,
+            );
+
             return back()->with('success', $msg);
         } catch (\Throwable $e) {
             return back()->withErrors(['subscription' => $e->getMessage()]);
@@ -481,8 +499,19 @@ class SettingsController extends Controller
 
     public function cancelPlan(Request $request): RedirectResponse
     {
+        $user = $request->user();
         try {
-            $this->subscriptions->cancel($request->user());
+            $this->subscriptions->cancel($user);
+
+            $this->activity->log(
+                $user->id, 'provider', 'account',
+                \App\Enums\ActivitySeverity::Warning,
+                'subscription_cancelled', 'Subscription cancelled',
+                'You cancelled your Aegis subscription. Access continues until the end of the current billing period.',
+                \App\Models\User::class, $user->id,
+                null, 'log', $user->id,
+            );
+
             return back()->with('success', 'Your subscription will end at the current billing period.');
         } catch (\Throwable $e) {
             return back()->withErrors(['subscription' => $e->getMessage()]);
@@ -491,8 +520,19 @@ class SettingsController extends Controller
 
     public function resumePlan(Request $request): RedirectResponse
     {
+        $user = $request->user();
         try {
-            $this->subscriptions->reactivate($request->user());
+            $this->subscriptions->reactivate($user);
+
+            $this->activity->log(
+                $user->id, 'provider', 'account',
+                \App\Enums\ActivitySeverity::Info,
+                'subscription_reactivated', 'Subscription reactivated',
+                'You reactivated your Aegis subscription.',
+                \App\Models\User::class, $user->id,
+                null, 'log', $user->id,
+            );
+
             return back()->with('success', 'Your subscription has been reactivated.');
         } catch (\Throwable $e) {
             return back()->withErrors(['subscription' => $e->getMessage()]);
@@ -523,6 +563,17 @@ class SettingsController extends Controller
         try {
             $this->subscriptions->toggleMaatAddon($user, (bool) $data['enable'], $billing);
             $msg = $data['enable'] ? 'MAAT Professional CS Service added.' : 'MAAT Professional CS Service removed.';
+
+            $this->activity->log(
+                $user->id, 'provider', 'account',
+                \App\Enums\ActivitySeverity::Info,
+                $data['enable'] ? 'maat_addon_added' : 'maat_addon_removed',
+                $data['enable'] ? 'MAAT add-on activated' : 'MAAT add-on removed',
+                $msg,
+                \App\Models\User::class, $user->id,
+                null, 'log', $user->id,
+            );
+
             return back()->with('success', $msg);
         } catch (\Throwable $e) {
             return back()->withErrors(['maat' => $e->getMessage()]);
