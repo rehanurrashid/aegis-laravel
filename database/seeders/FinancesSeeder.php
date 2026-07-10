@@ -184,44 +184,6 @@ class FinancesSeeder extends Seeder
         //    Kinds covered: subscription, cs_fee, bp_invoice, service_session
         // ─────────────────────────────────────────────────────────────
         $payments = [
-            // Real Stripe invoice — matches the live invoice on p_sarah's account
-            [
-                'id' => 'pp_sarah_sub_stripe_live', 'practitioner_id' => 'p_sarah',
-                'kind' => 'subscription', 'amount_cents' => 4900, 'currency' => 'USD',
-                'status' => 'paid', 'payment_method_label' => 'Aegis Practice · RFHGS1AR-0001',
-                'stripe_charge_id' => 'in_1TrGwmHnj73y5cBfRFHGS1AR',
-                'paid_at' => $now->copy()->startOfDay(),
-                'created_at' => $now->copy()->startOfDay(),
-                'updated_at' => $now->copy()->startOfDay(),
-            ],
-            // Subscription — 3 months of Aegis Practice
-            [
-                'id' => 'pp_sarah_sub_jan', 'practitioner_id' => 'p_sarah',
-                'kind' => 'subscription', 'amount_cents' => 4900, 'currency' => 'USD',
-                'status' => 'paid', 'payment_method_label' => 'Aegis Practice · Monthly',
-                'stripe_charge_id' => 'ch_demo_sub_jan',
-                'paid_at' => $now->copy()->subMonths(2)->startOfMonth(),
-                'created_at' => $now->copy()->subMonths(2)->startOfMonth(),
-                'updated_at' => $now->copy()->subMonths(2)->startOfMonth(),
-            ],
-            [
-                'id' => 'pp_sarah_sub_feb', 'practitioner_id' => 'p_sarah',
-                'kind' => 'subscription', 'amount_cents' => 4900, 'currency' => 'USD',
-                'status' => 'paid', 'payment_method_label' => 'Aegis Practice · Monthly',
-                'stripe_charge_id' => 'ch_demo_sub_feb',
-                'paid_at' => $now->copy()->subMonths(1)->startOfMonth(),
-                'created_at' => $now->copy()->subMonths(1)->startOfMonth(),
-                'updated_at' => $now->copy()->subMonths(1)->startOfMonth(),
-            ],
-            [
-                'id' => 'pp_sarah_sub_mar', 'practitioner_id' => 'p_sarah',
-                'kind' => 'subscription', 'amount_cents' => 4900, 'currency' => 'USD',
-                'status' => 'paid', 'payment_method_label' => 'Aegis Practice · Monthly',
-                'stripe_charge_id' => 'ch_demo_sub_mar',
-                'paid_at' => $now->copy()->startOfMonth(),
-                'created_at' => $now->copy()->startOfMonth(),
-                'updated_at' => $now->copy()->startOfMonth(),
-            ],
             // CS Fee
             [
                 'id' => 'pp_sarah_csfee_1', 'practitioner_id' => 'p_sarah',
