@@ -564,65 +564,87 @@
 
     <!-- ══════════════════════════════ TAB: SUBSCRIPTION ══════════════════════════════ -->
     <div v-show="activeTab === 'subscription'">
-      <div class="card" style="margin-bottom:18px;">
-        <div class="card-header">
-          <div class="card-title fin-card-title">
-            <span class="fin-card-icon"><AegisIcon name="star" :size="15" /></span>
-            Current Subscription
-          </div>
-          <a :href="route('provider.settings.index') + '?section=billing'" class="btn btn-outline">
-            <AegisIcon name="external-link" :size="12" /> Upgrade / Change Plan
-          </a>
-        </div>
-        <div class="card-body">
-          <div class="sub-summary">
+
+      <!-- Plan summary card -->
+      <div class="card sub-plan-card" style="margin-bottom:18px;">
+        <div class="sub-plan-body">
+          <div class="sub-plan-left">
+            <div class="sub-plan-icon">
+              <AegisIcon name="star" :size="22" />
+            </div>
             <div>
-              <div class="sub-tier">{{ subscription?.tier || 'None' }}</div>
-              <div class="sub-status">
+              <div class="sub-plan-name">Continuity {{ subscription?.tier === 'practice' ? 'Practice' : subscription?.tier === 'access' ? 'Access' : (subscription?.tier || 'None') }}</div>
+              <div class="sub-plan-meta">
                 <AegisBadge
                   :label="subscription?.status || 'inactive'"
-                  :variant="subscription?.status === 'active' ? 'green' : 'neutral'"
+                  :variant="subscription?.status === 'active' ? 'green' : subscription?.status === 'past_due' ? 'red' : 'neutral'"
                 />
-                <span v-if="subscription?.has_maat_addon" style="margin-left:6px;">
-                  <AegisBadge label="MAAT Add-on" variant="gold" />
+                <AegisBadge v-if="subscription?.has_maat_addon" label="MAAT Add-on" variant="gold" />
+                <span v-if="subscription?.ends_at" class="sub-ends-on">
+                  <AegisIcon name="alert-triangle" :size="12" /> Ends {{ formatSubscriptionDate(subscription.ends_at) }}
                 </span>
               </div>
             </div>
           </div>
+          <a :href="route('provider.settings.index') + '?section=billing'" class="btn btn-outline">
+            <AegisIcon name="external-link" :size="12" /> Manage Plan
+          </a>
+        </div>
+
+        <!-- Stats row -->
+        <div class="sub-stats-row">
+          <div class="sub-stat">
+            <div class="sub-stat-label">Plan</div>
+            <div class="sub-stat-val">{{ subscription?.tier === 'practice' ? 'Continuity Practice' : subscription?.tier === 'access' ? 'Continuity Access' : '—' }}</div>
+          </div>
+          <div class="sub-stat">
+            <div class="sub-stat-label">Billing</div>
+            <div class="sub-stat-val">{{ subscriptionInvoices.length ? 'Monthly' : '—' }}</div>
+          </div>
+          <div class="sub-stat">
+            <div class="sub-stat-label">Invoices</div>
+            <div class="sub-stat-val">{{ subscriptionInvoices.length }}</div>
+          </div>
+          <div class="sub-stat">
+            <div class="sub-stat-label">MAAT Add-on</div>
+            <div class="sub-stat-val">{{ subscription?.has_maat_addon ? 'Active' : 'Not active' }}</div>
+          </div>
         </div>
       </div>
 
+      <!-- Invoice history -->
       <div class="card">
         <div class="card-header">
           <div class="card-title fin-card-title">
             <span class="fin-card-icon"><AegisIcon name="file-text" :size="15" /></span>
             Subscription Invoices
           </div>
-          <AegisBadge :label="subscriptionInvoices.length + ' invoices'" variant="neutral" />
+          <AegisBadge :label="subscriptionInvoices.length + (subscriptionInvoices.length === 1 ? ' invoice' : ' invoices')" variant="neutral" />
         </div>
         <div class="card-body" style="padding:0;">
-          <table v-if="subscriptionInvoices.length" class="table" style="margin:0;">
+          <table v-if="subscriptionInvoices.length" class="table sub-invoice-table" style="margin:0;">
             <thead>
               <tr>
-                <th style="padding-left:22px;">Date</th>
-                <th>Invoice #</th>
-                <th>Description</th>
+                <th style="padding-left:20px;">Date</th>
+                <th>Plan</th>
                 <th>Amount</th>
                 <th>Status</th>
-                <th style="padding-right:22px;"></th>
+                <th style="padding-right:20px;"></th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="inv in subscriptionInvoices" :key="inv.id">
-                <td style="padding-left:22px;">{{ formatSubscriptionDate(inv.date) }}</td>
-                <td class="mono">{{ inv.number || '—' }}</td>
-                <td>{{ inv.product_name || 'Aegis subscription' }}</td>
-                <td>{{ formatCents(inv.amount_cents) }}</td>
+              <tr v-for="inv in subscriptionInvoices" :key="inv.id" class="sub-inv-row" @click="openSubInvoice(inv)">
+                <td style="padding-left:20px;" class="tx-date">{{ formatSubscriptionDate(inv.date || inv.created) }}</td>
+                <td>
+                  <div class="sub-inv-product">{{ inv.product_name || 'Aegis Subscription' }}</div>
+                  <div class="sub-inv-desc">{{ inv.number || inv.id }}</div>
+                </td>
+                <td class="tx-amount-out" style="font-size:14px;">{{ formatCents(inv.amount_cents) }}</td>
                 <td><AegisBadge :label="inv.status" :variant="statusVariant(inv.status)" /></td>
-                <td style="padding-right:22px;text-align:right;">
-                  <a v-if="inv.hosted_invoice_url" :href="inv.hosted_invoice_url" target="_blank" class="btn-icon btn-icon-sm" data-tooltip="View invoice">
-                    <AegisIcon name="external-link" :size="12" />
-                  </a>
+                <td style="padding-right:20px;text-align:right;">
+                  <button type="button" class="btn-icon btn-icon-sm" data-tooltip="View invoice" @click.stop="openSubInvoice(inv)">
+                    <AegisIcon name="eye" :size="12" />
+                  </button>
                 </td>
               </tr>
             </tbody>
@@ -630,13 +652,55 @@
           <AegisEmptyState
             v-else
             icon="file-text"
-            title="No subscription invoices yet"
-            description="Your Aegis subscription invoices appear here once billing starts."
+            title="No invoices yet"
+            description="Your subscription invoices will appear here after your first billing cycle."
             style="padding:32px 0;"
           />
         </div>
       </div>
     </div>
+
+    <!-- ══ SUB INVOICE MODAL ══ -->
+    <AegisModal v-model="modals.subInvoice" :title="activeSubInvoice ? 'Invoice — ' + (activeSubInvoice.number || activeSubInvoice.id) : 'Invoice'" size="lg">
+      <div v-if="activeSubInvoice">
+        <div class="vim-header">
+          <div>
+            <div class="vim-vendor">Aegis Platform</div>
+            <div class="vim-vendor-sub">Subscription Invoice</div>
+          </div>
+          <div class="vim-date-block">
+            <div class="vim-date-label">Invoice Date</div>
+            <div class="vim-date-value">{{ formatSubscriptionDate(activeSubInvoice.date || activeSubInvoice.created) }}</div>
+          </div>
+        </div>
+        <div class="vim-receipt">
+          <div class="vim-receipt-row">
+            <span>{{ activeSubInvoice.product_name || 'Aegis Subscription' }}</span>
+            <span>{{ formatCents(activeSubInvoice.amount_cents) }}</span>
+          </div>
+          <div class="vim-receipt-row">
+            <span class="vim-inv-number">Invoice #{{ activeSubInvoice.number || activeSubInvoice.id }}</span>
+            <span><AegisBadge :label="activeSubInvoice.status" :variant="statusVariant(activeSubInvoice.status)" /></span>
+          </div>
+          <div class="vim-receipt-row total">
+            <span>Total paid</span>
+            <span>{{ formatCents(activeSubInvoice.amount_cents) }}</span>
+          </div>
+        </div>
+        <div class="vim-fine-print">
+          Aegis platform subscription charged to your default card on file. Card details are tokenized and managed by Stripe.
+        </div>
+      </div>
+      <template #footer>
+        <a v-if="activeSubInvoice?.pdf_url" :href="activeSubInvoice.pdf_url" target="_blank" class="btn btn-ghost">
+          <AegisIcon name="download" :size="12" /> Download PDF
+        </a>
+        <a v-if="activeSubInvoice?.hosted_url" :href="activeSubInvoice.hosted_url" target="_blank" class="btn btn-outline">
+          <AegisIcon name="external-link" :size="12" /> View on Stripe
+        </a>
+        <button v-if="!activeSubInvoice?.hosted_url && !activeSubInvoice?.pdf_url" type="button" class="btn btn-outline" @click="modals.subInvoice = false">Close</button>
+      </template>
+    </AegisModal>
 
     <!-- ══════════════════════════════ TAB: PAYMENT METHODS ══════════════════════════════ -->
     <div v-show="activeTab === 'methods'">
@@ -1295,7 +1359,11 @@ const modals = ref({
   cancelCsAgreement: false, cancelBpContract: false, autoPay: false,
   viewContract: false, addPayment: false, removeCard: false, export: false,
   payArrangement: false, changePayModel: false, confirmCsPay: false, openDispute: false,
+  subInvoice: false,
 })
+
+const activeSubInvoice = ref(null)
+function openSubInvoice(inv) { activeSubInvoice.value = inv; modals.value.subInvoice = true }
 
 // ── Payment forms (Inertia) ──────────────────────────────────────────────
 const paying   = ref(null)
@@ -1700,10 +1768,25 @@ function paymentTypeLabel(t) {
 .pm-card-btns     { display: flex; gap: 6px; }
 
 /* ── Subscription tab ── */
-.sub-summary { display: flex; align-items: center; justify-content: space-between; }
-.sub-tier    { font-family: var(--font-serif); font-size: 22px; font-weight: 700; color: var(--text); text-transform: capitalize; }
-.sub-status  { margin-top: 6px; }
-.mono        { font-family: var(--font-mono, monospace); font-size: 12px; color: var(--text-2); }
+.sub-plan-card    { overflow: hidden; }
+.sub-plan-body    { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 22px; border-bottom: 1px solid var(--border); }
+.sub-plan-left    { display: flex; align-items: center; gap: 14px; }
+.sub-plan-icon    { width: 48px; height: 48px; border-radius: var(--radius); background: var(--badge-bg-gold); color: var(--gold-dark); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sub-plan-name    { font-family: var(--font-serif); font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.2; text-transform: capitalize; }
+.sub-plan-meta    { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.sub-ends-on      { font-size: 12px; color: var(--orange-dark); display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+.sub-stats-row    { display: grid; grid-template-columns: repeat(4, 1fr); }
+.sub-stat         { padding: 14px 22px; border-right: 1px solid var(--border); }
+.sub-stat:last-child { border-right: none; }
+.sub-stat-label   { font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--text-4); margin-bottom: 5px; }
+.sub-stat-val     { font-family: var(--font-serif); font-size: 15px; font-weight: 700; color: var(--text); text-transform: capitalize; }
+
+/* Invoice table rows */
+.sub-invoice-table .sub-inv-row { cursor: pointer; }
+.sub-invoice-table .sub-inv-row:hover td { background: var(--surface-2); }
+.sub-inv-product  { font-size: 13px; font-weight: 600; color: var(--text); }
+.sub-inv-desc     { font-size: 11px; color: var(--text-4); margin-top: 2px; font-family: var(--font-mono, monospace); }
+.vim-inv-number   { font-size: 11px; color: var(--text-3); font-family: var(--font-mono, monospace); }
 
 /* ── Spending controls ── */
 .spending-input-wrap { display: flex; align-items: center; gap: 6px; }
