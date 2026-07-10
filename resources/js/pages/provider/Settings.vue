@@ -1623,7 +1623,7 @@ function saveReferralPrefs() {
 .settings-nav-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-4); padding: 4px 14px; }
 .settings-nav-item { width: 100%; display: flex; align-items: center; gap: 8px; padding: 7px 14px; font-size: 13px; color: var(--text-2); cursor: pointer; border: none; background: none; border-left: 3px solid transparent; transition: all var(--transition); text-align: left; position: relative; }
 .settings-nav-item:hover { background: var(--surface-2); color: var(--text); }
-.settings-nav-item.active { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: var(--shadow-xs); border-left-color: transparent; }
+.settings-nav-item.active { background: var(--badge-bg-gold); color: var(--text); font-weight: 600; box-shadow: var(--shadow-xs); border-left-color: transparent; }
 .settings-nav-item.active::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--gold-dark); }
 .s-nav-icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .s-nav-icon :deep(svg) { width: 15px; height: 15px; }

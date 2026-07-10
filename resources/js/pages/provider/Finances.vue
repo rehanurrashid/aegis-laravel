@@ -1884,7 +1884,7 @@ function paymentTypeLabel(t) {
 }
 .fin-nav-item:hover { background: var(--surface-2); color: var(--text); }
 .fin-nav-item.active {
-  background: var(--surface);
+  background: var(--badge-bg-gold);
   color: var(--text);
   font-weight: 600;
   box-shadow: var(--shadow-xs);
@@ -1931,7 +1931,7 @@ function paymentTypeLabel(t) {
   .fin-nav-group { display: flex; flex-wrap: wrap; gap: 0; padding: 4px 6px; }
   .fin-nav-label { display: none; }
   .fin-nav-item  { width: auto; flex: 0 0 auto; border-left: none; border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; }
-  .fin-nav-item.active { background: var(--surface); color: var(--text); border-left-color: transparent; font-weight: 600; }
+  .fin-nav-item.active { background: var(--badge-bg-gold); color: var(--text); border-left-color: transparent; font-weight: 600; }
   .fin-nav-icon  { display: none; }
   .fin-sidebar-header { padding: 12px 16px; }
 }
