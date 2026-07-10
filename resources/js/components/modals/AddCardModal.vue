@@ -222,7 +222,7 @@ function close() {
 .add-card-loading   { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-3); padding: 20px 0; }
 .add-card-error     { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: rgba(220,38,38,.06); color: var(--red); border-radius: var(--radius-sm); font-size: 13px; }
 .add-card-form      { display: flex; flex-direction: column; }
-.form-group         { display: flex; flex-direction: column; gap: 6px; }
+.form-group         { display: flex; flex-direction: column; gap: 6px; margin-bottom: 0; }
 .form-label         { font-size: 11px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; color: var(--text-2); }
 .form-row           { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .stripe-field       { padding: 12px 13px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); min-height: 42px; }
