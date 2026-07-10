@@ -522,17 +522,6 @@
                 <span><strong>Founding Member perks active</strong> — 2 additional Continuity Stewards free for life · 1 marketing ad/yr free (first 100 providers)</span>
               </div>
 
-              <!-- Upgrade CTA — shown when on Access tier with an active subscription -->
-              <div v-if="currentTier === 'access' && subStatus === 'active'" class="st-upgrade-cta">
-                <div>
-                  <div class="st-upgrade-cta-title">Upgrade to Continuity Practice</div>
-                  <div class="st-upgrade-cta-sub">Unlock referrals, full network, services and more — $49/mo or $468/yr</div>
-                </div>
-                <button type="button" class="btn btn-primary btn-sm" @click="modals.showUpgrade = true">
-                  <AegisIcon name="activity" :size="13" /> Upgrade Now
-                </button>
-              </div>
-
               <!-- Current plan band — dynamic from backend -->
               <div class="st-current-band">
                 <div>
@@ -586,7 +575,7 @@
                     Your current plan
                   </button>
                   <button v-else type="button" class="btn btn-outline btn-sm st-plan-cta" @click="swapPlan('access')" :disabled="planBusy || !accessPriceId">
-                    {{ swapButtonLabel('access') }}
+                    {{ currentTier === 'practice' ? 'Downgrade to Access' : swapButtonLabel('access') }}
                   </button>
                 </div>
 
@@ -605,7 +594,7 @@
                     Your current plan
                   </button>
                   <button v-else type="button" class="btn btn-gold btn-sm st-plan-cta" @click="swapPlan('practice')" :disabled="planBusy || !practicePriceId">
-                    {{ swapButtonLabel('practice') }}
+                    {{ currentTier === 'access' ? 'Upgrade to Practice' : swapButtonLabel('practice') }}
                   </button>
                 </div>
               </div>
@@ -627,12 +616,27 @@
                   <div class="st-addon-feats">
                     <span v-for="f in maatFeatures" :key="f"><AegisIcon name="check" :size="12" /> {{ f }}</span>
                   </div>
+                  <!-- MAAT locked alert — shown when on Access tier -->
+                  <div v-if="currentTier !== 'practice'" class="alert alert-warning" style="margin-bottom:12px;margin-top:4px;">
+                    <div class="alert-icon"><AegisIcon name="lock" :size="16" /></div>
+                    <div class="alert-content">
+                      <div class="alert-title">Requires Continuity Practice</div>
+                      <div>The MAAT Professional CS add-on is only available on the Continuity Practice plan. Upgrade your plan above to unlock this add-on.</div>
+                    </div>
+                  </div>
                   <div class="st-addon-foot">
                     <button v-if="hasMaat" type="button" class="btn btn-outline btn-sm" @click="toggleMaat(false)" :disabled="maatBusy">Remove MAAT</button>
-                    <button v-else type="button" class="btn btn-gold btn-sm" @click="toggleMaat(true)" :disabled="maatBusy || currentTier !== 'practice'">
+                    <button
+                      v-else
+                      type="button"
+                      class="btn btn-gold btn-sm"
+                      @click="toggleMaat(true)"
+                      :disabled="maatBusy || currentTier !== 'practice'"
+                      :data-tooltip="currentTier !== 'practice' ? 'Upgrade to Continuity Practice to add MAAT' : null"
+                    >
                       <AegisIcon name="shield" :size="13" /> Add MAAT Service
                     </button>
-                    <span class="st-addon-req">{{ currentTier === 'practice' ? 'Available with your plan' : 'Requires Continuity Practice' }}</span>
+                    <span v-if="currentTier === 'practice'" class="st-addon-req">Available with your plan</span>
                   </div>
                 </div>
               </div>
@@ -665,15 +669,16 @@
               </div>
 
               <!-- Proration / timing note -->
-              <div style="padding:12px 14px;border-radius:var(--radius);background:var(--surface-2);border:1px solid var(--border);font-size:13px;color:var(--text-2);line-height:1.6">
-                <AegisIcon name="info" :size="14" style="color:var(--gold-dark);vertical-align:middle;margin-right:4px" />
-                {{ pendingSwap.note }}
+              <div style="padding:12px 14px;border-radius:var(--radius);background:var(--surface-2);border:1px solid var(--border);font-size:13px;color:var(--text-2);line-height:1.6;display:flex;align-items:center;gap:8px;">
+                <span style="flex-shrink:0;color:var(--gold-dark);display:flex;"><AegisIcon name="info" :size="14" /></span>
+                <span>{{ pendingSwap.note }}</span>
               </div>
             </div>
             <template #footer>
               <button type="button" class="btn btn-outline btn-sm" @click="confirmSwap = false">Go Back</button>
-              <button type="button" class="btn btn-gold btn-sm" @click="doSwapPlan" :disabled="planBusy">
-                <AegisIcon name="check" :size="13" /> Confirm Change
+              <button type="button" :class="pendingSwap.direction === 'downgrade' ? 'btn btn-outline btn-sm' : 'btn btn-gold btn-sm'" @click="doSwapPlan" :disabled="planBusy">
+                <AegisIcon :name="pendingSwap.direction === 'downgrade' ? 'trending-down' : 'check'" :size="13" />
+                {{ pendingSwap.direction === 'downgrade' ? 'Confirm Downgrade' : 'Confirm Change' }}
               </button>
             </template>
           </AegisModal>
@@ -1298,7 +1303,9 @@ const billingMetaLine = computed(() => {
 const isSwapAllowed = (tier) => tier !== currentTier.value || billingAnnualView.value !== currentBillingIsAnnual.value;
 const swapButtonLabel = (tier) => {
   if (tier === currentTier.value) return billingAnnualView.value !== currentBillingIsAnnual.value ? (billingAnnualView.value ? 'Switch to annual' : 'Switch to monthly') : 'Your current plan';
-  return ['access','practice'].indexOf(tier) > ['access','practice'].indexOf(currentTier.value) ? 'Upgrade to this plan' : 'Switch to this plan';
+  const tierOrder = ['access', 'practice'];
+  const isUpgrade = tierOrder.indexOf(tier) > tierOrder.indexOf(currentTier.value);
+  return isUpgrade ? 'Upgrade to this plan' : 'Downgrade to this plan';
 };
 const planBusy = ref(false); const maatBusy = ref(false); const pmBusy = ref(false);
 const confirmCancel  = ref(false);
