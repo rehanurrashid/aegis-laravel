@@ -344,6 +344,12 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::get('/finances', [ProviderFinancesController::class, 'index'])->name('finances.index');
         Route::post('/finances/payment-method', [ProviderFinancesController::class, 'storePaymentMethod'])->name('finances.payment.store');
         Route::post('/finances/cs-invoices/{invoice}/pay', [ProviderFinancesController::class, 'payCSInvoice'])->name('finances.cs-invoice.pay');
+        Route::post('/finances/bp-invoices/{invoice}/reject', [ProviderFinancesController::class, 'rejectBpInvoice'])->name('finances.bp-invoice.reject');
+        Route::post('/finances/bp-contracts/{contract}/cancel', [ProviderFinancesController::class, 'cancelBpContract'])->name('finances.bp-contract.cancel');
+        Route::post('/finances/bp-contracts/{contract}/autopay', [ProviderFinancesController::class, 'saveAutopay'])->name('finances.bp-contract.autopay');
+        Route::post('/finances/cs-stewards/{steward}/cancel', [ProviderFinancesController::class, 'cancelCsAgreement'])->name('finances.cs-steward.cancel');
+        Route::put('/finances/cs-stewards/{steward}/pay-model', [ProviderFinancesController::class, 'updateCsPayModel'])->name('finances.cs-steward.pay-model');
+        Route::post('/finances/spending-controls', [ProviderFinancesController::class, 'saveSpendingControls'])->name('finances.spending-controls');
 
         // Settings
         Route::get('/settings', [ProviderSettingsController::class, 'index'])->name('settings.index');

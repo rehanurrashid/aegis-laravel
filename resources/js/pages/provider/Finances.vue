@@ -1149,7 +1149,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { router }        from '@inertiajs/vue3'
+import { router, useForm } from '@inertiajs/vue3'
 import AppLayout         from '@/layouts/AppLayout.vue'
 import OpenDisputeModal  from '@/components/modals/OpenDisputeModal.vue'
 import AegisPagination   from '@/components/ui/AegisPagination.vue'
@@ -1294,37 +1294,76 @@ function openBpDispute(inv) {
 const approveNote   = ref('')
 const rejectReason  = ref('Incorrect amount')
 const rejectMessage = ref('')
+const rejectForm    = useForm({ reason: 'Incorrect amount', message: '' })
 
 function openApproveInvoice(inv) { activeInvoice.value = inv; approveNote.value = ''; modals.value.approveInvoice = true }
 function openRejectInvoice(inv)  { activeInvoice.value = inv; modals.value.rejectInvoice = true }
 function openViewInvoice(inv)    { activeInvoice.value = inv; modals.value.viewReceipt = true }
 function openTxReceipt(tx)       { if (tx.inv_id) { activeInvoice.value = props.allInvoices?.find(i => i.id === tx.inv_id) || null; modals.value.viewReceipt = true } else { toast.info('Subscription receipts are issued directly by Aegis billing.') } }
 
-function doApproveBpInvoice() { modals.value.approveInvoice = false; toast.success('Payment sent — routed directly to the recipient via Stripe') }
-function doRejectInvoice()    { modals.value.rejectInvoice = false; toast.info('Invoice rejected — Business Partner notified') }
+function doApproveBpInvoice() {
+  if (!activeInvoice.value) return
+  paying.value = activeInvoice.value.id
+  router.post(route('provider.jobs.bp-invoice.pay', { invoice: activeInvoice.value.id }), {}, {
+    preserveScroll: true,
+    onSuccess: () => { modals.value.approveInvoice = false; toast.success('Payment sent — routed directly to the recipient via Stripe') },
+    onError: () => toast.error('Payment failed. Please check your default payment method.'),
+    onFinish: () => { paying.value = null },
+  })
+}
+function doRejectInvoice()    {
+  if (!activeInvoice.value) return
+  rejectForm.reason = rejectReason.value
+  rejectForm.message = rejectMessage.value
+  rejectForm.post(route('provider.finances.bp-invoice.reject', { invoice: activeInvoice.value.id }), {
+    preserveScroll: true,
+    onSuccess: () => { modals.value.rejectInvoice = false; rejectForm.reset() },
+  })
+}
 
 // ── Contract actions ─────────────────────────────────────────────────────
-const cancelDate      = ref('')
-const cancelBpReason  = ref('No longer needed')
-const cancelBpFeedback = ref('')
+const cancelDate          = ref('')
+const cancelBpReason      = ref('No longer needed')
+const cancelBpFeedback    = ref('')
+const cancelContractForm  = useForm({ reason: 'No longer needed', feedback: '' })
 
 function openCancelContract(con) { activeContract.value = con; modals.value.cancelBpContract = true }
 function openViewContract(con)   { activeContract.value = con; modals.value.viewContract = true }
-function doCancelBpContract()    { modals.value.cancelBpContract = false; toast.info('Cancellation notice sent — contract cancelled') }
+function doCancelBpContract()    {
+  if (!activeContract.value) return
+  cancelContractForm.reason = cancelBpReason.value
+  cancelContractForm.feedback = cancelBpFeedback.value
+  cancelContractForm.post(route('provider.finances.bp-contract.cancel', { contract: activeContract.value.id }), {
+    preserveScroll: true,
+    onSuccess: () => { modals.value.cancelBpContract = false; cancelContractForm.reset() },
+  })
+}
 function openBpHistory(con)      { activeContract.value = con; activeTab.value = 'history'; txSearch.value = con.bp_name }
 
 // ── Auto-pay ─────────────────────────────────────────────────────────────
-const autoPayForm = ref({ enabled: false, day: '1st', method_id: '', notify: '3_days', limit: '' })
 function openAutoPay(con) {
   activeContract.value = con
-  autoPayForm.value = { enabled: !!con.autopay_enabled, day: con.autopay_day || '1st', method_id: con.autopay_method_id || '', notify: con.autopay_notify || '3_days', limit: con.autopay_limit ?? '' }
+  autoPayForm.enabled   = !!con.autopay_enabled
+  autoPayForm.day       = con.autopay_day || '1st'
+  autoPayForm.method_id = con.autopay_method_id || ''
+  autoPayForm.notify    = con.autopay_notify || '3_days'
+  autoPayForm.limit     = con.autopay_limit ?? ''
   modals.value.autoPay = true
 }
-function doSaveAutoPay() { modals.value.autoPay = false; toast.success(autoPayForm.value.enabled ? 'Auto-pay enabled' : 'Auto-pay turned off') }
+function doSaveAutoPay() {
+  if (!activeContract.value) return
+  autoPayForm.post(route('provider.finances.bp-contract.autopay', { contract: activeContract.value.id }), {
+    preserveScroll: true,
+    onSuccess: () => { modals.value.autoPay = false },
+  })
+}
 
 // ── CS actions ───────────────────────────────────────────────────────────
-const cancelCsReason    = ref('Replacing with another Continuity Steward')
-const selectedPayModel  = ref('retainer')
+const cancelCsReason   = ref('Replacing with another Continuity Steward')
+const selectedPayModel = ref('retainer')
+const cancelCsForm     = useForm({ reason: 'Replacing with another Continuity Steward' })
+const payModelForm     = useForm({ payment_model: 'retainer' })
+const autoPayForm      = useForm({ enabled: false, day: '1st', method_id: '', notify: '3_days', limit: '' })
 const payModelOptions   = [
   { value: 'retainer',         label: 'Retainer',             icon: 'clock',    desc: 'A recurring standby retainer keeps the Continuity Steward engaged and ready to act.' },
   { value: 'annual_fee',       label: 'Annual Fee',           icon: 'calendar', desc: 'A single annual standby fee for the arrangement.' },
@@ -1333,8 +1372,22 @@ const payModelOptions   = [
 
 function openPayArrangement(cs) { activeCs.value = cs; modals.value.payArrangement = true }
 function openChangePayModel(cs) { activeCs.value = cs; selectedPayModel.value = cs.payment_model || 'retainer'; modals.value.changePayModel = true }
-function doCancelCsAgreement()  { modals.value.cancelCsAgreement = false; toast.info('Continuity Steward agreement cancelled — payment authorization ended') }
-function doSavePayModel()       { modals.value.changePayModel = false; toast.success('Payment model updated') }
+function doCancelCsAgreement()  {
+  if (!activeCs.value) return
+  cancelCsForm.reason = cancelCsReason.value
+  cancelCsForm.post(route('provider.finances.cs-steward.cancel', { steward: activeCs.value.id }), {
+    preserveScroll: true,
+    onSuccess: () => { modals.value.cancelCsAgreement = false; cancelCsForm.reset() },
+  })
+}
+function doSavePayModel()       {
+  if (!activeCs.value) return
+  payModelForm.payment_model = selectedPayModel.value
+  payModelForm.put(route('provider.finances.cs-steward.pay-model', { steward: activeCs.value.id }), {
+    preserveScroll: true,
+    onSuccess: () => { modals.value.changePayModel = false },
+  })
+}
 
 // ── Payment methods ──────────────────────────────────────────────────────
 const editCardNickname = ref('')
@@ -1342,13 +1395,37 @@ const editCardPurpose  = ref('All payments (default)')
 const addPayType       = ref('card')
 const addPayForm       = ref({ cardholder: '', cardNumber: '', expiry: '', cvv: '', bankHolder: '', routingNumber: '', accountNumber: '', accountType: 'Checking', purpose: 'All payments (default)' })
 
-function setDefaultPm(pm)  { toast.success('Default payment method updated') }
-function doRemoveCard()    { modals.value.removeCard = false; toast.info('Payment method removed') }
-function doAddPayment()    { modals.value.addPayment = false; toast.success('Payment method added successfully') }
+function setDefaultPm(pm)  {
+  router.post(route('provider.settings.payment.default'), { payment_method_id: pm.id }, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Default payment method updated'),
+    onError: () => toast.error('Could not update default payment method.'),
+  })
+}
+function doRemoveCard()    {
+  if (!activePm.value) return
+  router.delete(route('provider.settings.payment.remove'), {
+    data: { payment_method_id: activePm.value.id },
+    preserveScroll: true,
+    onSuccess: () => { modals.value.removeCard = false; toast.info('Payment method removed') },
+    onError: () => toast.error('Could not remove payment method.'),
+  })
+}
+function doAddPayment()    { modals.value.addPayment = false; toast.info('Add a card via Settings → Billing, then return here.') }
 
 // ── Spending controls ─────────────────────────────────────────────────────
 const spendingControls = ref({ autoPay: true, approvalThreshold: 500, monthlyLimit: 5000 })
-function saveSpendingControls() { toast.success('Spending controls saved') }
+const spendControlsForm = useForm({ auto_pay: true, approval_threshold: 500, monthly_limit: 5000 })
+function saveSpendingControls() {
+  spendControlsForm.auto_pay           = spendingControls.value.autoPay
+  spendControlsForm.approval_threshold = spendingControls.value.approvalThreshold
+  spendControlsForm.monthly_limit      = spendingControls.value.monthlyLimit
+  spendControlsForm.post(route('provider.finances.spending-controls'), {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Spending controls saved'),
+    onError: () => toast.error('Could not save spending controls.'),
+  })
+}
 
 // ── Export ────────────────────────────────────────────────────────────────
 const exportForm = ref({ from: '2026-01-01', to: '2026-02-28', allTx: true, csActivity: true, bpInvoices: true, subscription: false, format: 'CSV' })
