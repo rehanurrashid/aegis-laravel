@@ -715,9 +715,9 @@
                   <li v-for="f in maatFeatures" :key="f">{{ f }}</li>
                 </ul>
               </div>
-              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin-bottom:0">
-                <AegisIcon name="info" :size="13" style="color:var(--gold-dark);vertical-align:middle;margin-right:4px" />
-                The MAAT add-on will be billed on the same cycle as your base plan. A prorated charge will be applied today.
+              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin-bottom:0;display:flex;align-items:center;gap:8px;">
+                <span style="flex-shrink:0;color:var(--gold-dark);display:flex;"><AegisIcon name="info" :size="13" /></span>
+                <span>The MAAT add-on will be billed on the same cycle as your base plan. A prorated charge will be applied today.</span>
               </p>
             </template>
             <template v-else>
