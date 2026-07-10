@@ -193,6 +193,14 @@ const pendingEngagements = computed(() => {
   return n > 0 ? String(n) : ''
 })
 
+// Active disputes badge — driven by disputes prop on Finances page (page-level, not shared)
+// Falls back to 0 when on any other page
+const activeDisputeCount = computed(() => {
+  const disputes = page.props.disputes ?? []
+  return disputes.filter(d => ['open', 'awaiting_response', 'under_review'].includes(d.status)).length
+})
+const financesBadge = computed(() => activeDisputeCount.value > 0 ? String(activeDisputeCount.value) : '')
+
 // ── Nav sections ───────────────────────────────────────────────────────
 const navSections = computed(() => {
   switch (portal.value) {
@@ -223,7 +231,7 @@ const navSections = computed(() => {
           { key: 'ss',    href: r('provider.ss.index'),       icon: 'users-2',         label: 'Support Stewards' },
           { key: 'documents', href: r('provider.documents.index'), icon: 'file-pen',       label: 'Important Documents' },
           { key: 'vault',               href: r('provider.vault.index'),    icon: 'lock-3',          label: 'Document Vault' },
-          { key: 'finances',            href: r('provider.finances.index'), icon: 'credit-card',     label: 'Finances', badge: '2' },
+          { key: 'finances',            href: r('provider.finances.index'), icon: 'credit-card',     label: 'Finances', badge: financesBadge.value },
         ],
         'Communication': [
           { key: 'messages', href: r('provider.messages'), icon: 'message',   label: 'Messages',    badge: msgs.value },

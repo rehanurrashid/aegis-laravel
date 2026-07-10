@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Provider;
 
 use App\Enums\ActivitySeverity;
+use App\Enums\DisputeStatus;
 use App\Enums\InvoiceStatus;
 use App\Enums\PayoutStatus;
 use App\Enums\PractitionerPaymentKind;
@@ -13,9 +14,11 @@ use App\Http\Controllers\Controller;
 use App\Models\BpInvoice;
 use App\Models\CsInvoice;
 use App\Models\CsPayout;
+use App\Models\Dispute;
 use App\Models\PractitionerPayment;
 use App\Models\User;
 use App\Services\ActivityService;
+use App\Services\DisputeService;
 use App\Services\PayoutService;
 use App\Services\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
@@ -30,6 +33,7 @@ class FinancesController extends Controller
         private SubscriptionService $subscriptions,
         private PayoutService $payouts,
         private ActivityService $activity,
+        private DisputeService $disputes,
     ) {}
 
     public function index(Request $request): Response
@@ -52,44 +56,61 @@ class FinancesController extends Controller
             ])->values();
 
         // Outstanding CS invoices (billed to this provider)
-        $csInvoices = CsInvoice::where('practitioner_id', $user->id)
+        // Pre-fetch active dispute IDs for all CS invoices in one query
+        $csInvoiceCollection = CsInvoice::where('practitioner_id', $user->id)
             ->with(['cs:id,display_name,slug'])
             ->orderByDesc('created_at')
             ->limit(50)
-            ->get()
-            ->map(function (CsInvoice $inv) {
-                $status = $inv->status instanceof InvoiceStatus ? $inv->status->value : (string) $inv->status;
-                return [
-                    'id'             => $inv->id,
-                    'invoice_number' => $inv->invoice_number,
-                    'cs_name'        => $inv->cs?->display_name ?? '—',
-                    'total_cents'    => (int) $inv->total_cents,
-                    'status'         => $status,
-                    'issued_at'      => $inv->issued_at?->format('M j, Y'),
-                    'due_at'         => $inv->due_at?->format('M j, Y'),
-                    'payable'        => in_array($status, [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value], true),
-                ];
-            });
+            ->get();
+
+        $csInvoiceIds = $csInvoiceCollection->pluck('id')->all();
+        $csActiveDisputeMap = Dispute::whereIn('subject_id', $csInvoiceIds)
+            ->where('subject_type', 'cs_invoice')
+            ->whereNull('resolved_at')
+            ->pluck('id', 'subject_id');
+
+        $csInvoices = $csInvoiceCollection->map(function (CsInvoice $inv) use ($csActiveDisputeMap) {
+            $status = $inv->status instanceof InvoiceStatus ? $inv->status->value : (string) $inv->status;
+            return [
+                'id'               => $inv->id,
+                'invoice_number'   => $inv->invoice_number,
+                'cs_name'          => $inv->cs?->display_name ?? '—',
+                'total_cents'      => (int) $inv->total_cents,
+                'status'           => $status,
+                'issued_at'        => $inv->issued_at?->toDateString(),
+                'due_at'           => $inv->due_at?->format('M j, Y'),
+                'payable'          => in_array($status, [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value], true),
+                'active_dispute_id'=> $csActiveDisputeMap[$inv->id] ?? null,
+            ];
+        });
 
         // Outstanding BP invoices (billed to this provider)
-        $bpInvoices = BpInvoice::where('practitioner_id', $user->id)
+        $bpInvoiceCollection = BpInvoice::where('practitioner_id', $user->id)
             ->with(['bp:id,display_name,slug'])
             ->orderByDesc('created_at')
             ->limit(50)
-            ->get()
-            ->map(function (BpInvoice $inv) {
-                $status = $inv->status instanceof InvoiceStatus ? $inv->status->value : (string) $inv->status;
-                return [
-                    'id'             => $inv->id,
-                    'invoice_number' => $inv->invoice_number,
-                    'bp_name'        => $inv->bp?->display_name ?? '—',
-                    'total_cents'    => (int) $inv->total_cents,
-                    'status'         => $status,
-                    'issued_at'      => $inv->issued_at?->format('M j, Y'),
-                    'due_at'         => $inv->due_at?->format('M j, Y'),
-                    'payable'        => in_array($status, [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value], true),
-                ];
-            });
+            ->get();
+
+        $bpInvoiceIds = $bpInvoiceCollection->pluck('id')->all();
+        $bpActiveDisputeMap = Dispute::whereIn('subject_id', $bpInvoiceIds)
+            ->where('subject_type', 'bp_invoice')
+            ->whereNull('resolved_at')
+            ->pluck('id', 'subject_id');
+
+        $bpInvoices = $bpInvoiceCollection->map(function (BpInvoice $inv) use ($bpActiveDisputeMap) {
+            $status = $inv->status instanceof InvoiceStatus ? $inv->status->value : (string) $inv->status;
+            return [
+                'id'               => $inv->id,
+                'invoice_number'   => $inv->invoice_number,
+                'bp_name'          => $inv->bp?->display_name ?? '—',
+                'total_cents'      => (int) $inv->total_cents,
+                'status'           => $status,
+                'issued_at'        => $inv->issued_at?->toDateString(),
+                'due_at'           => $inv->due_at?->format('M j, Y'),
+                'payable'          => in_array($status, [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value], true),
+                'active_dispute_id'=> $bpActiveDisputeMap[$inv->id] ?? null,
+            ];
+        });
 
         // Provider earnings (as recipient) — service sessions
         $earnings = PractitionerPayment::where('practitioner_id', $user->id)
@@ -118,6 +139,27 @@ class FinancesController extends Controller
         $outstanding = $csInvoices->where('payable', true)->sum('total_cents')
                      + $bpInvoices->where('payable', true)->sum('total_cents');
 
+        // Disputes for this provider (both as disputer and respondent)
+        $disputesList = $this->disputes->listForUser($user->id)
+            ->map(function (Dispute $d) use ($user) {
+                $status   = $d->status instanceof DisputeStatus ? $d->status : DisputeStatus::from($d->status);
+                $reason   = $d->reason instanceof \App\Enums\DisputeReason ? $d->reason : \App\Enums\DisputeReason::tryFrom((string) $d->reason);
+                return [
+                    'id'                    => $d->id,
+                    'subject_type'          => $d->subject_type,
+                    'subject_id'            => $d->subject_id,
+                    'subject_label'         => $this->resolveDisputeSubjectLabel($d),
+                    'reason_label'          => $reason?->label() ?? (string) $d->reason,
+                    'status'                => $status->value,
+                    'status_label'          => $status->label(),
+                    'status_color'          => $status->color(),
+                    'role'                  => $d->disputer_id === $user->id ? 'disputer' : 'respondent',
+                    'amount_disputed_cents' => (int) $d->amount_disputed_cents,
+                    'opened_at'             => $d->opened_at?->format('M j, Y') ?? $d->created_at->format('M j, Y'),
+                    'resolved_at'           => $d->resolved_at?->format('M j, Y'),
+                ];
+            })->values();
+
         return Inertia::render('provider/Finances', [
             'subscription'    => $this->subscriptions->getStatus($user),
             'paymentMethods'  => method_exists($user, 'paymentMethods') ? collect($user->paymentMethods())->map(fn ($pm) => [
@@ -128,14 +170,33 @@ class FinancesController extends Controller
                 'exp_year'  => $pm->card->exp_year ?? null,
                 'is_default'=> $user->stripe_payment_method_id === $pm->id,
             ])->values() : [],
-            'csInvoices'      => $csInvoices,
-            'bpInvoices'      => $bpInvoices,
-            'paymentHistory'  => $paymentHistory,
-            'earnings'        => $earnings,
-            'totalSpendCents' => (int) $totalSpend,
-            'outstandingCents'=> (int) $outstanding,
-            'stripeConnected' => (bool) $user->stripe_connected,
+            'csInvoices'        => $csInvoices,
+            'bpInvoices'        => $bpInvoices,
+            'paymentHistory'    => $paymentHistory,
+            'earnings'          => $earnings,
+            'totalSpendCents'   => (int) $totalSpend,
+            'outstandingCents'  => (int) $outstanding,
+            'stripeConnected'   => (bool) $user->stripe_connected,
+            'has_valid_default_pm' => (bool) $user->stripe_payment_method_id,
+            'disputes'          => $disputesList,
         ]);
+    }
+
+    /**
+     * Resolve a human-readable label for a dispute subject.
+     * Avoids N+1 by using the data already loaded in csInvoices/bpInvoices map.
+     */
+    private function resolveDisputeSubjectLabel(Dispute $d): string
+    {
+        $subject = $d->resolveSubject();
+        if (!$subject) {
+            return ucfirst(str_replace('_', ' ', $d->subject_type)) . ' (deleted)';
+        }
+        return match ($d->subject_type) {
+            'cs_invoice' => 'CS Invoice ' . ($subject->invoice_number ?? $d->subject_id),
+            'bp_invoice' => 'BP Invoice ' . ($subject->invoice_number ?? $d->subject_id),
+            default      => ucfirst(str_replace('_', ' ', $d->subject_type)),
+        };
     }
 
     public function storePaymentMethod(Request $request): RedirectResponse

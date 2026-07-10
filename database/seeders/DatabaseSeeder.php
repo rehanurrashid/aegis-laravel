@@ -53,6 +53,7 @@ class DatabaseSeeder extends Seeder
             BpSeeder::class,
             InvoiceSeeder::class,
             PayoutSeeder::class,
+            DisputeSeeder::class,
 
             // Layer 10 — provider check-ins (CS + SS, uses provider_checkins table per migration 000072)
             ProviderCheckinSeeder::class,
