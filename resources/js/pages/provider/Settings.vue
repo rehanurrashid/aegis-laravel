@@ -760,7 +760,7 @@
         <div v-show="section === 'payment_methods'" class="settings-panel">
           <AegisHeroBanner eyebrow="Provider Portal" title="Payment Methods" subtitle="Manage the cards used to fund all Aegis charges." quiet>
             <template #actions>
-              <a :href="route('provider.activity.index', { event_type: 'finances' })" class="btn-hero-ghost is-on-light">
+              <a :href="route('provider.activity')" class="btn-hero-ghost is-on-light">
                 <AegisIcon name="activity" :size="14" /> Activity
               </a>
             </template>
@@ -894,7 +894,8 @@ import SettingsAccount      from '@/components/settings/SettingsAccount.vue';
 import SettingsSecurity     from '@/components/settings/SettingsSecurity.vue';
 import SettingsNotifications from '@/components/settings/SettingsNotifications.vue';
 import SettingsAppearance   from '@/components/settings/SettingsAppearance.vue';
-import SettingsDangerZone   from '@/components/settings/SettingsDangerZone.vue';
+import SettingsDangerZone        from '@/components/settings/SettingsDangerZone.vue';
+import SettingsTierUpgradeModal from '@/components/settings/SettingsTierUpgradeModal.vue';
 
 const props = defineProps({
   user:             { type: Object,  default: () => ({}) },
