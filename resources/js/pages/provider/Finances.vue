@@ -1138,9 +1138,11 @@
         Remove this payment method? If it's the only card on file, subscription renewal and peer payments will fail until a new card is added.
       </p>
       <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.removeCard = false">Cancel</button>
-        <button type="button" class="btn btn-danger" @click="doRemoveCard">
-          <AegisIcon name="trash" :size="13" /> Remove
+        <button type="button" class="btn btn-outline" :disabled="removingCard" @click="modals.removeCard = false">Cancel</button>
+        <button type="button" class="btn btn-danger" :disabled="removingCard" @click="doRemoveCard">
+          <AegisIcon v-if="removingCard" name="refresh-cw" :size="13" class="spin" />
+          <AegisIcon v-else name="trash" :size="13" />
+          {{ removingCard ? 'Removing…' : 'Remove' }}
         </button>
       </template>
     </AegisModal>
@@ -1396,6 +1398,7 @@ const activeInvoice  = ref(null)
 const activeContract = ref(null)
 const activeCs       = ref(null)
 const activePm       = ref(null)
+const removingCard   = ref(false)
 
 // ── Modals ───────────────────────────────────────────────────────────────
 const modals = ref({
@@ -1587,12 +1590,14 @@ function openRemoveCard(pm) {
   modals.value.removeCard = true
 }
 function doRemoveCard() {
-  if (!activePm.value) return
+  if (!activePm.value || removingCard.value) return
+  removingCard.value = true
   router.delete(route('provider.settings.payment.remove'), {
     data: { payment_method_id: activePm.value.id },
     preserveScroll: true,
     onSuccess: () => { modals.value.removeCard = false; toast.info('Payment method removed.') },
     onError:   () => toast.error('Could not remove payment method.'),
+    onFinish:  () => { removingCard.value = false },
   })
 }
 
@@ -1950,4 +1955,6 @@ function paymentTypeLabel(t) {
   .page-sidebar-item.active::before { display: none; }
   .page-sidebar-icon  { display: none; }
 }
+.spin { animation: fin-spin 0.7s linear infinite; display: inline-block; }
+@keyframes fin-spin { to { transform: rotate(360deg); } }
 </style>
