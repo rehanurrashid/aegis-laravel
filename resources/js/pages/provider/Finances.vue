@@ -84,52 +84,62 @@
     <!-- ══ FINANCES LAYOUT: LEFT SIDEBAR + CONTENT ══ -->
     <div class="fin-layout">
 
-      <!-- LEFT SIDEBAR NAV -->
+      <!-- LEFT SIDEBAR NAV — matches settings-sidebar pattern -->
       <nav class="fin-sidebar" role="tablist" aria-label="Finance sections">
-        <div class="fin-sidebar-section">
-          <div class="nav-section-label">Activity</div>
 
-          <button type="button" role="tab" class="nav-item" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
-            <span class="nav-icon"><AegisIcon name="activity" :size="18" /></span>
-            <span class="nav-label">Overview</span>
+        <!-- Header -->
+        <div class="fin-sidebar-header">
+          <div class="fin-sidebar-header-icon"><AegisIcon name="dollar" :size="16" /></div>
+          <h3>Finances</h3>
+        </div>
+
+        <!-- Activity group -->
+        <div class="fin-nav-group">
+          <div class="fin-nav-label">Activity</div>
+
+          <button type="button" role="tab" class="fin-nav-item" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
+            <span class="fin-nav-icon"><AegisIcon name="activity" :size="15" /></span>
+            Overview
           </button>
 
-          <button type="button" role="tab" class="nav-item" :class="{ active: activeTab === 'executor' }" @click="activeTab = 'executor'">
-            <span class="nav-icon"><AegisIcon name="shield" :size="18" /></span>
-            <span class="nav-label">CS Wallet</span>
+          <button type="button" role="tab" class="fin-nav-item" :class="{ active: activeTab === 'executor' }" @click="activeTab = 'executor'">
+            <span class="fin-nav-icon"><AegisIcon name="shield" :size="15" /></span>
+            CS Wallet
           </button>
 
-          <button type="button" role="tab" class="nav-item" :class="{ active: activeTab === 'bp' }" @click="activeTab = 'bp'">
-            <span class="nav-icon"><AegisIcon name="file-text" :size="18" /></span>
-            <span class="nav-label">Business Partners</span>
-            <span v-if="bpPendingCount > 0" class="nav-badge" style="background:var(--orange);color:#fff;">{{ bpPendingCount }}</span>
+          <button type="button" role="tab" class="fin-nav-item" :class="{ active: activeTab === 'bp' }" @click="activeTab = 'bp'">
+            <span class="fin-nav-icon"><AegisIcon name="file-text" :size="15" /></span>
+            Business Partners
+            <span v-if="bpPendingCount > 0" class="fin-nav-badge">{{ bpPendingCount }}</span>
           </button>
 
-          <button type="button" role="tab" class="nav-item" :class="{ active: activeTab === 'sessions' }" @click="activeTab = 'sessions'">
-            <span class="nav-icon"><AegisIcon name="heart" :size="18" /></span>
-            <span class="nav-label">Clinical Sessions</span>
-            <span v-if="sessionPendingCount > 0" class="nav-badge" style="background:var(--teal-dark);color:#fff;">{{ sessionPendingCount }}</span>
+          <button type="button" role="tab" class="fin-nav-item" :class="{ active: activeTab === 'sessions' }" @click="activeTab = 'sessions'">
+            <span class="fin-nav-icon"><AegisIcon name="heart" :size="15" /></span>
+            Clinical Sessions
+            <span v-if="sessionPendingCount > 0" class="fin-nav-badge">{{ sessionPendingCount }}</span>
           </button>
         </div>
 
-        <div class="fin-sidebar-section">
-          <div class="nav-section-label">Manage</div>
+        <!-- Manage group -->
+        <div class="fin-nav-group">
+          <div class="fin-nav-label">Manage</div>
 
-          <button type="button" role="tab" class="nav-item" :class="{ active: activeTab === 'subscription' }" @click="activeTab = 'subscription'">
-            <span class="nav-icon"><AegisIcon name="star" :size="18" /></span>
-            <span class="nav-label">Subscription</span>
+          <button type="button" role="tab" class="fin-nav-item" :class="{ active: activeTab === 'subscription' }" @click="activeTab = 'subscription'">
+            <span class="fin-nav-icon"><AegisIcon name="star" :size="15" /></span>
+            Subscription
           </button>
 
-          <button type="button" role="tab" class="nav-item" :class="{ active: activeTab === 'methods' }" @click="activeTab = 'methods'">
-            <span class="nav-icon"><AegisIcon name="credit-card" :size="18" /></span>
-            <span class="nav-label">Payment Methods</span>
+          <button type="button" role="tab" class="fin-nav-item" :class="{ active: activeTab === 'methods' }" @click="activeTab = 'methods'">
+            <span class="fin-nav-icon"><AegisIcon name="credit-card" :size="15" /></span>
+            Payment Methods
           </button>
 
-          <button type="button" role="tab" class="nav-item" :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">
-            <span class="nav-icon"><AegisIcon name="clock" :size="18" /></span>
-            <span class="nav-label">Transactions</span>
+          <button type="button" role="tab" class="fin-nav-item" :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">
+            <span class="fin-nav-icon"><AegisIcon name="clock" :size="15" /></span>
+            Transactions
           </button>
         </div>
+
       </nav>
 
       <!-- CONTENT AREA -->
@@ -1792,49 +1802,118 @@ function paymentTypeLabel(t) {
 .btn-dark:hover  { background: var(--text-2); border-color: var(--text-2); }
 
 /* ── Finances layout: sidebar + content ── */
-.fin-layout  { display: flex; align-items: flex-start; gap: 20px; }
+.fin-layout  { display: flex; align-items: flex-start; gap: 22px; }
 
+/* Sidebar — mirrors .settings-sidebar exactly */
 .fin-sidebar {
-  width: 212px;
+  width: 220px;
   flex-shrink: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 8px 0 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
   position: sticky;
-  top: 20px;
+  top: 80px;
 }
 
-.fin-sidebar-section { padding: 0; }
-.fin-sidebar-section + .fin-sidebar-section { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--border); }
+/* Header — mirrors .settings-sidebar-header */
+.fin-sidebar-header {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fin-sidebar-header-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius);
+  background: var(--icon-bg-gold);
+  color: var(--gold-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.fin-sidebar-header h3 {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
 
-/* Override nav-item padding to be tighter inside the card */
-.fin-sidebar .nav-item  { padding: 5px 12px; gap: 10px; border-radius: 0; }
-.fin-sidebar .nav-icon  { width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0; }
-.fin-sidebar .nav-label { font-size: 13px; font-weight: 500; }
-.fin-sidebar .nav-section-label { padding: 10px 16px 4px; font-size: 9px; letter-spacing: .9px; }
+/* Nav groups — mirrors .settings-nav-group */
+.fin-nav-group { padding: 6px 0; border-bottom: 1px solid var(--border); }
+.fin-nav-group:last-child { border-bottom: none; }
 
-/* Active state: left gold bar + gold icon */
-.fin-sidebar .nav-item.active { position: relative; }
-.fin-sidebar .nav-item.active::before {
-  content: "";
-  position: absolute;
-  left: 0; top: 4px; bottom: 4px;
-  width: 3px;
-  background: var(--gold-dark);
-  border-radius: 0 3px 3px 0;
+/* Group label — mirrors .settings-nav-label */
+.fin-nav-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-4);
+  padding: 4px 14px;
+}
+
+/* Nav items — mirrors .settings-nav-item, keeps left-border design */
+.fin-nav-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  color: var(--text-2);
+  cursor: pointer;
+  border: none;
+  border-left: 3px solid transparent;
+  background: none;
+  transition: all var(--transition);
+  text-align: left;
+}
+.fin-nav-item:hover { background: var(--surface-2); color: var(--text); }
+.fin-nav-item.active {
+  background: var(--icon-bg-gold);
+  color: var(--gold-dark);
+  border-left-color: var(--gold-dark);
+  font-weight: 600;
+}
+
+/* Icon — mirrors .s-nav-icon */
+.fin-nav-icon {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Badge — mirrors .s-nav-badge */
+.fin-nav-badge {
+  margin-left: auto;
+  background: var(--icon-bg-gold);
+  color: var(--gold-dark);
+  border: 1px solid var(--badge-border-gold);
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  font-weight: 700;
 }
 
 .fin-content { flex: 1; min-width: 0; }
 
-@media (max-width: 800px) {
+@media (max-width: 860px) {
   .fin-layout  { flex-direction: column; }
-  .fin-sidebar { width: 100%; position: static; display: flex; gap: 0; padding: 4px 8px; flex-wrap: wrap; }
-  .fin-sidebar-section { display: flex; flex-wrap: wrap; gap: 0; border: none !important; margin: 0 !important; padding: 0 !important; }
-  .fin-sidebar .nav-section-label { display: none; }
-  .fin-sidebar .nav-item  { padding: 7px 12px; border-radius: var(--radius-sm); gap: 6px; width: auto; flex: 0 0 auto; }
-  .fin-sidebar .nav-icon  { display: none; }
-  .fin-sidebar .nav-item.active::before { display: none; }
-  .fin-sidebar .nav-item.active { background: var(--badge-bg-gold); color: var(--gold-dark); border-radius: var(--radius-sm); }
+  .fin-sidebar { width: 100%; position: static; }
+  .fin-nav-group { display: flex; flex-wrap: wrap; gap: 0; padding: 4px 6px; }
+  .fin-nav-label { display: none; }
+  .fin-nav-item  { width: auto; flex: 0 0 auto; border-left: none; border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; }
+  .fin-nav-item.active { background: var(--icon-bg-gold); border-left-color: transparent; }
+  .fin-nav-icon  { display: none; }
+  .fin-sidebar-header { padding: 12px 16px; }
 }
 </style>
