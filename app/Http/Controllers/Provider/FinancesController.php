@@ -499,7 +499,9 @@ class FinancesController extends Controller
             'spendingControls'     => $spendingControls,
 
             // ── Meta ──────────────────────────────────────────────────
-            'stripeConnected'      => (bool) $user->stripe_connected,
+            // Demo accounts (acct_demo_*) are stubs — treat as not connected
+            'stripeConnected'      => (bool) $user->stripe_connected
+                                      && !str_starts_with((string) ($user->stripe_account_id ?? ''), 'acct_demo'),
         ]);
     }
 

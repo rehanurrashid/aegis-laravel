@@ -641,7 +641,7 @@ class SettingsController extends Controller
             }
         }
 
-        return redirect()->route('provider.settings.index', ['tab' => 'integrations'])
+        return redirect()->route('provider.finances.index', ['tab' => 'integrations'])
             ->with('success', 'Stripe Connect setup complete. Your account is now active for receiving payments.');
     }
 
