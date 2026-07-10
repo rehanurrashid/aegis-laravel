@@ -480,6 +480,42 @@
             </div>
             <div class="st-card-body">
 
+              <!-- ── Quick actions — link out to Finances ─────────────────── -->
+              <div class="st-billing-shortcuts">
+                <a :href="route('provider.finances.index') + '?tab=methods'" class="st-shortcut-btn">
+                  <span class="st-shortcut-icon"><AegisIcon name="credit-card" :size="16" /></span>
+                  <div>
+                    <div class="st-shortcut-label">Payment Methods</div>
+                    <div class="st-shortcut-sub">Add or change cards</div>
+                  </div>
+                  <AegisIcon name="chevron-right" :size="13" class="st-shortcut-arrow" />
+                </a>
+                <a :href="route('provider.finances.index') + '?tab=subscription'" class="st-shortcut-btn">
+                  <span class="st-shortcut-icon"><AegisIcon name="file-text" :size="16" /></span>
+                  <div>
+                    <div class="st-shortcut-label">Invoice History</div>
+                    <div class="st-shortcut-sub">View & download receipts</div>
+                  </div>
+                  <AegisIcon name="chevron-right" :size="13" class="st-shortcut-arrow" />
+                </a>
+                <a :href="route('provider.finances.index') + '?tab=integrations'" class="st-shortcut-btn">
+                  <span class="st-shortcut-icon"><AegisIcon name="link" :size="16" /></span>
+                  <div>
+                    <div class="st-shortcut-label">Stripe Connect</div>
+                    <div class="st-shortcut-sub">Receive service payments</div>
+                  </div>
+                  <AegisIcon name="chevron-right" :size="13" class="st-shortcut-arrow" />
+                </a>
+                <a :href="route('provider.finances.index') + '?tab=history'" class="st-shortcut-btn">
+                  <span class="st-shortcut-icon"><AegisIcon name="clock" :size="16" /></span>
+                  <div>
+                    <div class="st-shortcut-label">Transactions</div>
+                    <div class="st-shortcut-sub">Full payment history</div>
+                  </div>
+                  <AegisIcon name="chevron-right" :size="13" class="st-shortcut-arrow" />
+                </a>
+              </div>
+
               <!-- Founding Member perk banner — first 100 practitioners -->
               <div v-if="user?.is_founding_member && subStatus !== 'none'" class="st-founding-banner">
                 <AegisIcon name="star" :size="16" />
@@ -817,7 +853,7 @@ const nav = [
 
   ]},
   { group: 'Plan', items: [
-    { key: 'billing',  label: 'Subscription & Plan', icon: 'star' },
+    { key: 'billing',  label: 'Plan & Billing', icon: 'star' },
   ]},
 
   { group: 'Account Closure & Data Management', items: [
@@ -1838,4 +1874,49 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
   display: inline-flex;
   align-items: center;
 }
+/* ── Billing quick-action shortcuts ── */
+.st-billing-shortcuts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.st-shortcut-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--text-2);
+  transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
+}
+.st-shortcut-btn:hover {
+  border-color: var(--gold-dark);
+  background: var(--badge-bg-gold);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.st-shortcut-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--gold-dark);
+}
+.st-shortcut-btn:hover .st-shortcut-icon {
+  background: var(--gold-dark);
+  color: var(--text-inverted);
+  border-color: var(--gold-dark);
+}
+.st-shortcut-label { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.2; }
+.st-shortcut-sub   { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.st-shortcut-arrow { margin-left: auto; color: var(--text-4); flex-shrink: 0; }
 </style>
