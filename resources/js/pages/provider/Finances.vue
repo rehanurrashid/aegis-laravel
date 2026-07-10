@@ -1230,7 +1230,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { router, useForm }         from '@inertiajs/vue3'
 import AppLayout                   from '@/layouts/AppLayout.vue'
 import OpenDisputeModal            from '@/components/modals/OpenDisputeModal.vue'
@@ -1272,6 +1272,13 @@ const props = defineProps({
 
 // ── Tab + BP filter state ───────────────────────────────────────────────
 const activeTab = ref('overview')
+
+// Deep-link: ?tab=methods lands directly on Payment Methods (from Settings)
+const validTabs = ['overview','executor','bp','sessions','subscription','methods','history']
+onMounted(() => {
+  const t = new URLSearchParams(window.location.search).get('tab')
+  if (t && validTabs.includes(t)) activeTab.value = t
+})
 const bpFilter  = ref('all')
 
 const bpPendingCount      = computed(() => props.pendingBreakdown?.bp?.count ?? 0)
@@ -1873,13 +1880,25 @@ function paymentTypeLabel(t) {
   background: none;
   transition: all var(--transition);
   text-align: left;
+  position: relative;
 }
 .fin-nav-item:hover { background: var(--surface-2); color: var(--text); }
 .fin-nav-item.active {
-  background: var(--icon-bg-gold);
-  color: var(--gold-dark);
-  border-left-color: var(--gold-dark);
+  background: var(--surface);
+  color: var(--text);
   font-weight: 600;
+  box-shadow: var(--shadow-xs);
+  border-left-color: transparent;
+}
+.fin-nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--gold-dark);
 }
 
 /* Icon — mirrors .s-nav-icon */
@@ -1912,7 +1931,7 @@ function paymentTypeLabel(t) {
   .fin-nav-group { display: flex; flex-wrap: wrap; gap: 0; padding: 4px 6px; }
   .fin-nav-label { display: none; }
   .fin-nav-item  { width: auto; flex: 0 0 auto; border-left: none; border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; }
-  .fin-nav-item.active { background: var(--icon-bg-gold); border-left-color: transparent; }
+  .fin-nav-item.active { background: var(--surface); color: var(--text); border-left-color: transparent; font-weight: 600; }
   .fin-nav-icon  { display: none; }
   .fin-sidebar-header { padding: 12px 16px; }
 }
