@@ -381,21 +381,33 @@ class FinancesController extends Controller
         // ────────────────────────────────────────────────────────────
         // 12. PAYMENT METHODS — Cashier + fallback table
         // ────────────────────────────────────────────────────────────
+        // User::paymentMethods() is a HasMany to the local practitioner_payment_methods
+        // table — it shadows Cashier's method and never calls Stripe. We must query
+        // Stripe directly via $user->stripe() so we see every card the user has saved.
         $paymentMethods = [];
-        if (method_exists($user, 'paymentMethods')) {
+        if ($user->hasStripeId()) {
             try {
-                $paymentMethods = collect($user->paymentMethods())->map(fn ($pm) => [
+                $stripe  = $user->stripe();
+                $pmList  = $stripe->paymentMethods->all(['customer' => $user->stripe_id, 'type' => 'card']);
+                $defaultPmId = $user->stripe_payment_method_id
+                    ?? ($stripe->customers->retrieve($user->stripe_id)->invoice_settings->default_payment_method ?? null);
+
+                $paymentMethods = collect($pmList->data)->map(fn ($pm) => [
                     'id'          => $pm->id,
                     'brand'       => $pm->card->brand ?? 'card',
                     'last4'       => $pm->card->last4 ?? '••••',
                     'exp_month'   => $pm->card->exp_month ?? null,
                     'exp_year'    => $pm->card->exp_year ?? null,
-                    'is_default'  => $user->stripe_payment_method_id === $pm->id,
+                    'is_default'  => $pm->id === $defaultPmId,
                     'method_type' => 'card',
-                ])->values()->toArray();
-            } catch (\Throwable) {}
+                ])->sortByDesc('is_default')->values()->toArray();
+            } catch (\Throwable $e) {
+                // Stripe unreachable — fall through to local table below
+                \Illuminate\Support\Facades\Log::warning('[FinancesController] Stripe paymentMethods fetch failed', ['user' => $user->id, 'error' => $e->getMessage()]);
+            }
         }
         if (empty($paymentMethods)) {
+            // Fallback: local seeded/demo rows only (no live Stripe customer yet)
             $paymentMethods = DB::table('practitioner_payment_methods')
                 ->where('practitioner_id', $user->id)
                 ->whereNull('deleted_at')
