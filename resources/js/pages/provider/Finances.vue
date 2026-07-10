@@ -697,68 +697,6 @@
         </div>
       </div>
 
-      <!-- Auto-Pay & Spending Controls -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title fin-card-title">
-            <span class="fin-card-icon"><AegisIcon name="settings" :size="15" /></span>
-            Auto-Pay &amp; Spending Controls
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="setting-row">
-            <div class="setting-info">
-              <div class="setting-label">Auto-Pay for Retainer Contracts</div>
-              <div class="setting-desc">Automatically pay recurring monthly retainers without manual approval</div>
-            </div>
-            <button
-              type="button"
-              class="toggle"
-              :class="{ on: spendControlsForm.auto_pay }"
-              :aria-pressed="spendControlsForm.auto_pay"
-              @click="spendControlsForm.auto_pay = !spendControlsForm.auto_pay"
-            ></button>
-          </div>
-          <div class="setting-row">
-            <div class="setting-info">
-              <div class="setting-label">Require Approval for Invoices Over</div>
-              <div class="setting-desc">Invoices above this threshold require manual approval before payment</div>
-              <div v-if="spendControlsForm.errors.approval_threshold" class="form-error">
-                {{ spendControlsForm.errors.approval_threshold }}
-              </div>
-            </div>
-            <div class="spending-input-wrap">
-              <span class="spending-prefix">$</span>
-              <input class="form-input form-input-sm" type="number" min="0" max="1000000"
-                v-model.number="spendControlsForm.approval_threshold"
-                :class="{ 'is-error': spendControlsForm.errors.approval_threshold }"
-                style="width:110px;text-align:right;">
-            </div>
-          </div>
-          <div class="setting-row">
-            <div class="setting-info">
-              <div class="setting-label">Monthly Spend Limit Alert</div>
-              <div class="setting-desc">Get notified when your total monthly spend exceeds this amount</div>
-              <div v-if="spendControlsForm.errors.monthly_limit" class="form-error">
-                {{ spendControlsForm.errors.monthly_limit }}
-              </div>
-            </div>
-            <div class="spending-input-wrap">
-              <span class="spending-prefix">$</span>
-              <input class="form-input form-input-sm" type="number" min="0" max="10000000"
-                v-model.number="spendControlsForm.monthly_limit"
-                :class="{ 'is-error': spendControlsForm.errors.monthly_limit }"
-                style="width:120px;text-align:right;">
-            </div>
-          </div>
-          <div class="setting-save-row">
-            <button type="button" class="btn btn-primary" :disabled="spendControlsForm.processing" @click="saveSpendingControls">
-              <AegisIcon name="check" :size="13" />
-              {{ spendControlsForm.processing ? 'Saving…' : 'Save Controls' }}
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- ══════════════════════════════ TAB: TRANSACTIONS ══════════════════════════════ -->
