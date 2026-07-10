@@ -68,13 +68,14 @@ class SettingsController extends Controller
         }
 
         return Inertia::render('ContinuitySteward/Settings', [
-            'user'         => $userArr,
-            'meta'         => $meta,
-            'mfaEnabled'   => (bool) $user->two_factor_enabled,
-            'mfaMethod'    => $user->mfaToken?->method ?? '',
-            'sessions'     => $sessions,
-            'subscription' => $subscription,
-            'pricing'      => config('aegis.pricing'),
+            'user'           => $userArr,
+            'meta'           => $meta,
+            'mfaEnabled'     => (bool) $user->two_factor_enabled,
+            'mfaMethod'      => $user->mfaToken?->method ?? '',
+            'sessions'       => $sessions,
+            'subscription'   => $subscription,
+            'paymentMethods' => $csAccountType === 'business' ? $this->fetchPaymentMethods($user) : [],
+            'pricing'        => config('aegis.pricing'),
         ]);
     }
 
@@ -392,7 +393,7 @@ class SettingsController extends Controller
             }
         }
 
-        return redirect()->route('cs.settings.index', ['tab' => 'integrations'])
+        return redirect()->route('cs.settings.index', ['section' => 'stripe_connect'])
             ->with('success', 'Stripe Connect setup complete. You can now receive payments from providers.');
     }
 
@@ -430,6 +431,55 @@ class SettingsController extends Controller
         $this->profiles->saveMeta($user, 'cs_privacy', $data, 'json');
         return back()->with('success', 'Privacy settings saved.');
     }
+
+    private function fetchPaymentMethods(\App\Models\User $user): array
+    {
+        if (!$user->hasStripeId()) return [];
+        try {
+            $stripe      = $user->stripe();
+            $pmList      = $stripe->paymentMethods->all(['customer' => $user->stripe_id, 'type' => 'card']);
+            $defaultPmId = $user->stripe_payment_method_id
+                ?? ($stripe->customers->retrieve($user->stripe_id)->invoice_settings->default_payment_method ?? null);
+            return collect($pmList->data)->map(fn ($pm) => [
+                'id'          => $pm->id,
+                'brand'       => $pm->card->brand ?? 'card',
+                'last4'       => $pm->card->last4 ?? '••••',
+                'exp_month'   => $pm->card->exp_month ?? null,
+                'exp_year'    => $pm->card->exp_year ?? null,
+                'is_default'  => $pm->id === $defaultPmId,
+                'method_type' => 'card',
+            ])->sortByDesc('is_default')->values()->toArray();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[CS Settings] fetchPaymentMethods failed', ['user' => $user->id, 'error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
+    public function setDefaultPaymentMethod(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $data = $request->validate(['payment_method_id' => 'required|string|starts_with:pm_']);
+        $user = $request->user();
+        try {
+            $user->addPaymentMethod($data['payment_method_id']);
+            $user->updateDefaultPaymentMethod($data['payment_method_id']);
+            $user->update(['stripe_payment_method_id' => $data['payment_method_id']]);
+            return back()->with('success', 'Default payment method updated.');
+        } catch (\Throwable $e) {
+            return back()->withErrors(['payment' => $e->getMessage()]);
+        }
+    }
+
+    public function removePaymentMethod(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $data = $request->validate(['payment_method_id' => 'required|string|starts_with:pm_']);
+        try {
+            $request->user()->stripe()->paymentMethods->detach($data['payment_method_id']);
+            return back()->with('success', 'Payment method removed.');
+        } catch (\Throwable $e) {
+            return back()->withErrors(['payment' => $e->getMessage()]);
+        }
+    }
+
 
     public function storePaymentMethod(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
     {

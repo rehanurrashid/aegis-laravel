@@ -87,12 +87,19 @@
 
   <!-- Mobile overlay -->
   <div class="sidebar-overlay" :class="{ visible: ui.mobileOpen }" @click="ui.mobileOpen = false" aria-hidden="true"></div>
+  <!-- Tier upgrade modal for locked nav items -->
+  <SettingsTierUpgradeModal
+    v-model:show="showUpgradeModal"
+    :locked-feature-note="upgradeFeature"
+    @upgrade="goToUpgrade"
+  />
 </template>
 
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { Link, usePage, router } from '@inertiajs/vue3'
 import AegisIcon from '@/components/ui/AegisIcon.vue'
+import SettingsTierUpgradeModal from '@/components/settings/SettingsTierUpgradeModal.vue'
 import { useUiStore } from '@/stores/ui'
 
 const ui   = useUiStore()
@@ -203,11 +210,20 @@ const activeDisputeCount = computed(() => {
 const financesBadge = computed(() => activeDisputeCount.value > 0 ? String(activeDisputeCount.value) : '')
 
 // ── Nav sections ───────────────────────────────────────────────────────
+const showUpgradeModal = ref(false)
+const upgradeFeature   = ref('')
+
 function handleNavClick(event, item) {
   if (item.locked) {
     event.preventDefault()
-    router.visit(route('provider.settings.index', { section: 'billing', upgrade: '1' }))
+    upgradeFeature.value = item.label
+    showUpgradeModal.value = true
   }
+}
+
+function goToUpgrade() {
+  showUpgradeModal.value = false
+  router.visit(route('provider.settings.index', { section: 'billing', upgrade: '1' }))
 }
 
 const navSections = computed(() => {

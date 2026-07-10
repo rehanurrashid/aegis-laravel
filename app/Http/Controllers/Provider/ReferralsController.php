@@ -14,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Http\RedirectResponse;
 
 class ReferralsController extends Controller
 {
@@ -22,9 +23,14 @@ class ReferralsController extends Controller
         private NetworkService  $network,
     ) {}
 
-    public function index(Request $request): Response
+    public function index(Request $request)
     {
         $user = $request->user();
+
+        // Access-tier guard — redirect to Settings upgrade flow
+        if ($user->tier?->value === 'access') {
+            return redirect()->route('provider.settings.index', ['section' => 'billing', 'upgrade' => '1']);
+        }
 
         // ── All referrals for this user ──────────────────────────────
         $allForUser = Referral::with([

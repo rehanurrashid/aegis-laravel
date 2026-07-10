@@ -18,9 +18,15 @@ class ServicesController extends Controller
 {
     public function __construct(private ServiceService $services) {}
 
-    public function index(Request $request): Response
+    public function index(Request $request)
     {
         $user    = $request->user();
+
+        // Access-tier guard — redirect to Settings upgrade flow
+        if ($user->tier?->value === 'access') {
+            return redirect()->route('provider.settings.index', ['section' => 'billing', 'upgrade' => '1']);
+        }
+
         $user->loadMissing('meta');
         $filters = $request->only(['q', 'category', 'status']);
 
