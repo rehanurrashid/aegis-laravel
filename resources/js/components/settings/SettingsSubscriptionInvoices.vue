@@ -175,4 +175,13 @@ function statusVariant(s) {
 .ssi-sim-row:last-child { border-bottom: none; }
 .ssi-sim-row--main { font-family: var(--font-serif); font-size: 16px; font-weight: 700; color: var(--text); background: var(--surface-2); padding: 14px 16px; }
 .ssi-sim-fine     { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-4); padding: 10px 14px; background: var(--surface-2); border-radius: var(--radius-sm); border: 1px solid var(--border); line-height: 1.5; }
+
+/* ── st-card design (scoped copy from Settings.vue — not inherited from parent) ── */
+.st-card       { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
+.st-card-head  { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+.st-card-head-l { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.st-card-ico   { width: 34px; height: 34px; border-radius: var(--radius-sm); background: var(--icon-bg-gold); color: var(--gold-dark); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.st-card-title { font-size: 15px; font-weight: 700; color: var(--text); font-family: var(--font-serif); }
+.st-card-sub   { font-size: 12px; color: var(--text-3); margin-top: 1px; }
+.st-card-body  { padding: 18px 20px; }
 </style>
