@@ -1514,7 +1514,10 @@ onMounted(() => {
   if (tab) section.value = tab
   if (upgrade === '1') {
     section.value = 'billing'
-    showTierModal.value = true
+    // Pre-fill the Confirm Plan Change modal as Access → Practice upgrade
+    nextTick(() => {
+      swapPlan('practice')
+    })
   }
   // Scroll to a sub-section anchor after the panel renders
   if (anchor) {
