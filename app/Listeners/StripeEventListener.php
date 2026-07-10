@@ -128,6 +128,36 @@ class StripeEventListener
 
         Log::info('Stripe payment succeeded', ['user' => $user->id, 'invoice' => $invoice['id'] ?? null]);
 
+        // ── Record in practitioner_payments so Transactions tab shows it ──
+        $stripeInvoiceId = $invoice['id'] ?? null;
+        $alreadyRecorded = $stripeInvoiceId
+            ? \App\Models\PractitionerPayment::where('stripe_charge_id', $stripeInvoiceId)->exists()
+            : false;
+
+        if (! $alreadyRecorded && $amountCents > 0) {
+            // Determine kind — check for MAAT price IDs
+            $maatPrices = array_filter([
+                config('services.stripe.price_maat_monthly'),
+                config('services.stripe.price_maat_annual'),
+            ]);
+            $kind = ($priceId && in_array($priceId, $maatPrices, true))
+                ? \App\Enums\PractitionerPaymentKind::MaatAddon->value
+                : \App\Enums\PractitionerPaymentKind::Subscription->value;
+
+            \App\Models\PractitionerPayment::create([
+                'id'                   => (string) \Illuminate\Support\Str::uuid(),
+                'practitioner_id'      => $user->id,
+                'kind'                 => $kind,
+                'amount_cents'         => $amountCents,
+                'currency'             => strtoupper($invoice['currency'] ?? 'USD'),
+                'status'               => \App\Enums\PractitionerPaymentStatus::Paid->value,
+                'payment_method_label' => 'Aegis Platform · ' . $paymentRef,
+                'stripe_charge_id'     => $stripeInvoiceId,
+                'stripe_transfer_id'   => null,
+                'paid_at'              => now(),
+            ]);
+        }
+
         event(new PaymentReceived($user, $amountCents, $paymentRef, $periodStart, $planLabel));
     }
 

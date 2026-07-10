@@ -184,6 +184,16 @@ class FinancesSeeder extends Seeder
         //    Kinds covered: subscription, cs_fee, bp_invoice, service_session
         // ─────────────────────────────────────────────────────────────
         $payments = [
+            // Real Stripe invoice — matches the live invoice on p_sarah's account
+            [
+                'id' => 'pp_sarah_sub_stripe_live', 'practitioner_id' => 'p_sarah',
+                'kind' => 'subscription', 'amount_cents' => 4900, 'currency' => 'USD',
+                'status' => 'paid', 'payment_method_label' => 'Aegis Practice · RFHGS1AR-0001',
+                'stripe_charge_id' => 'in_1TrGwmHnj73y5cBfRFHGS1AR',
+                'paid_at' => $now->copy()->startOfDay(),
+                'created_at' => $now->copy()->startOfDay(),
+                'updated_at' => $now->copy()->startOfDay(),
+            ],
             // Subscription — 3 months of Aegis Practice
             [
                 'id' => 'pp_sarah_sub_jan', 'practitioner_id' => 'p_sarah',
