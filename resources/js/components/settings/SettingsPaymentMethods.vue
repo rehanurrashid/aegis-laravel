@@ -77,6 +77,21 @@
     </div>
   </div>
 
+  <!-- Set Default Confirm Modal -->
+  <AegisModal v-model="showDefault" title="Set Default Payment Method" size="sm">
+    <p style="font-size:13px;color:var(--text-2);">
+      Set <strong>{{ defaultPm ? (defaultPm.brand || 'card').toUpperCase() + ' ···· ' + defaultPm.last4 : '' }}</strong> as your default payment method? It will fund all Aegis charges going forward.
+    </p>
+    <template #footer>
+      <button type="button" class="btn btn-outline" :disabled="settingDefault" @click="showDefault = false">Cancel</button>
+      <button type="button" class="btn btn-primary" :disabled="settingDefault" @click="doSetDefault">
+        <AegisIcon v-if="settingDefault" name="refresh-cw" :size="13" class="spm-spin" />
+        <AegisIcon v-else name="check" :size="13" />
+        {{ settingDefault ? 'Saving…' : 'Confirm' }}
+      </button>
+    </template>
+  </AegisModal>
+
   <!-- Add Card Modal -->
   <AddCardModal
     v-model="showAddCard"
@@ -104,7 +119,6 @@
 import { ref } from 'vue'
 import { router } from '@inertiajs/vue3'
 import { useToast }   from '@/composables/useToast'
-import { useConfirm } from '@/composables/useConfirm'
 import AddCardModal   from '@/components/modals/AddCardModal.vue'
 
 const props = defineProps({
@@ -117,22 +131,28 @@ const props = defineProps({
 })
 
 const toast          = useToast()
-const { confirmAction } = useConfirm()
-
-const showAddCard = ref(false)
-const showRemove  = ref(false)
-const removing    = ref(false)
-const activePm    = ref(null)
+const showAddCard    = ref(false)
+const showRemove     = ref(false)
+const removing       = ref(false)
+const activePm       = ref(null)
+const showDefault    = ref(false)
+const defaultPm      = ref(null)
+const settingDefault = ref(false)
 
 function setDefault(pm) {
-  confirmAction(
-    `Set ${(pm.brand || 'card').toUpperCase()} ···· ${pm.last4} as your default payment method?`,
-    () => router.post(route(props.defaultRoute), { payment_method_id: pm.id }, {
-      preserveScroll: true,
-      onSuccess: () => toast.success('Default payment method updated.'),
-      onError:   () => toast.error('Could not update default payment method.'),
-    })
-  )
+  defaultPm.value   = pm
+  showDefault.value = true
+}
+
+function doSetDefault() {
+  if (!defaultPm.value || settingDefault.value) return
+  settingDefault.value = true
+  router.post(route(props.defaultRoute), { payment_method_id: defaultPm.value.id }, {
+    preserveScroll: true,
+    onSuccess: () => { showDefault.value = false; toast.success('Default payment method updated.') },
+    onError:   () => toast.error('Could not update default payment method.'),
+    onFinish:  () => { settingDefault.value = false },
+  })
 }
 
 function openRemove(pm) {

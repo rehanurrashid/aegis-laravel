@@ -13,7 +13,6 @@
           <div class="settings-sidebar-header-icon"><AegisIcon name="settings" :size="16" /></div>
           <div><h3>Settings</h3></div>
         </div>
-        <div class="settings-sidebar-scroll">
         <template v-for="grp in nav" :key="grp.group">
           <div class="settings-nav-group">
             <div class="settings-nav-label">{{ grp.group }}</div>
@@ -24,7 +23,6 @@
             </button>
           </div>
         </template>
-        </div>
       </div>
       <div class="settings-content">
         <div v-show="section === 'profile'" class="settings-panel">
@@ -228,6 +226,42 @@
                 <div style="font-size:13px;color:var(--text-3)">Need to cancel your Business CS plan?</div>
                 <button type="button" class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red)" @click="confirmCsCancel = true" :disabled="planBusy">Cancel Plan</button>
               </div>
+              <div v-if="stripeInvoices.length > 0">
+                <div class="st-divider"></div>
+                <div class="st-subhead" style="margin-bottom:12px">Invoice History</div>
+                <table class="billing-table">
+                  <thead><tr><th>Date</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+                  <tbody>
+                    <tr v-for="inv in stripeInvoices" :key="inv.id">
+                      <td>{{ formatDate(inv.paid_at || inv.created) }}</td>
+                      <td>{{ formatCents(inv.amount_cents) }}</td>
+                      <td><span v-if="inv.status === 'paid'" style="color:var(--green);font-weight:600;display:inline-flex;align-items:center;gap:4px"><AegisIcon name="check" :size="13" />Paid</span><span v-else style="color:var(--text-3)">{{ inv.status }}</span></td>
+                      <td><a v-if="inv.pdf_url" :href="inv.pdf_url" target="_blank" class="btn btn-ghost btn-xs" data-tooltip="Download PDF"><AegisIcon name="download" :size="14" /></a></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- BUSINESS CS: Stripe Connect account (receive payouts from providers) -->
+          <div class="st-card" style="margin-top:14px">
+            <div class="st-card-head">
+              <div class="st-card-head-l">
+                <span class="st-card-ico"><AegisIcon name="credit-card" :size="17" /></span>
+                <div><div class="st-card-title">Payouts &amp; Stripe Connect</div><div class="st-card-sub">How you receive practitioner invoice payments</div></div>
+              </div>
+            </div>
+            <div class="st-card-body">
+              <div class="stripe-status" :class="stripeReady ? 'is-connected' : 'is-disconnected'" style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface-2);border-radius:var(--radius);border:1px solid var(--border)">
+                <AegisIcon :name="stripeReady ? 'check-circle' : 'alert-triangle'" :size="20" :style="stripeReady ? 'color:var(--green-dark)' : 'color:var(--gold-dark)'" />
+                <div style="flex:1">
+                  <div style="font-size:14px;font-weight:700;color:var(--text)">{ stripeReady ? 'Stripe Connect ready' : 'Stripe Connect required' }</div>
+                  <div style="font-size:12px;color:var(--text-3);margin-top:2px">{ stripeReady ? 'Practitioner invoice payments transfer directly to your connected Stripe account. Aegis never holds funds.' : 'Connect your Stripe account to receive invoice payments from practitioners you steward.' }</div>
+                </div>
+                <a v-if="!stripeReady" :href="route('cs.settings.connect.onboard')" class="btn btn-primary btn-sm">Connect Stripe</a>
+                <a v-else :href="route('cs.settings.connect.onboard')" class="btn btn-outline btn-sm">Reconfigure</a>
+              </div>
             </div>
           </div>
 
@@ -285,34 +319,111 @@
 
         <!-- PAYMENT METHODS -->
         <div v-show="section === 'payment_methods'" class="settings-panel">
-          <SettingsPaymentMethods
-            :payment-methods="paymentMethods"
-            setup-intent-route="cs.settings.payment.setup-intent"
-            store-route="cs.settings.payment.store"
-            default-route="cs.settings.payment.default"
-            remove-route="cs.settings.payment.remove"
-          />
+          <div class="st-card">
+            <div class="st-card-head">
+              <div class="st-card-head-l">
+                <span class="st-card-ico"><AegisIcon name="credit-card" :size="17" /></span>
+                <div><div class="st-card-title">Payment Methods</div><div class="st-card-sub">Cards used to fund your Aegis subscription</div></div>
+              </div>
+              <button type="button" class="btn btn-dark" @click="stShowAddCard = true">
+                <AegisIcon name="plus" :size="12" /> Add Method
+              </button>
+            </div>
+            <div class="st-card-body">
+              <div class="alert alert-info" style="margin-bottom:16px;">
+                <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
+                <div class="alert-content">
+                  <div class="alert-title">One Card, All Payments</div>
+                  <div>Your active payment method funds your Aegis subscription. Aegis never sees or stores your full card number.</div>
+                </div>
+              </div>
+              <AegisEmptyState v-if="!paymentMethods.length" icon="credit-card" title="No payment methods" description="Add a card to fund your Aegis subscription." style="padding:24px 0;" />
+              <div v-else>
+                <div v-for="pm in paymentMethods" :key="pm.id" class="pm-card" :class="{ default: pm.is_default }">
+                  <div class="pm-logo"><AegisIcon :name="pm.method_type === 'bank' ? 'building' : 'credit-card'" :size="20" /></div>
+                  <div class="pm-info">
+                    <div class="pm-name">
+                      {{ (pm.brand || 'card').toUpperCase() }} ···· {{ pm.last4 }}
+                      <AegisBadge v-if="pm.is_default" label="Default" variant="gold" style="margin-left:6px;" />
+                    </div>
+                    <div class="pm-meta">{{ pm.exp_month ? 'Expires ' + pm.exp_month + '/' + pm.exp_year : 'On file' }}</div>
+                  </div>
+                  <div class="pm-card-btns">
+                    <template v-if="!pm.is_default">
+                      <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Set as default" @click="stSetDefaultPm(pm)"><AegisIcon name="check" :size="12" /></button>
+                      <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Remove" @click="stOpenRemove(pm)"><AegisIcon name="trash" :size="12" /></button>
+                    </template>
+                    <AegisIcon v-else name="shield-check" :size="16" class="pm-default-icon" data-tooltip="Default" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- SUBSCRIPTION INVOICES -->
         <div v-show="section === 'subscription_invoices'" class="settings-panel">
-          <SettingsSubscriptionInvoices
-            :invoices="subscriptionInvoices"
-            portal-label="Business Continuity Steward Subscription"
-          />
+          <div class="st-card">
+            <div class="st-card-head">
+              <div class="st-card-head-l">
+                <span class="st-card-ico"><AegisIcon name="file-text" :size="17" /></span>
+                <div><div class="st-card-title">Subscription Invoices</div><div class="st-card-sub">Your Aegis billing history</div></div>
+              </div>
+              <AegisBadge :label="subscriptionInvoices.length + ' invoice' + (subscriptionInvoices.length === 1 ? '' : 's')" variant="neutral" />
+            </div>
+            <div class="st-card-body" style="padding:0;">
+              <table v-if="subscriptionInvoices.length" class="table sub-invoice-table" style="margin:0;">
+                <thead><tr><th style="padding-left:20px;">Date</th><th>Plan</th><th>Amount</th><th>Status</th><th style="padding-right:20px;"></th></tr></thead>
+                <tbody>
+                  <tr v-for="inv in subscriptionInvoices" :key="inv.id" class="sub-inv-row" @click="stOpenSubInv(inv)">
+                    <td style="padding-left:20px;" class="tx-date">{{ stFormatDate(inv.date || inv.created) }}</td>
+                    <td><div class="sub-inv-product">{{ inv.product_name || 'Aegis Subscription' }}</div><div class="sub-inv-desc">#{{ inv.number || inv.id }}</div></td>
+                    <td style="font-weight:700;white-space:nowrap;">{{ stFormatCents(inv.amount_cents) }}</td>
+                    <td><AegisBadge :label="inv.status" :variant="stStatusVariant(inv.status)" /></td>
+                    <td style="padding-right:20px;text-align:right;"><button type="button" class="btn-icon btn-icon-sm" data-tooltip="View" @click.stop="stOpenSubInv(inv)"><AegisIcon name="eye" :size="12" /></button></td>
+                  </tr>
+                </tbody>
+              </table>
+              <AegisEmptyState v-else icon="file-text" title="No invoices yet" description="Invoices appear after your first billing cycle." style="padding:32px 0;" />
+            </div>
+          </div>
         </div>
 
         <!-- STRIPE CONNECT -->
         <div v-show="section === 'stripe_connect'" class="settings-panel">
-          <SettingsStripeConnect
-            :connected="stStripeConnected"
-            onboard-route="cs.settings.connect.onboard"
-            portal-route="cs.settings.billing.portal"
-            description="Connect your Stripe account to receive invoice payments from practitioners you steward. Funds go directly to your bank account — Aegis never holds your money."
-          />
+          <div class="st-card">
+            <div class="st-card-head">
+              <div class="st-card-head-l">
+                <span class="st-card-ico"><AegisIcon name="link" :size="17" /></span>
+                <div><div class="st-card-title">Stripe Connect</div><div class="st-card-sub">Receive practitioner invoice payments</div></div>
+              </div>
+              <span v-if="stStripeConnected" class="app-status-connected" style="font-size:12px;"><AegisIcon name="check" :size="13" /> Connected</span>
+            </div>
+            <div class="st-card-body">
+              <div class="stripe-setup-card">
+                <div class="stripe-setup-inner">
+                  <div class="stripe-setup-icon"><AegisIcon name="credit-card" :size="22" /></div>
+                  <div class="stripe-setup-body">
+                    <div class="stripe-setup-title">Stripe Connect Express</div>
+                    <div class="stripe-setup-desc">Connect your Stripe account to receive invoice payments from practitioners you steward. Funds go directly to your bank — Aegis never holds your money.</div>
+                    <div class="stripe-setup-actions">
+                      <template v-if="stStripeConnected">
+                        <a :href="route('cs.settings.billing.portal')" class="btn btn-outline" target="_blank"><AegisIcon name="external-link" :size="12" /> Stripe Dashboard</a>
+                        <a :href="route('cs.settings.connect.onboard')" class="btn btn-outline"><AegisIcon name="refresh-cw" :size="12" /> Reconnect</a>
+                      </template>
+                      <template v-else>
+                        <a :href="route('cs.settings.connect.onboard')" class="btn btn-primary"><AegisIcon name="external-link" :size="13" /> Connect Stripe Account</a>
+                        <span style="font-size:12px;color:var(--text-4);">You'll be redirected to Stripe to complete setup</span>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div v-show="section === 'danger'"  class="settings-panel">
+        <div v-show="section === 'danger'" class="settings-panel">
           <SettingsDangerZone
             delete-route="cs.settings.account.delete"
             pause-route="cs.settings.account.pause"
@@ -324,6 +435,36 @@
       </div>
     </div>
   <!-- PM modals -->
+  <AddCardModal v-model="stShowAddCard" setup-intent-route="cs.settings.payment.setup-intent" store-route="cs.settings.payment.store" />
+  <AegisModal v-model="stShowRemove" title="Remove Payment Method" size="sm">
+    <p style="font-size:13px;color:var(--text-2);">Remove this card? If it's your only card, subscription renewal will fail.</p>
+    <template #footer>
+      <button type="button" class="btn btn-outline" :disabled="stRemovingCard" @click="stShowRemove = false">Cancel</button>
+      <button type="button" class="btn btn-danger"  :disabled="stRemovingCard" @click="stDoRemove">
+        <AegisIcon v-if="stRemovingCard" name="refresh-cw" :size="13" class="st-spin" />
+        <AegisIcon v-else name="trash" :size="13" />
+        {{ stRemovingCard ? 'Removing…' : 'Remove' }}
+      </button>
+    </template>
+  </AegisModal>
+  <AegisModal v-model="stSubInvOpen" title="Subscription Invoice" size="lg">
+    <div v-if="stActiveSubInv" class="sub-inv-modal">
+      <div class="sim-header">
+        <div class="sim-logo"><AegisIcon name="star" :size="20" /></div>
+        <div class="sim-brand"><div class="sim-from">Aegis Platform</div><div class="sim-sub">Continuity Steward Subscription</div></div>
+        <div class="sim-status-block"><AegisBadge :label="stActiveSubInv.status" :variant="stStatusVariant(stActiveSubInv.status)" /><div class="sim-date">{{ stFormatDate(stActiveSubInv.date || stActiveSubInv.created) }}</div></div>
+      </div>
+      <div class="sim-number-row"><span class="sim-number-label">Invoice #</span><span class="sim-number">{{ stActiveSubInv.number || stActiveSubInv.id }}</span></div>
+      <div class="sim-items"><div class="sim-item"><div class="sim-item-icon"><AegisIcon name="check-circle" :size="15" /></div><div class="sim-item-name">{{ stActiveSubInv.product_name || 'Aegis Subscription' }}</div><div class="sim-item-price">{{ stFormatCents(stActiveSubInv.amount_cents) }}</div></div></div>
+      <div class="sim-totals"><div class="sim-total-row"><span>Subtotal</span><span>{{ stFormatCents(stActiveSubInv.amount_cents) }}</span></div><div class="sim-total-row sim-total-row--main"><span>Total paid</span><span>{{ stFormatCents(stActiveSubInv.amount_cents) }}</span></div></div>
+      <div class="sim-fine-print"><AegisIcon name="shield" :size="12" /> Charged to your default card. Aegis never stores your full card number.</div>
+    </div>
+    <template #footer>
+      <a v-if="stActiveSubInv?.pdf_url" :href="stActiveSubInv.pdf_url" target="_blank" class="btn btn-ghost"><AegisIcon name="download" :size="12" /> PDF</a>
+      <a v-if="stActiveSubInv?.hosted_url" :href="stActiveSubInv.hosted_url" target="_blank" class="btn btn-outline"><AegisIcon name="external-link" :size="12" /> View on Stripe</a>
+      <button v-if="!stActiveSubInv?.hosted_url && !stActiveSubInv?.pdf_url" type="button" class="btn btn-outline" @click="stSubInvOpen = false">Close</button>
+    </template>
+  </AegisModal>
 
   </AppLayout>
 </template>
@@ -341,10 +482,7 @@ import SettingsNotifications  from '@/components/settings/SettingsNotifications.
 import SettingsAppearance     from '@/components/settings/SettingsAppearance.vue';
 import SettingsMessaging      from '@/components/settings/SettingsMessaging.vue';
 import SettingsEmailPrefs     from '@/components/settings/SettingsEmailPrefs.vue';
-import SettingsDangerZone          from '@/components/settings/SettingsDangerZone.vue';
-import SettingsPaymentMethods     from '@/components/settings/SettingsPaymentMethods.vue';
-import SettingsSubscriptionInvoices from '@/components/settings/SettingsSubscriptionInvoices.vue';
-import SettingsStripeConnect      from '@/components/settings/SettingsStripeConnect.vue';
+import SettingsDangerZone     from '@/components/settings/SettingsDangerZone.vue';
 
 const props = defineProps({
   user:         { type: Object,  default: () => ({}) },
@@ -560,10 +698,6 @@ onMounted(() => {
 <style scoped>
 .settings-layout { display: grid; grid-template-columns: 240px 1fr; gap: 22px; align-items: start; padding: 0 var(--page-x, 24px) 40px; }
 .settings-sidebar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); position: sticky; top: 80px; }
-.settings-sidebar-scroll { max-height: 400px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
-.settings-sidebar-scroll::-webkit-scrollbar { width: 4px; }
-.settings-sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
-.settings-sidebar-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 .settings-sidebar-header { padding: 18px 20px; border-bottom: 1px solid var(--border); background: var(--surface-2); display: flex; align-items: center; gap: 10px; }
 .settings-sidebar-header-icon { width: 34px; height: 34px; border-radius: var(--radius); background: var(--icon-bg-gold); color: var(--gold-dark); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .settings-sidebar-header h3 { font-family: var(--font-serif); font-size: 15px; font-weight: 700; color: var(--text); }

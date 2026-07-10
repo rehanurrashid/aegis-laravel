@@ -1699,7 +1699,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 .st-plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 680px; margin: 0 auto; }
 .st-plan-tier { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; text-align: center; position: relative; background: var(--surface); transition: border-color var(--transition); display: flex; flex-direction: column; }
 .st-plan-tier.current { border-color: var(--gold-dark); background: var(--icon-bg-gold); }
-.st-plan-tier-badge { display: inline-flex; align-items: center; gap: 5px; background: var(--gold-dark); color: var(--text-inverted); font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: var(--radius-full); letter-spacing: 0.5px; margin-bottom: 10px; }
+.st-plan-tier-badge { display: inline-flex; align-items: center; justify-content: center; gap: 5px; background: var(--gold-dark); color: var(--text-inverted); font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: var(--radius-full); letter-spacing: 0.5px; position: absolute; top: 12px; left: 12px; }
 .st-plan-tier-name { font-family: var(--font-serif); font-size: 18px; font-weight: 700; color: var(--text); }
 .st-plan-tier-price { font-size: 26px; font-weight: 700; color: var(--gold-dark); margin: 8px 0 4px; }
 .st-plan-tier-price span { font-size: 13px; color: var(--text-3); font-weight: 600; }
