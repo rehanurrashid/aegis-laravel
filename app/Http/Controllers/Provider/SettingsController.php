@@ -11,6 +11,7 @@ use App\Services\ActivityService;
 use App\Services\ProfileService;
 use App\Services\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Inertia\Inertia;
@@ -112,7 +113,39 @@ class SettingsController extends Controller
             'accountPaused'    => $user->meta->where('meta_key', 'account_paused')->value('meta_value') === '1',
             'pausedUntil'      => $user->getMeta ? optional($user->meta->where('meta_key','pause_prefs')->first())?->typed_value['until'] ?? null : null,
             'activeAgreements' => $activeAgreements->values(),
+            'paymentMethods'   => $this->fetchPaymentMethods($user),
         ]);
+    }
+
+
+    /**
+     * Fetch all Stripe cards for this user.
+     * User::paymentMethods() shadows Cashier — call Stripe directly.
+     */
+    private function fetchPaymentMethods(\App\Models\User $user): array
+    {
+        if (!$user->hasStripeId()) {
+            return [];
+        }
+        try {
+            $stripe      = $user->stripe();
+            $pmList      = $stripe->paymentMethods->all(['customer' => $user->stripe_id, 'type' => 'card']);
+            $defaultPmId = $user->stripe_payment_method_id
+                ?? ($stripe->customers->retrieve($user->stripe_id)->invoice_settings->default_payment_method ?? null);
+
+            return collect($pmList->data)->map(fn ($pm) => [
+                'id'          => $pm->id,
+                'brand'       => $pm->card->brand ?? 'card',
+                'last4'       => $pm->card->last4 ?? '••••',
+                'exp_month'   => $pm->card->exp_month ?? null,
+                'exp_year'    => $pm->card->exp_year ?? null,
+                'is_default'  => $pm->id === $defaultPmId,
+                'method_type' => 'card',
+            ])->sortByDesc('is_default')->values()->toArray();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[SettingsController] fetchPaymentMethods failed', ['user' => $user->id, 'error' => $e->getMessage()]);
+            return [];
+        }
     }
 
     public function updateAccount(Request $request): RedirectResponse

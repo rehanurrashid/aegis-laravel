@@ -482,14 +482,6 @@
 
               <!-- ── Quick actions — link out to Finances ─────────────────── -->
               <div class="st-billing-shortcuts">
-                <a :href="route('provider.finances.index') + '?tab=methods'" class="st-shortcut-btn">
-                  <span class="st-shortcut-icon"><AegisIcon name="credit-card" :size="16" /></span>
-                  <div>
-                    <div class="st-shortcut-label">Payment Methods</div>
-                    <div class="st-shortcut-sub">Add or change cards</div>
-                  </div>
-                  <AegisIcon name="chevron-right" :size="13" class="st-shortcut-arrow" />
-                </a>
                 <a :href="route('provider.finances.index') + '?tab=subscription'" class="st-shortcut-btn">
                   <span class="st-shortcut-icon"><AegisIcon name="file-text" :size="16" /></span>
                   <div>
@@ -514,6 +506,62 @@
                   </div>
                   <AegisIcon name="chevron-right" :size="13" class="st-shortcut-arrow" />
                 </a>
+              </div>
+
+              <!-- ── Payment Methods ─────────────────────────────────── -->
+              <div class="st-card" style="margin-top:18px;">
+                <div class="st-card-head">
+                  <div class="st-card-head-l">
+                    <span class="st-card-ico"><AegisIcon name="credit-card" :size="17" /></span>
+                    <div><div class="st-card-title">Payment Methods</div><div class="st-card-sub">Cards used to fund all Aegis charges</div></div>
+                  </div>
+                  <button type="button" class="btn btn-dark" @click="stShowAddCard = true">
+                    <AegisIcon name="plus" :size="12" /> Add Method
+                  </button>
+                </div>
+                <div class="st-card-body">
+                  <div class="alert alert-info" style="margin-bottom:16px;">
+                    <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
+                    <div class="alert-content">
+                      <div class="alert-title">One Card, All Payments</div>
+                      <div>Your active payment method funds every Aegis charge — subscription, CS fees, BP invoices, and clinical sessions. Aegis never sees or stores your full card number.</div>
+                    </div>
+                  </div>
+
+                  <AegisEmptyState
+                    v-if="!paymentMethods.length"
+                    icon="credit-card"
+                    title="No payment methods"
+                    description="Add a card to pay Business Partners and manage your Aegis subscription."
+                    style="padding:24px 0;"
+                  />
+                  <div v-else>
+                    <div v-for="pm in paymentMethods" :key="pm.id" class="pm-card" :class="{ default: pm.is_default }">
+                      <div class="pm-logo">
+                        <AegisIcon :name="pm.method_type === 'bank' ? 'building' : 'credit-card'" :size="20" />
+                      </div>
+                      <div class="pm-info">
+                        <div class="pm-name">
+                          {{ (pm.brand || 'card').toUpperCase() }} ···· {{ pm.last4 }}
+                          <AegisBadge v-if="pm.is_default" label="Default · funds all payments" variant="gold" style="margin-left:6px;" />
+                        </div>
+                        <div class="pm-meta">
+                          {{ pm.method_type === 'bank' ? 'ACH / Bank Transfer' : (pm.exp_month ? 'Expires ' + pm.exp_month + '/' + pm.exp_year : 'On file') }}
+                        </div>
+                      </div>
+                      <div class="pm-card-btns">
+                        <template v-if="!pm.is_default">
+                          <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Set as default" @click="stSetDefaultPm(pm)">
+                            <AegisIcon name="check" :size="12" />
+                          </button>
+                          <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Remove" @click="stOpenRemoveCard(pm)">
+                            <AegisIcon name="trash" :size="12" />
+                          </button>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <!-- Founding Member perk banner — first 100 practitioners -->
@@ -800,6 +848,27 @@
     @upgrade="section = 'billing'"
   />
 
+  <!-- ── Payment Methods modals ───────────────────── -->
+  <AddCardModal
+    v-model="stShowAddCard"
+    setup-intent-route="provider.settings.payment.setup-intent"
+    store-route="provider.finances.payment.store"
+  />
+
+  <AegisModal v-model="stShowRemove" title="Remove Payment Method" size="sm">
+    <p style="font-size:13px;color:var(--text-2);">
+      Remove this payment method? If it's the only card on file, subscription renewal and peer payments will fail until a new card is added.
+    </p>
+    <template #footer>
+      <button type="button" class="btn btn-outline" :disabled="stRemovingCard" @click="stShowRemove = false">Cancel</button>
+      <button type="button" class="btn btn-danger"  :disabled="stRemovingCard" @click="stDoRemoveCard">
+        <AegisIcon v-if="stRemovingCard" name="refresh-cw" :size="13" class="st-spin" />
+        <AegisIcon v-else name="trash" :size="13" />
+        {{ stRemovingCard ? 'Removing…' : 'Remove' }}
+      </button>
+    </template>
+  </AegisModal>
+
   </AppLayout>
 </template>
 
@@ -808,7 +877,9 @@ import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { useVuelidate } from '@vuelidate/core';
 import { required, email, minLength, sameAs, helpers } from '@vuelidate/validators';
-import { useToast } from '@/composables/useToast';
+import { useToast }   from '@/composables/useToast';
+import { useConfirm } from '@/composables/useConfirm';
+import AddCardModal   from '@/components/modals/AddCardModal.vue';
 import AppLayout           from '@/layouts/AppLayout.vue';
 import SettingsAccount      from '@/components/settings/SettingsAccount.vue';
 import SettingsSecurity     from '@/components/settings/SettingsSecurity.vue';
@@ -825,9 +896,17 @@ const props = defineProps({
   subscription:     { type: Object,  default: () => ({}) },
   pricing:          { type: Object,  default: () => ({}) },
   activeAgreements: { type: Array,   default: () => [] },
+  paymentMethods:   { type: Array,   default: () => [] },
 });
 
 const toast = useToast();
+const { confirmAction } = useConfirm();
+
+// ─── Payment Methods (inline, mirrors Finances.vue) ───────────────────────────
+const stActivePm     = ref(null);
+const stRemovingCard = ref(false);
+const stShowAddCard  = ref(false);
+const stShowRemove   = ref(false);
 
 // ─── Nav ───────────────────────────────────────────────────────────────────────
 const i = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
@@ -1457,6 +1536,35 @@ const modals = reactive({
   showUpgrade: false,
 });
 
+// ─── Payment Methods ─────────────────────────────────────────────────────────────
+function stSetDefaultPm(pm) {
+  confirmAction(
+    `Set ${(pm.brand || 'card').toUpperCase()} ···· ${pm.last4} as your default payment method?`,
+    () => {
+      router.post(route('provider.settings.payment.default'), { payment_method_id: pm.id }, {
+        preserveScroll: true,
+        onSuccess: () => toast.success('Default payment method updated.'),
+        onError:   () => toast.error('Could not update default payment method.'),
+      });
+    }
+  );
+}
+function stOpenRemoveCard(pm) {
+  stActivePm.value = pm;
+  stShowRemove.value = true;
+}
+function stDoRemoveCard() {
+  if (!stActivePm.value || stRemovingCard.value) return;
+  stRemovingCard.value = true;
+  router.delete(route('provider.settings.payment.remove'), {
+    data: { payment_method_id: stActivePm.value.id },
+    preserveScroll: true,
+    onSuccess: () => { stShowRemove.value = false; toast.info('Payment method removed.'); },
+    onError:   () => toast.error('Could not remove payment method.'),
+    onFinish:  () => { stRemovingCard.value = false; },
+  });
+}
+
 // ─── URL param routing (?tab=billing&upgrade=1) ───────────────────────────────
 onMounted(() => {
   const params  = new URLSearchParams(window.location.search)
@@ -1927,4 +2035,15 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 .st-shortcut-label { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.2; }
 .st-shortcut-sub   { font-size: 11px; color: var(--text-3); margin-top: 2px; }
 .st-shortcut-arrow { margin-left: auto; color: var(--text-4); flex-shrink: 0; }
+
+/* ── Payment method cards (mirrors Finances.vue) ── */
+.pm-card          { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 10px; background: var(--surface); box-shadow: var(--shadow-sm); }
+.pm-card.default  { border-color: var(--gold-dark); background: var(--badge-bg-gold); }
+.pm-logo          { width: 48px; height: 32px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.pm-info          { flex: 1; }
+.pm-name          { font-size: 13px; font-weight: 700; color: var(--text); }
+.pm-meta          { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.pm-card-btns     { display: flex; gap: 6px; }
+.st-spin          { animation: st-spin-kf 0.7s linear infinite; display: inline-block; }
+@keyframes st-spin-kf { to { transform: rotate(360deg); } }
 </style>
