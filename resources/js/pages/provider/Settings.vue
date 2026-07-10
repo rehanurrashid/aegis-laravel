@@ -688,8 +688,9 @@
             <p style="font-size:14px;color:var(--text-2);margin-bottom:14px">
               Your <strong>{{ currentTierLabel }}</strong> subscription will continue as normal. You will be charged on your next billing date.
             </p>
-            <div style="padding:10px 14px;border-radius:var(--radius);background:var(--green-light);border:1px solid var(--green-dark);font-size:13px;color:var(--green-dark);margin-bottom:4px">
-              <AegisIcon name="check" :size="13" style="margin-right:4px" /> Your access will be fully restored immediately.
+            <div style="padding:10px 14px;border-radius:var(--radius);background:var(--green-light);border:1px solid var(--green-dark);font-size:13px;color:var(--green-dark);margin-bottom:4px;display:flex;align-items:center;gap:8px;">
+              <span style="flex-shrink:0;display:flex;"><AegisIcon name="check" :size="13" /></span>
+              <span>Your access will be fully restored immediately.</span>
             </div>
             <template #footer>
               <button type="button" class="btn btn-outline" @click="confirmResume = false">Cancel</button>
