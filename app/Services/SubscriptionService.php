@@ -203,7 +203,25 @@ class SubscriptionService
                 // Recent invoice history (last 12)
                 $invList = $stripe->invoices->all(['customer' => $user->stripe_id, 'limit' => 12]);
                 foreach ($invList->data as $inv) {
-                    $lineItem    = $inv->lines->data[0] ?? null;
+                    // For proration invoices (plan upgrades/downgrades) Stripe creates multiple
+                    // line items: credit adjustments ("Unused time on...") PLUS the new plan line.
+                    // Always prefer a 'subscription' type line over proration adjustments so the
+                    // displayed description shows the real product name, not the raw Stripe text.
+                    $allLines = $inv->lines->data ?? [];
+                    $lineItem = null;
+                    foreach ($allLines as $_line) {
+                        if (($_line->type ?? '') === 'subscription') {
+                            $lineItem = $_line;
+                            break;
+                        }
+                    }
+                    if (!$lineItem) {
+                        $lineItem = $allLines[0] ?? null;
+                    }
+
+                    // Flag multi-line (proration) invoices so we can show a friendlier label
+                    $isProration = count($allLines) > 1;
+
                     $productName = null;
 
                     // 1. Try price nickname (e.g. "Continuity Practice — Monthly")
@@ -226,14 +244,18 @@ class SubscriptionService
                     // 3. Parse the description — strip "N × " prefix and " (at $X.XX / period)" suffix
                     if (!$productName && $lineItem?->description) {
                         $desc = $lineItem->description;
-                        // Strip "1 × " prefix
                         $desc = preg_replace('/^\d+\s*[×x]\s*/u', '', $desc);
-                        // Strip " (at $X.XX / ...)" suffix
                         $desc = preg_replace('/\s*\(at\s*\$[\d.,]+\s*\/[^)]*\)/i', '', $desc);
                         $productName = trim($desc) ?: null;
                     }
 
                     $productName = $productName ?? 'Aegis Subscription';
+
+                    // For proration invoices, annotate description with "Plan adjustment"
+                    // instead of leaking raw Stripe proration text to the UI.
+                    $displayDescription = $isProration
+                        ? 'Plan adjustment — ' . $productName
+                        : ($lineItem?->description ?? $productName);
 
                     $invoices[] = [
                         'id'           => $inv->id,
@@ -242,10 +264,11 @@ class SubscriptionService
                         'status'       => $inv->status,
                         'paid_at'      => $inv->status_transitions->paid_at ?? null,
                         'created'      => $inv->created,
-                        'description'  => $lineItem?->description ?? 'Aegis Subscription',
+                        'description'  => $displayDescription,
                         'product_name' => $productName,
                         'pdf_url'      => $inv->invoice_pdf,
                         'hosted_url'   => $inv->hosted_invoice_url,
+
                     ];
                 }
 
