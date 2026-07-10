@@ -35,8 +35,13 @@ trait CreatesSetupIntent
                 ]);
             }
 
+            // 'card' + 'off_session' is the canonical pattern for saving cards for
+            // future use (subscriptions, peer payments). This ensures confirmCardSetup()
+            // attaches the PaymentMethod to the Stripe customer before returning pm_xxx,
+            // so $user->paymentMethods() lists it immediately after storePaymentMethod.
             $intent = $user->createSetupIntent([
-                'automatic_payment_methods' => ['enabled' => true, 'allow_redirects' => 'never'],
+                'payment_method_types' => ['card'],
+                'usage'                => 'off_session',
             ]);
 
             return response()->json([

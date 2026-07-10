@@ -796,11 +796,13 @@ class FinancesController extends Controller
             if (!$user->hasStripeId()) {
                 $user->createAsStripeCustomer(['name' => $user->display_name, 'email' => $user->email]);
             }
+            // Always attach the card to the customer first, then optionally set as default.
+            // updateDefaultPaymentMethod() alone can fail if the PM isn't already attached;
+            // addPaymentMethod() is idempotent if already attached (Stripe ignores duplicates).
+            $user->addPaymentMethod($data['payment_method_id']);
             if (!empty($data['set_default'])) {
                 $user->updateDefaultPaymentMethod($data['payment_method_id']);
                 $user->update(['stripe_payment_method_id' => $data['payment_method_id']]);
-            } else {
-                $user->addPaymentMethod($data['payment_method_id']);
             }
             return redirect()->route('provider.finances.index', ['tab' => 'methods'])
                 ->with('success', 'Payment method saved.');
