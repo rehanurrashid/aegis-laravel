@@ -87,12 +87,6 @@
       <!-- LEFT SIDEBAR NAV — matches settings-sidebar pattern -->
       <nav class="fin-sidebar" role="tablist" aria-label="Finance sections">
 
-        <!-- Header -->
-        <div class="fin-sidebar-header">
-          <div class="fin-sidebar-header-icon"><AegisIcon name="dollar" :size="16" /></div>
-          <h3>Finances</h3>
-        </div>
-
         <!-- Activity group -->
         <div class="fin-nav-group">
           <div class="fin-nav-label">Activity</div>
@@ -1824,33 +1818,6 @@ function paymentTypeLabel(t) {
   top: 80px;
 }
 
-/* Header — mirrors .settings-sidebar-header */
-.fin-sidebar-header {
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface-2);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.fin-sidebar-header-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius);
-  background: var(--icon-bg-gold);
-  color: var(--gold-dark);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.fin-sidebar-header h3 {
-  font-family: var(--font-serif);
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text);
-}
-
 /* Nav groups — mirrors .settings-nav-group */
 .fin-nav-group { padding: 6px 0; border-bottom: 1px solid var(--border); }
 .fin-nav-group:last-child { border-bottom: none; }
@@ -1933,6 +1900,5 @@ function paymentTypeLabel(t) {
   .fin-nav-item  { width: auto; flex: 0 0 auto; border-left: none; border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; }
   .fin-nav-item.active { background: var(--badge-bg-gold); color: var(--text); border-left-color: transparent; font-weight: 600; }
   .fin-nav-icon  { display: none; }
-  .fin-sidebar-header { padding: 12px 16px; }
 }
 </style>
