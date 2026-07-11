@@ -236,10 +236,47 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::post('/referrals/{referral}/complete', [ReferralsController::class, 'complete'])->name('referrals.complete');
         Route::get('/practitioners/search', [PractitionerSearchController::class, 'index'])->name('practitioners.search');
 
-        // Services (requires Practice tier + services mode)
-        // Session complete — no services.mode required; ANY authenticated provider can confirm a session they booked as client
-        Route::post('/services/sessions/{session}/complete', [ServicesController::class, 'completeSession'])->name('services.session.complete');
+        // ── Clinical Services ─────────────────────────────────────────────────
+        //
+        // Three middleware groups:
+        //   (A) No middleware — any authenticated provider can do these
+        //       (client-side actions don't require services_mode)
+        //   (B) services.mode — requires Practice tier + services_mode = true
+        //       (provider-side actions on their own listings/requests)
+        //
+        // (A) — No services.mode required ──────────────────────────────────────
+        // Deposit + completion: the CLIENT (inquirer) pays, they don't need services_mode
+        Route::post('/services/sessions/{session}/deposit', [ServicesController::class, 'payDeposit'])
+            ->name('services.session.deposit');
+        Route::post('/services/sessions/{session}/complete', [ServicesController::class, 'completeSession'])
+            ->name('services.session.complete');
 
+        // Invoice download — both parties can download
+        Route::get('/services/sessions/{session}/invoice', [ServicesController::class, 'downloadInvoice'])
+            ->name('services.session.invoice');
+
+        // Explore browse — any authenticated Practice-tier provider can browse others' services
+        Route::get('/services/explore', [ServicesController::class, 'explore'])
+            ->name('services.explore');
+
+        // Explore request submission — any authenticated provider can request a service they found
+        Route::post('/services/explore/request', [ServicesController::class, 'storeExploreRequest'])
+            ->name('services.explore.request');
+
+        // Refund requests — CLIENT actions (no services_mode needed; they are paying)
+        Route::post('/services/sessions/{session}/refund-requests', [ServicesController::class, 'storeRefundRequest'])
+            ->name('services.session.refund.store');
+        Route::post('/services/refund-requests/{refund}/escalate', [ServicesController::class, 'escalateRefundRequest'])
+            ->name('services.refund.escalate');
+
+        // Refund responses — PROVIDER actions (services_mode helps but not gated since
+        // any practitioner can be a provider for sessions; gate is ownership-based)
+        Route::post('/services/refund-requests/{refund}/approve', [ServicesController::class, 'approveRefundRequest'])
+            ->name('services.refund.approve');
+        Route::post('/services/refund-requests/{refund}/deny', [ServicesController::class, 'denyRefundRequest'])
+            ->name('services.refund.deny');
+
+        // (B) — Requires services.mode (practitioner managing their own service listings) ──
         Route::middleware('services.mode')->group(function () {
             Route::get('/services', [ServicesController::class, 'index'])->name('services.index');
             Route::post('/services', [ServicesController::class, 'store'])->name('services.store');
