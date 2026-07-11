@@ -233,7 +233,7 @@
               <div class="settings-tier-gate-icon"><AegisIcon name="lock" :size="22" /></div>
               <div class="settings-tier-gate-title">Referrals require Continuity Practice</div>
               <div class="settings-tier-gate-body">Send and receive patient referrals, access the full Integrative Network, and manage referral preferences — all included in Continuity Practice.</div>
-              <button type="button" class="btn btn-gold" @click="section = 'billing'; showTierModal = true"><AegisIcon name="star" :size="14" /> Upgrade to Continuity Practice</button>
+              <button type="button" class="btn btn-gold" @click="router.visit(route('provider.settings.index', { section: 'billing', upgrade: '1' }))"><AegisIcon name="star" :size="14" /> Upgrade to Continuity Practice</button>
             </div>
           </div>
           <div :class="{ 'settings-tier-blurred': isAccessTier }">
@@ -364,7 +364,7 @@
               <div class="settings-tier-gate-icon"><AegisIcon name="lock" :size="22" /></div>
               <div class="settings-tier-gate-title">My Services requires Continuity Practice</div>
               <div class="settings-tier-gate-body">Offer supervision, consultation, training, and other peer services through Aegis. Enables the My Services sidebar and the Integrative Business Services badge on your profile.</div>
-              <button type="button" class="btn btn-gold" @click="section = 'billing'; showTierModal = true"><AegisIcon name="star" :size="14" /> Upgrade to Continuity Practice</button>
+              <button type="button" class="btn btn-gold" @click="router.visit(route('provider.settings.index', { section: 'billing', upgrade: '1' }))"><AegisIcon name="star" :size="14" /> Upgrade to Continuity Practice</button>
             </div>
           </div>
           <div :class="{ 'settings-tier-blurred': isAccessTier }">
@@ -611,6 +611,24 @@
           </div>
 
           <!-- ── PLAN SWAP CONFIRMATION ──────────────────────────────────── -->
+          <!-- MAAT downgrade blocker -->
+          <AegisModal v-model="confirmDowngradeBlocked" title="Remove MAAT Before Downgrading" size="sm">
+            <div class="alert alert-gold" style="margin-bottom:16px;">
+              <div class="alert-icon"><AegisIcon name="alert-triangle" :size="17" /></div>
+              <div class="alert-content">
+                <div class="alert-title">MAAT Add-On Must Be Removed First</div>
+                <div>The MAAT Professional CS add-on is only available on Continuity Practice. You must remove it before downgrading to Continuity Access.</div>
+              </div>
+            </div>
+            <p style="font-size:13px;color:var(--text-2);line-height:1.6;">Once MAAT is removed, you can proceed with the downgrade. Your MAAT CS will be notified and the assignment removed immediately.</p>
+            <template #footer>
+              <button type="button" class="btn btn-outline" @click="confirmDowngradeBlocked = false">Cancel</button>
+              <button type="button" class="btn btn-danger" @click="confirmDowngradeBlocked = false; toggleMaat(false)">
+                <AegisIcon name="trash" :size="13" /> Remove MAAT Add-On
+              </button>
+            </template>
+          </AegisModal>
+
           <AegisModal v-model="confirmSwap" title="Confirm Plan Change" size="md">
             <div style="margin-bottom:16px">
               <!-- Direction badge -->
@@ -1320,6 +1338,7 @@ const confirmSwap    = ref(false);
 // MAAT confirmation
 const pendingMaat    = reactive({ enable: false });
 const confirmMaat    = ref(false);
+const confirmDowngradeBlocked = ref(false);
 const accessFeatures   = ['Limited dashboard view','1 Continuity Steward included','2 Support Stewards included','Core continuity planning','Continuity Plan','Document Vault','Integrative Care Network (limited)'];
 const practiceFeatures = ['Full dashboard access','Up to 2 Continuity Stewards','2 Support Stewards included','All continuity features','Continuity Plan','Full Document Vault','Full Integrative Care Network','Integrative Care Network Matching','Business Partners access'];
 const maatFeatures     = ['Licensed & insured CS, certified by MAAT','4-hour emergency response guarantee','Annual CS recertification included'];
@@ -1356,6 +1375,13 @@ function swapPlan(tier) {
       : direction === 'switch-annual'
         ? 'Switching to annual billing saves you 20%. The change takes effect at your next billing cycle.'
         : 'Switching to monthly billing. The change takes effect at your next billing cycle.';
+
+  // Block downgrade if MAAT add-on is active — must remove MAAT first
+  if (direction === 'downgrade' && hasMaat.value) {
+    confirmDowngradeBlocked.value = true;
+    return;
+  }
+
   confirmSwap.value = true;
 }
 

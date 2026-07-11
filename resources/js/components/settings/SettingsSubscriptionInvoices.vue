@@ -46,7 +46,10 @@
             </td>
             <td class="ssi-amount">{{ fmtCents(inv.amount_cents) }}</td>
             <td><AegisBadge :label="inv.status" :variant="statusVariant(inv.status)" /></td>
-            <td style="padding-right:20px;text-align:right;">
+            <td style="padding-right:20px;text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:4px;padding-top:12px;padding-bottom:12px;">
+              <a v-if="inv.hosted_url" :href="inv.hosted_url" target="_blank" class="btn-icon btn-icon-sm" data-tooltip="View on Stripe" @click.stop>
+                <AegisIcon name="external-link" :size="12" />
+              </a>
               <button type="button" class="btn-icon btn-icon-sm" data-tooltip="View invoice" @click.stop="open(inv)">
                 <AegisIcon name="eye" :size="12" />
               </button>
@@ -111,10 +114,10 @@
       <a v-if="active?.pdf_url" :href="active.pdf_url" target="_blank" class="btn btn-ghost">
         <AegisIcon name="download" :size="12" /> Download PDF
       </a>
-      <a v-if="active?.hosted_url" :href="active.hosted_url" target="_blank" class="btn btn-outline">
-        <AegisIcon name="external-link" :size="12" /> View on Stripe
+      <a v-if="active?.hosted_url" :href="active.hosted_url" target="_blank" class="btn btn-gold">
+        <AegisIcon name="external-link" :size="12" /> View Invoice on Stripe
       </a>
-      <button v-if="!active?.hosted_url && !active?.pdf_url" type="button" class="btn btn-outline" @click="showModal = false">Close</button>
+      <button v-else type="button" class="btn btn-outline" @click="showModal = false">Close</button>
     </template>
   </AegisModal>
 </template>
