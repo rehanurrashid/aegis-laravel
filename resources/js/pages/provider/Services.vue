@@ -171,13 +171,6 @@
               <option value="limited">Limited spots</option>
             </select>
           </div>
-
-          <div class="explore-filter-select-wrap">
-            <AegisIcon name="arrow-up-down" :size="13" />
-            <select v-model="exploreFilters.sort" class="form-select explore-filter-select" @change="doExploreSearch">
-              <option v-for="s in sortOptions" :key="s.value" :value="s.value">{{ s.label }}</option>
-            </select>
-          </div>
         </div>
 
         <!-- Row 3: Result count + clear -->
