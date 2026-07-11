@@ -3812,6 +3812,7 @@ input[type="week"].form-input::-webkit-calendar-picker-indicator {
 .spinner-lg { width: 28px; height: 28px; border-width: 3px; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+.btn-spin { animation: spin 0.7s linear infinite; display: inline-block; flex-shrink: 0; }
 
 /* ═══════════════════════════════════════════════════════════════
    GRID & FLEX UTILITIES

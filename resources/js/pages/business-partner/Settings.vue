@@ -214,7 +214,7 @@
                       <div style="font-size:13px;font-weight:700;color:var(--text)">Your subscription was cancelled</div>
                       <div style="font-size:12px;color:var(--text-2)">Access ends { formatDate(sub.ends_at) }. Reactivate before then to keep your account.</div>
                     </div>
-                    <button type="button" class="btn btn-gold btn-sm" @click="resumeBpPlan" :disabled="planBusy">Reactivate</button>
+                    <button type="button" class="btn btn-gold" @click="resumeBpPlan" :disabled="planBusy"><AegisIcon v-if="planBusy" name="refresh-cw" :size="13" class="btn-spin" /><AegisIcon v-else name="refresh" :size="13" />{{ planBusy ? 'Reactivating…' : 'Reactivate' }}</button>
                   </div>
                 </div>
               </template>
@@ -270,7 +270,7 @@
               <!-- Cancel plan -->
               <div v-if="subStatus === 'active' || subStatus === 'trialing'" style="display:flex;align-items:center;justify-content:space-between;padding-top:8px">
                 <div style="font-size:13px;color:var(--text-3)">Want to cancel? Your access continues until the end of the billing period.</div>
-                <button type="button" class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red)" @click="confirmBpCancel = true" :disabled="planBusy">Cancel Plan</button>
+                <button type="button" class="btn btn-outline" style="color:var(--red);border-color:var(--red)" @click="confirmBpCancel = true" :disabled="planBusy"><AegisIcon v-if="planBusy" name="refresh-cw" :size="13" class="btn-spin" />{{ planBusy ? 'Processing…' : 'Cancel Plan' }}</button>
               </div>
 
               <!-- Invoice history -->
@@ -316,9 +316,11 @@
               </div>
             </div>
             <template #footer>
-              <button type="button" class="btn btn-outline btn-sm" @click="confirmBpSwap = false">Go Back</button>
-              <button type="button" class="btn btn-gold btn-sm" @click="doBpSwap" :disabled="planBusy">
-                <AegisIcon name="check" :size="13" /> Confirm Change
+              <button type="button" class="btn btn-outline" @click="confirmBpSwap = false">Go Back</button>
+              <button type="button" class="btn btn-gold" @click="doBpSwap" :disabled="planBusy">
+                <AegisIcon v-if="planBusy" name="refresh-cw" :size="13" class="btn-spin" />
+                <AegisIcon v-else name="check" :size="13" />
+                {{ planBusy ? 'Applying…' : 'Confirm Change' }}
               </button>
             </template>
           </AegisModal>
@@ -330,9 +332,11 @@
               <AegisIcon name="check" :size="13" style="color:var(--gold-dark);flex-shrink:0;" /> <span>Your Business Partner portal access will be fully restored immediately.</span>
             </div>
             <template #footer>
-              <button type="button" class="btn btn-outline btn-sm" @click="confirmBpResume = false">Cancel</button>
-              <button type="button" class="btn btn-gold btn-sm" @click="doBpResume" :disabled="planBusy">
-                <AegisIcon name="refresh" :size="13" /> Reactivate
+              <button type="button" class="btn btn-outline" @click="confirmBpResume = false">Cancel</button>
+              <button type="button" class="btn btn-gold" @click="doBpResume" :disabled="planBusy">
+                <AegisIcon v-if="planBusy" name="refresh-cw" :size="13" class="btn-spin" />
+                <AegisIcon v-else name="refresh" :size="13" />
+                {{ planBusy ? 'Reactivating…' : 'Reactivate' }}
               </button>
             </template>
           </AegisModal>
@@ -341,8 +345,8 @@
             <p style="font-size:14px;color:var(--text);margin-bottom:12px">Your subscription will remain active until <strong>{{ formatDate(sub.current_period?.end) || 'the end of the current period' }}</strong>. After that you'll lose access to your BP portal.</p>
             <p style="font-size:13px;color:var(--text-3)">You can reactivate any time before the period ends.</p>
             <template #footer>
-              <button type="button" class="btn btn-outline btn-sm" @click="confirmBpCancel = false">Keep Subscription</button>
-              <button type="button" class="btn btn-danger btn-sm" @click="cancelBpPlan" :disabled="planBusy">Cancel Subscription</button>
+              <button type="button" class="btn btn-outline" @click="confirmBpCancel = false">Keep Subscription</button>
+              <button type="button" class="btn btn-danger" @click="cancelBpPlan" :disabled="planBusy"><AegisIcon v-if="planBusy" name="refresh-cw" :size="13" class="btn-spin" />{{ planBusy ? 'Cancelling…' : 'Cancel Subscription' }}</button>
             </template>
           </AegisModal>
         </div>
