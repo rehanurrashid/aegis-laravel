@@ -129,58 +129,59 @@
       <!-- ── INLINE FILTER BAR ─────────────────────────────────────────── -->
       <div class="explore-filter-bar">
 
-        <!-- Search -->
-        <div class="explore-filter-search">
-          <AegisIcon name="search" :size="14" />
-          <input
-            v-model="exploreFilters.q"
-            type="text"
-            class="form-control"
-            placeholder="Search services, providers…"
-            @keydown.enter.prevent="doExploreSearch"
-          />
+        <!-- Row 1: Search — full width -->
+        <div class="explore-filter-row explore-filter-row--search">
+          <div class="explore-filter-search">
+            <AegisIcon name="search" :size="14" />
+            <input
+              v-model="exploreFilters.q"
+              type="text"
+              class="form-control"
+              placeholder="Search services, providers, specialties…"
+              @keydown.enter.prevent="doExploreSearch"
+            />
+          </div>
         </div>
 
-        <!-- Category dropdown -->
-        <div class="explore-filter-select-wrap" :class="{ 'has-value': exploreFilters.category }">
-          <AegisIcon name="grid" :size="13" />
-          <select v-model="exploreFilters.category" class="form-select explore-filter-select" @change="doExploreSearch">
-            <option value="">All Categories</option>
-            <option v-for="opt in serviceCategories" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-          </select>
+        <!-- Row 2: Dropdowns -->
+        <div class="explore-filter-row explore-filter-row--dropdowns">
+          <div class="explore-filter-select-wrap" :class="{ 'has-value': exploreFilters.category }">
+            <AegisIcon name="grid" :size="13" />
+            <select v-model="exploreFilters.category" class="form-select explore-filter-select" @change="doExploreSearch">
+              <option value="">All Categories</option>
+              <option v-for="opt in serviceCategories" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+            </select>
+          </div>
+
+          <div class="explore-filter-select-wrap" :class="{ 'has-value': exploreFilters.format }">
+            <AegisIcon name="monitor" :size="13" />
+            <select v-model="exploreFilters.format" class="form-select explore-filter-select" @change="doExploreSearch">
+              <option value="">Any Format</option>
+              <option value="telehealth">Virtual</option>
+              <option value="in_person">In-Person</option>
+              <option value="both">Virtual &amp; In-Person</option>
+            </select>
+          </div>
+
+          <div class="explore-filter-select-wrap" :class="{ 'has-value': exploreFilters.availability }">
+            <AegisIcon name="calendar" :size="13" />
+            <select v-model="exploreFilters.availability" class="form-select explore-filter-select" @change="doExploreSearch">
+              <option value="">Any Availability</option>
+              <option value="open">Open — accepting</option>
+              <option value="limited">Limited spots</option>
+            </select>
+          </div>
+
+          <div class="explore-filter-select-wrap">
+            <AegisIcon name="arrow-up-down" :size="13" />
+            <select v-model="exploreFilters.sort" class="form-select explore-filter-select" @change="doExploreSearch">
+              <option v-for="s in sortOptions" :key="s.value" :value="s.value">{{ s.label }}</option>
+            </select>
+          </div>
         </div>
 
-        <!-- Format dropdown -->
-        <div class="explore-filter-select-wrap" :class="{ 'has-value': exploreFilters.format }">
-          <AegisIcon name="monitor" :size="13" />
-          <select v-model="exploreFilters.format" class="form-select explore-filter-select" @change="doExploreSearch">
-            <option value="">Any Format</option>
-            <option value="telehealth">Virtual</option>
-            <option value="in_person">In-Person</option>
-            <option value="both">Virtual &amp; In-Person</option>
-          </select>
-        </div>
-
-        <!-- Availability dropdown -->
-        <div class="explore-filter-select-wrap" :class="{ 'has-value': exploreFilters.availability }">
-          <AegisIcon name="calendar" :size="13" />
-          <select v-model="exploreFilters.availability" class="form-select explore-filter-select" @change="doExploreSearch">
-            <option value="">Any Availability</option>
-            <option value="open">Open — accepting</option>
-            <option value="limited">Limited spots</option>
-          </select>
-        </div>
-
-        <!-- Sort dropdown -->
-        <div class="explore-filter-select-wrap">
-          <AegisIcon name="arrow-up-down" :size="13" />
-          <select v-model="exploreFilters.sort" class="form-select explore-filter-select" @change="doExploreSearch">
-            <option v-for="s in sortOptions" :key="s.value" :value="s.value">{{ s.label }}</option>
-          </select>
-        </div>
-
-        <!-- Clear + count row -->
-        <div class="explore-filter-meta">
+        <!-- Row 3: Result count + clear -->
+        <div class="explore-filter-row explore-filter-row--meta">
           <span class="explore-count">{{ exploreMeta.total ?? 0 }} result{{ (exploreMeta.total ?? 0) !== 1 ? 's' : '' }}</span>
           <button
             v-if="exploreFilters.q || exploreFilters.category || exploreFilters.format || exploreFilters.availability"
@@ -191,6 +192,7 @@
             <AegisIcon name="x" :size="11" /> Clear filters
           </button>
         </div>
+
       </div>
 
       <!-- Cards grid -->
@@ -1431,44 +1433,56 @@ const serviceTypeOptions = [
   min-width: 0;
 }
 
-/* ── EXPLORE FILTER BAR ── */
+/* ── EXPLORE FILTER BAR — 3-row layout ── */
 .explore-filter-bar {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 10px 14px;
   margin-bottom: 16px;
 }
 
+/* Each row gets a bottom divider except the last */
+.explore-filter-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  gap: 8px;
+}
+.explore-filter-row--search   { border-bottom: 1px solid var(--border); }
+.explore-filter-row--dropdowns { border-bottom: 1px solid var(--border); gap: 8px; flex-wrap: wrap; padding: 10px 14px; }
+.explore-filter-row--meta     { padding: 7px 14px; background: var(--surface-2); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+
+/* Row 1 — search full width */
 .explore-filter-search {
   position: relative;
   flex: 1;
-  min-width: 180px;
+  width: 100%;
 }
 .explore-filter-search .aegis-icon {
   position: absolute; left: 10px; top: 50%;
   transform: translateY(-50%); color: var(--text-4); pointer-events: none;
 }
-.explore-filter-search .form-control { padding-left: 32px; width: 100%; }
+.explore-filter-search .form-control { padding-left: 34px; width: 100%; }
 
+/* Row 2 — dropdowns, each takes equal share */
 .explore-filter-select-wrap {
   position: relative;
   display: flex;
   align-items: center;
+  flex: 1;
+  min-width: 130px;
 }
 .explore-filter-select-wrap .aegis-icon {
   position: absolute; left: 9px; top: 50%;
   transform: translateY(-50%); color: var(--text-4); pointer-events: none; z-index: 1;
 }
 .explore-filter-select {
+  width: 100%;
   padding-left: 28px;
-  padding-right: 28px;
-  min-width: 0;
-  width: auto;
+  padding-right: 10px;
   font-size: 12px;
   height: 34px;
   border-radius: var(--radius);
@@ -1482,17 +1496,15 @@ const serviceTypeOptions = [
 }
 .explore-filter-select-wrap.has-value .aegis-icon { color: var(--gold-dark); }
 
-.explore-filter-meta {
-  display: flex; align-items: center; gap: 10px;
-  margin-left: auto; flex-shrink: 0;
-}
-.explore-count { font-size: 12px; font-weight: 600; color: var(--text-4); white-space: nowrap; }
+/* Row 3 — meta: count left, clear right */
+.explore-filter-row--meta { justify-content: space-between; }
+.explore-count { font-size: 12px; font-weight: 600; color: var(--text-4); }
 .explore-clear-btn {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 11px; font-weight: 700; color: var(--text-3);
   background: var(--surface-2); border: 1px solid var(--border);
   border-radius: 100px; padding: 2px 9px; cursor: pointer;
-  transition: all var(--transition); white-space: nowrap;
+  transition: all var(--transition);
 }
 .explore-clear-btn:hover { border-color: var(--gold); color: var(--gold-dark); }
 
@@ -1619,9 +1631,8 @@ const serviceTypeOptions = [
   }
   .svc-sidebar .page-sidebar-item.active::before { display: none; }
   .svc-sidebar .page-sidebar-icon  { display: none; }
-  .explore-filter-bar { flex-wrap: wrap; }
-  .explore-filter-search { flex: 1 1 100%; }
-  .explore-filter-select { min-width: 120px; }
-  .explore-filter-meta  { margin-left: 0; }
+  .explore-filter-bar { border-radius: var(--radius); }
+  .explore-filter-row--dropdowns { gap: 6px; }
+  .explore-filter-select-wrap { min-width: 120px; flex: 1 1 calc(50% - 6px); }
 }
 </style>
