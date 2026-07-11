@@ -106,7 +106,7 @@
           <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'sessions' }" @click="activeTab = 'sessions'">
             <span class="page-sidebar-icon"><AegisIcon name="heart" :size="15" /></span>
             Clinical Sessions
-            <span v-if="sessionPendingCount > 0" class="page-sidebar-badge">{{ sessionPendingCount }}</span>
+            <span v-if="sessionPendingCount + activeDisputeRefundRequests.length > 0" class="page-sidebar-badge">{{ sessionPendingCount + activeDisputeRefundRequests.length }}</span>
           </button>
         </div>
 
@@ -494,12 +494,64 @@
     </div>
 
     <!-- ══════════════════════════════ TAB: CLINICAL SESSIONS ══════════════════════════════ -->
+    <!-- ══════════════════════════════════════════════════════════════════
+         TAB: CLINICAL SESSIONS (Wave 6 — two-section rebuild)
+    ══════════════════════════════════════════════════════════════════ -->
     <div v-show="activeTab === 'sessions'">
-      <div class="alert alert-info" style="margin-bottom:20px;">
-        <div class="alert-icon"><AegisIcon name="heart" :size="18" /></div>
-        <div class="alert-content">
-          <div class="alert-title">Clinical Sessions You've Booked</div>
-          <div>Sessions where you are the client (booking another practitioner's clinical service). Payment routes directly to the provider via Stripe Connect when you confirm completion.</div>
+
+      <!-- ── PENDING REFUND REQUESTS (actionable) ────────────────────── -->
+      <div v-if="activeDisputeRefundRequests.length" class="sessions-refund-alerts">
+        <div class="sessions-refund-alerts-header">
+          <AegisIcon name="alert-circle" :size="15" />
+          {{ activeDisputeRefundRequests.length }} pending refund request{{ activeDisputeRefundRequests.length !== 1 ? 's' : '' }} need your response
+        </div>
+        <div class="sessions-refund-list">
+          <div
+            v-for="rr in activeDisputeRefundRequests"
+            :key="rr.id"
+            class="sessions-refund-row"
+          >
+            <div class="sessions-refund-info">
+              <span class="sessions-refund-name">{{ rr.requested_by_name }}</span>
+              <span class="sessions-refund-sep">·</span>
+              <span class="sessions-refund-service">{{ rr.service_title }}</span>
+              <span class="sessions-refund-sep">·</span>
+              <span class="sessions-refund-amount">{{ rr.amount_requested }}</span>
+              <AegisBadge v-if="rr.is_overdue" label="Overdue" variant="red" style="margin-left:6px" />
+            </div>
+            <button
+              type="button"
+              class="btn btn-outline"
+              @click="activeRefundRequest = rr; modals.sessionReviewRefund = true"
+            >
+              <AegisIcon name="eye" :size="13" /> Review
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SECTION A: Sessions I've Booked (I am the CLIENT) ─────── -->
+      <div class="sessions-section-header">
+        <div class="sessions-section-title">
+          <AegisIcon name="user" :size="16" />
+          Sessions I've Booked
+          <span class="section-count">{{ clientSessions.length }}</span>
+        </div>
+        <div class="sessions-section-desc">Payments you owe — 30% deposit due at booking, 70% balance after the session.</div>
+
+        <!-- Filter chips -->
+        <div class="sessions-filter-chips">
+          <button
+            v-for="chip in sessionFilterChips"
+            :key="chip.value"
+            type="button"
+            class="sessions-chip"
+            :class="{ active: sessionFilter === chip.value }"
+            @click="sessionFilter = chip.value"
+          >
+            {{ chip.label }}
+            <span v-if="chip.count > 0" class="sessions-chip-count">{{ chip.count }}</span>
+          </button>
         </div>
       </div>
 
@@ -507,57 +559,105 @@
         v-if="!clientSessions.length"
         icon="heart"
         title="No clinical sessions booked"
-        description="Sessions you book from other practitioners' service listings appear here."
+        subtitle="Browse other practitioners' services to book supervision, consultation, training, and more."
+        style="margin-bottom:24px"
       >
         <template #action>
-          <a :href="route('provider.services.index') + '?tab=explore'" class="btn btn-primary">Explore Services</a>
+          <a :href="route('provider.services.index') + '?tab=explore'" class="btn btn-primary">
+            <AegisIcon name="search" :size="13" /> Explore Services
+          </a>
         </template>
       </AegisEmptyState>
 
-      <div v-for="ses in clientSessions" :key="ses.id" class="invoice-card session-card">
-        <div class="invoice-body">
-          <div class="invoice-status">
-            <AegisBadge :label="ses.status" :variant="statusVariant(ses.status)" />
-            <span class="invoice-status-right">
-              <span class="connect-pill" :class="ses.practitioner_connected ? 'is-connected' : 'is-not-connected'">
-                <span class="status-dot"></span>{{ ses.practitioner_connected ? 'Stripe Connected' : 'Not Connected' }}
-              </span>
-            </span>
-          </div>
-          <div class="invoice-head">
-            <div>
-              <div class="invoice-vendor">{{ ses.practitioner_name }}</div>
-              <div class="invoice-service">{{ ses.service_title }}</div>
-            </div>
-            <div>
-              <div class="invoice-amount">{{ formatCents(ses.total_cents) }}</div>
-              <div class="invoice-period">{{ ses.issued_month }}</div>
-            </div>
-          </div>
-          <div class="invoice-meta">
-            <div>
-              <div class="invoice-meta-label">Session ID</div>
-              <div class="invoice-meta-value">#{{ ses.invoice_number }}</div>
-            </div>
-            <div>
-              <div class="invoice-meta-label">Scheduled</div>
-              <div class="invoice-meta-value">{{ ses.scheduled_at || '—' }}</div>
-            </div>
-            <div>
-              <div class="invoice-meta-label">Payment Status</div>
-              <div class="invoice-meta-value">{{ ses.status === 'completed' ? 'Paid' : 'Awaiting confirmation' }}</div>
-            </div>
-          </div>
-          <div class="invoice-actions">
-            <a :href="route('provider.services.index') + '?tab=bookings'" class="btn btn-outline">
-              <AegisIcon name="external-link" :size="13" /> View in My Services
-            </a>
-            <button type="button" class="btn-icon" data-tooltip="View receipt" @click="openViewInvoice(ses)">
-              <AegisIcon name="eye" :size="15" />
-            </button>
-          </div>
+      <AegisEmptyState
+        v-else-if="!filteredClientSessions.length"
+        icon="filter"
+        title="No sessions match this filter"
+        subtitle="Try selecting a different filter above."
+        style="margin-bottom:24px"
+      />
+
+      <template v-else>
+        <SessionInvoiceCard
+          v-for="ses in filteredClientSessions"
+          :key="ses.id"
+          :session="ses"
+          viewpoint="client"
+          @pay-deposit="activeClientSession = ses; modals.sessionPayDeposit = true"
+          @pay-balance="activeClientSession = ses; modals.sessionPayBalance = true"
+          @view-invoice="activeClientSession = ses; modals.sessionClientInvoice = true"
+          @request-refund="activeClientSession = ses; modals.sessionRequestRefund = true"
+          @escalate-refund="escalateSessionRefund(ses)"
+        />
+      </template>
+
+      <!-- ── SECTION B: Sessions I'm Providing (I am the PROVIDER) ─── -->
+      <div class="sessions-section-header" style="margin-top:32px">
+        <div class="sessions-section-title">
+          <AegisIcon name="briefcase" :size="16" />
+          Sessions I'm Providing
+          <span class="section-count">{{ providerSessions.length }}</span>
+        </div>
+        <div class="sessions-section-desc">
+          Payments coming to you — deposit received when client books, balance when they confirm.
+          <span v-if="activeSessionsAsProvider > 0" class="sessions-active-badge">
+            <AegisIcon name="circle" :size="8" />
+            {{ activeSessionsAsProvider }} active
+          </span>
         </div>
       </div>
+
+      <AegisEmptyState
+        v-if="!providerSessions.length"
+        icon="briefcase"
+        title="No provider sessions yet"
+        subtitle="When another practitioner books your service and pays their deposit, sessions appear here."
+      />
+
+      <template v-else>
+        <SessionInvoiceCard
+          v-for="ses in filteredProviderSessions"
+          :key="ses.id"
+          :session="ses"
+          viewpoint="provider"
+          @view-invoice="activeProviderSession = ses; modals.sessionProviderInvoice = true"
+          @review-refund="activeRefundRequest = incomingRefundRequests.find(r => r.session_id === ses.id); modals.sessionReviewRefund = true"
+          @cancel-session="openSessionDispute(ses)"
+        />
+      </template>
+
+      <!-- Wave 6 session payment modals ─────────────────────────────── -->
+      <PayDepositModal
+        v-model="modals.sessionPayDeposit"
+        :session="activeClientSession"
+        @success="activeClientSession = null"
+      />
+      <PayBalanceModal
+        v-model="modals.sessionPayBalance"
+        :session="activeClientSession"
+        @success="activeClientSession = null"
+      />
+      <RequestRefundModal
+        v-model="modals.sessionRequestRefund"
+        :session="activeClientSession"
+        @success="activeClientSession = null"
+      />
+      <SessionInvoiceModal
+        v-model="modals.sessionClientInvoice"
+        :session="activeClientSession"
+        viewpoint="client"
+      />
+      <SessionInvoiceModal
+        v-model="modals.sessionProviderInvoice"
+        :session="activeProviderSession"
+        viewpoint="provider"
+      />
+      <ReviewRefundRequestModal
+        v-model="modals.sessionReviewRefund"
+        :refund-request="activeRefundRequest"
+        @success="activeRefundRequest = null"
+      />
+
     </div>
 
     <!-- ══════════════════════════════ TAB: SUBSCRIPTION ══════════════════════════════ -->
@@ -1160,12 +1260,19 @@
 import { ref, computed, reactive, onMounted } from 'vue'
 import { router, useForm }         from '@inertiajs/vue3'
 import AppLayout                   from '@/layouts/AppLayout.vue'
-import OpenDisputeModal            from '@/components/modals/OpenDisputeModal.vue'
-import ViewInvoiceModal            from '@/components/modals/ViewInvoiceModal.vue'
-import AegisPagination             from '@/components/ui/AegisPagination.vue'
+import OpenDisputeModal             from '@/components/modals/OpenDisputeModal.vue'
+import ViewInvoiceModal             from '@/components/modals/ViewInvoiceModal.vue'
+import AegisPagination              from '@/components/ui/AegisPagination.vue'
 import SettingsSubscriptionInvoices from '@/components/settings/SettingsSubscriptionInvoices.vue'
-import { useToast }                from '@/composables/useToast'
-import { useProfileRoute }         from '@/composables/useProfileRoute'
+// Wave 6 — session payment modals (local import required)
+import SessionInvoiceCard           from '@/components/ui/SessionInvoiceCard.vue'
+import SessionInvoiceModal          from '@/components/modals/SessionInvoiceModal.vue'
+import PayDepositModal              from '@/components/modals/PayDepositModal.vue'
+import PayBalanceModal              from '@/components/modals/PayBalanceModal.vue'
+import RequestRefundModal           from '@/components/modals/RequestRefundModal.vue'
+import ReviewRefundRequestModal     from '@/components/modals/ReviewRefundRequestModal.vue'
+import { useToast }                 from '@/composables/useToast'
+import { useProfileRoute }          from '@/composables/useProfileRoute'
 
 const toast = useToast()
 const { profileHref } = useProfileRoute()
@@ -1177,6 +1284,10 @@ const props = defineProps({
   csInvoices:              { type: Array,   default: () => [] },
   bpInvoices:              { type: Array,   default: () => [] },
   clientSessions:          { type: Array,   default: () => [] },
+  providerSessions:        { type: Array,   default: () => [] },
+  incomingRefundRequests:  { type: Array,   default: () => [] },
+  outgoingRefundRequests:  { type: Array,   default: () => [] },
+  activeSessionsAsProvider:{ type: Number,  default: 0 },
   allInvoices:             { type: Array,   default: () => [] },
   activeContracts:         { type: Array,   default: () => [] },
   csStewards:              { type: Array,   default: () => [] },
@@ -1209,7 +1320,14 @@ onMounted(() => {
 const bpFilter  = ref('all')
 
 const bpPendingCount      = computed(() => props.pendingBreakdown?.bp?.count ?? 0)
-const sessionPendingCount = computed(() => props.pendingBreakdown?.session?.count ?? 0)
+// Wave 6: count sessions where I am the client and owe deposit or balance
+const sessionPendingCount = computed(() => {
+  const fromBreakdown = props.pendingBreakdown?.session?.count ?? 0
+  if (fromBreakdown > 0) return fromBreakdown
+  return props.clientSessions.filter(s =>
+    ['unpaid', 'deposit_paid'].includes(s.payment_status) && s.status === 'scheduled'
+  ).length
+})
 const allBpItems          = computed(() => props.bpInvoices.length + props.activeContracts.length)
 
 // ── Tooltips ─────────────────────────────────────────────────────────────
@@ -1267,7 +1385,65 @@ const modals = ref({
   cancelCsAgreement: false, cancelBpContract: false, autoPay: false,
   viewContract: false, export: false,
   payArrangement: false, changePayModel: false, confirmCsPay: false, openDispute: false,
+  // Wave 6 — session payment modals
+  sessionPayDeposit:  false,
+  sessionPayBalance:  false,
+  sessionRequestRefund: false,
+  sessionClientInvoice: false,
+  sessionProviderInvoice: false,
+  sessionReviewRefund: false,
 })
+
+// Wave 6 — active session and refund refs
+const activeClientSession  = ref(null)
+const activeProviderSession = ref(null)
+const activeRefundRequest  = ref(null)
+
+// Wave 6 — session filter state
+const sessionFilter = ref('all') // 'all' | 'deposit_due' | 'balance_due' | 'paid' | 'refunded'
+
+const filteredClientSessions = computed(() => {
+  if (sessionFilter.value === 'all') return props.clientSessions
+  if (sessionFilter.value === 'deposit_due') return props.clientSessions.filter(s => s.payment_status === 'unpaid' && s.status === 'scheduled')
+  if (sessionFilter.value === 'balance_due') return props.clientSessions.filter(s => s.payment_status === 'deposit_paid' && s.status === 'scheduled')
+  if (sessionFilter.value === 'paid')     return props.clientSessions.filter(s => s.payment_status === 'paid')
+  if (sessionFilter.value === 'refunded') return props.clientSessions.filter(s => ['refunded','partially_refunded'].includes(s.payment_status))
+  return props.clientSessions
+})
+
+const filteredProviderSessions = computed(() => props.providerSessions)
+
+const activeDisputeRefundRequests = computed(() =>
+  props.incomingRefundRequests.filter(r => r.is_actionable)
+)
+
+function openSessionDispute(ses) {
+  disputeTarget.value = {
+    type: 'session',
+    id: ses.id,
+    amount_cents: ses.agreed_amount_cents ?? ses.amount_cents ?? 0,
+    label: `Clinical Session — ${ses.service_title ?? ses.invoice_number}`,
+  }
+  modals.value.openDispute = true
+}
+
+const sessionFilterChips = computed(() => [
+  { value: 'all',         label: 'All',          count: 0 },
+  { value: 'deposit_due', label: 'Deposit Due',   count: props.clientSessions.filter(s => s.payment_status === 'unpaid' && s.status === 'scheduled').length },
+  { value: 'balance_due', label: 'Balance Due',   count: props.clientSessions.filter(s => s.payment_status === 'deposit_paid' && s.status === 'scheduled').length },
+  { value: 'paid',        label: 'Paid',          count: props.clientSessions.filter(s => s.payment_status === 'paid').length },
+  { value: 'refunded',    label: 'Refunded',      count: props.clientSessions.filter(s => ['refunded','partially_refunded'].includes(s.payment_status)).length },
+])
+
+function escalateSessionRefund(ses) {
+  const rr = props.outgoingRefundRequests.find(r => r.session_id === ses.id)
+  if (!rr?.id) { toast.info('No denied refund request found for this session.'); return }
+  router.post(route('provider.services.refund.escalate', { refund: rr.id }), {}, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Escalated to dispute. Our team will review within 5 business days.'),
+    onError:   () => toast.error('Could not escalate. Please contact support.'),
+  })
+}
 
 
 // ── Payment forms (Inertia) ──────────────────────────────────────────────
@@ -1347,10 +1523,24 @@ function openTxReceipt(tx) {
     if (inv) { activeInvoice.value = { ...inv, kind: 'bp_invoice' }; modals.value.viewReceipt = true; return }
   }
   if (tx.modal_type === 'session') {
+    // Wave 6: use SessionInvoiceModal (not ViewInvoiceModal) for session transactions
     const ses = tx.subject_id
       ? props.clientSessions.find(s => s.id === tx.subject_id)
       : props.clientSessions[0]
-    if (ses) { activeInvoice.value = { ...ses, kind: 'session' }; modals.value.viewReceipt = true; return }
+    if (ses) {
+      activeClientSession.value = ses
+      modals.value.sessionClientInvoice = true
+      return
+    }
+    // Fallback: check provider sessions
+    const provSes = tx.subject_id
+      ? props.providerSessions.find(s => s.id === tx.subject_id)
+      : null
+    if (provSes) {
+      activeProviderSession.value = provSes
+      modals.value.sessionProviderInvoice = true
+      return
+    }
   }
   toast.info('Receipt details are not available for this transaction.')
 }
@@ -1640,6 +1830,73 @@ function paymentTypeLabel(t) {
 .invoice-card.pending-approval::before { background: var(--orange); }
 .invoice-card.active-contract::before  { background: var(--green); }
 .invoice-card.session-card::before     { background: var(--teal); }
+
+/* ── WAVE 6: SESSION SECTIONS ─────────────────────────────────────────── */
+.sessions-refund-alerts {
+  background: rgba(245,158,11,.07);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-lg);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.sessions-refund-alerts-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px;
+  background: rgba(245,158,11,.12);
+  font-size: 13px; font-weight: 700; color: var(--gold-dark);
+  border-bottom: 1px solid var(--gold);
+}
+.sessions-refund-list { padding: 4px 0; }
+.sessions-refund-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 16px; gap: 12px;
+  border-bottom: 1px solid rgba(245,158,11,.2);
+}
+.sessions-refund-row:last-child { border-bottom: none; }
+.sessions-refund-info { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; }
+.sessions-refund-name    { font-weight: 700; color: var(--text); }
+.sessions-refund-service { color: var(--text-3); font-weight: 600; }
+.sessions-refund-amount  { font-weight: 700; color: var(--gold-dark); }
+.sessions-refund-sep     { color: var(--border-dark); }
+
+.sessions-section-header { margin-bottom: 16px; }
+.sessions-section-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 16px; font-weight: 700; color: var(--text);
+  margin-bottom: 4px;
+}
+.sessions-section-desc { font-size: 13px; color: var(--text-3); font-weight: 500; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sessions-active-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 700; color: var(--green-dark, #2e7d32);
+  background: rgba(34,197,94,.08); border: 1px solid var(--green);
+  padding: 2px 8px; border-radius: 100px;
+}
+.section-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; padding: 0 5px;
+  border-radius: 100px; background: var(--surface-3); color: var(--text-3);
+  font-size: 11px; font-weight: 700;
+}
+
+/* Filter chips */
+.sessions-filter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sessions-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600;
+  padding: 4px 12px; border-radius: 100px;
+  border: 1.5px solid var(--border); background: var(--surface-2);
+  color: var(--text-3); cursor: pointer;
+  transition: all var(--transition);
+}
+.sessions-chip:hover  { border-color: var(--gold); color: var(--gold-dark); }
+.sessions-chip.active { border-color: var(--gold); background: var(--badge-bg-gold); color: var(--gold-dark); font-weight: 700; }
+.sessions-chip-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  background: var(--gold-dark); color: #fff;
+  border-radius: 100px; font-size: 9px; font-weight: 800;
+}
 .invoice-body        { padding: 22px 24px 20px; }
 .invoice-status      { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
 .invoice-status-right { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
