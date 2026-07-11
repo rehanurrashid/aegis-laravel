@@ -103,7 +103,7 @@
             Business Partners
             <span v-if="bpPendingCount > 0" class="page-sidebar-badge">{{ bpPendingCount }}</span>
           </button>
-          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'sessions' }" @click="activeTab = 'sessions'; sessionFilter = 'all'">
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'sessions' }" @click="activeTab = 'sessions'; sessionSubTab = 'booked'; clientSessionFilter = 'all'; providerSessionFilter = 'all'">
             <span class="page-sidebar-icon"><AegisIcon name="heart" :size="15" /></span>
             Clinical Sessions
             <span v-if="sessionPendingCount + activeDisputeRefundRequests.length > 0" class="page-sidebar-badge">{{ sessionPendingCount + activeDisputeRefundRequests.length }}</span>
@@ -530,103 +530,141 @@
         </div>
       </div>
 
-      <!-- ── SECTION A: Sessions I've Booked (I am the CLIENT) ─────── -->
-      <div class="sessions-section-header">
-        <div class="sessions-section-title">
-          <AegisIcon name="user" :size="16" />
+      <!-- ── PRIMARY TABS: Booked vs Providing ──────────────────────── -->
+      <div class="tabs-primary" role="tablist" style="margin-bottom:20px">
+        <button
+          type="button" role="tab"
+          class="tab-primary"
+          :class="{ active: sessionSubTab === 'booked' }"
+          :aria-selected="sessionSubTab === 'booked'"
+          @click="sessionSubTab = 'booked'; clientSessionFilter = 'all'"
+        >
+          <AegisIcon name="user" :size="14" />
           Sessions I've Booked
-          <span class="section-count">{{ clientSessions.length }}</span>
-        </div>
-        <div class="sessions-section-desc">Payments you owe — 30% deposit due at booking, 70% balance after the session.</div>
+          <span class="tab-count">{{ clientSessions.length }}</span>
+        </button>
+        <button
+          type="button" role="tab"
+          class="tab-primary"
+          :class="{ active: sessionSubTab === 'providing' }"
+          :aria-selected="sessionSubTab === 'providing'"
+          @click="sessionSubTab = 'providing'; providerSessionFilter = 'all'"
+        >
+          <AegisIcon name="briefcase" :size="14" />
+          Sessions I'm Providing
+          <span class="tab-count">{{ providerSessions.length }}</span>
+          <span v-if="activeSessionsAsProvider > 0" class="sessions-active-badge" style="margin-left:4px">
+            <AegisIcon name="disc-filled" :size="8" />
+            {{ activeSessionsAsProvider }} active
+          </span>
+        </button>
+      </div>
 
-        <!-- Filter chips -->
-        <nav class="tabs-segmented" role="tablist" style="margin-bottom:14px">
+      <!-- ── SECTION A: Sessions I've Booked ───────────────────────── -->
+      <div v-show="sessionSubTab === 'booked'">
+        <div class="sessions-section-desc" style="margin-bottom:12px">
+          Payments you owe — 30% deposit due at booking, 70% balance after the session.
+        </div>
+
+        <nav class="tabs-segmented" role="tablist" style="margin-bottom:16px">
           <button
-            v-for="chip in sessionFilterChips"
+            v-for="chip in clientFilterChips"
             :key="chip.value"
-            type="button"
-            role="tab"
+            type="button" role="tab"
             class="tab-pill"
-            :class="{ active: sessionFilter === chip.value }"
-            :aria-selected="sessionFilter === chip.value"
-            @click="sessionFilter = chip.value"
+            :class="{ active: clientSessionFilter === chip.value }"
+            :aria-selected="clientSessionFilter === chip.value"
+            @click="clientSessionFilter = chip.value"
           >
             {{ chip.label }}
             <span v-if="chip.count > 0" class="sessions-chip-count">{{ chip.count }}</span>
           </button>
         </nav>
-      </div>
 
-      <AegisEmptyState
-        v-if="!clientSessions.length"
-        icon="heart"
-        title="No clinical sessions booked"
-        subtitle="Browse other practitioners' services to book supervision, consultation, training, and more."
-        style="margin-bottom:24px"
-      >
-        <template #action>
-          <a :href="route('provider.services.index') + '?tab=explore'" class="btn btn-primary">
-            <AegisIcon name="search" :size="13" /> Explore Services
-          </a>
+        <AegisEmptyState
+          v-if="!clientSessions.length"
+          icon="heart"
+          title="No clinical sessions booked"
+          subtitle="Browse other practitioners' services to book supervision, consultation, training, and more."
+          style="margin-bottom:24px"
+        >
+          <template #action>
+            <a :href="route('provider.services.index') + '?tab=explore'" class="btn btn-primary">
+              <AegisIcon name="search" :size="13" /> Explore Services
+            </a>
+          </template>
+        </AegisEmptyState>
+
+        <AegisEmptyState
+          v-else-if="!filteredClientSessions.length"
+          icon="filter"
+          title="No sessions match this filter"
+          subtitle="Try selecting a different filter above."
+          style="margin-bottom:24px"
+        />
+
+        <template v-else>
+          <SessionInvoiceCard
+            v-for="ses in filteredClientSessions"
+            :key="ses.id"
+            :session="ses"
+            viewpoint="client"
+            @pay-deposit="activeClientSession = ses; modals.sessionPayDeposit = true"
+            @pay-balance="activeClientSession = ses; modals.sessionPayBalance = true"
+            @view-invoice="activeClientSession = ses; modals.sessionClientInvoice = true"
+            @request-refund="activeClientSession = ses; modals.sessionRequestRefund = true"
+            @escalate-refund="escalateSessionRefund(ses)"
+          />
         </template>
-      </AegisEmptyState>
-
-      <AegisEmptyState
-        v-else-if="!filteredClientSessions.length"
-        icon="filter"
-        title="No sessions match this filter"
-        subtitle="Try selecting a different filter above."
-        style="margin-bottom:24px"
-      />
-
-      <template v-else>
-        <SessionInvoiceCard
-          v-for="ses in filteredClientSessions"
-          :key="ses.id"
-          :session="ses"
-          viewpoint="client"
-          @pay-deposit="activeClientSession = ses; modals.sessionPayDeposit = true"
-          @pay-balance="activeClientSession = ses; modals.sessionPayBalance = true"
-          @view-invoice="activeClientSession = ses; modals.sessionClientInvoice = true"
-          @request-refund="activeClientSession = ses; modals.sessionRequestRefund = true"
-          @escalate-refund="escalateSessionRefund(ses)"
-        />
-      </template>
-
-      <!-- ── SECTION B: Sessions I'm Providing (I am the PROVIDER) ─── -->
-      <div class="sessions-section-header" style="margin-top:32px">
-        <div class="sessions-section-title">
-          <AegisIcon name="briefcase" :size="16" />
-          Sessions I'm Providing
-          <span class="section-count">{{ providerSessions.length }}</span>
-        </div>
-        <div class="sessions-section-desc">
-          Payments coming to you — deposit received when client books, balance when they confirm.
-          <span v-if="activeSessionsAsProvider > 0" class="sessions-active-badge">
-            <AegisIcon name="disc-filled" :size="8" />
-            {{ activeSessionsAsProvider }} active
-          </span>
-        </div>
       </div>
 
-      <AegisEmptyState
-        v-if="!providerSessions.length"
-        icon="briefcase"
-        title="No provider sessions yet"
-        subtitle="When another practitioner books your service and pays their deposit, sessions appear here."
-      />
+      <!-- ── SECTION B: Sessions I'm Providing ─────────────────────── -->
+      <div v-show="sessionSubTab === 'providing'">
+        <div class="sessions-section-desc" style="margin-bottom:12px">
+          Payments coming to you — deposit received when client books, balance when they confirm.
+        </div>
 
-      <template v-else>
-        <SessionInvoiceCard
-          v-for="ses in filteredProviderSessions"
-          :key="ses.id"
-          :session="ses"
-          viewpoint="provider"
-          @view-invoice="activeProviderSession = ses; modals.sessionProviderInvoice = true"
-          @review-refund="activeRefundRequest = incomingRefundRequests.find(r => r.session_id === ses.id); modals.sessionReviewRefund = true"
-          @cancel-session="openSessionDispute(ses)"
+        <nav class="tabs-segmented" role="tablist" style="margin-bottom:16px">
+          <button
+            v-for="chip in providerFilterChips"
+            :key="chip.value"
+            type="button" role="tab"
+            class="tab-pill"
+            :class="{ active: providerSessionFilter === chip.value }"
+            :aria-selected="providerSessionFilter === chip.value"
+            @click="providerSessionFilter = chip.value"
+          >
+            {{ chip.label }}
+            <span v-if="chip.count > 0" class="sessions-chip-count">{{ chip.count }}</span>
+          </button>
+        </nav>
+
+        <AegisEmptyState
+          v-if="!providerSessions.length"
+          icon="briefcase"
+          title="No provider sessions yet"
+          subtitle="When another practitioner books your service and pays their deposit, sessions appear here."
         />
-      </template>
+
+        <AegisEmptyState
+          v-else-if="!filteredProviderSessions.length"
+          icon="filter"
+          title="No sessions match this filter"
+          subtitle="Try selecting a different filter above."
+        />
+
+        <template v-else>
+          <SessionInvoiceCard
+            v-for="ses in filteredProviderSessions"
+            :key="ses.id"
+            :session="ses"
+            viewpoint="provider"
+            @view-invoice="activeProviderSession = ses; modals.sessionProviderInvoice = true"
+            @review-refund="activeRefundRequest = incomingRefundRequests.find(r => r.session_id === ses.id); modals.sessionReviewRefund = true"
+            @cancel-session="openSessionDispute(ses)"
+          />
+        </template>
+      </div>
 
       <!-- Wave 6 session payment modals ─────────────────────────────── -->
       <PayDepositModal
@@ -1401,26 +1439,22 @@ const activeClientSession  = ref(null)
 const activeProviderSession = ref(null)
 const activeRefundRequest  = ref(null)
 
-// Wave 6 — session filter state
-const sessionFilter = ref('all') // 'all' | 'deposit_due' | 'balance_due' | 'paid' | 'refunded'
+// Wave 6 — session sub-tab + independent filter state per side
+const sessionSubTab          = ref('booked')   // 'booked' | 'providing'
+const clientSessionFilter    = ref('all')
+const providerSessionFilter  = ref('all')
 
-const filteredClientSessions = computed(() => {
-  if (sessionFilter.value === 'all') return props.clientSessions
-  if (sessionFilter.value === 'deposit_due') return props.clientSessions.filter(s => s.payment_status === 'unpaid' && s.status === 'scheduled')
-  if (sessionFilter.value === 'balance_due') return props.clientSessions.filter(s => s.payment_status === 'deposit_paid' && s.status === 'scheduled')
-  if (sessionFilter.value === 'paid')     return props.clientSessions.filter(s => s.payment_status === 'paid')
-  if (sessionFilter.value === 'refunded') return props.clientSessions.filter(s => ['refunded','partially_refunded'].includes(s.payment_status))
-  return props.clientSessions
-})
+function filterSessions(sessions, filter) {
+  if (filter === 'all')         return sessions
+  if (filter === 'deposit_due') return sessions.filter(s => s.payment_status === 'unpaid'       && s.status === 'scheduled')
+  if (filter === 'balance_due') return sessions.filter(s => s.payment_status === 'deposit_paid' && s.status === 'scheduled')
+  if (filter === 'paid')        return sessions.filter(s => s.payment_status === 'paid')
+  if (filter === 'refunded')    return sessions.filter(s => ['refunded','partially_refunded'].includes(s.payment_status))
+  return sessions
+}
 
-const filteredProviderSessions = computed(() => {
-  if (sessionFilter.value === 'all') return props.providerSessions
-  if (sessionFilter.value === 'deposit_due') return props.providerSessions.filter(s => s.payment_status === 'unpaid' && s.status === 'scheduled')
-  if (sessionFilter.value === 'balance_due') return props.providerSessions.filter(s => s.payment_status === 'deposit_paid' && s.status === 'scheduled')
-  if (sessionFilter.value === 'paid')        return props.providerSessions.filter(s => s.payment_status === 'paid')
-  if (sessionFilter.value === 'refunded')    return props.providerSessions.filter(s => ['refunded','partially_refunded'].includes(s.payment_status))
-  return props.providerSessions
-})
+const filteredClientSessions   = computed(() => filterSessions(props.clientSessions,   clientSessionFilter.value))
+const filteredProviderSessions = computed(() => filterSessions(props.providerSessions, providerSessionFilter.value))
 
 const activeDisputeRefundRequests = computed(() =>
   props.incomingRefundRequests.filter(r => r.is_actionable)
@@ -1436,13 +1470,17 @@ function openSessionDispute(ses) {
   modals.value.openDispute = true
 }
 
-const sessionFilterChips = computed(() => [
-  { value: 'all',         label: 'All',          count: 0 },
-  { value: 'deposit_due', label: 'Deposit Due',   count: props.clientSessions.filter(s => s.payment_status === 'unpaid' && s.status === 'scheduled').length },
-  { value: 'balance_due', label: 'Balance Due',   count: props.clientSessions.filter(s => s.payment_status === 'deposit_paid' && s.status === 'scheduled').length },
-  { value: 'paid',        label: 'Paid',          count: props.clientSessions.filter(s => s.payment_status === 'paid').length },
-  { value: 'refunded',    label: 'Refunded',      count: props.clientSessions.filter(s => ['refunded','partially_refunded'].includes(s.payment_status)).length },
-])
+function makeFilterChips(sessions) {
+  return [
+    { value: 'all',         label: 'All' },
+    { value: 'deposit_due', label: 'Deposit Due',  count: sessions.filter(s => s.payment_status === 'unpaid'       && s.status === 'scheduled').length },
+    { value: 'balance_due', label: 'Balance Due',  count: sessions.filter(s => s.payment_status === 'deposit_paid' && s.status === 'scheduled').length },
+    { value: 'paid',        label: 'Paid',         count: sessions.filter(s => s.payment_status === 'paid').length },
+    { value: 'refunded',    label: 'Refunded',     count: sessions.filter(s => ['refunded','partially_refunded'].includes(s.payment_status)).length },
+  ]
+}
+const clientFilterChips   = computed(() => makeFilterChips(props.clientSessions))
+const providerFilterChips = computed(() => makeFilterChips(props.providerSessions))
 
 function escalateSessionRefund(ses) {
   const rr = props.outgoingRefundRequests.find(r => r.session_id === ses.id)
@@ -1715,7 +1753,7 @@ const firstPendingAmount = computed(() => formatCents(props.upcomingPayments?.[0
 function goToPendingTab() {
   const b = props.pendingBreakdown
   if (b.bp?.count > 0)          activeTab.value = 'bp'
-  else if (b.session?.count > 0) { activeTab.value = 'sessions'; sessionFilter.value = 'all' }
+  else if (b.session?.count > 0) { activeTab.value = 'sessions'; sessionSubTab.value = 'booked'; clientSessionFilter.value = 'all'; providerSessionFilter.value = 'all' }
   else                           activeTab.value = 'executor'
 }
 
