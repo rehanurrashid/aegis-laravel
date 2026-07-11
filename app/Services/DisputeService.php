@@ -371,15 +371,26 @@ class DisputeService
 
         try {
             $stripe = new \Stripe\StripeClient(config('services.stripe.secret'));
-            $stripe->refunds->create([
-                'payment_intent' => $piId,
-                'amount'         => $refundCents,
-                'reason'         => 'requested_by_customer',
-                'metadata'       => [
+
+            // CRITICAL for session and peer-payment disputes:
+            // reverse_transfer: true pulls funds from the provider/BP/CS Connect account
+            // back to Aegis platform, which then immediately refunds the client's card.
+            // Without this flag, the platform balance absorbs the refund.
+            $isConnectCharge = in_array($dispute->subject_type, [
+                'session', 'cs_invoice', 'bp_invoice', 'bp_payout',
+            ], true);
+
+            $stripe->refunds->create(array_filter([
+                'payment_intent'         => $piId,
+                'amount'                 => $refundCents,
+                'reason'                 => 'requested_by_customer',
+                'reverse_transfer'       => $isConnectCharge ? true : null,
+                'refund_application_fee' => false,
+                'metadata'               => [
                     'aegis_dispute_id' => $dispute->id,
                     'resolution'       => $dispute->resolution?->value,
                 ],
-            ]);
+            ], fn ($v) => $v !== null));
             return true;
         } catch (\Throwable $e) {
             Log::error('[DISPUTE] Stripe refund failed', [

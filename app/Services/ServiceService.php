@@ -5,17 +5,20 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\ActivitySeverity;
+use App\Enums\ServiceSessionPaymentStatus;
 use App\Enums\ServiceStatus;
 use App\Enums\ServiceSessionStatus;
 use App\Enums\UserTier;
 use App\Models\Service;
 use App\Models\ServiceRequest;
 use App\Models\ServiceSession;
+use App\Models\SessionRefundRequest;
 use App\Models\User;
 use App\Models\PractitionerPayment;
 use App\Enums\PractitionerPaymentKind;
 use App\Enums\PractitionerPaymentStatus;
 use Carbon\Carbon;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -28,7 +31,7 @@ class ServiceService
         private PayoutService   $payouts,
     ) {}
 
-    // ── Helpers ───────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private function typeIcon(string $category): string
     {
@@ -60,7 +63,12 @@ class ServiceService
         return ['price' => $dollars, 'price_unit' => $unit, 'price_note' => ''];
     }
 
-    // ── Shaping for Vue ───────────────────────────────────────────────────
+    private function formatMoney(int $cents): string
+    {
+        return '$' . number_format($cents / 100, 2);
+    }
+
+    // ── Shaping for Vue ───────────────────────────────────────────────────────
 
     public function shapeForListing(Service $s): array
     {
@@ -69,17 +77,9 @@ class ServiceService
         $status    = $s->status instanceof ServiceStatus ? $s->status->value : (string) ($s->status ?? 'active');
 
         $meta = [];
-        if ($s->duration_min) {
-            $meta[] = ['icon' => 'clock',   'text' => $s->duration_min . ' min'];
-        }
-        if ($s->format) {
-            $meta[] = ['icon' => 'monitor', 'text' => match ($s->format) {
-                'telehealth' => 'Virtual', 'in_person' => 'In-person', 'both' => 'Virtual & In-person', default => $s->format,
-            }];
-        }
-        if ($s->availability) {
-            $meta[] = ['icon' => 'calendar', 'text' => $s->availability_label ?: ucfirst($s->availability)];
-        }
+        if ($s->duration_min) $meta[] = ['icon' => 'clock',    'text' => $s->duration_min . ' min'];
+        if ($s->format)       $meta[] = ['icon' => 'monitor',  'text' => match ($s->format) { 'telehealth' => 'Virtual', 'in_person' => 'In-person', 'both' => 'Virtual & In-person', default => $s->format }];
+        if ($s->availability) $meta[] = ['icon' => 'calendar', 'text' => $s->availability_label ?: ucfirst($s->availability)];
 
         $sessionCount    = ServiceSession::where('service_id', $s->id)->count();
         $completedCount  = ServiceSession::where('service_id', $s->id)->where('status', ServiceSessionStatus::Completed->value)->count();
@@ -100,6 +100,7 @@ class ServiceService
             'price_type'   => $s->price_type instanceof \App\Enums\ServicePriceType ? $s->price_type->value : ($s->price_type ?? 'inquiry'),
             'duration_min' => $s->duration_min,
             'format'       => $s->format,
+            'availability' => $s->availability,
             'is_public'    => (bool) $s->is_public,
             'category'     => $category,
             'metrics'      => [
@@ -107,6 +108,41 @@ class ServiceService
                 ['val' => (string) $completedCount,  'label' => 'Completed'],
                 ['val' => (string) $pendingRequests, 'label' => 'Requests'],
             ],
+        ];
+    }
+
+    /**
+     * Shape a service for the public explore grid (search-by-other-practitioners).
+     * Includes practitioner info for the card.
+     */
+    public function shapeForExplore(Service $s): array
+    {
+        $priceData   = $this->formatPrice($s);
+        $category    = $s->category ?? 'other';
+        $practitioner = $s->practitioner;
+
+        return [
+            'id'                    => $s->id,
+            'title'                 => $s->title,
+            'description'           => $s->description ?? '',
+            'category'              => $category,
+            'service_type'          => ucfirst(str_replace('_', ' ', $category)),
+            'type_icon'             => $this->typeIcon($category),
+            'price'                 => $priceData['price'],
+            'price_unit'            => $priceData['price_unit'],
+            'price_cents'           => $s->price_cents ?? 0,
+            'price_type'            => $s->price_type instanceof \App\Enums\ServicePriceType ? $s->price_type->value : ($s->price_type ?? 'inquiry'),
+            'duration_min'          => $s->duration_min,
+            'format'                => $s->format,
+            'availability'          => $s->availability,
+            'availability_label'    => $s->availability_label,
+            // ── Practitioner info for card ─────────────────────────────────
+            'practitioner_id'       => $s->practitioner_id,
+            'practitioner_name'     => $practitioner?->display_name ?? 'Unknown',
+            'practitioner_slug'     => $practitioner?->slug ?? '',
+            'practitioner_avatar'   => $practitioner?->avatar_initials ?? '',
+            'practitioner_credentials' => $practitioner?->credentials ?? '',
+            'practitioner_connected'=> (bool) ($practitioner?->stripe_connected ?? false),
         ];
     }
 
@@ -127,6 +163,8 @@ class ServiceService
             'requester_avatar'     => $inquirer?->avatar_initials ?? '',
             'requester_detail'     => $inquirer?->credentials ?? '',
             'service_title'        => $service?->title ?? '',
+            'service_price_cents'  => $service?->price_cents ?? 0,
+            'service_price'        => $service?->price_cents ? $this->formatMoney($service->price_cents) : 'Contact for pricing',
             'request_type'         => ucfirst(str_replace('_', ' ', $service?->category ?? '')),
             'requested_date_label' => $r->created_at?->format('M j, Y') ?? '',
             'time_label'           => $r->created_at?->diffForHumans() ?? '',
@@ -138,6 +176,9 @@ class ServiceService
         ];
     }
 
+    /**
+     * Shape a session for the provider's Bookings tab (they are the practitioner).
+     */
     public function shapeSession(ServiceSession $s): array
     {
         $client  = $s->client;
@@ -145,83 +186,206 @@ class ServiceService
         $status  = $s->status instanceof ServiceSessionStatus ? $s->status->value : (string) ($s->status ?? 'scheduled');
         $tz      = $s->timezone ?? 'America/New_York';
 
+        $paymentStatus = $s->payment_status instanceof ServiceSessionPaymentStatus
+            ? $s->payment_status
+            : (isset($s->payment_status) ? ServiceSessionPaymentStatus::tryFrom((string) $s->payment_status) : null);
+
+        $agreedCents  = $s->agreed_amount_cents;
+        $depositCents = $s->deposit_cents ?? 0;
+        $balanceCents = $s->balance_cents ?? 0;
+
+        // Active refund request if any
+        $refundReq = $s->activeRefundRequest;
+
         return [
             'id'                        => $s->id,
+            'invoice_number'            => $s->invoice_number,
             'service_id'                => $s->service_id,
             'service_request_id'        => $s->service_request_id,
-            'provider_id'               => $client?->id ?? '',
-            'provider_name'             => $client?->display_name ?? 'Unknown',
-            'provider_slug'             => $client?->slug ?? '',
-            'provider_avatar'           => $client?->avatar_initials ?? '',
-            'provider_credentials'      => $client?->credentials ?? '',
+            'client_id'                 => $s->client_id,
+            'client_name'               => $client?->display_name ?? 'Unknown',
+            'client_slug'               => $client?->slug ?? '',
+            'client_avatar'             => $client?->avatar_initials ?? '',
+            'client_credentials'        => $client?->credentials ?? '',
             'service_title'             => $service?->title ?? '',
-            'datetime_label'            => $s->scheduled_at
-                ? $s->scheduled_at->setTimezone($tz)->format('M j, Y g:i A T')
-                : '—',
+            'datetime_label'            => $s->scheduled_at ? $s->scheduled_at->setTimezone($tz)->format('M j, Y g:i A T') : '—',
             'timezone'                  => $tz,
             'duration_label'            => $service?->duration_min ? $service->duration_min . ' min' : '—',
-            'amount'                    => $s->amount_cents ? '$' . number_format($s->amount_cents / 100, 0) : '—',
-            'amount_cents'              => $s->amount_cents ?? 0,
+            // ── Pricing ────────────────────────────────────────────────────
+            'original_amount_cents'     => $s->original_amount_cents ?? $s->amount_cents ?? 0,
+            'agreed_amount_cents'       => $agreedCents,
+            'negotiated_amount_cents'   => $s->negotiated_amount_cents,
+            'deposit_cents'             => $depositCents,
+            'deposit_paid_at'           => $s->deposit_paid_at?->format('M j, Y g:i A'),
+            'balance_cents'             => $balanceCents,
+            'balance_paid_at'           => $s->balance_paid_at?->format('M j, Y g:i A'),
+            'total_refunded_cents'      => $s->total_refunded_cents ?? 0,
+            'amount'                    => $this->formatMoney($agreedCents),
+            'amount_cents'              => $agreedCents,
+            'deposit_label'             => $depositCents > 0 ? $this->formatMoney($depositCents) : null,
+            'balance_label'             => $balanceCents > 0 ? $this->formatMoney($balanceCents) : null,
+            // ── Lifecycle ──────────────────────────────────────────────────
+            'status'                    => $status,
+            'payment_status'            => $paymentStatus?->value ?? 'unpaid',
+            'payment_status_label'      => $paymentStatus?->label() ?? 'Unpaid',
+            'payment_status_variant'    => $paymentStatus?->badgeVariant() ?? 'gold',
+            'has_pending_refund_request'=> (bool) $refundReq,
+            'pending_refund_request_id' => $refundReq?->id,
+            // ── Stripe ─────────────────────────────────────────────────────
             'practitioner_stripe_connected' => (bool) ($s->practitioner?->stripe_connected ?? false),
             'practitioner_stripe_account'   => $s->practitioner?->stripe_account_id ?? null,
-            'status'                    => $status,
+            // ── Notes ──────────────────────────────────────────────────────
             'summary'                   => $s->session_summary ?? '',
             'action_items'              => $s->session_action_items ?? '',
             'share_notes_with_client'   => (bool) ($s->share_notes_with_client ?? false),
         ];
     }
 
-    // ── Stats ─────────────────────────────────────────────────────────────
+    /**
+     * Shape a session for the client's "My Booked Sessions" view (they are the payer).
+     */
+    public function shapeClientSession(ServiceSession $s): array
+    {
+        $practitioner = $s->practitioner;
+        $service      = $s->service;
+        $status       = $s->status instanceof ServiceSessionStatus ? $s->status->value : (string) ($s->status ?? 'scheduled');
+        $tz           = $s->timezone ?? 'America/New_York';
+
+        $paymentStatus = $s->payment_status instanceof ServiceSessionPaymentStatus
+            ? $s->payment_status
+            : (isset($s->payment_status) ? ServiceSessionPaymentStatus::tryFrom((string) $s->payment_status) : ServiceSessionPaymentStatus::Unpaid);
+
+        $agreedCents  = $s->agreed_amount_cents;
+        $depositCents = $s->deposit_cents ?? 0;
+        $balanceCents = $s->balance_cents ?? 0;
+        $expectedDeposit  = $s->expected_deposit_cents;
+        $expectedBalance  = $s->expected_balance_cents;
+
+        // Refund requests I (client) submitted
+        $myRefundReq = SessionRefundRequest::where('session_id', $s->id)
+            ->where('requested_by_id', $s->client_id)
+            ->latest()
+            ->first();
+
+        return [
+            'id'                            => $s->id,
+            'invoice_number'                => $s->invoice_number,
+            'service_id'                    => $s->service_id,
+            'service_request_id'            => $s->service_request_id,
+            'practitioner_id'               => $s->practitioner_id,
+            'practitioner_name'             => $practitioner?->display_name ?? 'Unknown',
+            'practitioner_slug'             => $practitioner?->slug ?? '',
+            'practitioner_avatar'           => $practitioner?->avatar_initials ?? '',
+            'practitioner_detail'           => $practitioner?->credentials ?? '',
+            'service_title'                 => $service?->title ?? 'Session',
+            'request_type'                  => ucfirst(str_replace('_', ' ', $service?->category ?? '')),
+            'datetime_label'                => $s->scheduled_at?->setTimezone($tz)->format('M j, Y g:i A T') ?? 'TBD',
+            'timezone'                      => $tz,
+            'duration_label'                => $service?->duration_min ? $service->duration_min . ' min' : 'TBD',
+            // ── Pricing breakdown ──────────────────────────────────────────
+            'original_amount_cents'         => $s->original_amount_cents ?? $s->amount_cents ?? 0,
+            'agreed_amount_cents'           => $agreedCents,
+            'negotiated_amount_cents'       => $s->negotiated_amount_cents,
+            'amount'                        => $this->formatMoney($agreedCents),
+            'amount_cents'                  => $agreedCents,
+            // What's been charged so far
+            'deposit_cents'                 => $depositCents,
+            'deposit_paid_at'               => $s->deposit_paid_at?->format('M j, Y'),
+            'deposit_label'                 => $this->formatMoney($depositCents),
+            'balance_cents'                 => $balanceCents,
+            'balance_paid_at'               => $s->balance_paid_at?->format('M j, Y'),
+            'balance_label'                 => $this->formatMoney($balanceCents),
+            // What should be charged (for display before payment)
+            'expected_deposit_cents'        => $expectedDeposit,
+            'expected_deposit_label'        => $this->formatMoney($expectedDeposit),
+            'expected_balance_cents'        => $expectedBalance,
+            'expected_balance_label'        => $this->formatMoney($expectedBalance),
+            // Refund tracking
+            'total_refunded_cents'          => $s->total_refunded_cents ?? 0,
+            'total_refunded_label'          => $this->formatMoney($s->total_refunded_cents ?? 0),
+            // ── Lifecycle ──────────────────────────────────────────────────
+            'status'                        => $status,
+            'payment_status'                => $paymentStatus?->value ?? 'unpaid',
+            'payment_status_label'          => $paymentStatus?->label() ?? 'Deposit Due',
+            'payment_status_variant'        => $paymentStatus?->badgeVariant() ?? 'gold',
+            'can_pay_deposit'               => $paymentStatus === ServiceSessionPaymentStatus::Unpaid
+                                               && $status === ServiceSessionStatus::Scheduled->value,
+            'can_pay_balance'               => $paymentStatus === ServiceSessionPaymentStatus::DepositPaid
+                                               && $status === ServiceSessionStatus::Scheduled->value,
+            'can_request_refund'            => $paymentStatus?->depositCharged() && !$myRefundReq,
+            'has_refund_request'            => (bool) $myRefundReq,
+            'refund_request_status'         => $myRefundReq
+                ? ($myRefundReq->status instanceof \App\Enums\SessionRefundRequestStatus
+                    ? $myRefundReq->status->value
+                    : (string) $myRefundReq->status)
+                : null,
+            'refund_request_id'             => $myRefundReq?->id,
+            'can_escalate_refund'           => $myRefundReq && $myRefundReq->can_escalate,
+            // ── Stripe ─────────────────────────────────────────────────────
+            'practitioner_stripe_connected' => (bool) ($practitioner?->stripe_connected ?? false),
+        ];
+    }
+
+    // ── Stats ─────────────────────────────────────────────────────────────────
 
     public function statsForPractitioner(User $user): array
     {
         $now        = Carbon::now();
         $monthStart = $now->copy()->startOfMonth();
+        $monthEnd   = $now->copy()->endOfMonth();
 
         $activeListings = Service::where('practitioner_id', $user->id)
-            ->where('status', ServiceStatus::Active->value)
-            ->count();
+            ->where('status', ServiceStatus::Active->value)->count();
 
         $pendingRequests = ServiceRequest::where('practitioner_id', $user->id)
-            ->where('status', 'new')
-            ->count();
+            ->where('status', 'new')->count();
 
-        $monthEnd = $now->copy()->endOfMonth();
-
-        // All sessions scheduled in this calendar month (past + upcoming)
         $sessionsThisMonth = ServiceSession::where('practitioner_id', $user->id)
-            ->whereBetween('scheduled_at', [$monthStart, $monthEnd])
-            ->count();
+            ->whereBetween('scheduled_at', [$monthStart, $monthEnd])->count();
 
-        $revenueThisMonth = ServiceSession::where('practitioner_id', $user->id)
+        // Revenue = sum of deposit + balance charges for sessions completed this month
+        $depositRevenue = ServiceSession::where('practitioner_id', $user->id)
             ->where('status', ServiceSessionStatus::Completed->value)
+            ->whereBetween('completed_at', [$monthStart, $monthEnd])
+            ->sum('deposit_cents');
+
+        $balanceRevenue = ServiceSession::where('practitioner_id', $user->id)
+            ->where('status', ServiceSessionStatus::Completed->value)
+            ->whereBetween('completed_at', [$monthStart, $monthEnd])
+            ->sum('balance_cents');
+
+        $legacyRevenue = ServiceSession::where('practitioner_id', $user->id)
+            ->where('status', ServiceSessionStatus::Completed->value)
+            ->whereNull('payment_status')  // legacy sessions without new payment tracking
             ->whereBetween('completed_at', [$monthStart, $monthEnd])
             ->sum('amount_cents');
 
-        $totalSessions = ServiceSession::where('practitioner_id', $user->id)->count();
+        $revenueThisMonth = $depositRevenue + $balanceRevenue + $legacyRevenue;
+        $totalSessions    = ServiceSession::where('practitioner_id', $user->id)->count();
+
+        // Pending refund requests for this provider
+        $pendingRefunds = SessionRefundRequest::where('provider_id', $user->id)
+            ->where('status', 'pending_review')->count();
 
         return [
-            'active_listings'  => $activeListings,
-            'pending_requests' => $pendingRequests,
-            'sessions'         => $sessionsThisMonth,
-            'total_sessions'   => $totalSessions,
-            'revenue_label'    => '$' . number_format($revenueThisMonth / 100, 0),
+            'active_listings'   => $activeListings,
+            'pending_requests'  => $pendingRequests,
+            'sessions'          => $sessionsThisMonth,
+            'total_sessions'    => $totalSessions,
+            'revenue_label'     => '$' . number_format($revenueThisMonth / 100, 0),
+            'pending_refunds'   => $pendingRefunds,
         ];
     }
 
-    // ── CRUD ─────────────────────────────────────────────────────────────
+    // ── CRUD ──────────────────────────────────────────────────────────────────
 
     public function create(User $practitioner, array $data): Service
     {
-        $tierVal = $practitioner->tier instanceof UserTier
-            ? $practitioner->tier->value
-            : (string) $practitioner->tier;
+        $tierVal = $practitioner->tier instanceof UserTier ? $practitioner->tier->value : (string) $practitioner->tier;
 
         if ($tierVal !== 'practice' || !$practitioner->services_mode) {
             throw new RuntimeException('Services Mode requires the Practice tier.');
         }
-
-        $status = $data['status'] ?? 'active';
 
         $service = Service::create([
             'id'                 => 'ps_' . Str::lower(Str::random(12)),
@@ -236,17 +400,15 @@ class ServiceService
             'availability'       => $data['availability'] ?? 'open',
             'availability_label' => $data['availability_label'] ?? null,
             'is_public'          => $data['is_public'] ?? true,
-            'status'             => $status,
+            'status'             => $data['status'] ?? 'active',
             'created_at'         => now(),
         ]);
 
         $this->activity->log(
             $practitioner->id, 'provider', 'referral', ActivitySeverity::Info,
-            'service_created',
-            "Service created: {$service->title}",
-            ucfirst(str_replace('_', ' ', $service->category ?? '')) . ' · ' . ($service->status instanceof \App\Enums\ServiceStatus ? $service->status->value : ($service->status ?? 'active')),
-            'service', $service->id, null,
-            'log', $practitioner->id
+            'service_created', "Service created: {$service->title}",
+            ucfirst(str_replace('_', ' ', $service->category ?? '')),
+            'service', $service->id, null, 'log', $practitioner->id
         );
 
         return $service;
@@ -254,69 +416,32 @@ class ServiceService
 
     public function update(Service $service, array $data): Service
     {
-        $allowed = [
-            'title', 'description', 'category', 'price_cents', 'price_type',
-            'duration_min', 'format', 'availability', 'availability_label',
-            'status', 'is_public',
-        ];
+        $allowed = ['title','description','category','price_cents','price_type','duration_min','format','availability','availability_label','status','is_public'];
         $service->update(array_intersect_key($data, array_flip($allowed)));
-
         $actorId = request()->user()?->id ?? $service->practitioner_id;
-        $this->activity->log(
-            $actorId, 'provider', 'referral', ActivitySeverity::Info,
-            'service_updated',
-            "Service updated: {$service->title}",
-            'Service listing details updated.',
-            'service', $service->id, null,
-            'log', $actorId
-        );
-
+        $this->activity->log($actorId, 'provider', 'referral', ActivitySeverity::Info, 'service_updated', "Service updated: {$service->title}", 'Service listing details updated.', 'service', $service->id, null, 'log', $actorId);
         return $service->fresh();
     }
 
-    public function activate(Service $service): Service
-    {
-        $service->update(['status' => ServiceStatus::Active->value]);
-        return $service->fresh();
-    }
-
-    public function deactivate(Service $service): Service
-    {
-        $service->update(['status' => ServiceStatus::Inactive->value]);
-        return $service->fresh();
-    }
+    public function activate(Service $service): Service { $service->update(['status' => ServiceStatus::Active->value]); return $service->fresh(); }
+    public function deactivate(Service $service): Service { $service->update(['status' => ServiceStatus::Inactive->value]); return $service->fresh(); }
 
     public function archive(Service $service): Service
     {
         $service->update(['status' => ServiceStatus::Archived->value]);
-
         $actorId = request()->user()?->id ?? $service->practitioner_id;
-        $this->activity->log(
-            $actorId, 'provider', 'referral', ActivitySeverity::Info,
-            'service_archived',
-            "Service archived: {$service->title}",
-            'Service removed from public listings.',
-            'service', $service->id, null,
-            'log', $actorId
-        );
-
+        $this->activity->log($actorId, 'provider', 'referral', ActivitySeverity::Info, 'service_archived', "Service archived: {$service->title}", 'Service removed from public listings.', 'service', $service->id, null, 'log', $actorId);
         return $service->fresh();
     }
 
-    // ── Requests ──────────────────────────────────────────────────────────
+    // ── Requests ──────────────────────────────────────────────────────────────
 
     public function submitRequest(Service $service, User $requester, array $data): ServiceRequest
     {
-        $svcStatus = $service->status instanceof ServiceStatus
-            ? $service->status->value
-            : (string) $service->status;
+        $svcStatus = $service->status instanceof ServiceStatus ? $service->status->value : (string) $service->status;
 
-        if ($svcStatus !== 'active') {
-            throw new RuntimeException('This service is not currently available.');
-        }
-        if ($service->practitioner_id === $requester->id) {
-            throw new RuntimeException('Cannot request your own service.');
-        }
+        if ($svcStatus !== 'active') throw new RuntimeException('This service is not currently available.');
+        if ($service->practitioner_id === $requester->id) throw new RuntimeException('Cannot request your own service.');
 
         $req = ServiceRequest::create([
             'id'              => 'sr_' . Str::lower(Str::random(12)),
@@ -328,78 +453,47 @@ class ServiceService
             'created_at'      => now(),
         ]);
 
-        // Actor log — requester's own history
         $practitionerName = $service->practitioner?->display_name ?? 'the practitioner';
-        $this->activity->log(
-            $requester->id, 'provider', 'referral', ActivitySeverity::Info,
-            'service_request_sent',
-            "You requested: {$service->title}",
-            "Request sent to {$practitionerName}.",
-            'service_request', $req->id, $service->practitioner_id,
-            'log', $requester->id
-        );
-
-        // Notification to practitioner
-        $this->activity->log(
-            $service->practitioner_id, 'provider', 'referral', ActivitySeverity::Info,
-            'service_request_received',
-            "{$requester->display_name} requested your service: {$service->title}",
-            $data['message'] ?? 'Tap to review.',
-            'service_request', $req->id, $requester->id,
-            'notification', $requester->id
-        );
+        $this->activity->log($requester->id, 'provider', 'referral', ActivitySeverity::Info, 'service_request_sent', "You requested: {$service->title}", "Request sent to {$practitionerName}.", 'service_request', $req->id, $service->practitioner_id, 'log', $requester->id);
+        $this->activity->log($service->practitioner_id, 'provider', 'referral', ActivitySeverity::Info, 'service_request_received', "{$requester->display_name} requested your service: {$service->title}", $data['message'] ?? 'Tap to review.', 'service_request', $req->id, $requester->id, 'notification', $requester->id);
 
         event(new \App\Events\Service\ServiceRequestSubmitted($req, $requester));
         return $req;
     }
 
+    /**
+     * Provider accepts a service request.
+     * - Optionally negotiates a different price via $data['negotiated_amount_cents']
+     * - Creates the session record with payment_status = 'unpaid'
+     * - Does NOT charge anything — client must separately click "Pay Deposit"
+     */
     public function acceptRequest(ServiceRequest $req, array $data = []): ServiceRequest
     {
-        // Build scheduled_at from separate date + time + timezone fields
         $scheduledAt = null;
         if (!empty($data['session_date'])) {
-            $time     = $data['session_time'] ?? '10:00';
-            $tz       = $data['timezone']     ?? 'America/New_York';
+            $time = $data['session_time'] ?? '10:00';
+            $tz   = $data['timezone']     ?? 'America/New_York';
             try {
-                $scheduledAt = Carbon::createFromFormat(
-                    'Y-m-d H:i',
-                    $data['session_date'] . ' ' . $time,
-                    $tz
-                )->setTimezone('UTC');
-            } catch (\Exception $e) {
+                $scheduledAt = Carbon::createFromFormat('Y-m-d H:i', $data['session_date'] . ' ' . $time, $tz)->setTimezone('UTC');
+            } catch (\Exception) {
                 $scheduledAt = null;
             }
         }
 
         $req->update(['status' => 'accepted', 'responded_at' => now()]);
 
-        // Create the session record with the chosen date/time
         $this->bookSession($req, [
-            'scheduled_at' => $scheduledAt,
-            'timezone'     => $data['timezone'] ?? 'America/New_York',
+            'scheduled_at'           => $scheduledAt,
+            'timezone'               => $data['timezone'] ?? 'America/New_York',
+            'negotiated_amount_cents' => isset($data['negotiated_amount_cents'])
+                ? (int) $data['negotiated_amount_cents']
+                : null,
         ]);
 
         $service = Service::find($req->service_id);
 
-        // Actor log — practitioner's own history
-        $this->activity->log(
-            $req->practitioner_id, 'provider', 'referral', ActivitySeverity::Info,
-            'service_request_accepted',
-            "You accepted a request for: " . ($service?->title ?? 'your service'),
-            "Session scheduled for " . ($req->inquirer?->display_name ?? 'the requester') . '.',
-            'service_request', $req->id, $req->inquirer_id,
-            'log', $req->practitioner_id
-        );
-
-        // Notification to inquirer
-        $this->activity->log(
-            $req->inquirer_id, 'provider', 'referral', ActivitySeverity::Info,
-            'service_request_accepted',
-            'Your service request was accepted',
-            $service?->title ?? '',
-            'service_request', $req->id, $req->practitioner_id,
-            'notification', $req->practitioner_id
-        );
+        $this->activity->log($req->practitioner_id, 'provider', 'referral', ActivitySeverity::Info, 'service_request_accepted', "You accepted a request for: " . ($service?->title ?? 'your service'), "Session scheduled for " . ($req->inquirer?->display_name ?? 'the requester') . '. Awaiting deposit.', 'service_request', $req->id, $req->inquirer_id, 'log', $req->practitioner_id);
+        $this->activity->log($req->inquirer_id, 'provider', 'referral', ActivitySeverity::Info, 'service_request_accepted', 'Your service request was accepted', ($service?->title ?? '') . ' — pay your deposit to confirm the session.', 'service_request', $req->id, $req->practitioner_id, 'notification', $req->practitioner_id);
 
         event(new \App\Events\Service\ServiceRequestResponded($req, 'accepted'));
         return $req->fresh();
@@ -407,90 +501,189 @@ class ServiceService
 
     public function declineRequest(ServiceRequest $req, ?string $reason = null): ServiceRequest
     {
-        $req->update([
-            'status'        => 'declined',
-            'responded_at'  => now(),
-            'response_note' => $reason,
-        ]);
-
-        // Actor log — practitioner's own history
-        $this->activity->log(
-            $req->practitioner_id, 'provider', 'referral', ActivitySeverity::Info,
-            'service_request_declined',
-            'You declined a service request',
-            $reason ?? 'No reason provided.',
-            'service_request', $req->id, $req->inquirer_id,
-            'log', $req->practitioner_id
-        );
-
-        // Notification to inquirer
-        $this->activity->log(
-            $req->inquirer_id, 'provider', 'referral', ActivitySeverity::Info,
-            'service_request_declined',
-            'Your service request was declined',
-            $reason ?? 'No reason given.',
-            'service_request', $req->id, $req->practitioner_id,
-            'notification', $req->practitioner_id
-        );
-
+        $req->update(['status' => 'declined', 'responded_at' => now(), 'response_note' => $reason]);
+        $this->activity->log($req->practitioner_id, 'provider', 'referral', ActivitySeverity::Info, 'service_request_declined', 'You declined a service request', $reason ?? 'No reason provided.', 'service_request', $req->id, $req->inquirer_id, 'log', $req->practitioner_id);
+        $this->activity->log($req->inquirer_id, 'provider', 'referral', ActivitySeverity::Info, 'service_request_declined', 'Your service request was declined', $reason ?? 'No reason given.', 'service_request', $req->id, $req->practitioner_id, 'notification', $req->practitioner_id);
         event(new \App\Events\Service\ServiceRequestResponded($req, 'declined'));
         return $req->fresh();
     }
 
-    // ── Sessions ──────────────────────────────────────────────────────────
+    // ── Sessions ──────────────────────────────────────────────────────────────
 
     public function bookSession(ServiceRequest $req, array $data): ServiceSession
     {
+        $service        = Service::find($req->service_id);
+        $listingPrice   = $service?->price_cents ?? 0;
+        $negotiated     = isset($data['negotiated_amount_cents']) && $data['negotiated_amount_cents'] > 0
+            ? (int) $data['negotiated_amount_cents']
+            : null;
+        $agreedAmount   = $negotiated ?? $listingPrice;
+
         return ServiceSession::create([
-            'id'                 => 'ss_' . Str::lower(Str::random(12)),
-            'service_request_id' => $req->id,
-            'service_id'         => $req->service_id,
-            'practitioner_id'    => $req->practitioner_id,
-            'client_id'          => $req->inquirer_id,
-            'scheduled_at'       => $data['session_at'] ?? $data['scheduled_at'] ?? null,
-            'timezone'           => $data['timezone'] ?? 'America/New_York',
-            'status'             => 'scheduled',
-            'amount_cents'       => $req->service?->price_cents ?? 0,
-            'created_at'         => now(),
+            'id'                      => 'ss_' . Str::lower(Str::random(12)),
+            'service_request_id'      => $req->id,
+            'service_id'              => $req->service_id,
+            'practitioner_id'         => $req->practitioner_id,
+            'client_id'               => $req->inquirer_id,
+            'scheduled_at'            => $data['session_at'] ?? $data['scheduled_at'] ?? null,
+            'timezone'                => $data['timezone'] ?? 'America/New_York',
+            'status'                  => 'scheduled',
+            // ── Wave 1 pricing columns ────────────────────────────────────
+            'amount_cents'            => $agreedAmount,     // agreed total (for backwards compat)
+            'original_amount_cents'   => $listingPrice,     // locked listing price
+            'negotiated_amount_cents' => $negotiated,        // null if using listing price
+            // ── Deposit/balance initialised to 0 — filled on payment ─────
+            'deposit_cents'           => 0,
+            'balance_cents'           => 0,
+            'total_refunded_cents'    => 0,
+            'payment_status'          => ServiceSessionPaymentStatus::Unpaid->value,
+            'created_at'              => now(),
         ]);
+    }
+
+    /**
+     * Client pays the 30% deposit.
+     * Validates session is in the right state, then delegates to PayoutService.
+     */
+    public function payDeposit(ServiceSession $session, User $client): \App\Models\PractitionerPayment
+    {
+        if ($session->client_id !== $client->id) {
+            abort(403, 'Only the booking client can pay the deposit.');
+        }
+
+        $paymentStatus = ServiceSessionPaymentStatus::tryFrom((string) $session->payment_status)
+            ?? ServiceSessionPaymentStatus::Unpaid;
+
+        if ($paymentStatus !== ServiceSessionPaymentStatus::Unpaid) {
+            throw new RuntimeException(
+                $paymentStatus === ServiceSessionPaymentStatus::DepositPaid
+                    ? 'Deposit has already been paid for this session.'
+                    : 'Session is not in a state that allows deposit payment.'
+            );
+        }
+
+        if ($session->status !== ServiceSessionStatus::Scheduled && !($session->status instanceof ServiceSessionStatus && $session->status === ServiceSessionStatus::Scheduled)) {
+            throw new RuntimeException('Session must be in Scheduled state to accept payment.');
+        }
+
+        $provider = User::findOrFail($session->practitioner_id);
+        $payment  = $this->payouts->chargeSessionDeposit($session, $provider, $client);
+
+        event(new \App\Events\Service\SessionDepositPaid(
+            $session->fresh(), $client, $provider, $payment, $session->fresh()->deposit_cents ?? 0
+        ));
+
+        return $payment;
+    }
+
+    /**
+     * Client confirms session happened and pays the 70% balance.
+     * Marks session as Completed.
+     */
+    public function completeSession(ServiceSession $session, string $actorId): ServiceSession
+    {
+        if ($session->client_id !== $actorId) {
+            abort(403, 'Only the client who booked this session can confirm completion.');
+        }
+
+        $sessionStatus = $session->status instanceof ServiceSessionStatus
+            ? $session->status
+            : ServiceSessionStatus::from((string) $session->status);
+
+        if ($sessionStatus !== ServiceSessionStatus::Scheduled) {
+            abort(422, 'Only scheduled sessions can be marked complete.');
+        }
+
+        $session->update([
+            'status'       => ServiceSessionStatus::Completed->value,
+            'completed_at' => now(),
+        ]);
+
+        $client       = User::find($session->client_id);
+        $service      = Service::find($session->service_id);
+        $practitioner = User::find($session->practitioner_id);
+
+        if (!$client || !$practitioner) {
+            return $session->fresh();
+        }
+
+        $paymentStatus = ServiceSessionPaymentStatus::tryFrom((string) $session->payment_status)
+            ?? ServiceSessionPaymentStatus::Unpaid;
+
+        // ── Two-charge path (new sessions) ────────────────────────────────────
+        if ($paymentStatus === ServiceSessionPaymentStatus::DepositPaid) {
+            try {
+                $payment = $this->payouts->chargeSessionBalance($session->fresh(), $practitioner, $client);
+                event(new \App\Events\Service\SessionBalancePaid(
+                    $session->fresh(), $client, $practitioner, $payment, $session->fresh()->balance_cents ?? 0
+                ));
+            } catch (\Throwable $e) {
+                // Balance charge failed — session still marked complete; admin can retry
+                $this->activity->log(
+                    $practitioner->id, 'provider', 'payment', ActivitySeverity::Critical,
+                    'session_balance_failed',
+                    'Session balance charge failed',
+                    $e->getMessage(),
+                    'service_session', $session->id, $client->id, 'notification', $client->id
+                );
+            }
+        } elseif ($paymentStatus === ServiceSessionPaymentStatus::Unpaid) {
+            // ── Legacy path (single charge for old sessions) ─────────────────
+            if ($session->amount_cents > 0) {
+                $clientPm  = \App\Models\PractitionerPaymentMethod::where('practitioner_id', $client->id)->where('is_default', 1)->first();
+                $payment   = PractitionerPayment::create([
+                    'id'                   => 'pp_' . Str::lower(Str::random(12)),
+                    'session_id'           => $session->id,
+                    'practitioner_id'      => $practitioner->id,
+                    'payment_method_id'    => $clientPm?->id,
+                    'kind'                 => PractitionerPaymentKind::ServiceSession->value,
+                    'amount_cents'         => $session->amount_cents,
+                    'currency'             => 'USD',
+                    'status'               => PractitionerPaymentStatus::Pending->value,
+                    'payment_method_label' => $clientPm?->label ?? ($client->display_name . ' payment method'),
+                    'stripe_charge_id'     => null,
+                    'paid_at'              => null,
+                ]);
+                try {
+                    $this->payouts->releaseServiceSessionPayout($payment, $practitioner, $client);
+                    $refreshed = $payment->fresh();
+                    if (!empty($refreshed->stripe_payment_intent_id)) {
+                        $session->update(['stripe_payment_intent_id' => $refreshed->stripe_payment_intent_id]);
+                    }
+                } catch (\Throwable) { /* logged inside PayoutService */ }
+            }
+        }
+        // If already 'paid' (shouldn't normally happen), no charge needed.
+
+        $payoutNote = ($practitioner->stripe_connected && $practitioner->stripe_account_id)
+            ? 'Payment initiated to provider Stripe account.'
+            : 'Payment pending — provider has not connected Stripe yet.';
+
+        $svcTitle = $service?->title ?? 'Session';
+        $this->activity->log($practitioner->id, 'provider', 'payment', ActivitySeverity::Info, 'session_completed', ($client->display_name ?? 'A client') . ' confirmed your session complete', $svcTitle . '. ' . $payoutNote, 'service_session', $session->id, $client->id, 'notification', $client->id);
+        $this->activity->log($client->id, 'provider', 'payment', ActivitySeverity::Info, 'session_payment_sent', 'Session confirmed and payment complete', $this->formatMoney($session->agreed_amount_cents) . ' for ' . $svcTitle . ' with ' . ($practitioner->display_name ?? 'provider') . '.', 'service_session', $session->id, $practitioner->id, 'log', $client->id);
+
+        event(new \App\Events\Service\SessionCompleted($session->fresh(), $client, $practitioner, $session->agreed_amount_cents));
+
+        return $session->fresh();
     }
 
     public function cancelSession(ServiceSession $session, array $data): ServiceSession
     {
-        $actor   = \App\Models\User::find(request()->user()?->id);
+        $actor        = User::find(request()->user()?->id);
+        $service      = $session->service;
+        $otherPartyId = $actor?->id === $session->practitioner_id ? $session->client_id : $session->practitioner_id;
+
         $session->update([
             'status'        => ServiceSessionStatus::Cancelled->value,
             'cancel_reason' => $data['reason'] ?? null,
         ]);
 
-        $service      = $session->service;
-        $otherPartyId = $actor?->id === $session->practitioner_id
-            ? $session->client_id
-            : $session->practitioner_id;
-
-        // Actor log
         if ($actor) {
-            $this->activity->log(
-                $actor->id, 'provider', 'referral', ActivitySeverity::Info,
-                'session_cancelled',
-                'You cancelled a session',
-                ($service?->title ?? 'Session') . ' cancelled. ' . ($data['reason'] ?? ''),
-                'service_session', $session->id, $otherPartyId,
-                'log', $actor->id
-            );
+            $this->activity->log($actor->id, 'provider', 'referral', ActivitySeverity::Info, 'session_cancelled', 'You cancelled a session', ($service?->title ?? 'Session') . ' cancelled. ' . ($data['reason'] ?? ''), 'service_session', $session->id, $otherPartyId, 'log', $actor->id);
         }
-
-        // Notification to other party
         if ($otherPartyId) {
-            $actorName = $actor?->display_name ?? 'The other party';
-            $this->activity->log(
-                $otherPartyId, 'provider', 'referral', ActivitySeverity::Warning,
-                'session_cancelled_by_other',
-                'Your session was cancelled',
-                "{$actorName} cancelled the session for " . ($service?->title ?? 'your service') . '.',
-                'service_session', $session->id, $actor?->id,
-                'notification', $actor?->id
-            );
+            $this->activity->log($otherPartyId, 'provider', 'referral', ActivitySeverity::Warning, 'session_cancelled_by_other', 'Your session was cancelled', ($actor?->display_name ?? 'The other party') . ' cancelled the session for ' . ($service?->title ?? 'your service') . '.', 'service_session', $session->id, $actor?->id, 'notification', $actor?->id);
         }
 
         if ($actor) {
@@ -507,163 +700,45 @@ class ServiceService
             'session_action_items'    => $data['action_items'] ?? null,
             'share_notes_with_client' => $data['share_with_supervisee'] ?? false,
         ]);
-
         $actorId = request()->user()?->id ?? $session->practitioner_id;
-        $this->activity->log(
-            $actorId, 'provider', 'referral', ActivitySeverity::Info,
-            'session_notes_saved',
-            'Session notes saved',
-            "Notes updated for session: " . ($session->service?->title ?? 'session') . '.',
-            'service_session', $session->id, null,
-            'log', $actorId
-        );
-
+        $this->activity->log($actorId, 'provider', 'referral', ActivitySeverity::Info, 'session_notes_saved', 'Session notes saved', "Notes updated for: " . ($session->service?->title ?? 'session') . '.', 'service_session', $session->id, null, 'log', $actorId);
         return $session->fresh();
     }
 
+    // ── Queries (paginated) ───────────────────────────────────────────────────
+
     /**
-     * Mark a session completed (practitioner-only).
-     * Records a PractitionerPayment row for the inquirer (client) side.
-     * Stub: actual Stripe Connect transfer is triggered via PayoutService
-     * once Connect is fully configured; for now we record the row as pending.
+     * Sessions where I am the PROVIDER — paginated, 10 per page.
      */
-    /**
-     * Called by the CLIENT (inquirer) to confirm the session happened and release payment.
-     * Charges the client's default payment method, transfers to practitioner's Stripe Connect account.
-     */
-    public function completeSession(ServiceSession $session, string $actorId): ServiceSession
+    public function getSessionsForPractitioner(string $practitionerId, int $perPage = 10): LengthAwarePaginator
     {
-        if ($session->client_id !== $actorId) {
-            abort(403, 'Only the client who booked this session can confirm completion.');
-        }
-
-        if ($session->status instanceof ServiceSessionStatus && $session->status !== ServiceSessionStatus::Scheduled) {
-            abort(422, 'Only scheduled sessions can be marked complete.');
-        }
-
-        $session->update([
-            'status'       => ServiceSessionStatus::Completed->value,
-            'completed_at' => now(),
-        ]);
-
-        $client       = User::find($session->client_id);
-        $service      = Service::find($session->service_id);
-        $practitioner = User::find($session->practitioner_id);
-
-        // Charge client -> transfer to practitioner via Stripe Connect destination charge
-        if ($session->amount_cents > 0 && $practitioner && $client) {
-            $clientPm = \App\Models\PractitionerPaymentMethod::where('practitioner_id', $session->client_id)
-                ->where('is_default', 1)->first();
-
-            $hasSessId = \Illuminate\Support\Facades\Schema::hasColumn('practitioner_payments', 'session_id');
-
-            $paymentData = [
-                'id'                   => 'pp_' . Str::lower(Str::random(12)),
-                'practitioner_id'      => $session->practitioner_id,
-                'payment_method_id'    => $clientPm?->id,
-                'kind'                 => PractitionerPaymentKind::ServiceSession->value,
-                'amount_cents'         => $session->amount_cents,
-                'currency'             => 'USD',
-                'status'               => PractitionerPaymentStatus::Pending->value,
-                'payment_method_label' => $clientPm?->label ?? (($client->display_name) . ' payment method'),
-                'stripe_charge_id'     => null,
-                'paid_at'              => null,
-            ];
-            if ($hasSessId) {
-                $paymentData['session_id'] = $session->id;
-            }
-
-            $payment = PractitionerPayment::create($paymentData);
-
-            try {
-                $this->payouts->releaseServiceSessionPayout($payment, $practitioner, $client);
-                // Stamp stripe_payment_intent_id back onto session for webhook lookup
-                $refreshed = $payment->fresh();
-                if (!empty($refreshed->stripe_payment_intent_id)) {
-                    $session->update(['stripe_payment_intent_id' => $refreshed->stripe_payment_intent_id]);
-                }
-            } catch (\Throwable) {
-                // Failure logged inside PayoutService; session still completes
-            }
-        }
-
-        $payoutStatus = ($practitioner?->stripe_connected && $practitioner?->stripe_account_id)
-            ? 'Payment initiated to provider Stripe account.'
-            : 'Payment pending - provider has not connected Stripe account yet.';
-
-        // Notify practitioner
-        $this->activity->log(
-            $session->practitioner_id, 'provider', 'payment', ActivitySeverity::Info,
-            'session_completed',
-            ($client?->display_name ?? 'A client') . ' confirmed your session complete',
-            ($service?->title ?? 'Session') . '. ' . $payoutStatus,
-            'service_session', $session->id, $session->client_id,
-            'notification', $session->client_id
-        );
-
-        // Client actor log
-        $this->activity->log(
-            $session->client_id, 'provider', 'payment', ActivitySeverity::Info,
-            'session_payment_sent',
-            'Session confirmed and payment sent',
-            '$' . number_format($session->amount_cents / 100, 2) . ' for ' . ($service?->title ?? 'session') . ' with ' . ($practitioner?->display_name ?? 'provider') . '.',
-            'service_session', $session->id, $session->practitioner_id,
-            'log', $session->client_id
-        );
-
-        if ($practitioner && $client) {
-            event(new \App\Events\Service\SessionCompleted(
-                $session->fresh(),
-                $client,
-                $practitioner,
-                $session->amount_cents ?? 0
-            ));
-        }
-
-        return $session->fresh();
+        return ServiceSession::where('practitioner_id', $practitionerId)
+            ->with(['service', 'client', 'activeRefundRequest'])
+            ->orderBy('scheduled_at', 'desc')
+            ->paginate($perPage);
     }
 
-    public function getSessionsAsClient(string $clientId): Collection
+    /**
+     * Sessions where I am the CLIENT (payer) — paginated, 10 per page.
+     */
+    public function getSessionsAsClient(string $clientId, int $perPage = 10): LengthAwarePaginator
     {
         return ServiceSession::where('client_id', $clientId)
             ->with(['service', 'practitioner'])
             ->orderBy('scheduled_at', 'desc')
-            ->get();
+            ->paginate($perPage);
     }
 
-    public function shapeClientSession(ServiceSession $s): array
+    /**
+     * Public service explore: search active, public services NOT owned by the current user.
+     * Returns 12 per page for infinite scroll.
+     */
+    public function getForExplore(array $filters, string $excludePractitionerId, int $perPage = 12): LengthAwarePaginator
     {
-        $practitioner = $s->practitioner;
-        $service      = $s->service;
-        $status       = $s->status instanceof ServiceSessionStatus
-            ? $s->status->value
-            : (string) ($s->status ?? 'scheduled');
-        $tz = $s->timezone ?? 'America/New_York';
-
-        return [
-            'id'                            => $s->id,
-            'service_id'                    => $s->service_id,
-            'service_request_id'            => $s->service_request_id,
-            'practitioner_id'               => $s->practitioner_id,
-            'practitioner_name'             => $practitioner?->display_name ?? 'Unknown',
-            'practitioner_slug'             => $practitioner?->slug ?? '',
-            'practitioner_avatar'           => $practitioner?->avatar_initials ?? '',
-            'practitioner_detail'           => $practitioner?->credentials ?? '',
-            'service_title'                 => $service?->title ?? 'Session',
-            'request_type'                  => ucfirst(str_replace('_', ' ', $service?->category ?? '')),
-            'datetime_label'                => $s->scheduled_at?->setTimezone($tz)->format('M j, Y g:i A T') ?? 'TBD',
-            'duration_label'                => isset($service->duration_min) ? $service->duration_min . ' min' : 'TBD',
-            'amount'                        => $s->amount_cents ? '$' . number_format($s->amount_cents / 100, 2) : 'Free',
-            'amount_cents'                  => $s->amount_cents ?? 0,
-            'status'                        => $status,
-            'practitioner_stripe_connected' => (bool) ($practitioner?->stripe_connected ?? false),
-        ];
-    }
-
-    public function getForPractitioner(string $practitionerId, array $filters = []): Collection
-    {
-        $query = Service::where('practitioner_id', $practitionerId)
-            ->where('status', '!=', ServiceStatus::Archived->value);
+        $query = Service::where('status', ServiceStatus::Active->value)
+            ->where('is_public', 1)
+            ->where('practitioner_id', '!=', $excludePractitionerId)
+            ->with('practitioner');
 
         if (!empty($filters['q'])) {
             $q = $filters['q'];
@@ -675,10 +750,40 @@ class ServiceService
         if (!empty($filters['category'])) {
             $query->where('category', $filters['category']);
         }
-        if (!empty($filters['status'])) {
-            $query->where('status', $filters['status']);
+        if (!empty($filters['format'])) {
+            $query->where('format', $filters['format']);
+        }
+        if (!empty($filters['availability'])) {
+            $query->where('availability', $filters['availability']);
+        }
+        if (!empty($filters['max_price_cents'])) {
+            $query->where('price_cents', '<=', (int) $filters['max_price_cents']);
+        }
+        if (!empty($filters['min_price_cents'])) {
+            $query->where('price_cents', '>=', (int) $filters['min_price_cents']);
         }
 
+        $sort = $filters['sort'] ?? 'newest';
+        match ($sort) {
+            'price_asc'  => $query->orderBy('price_cents', 'asc'),
+            'price_desc' => $query->orderBy('price_cents', 'desc'),
+            'oldest'     => $query->orderBy('created_at', 'asc'),
+            default      => $query->orderBy('created_at', 'desc'), // newest
+        };
+
+        return $query->paginate($perPage);
+    }
+
+    public function getForPractitioner(string $practitionerId, array $filters = []): Collection
+    {
+        $query = Service::where('practitioner_id', $practitionerId)
+            ->where('status', '!=', ServiceStatus::Archived->value);
+        if (!empty($filters['q'])) {
+            $q = $filters['q'];
+            $query->where(function ($sub) use ($q) { $sub->where('title', 'like', "%{$q}%")->orWhere('description', 'like', "%{$q}%"); });
+        }
+        if (!empty($filters['category'])) $query->where('category', $filters['category']);
+        if (!empty($filters['status']))   $query->where('status', $filters['status']);
         return $query->orderBy('created_at', 'desc')->get();
     }
 
@@ -702,58 +807,20 @@ class ServiceService
     {
         $practitioner = $r->practitioner;
         $service      = $r->service;
-        $status       = $r->status instanceof \App\Enums\ServiceRequestStatus
-            ? $r->status->value
-            : (string) ($r->status ?? 'new');
-
-        return [
-            'id'               => $r->id,
-            'service_id'       => $r->service_id,
-            'practitioner_id'  => $r->practitioner_id,
-            'provider_name'    => $practitioner?->display_name ?? 'Unknown',
-            'provider_slug'    => $practitioner?->slug ?? '',
-            'provider_avatar'  => $practitioner?->avatar_initials ?? '',
-            'provider_detail'  => $practitioner?->credentials ?? '',
-            'service_title'    => $service?->title ?? 'Appointment Request',
-            'request_type'     => ucfirst(str_replace('_', ' ', $service?->category ?? '')),
-            'sent_date_label'  => $r->created_at?->format('M j, Y') ?? '',
-            'time_label'       => $r->created_at?->diffForHumans() ?? '',
-            'status'           => $status,
-            'message'          => $r->message ?? '',
-            'response_note'    => $r->response_note ?? '',
-            'responded_at'     => $r->responded_at?->format('M j, Y') ?? '',
-        ];
+        $status       = $r->status instanceof \App\Enums\ServiceRequestStatus ? $r->status->value : (string) ($r->status ?? 'new');
+        return ['id' => $r->id, 'service_id' => $r->service_id, 'practitioner_id' => $r->practitioner_id, 'provider_name' => $practitioner?->display_name ?? 'Unknown', 'provider_slug' => $practitioner?->slug ?? '', 'provider_avatar' => $practitioner?->avatar_initials ?? '', 'provider_detail' => $practitioner?->credentials ?? '', 'service_title' => $service?->title ?? 'Appointment Request', 'request_type' => ucfirst(str_replace('_', ' ', $service?->category ?? '')), 'sent_date_label' => $r->created_at?->format('M j, Y') ?? '', 'time_label' => $r->created_at?->diffForHumans() ?? '', 'status' => $status, 'message' => $r->message ?? '', 'response_note' => $r->response_note ?? '', 'responded_at' => $r->responded_at?->format('M j, Y') ?? ''];
     }
 
     public function withdrawRequest(ServiceRequest $r, string $inquirerId): void
     {
-        if ($r->inquirer_id !== $inquirerId) {
-            abort(403, 'You cannot withdraw this request.');
-        }
-        if ($r->status instanceof \App\Enums\ServiceRequestStatus && $r->status !== \App\Enums\ServiceRequestStatus::New) {
-            abort(422, 'Only pending requests can be withdrawn.');
-        }
+        if ($r->inquirer_id !== $inquirerId) abort(403, 'You cannot withdraw this request.');
+        if ($r->status instanceof \App\Enums\ServiceRequestStatus && $r->status !== \App\Enums\ServiceRequestStatus::New) abort(422, 'Only pending requests can be withdrawn.');
         $r->update(['status' => \App\Enums\ServiceRequestStatus::Withdrawn->value]);
-
         $serviceTitle = $r->service?->title ?? 'a service';
-        $this->activity->log(
-            $inquirerId, 'provider', 'referral', ActivitySeverity::Info,
-            'service_request_withdrawn',
-            'You withdrew a service request',
-            "Request for {$serviceTitle} withdrawn.",
-            'service_request', $r->id, $r->practitioner_id,
-            'log', $inquirerId
-        );
+        $this->activity->log($inquirerId, 'provider', 'referral', ActivitySeverity::Info, 'service_request_withdrawn', 'You withdrew a service request', "Request for {$serviceTitle} withdrawn.", 'service_request', $r->id, $r->practitioner_id, 'log', $inquirerId);
     }
 
-    public function getSessionsForPractitioner(string $practitionerId): Collection
-    {
-        return ServiceSession::where('practitioner_id', $practitionerId)
-            ->with(['service', 'client'])
-            ->orderBy('scheduled_at', 'desc')
-            ->get();
-    }
-
+    /** @deprecated Use getForExplore() instead */
     public function findProviders(array $filters = []): Collection
     {
         $query = Service::where('status', ServiceStatus::Active->value)->where('is_public', 1);

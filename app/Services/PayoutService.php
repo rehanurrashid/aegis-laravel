@@ -5,34 +5,372 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\ActivitySeverity;
+use App\Enums\PractitionerPaymentKind;
+use App\Enums\PractitionerPaymentStatus;
+use App\Enums\ServiceSessionPaymentStatus;
 use App\Events\Business\PayoutReleased;
 use App\Models\BpContract;
 use App\Models\BpMilestone;
 use App\Models\BpPayout;
 use App\Models\CsPayout;
-use App\Models\User;
 use App\Models\PractitionerPayment;
-use App\Enums\PractitionerPaymentStatus;
+use App\Models\PractitionerPaymentMethod;
+use App\Models\ServiceSession;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Stripe\StripeClient;
 
 /**
  * Handles Stripe Connect destination charges — Aegis never holds funds.
  *
- * Payment flow (Provider → BP):
- *   1. Provider has a saved Stripe Customer (stripe_id) + default PaymentMethod (stripe_payment_method_id)
- *   2. BP has a Stripe Connect Express account (stripe_account_id = acct_xxx)
- *   3. Aegis creates a PaymentIntent with transfer_data.destination = BP's acct_xxx
- *   4. Stripe charges Provider's card and IMMEDIATELY routes 100% to BP's connected account
- *   5. Aegis platform net = $0 — it never touches the money
- *   6. Webhook payment_intent.succeeded confirms transfer and marks BpPayout as paid
+ * All clinical session charges use the destination charge pattern:
+ *   Client saved card (stripe_id + stripe_payment_method_id)
+ *   → Aegis platform ($0 net — pass-through)
+ *   → Provider Stripe Connect Express account (stripe_account_id)
+ *
+ * Two-charge flow per session:
+ *   1. chargeSessionDeposit()  — 30% upfront at accept time (client must click Pay Deposit)
+ *   2. chargeSessionBalance()  — 70% at session completion (client confirms session happened)
+ *
+ * Refund flow uses reverse_transfer: true so funds pull from provider's Connect
+ * balance back to client card. Platform balance is pass-through (atomic).
+ *
+ * Demo detection: cus_demo_* / pm_demo_* / acct_demo_* → stub, no real Stripe calls.
  */
 class PayoutService
 {
     public function __construct(private ActivityService $activity) {}
 
-    // ── Legacy helpers (kept for compatibility) ────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CLINICAL SESSION — DEPOSIT (30%)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Charge the client 30% of the agreed session amount immediately.
+     * Called when client clicks "Pay Deposit" after provider accepts request.
+     *
+     * Creates a PractitionerPayment record (kind=service_session_deposit).
+     * Updates session: deposit_cents, deposit_charge_id, deposit_paid_at, payment_status='deposit_paid'.
+     *
+     * @throws \RuntimeException with user-facing message on guard failure or Stripe error
+     */
+    public function chargeSessionDeposit(ServiceSession $session, User $provider, User $client): PractitionerPayment
+    {
+        $agreedCents  = $session->agreed_amount_cents;
+        $depositCents = $session->expected_deposit_cents;
+
+        if ($depositCents <= 0) {
+            throw new \RuntimeException('Session has no chargeable amount.');
+        }
+
+        $clientPm = PractitionerPaymentMethod::where('practitioner_id', $client->id)
+            ->where('is_default', 1)
+            ->first();
+
+        // Create the payment record first so we have an ID to reference
+        $payment = PractitionerPayment::create([
+            'id'                   => 'pp_' . Str::lower(Str::random(12)),
+            'session_id'           => $session->id,
+            'practitioner_id'      => $provider->id,
+            'payment_method_id'    => $clientPm?->id,
+            'kind'                 => PractitionerPaymentKind::ServiceSessionDeposit->value,
+            'amount_cents'         => $depositCents,
+            'currency'             => 'USD',
+            'status'               => PractitionerPaymentStatus::Pending->value,
+            'payment_method_label' => $clientPm?->label ?? ($client->display_name . ' — saved card'),
+            'stripe_charge_id'     => null,
+            'paid_at'              => null,
+        ]);
+
+        // ── Demo / stub detection ─────────────────────────────────────────────
+        if ($this->isDemo($client, $provider)) {
+            $demoId = 'pi_demo_dep_' . Str::lower(Str::random(12));
+            $payment->update([
+                'status'                   => PractitionerPaymentStatus::Paid->value,
+                'stripe_payment_intent_id' => $demoId,
+                'paid_at'                  => now(),
+            ]);
+            $session->update([
+                'deposit_cents'    => $depositCents,
+                'deposit_charge_id'=> $demoId,
+                'deposit_paid_at'  => now(),
+                'payment_status'   => ServiceSessionPaymentStatus::DepositPaid->value,
+            ]);
+            $this->logDepositActivity($payment->fresh(), $session, $provider, $client, stub: true);
+            return $payment->fresh();
+        }
+
+        // ── Guards ────────────────────────────────────────────────────────────
+        $this->guardClientPaymentMethod($client);
+        $this->guardProviderConnectAccount($provider);
+
+        // ── Stub if Stripe not configured ─────────────────────────────────────
+        if (!config('services.stripe.secret')) {
+            $stubId = 'pi_stub_dep_' . Str::lower(Str::random(12));
+            $payment->update([
+                'status'                   => PractitionerPaymentStatus::Pending->value,
+                'stripe_payment_intent_id' => $stubId,
+            ]);
+            $session->update([
+                'deposit_cents'    => $depositCents,
+                'deposit_charge_id'=> $stubId,
+                'deposit_paid_at'  => now(),
+                'payment_status'   => ServiceSessionPaymentStatus::DepositPaid->value,
+            ]);
+            return $payment->fresh();
+        }
+
+        // ── Live Stripe destination charge ────────────────────────────────────
+        try {
+            $stripe = new StripeClient(config('services.stripe.secret'));
+            $intent = $stripe->paymentIntents->create([
+                'amount'               => $depositCents,
+                'currency'             => 'usd',
+                'customer'             => $client->stripe_id,
+                'payment_method'       => $client->stripe_payment_method_id,
+                'confirm'              => true,
+                'automatic_payment_methods' => ['enabled' => true, 'allow_redirects' => 'never'],
+                'transfer_data'        => ['destination' => $provider->stripe_account_id],
+                'on_behalf_of'         => $provider->stripe_account_id,
+                'description'          => 'Session deposit (30%) — Aegis',
+                'metadata'             => [
+                    'payment_id'      => $payment->id,
+                    'session_id'      => $session->id,
+                    'charge_type'     => 'session_deposit',
+                    'practitioner_id' => $provider->id,
+                    'client_id'       => $client->id,
+                    'agreed_total'    => $agreedCents,
+                ],
+            ]);
+
+            $isPaid = $intent->status === 'succeeded';
+            $payment->update([
+                'status'                   => $isPaid ? PractitionerPaymentStatus::Paid->value : PractitionerPaymentStatus::Pending->value,
+                'stripe_payment_intent_id' => $intent->id,
+                'paid_at'                  => $isPaid ? now() : null,
+            ]);
+            $session->update([
+                'deposit_cents'    => $depositCents,
+                'deposit_charge_id'=> $intent->id,
+                'deposit_paid_at'  => $isPaid ? now() : null,
+                'payment_status'   => $isPaid
+                    ? ServiceSessionPaymentStatus::DepositPaid->value
+                    : ServiceSessionPaymentStatus::Unpaid->value,
+            ]);
+
+        } catch (\Stripe\Exception\CardException $e) {
+            $payment->update(['status' => PractitionerPaymentStatus::Failed->value]);
+            throw new \RuntimeException('Card declined: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            $payment->update(['status' => PractitionerPaymentStatus::Failed->value]);
+            Log::error('[PayoutService] Session deposit failed', [
+                'session_id' => $session->id,
+                'error'      => $e->getMessage(),
+            ]);
+            throw new \RuntimeException('Deposit payment failed: ' . $e->getMessage());
+        }
+
+        $this->logDepositActivity($payment->fresh(), $session, $provider, $client, stub: false);
+        return $payment->fresh();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CLINICAL SESSION — BALANCE (70%)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Charge the remaining 70% balance when the client confirms the session occurred.
+     * Called by ServiceService::completeSession() after session is marked Completed.
+     *
+     * Creates a PractitionerPayment record (kind=service_session_balance).
+     * Updates session: balance_cents, balance_charge_id, balance_paid_at, payment_status='paid'.
+     *
+     * @throws \RuntimeException with user-facing message on guard failure or Stripe error
+     */
+    public function chargeSessionBalance(ServiceSession $session, User $provider, User $client): PractitionerPayment
+    {
+        $depositCents = $session->deposit_cents ?? $session->expected_deposit_cents;
+        $balanceCents = $session->agreed_amount_cents - $depositCents;
+
+        if ($balanceCents <= 0) {
+            throw new \RuntimeException('No balance remaining for this session.');
+        }
+
+        $clientPm = PractitionerPaymentMethod::where('practitioner_id', $client->id)
+            ->where('is_default', 1)
+            ->first();
+
+        $payment = PractitionerPayment::create([
+            'id'                   => 'pp_' . Str::lower(Str::random(12)),
+            'session_id'           => $session->id,
+            'practitioner_id'      => $provider->id,
+            'payment_method_id'    => $clientPm?->id,
+            'kind'                 => PractitionerPaymentKind::ServiceSessionBalance->value,
+            'amount_cents'         => $balanceCents,
+            'currency'             => 'USD',
+            'status'               => PractitionerPaymentStatus::Pending->value,
+            'payment_method_label' => $clientPm?->label ?? ($client->display_name . ' — saved card'),
+            'stripe_charge_id'     => null,
+            'paid_at'              => null,
+        ]);
+
+        // ── Demo / stub detection ─────────────────────────────────────────────
+        if ($this->isDemo($client, $provider)) {
+            $demoId = 'pi_demo_bal_' . Str::lower(Str::random(12));
+            $payment->update([
+                'status'                   => PractitionerPaymentStatus::Paid->value,
+                'stripe_payment_intent_id' => $demoId,
+                'paid_at'                  => now(),
+            ]);
+            $session->update([
+                'balance_cents'    => $balanceCents,
+                'balance_charge_id'=> $demoId,
+                'balance_paid_at'  => now(),
+                'payment_status'   => ServiceSessionPaymentStatus::Paid->value,
+            ]);
+            $this->logBalanceActivity($payment->fresh(), $session, $provider, $client, stub: true);
+            return $payment->fresh();
+        }
+
+        // ── Guards ────────────────────────────────────────────────────────────
+        $this->guardClientPaymentMethod($client);
+        $this->guardProviderConnectAccount($provider);
+
+        if (!config('services.stripe.secret')) {
+            $stubId = 'pi_stub_bal_' . Str::lower(Str::random(12));
+            $payment->update([
+                'status'                   => PractitionerPaymentStatus::Pending->value,
+                'stripe_payment_intent_id' => $stubId,
+            ]);
+            $session->update([
+                'balance_cents'    => $balanceCents,
+                'balance_charge_id'=> $stubId,
+                'balance_paid_at'  => now(),
+                'payment_status'   => ServiceSessionPaymentStatus::Paid->value,
+            ]);
+            return $payment->fresh();
+        }
+
+        // ── Live Stripe destination charge ────────────────────────────────────
+        try {
+            $stripe = new StripeClient(config('services.stripe.secret'));
+            $intent = $stripe->paymentIntents->create([
+                'amount'               => $balanceCents,
+                'currency'             => 'usd',
+                'customer'             => $client->stripe_id,
+                'payment_method'       => $client->stripe_payment_method_id,
+                'confirm'              => true,
+                'automatic_payment_methods' => ['enabled' => true, 'allow_redirects' => 'never'],
+                'transfer_data'        => ['destination' => $provider->stripe_account_id],
+                'on_behalf_of'         => $provider->stripe_account_id,
+                'description'          => 'Session balance (70%) — Aegis',
+                'metadata'             => [
+                    'payment_id'      => $payment->id,
+                    'session_id'      => $session->id,
+                    'charge_type'     => 'session_balance',
+                    'practitioner_id' => $provider->id,
+                    'client_id'       => $client->id,
+                ],
+            ]);
+
+            $isPaid = $intent->status === 'succeeded';
+            $payment->update([
+                'status'                   => $isPaid ? PractitionerPaymentStatus::Paid->value : PractitionerPaymentStatus::Pending->value,
+                'stripe_payment_intent_id' => $intent->id,
+                'paid_at'                  => $isPaid ? now() : null,
+            ]);
+            $session->update([
+                'balance_cents'    => $balanceCents,
+                'balance_charge_id'=> $intent->id,
+                'balance_paid_at'  => $isPaid ? now() : null,
+                'payment_status'   => $isPaid
+                    ? ServiceSessionPaymentStatus::Paid->value
+                    : ServiceSessionPaymentStatus::DepositPaid->value,
+            ]);
+
+        } catch (\Stripe\Exception\CardException $e) {
+            $payment->update(['status' => PractitionerPaymentStatus::Failed->value]);
+            throw new \RuntimeException('Card declined: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            $payment->update(['status' => PractitionerPaymentStatus::Failed->value]);
+            Log::error('[PayoutService] Session balance charge failed', [
+                'session_id' => $session->id,
+                'error'      => $e->getMessage(),
+            ]);
+            throw new \RuntimeException('Balance payment failed: ' . $e->getMessage());
+        }
+
+        $this->logBalanceActivity($payment->fresh(), $session, $provider, $client, stub: false);
+        return $payment->fresh();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CLINICAL SESSION — REFUND
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Issue a Stripe refund against a session charge PaymentIntent.
+     *
+     * CRITICAL: Always passes reverse_transfer: true so funds pull from the
+     * provider's Connect account balance back to the client's card.
+     * Aegis platform balance is a pass-through (atomic reversal).
+     *
+     * Returns the Stripe Refund ID on success, null on demo/stub.
+     *
+     * @throws \RuntimeException on Stripe error
+     */
+    public function refundSessionCharge(
+        string $stripePaymentIntentId,
+        int    $refundCents,
+        array  $metadata = []
+    ): ?string {
+        // Demo/stub detection — no real Stripe calls
+        if (
+            str_starts_with($stripePaymentIntentId, 'pi_demo_') ||
+            str_starts_with($stripePaymentIntentId, 'pi_stub_')
+        ) {
+            Log::info('[PayoutService] refund noop — demo/stub PaymentIntent', [
+                'pi'     => $stripePaymentIntentId,
+                'amount' => $refundCents,
+            ]);
+            return null;
+        }
+
+        if (!config('services.stripe.secret')) {
+            Log::warning('[PayoutService] refund skipped — no Stripe secret configured');
+            return null;
+        }
+
+        try {
+            $stripe = new StripeClient(config('services.stripe.secret'));
+            $refund = $stripe->refunds->create([
+                'payment_intent'  => $stripePaymentIntentId,
+                'amount'          => $refundCents,
+                // CRITICAL: pull funds from provider's Connect account,
+                // not from Aegis platform balance
+                'reverse_transfer'=> true,
+                // Also refund any application fee collected (none for Aegis currently,
+                // but included defensively in case fee collection is added later)
+                'refund_application_fee' => false,
+                'reason'          => 'requested_by_customer',
+                'metadata'        => $metadata,
+            ]);
+            return $refund->id;
+        } catch (\Throwable $e) {
+            Log::error('[PayoutService] Stripe refund failed', [
+                'pi'    => $stripePaymentIntentId,
+                'amount'=> $refundCents,
+                'error' => $e->getMessage(),
+            ]);
+            throw new \RuntimeException('Refund failed: ' . $e->getMessage());
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EXISTING METHODS (unchanged — kept for compatibility)
+    // ═══════════════════════════════════════════════════════════════════════════
 
     public function createBpPayout(string $bpId, int $amountCents, string $description = ''): BpPayout
     {
@@ -58,10 +396,6 @@ class PayoutService
         ]);
     }
 
-    /**
-     * Legacy release() — used by admin payout panel and CS payouts.
-     * These still use platform transfers (CS fees come from Aegis subscription revenue).
-     */
     public function release($payout): mixed
     {
         $payout->update(['status' => 'in_transit', 'released_at' => now()]);
@@ -123,148 +457,57 @@ class PayoutService
         return $q->get();
     }
 
-    // ── Core destination charge: Provider → BP via Aegis platform ─────────────
-
-    /**
-     * Charge the Provider's saved card and immediately route 100% to the BP's
-     * Stripe Connect Express account via a destination charge.
-     *
-     * Aegis acts as the platform but holds $0 — all funds pass through to BP.
-     *
-     * Guards:
-     *  - Provider must have stripe_id (customer) + stripe_payment_method_id (saved card)
-     *  - BP must have a valid stripe_account_id (acct_xxx format)
-     *
-     * Stubs gracefully when Stripe is not configured (sandbox / local dev).
-     *
-     * @throws \RuntimeException with a user-facing message on guard failure
-     */
-    public function chargeProviderToBp(
-        User   $provider,
-        User   $bp,
-        int    $amountCents,
-        string $currency = 'usd',
-        array  $meta = [],
-        string $description = ''
-    ): array {
-        // ── Demo / stub detection ─────────────────────────────────────────────
-        // Demo seed data uses cus_demo_* / pm_demo_* / acct_demo_* identifiers.
-        // These are not real Stripe objects — always stub so demo works without real Stripe onboarding.
+    public function chargeProviderToBp(User $provider, User $bp, int $amountCents, string $currency = 'usd', array $meta = [], string $description = ''): array
+    {
         $isDemoProvider = str_starts_with((string) $provider->stripe_id, 'cus_demo_')
             || str_starts_with((string) $provider->stripe_payment_method_id, 'pm_demo_');
         $isDemoBp = str_starts_with((string) $bp->stripe_account_id, 'acct_demo_');
 
         if ($isDemoProvider || $isDemoBp) {
-            return [
-                'stripe_payment_intent_id' => 'pi_demo_' . Str::lower(Str::random(16)),
-                'stripe_transfer_id'       => null,
-                'status'                   => 'paid', // Stub as paid so demo flow completes
-                'stub'                     => true,
-                'stub_reason'              => 'Demo mode — no real Stripe objects.',
-            ];
+            return ['stripe_payment_intent_id' => 'pi_demo_' . Str::lower(Str::random(16)), 'stripe_transfer_id' => null, 'status' => 'paid', 'stub' => true, 'stub_reason' => 'Demo mode.'];
         }
 
-        // ── Guards (production / real Stripe env) ────────────────────────────
         if (!$provider->stripe_id || !$provider->stripe_payment_method_id) {
-            throw new \RuntimeException(
-                'No payment method on file. Please add a card in Settings → Billing before releasing payment.'
-            );
+            throw new \RuntimeException('No payment method on file. Please add a card in Settings → Billing before releasing payment.');
         }
 
         $bpAccount  = $bp->stripe_account_id;
         $isRealAcct = $bpAccount && preg_match('/^acct_[a-zA-Z0-9]{16,}$/', $bpAccount);
-
         if (!$isRealAcct) {
-            throw new \RuntimeException(
-                'BP has not connected a Stripe account yet. They must complete payment setup before payment can be released.'
-            );
+            throw new \RuntimeException('BP has not connected a Stripe account yet.');
         }
 
-        // ── Stripe not configured — stub mode ─────────────────────────────────
         if (!config('services.stripe.secret')) {
-            return [
-                'stripe_payment_intent_id' => 'pi_stub_' . Str::lower(Str::random(16)),
-                'stripe_transfer_id'       => null,
-                'status'                   => 'pending',
-                'stub'                     => true,
-                'stub_reason'              => 'Stripe not configured (sandbox mode).',
-            ];
+            return ['stripe_payment_intent_id' => 'pi_stub_' . Str::lower(Str::random(16)), 'stripe_transfer_id' => null, 'status' => 'pending', 'stub' => true, 'stub_reason' => 'Stripe not configured.'];
         }
 
-        // ── Live Stripe destination charge ────────────────────────────────────
         try {
             $stripe = new StripeClient(config('services.stripe.secret'));
-
             $intent = $stripe->paymentIntents->create([
-                'amount'               => $amountCents,
-                'currency'             => strtolower($currency),
-                'customer'             => $provider->stripe_id,
-                'payment_method'       => $provider->stripe_payment_method_id,
-                'confirm'              => true,
-                'automatic_payment_methods' => [
-                    'enabled'          => true,
-                    'allow_redirects'  => 'never',
-                ],
-                'transfer_data'        => ['destination' => $bpAccount],
-                'on_behalf_of'         => $bpAccount,
-                'description'          => $description ?: 'Aegis contract payment',
-                'metadata'             => array_merge($meta, [
-                    'provider_id' => $provider->id,
-                    'bp_id'       => $bp->id,
-                ]),
+                'amount' => $amountCents, 'currency' => strtolower($currency),
+                'customer' => $provider->stripe_id, 'payment_method' => $provider->stripe_payment_method_id,
+                'confirm' => true, 'automatic_payment_methods' => ['enabled' => true, 'allow_redirects' => 'never'],
+                'transfer_data' => ['destination' => $bpAccount], 'on_behalf_of' => $bpAccount,
+                'description' => $description ?: 'Aegis contract payment',
+                'metadata' => array_merge($meta, ['provider_id' => $provider->id, 'bp_id' => $bp->id]),
             ]);
-
-            return [
-                'stripe_payment_intent_id' => $intent->id,
-                'stripe_transfer_id'       => $intent->transfer_data->destination_payment ?? null,
-                'status'                   => $intent->status === 'succeeded' ? 'paid' : 'pending',
-                'stub'                     => false,
-            ];
+            return ['stripe_payment_intent_id' => $intent->id, 'stripe_transfer_id' => $intent->transfer_data->destination_payment ?? null, 'status' => $intent->status === 'succeeded' ? 'paid' : 'pending', 'stub' => false];
         } catch (\Stripe\Exception\CardException $e) {
             throw new \RuntimeException('Card declined: ' . $e->getMessage());
-        } catch (\Stripe\Exception\InvalidRequestException $e) {
-            throw new \RuntimeException('Stripe error: ' . $e->getMessage());
-        } catch (\Stripe\Exception\AuthenticationException $e) {
-            throw new \RuntimeException('Stripe authentication failed. Check STRIPE_SECRET in .env.');
         } catch (\Throwable $e) {
             throw new \RuntimeException('Payment failed: ' . $e->getMessage());
         }
     }
 
-    // ── CS invoice payment ────────────────────────────────────────────────────────
-
-    /**
-     * Provider → CS destination charge. Mirrors chargeProviderToBp() exactly
-     * but the recipient is a Continuity Steward rather than a Business Partner.
-     *
-     * Used when a Provider pays a CS invoice.
-     *
-     * @throws \RuntimeException on Stripe error or missing account details
-     */
-    public function chargeProviderToCs(
-        User   $provider,
-        User   $cs,
-        int    $amountCents,
-        string $currency = 'usd',
-        array  $meta = [],
-        string $description = ''
-    ): array {
-        // ── Demo / stub detection ─────────────────────────────────────────────
-        $isDemoProvider = str_starts_with((string) $provider->stripe_id, 'cus_demo_')
-            || str_starts_with((string) $provider->stripe_payment_method_id, 'pm_demo_');
+    public function chargeProviderToCs(User $provider, User $cs, int $amountCents, string $currency = 'usd', array $meta = [], string $description = ''): array
+    {
+        $isDemoProvider = str_starts_with((string) $provider->stripe_id, 'cus_demo_') || str_starts_with((string) $provider->stripe_payment_method_id, 'pm_demo_');
         $isDemoCs = str_starts_with((string) $cs->stripe_account_id, 'acct_demo_');
 
         if ($isDemoProvider || $isDemoCs) {
-            return [
-                'stripe_payment_intent_id' => 'pi_demo_' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(16)),
-                'stripe_transfer_id'       => null,
-                'status'                   => 'paid',
-                'stub'                     => true,
-                'stub_reason'              => 'Demo mode — no real Stripe objects.',
-            ];
+            return ['stripe_payment_intent_id' => 'pi_demo_' . Str::lower(Str::random(16)), 'stripe_transfer_id' => null, 'status' => 'paid', 'stub' => true, 'stub_reason' => 'Demo mode.'];
         }
 
-        // ── Guards ────────────────────────────────────────────────────────────
         if (!$provider->stripe_id || !$provider->stripe_payment_method_id) {
             throw new \RuntimeException('No payment method on file. Please add a card in Settings → Billing before paying this invoice.');
         }
@@ -272,244 +515,92 @@ class PayoutService
         $csAccount  = $cs->stripe_account_id;
         $isRealAcct = $csAccount && preg_match('/^acct_[a-zA-Z0-9]{16,}$/', $csAccount);
         if (!$isRealAcct) {
-            throw new \RuntimeException('CS has not connected a Stripe account yet. They must complete payment setup before payment can be released.');
+            throw new \RuntimeException('CS has not connected a Stripe account yet.');
         }
 
         if (!config('services.stripe.secret')) {
-            return [
-                'stripe_payment_intent_id' => 'pi_stub_' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(16)),
-                'stripe_transfer_id'       => null,
-                'status'                   => 'pending',
-                'stub'                     => true,
-                'stub_reason'              => 'Stripe not configured (sandbox mode).',
-            ];
+            return ['stripe_payment_intent_id' => 'pi_stub_' . Str::lower(Str::random(16)), 'stripe_transfer_id' => null, 'status' => 'pending', 'stub' => true, 'stub_reason' => 'Stripe not configured.'];
         }
 
-        // ── Live Stripe destination charge ────────────────────────────────────
         try {
             $stripe = new \Stripe\StripeClient(config('services.stripe.secret'));
             $intent = $stripe->paymentIntents->create([
-                'amount'               => $amountCents,
-                'currency'             => strtolower($currency),
-                'customer'             => $provider->stripe_id,
-                'payment_method'       => $provider->stripe_payment_method_id,
-                'confirm'              => true,
-                'automatic_payment_methods' => ['enabled' => true, 'allow_redirects' => 'never'],
-                'transfer_data'        => ['destination' => $csAccount],
-                'on_behalf_of'         => $csAccount,
-                'description'          => $description ?: 'Aegis CS invoice payment',
-                'metadata'             => array_merge($meta, [
-                    'provider_id' => $provider->id,
-                    'cs_id'       => $cs->id,
-                ]),
+                'amount' => $amountCents, 'currency' => strtolower($currency),
+                'customer' => $provider->stripe_id, 'payment_method' => $provider->stripe_payment_method_id,
+                'confirm' => true, 'automatic_payment_methods' => ['enabled' => true, 'allow_redirects' => 'never'],
+                'transfer_data' => ['destination' => $csAccount], 'on_behalf_of' => $csAccount,
+                'description' => $description ?: 'Aegis CS invoice payment',
+                'metadata' => array_merge($meta, ['provider_id' => $provider->id, 'cs_id' => $cs->id]),
             ]);
-            return [
-                'stripe_payment_intent_id' => $intent->id,
-                'stripe_transfer_id'       => $intent->transfer_data->destination_payment ?? null,
-                'status'                   => $intent->status === 'succeeded' ? 'paid' : 'pending',
-                'stub'                     => false,
-            ];
+            return ['stripe_payment_intent_id' => $intent->id, 'stripe_transfer_id' => $intent->transfer_data->destination_payment ?? null, 'status' => $intent->status === 'succeeded' ? 'paid' : 'pending', 'stub' => false];
         } catch (\Stripe\Exception\CardException $e) {
             throw new \RuntimeException('Card declined: ' . $e->getMessage());
-        } catch (\Stripe\Exception\InvalidRequestException $e) {
-            throw new \RuntimeException('Stripe error: ' . $e->getMessage());
-        } catch (\Stripe\Exception\AuthenticationException $e) {
-            throw new \RuntimeException('Stripe authentication failed. Check STRIPE_SECRET in .env.');
         } catch (\Throwable $e) {
             throw new \RuntimeException('Payment failed: ' . $e->getMessage());
         }
     }
 
-    // ── Contract payment helpers ───────────────────────────────────────────────
-
-    /**
-     * End a one-time payment contract and charge Provider → BP via Stripe.
-     */
     public function endContractAndRelease(BpContract $contract, User $provider): BpPayout
     {
-        $bp = User::findOrFail($contract->bp_id);
-
-        $result = $this->chargeProviderToBp(
-            provider:    $provider,
-            bp:          $bp,
-            amountCents: $contract->total_value_cents,
-            currency:    'usd',
-            meta:        ['contract_id' => $contract->id, 'type' => 'one_time'],
-            description: 'Contract payment: ' . $contract->title,
-        );
-
-        $payout = BpPayout::create([
-            'id'                       => 'bpo_' . Str::lower(Str::random(12)),
-            'bp_id'                    => $contract->bp_id,
-            'provider_id'              => $provider->id,
-            'contract_id'              => $contract->id,
-            'amount_cents'             => $contract->total_value_cents,
-            'currency'                 => 'USD',
-            'status'                   => $result['status'],
-            'stripe_payment_intent_id' => $result['stripe_payment_intent_id'],
-            'stripe_transfer_id'       => $result['stripe_transfer_id'],
-            'released_at'              => now(),
-            'description'              => 'One-time contract payment: ' . $contract->title,
-        ]);
-
+        $bp     = User::findOrFail($contract->bp_id);
+        $result = $this->chargeProviderToBp($provider, $bp, $contract->total_value_cents, 'usd', ['contract_id' => $contract->id, 'type' => 'one_time'], 'Contract payment: ' . $contract->title);
+        $payout = BpPayout::create(['id' => 'bpo_' . Str::lower(Str::random(12)), 'bp_id' => $contract->bp_id, 'provider_id' => $provider->id, 'contract_id' => $contract->id, 'amount_cents' => $contract->total_value_cents, 'currency' => 'USD', 'status' => $result['status'], 'stripe_payment_intent_id' => $result['stripe_payment_intent_id'], 'stripe_transfer_id' => $result['stripe_transfer_id'], 'released_at' => now(), 'description' => 'One-time contract payment: ' . $contract->title]);
         $contract->update(['status' => 'completed', 'ended_at' => now(), 'completed_at' => now()]);
-
         $this->logPaymentActivity($provider, $bp, $payout, $contract->title, $contract->total_value_cents, $result);
-
-        // Fire PayoutReleased → SendEmailNotificationListener sends bp/40-payout-released to BP
         event(new PayoutReleased($payout->fresh()));
-
         return $payout;
     }
 
-    /**
-     * Pay an approved milestone: charge Provider → BP via Stripe destination charge.
-     */
     public function payMilestone(BpMilestone $milestone, User $provider): BpPayout
     {
-        $statusVal = $milestone->status instanceof \BackedEnum
-            ? $milestone->status->value
-            : (string) $milestone->status;
-
-        if ($statusVal !== 'approved') {
-            throw new \RuntimeException('Milestone must be approved before payment.');
-        }
-
+        $statusVal = $milestone->status instanceof \BackedEnum ? $milestone->status->value : (string) $milestone->status;
+        if ($statusVal !== 'approved') throw new \RuntimeException('Milestone must be approved before payment.');
         $contract = $milestone->contract;
         $bp       = User::findOrFail($contract->bp_id);
-
-        $result = $this->chargeProviderToBp(
-            provider:    $provider,
-            bp:          $bp,
-            amountCents: $milestone->amount_cents,
-            currency:    'usd',
-            meta:        ['contract_id' => $contract->id, 'milestone_id' => $milestone->id],
-            description: 'Milestone payment: ' . $milestone->title,
-        );
-
-        $payout = BpPayout::create([
-            'id'                       => 'bpo_' . Str::lower(Str::random(12)),
-            'bp_id'                    => $contract->bp_id,
-            'provider_id'              => $provider->id,
-            'contract_id'              => $contract->id,
-            'milestone_id'             => $milestone->id,
-            'amount_cents'             => $milestone->amount_cents,
-            'currency'                 => 'USD',
-            'status'                   => $result['status'],
-            'stripe_payment_intent_id' => $result['stripe_payment_intent_id'],
-            'stripe_transfer_id'       => $result['stripe_transfer_id'],
-            'released_at'              => now(),
-            'description'              => 'Milestone payment: ' . $milestone->title,
-        ]);
-
-        $milestone->update([
-            'status'    => 'paid',
-            'paid_at'   => now(),
-            'payout_id' => $payout->id,
-        ]);
-
+        $result   = $this->chargeProviderToBp($provider, $bp, $milestone->amount_cents, 'usd', ['contract_id' => $contract->id, 'milestone_id' => $milestone->id], 'Milestone payment: ' . $milestone->title);
+        $payout   = BpPayout::create(['id' => 'bpo_' . Str::lower(Str::random(12)), 'bp_id' => $contract->bp_id, 'provider_id' => $provider->id, 'contract_id' => $contract->id, 'milestone_id' => $milestone->id, 'amount_cents' => $milestone->amount_cents, 'currency' => 'USD', 'status' => $result['status'], 'stripe_payment_intent_id' => $result['stripe_payment_intent_id'], 'stripe_transfer_id' => $result['stripe_transfer_id'], 'released_at' => now(), 'description' => 'Milestone payment: ' . $milestone->title]);
+        $milestone->update(['status' => 'paid', 'paid_at' => now(), 'payout_id' => $payout->id]);
         $this->logPaymentActivity($provider, $bp, $payout, $milestone->title, $milestone->amount_cents, $result, 'milestone');
-
-        // Fire PayoutReleased → SendEmailNotificationListener sends bp/40-payout-released to BP
         event(new PayoutReleased($payout->fresh()));
-
         return $payout;
     }
 
     /**
-     * Release payment for a completed service session.
-     *
-     * Uses the same destination charge pattern as chargeProviderToBp():
-     *   Client's saved card (stripe_id + stripe_payment_method_id)
-     *   → Aegis platform ($0 net)
-     *   → Practitioner's Stripe Connect account (stripe_account_id)
-     *
-     * Demo detection: cus_demo_* / pm_demo_* / acct_demo_* identifiers bypass
-     * real Stripe so the demo works without live credentials.
-     *
-     * @throws \RuntimeException with user-facing message on guard failure
+     * Legacy single-charge session payout (kept for backwards compat with existing sessions).
+     * New sessions use chargeSessionDeposit() + chargeSessionBalance() instead.
      */
-    public function releaseServiceSessionPayout(
-        PractitionerPayment $payment,
-        User $practitioner,
-        User $client
-    ): PractitionerPayment {
-        // ── Demo / stub detection ─────────────────────────────────────────
-        $isDemoClient = str_starts_with((string) $client->stripe_id, 'cus_demo_')
-            || str_starts_with((string) $client->stripe_payment_method_id, 'pm_demo_');
-        $isDemoPractitioner = str_starts_with((string) $practitioner->stripe_account_id, 'acct_demo_');
-
-        if ($isDemoClient || $isDemoPractitioner) {
-            $payment->update([
-                'status'                   => PractitionerPaymentStatus::Paid->value,
-                'stripe_payment_intent_id' => 'pi_demo_' . Str::lower(Str::random(16)),
-                'paid_at'                  => now(),
-            ]);
+    public function releaseServiceSessionPayout(PractitionerPayment $payment, User $practitioner, User $client): PractitionerPayment
+    {
+        if ($this->isDemo($client, $practitioner)) {
+            $payment->update(['status' => PractitionerPaymentStatus::Paid->value, 'stripe_payment_intent_id' => 'pi_demo_' . Str::lower(Str::random(16)), 'paid_at' => now()]);
             $this->logSessionPaymentActivity($payment, $practitioner, $client, stub: true);
             return $payment->fresh();
         }
 
-        // ── Guards (production) ───────────────────────────────────────────
-        if (!$client->stripe_id || !$client->stripe_payment_method_id) {
-            throw new \RuntimeException(
-                'No payment method on file. You must add a card in Settings → Billing before confirming sessions.'
-            );
-        }
+        $this->guardClientPaymentMethod($client);
+        $this->guardProviderConnectAccount($practitioner);
 
-        $practitionerAccount = $practitioner->stripe_account_id;
-        if (!$practitionerAccount || !preg_match('/^acct_[a-zA-Z0-9]{16,}$/', $practitionerAccount)) {
-            throw new \RuntimeException(
-                'Provider has not connected a Stripe account. Payment will be queued once they complete account setup.'
-            );
-        }
-
-        // ── No Stripe key configured — stub pending ───────────────────────
         if (!config('services.stripe.secret')) {
-            $payment->update([
-                'status'                   => PractitionerPaymentStatus::Pending->value,
-                'stripe_payment_intent_id' => null,
-                'paid_at'                  => null,
-            ]);
+            $payment->update(['status' => PractitionerPaymentStatus::Pending->value, 'stripe_payment_intent_id' => null]);
             return $payment->fresh();
         }
 
-        // ── Live Stripe destination charge ────────────────────────────────
         try {
             $stripe = new StripeClient(config('services.stripe.secret'));
             $intent = $stripe->paymentIntents->create([
-                'amount'               => $payment->amount_cents,
-                'currency'             => strtolower($payment->currency ?? 'usd'),
-                'customer'             => $client->stripe_id,
-                'payment_method'       => $client->stripe_payment_method_id,
-                'confirm'              => true,
-                'automatic_payment_methods' => ['enabled' => true, 'allow_redirects' => 'never'],
-                'transfer_data'        => ['destination' => $practitionerAccount],
-                'on_behalf_of'         => $practitionerAccount,
-                'description'          => 'Session payment — Aegis',
-                'metadata'             => [
-                    'payment_id'      => $payment->id,
-                    'practitioner_id' => $practitioner->id,
-                    'client_id'       => $client->id,
-                ],
+                'amount' => $payment->amount_cents, 'currency' => strtolower($payment->currency ?? 'usd'),
+                'customer' => $client->stripe_id, 'payment_method' => $client->stripe_payment_method_id,
+                'confirm' => true, 'automatic_payment_methods' => ['enabled' => true, 'allow_redirects' => 'never'],
+                'transfer_data' => ['destination' => $practitioner->stripe_account_id],
+                'on_behalf_of' => $practitioner->stripe_account_id,
+                'description' => 'Session payment — Aegis',
+                'metadata' => ['payment_id' => $payment->id, 'practitioner_id' => $practitioner->id, 'client_id' => $client->id],
             ]);
-
             $isPaid = $intent->status === 'succeeded';
-            $payment->update([
-                'status'                   => $isPaid
-                    ? PractitionerPaymentStatus::Paid->value
-                    : PractitionerPaymentStatus::Pending->value,
-                'stripe_payment_intent_id' => $intent->id,
-                'paid_at'                  => $isPaid ? now() : null,
-            ]);
+            $payment->update(['status' => $isPaid ? PractitionerPaymentStatus::Paid->value : PractitionerPaymentStatus::Pending->value, 'stripe_payment_intent_id' => $intent->id, 'paid_at' => $isPaid ? now() : null]);
         } catch (\Throwable $e) {
             $payment->update(['status' => PractitionerPaymentStatus::Failed->value]);
-            $this->activity->log(
-                $practitioner->id, 'provider', 'payment', ActivitySeverity::Critical,
-                'session_payout_failed', 'Session payment failed',
-                $e->getMessage(),
-                'practitioner_payment', $payment->id,
-                $client->id, 'notification', $practitioner->id
-            );
+            $this->activity->log($practitioner->id, 'provider', 'payment', ActivitySeverity::Critical, 'session_payout_failed', 'Session payment failed', $e->getMessage(), 'practitioner_payment', $payment->id, $client->id, 'notification', $practitioner->id);
             throw new \RuntimeException('Session payment failed: ' . $e->getMessage());
         }
 
@@ -517,71 +608,97 @@ class PayoutService
         return $payment->fresh();
     }
 
-    private function logSessionPaymentActivity(
-        PractitionerPayment $payment,
-        User $practitioner,
-        User $client,
-        bool $stub = false
-    ): void {
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PRIVATE HELPERS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    private function isDemo(User $client, User $provider): bool
+    {
+        return str_starts_with((string) $client->stripe_id, 'cus_demo_')
+            || str_starts_with((string) $client->stripe_payment_method_id, 'pm_demo_')
+            || str_starts_with((string) $provider->stripe_account_id, 'acct_demo_');
+    }
+
+    /** @throws \RuntimeException */
+    private function guardClientPaymentMethod(User $client): void
+    {
+        if (!$client->stripe_id || !$client->stripe_payment_method_id) {
+            throw new \RuntimeException(
+                'No payment method on file. Add a card in Settings → Billing before paying.'
+            );
+        }
+    }
+
+    /** @throws \RuntimeException */
+    private function guardProviderConnectAccount(User $provider): void
+    {
+        $account = $provider->stripe_account_id;
+        if (!$account || !preg_match('/^acct_[a-zA-Z0-9]{16,}$/', $account)) {
+            throw new \RuntimeException(
+                'Provider has not connected a Stripe account. Payment will be held until they complete setup.'
+            );
+        }
+    }
+
+    private function logDepositActivity(PractitionerPayment $payment, ServiceSession $session, User $provider, User $client, bool $stub): void
+    {
         $amount    = '$' . number_format($payment->amount_cents / 100, 2);
-        $statusNote = $stub ? ' (demo mode — no real charge)' : ' via Stripe';
+        $note      = $stub ? ' (demo)' : ' via Stripe';
+        $svcTitle  = $session->service?->title ?? 'session';
 
-        // Practitioner notification
         $this->activity->log(
-            $practitioner->id, 'provider', 'payment', ActivitySeverity::Info,
-            'session_payment_received',
-            'Session payment received',
-            $amount . ' from ' . $client->display_name . $statusNote . '.',
-            'practitioner_payment', $payment->id,
-            $client->id, 'notification', $client->id
+            $provider->id, 'provider', 'payment', ActivitySeverity::Info,
+            'session_deposit_received',
+            'Session deposit received — ' . $svcTitle,
+            $amount . ' deposit from ' . $client->display_name . $note . '. Balance due on completion.',
+            'service_session', $session->id, $client->id, 'notification', $client->id
         );
-
-        // Client log
         $this->activity->log(
             $client->id, 'provider', 'payment', ActivitySeverity::Info,
-            'session_payment_sent',
-            'Session payment sent',
-            $amount . ' sent to ' . $practitioner->display_name . $statusNote . '.',
-            'practitioner_payment', $payment->id,
-            $practitioner->id, 'log', $client->id
+            'session_deposit_paid',
+            'Deposit paid — ' . $svcTitle,
+            $amount . ' deposit sent to ' . $provider->display_name . $note . '. Balance due after session.',
+            'service_session', $session->id, $provider->id, 'log', $client->id
         );
     }
 
-    // ── Private helpers ────────────────────────────────────────────────────────
+    private function logBalanceActivity(PractitionerPayment $payment, ServiceSession $session, User $provider, User $client, bool $stub): void
+    {
+        $amount   = '$' . number_format($payment->amount_cents / 100, 2);
+        $note     = $stub ? ' (demo)' : ' via Stripe';
+        $svcTitle = $session->service?->title ?? 'session';
 
-    private function logPaymentActivity(
-        User    $provider,
-        User    $bp,
-        BpPayout $payout,
-        string  $title,
-        int     $amountCents,
-        array   $result,
-        string  $type = 'contract'
-    ): void {
+        $this->activity->log(
+            $provider->id, 'provider', 'payment', ActivitySeverity::Info,
+            'session_balance_received',
+            'Session fully paid — ' . $svcTitle,
+            $amount . ' balance from ' . $client->display_name . $note . '. Session complete.',
+            'service_session', $session->id, $client->id, 'notification', $client->id
+        );
+        $this->activity->log(
+            $client->id, 'provider', 'payment', ActivitySeverity::Info,
+            'session_balance_paid',
+            'Session payment complete — ' . $svcTitle,
+            $amount . ' sent to ' . $provider->display_name . $note . '. Full payment received.',
+            'service_session', $session->id, $provider->id, 'log', $client->id
+        );
+    }
+
+    private function logSessionPaymentActivity(PractitionerPayment $payment, User $practitioner, User $client, bool $stub): void
+    {
+        $amount     = '$' . number_format($payment->amount_cents / 100, 2);
+        $statusNote = $stub ? ' (demo mode — no real charge)' : ' via Stripe';
+        $this->activity->log($practitioner->id, 'provider', 'payment', ActivitySeverity::Info, 'session_payment_received', 'Session payment received', $amount . ' from ' . $client->display_name . $statusNote . '.', 'practitioner_payment', $payment->id, $client->id, 'notification', $client->id);
+        $this->activity->log($client->id, 'provider', 'payment', ActivitySeverity::Info, 'session_payment_sent', 'Session payment sent', $amount . ' sent to ' . $practitioner->display_name . $statusNote . '.', 'practitioner_payment', $payment->id, $practitioner->id, 'log', $client->id);
+    }
+
+    private function logPaymentActivity(User $provider, User $bp, BpPayout $payout, string $title, int $amountCents, array $result, string $type = 'contract'): void
+    {
         $amountLabel = '$' . number_format($amountCents / 100, 2);
         $linkType    = $type === 'milestone' ? 'bp_milestone' : 'bp_payout';
         $linkId      = $type === 'milestone' ? ($payout->milestone_id ?? $payout->id) : $payout->id;
-
-        $statusNote = $result['stub'] ?? false
-            ? ' (payment queued — BP Stripe account pending verification)'
-            : ' via Stripe';
-
-        // Provider log
-        $this->activity->log(
-            $provider->id, 'provider', 'job_postings', ActivitySeverity::Info,
-            $type === 'milestone' ? 'milestone_paid' : 'contract_payment_released',
-            ucfirst($type) . ' payment released: ' . $title,
-            $amountLabel . ' charged to your card and sent to ' . $bp->display_name . $statusNote . '.',
-            $linkType, $linkId, null, 'log', $provider->id
-        );
-
-        // BP notification
-        $this->activity->log(
-            $bp->id, 'business_partner', 'job_postings', ActivitySeverity::Info,
-            $type === 'milestone' ? 'milestone_payment_received' : 'contract_payment_received',
-            ucfirst($type) . ' payment received: ' . $title,
-            $amountLabel . ' has been transferred to your connected Stripe account.',
-            $linkType, $linkId, $provider->id, 'notification', $provider->id
-        );
+        $statusNote  = $result['stub'] ?? false ? ' (payment queued — BP Stripe account pending verification)' : ' via Stripe';
+        $this->activity->log($provider->id, 'provider', 'job_postings', ActivitySeverity::Info, $type === 'milestone' ? 'milestone_paid' : 'contract_payment_released', ucfirst($type) . ' payment released: ' . $title, $amountLabel . ' charged to your card and sent to ' . $bp->display_name . $statusNote . '.', $linkType, $linkId, null, 'log', $provider->id);
+        $this->activity->log($bp->id, 'business_partner', 'job_postings', ActivitySeverity::Info, $type === 'milestone' ? 'milestone_payment_received' : 'contract_payment_received', ucfirst($type) . ' payment received: ' . $title, $amountLabel . ' has been transferred to your connected Stripe account.', $linkType, $linkId, $provider->id, 'notification', $provider->id);
     }
 }

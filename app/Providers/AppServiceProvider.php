@@ -172,6 +172,14 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Service\ServiceRequestSubmitted::class, Listeners\ActivityFanoutListener::class);
         Event::listen(Events\Service\ServiceRequestSubmitted::class, Listeners\SendEmailNotificationListener::class);
 
+        // ── Wave 2: Session deposit / balance / refund events ─────────────────
+        Event::listen(Events\Service\SessionDepositPaid::class,      Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Service\SessionBalancePaid::class,      Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Service\SessionRefundRequested::class,  Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Service\SessionRefundApproved::class,   Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Service\SessionRefundDenied::class,     Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Service\SessionRefundEscalated::class,  Listeners\SendEmailNotificationListener::class);
+
         // ── UNGATED incident alerts (bypass notify_* prefs entirely) ─────────────
         Event::listen(Events\Incident\IncidentReported::class,     Listeners\SendIncidentAlertsListener::class);
         Event::listen(Events\Incident\IncidentVerified::class,     Listeners\SendIncidentAlertsListener::class);
