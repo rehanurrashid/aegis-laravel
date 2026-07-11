@@ -28,9 +28,7 @@
         <button type="button" class="btn-hero-ghost is-on-light" @click="modals.export = true">
           <AegisIcon name="download" :size="14" /> Export Report
         </button>
-        <button type="button" class="btn-hero-solid is-on-light" @click="modals.addPayment = true">
-          <AegisIcon name="plus" :size="14" /> Add Payment Method
-        </button>
+
       </template>
     </AegisHeroBanner>
 
@@ -126,9 +124,9 @@
             <span class="page-sidebar-icon"><AegisIcon name="clock" :size="15" /></span>
             Transactions
           </button>
-          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'integrations' }" @click="activeTab = 'integrations'">
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'stripe_connect' }" @click="activeTab = 'stripe_connect'">
             <span class="page-sidebar-icon"><AegisIcon name="link" :size="15" /></span>
-            Integrations
+            Stripe Connect
           </button>
         </div>
 
@@ -656,7 +654,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="inv in subscriptionInvoices" :key="inv.id" class="sub-inv-row" @click="openSubInvoice(inv)">
+              <tr v-for="inv in subscriptionInvoices" :key="inv.id" class="sub-inv-row">
                 <td style="padding-left:20px;" class="tx-date">{{ formatSubscriptionDate(inv.date || inv.created) }}</td>
                 <td>
                   <div class="sub-inv-product">{{ inv.product_name || 'Aegis Subscription' }}</div>
@@ -665,9 +663,8 @@
                 <td class="tx-amount-out" style="font-size:14px;white-space:nowrap;">{{ formatCents(inv.amount_cents) }}</td>
                 <td><AegisBadge :label="inv.status" :variant="statusVariant(inv.status)" /></td>
                 <td style="padding-right:20px;text-align:right;">
-                  <button type="button" class="btn-icon btn-icon-sm" data-tooltip="View invoice" @click.stop="openSubInvoice(inv)">
-                    <AegisIcon name="eye" :size="12" />
-                  </button>
+                  <a v-if="inv.hosted_url" :href="inv.hosted_url" target="_blank" class="btn-icon btn-icon-sm" data-tooltip="View on Stripe"><AegisIcon name="external-link" :size="12" /></a>
+                  <a v-else-if="inv.pdf_url" :href="inv.pdf_url" target="_blank" class="btn-icon btn-icon-sm" data-tooltip="Download PDF"><AegisIcon name="download" :size="12" /></a>
                 </td>
               </tr>
             </tbody>
@@ -682,67 +679,6 @@
       </div>
     </div>
 
-    <!-- ══ SUB INVOICE MODAL ══ -->
-    <AegisModal v-model="modals.subInvoice" title="Subscription Invoice" size="lg">
-      <div v-if="activeSubInvoice" class="sub-inv-modal">
-
-        <!-- Branded header -->
-        <div class="sim-header">
-          <div class="sim-logo"><AegisIcon name="star" :size="20" /></div>
-          <div class="sim-brand">
-            <div class="sim-from">Aegis Platform</div>
-            <div class="sim-sub">Practice Continuity Subscription</div>
-          </div>
-          <div class="sim-status-block">
-            <AegisBadge :label="activeSubInvoice.status" :variant="statusVariant(activeSubInvoice.status)" />
-            <div class="sim-date">{{ formatSubscriptionDate(activeSubInvoice.date || activeSubInvoice.created) }}</div>
-          </div>
-        </div>
-
-        <!-- Invoice number -->
-        <div class="sim-number-row">
-          <span class="sim-number-label">Invoice #</span>
-          <span class="sim-number">{{ activeSubInvoice.number || activeSubInvoice.id }}</span>
-        </div>
-
-        <!-- Line items -->
-        <div class="sim-items">
-          <div class="sim-item">
-            <div class="sim-item-icon"><AegisIcon name="check-circle" :size="15" /></div>
-            <div class="sim-item-name">{{ activeSubInvoice.product_name || 'Aegis Subscription' }}</div>
-            <div class="sim-item-price">{{ formatCents(activeSubInvoice.amount_cents) }}</div>
-          </div>
-        </div>
-
-        <!-- Totals -->
-        <div class="sim-totals">
-          <div class="sim-total-row">
-            <span>Subtotal</span>
-            <span>{{ formatCents(activeSubInvoice.amount_cents) }}</span>
-          </div>
-          <div class="sim-total-row sim-total-row--main">
-            <span>{{ activeSubInvoice.status === 'paid' ? 'Total paid' : 'Amount due' }}</span>
-            <span>{{ formatCents(activeSubInvoice.amount_cents) }}</span>
-          </div>
-        </div>
-
-        <!-- Fine print -->
-        <div class="sim-fine-print">
-          <AegisIcon name="shield" :size="12" />
-          Charged to your default card on file. Card details are securely tokenized by Stripe — Aegis never stores your full card number.
-        </div>
-      </div>
-      <template #footer>
-        <a v-if="activeSubInvoice?.pdf_url" :href="activeSubInvoice.pdf_url" target="_blank" class="btn btn-ghost">
-          <AegisIcon name="download" :size="12" /> Download PDF
-        </a>
-        <a v-if="activeSubInvoice?.hosted_url" :href="activeSubInvoice.hosted_url" target="_blank" class="btn btn-outline">
-          <AegisIcon name="external-link" :size="12" /> View on Stripe
-        </a>
-        <button v-if="!activeSubInvoice?.hosted_url && !activeSubInvoice?.pdf_url" type="button" class="btn btn-outline" @click="modals.subInvoice = false">Close</button>
-      </template>
-    </AegisModal>
-
     <!-- ══════════════════════════════ TAB: PAYMENT METHODS ══════════════════════════════ -->
     <div v-show="activeTab === 'methods'">
       <div class="card" style="margin-bottom:18px;">
@@ -751,9 +687,9 @@
             <span class="fin-card-icon"><AegisIcon name="credit-card" :size="15" /></span>
             Saved Payment Methods
           </div>
-          <button type="button" class="btn btn-dark" @click="modals.addPayment = true">
-            <AegisIcon name="plus" :size="12" /> Add Method
-          </button>
+          <a :href="route('provider.settings.index') + '?section=payment_methods'" class="btn btn-outline">
+            <AegisIcon name="external-link" :size="12" /> Manage in Settings
+          </a>
         </div>
         <div class="card-body">
           <div class="alert alert-info" style="margin-bottom:16px;">
@@ -786,14 +722,7 @@
                 </div>
               </div>
               <div class="pm-card-btns">
-                <template v-if="!pm.is_default">
-                  <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Set as default" @click="setDefaultPm(pm)">
-                    <AegisIcon name="check" :size="12" />
-                  </button>
-                  <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Remove" @click="activePm = pm; modals.removeCard = true">
-                    <AegisIcon name="trash" :size="12" />
-                  </button>
-                </template>
+                <AegisIcon v-if="pm.is_default" name="shield-check" :size="16" style="color:var(--gold-dark);" data-tooltip="Default payment method" />
               </div>
             </div>
           </div>
@@ -889,7 +818,7 @@
     </div>
 
     <!-- ══════════════════════════════ TAB: INTEGRATIONS ══════════════════════════════ -->
-    <div v-show="activeTab === 'integrations'">
+    <div v-show="activeTab === 'stripe_connect'">
       <div class="card">
         <div class="card-header">
           <div class="card-title fin-card-title">
@@ -908,17 +837,16 @@
                 <div class="stripe-setup-desc">
                   Connect your Stripe account to <strong>receive</strong> payments from clients booking your services. Aegis uses Stripe Connect — funds go directly to your bank account. Aegis never holds your money.
                 </div>
-                <div v-if="stripeConnected" class="stripe-setup-connected">
-                  <span class="app-status-connected"><AegisIcon name="check" :size="13" /> Connected</span>
-                  <a :href="route('provider.settings.billing.portal')" class="btn btn-ghost btn-sm" target="_blank">
-                    <AegisIcon name="external-link" :size="12" /> Stripe Dashboard
+                <div class="stripe-setup-actions" style="margin-top:4px;">
+                  <span v-if="stripeConnected" class="app-status-connected">
+                    <AegisIcon name="check" :size="13" /> Connected
+                  </span>
+                  <span v-else class="app-status-disconnected">
+                    <AegisIcon name="alert-triangle" :size="13" /> Not connected
+                  </span>
+                  <a :href="route('provider.settings.index') + '?section=stripe_connect'" class="btn btn-outline">
+                    <AegisIcon name="external-link" :size="12" /> Manage in Settings
                   </a>
-                </div>
-                <div v-else class="stripe-setup-actions">
-                  <a :href="route('provider.settings.connect.onboard')" class="btn btn-primary">
-                    <AegisIcon name="external-link" :size="13" /> Connect Stripe Account
-                  </a>
-                  <span style="font-size:12px;color:var(--text-4);">You'll be redirected to Stripe to complete setup</span>
                 </div>
               </div>
             </div>
@@ -1124,25 +1052,7 @@
       </template>
     </AegisModal>
 
-    <!-- Add Payment Method (centralized AddCardModal) -->
-    <AddCardModal
-      v-model="modals.addPayment"
-      setup-intent-route="provider.settings.payment.setup-intent"
-      store-route="provider.finances.payment.store"
-    />
 
-    <!-- Remove Card -->
-    <AegisModal v-model="modals.removeCard" title="Remove Payment Method" size="sm">
-      <p style="font-size:13px;color:var(--text-2);">
-        Remove this payment method? If it's the only card on file, subscription renewal and peer payments will fail until a new card is added.
-      </p>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.removeCard = false">Cancel</button>
-        <button type="button" class="btn btn-danger" @click="doRemoveCard">
-          <AegisIcon name="trash" :size="13" /> Remove
-        </button>
-      </template>
-    </AegisModal>
 
     <!-- Export Report — with client-side validation -->
     <AegisModal v-model="modals.export" title="Export Financial Report" size="lg">
@@ -1293,7 +1203,6 @@ import { ref, computed, reactive, onMounted } from 'vue'
 import { router, useForm }         from '@inertiajs/vue3'
 import AppLayout                   from '@/layouts/AppLayout.vue'
 import OpenDisputeModal            from '@/components/modals/OpenDisputeModal.vue'
-import AddCardModal                from '@/components/modals/AddCardModal.vue'
 import ViewInvoiceModal            from '@/components/modals/ViewInvoiceModal.vue'
 import AegisPagination             from '@/components/ui/AegisPagination.vue'
 import { useToast }                from '@/composables/useToast'
@@ -1392,19 +1301,15 @@ const paginatedTransactions = computed(() => {
 const activeInvoice  = ref(null)
 const activeContract = ref(null)
 const activeCs       = ref(null)
-const activePm       = ref(null)
 
 // ── Modals ───────────────────────────────────────────────────────────────
 const modals = ref({
   approveInvoice: false, rejectInvoice: false, viewReceipt: false,
   cancelCsAgreement: false, cancelBpContract: false, autoPay: false,
-  viewContract: false, addPayment: false, removeCard: false, export: false,
+  viewContract: false, export: false,
   payArrangement: false, changePayModel: false, confirmCsPay: false, openDispute: false,
-  subInvoice: false,
 })
 
-const activeSubInvoice = ref(null)
-function openSubInvoice(inv) { activeSubInvoice.value = inv; modals.value.subInvoice = true }
 
 // ── Payment forms (Inertia) ──────────────────────────────────────────────
 const paying   = ref(null)
@@ -1458,14 +1363,8 @@ function openViewInvoice(inv)    { activeInvoice.value = inv; modals.value.viewR
  */
 function openTxReceipt(tx) {
   if (tx.modal_type === 'subscription') {
-    // Try to match against a loaded subscription invoice by Stripe invoice ID
-    const matched = props.subscriptionInvoices?.find(i => i.id === tx.stripe_invoice_id)
-    if (matched) {
-      activeSubInvoice.value = matched
-      modals.value.subInvoice = true
-      return
-    }
-    // Fallback: switch to subscription tab so user can find it manually
+    // Subscription invoices are managed in Settings — navigate there
+    if (tx.stripe_invoice_url) { window.open(tx.stripe_invoice_url, '_blank'); return }
     activeTab.value = 'subscription'
     toast.info('Subscription invoice not found in recent history — check the Subscription tab.')
     return
@@ -1567,22 +1466,6 @@ function doSavePayModel() {
 }
 
 // ── Payment methods ──────────────────────────────────────────────────────
-function setDefaultPm(pm) {
-  router.post(route('provider.settings.payment.default'), { payment_method_id: pm.id }, {
-    preserveScroll: true,
-    onSuccess: () => toast.success('Default payment method updated.'),
-    onError:   () => toast.error('Could not update default payment method.'),
-  })
-}
-function doRemoveCard() {
-  if (!activePm.value) return
-  router.delete(route('provider.settings.payment.remove'), {
-    data: { payment_method_id: activePm.value.id },
-    preserveScroll: true,
-    onSuccess: () => { modals.value.removeCard = false; toast.info('Payment method removed.') },
-    onError:   () => toast.error('Could not remove payment method.'),
-  })
-}
 
 // ── Spending controls ─────────────────────────────────────────────────────
 const spendControlsForm = useForm({
