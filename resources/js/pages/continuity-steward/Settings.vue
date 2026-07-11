@@ -198,7 +198,7 @@
             <div class="st-card-body">
               <template v-if="sub.on_grace_period">
                 <div class="st-perks-band" style="border-color:var(--orange);background:var(--orange-light);">
-                  <AegisIcon name="alert-triangle" :size="16" style="color:var(--orange)" />
+                  <AegisIcon name="alert-triangle" :size="16" style="color:var(--gold-dark)" />
                   <div style="font-size:13px;color:var(--text-2)">Subscription cancelled — access ends { formatDate(sub.ends_at) }. <button type="button" class="btn btn-gold btn-sm" @click="resumeCsPlan" :disabled="planBusy">Reactivate</button></div>
                 </div>
               </template>
@@ -282,7 +282,7 @@
                 </div>
               </div>
               <div style="padding:12px 14px;border-radius:var(--radius);background:var(--surface-2);border:1px solid var(--border);font-size:13px;color:var(--text-2);line-height:1.6">
-                <AegisIcon name="info" :size="13" style="color:var(--gold-dark);vertical-align:middle;margin-right:4px" />
+                <AegisIcon name="info" :size="13" style="color:var(--gold-dark);flex-shrink:0;" />
                 {{ pendingCsSwap.note }}
               </div>
             </div>
@@ -298,7 +298,7 @@
           <AegisModal v-model="confirmCsResume" title="Reactivate Subscription" size="sm">
             <p style="font-size:14px;color:var(--text-2);margin-bottom:14px">Your <strong>Business CS</strong> subscription will continue as normal. You will be charged on your next billing date.</p>
             <div style="padding:10px 14px;border-radius:var(--radius);background:var(--green-light);border:1px solid var(--green-dark);font-size:13px;color:var(--green-dark)">
-              <AegisIcon name="check" :size="13" style="margin-right:4px" /> Your CS portal access will be fully restored immediately.
+              <AegisIcon name="check" :size="13" style="color:var(--gold-dark);flex-shrink:0;" /> <span>Your CS portal access will be fully restored immediately.</span>
             </div>
             <template #footer>
               <button type="button" class="btn btn-outline btn-sm" @click="confirmCsResume = false">Cancel</button>

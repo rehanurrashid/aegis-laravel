@@ -707,9 +707,9 @@
             </template>
             <template v-else>
               <p style="font-size:14px;color:var(--text-2);margin-bottom:14px">You are about to remove the <strong>MAAT Professional CS Service</strong> add-on.</p>
-              <div style="padding:12px 14px;border-radius:var(--radius);background:var(--orange-light);border:1px solid var(--border-dark);font-size:13px;color:var(--text-2);line-height:1.6">
-                <AegisIcon name="alert-triangle" :size="13" style="color:var(--orange);vertical-align:middle;margin-right:4px" />
-                The MAAT Continuity Steward assignment will be removed. Your MAAT CS will be notified. The remove takes effect immediately.
+              <div style="padding:12px 14px;border-radius:var(--radius);background:var(--orange-light);border:1px solid var(--border-dark);font-size:13px;color:var(--text-2);line-height:1.6;display:flex;align-items:flex-start;gap:8px;">
+                <AegisIcon name="alert-triangle" :size="13" style="color:var(--gold-dark);flex-shrink:0;margin-top:2px;" />
+                <span>The MAAT Continuity Steward assignment will be removed. Your MAAT CS will be notified. The remove takes effect immediately.</span>
               </div>
             </template>
             <template #footer>

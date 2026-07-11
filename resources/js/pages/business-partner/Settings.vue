@@ -209,7 +209,7 @@
               <template v-else-if="sub.on_grace_period">
                 <div class="st-perks-band" style="border-color:var(--orange);background:var(--orange-light);">
                   <div style="display:flex;align-items:center;gap:10px">
-                    <AegisIcon name="alert-triangle" :size="18" style="color:var(--orange)" />
+                    <AegisIcon name="alert-triangle" :size="18" style="color:var(--gold-dark)" />
                     <div>
                       <div style="font-size:13px;font-weight:700;color:var(--text)">Your subscription was cancelled</div>
                       <div style="font-size:12px;color:var(--text-2)">Access ends { formatDate(sub.ends_at) }. Reactivate before then to keep your account.</div>
@@ -311,7 +311,7 @@
                 </div>
               </div>
               <div style="padding:12px 14px;border-radius:var(--radius);background:var(--surface-2);border:1px solid var(--border);font-size:13px;color:var(--text-2);line-height:1.6">
-                <AegisIcon name="info" :size="13" style="color:var(--gold-dark);vertical-align:middle;margin-right:4px" />
+                <AegisIcon name="info" :size="13" style="color:var(--gold-dark);flex-shrink:0;" />
                 {{ pendingBpSwap.note }}
               </div>
             </div>
@@ -327,7 +327,7 @@
           <AegisModal v-model="confirmBpResume" title="Reactivate Subscription" size="sm">
             <p style="font-size:14px;color:var(--text-2);margin-bottom:14px">Your <strong>Business Partner</strong> subscription will continue as normal. You will be charged on your next billing date.</p>
             <div style="padding:10px 14px;border-radius:var(--radius);background:var(--green-light);border:1px solid var(--green-dark);font-size:13px;color:var(--green-dark)">
-              <AegisIcon name="check" :size="13" style="margin-right:4px" /> Your Business Partner portal access will be fully restored immediately.
+              <AegisIcon name="check" :size="13" style="color:var(--gold-dark);flex-shrink:0;" /> <span>Your Business Partner portal access will be fully restored immediately.</span>
             </div>
             <template #footer>
               <button type="button" class="btn btn-outline btn-sm" @click="confirmBpResume = false">Cancel</button>
