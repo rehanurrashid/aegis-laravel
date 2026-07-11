@@ -219,11 +219,11 @@
         {{ exploreResults.length }} service{{ exploreResults.length !== 1 ? 's' : '' }} shown
       </div>
 
-      <!-- ServiceRequestModal for explore submissions -->
+      <!-- ServiceRequestModal — centralized, same modal used in Network.vue -->
       <ServiceRequestModal
-        :service-id="activeExploreService?.id ?? ''"
-        :service-title="activeExploreService?.title ?? ''"
-        :provider-label="activeExploreService?.practitioner_name ?? ''"
+        ref="svcModalRef"
+        :provider-id="svcTarget.id"
+        :provider-label="svcTarget.label"
       />
     </div>
 
@@ -233,22 +233,26 @@
     <div v-show="activeTab === 'listings'">
 
       <!-- Toolbar -->
-      <div class="svc-toolbar">
+      <div class="svc-toolbar svc-toolbar--thirds">
         <div class="search-wrap">
           <AegisIcon name="search" :size="15" />
           <input v-model="listingSearch" type="text" class="form-control" placeholder="Search your service listings…">
         </div>
-        <select v-model="listingTypeFilter" class="form-select">
-          <option value="">All Types</option>
-          <option v-for="c in serviceCategories" :key="c.value" :value="c.value">{{ c.label }}</option>
-        </select>
-        <select v-model="listingStatusFilter" class="form-select">
-          <option value="">All Statuses</option>
-          <option value="active">Active</option>
-          <option value="draft">Draft</option>
-          <option value="paused">Paused</option>
-          <option value="archived">Archived</option>
-        </select>
+        <div class="svc-select-wrap">
+          <select v-model="listingTypeFilter" class="form-select">
+            <option value="">All Types</option>
+            <option v-for="c in serviceCategories" :key="c.value" :value="c.value">{{ c.label }}</option>
+          </select>
+        </div>
+        <div class="svc-select-wrap">
+          <select v-model="listingStatusFilter" class="form-select">
+            <option value="">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="draft">Draft</option>
+            <option value="paused">Paused</option>
+            <option value="archived">Archived</option>
+          </select>
+        </div>
       </div>
 
       <!-- Service Cards Grid -->
@@ -407,19 +411,21 @@
     ══════════════════════════════════════════════════════════════════ -->
     <div v-show="activeTab === 'bookings'">
 
-      <div class="svc-toolbar">
+      <div class="svc-toolbar svc-toolbar--halves">
         <div class="search-wrap">
           <AegisIcon name="search" :size="15" />
           <input v-model="bookingSearch" type="text" class="form-control" placeholder="Search sessions or clients…">
         </div>
-        <select v-model="bookingDateRange" class="form-select">
-          <option value="this_month">This Month</option>
-          <option value="last_month">Last Month</option>
-          <option value="last_60">Last 60 Days</option>
-          <option value="last_90">Last 90 Days</option>
-          <option value="this_year">This Year</option>
-          <option value="all">All Time</option>
-        </select>
+        <div class="svc-select-wrap">
+          <select v-model="bookingDateRange" class="form-select">
+            <option value="this_month">This Month</option>
+            <option value="last_month">Last Month</option>
+            <option value="last_60">Last 60 Days</option>
+            <option value="last_90">Last 90 Days</option>
+            <option value="this_year">This Year</option>
+            <option value="all">All Time</option>
+          </select>
+        </div>
       </div>
 
       <div class="card card-flush">
@@ -1269,8 +1275,14 @@ onUnmounted(() => disconnectExplore())
 
 const exploreResults = computed(() => exploreResultsLocal.value)
 
+// ServiceRequestModal — same pattern as Network.vue
+const svcModalRef = ref(null)
+const svcTarget   = reactive({ id: '', label: '' })
+
 function openExploreRequest(svc) {
-  activeExploreService.value = svc
+  svcTarget.id    = svc.practitioner_id ?? ''
+  svcTarget.label = svc.practitioner_name ?? ''
+  svcModalRef.value?.preselect(svc.title ?? 'Services')
   openModal('serviceRequestModal')
 }
 
@@ -1744,11 +1756,23 @@ const serviceTypeOptions = [
 
 /* ── TOOLBAR ── */
 .svc-toolbar { display: grid; grid-template-columns: repeat(12, 1fr); gap: 10px; margin-bottom: 18px; align-items: center; }
-.svc-toolbar .search-wrap { grid-column: span 6; position: relative; min-width: 0; }
-.svc-toolbar > .form-select { grid-column: span 3; min-width: 0; }
+/* Default: search span 6, selects span 3 each */
+.svc-toolbar .search-wrap    { grid-column: span 6; position: relative; min-width: 0; }
+.svc-toolbar .svc-select-wrap { grid-column: span 3; min-width: 0; }
+/* --thirds: search + 2 selects each get 4 columns */
+.svc-toolbar--thirds .search-wrap     { grid-column: span 4; }
+.svc-toolbar--thirds .svc-select-wrap { grid-column: span 4; }
+/* --halves: search + 1 select get 6 columns each */
+.svc-toolbar--halves .search-wrap     { grid-column: span 6; }
+.svc-toolbar--halves .svc-select-wrap { grid-column: span 6; }
+/* Inner select/ts-wrapper fill the wrapper */
+.svc-select-wrap .form-select,
+.svc-select-wrap .ts-wrapper { width: 100%; }
 .svc-toolbar .search-wrap .aegis-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-4); pointer-events: none; }
 .svc-toolbar .search-wrap .form-control { padding-left: 38px; width: 100%; }
-@media (max-width: 720px) { .svc-toolbar { grid-template-columns: 1fr; } .svc-toolbar .search-wrap, .svc-toolbar > .form-select { grid-column: 1 / -1; } }
+/* Keep bare .form-select direct child working as fallback */
+.svc-toolbar > .form-select { grid-column: span 3; min-width: 0; }
+@media (max-width: 720px) { .svc-toolbar { grid-template-columns: 1fr; } .svc-toolbar .search-wrap, .svc-toolbar .svc-select-wrap, .svc-toolbar > .form-select { grid-column: 1 / -1; } }
 @media (max-width: 900px) { .services-grid { grid-template-columns: 1fr; } .settings-grid { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .pricing-options { grid-template-columns: 1fr 1fr; } }
 

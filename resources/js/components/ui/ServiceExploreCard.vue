@@ -55,7 +55,7 @@
       <div class="ec-provider-info">
         <a
           v-if="service.practitioner_slug"
-          :href="`/public/profiles/${service.practitioner_slug}`"
+          :href="`/public/provider/${service.practitioner_slug}`"
           class="ec-provider-name link-name"
           @click.stop
         >{{ service.practitioner_name }}</a>
