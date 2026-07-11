@@ -1322,22 +1322,34 @@ function openViewInvoice(inv)    { activeInvoice.value = inv; modals.value.viewR
  */
 function openTxReceipt(tx) {
   if (tx.modal_type === 'subscription') {
-    // Subscription invoices are handled in the Subscription tab via SettingsSubscriptionInvoices
-    if (tx.stripe_invoice_url) { window.open(tx.stripe_invoice_url, '_blank'); return }
-    activeTab.value = 'subscription'
-    toast.info('View your subscription invoices in the Subscription tab.')
+    activeInvoice.value = {
+      kind:              'subscription',
+      invoice_number:    tx.stripe_invoice_id ?? tx.id,
+      description:       tx.description,
+      total_cents:       tx.amount_cents,
+      status:            tx.status,
+      issued_at:         tx.date,
+      stripe_invoice_id: tx.stripe_invoice_id ?? null,
+    }
+    modals.value.viewReceipt = true
     return
   }
   if (tx.modal_type === 'cs_invoice') {
-    const inv = props.csInvoices.find(i => tx.description.includes(i.invoice_number))
+    const inv = tx.subject_id
+      ? props.csInvoices.find(i => i.id === tx.subject_id)
+      : props.csInvoices.find(i => tx.description?.includes(i.invoice_number))
     if (inv) { activeInvoice.value = { ...inv, kind: 'cs_invoice' }; modals.value.viewReceipt = true; return }
   }
   if (tx.modal_type === 'bp_invoice') {
-    const inv = props.bpInvoices.find(i => tx.description.includes(i.invoice_number))
+    const inv = tx.subject_id
+      ? props.bpInvoices.find(i => i.id === tx.subject_id)
+      : props.bpInvoices.find(i => tx.description?.includes(i.invoice_number))
     if (inv) { activeInvoice.value = { ...inv, kind: 'bp_invoice' }; modals.value.viewReceipt = true; return }
   }
   if (tx.modal_type === 'session') {
-    const ses = props.clientSessions[0]
+    const ses = tx.subject_id
+      ? props.clientSessions.find(s => s.id === tx.subject_id)
+      : props.clientSessions[0]
     if (ses) { activeInvoice.value = { ...ses, kind: 'session' }; modals.value.viewReceipt = true; return }
   }
   toast.info('Receipt details are not available for this transaction.')

@@ -68,7 +68,18 @@
     </div>
 
     <template #footer>
-      <button type="button" class="btn btn-ghost" @click="downloadPdf">
+      <!-- View on Stripe (subscription receipts) -->
+      <a
+        v-if="kind === 'subscription' && invoice?.stripe_invoice_id"
+        :href="`https://dashboard.stripe.com/invoices/${invoice.stripe_invoice_id}`"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="btn btn-ghost"
+      >
+        <AegisIcon name="external-link" :size="12" /> View on Stripe
+      </a>
+
+      <button v-if="kind !== 'subscription'" type="button" class="btn btn-ghost" @click="downloadPdf">
         <AegisIcon name="download" :size="12" /> Download PDF
       </button>
 

@@ -252,7 +252,11 @@ class FinancesController extends Controller
             ->limit(100)
             ->get();
 
-        $recentTransactions = $recentTxRaw->map(function (PractitionerPayment $p) {
+        // Build number→id indexes so each tx row can carry subject_id for the receipt modal.
+        $csInvIndex = $csInvCollection->pluck('id', 'invoice_number');
+        $bpInvIndex = $bpInvCollection->pluck('id', 'invoice_number');
+
+        $recentTransactions = $recentTxRaw->map(function (PractitionerPayment $p) use ($csInvIndex, $bpInvIndex) {
             $kind = $p->kind instanceof PractitionerPaymentKind ? $p->kind->value : (string) $p->kind;
             $catMap = [
                 'cs_fee'          => ['label' => 'CS Fee',           'color' => 'var(--gold-dark)', 'cat' => 'cs',           'modal' => 'cs_invoice'],
@@ -284,6 +288,22 @@ class FinancesController extends Controller
                 'modal_type'     => $cat['modal'],
                 'stripe_invoice_id' => in_array($kind, ['subscription', 'maat_addon', 'refund'], true) ? $p->stripe_charge_id : null,
                 'sort_ts'        => $p->paid_at?->toIso8601String() ?? $p->created_at->toIso8601String(),
+                // subject_id: resolved by matching payment_method_label against invoice number indexes.
+                // Used by the Vue receipt modal to find the exact invoice object directly.
+                'subject_id'     => (function () use ($p, $kind, $csInvIndex, $bpInvIndex) {
+                    $label = (string) ($p->payment_method_label ?? '');
+                    if ($kind === 'cs_fee') {
+                        foreach ($csInvIndex as $num => $id) {
+                            if (str_contains($label, (string) $num)) return $id;
+                        }
+                    }
+                    if ($kind === 'bp_invoice') {
+                        foreach ($bpInvIndex as $num => $id) {
+                            if (str_contains($label, (string) $num)) return $id;
+                        }
+                    }
+                    return null;
+                })(),
             ];
         })->sortByDesc('sort_ts')->values();
 
