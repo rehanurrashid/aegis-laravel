@@ -1414,7 +1414,11 @@ const filteredClientSessions = computed(() => {
 })
 
 const filteredProviderSessions = computed(() => {
-  // Provider sessions don't use the client filter - show all
+  if (sessionFilter.value === 'all') return props.providerSessions
+  if (sessionFilter.value === 'deposit_due') return props.providerSessions.filter(s => s.payment_status === 'unpaid' && s.status === 'scheduled')
+  if (sessionFilter.value === 'balance_due') return props.providerSessions.filter(s => s.payment_status === 'deposit_paid' && s.status === 'scheduled')
+  if (sessionFilter.value === 'paid')        return props.providerSessions.filter(s => s.payment_status === 'paid')
+  if (sessionFilter.value === 'refunded')    return props.providerSessions.filter(s => ['refunded','partially_refunded'].includes(s.payment_status))
   return props.providerSessions
 })
 
@@ -1783,6 +1787,10 @@ function paymentTypeLabel(t) {
 .upcoming-row   { display: flex; align-items: center; gap: 10px; padding: 10px 8px; border-bottom: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: background var(--transition); }
 .upcoming-row:hover { background: var(--surface-2); }
 .upcoming-row:last-child { border-bottom: none; }
+/* Badge moved to far right for consistent text indent */
+.upcoming-row .upcoming-kind-badge { margin-left: auto; order: 3; }
+.upcoming-row .upcoming-info { order: 1; }
+.upcoming-row .upcoming-right { order: 2; }
 .upcoming-info  { flex: 1; min-width: 0; overflow: hidden; }
 .upcoming-name  { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .upcoming-desc  { font-size: 11px; color: var(--text-4); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
