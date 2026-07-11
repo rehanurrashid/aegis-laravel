@@ -373,7 +373,7 @@
         <!-- STRIPE CONNECT -->
         <div v-show="section === 'stripe_connect'" class="settings-panel">
           <SettingsStripeConnect
-            :connected="!!(props.user?.stripe_connected)"
+            :connected="stripeReady"
             onboard-route="bp.settings.connect.onboard"
             portal-route="bp.settings.billing.portal"
             description="Connect your Stripe account to receive contract and milestone payments from practitioners. Funds go directly to your bank — Aegis never holds your money."
@@ -445,6 +445,10 @@ const bpAnnualId           = computed(() => prices.value.bp_annual  ?? null);
 const bpPriceId            = computed(() => billingAnnual.value ? bpAnnualId.value : bpMonthlyId.value);
 const stripeInvoices        = computed(() => sub.value.invoices        ?? []);
 const stripePaymentMethods  = computed(() => sub.value.payment_methods ?? []);
+const stripeReady           = computed(() => {
+  const acct = props.user?.stripe_account_id;
+  return !!acct && !String(acct).startsWith('acct_demo_') && !!props.user?.stripe_connected;
+});
 const planBusy              = ref(false);
 const confirmBpCancel  = ref(false);
 const confirmBpResume  = ref(false);

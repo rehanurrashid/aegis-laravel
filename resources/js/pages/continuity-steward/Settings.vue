@@ -343,7 +343,7 @@
         <!-- STRIPE CONNECT -->
         <div v-show="section === 'stripe_connect'" class="settings-panel">
           <SettingsStripeConnect
-            :connected="!!(props.user?.stripe_connected)"
+            :connected="stripeReady"
             onboard-route="cs.settings.connect.onboard"
             portal-route="cs.settings.billing.portal"
             description="Connect your Stripe account to receive invoice payments from practitioners you steward. Funds go directly to your bank — Aegis never holds your money."

@@ -1318,7 +1318,7 @@ const prices            = computed(() => sub.value.prices || {});
 const stripeInvoices    = computed(() => sub.value.invoices || []);
 const stripePaymentMethods    = computed(() => sub.value.payment_methods || []);
 const subscriptionInvoices    = computed(() => sub.value.invoices || []);
-const stStripeConnected       = computed(() => !!(props.user?.stripe_connected));
+const stStripeConnected       = computed(() => !!(props.user?.stripe_connected) && !String(props.user?.stripe_account_id ?? '').startsWith('acct_demo'));
 const currentBillingIsAnnual = computed(() => {
   const p = sub.value.price_id;
   return p === prices.value.access_annual || p === prices.value.practice_annual;
