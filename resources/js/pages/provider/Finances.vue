@@ -540,19 +540,21 @@
         <div class="sessions-section-desc">Payments you owe — 30% deposit due at booking, 70% balance after the session.</div>
 
         <!-- Filter chips -->
-        <div class="sessions-filter-chips">
+        <nav class="tabs-segmented" role="tablist" style="margin-bottom:14px">
           <button
             v-for="chip in sessionFilterChips"
             :key="chip.value"
             type="button"
-            class="sessions-chip"
+            role="tab"
+            class="tab-pill"
             :class="{ active: sessionFilter === chip.value }"
+            :aria-selected="sessionFilter === chip.value"
             @click="sessionFilter = chip.value"
           >
             {{ chip.label }}
             <span v-if="chip.count > 0" class="sessions-chip-count">{{ chip.count }}</span>
           </button>
-        </div>
+        </nav>
       </div>
 
       <AegisEmptyState
@@ -1883,37 +1885,15 @@ function paymentTypeLabel(t) {
 }
 
 /* Filter chips */
-/* Filter chips — matches "Key Terms / Why Aegis" pill design from screenshot */
-.sessions-filter-chips {
-  display: inline-flex; flex-wrap: wrap; gap: 2px;
-  background: var(--badge-bg-gold);
-  border: 1px solid var(--gold);
-  border-radius: 100px;
-  padding: 4px;
-}
-.sessions-chip {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 12px; font-weight: 600;
-  padding: 5px 16px; border-radius: 100px;
-  border: none; background: transparent;
-  color: var(--text-2); cursor: pointer;
-  transition: all var(--transition);
-}
-.sessions-chip:hover { color: var(--gold-dark); }
-.sessions-chip.active {
-  background: var(--gold-dark);
-  color: #fff;
-  font-weight: 700;
-  box-shadow: 0 1px 4px rgba(0,0,0,.18);
-}
+/* Filter chip count badge — used inside .tab-pill */
 .sessions-chip-count {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 16px; height: 16px; padding: 0 4px;
-  background: rgba(255,255,255,.3); color: #fff;
+  background: var(--gold-dark); color: #fff;
   border-radius: 100px; font-size: 9px; font-weight: 800;
 }
-.sessions-chip:not(.active) .sessions-chip-count {
-  background: var(--gold-dark); color: #fff;
+.tab-pill.active .sessions-chip-count {
+  background: rgba(255,255,255,.35); color: #fff;
 }
 .invoice-body        { padding: 22px 24px 20px; }
 .invoice-status      { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
