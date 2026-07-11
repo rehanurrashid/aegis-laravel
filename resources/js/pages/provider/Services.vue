@@ -1,13 +1,13 @@
 <!--
   pages/provider/Services.vue — Wave 5 rebuild.
 
-  Tabs: Explore | My Listings | Service Requests | Bookings & Sessions | My Requests | Settings
+  Tabs: Explore | My Listings | Service Requests | Clinical Sessions | My Requests | Settings
 
   Wave 5 additions:
     - "Explore" tab: filter sidebar + ServiceExploreCard grid + infinite scroll
     - "My Requests" → "My Booked Sessions" section uses SessionInvoiceCard (not table)
       with PayDepositModal / PayBalanceModal / RequestRefundModal / SessionInvoiceModal
-    - "Bookings & Sessions" keeps table but adds payment_status badge + ReviewRefundRequestModal
+    - "Clinical Sessions" keeps table but adds payment_status badge + ReviewRefundRequestModal
     - Accept Request modal now includes CounterOfferInline for price negotiation
     - All old "Confirm & Pay" logic replaced by PayBalanceModal
     - Stats chip added for pending_refunds count
@@ -89,7 +89,7 @@
           </button>
           <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'bookings' }" @click="activeTab = 'bookings'">
             <span class="page-sidebar-icon"><AegisIcon name="calendar" :size="15" /></span>
-            Bookings &amp; Sessions
+            Clinical Sessions
             <span v-if="stats?.sessions > 0" class="page-sidebar-badge">{{ stats.sessions }}</span>
           </button>
         </div>
@@ -410,20 +410,6 @@
          TAB 3: BOOKINGS & SESSIONS (I am the provider)
     ══════════════════════════════════════════════════════════════════ -->
     <div v-show="activeTab === 'bookings'">
-
-      <!-- Date range toolbar (server-side pagination context) -->
-      <div class="svc-toolbar svc-toolbar--right" style="margin-bottom:12px">
-        <div class="svc-select-wrap" style="max-width:200px">
-          <select v-model="bookingDateRange" class="form-select">
-            <option value="this_month">This Month</option>
-            <option value="last_month">Last Month</option>
-            <option value="last_60">Last 60 Days</option>
-            <option value="last_90">Last 90 Days</option>
-            <option value="this_year">This Year</option>
-            <option value="all">All Time</option>
-          </select>
-        </div>
-      </div>
 
       <SessionTable
         :sessions="bookings"
@@ -1042,7 +1028,7 @@ const tabs = computed(() => [
   { key: 'explore',   label: 'Browse Services',       icon: 'search',   count: null },
   { key: 'listings',  label: 'My Listings',           icon: 'grid',     count: props.listings.length },
   { key: 'requests',  label: 'Service Requests',      icon: 'clock',    count: newRequests.value.length + props.incomingRefundRequests.filter(r => r.is_actionable).length },
-  { key: 'bookings',  label: 'Bookings & Sessions',   icon: 'calendar', count: props.stats?.sessions ?? null },
+  { key: 'bookings',  label: 'Clinical Sessions',   icon: 'calendar', count: props.stats?.sessions ?? null },
   { key: 'outgoing',  label: 'My Requests',           icon: 'send',     count: pendingClientActions.value || null },
   { key: 'settings',  label: 'Settings',              icon: 'settings', count: null },
 ])
