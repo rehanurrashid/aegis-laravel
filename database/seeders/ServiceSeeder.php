@@ -122,6 +122,41 @@ class ServiceSeeder extends Seeder
             if ($sessHasNotes)    $row['share_notes_with_client']   = $share;
             if ($sessHasCancel)   $row['cancel_reason']             = $cancel;
 
+            // Wave 1 payment columns
+            $sessHasPayStatus = Schema::hasColumn('service_sessions', 'payment_status');
+            $sessHasDepCols   = Schema::hasColumn('service_sessions', 'deposit_cents');
+            if ($sessHasPayStatus) {
+                $row['payment_status'] = match($raw['status']) {
+                    'completed'  => 'paid',
+                    'cancelled'  => 'unpaid',
+                    'scheduled'  => 'unpaid',
+                    default      => 'unpaid',
+                };
+            }
+            if ($sessHasDepCols) {
+                $amt = (int) ($raw['amount_cents'] ?? 0);
+                $dep = (int) floor($amt * 0.30);
+                $bal = $amt - $dep;
+                $row['original_amount_cents']   = $amt;
+                $row['negotiated_amount_cents']  = null;
+                $row['total_refunded_cents']     = 0;
+                if ($raw['status'] === 'completed') {
+                    $row['deposit_cents']       = $dep;
+                    $row['deposit_charge_id']   = 'pi_demo_dep_' . substr($raw['id'], -8);
+                    $row['deposit_paid_at']     = $raw['completed_at'] ?? $now->copy()->subDays(1)->toDateTimeString();
+                    $row['balance_cents']       = $bal;
+                    $row['balance_charge_id']   = 'pi_demo_bal_' . substr($raw['id'], -8);
+                    $row['balance_paid_at']     = $raw['completed_at'] ?? $now->copy()->subDays(1)->toDateTimeString();
+                } else {
+                    $row['deposit_cents']       = 0;
+                    $row['deposit_charge_id']   = null;
+                    $row['deposit_paid_at']     = null;
+                    $row['balance_cents']       = 0;
+                    $row['balance_charge_id']   = null;
+                    $row['balance_paid_at']     = null;
+                }
+            }
+
             DB::table('service_sessions')->updateOrInsert(['id' => $row['id']], $row);
         }
 
@@ -194,6 +229,23 @@ class ServiceSeeder extends Seeder
         if ($sessHasNotes)    $clientSessionRow['session_action_items']  = null;
         if ($sessHasNotes)    $clientSessionRow['share_notes_with_client'] = 0;
         if ($sessHasCancel)   $clientSessionRow['cancel_reason']         = null;
+
+        // ── Wave 1 payment columns ────────────────────────────────────────────
+        $sessHasPaymentStatus = Schema::hasColumn('service_sessions', 'payment_status');
+        $sessHasDepositCols   = Schema::hasColumn('service_sessions', 'deposit_cents');
+
+        if ($sessHasPaymentStatus) $clientSessionRow['payment_status']          = 'unpaid';
+        if ($sessHasDepositCols) {
+            $clientSessionRow['original_amount_cents']    = 22000;
+            $clientSessionRow['negotiated_amount_cents']  = null;
+            $clientSessionRow['deposit_cents']            = 0;
+            $clientSessionRow['deposit_charge_id']        = null;
+            $clientSessionRow['deposit_paid_at']          = null;
+            $clientSessionRow['balance_cents']            = 0;
+            $clientSessionRow['balance_charge_id']        = null;
+            $clientSessionRow['balance_paid_at']          = null;
+            $clientSessionRow['total_refunded_cents']     = 0;
+        }
 
         DB::table('service_sessions')->updateOrInsert(['id' => 'ss_sarah_client_1'], $clientSessionRow);
 
