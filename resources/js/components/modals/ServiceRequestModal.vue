@@ -1,21 +1,14 @@
 <!--
   ServiceRequestModal.vue — universal "Request a Service" modal.
 
-  Wave 4 update: now handles THREE submission contexts:
-    1. Public provider profile — posts to public.profile.service-request (existing)
-    2. Explore tab — posts to provider.services.explore.request (Wave 3 new route)
-    3. Network page — toast fallback (no route, legacy)
-
-  Context is determined by which props are provided:
-    serviceId present   → Explore tab submission (uses new route)
-    providerId present  → Public profile submission (existing route)
-    neither             → Network fallback toast
-
-  Props:
-    providerId    — target user ID (for public profile route)
-    providerLabel — display name for public profile route
-    serviceId     — service ID (for explore tab route)
-    serviceTitle  — service title (prefills Service field, readonly)
+  Contexts:
+    1. providerId present  → posts to public.profile.service-request
+    2. Network page        → toast fallback
+  
+  Validation:
+    - Preferred Date: required (inline error below field)
+    - Service: required when not prefilled (inline error below field)
+    All via Vuelidate: fieldError() helper, is-error class, @blur touch.
 -->
 <template>
   <AegisModal
@@ -31,9 +24,9 @@
       <div>Service requests are sent securely through Aegis. You'll receive a confirmation once the provider responds.</div>
     </div>
 
-    <!-- Service (readonly if prefilled) -->
+    <!-- Service -->
     <div class="form-group">
-      <label class="form-label">Service</label>
+      <label class="form-label">Service <span v-if="!hasService" class="req">*</span></label>
       <input
         v-if="hasService"
         type="text"
@@ -43,25 +36,36 @@
       />
       <input
         v-else
+        v-model="form.service"
         type="text"
         class="form-input"
-        v-model="form.service"
+        :class="{ 'is-error': fieldError('service') }"
         placeholder="Describe the service you need…"
+        @blur="v$.service.$touch()"
       />
+      <div v-if="fieldError('service')" class="form-error">{{ fieldError('service') }}</div>
     </div>
 
-    <!-- From Provider (readonly) -->
+    <!-- Provider (readonly) -->
     <div v-if="providerLabel" class="form-group">
       <label class="form-label">Provider</label>
       <input type="text" class="form-input" :value="providerLabel" readonly />
     </div>
 
-    <!-- Date + Time + Timezone -->
+    <!-- Date + Time -->
     <div class="form-row form-row-2">
       <div class="form-group">
         <label class="form-label">Preferred Date <span class="req">*</span></label>
-        <input type="date" class="form-input" v-model="form.date" :min="todayDate" />
-        <div v-if="form.errors.date" class="form-error">{{ form.errors.date }}</div>
+        <input
+          v-model="form.date"
+          type="date"
+          class="form-input"
+          :class="{ 'is-error': fieldError('date') }"
+          :min="todayDate"
+          @blur="v$.date.$touch()"
+          @change="v$.date.$touch()"
+        />
+        <div v-if="fieldError('date')" class="form-error">{{ fieldError('date') }}</div>
       </div>
       <div class="form-group">
         <label class="form-label">Preferred Time</label>
@@ -74,6 +78,7 @@
       </div>
     </div>
 
+    <!-- Timezone -->
     <div class="form-group">
       <label class="form-label">Your Timezone</label>
       <select class="form-select" v-model="form.preferred_timezone">
@@ -96,17 +101,17 @@
       </select>
     </div>
 
-    <!-- Notes -->
+    <!-- Message -->
     <div class="form-group">
       <label class="form-label">
         Message to Provider
         <span style="color:var(--text-4);font-weight:500"> (optional)</span>
       </label>
       <textarea
+        v-model="form.message"
         class="form-textarea"
         rows="3"
         placeholder="Briefly describe what you'd like to discuss or any specific questions…"
-        v-model="form.message"
       ></textarea>
     </div>
 
@@ -126,19 +131,19 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useForm } from '@inertiajs/vue3'
 import { route }   from 'ziggy-js'
+import useVuelidate from '@vuelidate/core'
+import { required, helpers } from '@vuelidate/validators'
 import { useModal } from '@/composables/useModal'
 import { useToast }  from '@/composables/useToast'
 
 const props = defineProps({
-  // Public profile context
   providerId:    { type: String, default: '' },
   providerLabel: { type: String, default: '' },
-  // Explore tab context (Wave 4 new)
-  serviceId:    { type: String, default: '' },
-  serviceTitle: { type: String, default: '' },
+  serviceId:     { type: String, default: '' },
+  serviceTitle:  { type: String, default: '' },
 })
 
 const { isOpen, closeModal } = useModal()
@@ -146,29 +151,62 @@ const toast = useToast()
 
 const hasService = computed(() => !!(props.serviceTitle || props.serviceId))
 
+// ── useForm at top level (never inside functions) ─────────────────────────
 const form = useForm({
-  // For explore tab route
-  service_id:         props.serviceId  || '',
-  service:            props.serviceTitle || '',
-  // For public profile route
+  service_id:         '',
+  service:            '',
+  date:               '',
+  time:               'Flexible',
   preferred_date:     '',
   preferred_time:     'Flexible',
   preferred_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
   format:             'telehealth',
   message:            '',
-  // Legacy field names (kept for public profile route compatibility)
-  date:               '',
-  time:               'Flexible',
-  timezone:           Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
   notes:              '',
+  timezone:           Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
 })
 
 const todayDate = new Date().toISOString().split('T')[0]
 
-// Exposed so parent can set service info before opening
+// ── Vuelidate rules ────────────────────────────────────────────────────────
+const rules = computed(() => ({
+  date: {
+    required: helpers.withMessage('Please select a preferred date.', required),
+  },
+  service: hasService.value ? {} : {
+    required: helpers.withMessage('Please describe the service you need.', required),
+  },
+}))
+
+const v$ = useVuelidate(rules, form)
+
+function fieldError(field) {
+  if (v$.value[field]?.$error) return v$.value[field].$errors[0]?.$message ?? ''
+  return form.errors[field] ?? ''
+}
+
+// ── Sync props when parent sets them ──────────────────────────────────────
+watch(() => props.serviceTitle, (v) => { form.service    = v || '' }, { immediate: true })
+watch(() => props.serviceId,    (v) => { form.service_id = v || '' }, { immediate: true })
+
+// Reset when modal closes
+watch(() => isOpen('serviceRequestModal').value, (open) => {
+  if (!open) {
+    v$.value.$reset()
+    form.reset()
+    form.service    = props.serviceTitle || ''
+    form.service_id = props.serviceId   || ''
+    form.preferred_timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York'
+    form.timezone           = form.preferred_timezone
+    form.time               = 'Flexible'
+    form.preferred_time     = 'Flexible'
+  }
+})
+
 function preselect(serviceName, serviceId = '') {
   form.service    = serviceName
   form.service_id = serviceId
+  v$.value.$reset()
 }
 
 function onUpdateOpen(v) {
@@ -177,26 +215,20 @@ function onUpdateOpen(v) {
 
 function onClose() {
   closeModal('serviceRequestModal')
-  setTimeout(() => {
-    form.reset()
-    form.service    = props.serviceTitle || ''
-    form.service_id = props.serviceId   || ''
-  }, 200)
 }
 
-function submit() {
-  // Sync date fields (legacy + new)
-  form.preferred_date = form.date
-  form.preferred_time = form.time
+async function submit() {
+  // Touch all fields for inline errors
+  await v$.value.$validate()
+  if (v$.value.$error) return
+
+  // Sync legacy field names
+  form.preferred_date     = form.date
+  form.preferred_time     = form.time
   form.preferred_timezone = form.timezone
-  form.notes = form.message
+  form.notes              = form.message
 
-  if (!form.date) {
-    toast.error('Please select a preferred date.')
-    return
-  }
-
-  // ── Context 1: Explore tab (serviceId present) ─────────────────────────
+  // Context 1: Explore tab
   if (props.serviceId) {
     form.service_id = props.serviceId
     form.post(route('provider.services.explore.request'), {
@@ -210,7 +242,7 @@ function submit() {
     return
   }
 
-  // ── Context 2: Public provider profile (providerId present) ───────────
+  // Context 2: Public provider profile
   if (props.providerId) {
     form.post(route('public.profile.service-request', { user: props.providerId }), {
       preserveScroll: true,
@@ -223,7 +255,7 @@ function submit() {
     return
   }
 
-  // ── Context 3: Network page fallback ──────────────────────────────────
+  // Context 3: Network fallback
   toast.success('Service request sent! Provider will be notified.')
   onClose()
 }

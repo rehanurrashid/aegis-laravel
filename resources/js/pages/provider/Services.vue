@@ -434,10 +434,6 @@
           <AegisIcon name="calendar" :size="16" />
           Sessions — {{ bookingPeriodLabel }}
         </div>
-        <div class="bk-list-stats">
-          <AegisBadge :label="`${stats?.sessions ?? 0} this month`" variant="gold" />
-          <AegisBadge :label="(stats?.revenue_label ?? '$0') + ' earned'" variant="green" />
-        </div>
       </div>
 
       <AegisEmptyState v-if="!bookings.length" icon="calendar" title="No sessions found" subtitle="Try adjusting the date range or search." />
