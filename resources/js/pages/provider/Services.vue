@@ -411,12 +411,9 @@
     ══════════════════════════════════════════════════════════════════ -->
     <div v-show="activeTab === 'bookings'">
 
-      <div class="svc-toolbar svc-toolbar--halves">
-        <div class="search-wrap">
-          <AegisIcon name="search" :size="15" />
-          <input v-model="bookingSearch" type="text" class="form-control" placeholder="Search sessions or clients…">
-        </div>
-        <div class="svc-select-wrap">
+      <!-- Date range toolbar (server-side pagination context) -->
+      <div class="svc-toolbar svc-toolbar--right" style="margin-bottom:12px">
+        <div class="svc-select-wrap" style="max-width:200px">
           <select v-model="bookingDateRange" class="form-select">
             <option value="this_month">This Month</option>
             <option value="last_month">Last Month</option>
@@ -428,42 +425,20 @@
         </div>
       </div>
 
-      <!-- Session list header -->
-      <div class="bk-list-header">
-        <div class="bk-list-title">
-          <AegisIcon name="calendar" :size="16" />
-          Sessions — {{ bookingPeriodLabel }}
-        </div>
-      </div>
-
-      <AegisEmptyState v-if="!bookings.length" icon="calendar" title="No sessions found" subtitle="Try adjusting the date range or search." />
-
-      <div v-else class="sic-table-wrap">
-        <table class="sic-table">
-          <thead>
-            <tr>
-              <th class="sic-th">Client</th>
-              <th class="sic-th">Status</th>
-              <th class="sic-th"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <SessionInvoiceCard
-              v-for="b in bookings"
-              :key="b.id"
-              :session="b"
-              viewpoint="provider"
-              :show-notes="true"
-              :show-invoice="true"
-              :show-cancel="true"
-              @review-refund="activeRefundRequest = incomingRefundRequests.find(r => r.session_id === b.id); modals.reviewRefund = true"
-              @open-notes="setActiveBooking(b); modals.sessionNotes = true"
-              @open-invoice="setActiveBooking(b); modals.providerInvoice = true"
-              @cancel-session="setActiveBooking(b); modals.cancelSession = true"
-            />
-          </tbody>
-        </table>
-      </div>
+      <SessionTable
+        :sessions="bookings"
+        viewpoint="provider"
+        :show-notes="true"
+        :show-invoice="true"
+        :show-cancel="true"
+        empty-icon="calendar"
+        empty-title="No sessions found"
+        empty-subtitle="Try adjusting the date range above."
+        @review-refund="activeRefundRequest = incomingRefundRequests.find(r => r.session_id === $event.id); modals.reviewRefund = true"
+        @open-notes="setActiveBooking($event); modals.sessionNotes = true"
+        @open-invoice="setActiveBooking($event); modals.providerInvoice = true"
+        @cancel-session="setActiveBooking($event); modals.cancelSession = true"
+      />
 
       <AegisPagination
         v-if="bookingsMeta.last_page > 1"
@@ -1011,6 +986,7 @@ import AegisToggle from '@/components/ui/AegisToggle.vue'
 import AegisPagination from '@/components/ui/AegisPagination.vue'
 // Wave 4 components (local import required)
 import SessionInvoiceCard        from '@/components/ui/SessionInvoiceCard.vue'
+import SessionTable              from '@/components/ui/SessionTable.vue'
 import ServiceExploreCard        from '@/components/ui/ServiceExploreCard.vue'
 import CounterOfferInline        from '@/components/ui/CounterOfferInline.vue'
 import PayDepositModal           from '@/components/modals/PayDepositModal.vue'
