@@ -331,6 +331,66 @@ const modals = reactive({ /* one key per modal */ })
 | hire / contract / quote / schedule | open the matching centralized BP modal |
 | destructive (remove/cancel/delete) | `confirmAction('…', () => router.delete(route(...)))` |
 
+### Busy state on async buttons (MANDATORY for every write action)
+
+Every button that triggers a server write must show a spinning icon + descriptive busy label while in flight. Never leave the button looking locked/frozen with no feedback.
+
+**Pattern — always use this exact structure:**
+```vue
+<button type="button" class="btn btn-gold" :disabled="busy" @click="doAction">
+  <AegisIcon v-if="busy" name="refresh-cw" :size="13" class="btn-spin" />
+  <AegisIcon v-else name="check" :size="13" />
+  {{ busy ? 'Saving…' : 'Save' }}
+</button>
+```
+
+**Rules:**
+- `v-if="busy"` shows `refresh-cw` spinning — `v-else` shows the normal icon. Never show both.
+- Label switches to present-continuous: `Saving…` / `Deleting…` / `Cancelling…` / `Submitting…` / `Sending…` / `Applying…` / `Reactivating…` / `Removing…` — match the verb of the action.
+- `:disabled="busy"` — button is non-interactive while in flight.
+- Use the global `.btn-spin` class from `_shared.css` (reuses `@keyframes spin`). Never write a local keyframe.
+- `busy` ref is set `true` before the router call and reset `false` in `onFinish`.
+- This applies to ALL write buttons: create, update, delete, cancel, submit, approve, pay — no exceptions.
+
+```js
+const busy = ref(false)
+
+function doAction() {
+  busy.value = true
+  router.post(route('...'), data, {
+    preserveScroll: true,
+    onSuccess: () => { /* close modal, toast */ },
+    onError:   () => toast.error('…'),
+    onFinish:  () => { busy.value = false },
+  })
+}
+```
+
+### Icon + text inline alignment (MANDATORY)
+
+Never use `vertical-align: middle` or `margin-right` to align an icon next to text. Always use flex.
+
+**Wrong — causes misalignment:**
+```vue
+<AegisIcon name="alert-triangle" :size="13" style="color:var(--orange); vertical-align:middle; margin-right:4px" />
+Warning text here.
+```
+
+**Correct — always wrap in flex container:**
+```vue
+<div style="display:flex; align-items:flex-start; gap:8px;">
+  <AegisIcon name="alert-triangle" :size="13" style="color:var(--gold-dark); flex-shrink:0; margin-top:2px;" />
+  <span>Warning text here.</span>
+</div>
+```
+
+**Rules:**
+- Parent div: `display:flex; align-items:flex-start; gap:8px` (use `align-items:center` only for single-line text).
+- Icon: `flex-shrink:0; margin-top:2px` (the 2px nudge optically aligns the icon cap-height with the text).
+- Text: always wrap in `<span>` so it's a proper flex child.
+- Icon color: use `var(--gold-dark)` for informational/warning indicators. `var(--red)` for genuine error states only. `var(--green-dark)` for success. Never `var(--orange)` on Settings icons.
+- This applies everywhere an icon sits beside prose: alert boxes, modal body notes, confirmation warnings, inline help text.
+
 Every centralized modal is mounted once at the bottom of the template with a reactive target ref:
 ```vue
 <ReferralModal v-model="modals.referral" :recipient-id="activeTarget.id"
@@ -385,6 +445,10 @@ grep -c 'is-error'       $PAGE   # ≥ 1 per validated field (never is-invalid)
 grep -c '\$reset'        $PAGE   # ≥ 1 (reset called on modal close)
 # Critical: is-error binding must use fieldError(), never form.errors directly
 grep -c "is-error.*form\.errors" $PAGE  # 0 — VIOLATION if non-zero
+# Busy state: every router.post/put/delete must have a busy ref + btn-spin
+grep -c "btn-spin"              $PAGE   # ≥ 1 if page has any write buttons
+grep -c "vertical-align.*middle" $PAGE  # 0 — use flex+gap, never vertical-align:middle
+grep -c "margin-right.*4px"     $PAGE   # 0 — use gap on flex parent, never margin-right on icons
 # Every input with @blur must have matching :class is-error and form-error div
 BLUR=$(grep -c "@blur" $PAGE); ERR=$(grep -c "is-error" $PAGE)
 echo "blur=$BLUR is-error=$ERR"; test $BLUR -le $ERR && echo "OK" || echo "MISMATCH — missing :class or form-error"
