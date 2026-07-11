@@ -188,7 +188,7 @@ class ServiceService
 
         $paymentStatus = $s->payment_status instanceof ServiceSessionPaymentStatus
             ? $s->payment_status
-            : (isset($s->payment_status) ? ServiceSessionPaymentStatus::tryFrom((string) $s->payment_status) : null);
+            : (isset($s->payment_status) ? ServiceSessionPaymentStatus::tryFrom(($s->payment_status instanceof \App\Enums\ServiceSessionPaymentStatus ? $s->payment_status->value : (string) $s->payment_status)) : null);
 
         $agreedCents  = $s->agreed_amount_cents;
         $depositCents = $s->deposit_cents ?? 0;
@@ -253,7 +253,7 @@ class ServiceService
 
         $paymentStatus = $s->payment_status instanceof ServiceSessionPaymentStatus
             ? $s->payment_status
-            : (isset($s->payment_status) ? ServiceSessionPaymentStatus::tryFrom((string) $s->payment_status) : ServiceSessionPaymentStatus::Unpaid);
+            : (isset($s->payment_status) ? ServiceSessionPaymentStatus::tryFrom(($s->payment_status instanceof \App\Enums\ServiceSessionPaymentStatus ? $s->payment_status->value : (string) $s->payment_status)) : ServiceSessionPaymentStatus::Unpaid);
 
         $agreedCents  = $s->agreed_amount_cents;
         $depositCents = $s->deposit_cents ?? 0;
@@ -551,7 +551,7 @@ class ServiceService
             abort(403, 'Only the booking client can pay the deposit.');
         }
 
-        $paymentStatus = ServiceSessionPaymentStatus::tryFrom((string) $session->payment_status)
+        $paymentStatus = ServiceSessionPaymentStatus::tryFrom(($session->payment_status instanceof \App\Enums\ServiceSessionPaymentStatus ? $session->payment_status->value : (string) $session->payment_status))
             ?? ServiceSessionPaymentStatus::Unpaid;
 
         if ($paymentStatus !== ServiceSessionPaymentStatus::Unpaid) {
@@ -607,7 +607,7 @@ class ServiceService
             return $session->fresh();
         }
 
-        $paymentStatus = ServiceSessionPaymentStatus::tryFrom((string) $session->payment_status)
+        $paymentStatus = ServiceSessionPaymentStatus::tryFrom(($session->payment_status instanceof \App\Enums\ServiceSessionPaymentStatus ? $session->payment_status->value : (string) $session->payment_status))
             ?? ServiceSessionPaymentStatus::Unpaid;
 
         // ── Two-charge path (new sessions) ────────────────────────────────────
