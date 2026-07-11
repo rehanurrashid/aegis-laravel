@@ -514,9 +514,7 @@
             </div>
           </div>
           <AegisEmptyState v-if="!searchResults.length" icon="search-lg" title="No providers found" subtitle="Try adjusting your filters or search terms." />
-          <div v-if="hasMoreSearchResults" class="results-topbar" style="justify-content:center;margin-top:20px">
-            <button type="button" class="btn btn-outline btn-sm" @click="spPage++">Load More Results</button>
-          </div>
+          <div ref="spSentinel" class="nw-scroll-sentinel" aria-hidden="true"></div>
         </div>
       </div>
     </div><!-- /search providers -->
@@ -921,9 +919,7 @@
 
           <AegisEmptyState v-if="!filteredPartners.length" icon="briefcase" title="No partners found" subtitle="Try adjusting your search or filters." />
 
-          <div v-if="hasMorePartners" style="text-align:center;margin-top:24px">
-            <button type="button" class="btn btn-outline" @click="bpPage++">Load More Partners</button>
-          </div>
+          <div ref="bpSentinel" class="nw-scroll-sentinel" aria-hidden="true"></div>
         </div>
       </div>
     </div><!-- /search business -->
@@ -1910,7 +1906,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { router, useForm } from '@inertiajs/vue3'
 import { route } from 'ziggy-js'
 import AppLayout from '@/layouts/AppLayout.vue'
@@ -1961,6 +1957,30 @@ const spcAtEnd   = ref(false)
 
 const SLIDE_PX = 320
 
+// ── Infinite scroll sentinels ─────────────────────────────────────────────
+// Template refs for the sentinel divs placed after each results grid.
+// When they scroll into view, we increment the page counter — no button click needed.
+const spSentinel = ref(null)   // Search Providers sentinel
+const bpSentinel = ref(null)   // Search Partners sentinel
+let spObserver   = null
+let bpObserver   = null
+
+function makeObserver(hasMore, incrementPage) {
+  return new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting && hasMore.value) {
+        incrementPage()
+      }
+    },
+    { rootMargin: '200px' }
+  )
+}
+
+onUnmounted(() => {
+  spObserver?.disconnect()
+  bpObserver?.disconnect()
+})
+
 function updateArrows(el, atStart, atEnd) {
   if (!el) return
   atStart.value = el.scrollLeft <= 4
@@ -2002,6 +2022,15 @@ onMounted(() => {
   if (spcTrack.value) {
     spcTrack.value.addEventListener('scroll', () => updateArrows(spcTrack.value, spcAtStart, spcAtEnd))
     updateArrows(spcTrack.value, spcAtStart, spcAtEnd)
+  }
+  // Infinite scroll: observe sentinels for Search Providers + Search Partners
+  if (spSentinel.value) {
+    spObserver = makeObserver(hasMoreSearchResults, () => { spPage.value++ })
+    spObserver.observe(spSentinel.value)
+  }
+  if (bpSentinel.value) {
+    bpObserver = makeObserver(hasMorePartners, () => { bpPage.value++ })
+    bpObserver.observe(bpSentinel.value)
   }
 })
 
@@ -2705,6 +2734,33 @@ const bpEngOptions = [
 
 // ── Pagination watchers — placed here so every ref they touch is declared ──
 watch([clinicalSearch, clinicalServiceOnly, searchSort], () => { spPage.value = 1 })
+
+// Re-observe sentinels when switching into the relevant search tabs
+// (sentinel may not have been in the DOM or visible when onMounted ran)
+watch([() => scope.value, () => clinicalTab.value], async () => {
+  if (scope.value === 'clinical' && clinicalTab.value === 'search') {
+    await nextTick()
+    if (spSentinel.value && spObserver) {
+      spObserver.disconnect()
+      spObserver.observe(spSentinel.value)
+    } else if (spSentinel.value) {
+      spObserver = makeObserver(hasMoreSearchResults, () => { spPage.value++ })
+      spObserver.observe(spSentinel.value)
+    }
+  }
+})
+watch([() => scope.value, () => businessTab.value], async () => {
+  if (scope.value === 'business' && businessTab.value === 'search') {
+    await nextTick()
+    if (bpSentinel.value && bpObserver) {
+      bpObserver.disconnect()
+      bpObserver.observe(bpSentinel.value)
+    } else if (bpSentinel.value) {
+      bpObserver = makeObserver(hasMorePartners, () => { bpPage.value++ })
+      bpObserver.observe(bpSentinel.value)
+    }
+  }
+})
 watch(rtSearch, () => { rtPage.value = 1 })
 watch(bizSearch, () => { myNetworkPage.value = 1; myPartnersPage.value = 1 })
 watch([bpSearch, bpCategory, bpTypeFilter, bpRateMin, bpRateMax, bpExpLevel,
@@ -3650,6 +3706,9 @@ button.toggle.on        { background: var(--gold-dark); }
 button.toggle:focus-visible { box-shadow: var(--focus-ring); }
 
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* Infinite scroll sentinel — invisible 1px trigger zone */
+.nw-scroll-sentinel { height: 1px; margin-top: 20px; }
 
 /* Config accordion slide-fade animation */
 .cfg-slide-enter-active { transition: opacity 0.22s ease, transform 0.22s ease; }
