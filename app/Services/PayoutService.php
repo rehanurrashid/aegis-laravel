@@ -119,6 +119,7 @@ class PayoutService
                 'deposit_paid_at'  => now(),
                 'payment_status'   => ServiceSessionPaymentStatus::DepositPaid->value,
             ]);
+            $this->logDepositActivity($payment->fresh(), $session, $provider, $client, stub: true);
             return $payment->fresh();
         }
 
@@ -250,6 +251,7 @@ class PayoutService
                 'balance_paid_at'  => now(),
                 'payment_status'   => ServiceSessionPaymentStatus::Paid->value,
             ]);
+            $this->logBalanceActivity($payment->fresh(), $session, $provider, $client, stub: true);
             return $payment->fresh();
         }
 

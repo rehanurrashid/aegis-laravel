@@ -41,6 +41,12 @@ use App\Events\Business\MilestoneApproved;
 use App\Events\Service\ServiceRequestResponded;
 use App\Events\Service\SessionCancelled;
 use App\Events\Service\SessionCompleted;
+use App\Events\Service\SessionDepositPaid;
+use App\Events\Service\SessionBalancePaid;
+use App\Events\Service\SessionRefundRequested;
+use App\Events\Service\SessionRefundApproved;
+use App\Events\Service\SessionRefundDenied;
+use App\Events\Service\SessionRefundEscalated;
 use App\Events\Steward\StewardRoleChangeRequested;
 use App\Events\News\NewsCommented;
 use App\Events\News\NewsPostPublished;
@@ -167,6 +173,12 @@ class SendEmailNotificationListener
             $event instanceof ProposalSubmitted       => $this->proposalSubmittedBp($event),
             $event instanceof ProposalWithdrawn       => $this->proposalWithdrawnBp($event),
             $event instanceof ServiceRequestResponded => $this->serviceRequestResponded($event),
+            $event instanceof SessionDepositPaid      => $this->sessionDepositPaid($event),
+            $event instanceof SessionBalancePaid      => $this->sessionBalancePaid($event),
+            $event instanceof SessionRefundRequested  => $this->sessionRefundRequested($event),
+            $event instanceof SessionRefundApproved   => $this->sessionRefundApproved($event),
+            $event instanceof SessionRefundDenied     => $this->sessionRefundDenied($event),
+            $event instanceof SessionRefundEscalated  => $this->sessionRefundEscalated($event),
             $event instanceof StewardRoleChangeRequested => $this->stewardRoleChangeRequested($event),
             // CS Engagement Contract flow
             $event instanceof \App\Events\Incident\IncidentReadyForClosure => $this->incidentReadyForClosure($event),
@@ -1036,6 +1048,180 @@ class SendEmailNotificationListener
                 'services_url'      => rtrim(config('app.url'), '/') . '/provider/services',
             ],
         ]];
+    }
+
+    // ── Session deposit paid ──────────────────────────────────────────────────
+    // Notifies provider (payment received) and client (receipt confirmation)
+    private function sessionDepositPaid(SessionDepositPaid $e): array {
+        $dep     = '$' . number_format($e->depositCents / 100, 2);
+        $bal     = '$' . number_format(($e->session->agreed_amount_cents - $e->depositCents) / 100, 2);
+        $date    = $e->session->scheduled_at?->format('M j, Y g:i A T') ?? null;
+        $payNote = $e->practitioner->stripe_connected
+            ? 'Funds will be transferred to your connected Stripe account.'
+            : 'Funds will be released once you connect your Stripe account in Settings.';
+        $url     = rtrim(config('app.url'), '/') . '/provider/services';
+        return [
+            // Provider — payment received
+            [
+                'user_id'  => $e->practitioner->id,
+                'gate_key' => 'notify_email',
+                'template' => 'emails.services.62-session-deposit-paid',
+                'data'     => [
+                    'recipient_name'   => $e->practitioner->display_name ?? 'there',
+                    'other_party_name' => $e->client->display_name ?? 'Your client',
+                    'service_title'    => $e->session->service?->title ?? 'your service',
+                    'deposit_amount'   => $dep,
+                    'balance_due'      => $bal,
+                    'session_date'     => $date,
+                    'payout_note'      => $payNote,
+                    'services_url'     => $url,
+                ],
+            ],
+            // Client — receipt confirmation
+            [
+                'user_id'  => $e->client->id,
+                'gate_key' => 'notify_email',
+                'template' => 'emails.services.62-session-deposit-paid',
+                'data'     => [
+                    'recipient_name'   => $e->client->display_name ?? 'there',
+                    'other_party_name' => null, // not shown in client copy
+                    'service_title'    => $e->session->service?->title ?? 'your session',
+                    'deposit_amount'   => $dep,
+                    'balance_due'      => $bal,
+                    'session_date'     => $date,
+                    'payout_note'      => 'The remaining balance will be collected when you confirm the session complete.',
+                    'services_url'     => $url,
+                ],
+            ],
+        ];
+    }
+
+    // ── Session balance paid ──────────────────────────────────────────────────
+    // Notifies provider (full payment received)
+    private function sessionBalancePaid(SessionBalancePaid $e): array {
+        $total   = '$' . number_format($e->session->agreed_amount_cents / 100, 2);
+        $dep     = '$' . number_format(($e->session->deposit_cents ?? 0) / 100, 2);
+        $bal     = '$' . number_format($e->balanceCents / 100, 2);
+        $payNote = $e->practitioner->stripe_connected
+            ? 'Full transfer underway to your connected Stripe account.'
+            : 'Payment will be released once you connect your Stripe account in Settings.';
+        $url     = rtrim(config('app.url'), '/') . '/provider/services';
+        return [[
+            'user_id'  => $e->practitioner->id,
+            'gate_key' => 'notify_email',
+            'template' => 'emails.services.63-session-balance-paid',
+            'data'     => [
+                'recipient_name'   => $e->practitioner->display_name ?? 'there',
+                'other_party_name' => $e->client->display_name ?? 'Your client',
+                'service_title'    => $e->session->service?->title ?? 'your service',
+                'total_amount'     => $total,
+                'deposit_amount'   => $dep,
+                'balance_amount'   => $bal,
+                'payout_note'      => $payNote,
+                'services_url'     => $url,
+            ],
+        ]];
+    }
+
+    // ── Session refund requested ──────────────────────────────────────────────
+    // Notifies provider — must review within DISPUTE_RESPONDENT_REPLY_DAYS
+    private function sessionRefundRequested(SessionRefundRequested $e): array {
+        $rr       = $e->refundRequest;
+        $amount   = '$' . number_format($rr->amount_requested_cents / 100, 2);
+        $replyDays = (int) (env('DISPUTE_RESPONDENT_REPLY_DAYS', 5));
+        $typeLabel = $rr->refund_type instanceof \App\Enums\SessionRefundType
+            ? $rr->refund_type->label()
+            : ucfirst(str_replace('_', ' ', (string) $rr->refund_type));
+        return [[
+            'user_id'  => $e->practitioner->id,
+            'gate_key' => 'notify_email',
+            'template' => 'emails.services.64-session-refund-requested',
+            'data'     => [
+                'recipient_name'    => $e->practitioner->display_name ?? 'there',
+                'client_name'       => $e->client->display_name ?? 'Your client',
+                'service_title'     => $e->session->service?->title ?? 'the session',
+                'amount_requested'  => $amount,
+                'refund_type_label' => $typeLabel,
+                'reason'            => $rr->reason ?? null,
+                'reason_detail'     => $rr->reason_detail ?? null,
+                'reply_days'        => $replyDays,
+                'services_url'      => rtrim(config('app.url'), '/') . '/provider/services',
+            ],
+        ]];
+    }
+
+    // ── Session refund approved ───────────────────────────────────────────────
+    // Notifies client — refund is on its way
+    private function sessionRefundApproved(SessionRefundApproved $e): array {
+        $amount = '$' . number_format($e->refundedCents / 100, 2);
+        return [[
+            'user_id'  => $e->client->id,
+            'gate_key' => 'notify_email',
+            'template' => 'emails.services.65-session-refund-approved',
+            'data'     => [
+                'recipient_name' => $e->client->display_name ?? 'there',
+                'service_title'  => $e->session->service?->title ?? 'your session',
+                'refund_amount'  => $amount,
+                'services_url'   => rtrim(config('app.url'), '/') . '/provider/services',
+            ],
+        ]];
+    }
+
+    // ── Session refund denied ─────────────────────────────────────────────────
+    // Notifies client — they can escalate
+    private function sessionRefundDenied(SessionRefundDenied $e): array {
+        return [[
+            'user_id'  => $e->client->id,
+            'gate_key' => 'notify_email',
+            'template' => 'emails.services.66-session-refund-denied',
+            'data'     => [
+                'recipient_name' => $e->client->display_name ?? 'there',
+                'service_title'  => $e->session->service?->title ?? 'your session',
+                'provider_note'  => $e->providerNote ?? null,
+                'services_url'   => rtrim(config('app.url'), '/') . '/provider/services',
+            ],
+        ]];
+    }
+
+    // ── Session refund escalated ──────────────────────────────────────────────
+    // Notifies both parties — dispute is now open
+    private function sessionRefundEscalated(SessionRefundEscalated $e): array {
+        $amount    = '$' . number_format($e->refundRequest->amount_requested_cents / 100, 2);
+        $disputeId = strtoupper(substr($e->dispute->id, 0, 8));
+        $replyDays = (int) (env('DISPUTE_RESPONDENT_REPLY_DAYS', 5));
+        $url       = rtrim(config('app.url'), '/') . '/provider/services';
+        return [
+            // Client — confirmation their dispute was filed
+            [
+                'user_id'  => $e->client->id,
+                'gate_key' => 'notify_email',
+                'template' => 'emails.services.67-session-refund-escalated',
+                'data'     => [
+                    'recipient_name' => $e->client->display_name ?? 'there',
+                    'service_title'  => $e->session->service?->title ?? 'your session',
+                    'dispute_id'     => $disputeId,
+                    'amount'         => $amount,
+                    'to_provider'    => false,
+                    'services_url'   => $url,
+                ],
+            ],
+            // Provider — dispute opened, must respond
+            [
+                'user_id'  => $e->practitioner->id,
+                'gate_key' => 'notify_email',
+                'template' => 'emails.services.67-session-refund-escalated',
+                'data'     => [
+                    'recipient_name' => $e->practitioner->display_name ?? 'there',
+                    'client_name'    => $e->client->display_name ?? 'A client',
+                    'service_title'  => $e->session->service?->title ?? 'a session',
+                    'dispute_id'     => $disputeId,
+                    'amount'         => $amount,
+                    'to_provider'    => true,
+                    'reply_days'     => $replyDays,
+                    'services_url'   => $url,
+                ],
+            ],
+        ];
     }
 
     // ── Steward role change ───────────────────────────────────────────────────
