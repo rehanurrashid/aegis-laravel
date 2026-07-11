@@ -438,67 +438,31 @@
 
       <AegisEmptyState v-if="!bookings.length" icon="calendar" title="No sessions found" subtitle="Try adjusting the date range or search." />
 
-      <div v-else class="bk-list">
-        <div
-          v-for="b in bookings"
-          :key="b.id"
-          class="bk-card"
-          :class="`bk-card--${b.status}`"
-          @click="setActiveBooking(b); modals.bookingDetail = true"
-        >
-          <!-- Left accent handled by border-left via CSS class -->
-
-          <!-- Col 1: Client -->
-          <div class="bk-client">
-            <div class="bk-avatar">{{ b.client_avatar || initials(b.client_name) }}</div>
-            <div class="bk-client-info">
-              <div class="bk-client-name">{{ b.client_name }}</div>
-              <div class="bk-client-cred">{{ b.client_credentials }}</div>
-            </div>
-          </div>
-
-          <!-- Col 2: Service + date -->
-          <div class="bk-service">
-            <div class="bk-service-title">{{ b.service_title }}</div>
-            <div class="bk-service-meta">
-              <AegisIcon name="calendar" :size="11" />
-              {{ b.datetime_label }}
-              <span v-if="b.duration_label" class="bk-dot">·</span>
-              <AegisIcon v-if="b.duration_label" name="clock" :size="11" />
-              {{ b.duration_label }}
-            </div>
-          </div>
-
-          <!-- Col 3: Amount + badges -->
-          <div class="bk-right">
-            <div class="bk-amount">{{ b.amount }}</div>
-            <div class="bk-badges">
-              <AegisBadge :label="statusLabel(b.status)" :variant="statusVariant(b.status)" />
-              <AegisBadge :label="b.payment_status_label ?? 'Unpaid'" :variant="b.payment_status_variant ?? 'gold'" />
-              <AegisBadge v-if="b.has_pending_refund_request" label="Refund Requested" variant="red" />
-            </div>
-          </div>
-
-          <!-- Col 4: Quick actions -->
-          <div class="bk-actions" @click.stop>
-            <button
-              class="btn-icon"
-              data-tooltip="Session Notes"
-              @click="setActiveBooking(b); modals.sessionNotes = true"
-            ><AegisIcon name="file-text" :size="14" /></button>
-            <button
-              v-if="b.has_pending_refund_request"
-              class="btn-icon"
-              data-tooltip="Review Refund Request"
-              @click="activeRefundRequest = incomingRefundRequests.find(r => r.session_id === b.id); modals.reviewRefund = true"
-            ><AegisIcon name="alert-circle" :size="14" /></button>
-            <button
-              class="btn-icon"
-              data-tooltip="Full details"
-              @click="setActiveBooking(b); modals.bookingDetail = true"
-            ><AegisIcon name="eye" :size="14" /></button>
-          </div>
-        </div>
+      <div v-else class="sic-table-wrap">
+        <table class="sic-table">
+          <thead>
+            <tr>
+              <th class="sic-th">Client</th>
+              <th class="sic-th">Status</th>
+              <th class="sic-th"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <SessionInvoiceCard
+              v-for="b in bookings"
+              :key="b.id"
+              :session="b"
+              viewpoint="provider"
+              :show-notes="true"
+              :show-invoice="true"
+              :show-cancel="true"
+              @review-refund="activeRefundRequest = incomingRefundRequests.find(r => r.session_id === b.id); modals.reviewRefund = true"
+              @open-notes="setActiveBooking(b); modals.sessionNotes = true"
+              @open-invoice="setActiveBooking(b); modals.providerInvoice = true"
+              @cancel-session="setActiveBooking(b); modals.cancelSession = true"
+            />
+          </tbody>
+        </table>
       </div>
 
       <AegisPagination
@@ -513,81 +477,6 @@
         @change="goToBookingsPage"
       />
 
-      <!-- Session Detail Modal -->
-      <AegisModal v-model="modals.bookingDetail" title="Session Details" size="md">
-        <template v-if="activeBooking">
-
-          <!-- Client row -->
-          <div class="bk-modal-client">
-            <div class="bk-avatar bk-avatar--lg">{{ activeBooking.client_avatar || initials(activeBooking.client_name) }}</div>
-            <div class="bk-modal-client-info">
-              <a
-                v-if="activeBooking.client_slug"
-                :href="route('public.provider', { slug: activeBooking.client_slug })"
-                class="bk-modal-client-name link-name"
-              >{{ activeBooking.client_name }}</a>
-              <div v-else class="bk-modal-client-name">{{ activeBooking.client_name }}</div>
-              <div class="bk-modal-client-cred">{{ activeBooking.client_credentials }}</div>
-            </div>
-            <div class="bk-modal-badges">
-              <AegisBadge :label="statusLabel(activeBooking.status)" :variant="statusVariant(activeBooking.status)" />
-              <AegisBadge :label="activeBooking.payment_status_label ?? 'Unpaid'" :variant="activeBooking.payment_status_variant ?? 'gold'" />
-            </div>
-          </div>
-
-          <!-- Detail grid -->
-          <div class="bk-modal-grid">
-            <div class="bk-modal-row">
-              <span class="bk-modal-label"><AegisIcon name="briefcase" :size="13" /> Service</span>
-              <span class="bk-modal-value">{{ activeBooking.service_title }}</span>
-            </div>
-            <div class="bk-modal-row">
-              <span class="bk-modal-label"><AegisIcon name="calendar" :size="13" /> Date &amp; Time</span>
-              <span class="bk-modal-value">{{ activeBooking.datetime_label }}</span>
-            </div>
-            <div class="bk-modal-row">
-              <span class="bk-modal-label"><AegisIcon name="clock" :size="13" /> Duration</span>
-              <span class="bk-modal-value">{{ activeBooking.duration_label }}</span>
-            </div>
-            <div class="bk-modal-row">
-              <span class="bk-modal-label"><AegisIcon name="dollar-sign" :size="13" /> Amount</span>
-              <span class="bk-modal-value bk-modal-amount">{{ activeBooking.amount }}</span>
-            </div>
-          </div>
-
-          <!-- Refund alert -->
-          <div v-if="activeBooking.has_pending_refund_request" class="bk-modal-alert">
-            <AegisIcon name="alert-circle" :size="15" />
-            <span>This session has a pending refund request from the client.</span>
-          </div>
-
-        </template>
-        <template #footer>
-          <button type="button" class="btn btn-outline" @click="modals.bookingDetail = false">Close</button>
-          <button
-            v-if="activeBooking?.has_pending_refund_request"
-            type="button"
-            class="btn btn-outline"
-            @click="modals.bookingDetail = false; activeRefundRequest = incomingRefundRequests.find(r => r.session_id === activeBooking.id); modals.reviewRefund = true"
-          ><AegisIcon name="alert-circle" :size="13" /> Review Refund</button>
-          <button
-            type="button"
-            class="btn btn-outline"
-            @click="modals.bookingDetail = false; modals.sessionNotes = true"
-          ><AegisIcon name="file-text" :size="13" /> Notes</button>
-          <button
-            type="button"
-            class="btn btn-outline"
-            @click="modals.bookingDetail = false; modals.providerInvoice = true"
-          ><AegisIcon name="dollar-sign" :size="13" /> Invoice</button>
-          <button
-            v-if="activeBooking?.status === 'scheduled'"
-            type="button"
-            class="btn btn-danger"
-            @click="modals.bookingDetail = false; modals.cancelSession = true"
-          ><AegisIcon name="x" :size="13" /> Cancel Session</button>
-        </template>
-      </AegisModal>
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════════
@@ -1124,7 +1013,6 @@ import AegisPagination from '@/components/ui/AegisPagination.vue'
 import SessionInvoiceCard        from '@/components/ui/SessionInvoiceCard.vue'
 import ServiceExploreCard        from '@/components/ui/ServiceExploreCard.vue'
 import CounterOfferInline        from '@/components/ui/CounterOfferInline.vue'
-import SessionInvoiceModal       from '@/components/modals/SessionInvoiceModal.vue'
 import PayDepositModal           from '@/components/modals/PayDepositModal.vue'
 import PayBalanceModal           from '@/components/modals/PayBalanceModal.vue'
 import RequestRefundModal        from '@/components/modals/RequestRefundModal.vue'
@@ -1194,8 +1082,6 @@ const modals = reactive({
   clientInvoice: false, providerInvoice: false, reviewRefund: false,
   // Outgoing request detail
   outgoingDetail: false,
-  // Booking detail
-  bookingDetail: false,
 })
 
 // ── Active item tracking ──────────────────────────────────────────────────────
@@ -1828,6 +1714,11 @@ const serviceTypeOptions = [
 .pricing-opt-label { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; display: inline-flex; align-items: center; gap: 6px; }
 .pricing-opt.selected .pricing-opt-label { color: var(--gold-dark); }
 .pricing-opt-desc { font-size: 11px; color: var(--text-3); font-weight: 600; }
+
+/* ── SESSION TABLE (shared with Finances.vue via SessionInvoiceCard) ── */
+.sic-table-wrap { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 12px; }
+.sic-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.sic-th { padding: 9px 12px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-4); background: var(--surface-2); border-bottom: 1px solid var(--border); }
 
 /* ── OUTGOING REQUESTS — card list ── */
 .orq-list { display: flex; flex-direction: column; gap: 8px; }
