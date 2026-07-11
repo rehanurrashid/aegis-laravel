@@ -657,7 +657,7 @@
           <!-- Provider response -->
           <div v-if="activeOutgoingRequest.response_note" class="orq-modal-block orq-modal-block--response">
             <div class="orq-modal-block-label">
-              <AegisIcon name="corner-down-right" :size="13" /> Provider response
+              <AegisIcon name="corner-up-left" :size="13" /> Provider response
             </div>
             <div class="orq-modal-block-body">{{ activeOutgoingRequest.response_note }}</div>
           </div>
