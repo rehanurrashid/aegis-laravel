@@ -23,6 +23,8 @@ export const ICONS = {
   'eye-off': `<path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>`,
   'more': `<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>`,
   'dot': `<circle cx="12" cy="12" r="3"/>`,
+  'circle': `<circle cx="12" cy="12" r="10"/>`,
+  'circle-sm': `<circle cx="12" cy="12" r="7"/>`,
   'check': `<polyline points="20 6 9 17 4 12"/>`,
   'check-circle': `<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>`,
   'check-badge': `<path fill-rule="evenodd" clip-rule="evenodd" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1 13.41 5.7-5.7-1.4-1.42L11 12.59l-2.3-2.3-1.4 1.42 3.7 3.7Z"/>`,

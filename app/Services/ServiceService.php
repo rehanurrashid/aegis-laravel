@@ -141,6 +141,7 @@ class ServiceService
             'practitioner_name'     => $practitioner?->display_name ?? 'Unknown',
             'practitioner_slug'     => $practitioner?->slug ?? '',
             'practitioner_avatar'   => $practitioner?->avatar_initials ?? '',
+            'practitioner_avatar_url'   => $practitioner?->avatar_url ?? null,
             'practitioner_credentials' => $practitioner?->credentials ?? '',
             'practitioner_connected'=> (bool) ($practitioner?->stripe_connected ?? false),
         ];
@@ -206,6 +207,7 @@ class ServiceService
             'client_name'               => $client?->display_name ?? 'Unknown',
             'client_slug'               => $client?->slug ?? '',
             'client_avatar'             => $client?->avatar_initials ?? '',
+            'client_avatar_url'             => $client?->avatar_url ?? null,
             'client_credentials'        => $client?->credentials ?? '',
             'service_title'             => $service?->title ?? '',
             'datetime_label'            => $s->scheduled_at ? $s->scheduled_at->setTimezone($tz)->format('M j, Y g:i A T') : '—',
@@ -276,6 +278,7 @@ class ServiceService
             'practitioner_name'             => $practitioner?->display_name ?? 'Unknown',
             'practitioner_slug'             => $practitioner?->slug ?? '',
             'practitioner_avatar'           => $practitioner?->avatar_initials ?? '',
+            'practitioner_avatar_url'       => $practitioner?->avatar_url ?? null,
             'practitioner_detail'           => $practitioner?->credentials ?? '',
             'service_title'                 => $service?->title ?? 'Session',
             'request_type'                  => ucfirst(str_replace('_', ' ', $service?->category ?? '')),

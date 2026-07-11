@@ -103,7 +103,7 @@
             Business Partners
             <span v-if="bpPendingCount > 0" class="page-sidebar-badge">{{ bpPendingCount }}</span>
           </button>
-          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'sessions' }" @click="activeTab = 'sessions'">
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'sessions' }" @click="activeTab = 'sessions'; sessionFilter = 'all'">
             <span class="page-sidebar-icon"><AegisIcon name="heart" :size="15" /></span>
             Clinical Sessions
             <span v-if="sessionPendingCount + activeDisputeRefundRequests.length > 0" class="page-sidebar-badge">{{ sessionPendingCount + activeDisputeRefundRequests.length }}</span>
@@ -601,7 +601,7 @@
         <div class="sessions-section-desc">
           Payments coming to you — deposit received when client books, balance when they confirm.
           <span v-if="activeSessionsAsProvider > 0" class="sessions-active-badge">
-            <AegisIcon name="circle" :size="8" />
+            <AegisIcon name="disc-filled" :size="8" />
             {{ activeSessionsAsProvider }} active
           </span>
         </div>
@@ -1411,7 +1411,10 @@ const filteredClientSessions = computed(() => {
   return props.clientSessions
 })
 
-const filteredProviderSessions = computed(() => props.providerSessions)
+const filteredProviderSessions = computed(() => {
+  // Provider sessions don't use the client filter - show all
+  return props.providerSessions
+})
 
 const activeDisputeRefundRequests = computed(() =>
   props.incomingRefundRequests.filter(r => r.is_actionable)
@@ -1706,7 +1709,7 @@ const firstPendingAmount = computed(() => formatCents(props.upcomingPayments?.[0
 function goToPendingTab() {
   const b = props.pendingBreakdown
   if (b.bp?.count > 0)          activeTab.value = 'bp'
-  else if (b.session?.count > 0) activeTab.value = 'sessions'
+  else if (b.session?.count > 0) { activeTab.value = 'sessions'; sessionFilter.value = 'all' }
   else                           activeTab.value = 'executor'
 }
 
@@ -1880,22 +1883,37 @@ function paymentTypeLabel(t) {
 }
 
 /* Filter chips */
-.sessions-filter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Filter chips — matches "Key Terms / Why Aegis" pill design from screenshot */
+.sessions-filter-chips {
+  display: inline-flex; flex-wrap: wrap; gap: 2px;
+  background: var(--badge-bg-gold);
+  border: 1px solid var(--gold);
+  border-radius: 100px;
+  padding: 4px;
+}
 .sessions-chip {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: 12px; font-weight: 600;
-  padding: 4px 12px; border-radius: 100px;
-  border: 1.5px solid var(--border); background: var(--surface-2);
-  color: var(--text-3); cursor: pointer;
+  padding: 5px 16px; border-radius: 100px;
+  border: none; background: transparent;
+  color: var(--text-2); cursor: pointer;
   transition: all var(--transition);
 }
-.sessions-chip:hover  { border-color: var(--gold); color: var(--gold-dark); }
-.sessions-chip.active { border-color: var(--gold); background: var(--badge-bg-gold); color: var(--gold-dark); font-weight: 700; }
+.sessions-chip:hover { color: var(--gold-dark); }
+.sessions-chip.active {
+  background: var(--gold-dark);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0,0,0,.18);
+}
 .sessions-chip-count {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 16px; height: 16px; padding: 0 4px;
-  background: var(--gold-dark); color: #fff;
+  background: rgba(255,255,255,.3); color: #fff;
   border-radius: 100px; font-size: 9px; font-weight: 800;
+}
+.sessions-chip:not(.active) .sessions-chip-count {
+  background: var(--gold-dark); color: #fff;
 }
 .invoice-body        { padding: 22px 24px 20px; }
 .invoice-status      { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
