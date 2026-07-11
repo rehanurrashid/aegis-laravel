@@ -634,50 +634,10 @@
       </div>
 
       <!-- ── Invoice history ── -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title fin-card-title">
-            <span class="fin-card-icon"><AegisIcon name="file-text" :size="15" /></span>
-            Subscription Invoices
-          </div>
-          <AegisBadge :label="subscriptionInvoices.length + (subscriptionInvoices.length === 1 ? ' invoice' : ' invoices')" variant="neutral" />
-        </div>
-        <div class="card-body" style="padding:0;">
-          <table v-if="subscriptionInvoices.length" class="table sub-invoice-table" style="margin:0;">
-            <thead>
-              <tr>
-                <th style="padding-left:20px;">Date</th>
-                <th>Plan</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th style="padding-right:20px;"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="inv in subscriptionInvoices" :key="inv.id" class="sub-inv-row" style="cursor:pointer;" @click="openSubInvoice(inv)">
-                <td style="padding-left:20px;" class="tx-date">{{ formatSubscriptionDate(inv.date || inv.created) }}</td>
-                <td>
-                  <div class="sub-inv-product">{{ inv.product_name || 'Aegis Subscription' }}</div>
-                  <div class="sub-inv-desc">#{{ inv.number || inv.id }}</div>
-                </td>
-                <td class="tx-amount-out" style="font-size:14px;white-space:nowrap;">{{ formatCents(inv.amount_cents) }}</td>
-                <td><AegisBadge :label="inv.status" :variant="statusVariant(inv.status)" /></td>
-                <td style="padding-right:20px;text-align:right;">
-                  <button type="button" class="btn-icon btn-icon-sm" data-tooltip="View invoice" @click.stop="openSubInvoice(inv)">
-                    <AegisIcon name="eye" :size="12" />
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <AegisEmptyState
-            v-else icon="file-text"
-            title="No invoices yet"
-            description="Your subscription invoices will appear here after your first billing cycle."
-            style="padding:32px 0;"
-          />
-        </div>
-      </div>
+      <SettingsSubscriptionInvoices
+        :invoices="subscriptionInvoices"
+        portal-label="Practice Continuity Subscription"
+      />
     </div>
 
     <!-- ══════════════════════════════ TAB: PAYMENT METHODS ══════════════════════════════ -->
@@ -1203,6 +1163,7 @@ import AppLayout                   from '@/layouts/AppLayout.vue'
 import OpenDisputeModal            from '@/components/modals/OpenDisputeModal.vue'
 import ViewInvoiceModal            from '@/components/modals/ViewInvoiceModal.vue'
 import AegisPagination             from '@/components/ui/AegisPagination.vue'
+import SettingsSubscriptionInvoices from '@/components/settings/SettingsSubscriptionInvoices.vue'
 import { useToast }                from '@/composables/useToast'
 import { useProfileRoute }         from '@/composables/useProfileRoute'
 
@@ -1361,13 +1322,10 @@ function openViewInvoice(inv)    { activeInvoice.value = inv; modals.value.viewR
  */
 function openTxReceipt(tx) {
   if (tx.modal_type === 'subscription') {
-    // Try to match against a loaded subscription invoice by Stripe invoice ID
-    const matched = props.subscriptionInvoices?.find(i => i.id === tx.stripe_invoice_id || i.number === tx.stripe_invoice_id)
-    if (matched) { openSubInvoice(matched); return }
-    // Fallback — open directly on Stripe
+    // Subscription invoices are handled in the Subscription tab via SettingsSubscriptionInvoices
     if (tx.stripe_invoice_url) { window.open(tx.stripe_invoice_url, '_blank'); return }
     activeTab.value = 'subscription'
-    toast.info('Subscription invoice not found in recent history — check the Subscription tab.')
+    toast.info('View your subscription invoices in the Subscription tab.')
     return
   }
   if (tx.modal_type === 'cs_invoice') {
@@ -1383,22 +1341,6 @@ function openTxReceipt(tx) {
     if (ses) { activeInvoice.value = { ...ses, kind: 'session' }; modals.value.viewReceipt = true; return }
   }
   toast.info('Receipt details are not available for this transaction.')
-}
-
-function openSubInvoice(inv) {
-  // Normalize subscription invoice into the shape ViewInvoiceModal expects
-  activeInvoice.value = {
-    ...inv,
-    kind:            'subscription',
-    invoice_number:  inv.number || inv.id,
-    total_cents:     inv.amount_cents,
-    bp_name:         null,
-    cs_name:         null,
-    contract_title:  inv.product_name || 'Aegis Subscription',
-    pdf_url:         inv.pdf_url    ?? null,
-    hosted_url:      inv.hosted_url ?? null,
-  }
-  modals.value.viewReceipt = true
 }
 
 function handleReceiptApprove(inv) {
