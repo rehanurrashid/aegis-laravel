@@ -428,78 +428,170 @@
         </div>
       </div>
 
-      <div class="card card-flush">
-        <div class="card-header">
-          <div class="card-title" style="display:flex;align-items:center;gap:8px">
-            <AegisIcon name="calendar" :size="16" />
-            Sessions — {{ bookingPeriodLabel }}
-          </div>
-          <div style="display:flex;gap:8px">
-            <AegisBadge :label="`${stats?.sessions ?? 0} this month`" variant="gold" />
-            <AegisBadge :label="(stats?.revenue_label ?? '$0') + ' earned'" variant="green" />
-          </div>
+      <!-- Session list header -->
+      <div class="bk-list-header">
+        <div class="bk-list-title">
+          <AegisIcon name="calendar" :size="16" />
+          Sessions — {{ bookingPeriodLabel }}
         </div>
-        <div class="card-body">
-          <div class="table-wrap">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Client</th>
-                  <th>Service</th>
-                  <th>Date &amp; Time</th>
-                  <th>Duration</th>
-                  <th>Amount</th>
-                  <th>Session</th>
-                  <th>Payment</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="!bookings.length">
-                  <td colspan="8" style="text-align:center;color:var(--text-4);padding:24px">No sessions found.</td>
-                </tr>
-                <tr v-for="b in bookings" :key="b.id" @click="setActiveBooking(b)">
-                  <td>
-                    <div class="td-provider">
-                      <div class="avatar avatar-sm">{{ b.client_avatar || initials(b.client_name) }}</div>
-                      <div>
-                        <a v-if="b.client_slug" :href="route('public.provider', { slug: b.client_slug })" class="td-name link-name">{{ b.client_name }}</a>
-                        <div v-else class="td-name">{{ b.client_name }}</div>
-                        <div class="td-cred">{{ b.client_credentials }}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>{{ b.service_title }}</td>
-                  <td>{{ b.datetime_label }}</td>
-                  <td>{{ b.duration_label }}</td>
-                  <td style="font-weight:700">{{ b.amount }}</td>
-                  <td><AegisBadge :label="statusLabel(b.status)" :variant="statusVariant(b.status)" /></td>
-                  <td><AegisBadge :label="b.payment_status_label ?? 'Unpaid'" :variant="b.payment_status_variant ?? 'gold'" /></td>
-                  <td>
-                    <div class="req-actions">
-                      <button class="btn-icon" data-tooltip="Session Notes" @click.stop="setActiveBooking(b); modals.sessionNotes = true"><AegisIcon name="file-text" :size="14" /></button>
-                      <button class="btn-icon" data-tooltip="View Invoice" @click.stop="setActiveBooking(b); modals.providerInvoice = true"><AegisIcon name="dollar-sign" :size="14" /></button>
-                      <button v-if="b.has_pending_refund_request" class="btn-icon" data-tooltip="Review Refund Request" @click.stop="activeRefundRequest = incomingRefundRequests.find(r => r.session_id === b.id); modals.reviewRefund = true">
-                        <AegisIcon name="alert-circle" :size="14" />
-                      </button>
-                      <button v-if="b.status === 'scheduled'" class="btn-icon" data-tooltip="Cancel Session" @click.stop="setActiveBooking(b); modals.cancelSession = true"><AegisIcon name="x" :size="14" /></button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <AegisPagination
-            :current-page="bookingsMeta.current_page ?? 1"
-            :total-pages="bookingsMeta.last_page ?? 1"
-            :total="bookingsMeta.total ?? bookings.length"
-            :from="bookings.length ? ((bookingsMeta.current_page - 1) * bookingsMeta.per_page) + 1 : 0"
-            :to="Math.min(bookingsMeta.current_page * bookingsMeta.per_page, bookingsMeta.total ?? bookings.length)"
-            :show-meta="true"
-            @change="goToBookingsPage"
-          />
+        <div class="bk-list-stats">
+          <AegisBadge :label="`${stats?.sessions ?? 0} this month`" variant="gold" />
+          <AegisBadge :label="(stats?.revenue_label ?? '$0') + ' earned'" variant="green" />
         </div>
       </div>
+
+      <AegisEmptyState v-if="!bookings.length" icon="calendar" title="No sessions found" subtitle="Try adjusting the date range or search." />
+
+      <div v-else class="bk-list">
+        <div
+          v-for="b in bookings"
+          :key="b.id"
+          class="bk-card"
+          :class="`bk-card--${b.status}`"
+          @click="setActiveBooking(b); modals.bookingDetail = true"
+        >
+          <!-- Left accent handled by border-left via CSS class -->
+
+          <!-- Col 1: Client -->
+          <div class="bk-client">
+            <div class="bk-avatar">{{ b.client_avatar || initials(b.client_name) }}</div>
+            <div class="bk-client-info">
+              <div class="bk-client-name">{{ b.client_name }}</div>
+              <div class="bk-client-cred">{{ b.client_credentials }}</div>
+            </div>
+          </div>
+
+          <!-- Col 2: Service + date -->
+          <div class="bk-service">
+            <div class="bk-service-title">{{ b.service_title }}</div>
+            <div class="bk-service-meta">
+              <AegisIcon name="calendar" :size="11" />
+              {{ b.datetime_label }}
+              <span v-if="b.duration_label" class="bk-dot">·</span>
+              <AegisIcon v-if="b.duration_label" name="clock" :size="11" />
+              {{ b.duration_label }}
+            </div>
+          </div>
+
+          <!-- Col 3: Amount + badges -->
+          <div class="bk-right">
+            <div class="bk-amount">{{ b.amount }}</div>
+            <div class="bk-badges">
+              <AegisBadge :label="statusLabel(b.status)" :variant="statusVariant(b.status)" />
+              <AegisBadge :label="b.payment_status_label ?? 'Unpaid'" :variant="b.payment_status_variant ?? 'gold'" />
+              <AegisBadge v-if="b.has_pending_refund_request" label="Refund Requested" variant="red" />
+            </div>
+          </div>
+
+          <!-- Col 4: Quick actions -->
+          <div class="bk-actions" @click.stop>
+            <button
+              class="btn-icon"
+              data-tooltip="Session Notes"
+              @click="setActiveBooking(b); modals.sessionNotes = true"
+            ><AegisIcon name="file-text" :size="14" /></button>
+            <button
+              v-if="b.has_pending_refund_request"
+              class="btn-icon"
+              data-tooltip="Review Refund Request"
+              @click="activeRefundRequest = incomingRefundRequests.find(r => r.session_id === b.id); modals.reviewRefund = true"
+            ><AegisIcon name="alert-circle" :size="14" /></button>
+            <button
+              class="btn-icon"
+              data-tooltip="Full details"
+              @click="setActiveBooking(b); modals.bookingDetail = true"
+            ><AegisIcon name="eye" :size="14" /></button>
+          </div>
+        </div>
+      </div>
+
+      <AegisPagination
+        v-if="bookingsMeta.last_page > 1"
+        :current-page="bookingsMeta.current_page ?? 1"
+        :total-pages="bookingsMeta.last_page ?? 1"
+        :total="bookingsMeta.total ?? bookings.length"
+        :from="bookings.length ? ((bookingsMeta.current_page - 1) * bookingsMeta.per_page) + 1 : 0"
+        :to="Math.min(bookingsMeta.current_page * bookingsMeta.per_page, bookingsMeta.total ?? bookings.length)"
+        :show-meta="true"
+        style="margin-top:12px"
+        @change="goToBookingsPage"
+      />
+
+      <!-- Session Detail Modal -->
+      <AegisModal v-model="modals.bookingDetail" title="Session Details" size="md">
+        <template v-if="activeBooking">
+
+          <!-- Client row -->
+          <div class="bk-modal-client">
+            <div class="bk-avatar bk-avatar--lg">{{ activeBooking.client_avatar || initials(activeBooking.client_name) }}</div>
+            <div class="bk-modal-client-info">
+              <a
+                v-if="activeBooking.client_slug"
+                :href="route('public.provider', { slug: activeBooking.client_slug })"
+                class="bk-modal-client-name link-name"
+              >{{ activeBooking.client_name }}</a>
+              <div v-else class="bk-modal-client-name">{{ activeBooking.client_name }}</div>
+              <div class="bk-modal-client-cred">{{ activeBooking.client_credentials }}</div>
+            </div>
+            <div class="bk-modal-badges">
+              <AegisBadge :label="statusLabel(activeBooking.status)" :variant="statusVariant(activeBooking.status)" />
+              <AegisBadge :label="activeBooking.payment_status_label ?? 'Unpaid'" :variant="activeBooking.payment_status_variant ?? 'gold'" />
+            </div>
+          </div>
+
+          <!-- Detail grid -->
+          <div class="bk-modal-grid">
+            <div class="bk-modal-row">
+              <span class="bk-modal-label"><AegisIcon name="briefcase" :size="13" /> Service</span>
+              <span class="bk-modal-value">{{ activeBooking.service_title }}</span>
+            </div>
+            <div class="bk-modal-row">
+              <span class="bk-modal-label"><AegisIcon name="calendar" :size="13" /> Date &amp; Time</span>
+              <span class="bk-modal-value">{{ activeBooking.datetime_label }}</span>
+            </div>
+            <div class="bk-modal-row">
+              <span class="bk-modal-label"><AegisIcon name="clock" :size="13" /> Duration</span>
+              <span class="bk-modal-value">{{ activeBooking.duration_label }}</span>
+            </div>
+            <div class="bk-modal-row">
+              <span class="bk-modal-label"><AegisIcon name="dollar-sign" :size="13" /> Amount</span>
+              <span class="bk-modal-value bk-modal-amount">{{ activeBooking.amount }}</span>
+            </div>
+          </div>
+
+          <!-- Refund alert -->
+          <div v-if="activeBooking.has_pending_refund_request" class="bk-modal-alert">
+            <AegisIcon name="alert-circle" :size="15" />
+            <span>This session has a pending refund request from the client.</span>
+          </div>
+
+        </template>
+        <template #footer>
+          <button type="button" class="btn btn-outline" @click="modals.bookingDetail = false">Close</button>
+          <button
+            v-if="activeBooking?.has_pending_refund_request"
+            type="button"
+            class="btn btn-outline"
+            @click="modals.bookingDetail = false; activeRefundRequest = incomingRefundRequests.find(r => r.session_id === activeBooking.id); modals.reviewRefund = true"
+          ><AegisIcon name="alert-circle" :size="13" /> Review Refund</button>
+          <button
+            type="button"
+            class="btn btn-outline"
+            @click="modals.bookingDetail = false; modals.sessionNotes = true"
+          ><AegisIcon name="file-text" :size="13" /> Notes</button>
+          <button
+            type="button"
+            class="btn btn-outline"
+            @click="modals.bookingDetail = false; modals.providerInvoice = true"
+          ><AegisIcon name="dollar-sign" :size="13" /> Invoice</button>
+          <button
+            v-if="activeBooking?.status === 'scheduled'"
+            type="button"
+            class="btn btn-danger"
+            @click="modals.bookingDetail = false; modals.cancelSession = true"
+          ><AegisIcon name="x" :size="13" /> Cancel Session</button>
+        </template>
+      </AegisModal>
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════════
@@ -1106,6 +1198,8 @@ const modals = reactive({
   clientInvoice: false, providerInvoice: false, reviewRefund: false,
   // Outgoing request detail
   outgoingDetail: false,
+  // Booking detail
+  bookingDetail: false,
 })
 
 // ── Active item tracking ──────────────────────────────────────────────────────
@@ -1603,6 +1697,75 @@ const serviceTypeOptions = [
 .explore-end-note {
   display: flex; align-items: center; gap: 6px; justify-content: center;
   padding: 12px; font-size: 12px; font-weight: 600; color: var(--text-4);
+}
+
+/* ── BOOKINGS CARD LIST ── */
+.bk-list-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px; flex-wrap: wrap; gap: 8px;
+}
+.bk-list-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px; font-weight: 700; color: var(--text);
+}
+.bk-list-stats { display: flex; gap: 6px; }
+.bk-list { display: flex; flex-direction: column; gap: 8px; }
+.bk-card {
+  display: grid;
+  grid-template-columns: 200px 1fr auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-dark);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: box-shadow var(--transition);
+}
+.bk-card:hover { box-shadow: var(--shadow-md); }
+.bk-card--scheduled { border-left-color: var(--blue, #3b82f6); }
+.bk-card--completed { border-left-color: var(--green); }
+.bk-card--cancelled { border-left-color: var(--border-dark); opacity: .75; }
+.bk-card--no_show   { border-left-color: var(--red, #ef4444); }
+.bk-client { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.bk-avatar {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  background: var(--badge-bg-gold); color: var(--gold-dark);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+}
+.bk-avatar--lg { width: 44px; height: 44px; font-size: 15px; }
+.bk-client-info { min-width: 0; }
+.bk-client-name { font-size: 13px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bk-client-cred { font-size: 11px; color: var(--text-4); font-weight: 600; margin-top: 1px; }
+.bk-service { min-width: 0; }
+.bk-service-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bk-service-meta { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--text-4); flex-wrap: wrap; }
+.bk-dot { color: var(--border-dark); margin: 0 2px; }
+.bk-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+.bk-amount { font-size: 16px; font-weight: 700; color: var(--text); font-family: var(--font-serif, serif); }
+.bk-badges { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.bk-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+/* Booking detail modal */
+.bk-modal-client { display: flex; align-items: center; gap: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 14px; flex-wrap: wrap; }
+.bk-modal-client-info { flex: 1; min-width: 0; }
+.bk-modal-client-name { font-size: 15px; font-weight: 700; color: var(--text); }
+.bk-modal-client-cred { font-size: 12px; color: var(--text-3); font-weight: 600; margin-top: 2px; }
+.bk-modal-badges { display: flex; gap: 5px; flex-wrap: wrap; }
+.bk-modal-grid { margin-bottom: 14px; }
+.bk-modal-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.bk-modal-row:last-child { border-bottom: none; }
+.bk-modal-label { display: flex; align-items: center; gap: 6px; color: var(--text-3); font-weight: 600; flex-shrink: 0; width: 130px; }
+.bk-modal-value { font-weight: 600; color: var(--text); text-align: right; }
+.bk-modal-amount { font-size: 18px; font-weight: 700; font-family: var(--font-serif, serif); }
+.bk-modal-alert { display: flex; align-items: center; gap: 8px; background: rgba(245,158,11,.07); border: 1px solid var(--gold); border-radius: var(--radius); padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--gold-dark); }
+@media (max-width: 760px) {
+  .bk-card { grid-template-columns: 1fr auto; grid-template-rows: auto auto; gap: 8px; }
+  .bk-client { grid-column: 1; grid-row: 1; }
+  .bk-service { grid-column: 1; grid-row: 2; }
+  .bk-right   { grid-column: 2; grid-row: 1; }
+  .bk-actions { grid-column: 2; grid-row: 2; }
 }
 
 /* ── LISTINGS ── */
