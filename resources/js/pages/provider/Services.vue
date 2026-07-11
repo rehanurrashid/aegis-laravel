@@ -551,63 +551,136 @@
         @change="goToClientSessionsPage"
       />
 
-      <!-- Section B: Outgoing service requests (not yet booked) ──────── -->
+      <!-- Section B: Outgoing service requests ───────────────────────────── -->
       <div class="section-header">
         <div class="section-title">
           My Service Requests
           <span class="section-badge">{{ props.outgoingRequests.length }}</span>
         </div>
-        <div class="section-subtitle">Requests you have sent to other providers — pending, accepted, declined, or withdrawn.</div>
+        <div class="section-subtitle">Requests you have sent to other providers.</div>
       </div>
 
       <AegisEmptyState v-if="!props.outgoingRequests.length" icon="send" title="No outgoing requests" subtitle="When you request a service from another provider, it will appear here." />
 
-      <div v-else class="card card-flush">
-        <div class="card-body">
-          <div class="table-wrap">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Provider</th>
-                  <th>Service</th>
-                  <th>Type</th>
-                  <th>Date Sent</th>
-                  <th>Status</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="r in props.outgoingRequests" :key="r.id">
-                  <td>
-                    <div class="td-provider">
-                      <div class="avatar avatar-sm">{{ r.provider_avatar || '?' }}</div>
-                      <div>
-                        <a v-if="r.provider_slug" :href="route('public.provider', { slug: r.provider_slug })" class="td-name link-name">{{ r.provider_name }}</a>
-                        <div v-else class="td-name">{{ r.provider_name }}</div>
-                        <div class="td-cred">{{ r.provider_detail }}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>{{ r.service_title }}</td>
-                  <td>{{ r.request_type }}</td>
-                  <td>
-                    <div>{{ r.sent_date_label }}</div>
-                    <div class="td-sub">{{ r.time_label }}</div>
-                  </td>
-                  <td>
-                    <AegisBadge :label="statusLabel(r.status)" :variant="statusVariant(r.status)" />
-                    <div v-if="r.response_note" class="td-sub" style="margin-top:4px">{{ r.response_note }}</div>
-                  </td>
-                  <td>
-                    <button v-if="r.status === 'new'" class="btn-icon" data-tooltip="Withdraw Request" @click.stop="withdrawOutgoingRequest(r.id)"><AegisIcon name="x" :size="14" /></button>
-                    <span v-else class="td-sub">—</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+      <div v-else class="orq-list">
+        <div
+          v-for="r in props.outgoingRequests"
+          :key="r.id"
+          class="orq-card"
+          :class="`orq-card--${r.status}`"
+          @click="activeOutgoingRequest = r; modals.outgoingDetail = true"
+        >
+          <!-- Avatar + provider -->
+          <div class="orq-provider">
+            <div class="orq-avatar">{{ r.provider_avatar || '?' }}</div>
+            <div class="orq-provider-info">
+              <div class="orq-provider-name">{{ r.provider_name }}</div>
+              <div class="orq-provider-cred">{{ r.provider_detail }}</div>
+            </div>
+          </div>
+
+          <!-- Service + type -->
+          <div class="orq-service">
+            <div class="orq-service-title">{{ r.service_title }}</div>
+            <div class="orq-service-type">{{ r.request_type }}</div>
+          </div>
+
+          <!-- Status badge -->
+          <div class="orq-status">
+            <AegisBadge :label="statusLabel(r.status)" :variant="statusVariant(r.status)" />
+            <div class="orq-date">{{ r.time_label }}</div>
+          </div>
+
+          <!-- Action -->
+          <div class="orq-action" @click.stop>
+            <button
+              v-if="r.status === 'new'"
+              class="btn btn-outline"
+              data-tooltip="Withdraw this request"
+              @click="withdrawOutgoingRequest(r.id)"
+            >
+              <AegisIcon name="x" :size="13" /> Withdraw
+            </button>
+            <button
+              class="btn-icon"
+              data-tooltip="View details"
+              @click="activeOutgoingRequest = r; modals.outgoingDetail = true"
+            >
+              <AegisIcon name="eye" :size="14" />
+            </button>
           </div>
         </div>
       </div>
+
+      <!-- Request Detail Modal -->
+      <AegisModal v-model="modals.outgoingDetail" title="Request Details" size="md">
+        <template v-if="activeOutgoingRequest">
+
+          <!-- Provider row -->
+          <div class="orq-modal-provider">
+            <div class="orq-avatar orq-avatar--lg">{{ activeOutgoingRequest.provider_avatar || '?' }}</div>
+            <div>
+              <div class="orq-modal-name">{{ activeOutgoingRequest.provider_name }}</div>
+              <div class="orq-modal-cred">{{ activeOutgoingRequest.provider_detail }}</div>
+            </div>
+            <AegisBadge :label="statusLabel(activeOutgoingRequest.status)" :variant="statusVariant(activeOutgoingRequest.status)" style="margin-left:auto" />
+          </div>
+
+          <!-- Detail grid -->
+          <div class="orq-modal-grid">
+            <div class="orq-modal-row">
+              <span class="orq-modal-label">Service</span>
+              <span class="orq-modal-value">{{ activeOutgoingRequest.service_title }}</span>
+            </div>
+            <div class="orq-modal-row">
+              <span class="orq-modal-label">Type</span>
+              <span class="orq-modal-value">{{ activeOutgoingRequest.request_type }}</span>
+            </div>
+            <div class="orq-modal-row">
+              <span class="orq-modal-label">Sent</span>
+              <span class="orq-modal-value">{{ activeOutgoingRequest.sent_date_label }} <span style="color:var(--text-4)">({{ activeOutgoingRequest.time_label }})</span></span>
+            </div>
+            <div v-if="activeOutgoingRequest.responded_at" class="orq-modal-row">
+              <span class="orq-modal-label">Responded</span>
+              <span class="orq-modal-value">{{ activeOutgoingRequest.responded_at }}</span>
+            </div>
+          </div>
+
+          <!-- My message -->
+          <div v-if="activeOutgoingRequest.message" class="orq-modal-block">
+            <div class="orq-modal-block-label">
+              <AegisIcon name="message-square" :size="13" /> Your message
+            </div>
+            <div class="orq-modal-block-body">{{ activeOutgoingRequest.message }}</div>
+          </div>
+
+          <!-- Provider response -->
+          <div v-if="activeOutgoingRequest.response_note" class="orq-modal-block orq-modal-block--response">
+            <div class="orq-modal-block-label">
+              <AegisIcon name="corner-down-right" :size="13" /> Provider response
+            </div>
+            <div class="orq-modal-block-body">{{ activeOutgoingRequest.response_note }}</div>
+          </div>
+
+          <!-- No response yet -->
+          <div v-else-if="activeOutgoingRequest.status === 'new'" class="orq-modal-pending">
+            <AegisIcon name="clock" :size="14" />
+            Awaiting provider response — most providers respond within 72 hours.
+          </div>
+
+        </template>
+        <template #footer>
+          <button type="button" class="btn btn-outline" @click="modals.outgoingDetail = false">Close</button>
+          <button
+            v-if="activeOutgoingRequest?.status === 'new'"
+            type="button"
+            class="btn btn-danger"
+            @click="modals.outgoingDetail = false; withdrawOutgoingRequest(activeOutgoingRequest.id)"
+          >
+            <AegisIcon name="x" :size="13" /> Withdraw Request
+          </button>
+        </template>
+      </AegisModal>
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════════
@@ -1025,6 +1098,8 @@ const modals = reactive({
   // Wave 4 new
   payDeposit: false, payBalance: false, requestRefund: false,
   clientInvoice: false, providerInvoice: false, reviewRefund: false,
+  // Outgoing request detail
+  outgoingDetail: false,
 })
 
 // ── Active item tracking ──────────────────────────────────────────────────────
@@ -1034,6 +1109,7 @@ const activeBooking       = ref(null)
 const activeClientSession = ref(null)
 const activeRefundRequest = ref(null)
 const activeExploreService = ref(null)
+const activeOutgoingRequest = ref(null)
 
 function setActiveService(s) {
   activeService.value = s
@@ -1582,7 +1658,87 @@ const serviceTypeOptions = [
 .pricing-opt.selected .pricing-opt-label { color: var(--gold-dark); }
 .pricing-opt-desc { font-size: 11px; color: var(--text-3); font-weight: 600; }
 
-/* ── PAGE NOTE ── */
+/* ── OUTGOING REQUESTS — card list ── */
+.orq-list { display: flex; flex-direction: column; gap: 8px; }
+
+.orq-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-dark);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: box-shadow var(--transition), border-color var(--transition);
+  flex-wrap: wrap;
+}
+.orq-card:hover { box-shadow: var(--shadow-md); }
+.orq-card--new        { border-left-color: var(--gold-dark); }
+.orq-card--accepted   { border-left-color: var(--green); }
+.orq-card--declined   { border-left-color: var(--red, #ef4444); }
+.orq-card--withdrawn  { border-left-color: var(--border-dark); opacity: .7; }
+
+.orq-provider { display: flex; align-items: center; gap: 10px; min-width: 180px; flex: 0 0 auto; }
+.orq-avatar {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  background: var(--badge-bg-gold); color: var(--gold-dark);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+}
+.orq-avatar--lg { width: 44px; height: 44px; font-size: 15px; }
+.orq-provider-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.orq-provider-cred { font-size: 11px; color: var(--text-4); font-weight: 600; margin-top: 1px; }
+
+.orq-service { flex: 1; min-width: 140px; }
+.orq-service-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.orq-service-type  { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--text-4); }
+
+.orq-status { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.orq-date   { font-size: 11px; color: var(--text-4); font-weight: 600; }
+
+.orq-action { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+/* Modal styles */
+.orq-modal-provider {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px; margin-bottom: 14px;
+}
+.orq-modal-name { font-size: 15px; font-weight: 700; color: var(--text); }
+.orq-modal-cred { font-size: 12px; color: var(--text-3); font-weight: 600; margin-top: 2px; }
+
+.orq-modal-grid { margin-bottom: 14px; }
+.orq-modal-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+}
+.orq-modal-row:last-child { border-bottom: none; }
+.orq-modal-label { color: var(--text-3); font-weight: 600; flex-shrink: 0; width: 100px; }
+.orq-modal-value { font-weight: 600; color: var(--text); text-align: right; }
+
+.orq-modal-block {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 14px; margin-bottom: 10px;
+}
+.orq-modal-block--response {
+  background: rgba(34,197,94,.05); border-color: var(--green);
+}
+.orq-modal-block-label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--text-4); margin-bottom: 6px;
+}
+.orq-modal-block--response .orq-modal-block-label { color: var(--green-dark, #2e7d32); }
+.orq-modal-block-body { font-size: 13px; color: var(--text-2); line-height: 1.6; }
+
+.orq-modal-pending {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--badge-bg-gold); border: 1px solid var(--gold);
+  border-radius: var(--radius); padding: 10px 14px;
+  font-size: 13px; font-weight: 600; color: var(--gold-dark);
+}
 .page-note { display: flex; align-items: flex-start; gap: 8px; background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: var(--radius); padding: 10px 14px; color: var(--text-2); font-size: 13px; line-height: 1.5; margin-bottom: 16px; }
 .page-note .aegis-icon { flex-shrink: 0; margin-top: 1px; color: var(--gold); }
 
