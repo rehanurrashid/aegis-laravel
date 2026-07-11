@@ -553,10 +553,6 @@
           <AegisIcon name="briefcase" :size="14" />
           Sessions I'm Providing
           <span class="tab-count">{{ providerSessions.length }}</span>
-          <span v-if="activeSessionsAsProvider > 0" class="sessions-active-badge" style="margin-left:4px">
-            <AegisIcon name="disc-filled" :size="8" />
-            {{ activeSessionsAsProvider }} active
-          </span>
         </button>
       </div>
 
@@ -586,7 +582,6 @@
           icon="heart"
           title="No clinical sessions booked"
           subtitle="Browse other practitioners' services to book supervision, consultation, training, and more."
-          style="margin-bottom:24px"
         >
           <template #action>
             <a :href="route('provider.services.index') + '?tab=explore'" class="btn btn-primary">
@@ -600,20 +595,42 @@
           icon="filter"
           title="No sessions match this filter"
           subtitle="Try selecting a different filter above."
-          style="margin-bottom:24px"
         />
 
         <template v-else>
-          <SessionInvoiceCard
-            v-for="ses in filteredClientSessions"
-            :key="ses.id"
-            :session="ses"
-            viewpoint="client"
-            @pay-deposit="activeClientSession = ses; modals.sessionPayDeposit = true"
-            @pay-balance="activeClientSession = ses; modals.sessionPayBalance = true"
-            @view-invoice="activeClientSession = ses; modals.sessionClientInvoice = true"
-            @request-refund="activeClientSession = ses; modals.sessionRequestRefund = true"
-            @escalate-refund="escalateSessionRefund(ses)"
+          <div class="sic-table-wrap">
+            <table class="sic-table">
+              <thead>
+                <tr>
+                  <th class="sic-th">Provider</th>
+                  <th class="sic-th">Status</th>
+                  <th class="sic-th"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <SessionInvoiceCard
+                  v-for="ses in pagedClientSessions"
+                  :key="ses.id"
+                  :session="ses"
+                  viewpoint="client"
+                  @pay-deposit="activeClientSession = ses; modals.sessionPayDeposit = true"
+                  @pay-balance="activeClientSession = ses; modals.sessionPayBalance = true"
+                  @request-refund="activeClientSession = ses; modals.sessionRequestRefund = true"
+                  @escalate-refund="escalateSessionRefund(ses)"
+                />
+              </tbody>
+            </table>
+          </div>
+          <AegisPagination
+            v-if="filteredClientSessions.length > clientPageSize"
+            :current-page="clientPage"
+            :total-pages="Math.ceil(filteredClientSessions.length / clientPageSize)"
+            :total="filteredClientSessions.length"
+            :from="(clientPage - 1) * clientPageSize + 1"
+            :to="Math.min(clientPage * clientPageSize, filteredClientSessions.length)"
+            :show-meta="true"
+            style="margin-top:12px"
+            @change="clientPage = $event"
           />
         </template>
       </div>
@@ -654,14 +671,37 @@
         />
 
         <template v-else>
-          <SessionInvoiceCard
-            v-for="ses in filteredProviderSessions"
-            :key="ses.id"
-            :session="ses"
-            viewpoint="provider"
-            @view-invoice="activeProviderSession = ses; modals.sessionProviderInvoice = true"
-            @review-refund="activeRefundRequest = incomingRefundRequests.find(r => r.session_id === ses.id); modals.sessionReviewRefund = true"
-            @cancel-session="openSessionDispute(ses)"
+          <div class="sic-table-wrap">
+            <table class="sic-table">
+              <thead>
+                <tr>
+                  <th class="sic-th">Client</th>
+                  <th class="sic-th">Status</th>
+                  <th class="sic-th"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <SessionInvoiceCard
+                  v-for="ses in pagedProviderSessions"
+                  :key="ses.id"
+                  :session="ses"
+                  viewpoint="provider"
+                  @review-refund="activeRefundRequest = incomingRefundRequests.find(r => r.session_id === ses.id); modals.sessionReviewRefund = true"
+                  @cancel-session="openSessionDispute(ses)"
+                />
+              </tbody>
+            </table>
+          </div>
+          <AegisPagination
+            v-if="filteredProviderSessions.length > providerPageSize"
+            :current-page="providerPage"
+            :total-pages="Math.ceil(filteredProviderSessions.length / providerPageSize)"
+            :total="filteredProviderSessions.length"
+            :from="(providerPage - 1) * providerPageSize + 1"
+            :to="Math.min(providerPage * providerPageSize, filteredProviderSessions.length)"
+            :show-meta="true"
+            style="margin-top:12px"
+            @change="providerPage = $event"
           />
         </template>
       </div>
@@ -1297,7 +1337,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { router, useForm }         from '@inertiajs/vue3'
 import AppLayout                   from '@/layouts/AppLayout.vue'
 import OpenDisputeModal             from '@/components/modals/OpenDisputeModal.vue'
@@ -1443,6 +1483,14 @@ const activeRefundRequest  = ref(null)
 const sessionSubTab          = ref('booked')   // 'booked' | 'providing'
 const clientSessionFilter    = ref('all')
 const providerSessionFilter  = ref('all')
+const clientPage             = ref(1)
+const providerPage           = ref(1)
+const clientPageSize         = 8
+const providerPageSize       = 8
+
+// Reset page when filter changes
+watch(clientSessionFilter,   () => { clientPage.value   = 1 })
+watch(providerSessionFilter, () => { providerPage.value = 1 })
 
 function filterSessions(sessions, filter) {
   if (filter === 'all')         return sessions
@@ -1455,6 +1503,9 @@ function filterSessions(sessions, filter) {
 
 const filteredClientSessions   = computed(() => filterSessions(props.clientSessions,   clientSessionFilter.value))
 const filteredProviderSessions = computed(() => filterSessions(props.providerSessions, providerSessionFilter.value))
+
+const pagedClientSessions   = computed(() => filteredClientSessions.value.slice((clientPage.value - 1) * clientPageSize, clientPage.value * clientPageSize))
+const pagedProviderSessions = computed(() => filteredProviderSessions.value.slice((providerPage.value - 1) * providerPageSize, providerPage.value * providerPageSize))
 
 const activeDisputeRefundRequests = computed(() =>
   props.incomingRefundRequests.filter(r => r.is_actionable)
@@ -1909,6 +1960,16 @@ function paymentTypeLabel(t) {
 .sessions-refund-service { color: var(--text-3); font-weight: 600; }
 .sessions-refund-amount  { font-weight: 700; color: var(--gold-dark); }
 .sessions-refund-sep     { color: var(--border-dark); }
+
+/* ── SESSION TABLE ── */
+.sic-table-wrap { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.sic-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.sic-th {
+  padding: 9px 12px; text-align: left;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+  color: var(--text-4); background: var(--surface-2); border-bottom: 1px solid var(--border);
+}
+.sic-th--right { text-align: right; }
 
 .sessions-section-header { margin-bottom: 16px; }
 .sessions-section-title {

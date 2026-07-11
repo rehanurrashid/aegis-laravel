@@ -1,262 +1,229 @@
 <!--
-  SessionInvoiceCard.vue — universal session invoice display card.
+  SessionInvoiceCard.vue — compact table-row card with inline invoice detail modal.
 
-  Fixes applied:
-    1. Avatar: renders <img> when avatar_url present, else initials (never '?')
-    2. Name linked to /public/provider/{slug} for both parties
-    3. AegisPagination support via slot (parent passes if needed)
-    4. sessions-active-badge icon fixed to 'disc-filled'
-    5. Redesigned layout: cleaner header, tighter amounts, improved visual hierarchy
+  Usage: drop inside a .sic-table wrapper (defined in this file's <style>).
+  The parent renders the <table> header; this component renders one <tr> + modal.
 
-  Emits: pay-deposit, pay-balance, view-invoice, request-refund,
-         escalate-refund, cancel-session, review-refund
+  Emits: pay-deposit, pay-balance, request-refund, escalate-refund,
+         cancel-session, review-refund
 -->
 <template>
-  <div class="session-invoice-card" :class="`is-${viewpoint} is-${session.payment_status ?? 'unpaid'}`">
-
-    <!-- ── ACCENT BAR ─────────────────────────────────────────────── -->
-    <div class="sic-accent" :class="`sic-accent--${paymentVariant}`"></div>
-
-    <!-- ── BODY ──────────────────────────────────────────────────── -->
-    <div class="sic-body">
-
-      <!-- Row 1: header ──────────────────────────────────────── -->
-      <div class="sic-header">
-
-        <!-- Avatar + party info -->
-        <div class="sic-header-left">
-          <div class="sic-avatar">
-            <img
-              v-if="partyAvatarUrl"
-              :src="partyAvatarUrl"
-              :alt="partyName"
-              class="sic-avatar-img"
-            />
-            <span v-else class="sic-avatar-initials">{{ partyInitials }}</span>
-          </div>
-          <div class="sic-header-info">
-            <a
-              v-if="partySlug"
-              :href="`/public/provider/${partySlug}`"
-              class="sic-party-name link-name"
-            >{{ partyName }}</a>
-            <div v-else class="sic-party-name">{{ partyName }}</div>
-            <div class="sic-service-title">{{ session.service_title }}</div>
-          </div>
+  <!-- TABLE ROW — 3 columns only, details in modal ──────────────────── -->
+  <tr
+    class="sic-row"
+    :class="[`sic-row--${session.status}`, `sic-row--pay-${session.payment_status ?? 'unpaid'}`]"
+    @click="open = true"
+  >
+    <!-- Col 1: Avatar + name + service + date -->
+    <td class="sic-td sic-td--party">
+      <div class="sic-party">
+        <div class="sic-avatar">
+          <img v-if="partyAvatarUrl" :src="partyAvatarUrl" :alt="partyName" class="sic-avatar-img" />
+          <span v-else class="sic-avatar-initials">{{ partyInitials }}</span>
         </div>
+        <div class="sic-party-info">
+          <a v-if="partySlug" :href="`/public/provider/${partySlug}`" class="sic-party-name" @click.stop>{{ partyName }}</a>
+          <span v-else class="sic-party-name">{{ partyName }}</span>
+          <span class="sic-service-name">{{ session.service_title }}</span>
+          <span class="sic-date-sub">{{ session.datetime_label || '—' }}</span>
+        </div>
+      </div>
+    </td>
 
-        <!-- Badges -->
-        <div class="sic-header-right">
+    <!-- Col 2: Status badges -->
+    <td class="sic-td sic-td--status">
+      <div class="sic-badges">
+        <AegisBadge :label="sessionStatusLabel" :variant="sessionStatusVariant" />
+        <AegisBadge :label="session.payment_status_label ?? 'Deposit Due'" :variant="paymentVariant" />
+        <AegisBadge v-if="session.has_pending_refund_request" label="Refund" variant="red" />
+      </div>
+    </td>
+
+    <!-- Col 3: Single icon — open modal -->
+    <td class="sic-td sic-td--actions" @click.stop>
+      <button
+        type="button"
+        class="btn-icon"
+        data-tooltip="View details & actions"
+        @click="open = true"
+      >
+        <AegisIcon name="chevron-right" :size="15" />
+      </button>
+    </td>
+  </tr>
+
+  <!-- DETAIL MODAL ──────────────────────────────────────────────────── -->
+  <AegisModal v-model="open" title="Session Invoice" size="md">
+    <template #default>
+
+      <!-- Party header -->
+      <div class="sic-modal-party">
+        <div class="sic-avatar sic-avatar--lg">
+          <img v-if="partyAvatarUrl" :src="partyAvatarUrl" :alt="partyName" class="sic-avatar-img" />
+          <span v-else class="sic-avatar-initials">{{ partyInitials }}</span>
+        </div>
+        <div class="sic-modal-party-info">
+          <a
+            v-if="partySlug"
+            :href="`/public/provider/${partySlug}`"
+            class="sic-modal-party-name"
+            target="_blank"
+          >{{ partyName }}</a>
+          <span v-else class="sic-modal-party-name">{{ partyName }}</span>
+          <span class="sic-modal-service">{{ session.service_title }}</span>
+        </div>
+        <div class="sic-modal-badges">
           <AegisBadge :label="sessionStatusLabel" :variant="sessionStatusVariant" />
           <AegisBadge :label="session.payment_status_label ?? 'Deposit Due'" :variant="paymentVariant" />
         </div>
       </div>
 
-      <!-- Row 2: meta chips ───────────────────────────────────── -->
-      <div class="sic-meta">
-        <span class="sic-meta-item">
-          <AegisIcon name="calendar" :size="12" />
-          {{ session.datetime_label || 'Date TBD' }}
+      <!-- Meta row -->
+      <div class="sic-modal-meta">
+        <span class="sic-modal-meta-item">
+          <AegisIcon name="calendar" :size="12" /> {{ session.datetime_label || 'Date TBD' }}
         </span>
-        <span v-if="session.duration_label && session.duration_label !== '—'" class="sic-meta-item">
-          <AegisIcon name="clock" :size="12" />
-          {{ session.duration_label }}
+        <span v-if="session.duration_label && session.duration_label !== '—'" class="sic-modal-meta-item">
+          <AegisIcon name="clock" :size="12" /> {{ session.duration_label }}
         </span>
-        <span class="sic-meta-item">
-          <AegisIcon name="hash" :size="12" />
-          {{ session.invoice_number }}
+        <span class="sic-modal-meta-item">
+          <AegisIcon name="hash" :size="12" /> {{ session.invoice_number }}
         </span>
         <span
           class="sic-connect-pill"
           :class="providerConnected ? 'is-connected' : 'is-not-connected'"
-          :data-tooltip="providerConnected
-            ? 'Provider has Stripe Connect — payment routes directly to their account'
-            : 'Provider has not connected Stripe — payment will be queued'"
         >
           <span class="sic-connect-dot"></span>
           {{ providerConnected ? 'Stripe Connected' : 'Not Connected' }}
         </span>
       </div>
 
-      <!-- Row 3: amount breakdown ─────────────────────────────── -->
-      <div class="sic-amounts">
-        <div class="sic-amounts-header">
-          <span class="sic-amounts-title">
-            {{ hasNegotiatedPrice ? 'Negotiated Total' : 'Session Total' }}
+      <!-- Amount breakdown -->
+      <div class="sic-modal-amounts">
+        <div class="sic-modal-amounts-head">
+          <span>{{ hasNegotiatedPrice ? 'Negotiated Total' : 'Session Total' }}</span>
+          <span class="sic-modal-total">{{ session.amount }}</span>
+        </div>
+
+        <div v-if="hasNegotiatedPrice" class="sic-modal-amount-row sic-modal-amount-row--sub">
+          <span class="sic-modal-amount-label">Listing Price</span>
+          <span class="sic-modal-amount-val sic-modal-amount-val--muted">${{ fmtCents(session.original_amount_cents) }}</span>
+        </div>
+
+        <div class="sic-modal-amount-row">
+          <span class="sic-modal-amount-label">
+            <AegisIcon :name="depositPaid ? 'check-circle' : 'circle'" :size="12" :class="depositPaid ? 'icon-paid' : 'icon-due'" />
+            Deposit (30%)
+            <span v-if="depositPaid && session.deposit_paid_at" class="sic-modal-paid-date">· paid {{ session.deposit_paid_at }}</span>
           </span>
-          <span class="sic-amounts-total">{{ session.amount }}</span>
+          <span class="sic-modal-amount-val" :class="depositPaid ? 'sic-modal-amount-val--paid' : ''">
+            {{ session.expected_deposit_label || '$0.00' }}
+          </span>
         </div>
-        <div class="sic-amounts-body">
 
-          <!-- Original if negotiated -->
-          <div v-if="hasNegotiatedPrice" class="sic-amount-row sic-amount-row--sub">
-            <span class="sic-amount-label">Listing Price</span>
-            <span class="sic-amount-value sic-amount-value--muted">${{ fmtCents(session.original_amount_cents) }}</span>
-          </div>
+        <div class="sic-modal-amount-row">
+          <span class="sic-modal-amount-label">
+            <AegisIcon :name="balancePaid ? 'check-circle' : 'circle'" :size="12" :class="balancePaid ? 'icon-paid' : 'icon-due'" />
+            Balance (70%)
+            <span v-if="balancePaid && session.balance_paid_at" class="sic-modal-paid-date">· paid {{ session.balance_paid_at }}</span>
+          </span>
+          <span class="sic-modal-amount-val" :class="balancePaid ? 'sic-modal-amount-val--paid' : ''">
+            {{ session.expected_balance_label || '$0.00' }}
+          </span>
+        </div>
 
-          <!-- Deposit -->
-          <div class="sic-amount-row">
-            <span class="sic-amount-label">
-              <AegisIcon
-                :name="depositPaid ? 'check-circle' : 'circle'"
-                :size="12"
-                :class="depositPaid ? 'sic-icon-paid' : 'sic-icon-due'"
-              />
-              Deposit (30%)
-              <span v-if="depositPaid && session.deposit_paid_at" class="sic-paid-date">
-                · paid {{ session.deposit_paid_at }}
-              </span>
-            </span>
-            <span class="sic-amount-value" :class="depositPaid ? 'sic-val-paid' : ''">
-              {{ session.expected_deposit_label || session.deposit_label || '$0.00' }}
-            </span>
-          </div>
-
-          <!-- Balance -->
-          <div class="sic-amount-row">
-            <span class="sic-amount-label">
-              <AegisIcon
-                :name="balancePaid ? 'check-circle' : 'circle'"
-                :size="12"
-                :class="balancePaid ? 'sic-icon-paid' : 'sic-icon-due'"
-              />
-              Balance (70%)
-              <span v-if="balancePaid && session.balance_paid_at" class="sic-paid-date">
-                · paid {{ session.balance_paid_at }}
-              </span>
-            </span>
-            <span class="sic-amount-value" :class="balancePaid ? 'sic-val-paid' : ''">
-              {{ session.expected_balance_label || session.balance_label || '$0.00' }}
-            </span>
-          </div>
-
-          <!-- Refund -->
-          <div v-if="session.total_refunded_cents > 0" class="sic-amount-row sic-amount-row--refund">
-            <span class="sic-amount-label">
-              <AegisIcon name="arrow-left" :size="12" />
-              Refunded
-            </span>
-            <span class="sic-amount-value sic-val-refund">
-              –{{ session.total_refunded_label }}
-            </span>
-          </div>
+        <div v-if="session.total_refunded_cents > 0" class="sic-modal-amount-row sic-modal-amount-row--refund">
+          <span class="sic-modal-amount-label">
+            <AegisIcon name="arrow-left" :size="12" /> Refunded
+          </span>
+          <span class="sic-modal-amount-val sic-modal-amount-val--refund">–{{ session.total_refunded_label }}</span>
         </div>
       </div>
 
-      <!-- Row 4: refund status banner ─────────────────────────── -->
-      <div
-        v-if="session.has_refund_request || session.has_pending_refund_request"
-        class="sic-refund-status"
-      >
+      <!-- Refund status -->
+      <div v-if="session.has_refund_request || session.has_pending_refund_request" class="sic-modal-refund-alert">
         <AegisIcon name="alert-circle" :size="13" />
-        <span v-if="session.refund_request_status === 'pending_review'">
-          Refund request pending provider review
-        </span>
-        <span v-else-if="session.refund_request_status === 'approved'">
-          Refund approved — processing
-        </span>
+        <span v-if="session.refund_request_status === 'pending_review'">Refund request pending provider review.</span>
+        <span v-else-if="session.refund_request_status === 'approved'">Refund approved — processing.</span>
         <span v-else-if="session.refund_request_status === 'denied'">
-          Refund denied —
-          <button
-            v-if="session.can_escalate_refund"
-            type="button"
-            class="link-inline"
-            @click="$emit('escalate-refund')"
-          >Escalate to dispute</button>
-          <span v-else>contact support if needed</span>
+          Refund denied.
+          <button v-if="session.can_escalate_refund" type="button" class="link-inline" @click="$emit('escalate-refund'); open = false">Escalate to dispute</button>
         </span>
-        <span v-else-if="session.has_pending_refund_request">
-          Client has requested a refund
-        </span>
+        <span v-else-if="session.has_pending_refund_request">Client has requested a refund.</span>
       </div>
 
-      <!-- Row 5: actions ──────────────────────────────────────── -->
-      <div v-if="showActions" class="sic-actions">
+    </template>
 
-        <!-- CLIENT actions -->
-        <template v-if="viewpoint === 'client'">
-          <button
-            v-if="session.can_pay_deposit"
-            type="button"
-            class="btn btn-primary"
-            @click="$emit('pay-deposit')"
-          >
-            <AegisIcon name="credit-card" :size="13" />
-            Pay Deposit {{ session.expected_deposit_label }}
-          </button>
-          <button
-            v-if="session.can_pay_balance"
-            type="button"
-            class="btn btn-primary"
-            @click="$emit('pay-balance')"
-          >
-            <AegisIcon name="check" :size="13" />
-            Confirm &amp; Pay Balance {{ session.expected_balance_label }}
-          </button>
-          <button
-            v-if="session.can_request_refund && !session.has_refund_request"
-            type="button"
-            class="btn btn-outline"
-            @click="$emit('request-refund')"
-          >
-            <AegisIcon name="arrow-left" :size="13" />
-            Request Refund
-          </button>
-        </template>
+    <template #footer>
+      <button type="button" class="btn btn-outline" @click="open = false">Close</button>
 
-        <!-- PROVIDER actions -->
-        <template v-if="viewpoint === 'provider'">
-          <button
-            v-if="session.has_pending_refund_request"
-            type="button"
-            class="btn btn-outline"
-            @click="$emit('review-refund')"
-          >
-            <AegisIcon name="alert-circle" :size="13" />
-            Review Refund Request
-          </button>
-        </template>
-
-        <!-- Shared -->
+      <!-- Client actions -->
+      <template v-if="viewpoint === 'client'">
         <button
+          v-if="session.can_pay_deposit"
           type="button"
-          class="btn-icon"
-          data-tooltip="View Invoice"
-          @click="$emit('view-invoice')"
+          class="btn btn-primary"
+          @click="$emit('pay-deposit'); open = false"
         >
-          <AegisIcon name="file-text" :size="14" />
+          <AegisIcon name="credit-card" :size="13" /> Pay Deposit {{ session.expected_deposit_label }}
         </button>
         <button
-          v-if="session.status === 'scheduled' && viewpoint === 'provider'"
+          v-if="session.can_pay_balance"
           type="button"
-          class="btn-icon"
-          data-tooltip="Cancel Session"
-          @click="$emit('cancel-session')"
+          class="btn btn-primary"
+          @click="$emit('pay-balance'); open = false"
         >
-          <AegisIcon name="x" :size="14" />
+          <AegisIcon name="check" :size="13" /> Pay Balance {{ session.expected_balance_label }}
         </button>
-      </div>
+        <button
+          v-if="session.can_request_refund && !session.has_refund_request"
+          type="button"
+          class="btn btn-outline"
+          @click="$emit('request-refund'); open = false"
+        >
+          <AegisIcon name="arrow-left" :size="13" /> Request Refund
+        </button>
+      </template>
 
-    </div>
-  </div>
+      <!-- Provider actions -->
+      <template v-if="viewpoint === 'provider'">
+        <button
+          v-if="session.has_pending_refund_request"
+          type="button"
+          class="btn btn-outline"
+          @click="$emit('review-refund'); open = false"
+        >
+          <AegisIcon name="alert-circle" :size="13" /> Review Refund
+        </button>
+        <button
+          v-if="session.status === 'scheduled'"
+          type="button"
+          class="btn btn-outline"
+          @click="$emit('cancel-session'); open = false"
+        >
+          <AegisIcon name="x" :size="13" /> Cancel Session
+        </button>
+      </template>
+    </template>
+  </AegisModal>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 
 const props = defineProps({
-  session:     { type: Object,  required: true },
-  viewpoint:   { type: String,  default: 'client' }, // 'client' | 'provider'
-  showActions: { type: Boolean, default: true },
+  session:   { type: Object, required: true },
+  viewpoint: { type: String, default: 'client' }, // 'client' | 'provider'
 })
 
 defineEmits([
-  'pay-deposit', 'pay-balance', 'view-invoice',
+  'pay-deposit', 'pay-balance',
   'request-refund', 'escalate-refund', 'cancel-session', 'review-refund',
 ])
 
-// ── Computed ──────────────────────────────────────────────────────────────────
+const open = ref(false)
 
+// ── Computed ──────────────────────────────────────────────────────────────────
 const paymentVariant = computed(() => props.session.payment_status_variant ?? 'gold')
 
 const sessionStatusVariant = computed(() => ({
@@ -267,7 +234,6 @@ const sessionStatusLabel = computed(() => ({
   scheduled: 'Scheduled', completed: 'Completed', cancelled: 'Cancelled', no_show: 'No Show',
 }[props.session.status] ?? props.session.status))
 
-// Party — who is the "other person" from the current viewpoint
 const partyName = computed(() =>
   props.viewpoint === 'client'
     ? (props.session.practitioner_name ?? 'Provider')
@@ -291,25 +257,19 @@ const partyInitials = computed(() => {
     ? props.session.practitioner_avatar
     : props.session.client_avatar
   if (raw && raw !== '?') return raw
-  // Derive from name as fallback
   const name = partyName.value ?? ''
-  return name.split(' ').map(w => w[0] ?? '').join('').substring(0, 2).toUpperCase() || '?'
+  return name.split(' ').map(w => w[0] ?? '').join('').substring(0, 2).toUpperCase() || '??'
 })
 
 const depositPaid = computed(() =>
   ['deposit_paid', 'paid', 'refunded', 'partially_refunded'].includes(props.session.payment_status)
 )
-
 const balancePaid = computed(() =>
   ['paid', 'refunded', 'partially_refunded'].includes(props.session.payment_status)
 )
-
 const providerConnected = computed(() =>
-  props.viewpoint === 'client'
-    ? !!props.session.practitioner_stripe_connected
-    : true
+  props.viewpoint === 'client' ? !!props.session.practitioner_stripe_connected : true
 )
-
 const hasNegotiatedPrice = computed(() =>
   props.session.negotiated_amount_cents != null
   && props.session.negotiated_amount_cents !== props.session.original_amount_cents
@@ -322,131 +282,84 @@ function fmtCents(cents) {
 </script>
 
 <style scoped>
-/* ── Card shell ── */
-.session-invoice-card {
-  display: flex;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  overflow: hidden;
-  transition: box-shadow var(--transition);
-  margin-bottom: 10px;
-}
-.session-invoice-card:last-child { margin-bottom: 0; }
-.session-invoice-card:hover { box-shadow: var(--shadow-md); }
+/* ── TABLE ROW ── */
+.sic-row { cursor: pointer; transition: background var(--transition); }
+.sic-row:hover { background: var(--surface-2); }
+.sic-row--scheduled  { border-left: 3px solid var(--blue, #3b82f6); }
+.sic-row--completed  { border-left: 3px solid var(--green); }
+.sic-row--cancelled  { border-left: 3px solid var(--border-dark); opacity: .7; }
+.sic-row--no_show    { border-left: 3px solid var(--red, #ef4444); }
 
-/* Accent bar */
-.sic-accent            { width: 4px; flex-shrink: 0; }
-.sic-accent--gold      { background: var(--gold); }
-.sic-accent--blue      { background: var(--blue, #3b82f6); }
-.sic-accent--green     { background: var(--green); }
-.sic-accent--neutral   { background: var(--border-dark); }
-.sic-accent--red       { background: var(--red, #ef4444); }
+.sic-td { padding: 10px 12px; vertical-align: middle; font-size: 13px; border-bottom: 1px solid var(--border); }
+.sic-td--party  { width: 58%; }
+.sic-td--status { width: 34%; }
+.sic-td--actions { width: 8%; text-align: right; }
 
-/* Body */
-.sic-body {
-  flex: 1; padding: 14px 16px;
-  display: flex; flex-direction: column; gap: 10px;
-  min-width: 0;
-}
-
-/* ── Header ── */
-.sic-header {
-  display: flex; align-items: flex-start;
-  justify-content: space-between; gap: 12px; flex-wrap: wrap;
-}
-.sic-header-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
-
-/* Avatar */
+/* Party cell */
+.sic-party { display: flex; align-items: center; gap: 9px; }
 .sic-avatar {
-  width: 38px; height: 38px; border-radius: 50%;
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
   background: var(--badge-bg-gold); color: var(--gold-dark);
   display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; overflow: hidden;
+  font-size: 10px; font-weight: 700; overflow: hidden;
 }
-.sic-avatar-img {
-  width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
-}
-.sic-avatar-initials {
-  font-size: 12px; font-weight: 700; letter-spacing: .3px;
-  line-height: 1;
-}
+.sic-avatar--lg { width: 40px; height: 40px; font-size: 13px; }
+.sic-avatar-img { width: 100%; height: 100%; object-fit: cover; }
+.sic-avatar-initials { line-height: 1; letter-spacing: .3px; }
+.sic-party-info { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sic-party-name { font-size: 13px; font-weight: 700; color: var(--gold-dark); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+a.sic-party-name:hover { text-decoration: underline; color: var(--gold); }
+.sic-service-name { font-size: 11px; color: var(--text-4); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sic-date-sub { font-size: 11px; color: var(--text-4); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.sic-header-info   { min-width: 0; }
-.sic-party-name    { font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-a.sic-party-name   { text-decoration: none; color: var(--gold-dark); }
-a.sic-party-name:hover { color: var(--gold); text-decoration: underline; }
-.sic-service-title { font-size: 12px; color: var(--text-3); font-weight: 600; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sic-header-right  { display: flex; gap: 5px; align-items: center; flex-shrink: 0; flex-wrap: wrap; }
-.sic-header-right :deep(.badge) {
-  font-size: 11px; font-weight: 700;
-  padding: 4px 10px; letter-spacing: .2px;
-}
+.sic-badges { display: flex; flex-wrap: wrap; gap: 4px; }
 
-/* ── Meta ── */
-.sic-meta { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
-.sic-meta-item {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 11px; font-weight: 600; color: var(--text-3);
+/* ── MODAL ── */
+.sic-modal-party {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; margin-bottom: 14px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius);
 }
-.sic-connect-pill {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 10px; font-weight: 700;
-  padding: 2px 7px; border-radius: 100px;
-  border: 1px solid var(--border); background: var(--surface-2);
+.sic-modal-party-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sic-modal-party-name { font-size: 15px; font-weight: 700; color: var(--gold-dark); text-decoration: none; }
+a.sic-modal-party-name:hover { text-decoration: underline; }
+.sic-modal-service { font-size: 12px; color: var(--text-3); font-weight: 600; }
+.sic-modal-badges { display: flex; gap: 5px; flex-wrap: wrap; }
+
+.sic-modal-meta {
+  display: flex; flex-wrap: wrap; gap: 8px 14px;
+  align-items: center; margin-bottom: 14px;
 }
-.sic-connect-pill.is-connected     { color: var(--green-dark, #2e7d32); border-color: var(--green); background: rgba(34,197,94,.07); }
+.sic-modal-meta-item { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--text-3); }
+.sic-connect-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 100px; border: 1px solid var(--border); background: var(--surface-2); }
+.sic-connect-pill.is-connected { color: var(--green-dark, #2e7d32); border-color: var(--green); background: rgba(34,197,94,.07); }
 .sic-connect-pill.is-not-connected { color: var(--gold-dark); border-color: var(--gold); }
 .sic-connect-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
 
-/* ── Amounts ── */
-.sic-amounts {
-  background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: var(--radius); overflow: hidden;
-}
-.sic-amounts-header {
+/* Amount breakdown */
+.sic-modal-amounts { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
+.sic-modal-amounts-head {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 12px; background: var(--surface-3);
-  border-bottom: 1px solid var(--border);
+  padding: 8px 14px; background: var(--surface-3); border-bottom: 1px solid var(--border);
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--text-4);
 }
-.sic-amounts-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-4); }
-.sic-amounts-total { font-size: 15px; font-weight: 700; color: var(--text); font-family: var(--font-serif, serif); }
-.sic-amounts-body  { padding: 2px 0; }
+.sic-modal-total { font-size: 16px; font-weight: 700; color: var(--text); font-family: var(--font-serif, serif); text-transform: none; letter-spacing: 0; }
+.sic-modal-amount-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 14px; border-top: 1px solid var(--border); font-size: 13px; }
+.sic-modal-amount-row--sub { opacity: .65; }
+.sic-modal-amount-label { display: flex; align-items: center; gap: 5px; font-weight: 600; color: var(--text-3); font-size: 12px; }
+.sic-modal-paid-date { font-size: 10px; color: var(--text-4); font-weight: 500; }
+.sic-modal-amount-val { font-weight: 700; font-family: var(--font-serif, serif); color: var(--text); }
+.sic-modal-amount-val--muted { color: var(--text-4); text-decoration: line-through; font-weight: 500; }
+.sic-modal-amount-val--paid { color: var(--green); }
+.sic-modal-amount-val--refund { color: var(--red, #ef4444); }
+.icon-paid { color: var(--green); }
+.icon-due  { color: var(--border-dark); }
 
-.sic-amount-row {
-  display: flex; justify-content: space-between; align-items: center;
-  gap: 8px; padding: 6px 12px;
-}
-.sic-amount-row + .sic-amount-row { border-top: 1px solid var(--border); }
-.sic-amount-row--sub   { opacity: .65; }
-.sic-amount-row--refund { }
-
-.sic-amount-label {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 12px; color: var(--text-3); font-weight: 600;
-}
-.sic-amount-value { font-size: 13px; font-weight: 700; color: var(--text); font-family: var(--font-serif, serif); }
-.sic-amount-value--muted { color: var(--text-4); text-decoration: line-through; font-weight: 500; }
-.sic-val-paid    { color: var(--green); }
-.sic-val-refund  { color: var(--red, #ef4444); }
-.sic-icon-paid   { color: var(--green); }
-.sic-icon-due    { color: var(--border-dark); }
-.sic-paid-date   { font-size: 10px; color: var(--text-4); font-weight: 500; }
-
-/* ── Refund status banner ── */
-.sic-refund-status {
+.sic-modal-refund-alert {
   display: flex; align-items: center; gap: 7px;
-  padding: 8px 10px;
-  background: rgba(245,158,11,.07);
-  border: 1px solid var(--gold); border-radius: var(--radius);
+  padding: 9px 12px; border-radius: var(--radius);
+  background: rgba(245,158,11,.07); border: 1px solid var(--gold);
   font-size: 12px; font-weight: 600; color: var(--gold-dark);
 }
-.link-inline {
-  color: var(--gold-dark); text-decoration: underline;
-  background: none; border: none; cursor: pointer;
-  padding: 0; font-size: inherit; font-weight: 700;
-}
-
-/* ── Actions ── */
-.sic-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 2px; }
+.link-inline { background: none; border: none; padding: 0; cursor: pointer; color: var(--gold-dark); font-weight: 700; text-decoration: underline; font-size: inherit; }
 </style>
