@@ -3305,23 +3305,135 @@ function resetConfig() {
 .sbp-check-label   { font-size: 12px; font-weight: 600; color: var(--text-2); }
 .sbp-toggle-label  { font-size: 12px; font-weight: 600; color: var(--text-2); display: inline-flex; align-items: center; gap: 5px; flex: 1; }
 
-/* filter-sidebar sticky position — 81px aligns flush with the topbar
-   (global _shared.css sets top:80px which leaves a 1px gap on this app). */
-:deep(#filterSidebar),
-:deep(#sbpFilterSidebar) { top: 81px; }
+/* ── Filter sidebars: page-sidebar-group visual pattern ─────────────────────
+   Override the default filter-sidebar chrome so both #filterSidebar and
+   #sbpFilterSidebar match the .page-sidebar / .page-sidebar-group design.
+   Filter-option internals (ftags, filter-group-body, inner-search) are left
+   untouched — only the outer chrome, header, and group row headers change.  */
 
-/* filter-sidebar-apply — sticky footer for both filter sidebars.
-   Bleeds past sidebar padding (10px sides, 0 bottom) and matches the
-   sidebar's border-radius-lg (16px) on the bottom corners so there is
-   no visible gap or glitch at the bottom of the sidebar. */
+/* 1. Outer container — match .page-sidebar chrome exactly */
+:deep(#filterSidebar),
+:deep(#sbpFilterSidebar) {
+  top: 81px;
+  padding: 0;        /* remove the 14px 10px 0 default; groups own their spacing */
+  border-radius: var(--radius-lg);
+}
+
+/* 2. Sidebar header row — becomes the page-sidebar "label" style header */
+:deep(#filterSidebar .filter-sidebar-header),
+:deep(#sbpFilterSidebar .filter-sidebar-header) {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  margin: 0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+:deep(#filterSidebar .filter-sidebar-title),
+:deep(#sbpFilterSidebar .filter-sidebar-title) {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 3. Each filter-group becomes a page-sidebar-group — bottom divider, no margin */
+:deep(#filterSidebar .filter-group),
+:deep(#sbpFilterSidebar .filter-group) {
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+}
+:deep(#filterSidebar .filter-group:last-of-type),
+:deep(#sbpFilterSidebar .filter-group:last-of-type) {
+  border-bottom: none;
+}
+
+/* Clinical-service toggle group — same divider treatment */
+:deep(#filterSidebar .nw-sbp-clinical-toggle),
+:deep(#sbpFilterSidebar .nw-sbp-clinical-toggle) {
+  margin: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  padding: 10px 14px;
+}
+
+/* 4. Group header rows — match page-sidebar-item style */
+:deep(#filterSidebar .filter-group-header),
+:deep(#sbpFilterSidebar .filter-group-header) {
+  padding: 9px 14px;
+  border-radius: 0;
+  border-left: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  letter-spacing: 0.01em;
+  position: relative;
+  transition: background var(--transition), color var(--transition);
+}
+:deep(#filterSidebar .filter-group-header:hover),
+:deep(#sbpFilterSidebar .filter-group-header:hover) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+:deep(#filterSidebar .filter-group.open > .filter-group-header),
+:deep(#sbpFilterSidebar .filter-group.open > .filter-group-header) {
+  background: var(--badge-bg-gold);
+  color: var(--gold-dark);
+  font-weight: 700;
+}
+:deep(#filterSidebar .filter-group.open > .filter-group-header)::before,
+:deep(#sbpFilterSidebar .filter-group.open > .filter-group-header)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--gold-dark);
+}
+
+/* Icon color in open state */
+:deep(#filterSidebar .filter-group.open .filter-group-label svg),
+:deep(#filterSidebar .filter-group.open .filter-group-label .aegis-icon),
+:deep(#sbpFilterSidebar .filter-group.open .filter-group-label svg),
+:deep(#sbpFilterSidebar .filter-group.open .filter-group-label .aegis-icon) {
+  color: var(--gold-dark);
+}
+
+/* 5. Filter body — left-indent to align with page-sidebar-item text */
+:deep(#filterSidebar .filter-group-body),
+:deep(#sbpFilterSidebar .filter-group-body) {
+  padding: 8px 14px 14px 14px;
+  border-left: 3px solid var(--badge-bg-gold);
+  background: var(--surface);
+}
+
+/* 6. Active filter pills row — sits just below the sticky header */
+:deep(#filterSidebar .active-filters-row),
+:deep(#sbpFilterSidebar .active-filters-row) {
+  padding: 8px 14px 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+/* filter-sidebar-apply — sticky footer for both filter sidebars */
 .filter-sidebar-apply {
   position: sticky;
   bottom: 0;
-  margin: 4px -10px -16px;
+  margin: 0;
   background: var(--surface);
   border-top: 1px solid var(--border);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
-  padding: 12px 12px 12px;
+  padding: 12px 14px;
   display: flex;
   align-items: center;
   justify-content: center;
