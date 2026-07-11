@@ -37,7 +37,10 @@ class ActivityController extends Controller
             ->orderByDesc('created_at');
         if (!empty($filters['module']))     $filteredQuery->where('module', $filters['module']);
         if (!empty($filters['severity']))   $filteredQuery->where('severity', $filters['severity']);
-        if (!empty($filters['event_type'])) $filteredQuery->where('event_type', $filters['event_type']);
+        // 'services' is a module-based filter, not an event_type filter
+        if (!empty($filters['event_type']) && $filters['event_type'] !== 'services') {
+            $filteredQuery->where('event_type', $filters['event_type']);
+        }
         if (!empty($filters['entry_type'])) $filteredQuery->where('entry_type', $filters['entry_type']);
         if (!empty($filters['portal']))     $filteredQuery->where('portal', $filters['portal']);
         if (!empty($filters['unread']))     $filteredQuery->whereNull('read_at');
@@ -96,6 +99,7 @@ class ActivityController extends Controller
             ['key' => 'payment',      'label' => 'Financial',     'icon' => 'credit-card'],
             ['key' => 'account',      'label' => 'Account',       'icon' => 'log-in'],
             ['key' => 'referral',     'label' => 'Referrals',     'icon' => 'refresh-cw'],
+            ['key' => 'services',     'label' => 'My Services',   'icon' => 'calendar'],
             ['key' => 'event',        'label' => 'Events',        'icon' => 'calendar'],
             ['key' => 'news',         'label' => 'News',          'icon' => 'megaphone'],
         ];
@@ -119,10 +123,15 @@ class ActivityController extends Controller
         $notificationCount = (int) ($entryTypeCounts['notification'] ?? 0);
         $logCount          = (int) ($entryTypeCounts['log']          ?? 0);
 
-        $categoryCounts = array_map(function ($cat) use ($catCountsRaw, $baseTotal) {
-            $cat['count'] = $cat['key'] === ''
-                ? $baseTotal
-                : (int) ($catCountsRaw[$cat['key']] ?? 0);
+        $categoryCounts = array_map(function ($cat) use ($catCountsRaw, $baseTotal, $baseQuery) {
+            if ($cat['key'] === '') {
+                $cat['count'] = $baseTotal;
+            } elseif ($cat['key'] === 'services') {
+                // Services uses module filter not event_type
+                $cat['count'] = (int) (clone $baseQuery)->where('module', 'services')->count();
+            } else {
+                $cat['count'] = (int) ($catCountsRaw[$cat['key']] ?? 0);
+            }
             return $cat;
         }, $categories);
 
@@ -385,6 +394,7 @@ HTML;
 
     private function iconFor(string $type, string $module = ''): string
     {
+        if ($module === 'services') return 'calendar';
         if ($module === 'job_postings' || $type === 'job_postings') return 'briefcase';
         return match ($type) {
             'incident'    => 'alert-triangle',
@@ -405,6 +415,7 @@ HTML;
 
     private function badgeLabel(string $type, string $module = ''): string
     {
+        if ($module === 'services') return 'My Services';
         if ($module === 'job_postings' || $type === 'job_postings') return 'Job Posting';
         return match ($type) {
             'incident'    => 'Critical Incident',
@@ -425,6 +436,7 @@ HTML;
 
     private function badgeClass(string $type, string $module = ''): string
     {
+        if ($module === 'services') return 'services';
         if ($module === 'job_postings' || $type === 'job_postings') return 'job-postings';
         return match ($type) {
             'incident'    => 'critical-incident',

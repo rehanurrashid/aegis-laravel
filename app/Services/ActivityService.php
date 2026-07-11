@@ -78,6 +78,7 @@ class ActivityService
             'system'                 => 'system',
             'support'                => 'support',
             'referral'               => 'referral',
+            'services'               => 'referral',   // services uses referral event_type (no DB enum change needed)
             'news'                   => 'news',
             'event'                  => 'event',
             'plan', 'compliance'     => 'compliance',

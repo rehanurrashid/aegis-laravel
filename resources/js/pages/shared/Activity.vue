@@ -125,7 +125,7 @@
               :key="cat.key || 'all'"
               type="button"
               class="page-sidebar-item"
-              :class="{ active: localFilters.event_type === cat.key }"
+              :class="{ active: cat.key === 'services' ? localFilters.module === 'services' : localFilters.event_type === cat.key }"
               @click="setEventType(cat.key)"
             >
               <AegisIcon :name="cat.icon" :size="14" />
@@ -427,9 +427,18 @@ function applyQuickFilter(q) {
 }
 
 function setEventType(et) {
-  localFilters.event_type = et
-  activeQuick.value = 'all'
-  pushQuery({ event_type: et })
+  // 'services' is a module-based filter, not an event_type filter
+  if (et === 'services') {
+    localFilters.event_type = ''
+    localFilters.module = 'services'
+    activeQuick.value = 'all'
+    pushQuery({ module: 'services', event_type: '' })
+  } else {
+    localFilters.event_type = et
+    localFilters.module = ''
+    activeQuick.value = 'all'
+    pushQuery({ event_type: et, module: '' })
+  }
 }
 
 function setEntryType(et) {

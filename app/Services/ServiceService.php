@@ -419,7 +419,7 @@ class ServiceService
         $allowed = ['title','description','category','price_cents','price_type','duration_min','format','availability','availability_label','status','is_public'];
         $service->update(array_intersect_key($data, array_flip($allowed)));
         $actorId = request()->user()?->id ?? $service->practitioner_id;
-        $this->activity->log($actorId, 'provider', 'referral', ActivitySeverity::Info, 'service_updated', "Service updated: {$service->title}", 'Service listing details updated.', 'service', $service->id, null, 'log', $actorId);
+        $this->activity->log($actorId, 'provider', 'services', ActivitySeverity::Info, 'service_updated', "Service updated: {$service->title}", 'Service listing details updated.', 'service', $service->id, null, 'log', $actorId);
         return $service->fresh();
     }
 
@@ -430,7 +430,7 @@ class ServiceService
     {
         $service->update(['status' => ServiceStatus::Archived->value]);
         $actorId = request()->user()?->id ?? $service->practitioner_id;
-        $this->activity->log($actorId, 'provider', 'referral', ActivitySeverity::Info, 'service_archived', "Service archived: {$service->title}", 'Service removed from public listings.', 'service', $service->id, null, 'log', $actorId);
+        $this->activity->log($actorId, 'provider', 'services', ActivitySeverity::Info, 'service_archived', "Service archived: {$service->title}", 'Service removed from public listings.', 'service', $service->id, null, 'log', $actorId);
         return $service->fresh();
     }
 
@@ -454,8 +454,8 @@ class ServiceService
         ]);
 
         $practitionerName = $service->practitioner?->display_name ?? 'the practitioner';
-        $this->activity->log($requester->id, 'provider', 'referral', ActivitySeverity::Info, 'service_request_sent', "You requested: {$service->title}", "Request sent to {$practitionerName}.", 'service_request', $req->id, $service->practitioner_id, 'log', $requester->id);
-        $this->activity->log($service->practitioner_id, 'provider', 'referral', ActivitySeverity::Info, 'service_request_received', "{$requester->display_name} requested your service: {$service->title}", $data['message'] ?? 'Tap to review.', 'service_request', $req->id, $requester->id, 'notification', $requester->id);
+        $this->activity->log($requester->id, 'provider', 'services', ActivitySeverity::Info, 'service_request_sent', "You requested: {$service->title}", "Request sent to {$practitionerName}.", 'service_request', $req->id, $service->practitioner_id, 'log', $requester->id);
+        $this->activity->log($service->practitioner_id, 'provider', 'services', ActivitySeverity::Info, 'service_request_received', "{$requester->display_name} requested your service: {$service->title}", $data['message'] ?? 'Tap to review.', 'service_request', $req->id, $requester->id, 'notification', $requester->id);
 
         event(new \App\Events\Service\ServiceRequestSubmitted($req, $requester));
         return $req;
@@ -492,8 +492,8 @@ class ServiceService
 
         $service = Service::find($req->service_id);
 
-        $this->activity->log($req->practitioner_id, 'provider', 'referral', ActivitySeverity::Info, 'service_request_accepted', "You accepted a request for: " . ($service?->title ?? 'your service'), "Session scheduled for " . ($req->inquirer?->display_name ?? 'the requester') . '. Awaiting deposit.', 'service_request', $req->id, $req->inquirer_id, 'log', $req->practitioner_id);
-        $this->activity->log($req->inquirer_id, 'provider', 'referral', ActivitySeverity::Info, 'service_request_accepted', 'Your service request was accepted', ($service?->title ?? '') . ' — pay your deposit to confirm the session.', 'service_request', $req->id, $req->practitioner_id, 'notification', $req->practitioner_id);
+        $this->activity->log($req->practitioner_id, 'provider', 'services', ActivitySeverity::Info, 'service_request_accepted', "You accepted a request for: " . ($service?->title ?? 'your service'), "Session scheduled for " . ($req->inquirer?->display_name ?? 'the requester') . '. Awaiting deposit.', 'service_request', $req->id, $req->inquirer_id, 'log', $req->practitioner_id);
+        $this->activity->log($req->inquirer_id, 'provider', 'services', ActivitySeverity::Info, 'service_request_accepted', 'Your service request was accepted', ($service?->title ?? '') . ' — pay your deposit to confirm the session.', 'service_request', $req->id, $req->practitioner_id, 'notification', $req->practitioner_id);
 
         event(new \App\Events\Service\ServiceRequestResponded($req, 'accepted'));
         return $req->fresh();
@@ -502,8 +502,8 @@ class ServiceService
     public function declineRequest(ServiceRequest $req, ?string $reason = null): ServiceRequest
     {
         $req->update(['status' => 'declined', 'responded_at' => now(), 'response_note' => $reason]);
-        $this->activity->log($req->practitioner_id, 'provider', 'referral', ActivitySeverity::Info, 'service_request_declined', 'You declined a service request', $reason ?? 'No reason provided.', 'service_request', $req->id, $req->inquirer_id, 'log', $req->practitioner_id);
-        $this->activity->log($req->inquirer_id, 'provider', 'referral', ActivitySeverity::Info, 'service_request_declined', 'Your service request was declined', $reason ?? 'No reason given.', 'service_request', $req->id, $req->practitioner_id, 'notification', $req->practitioner_id);
+        $this->activity->log($req->practitioner_id, 'provider', 'services', ActivitySeverity::Info, 'service_request_declined', 'You declined a service request', $reason ?? 'No reason provided.', 'service_request', $req->id, $req->inquirer_id, 'log', $req->practitioner_id);
+        $this->activity->log($req->inquirer_id, 'provider', 'services', ActivitySeverity::Info, 'service_request_declined', 'Your service request was declined', $reason ?? 'No reason given.', 'service_request', $req->id, $req->practitioner_id, 'notification', $req->practitioner_id);
         event(new \App\Events\Service\ServiceRequestResponded($req, 'declined'));
         return $req->fresh();
     }
@@ -660,8 +660,8 @@ class ServiceService
             : 'Payment pending — provider has not connected Stripe yet.';
 
         $svcTitle = $service?->title ?? 'Session';
-        $this->activity->log($practitioner->id, 'provider', 'payment', ActivitySeverity::Info, 'session_completed', ($client->display_name ?? 'A client') . ' confirmed your session complete', $svcTitle . '. ' . $payoutNote, 'service_session', $session->id, $client->id, 'notification', $client->id);
-        $this->activity->log($client->id, 'provider', 'payment', ActivitySeverity::Info, 'session_payment_sent', 'Session confirmed and payment complete', $this->formatMoney($session->agreed_amount_cents) . ' for ' . $svcTitle . ' with ' . ($practitioner->display_name ?? 'provider') . '.', 'service_session', $session->id, $practitioner->id, 'log', $client->id);
+        $this->activity->log($practitioner->id, 'provider', 'services', ActivitySeverity::Info, 'session_completed', ($client->display_name ?? 'A client') . ' confirmed your session complete', $svcTitle . '. ' . $payoutNote, 'service_session', $session->id, $client->id, 'notification', $client->id);
+        $this->activity->log($client->id, 'provider', 'services', ActivitySeverity::Info, 'session_payment_sent', 'Session confirmed and payment complete', $this->formatMoney($session->agreed_amount_cents) . ' for ' . $svcTitle . ' with ' . ($practitioner->display_name ?? 'provider') . '.', 'service_session', $session->id, $practitioner->id, 'log', $client->id);
 
         event(new \App\Events\Service\SessionCompleted($session->fresh(), $client, $practitioner, $session->agreed_amount_cents));
 
@@ -680,10 +680,10 @@ class ServiceService
         ]);
 
         if ($actor) {
-            $this->activity->log($actor->id, 'provider', 'referral', ActivitySeverity::Info, 'session_cancelled', 'You cancelled a session', ($service?->title ?? 'Session') . ' cancelled. ' . ($data['reason'] ?? ''), 'service_session', $session->id, $otherPartyId, 'log', $actor->id);
+            $this->activity->log($actor->id, 'provider', 'services', ActivitySeverity::Info, 'session_cancelled', 'You cancelled a session', ($service?->title ?? 'Session') . ' cancelled. ' . ($data['reason'] ?? ''), 'service_session', $session->id, $otherPartyId, 'log', $actor->id);
         }
         if ($otherPartyId) {
-            $this->activity->log($otherPartyId, 'provider', 'referral', ActivitySeverity::Warning, 'session_cancelled_by_other', 'Your session was cancelled', ($actor?->display_name ?? 'The other party') . ' cancelled the session for ' . ($service?->title ?? 'your service') . '.', 'service_session', $session->id, $actor?->id, 'notification', $actor?->id);
+            $this->activity->log($otherPartyId, 'provider', 'services', ActivitySeverity::Warning, 'session_cancelled_by_other', 'Your session was cancelled', ($actor?->display_name ?? 'The other party') . ' cancelled the session for ' . ($service?->title ?? 'your service') . '.', 'service_session', $session->id, $actor?->id, 'notification', $actor?->id);
         }
 
         if ($actor) {
@@ -701,7 +701,7 @@ class ServiceService
             'share_notes_with_client' => $data['share_with_supervisee'] ?? false,
         ]);
         $actorId = request()->user()?->id ?? $session->practitioner_id;
-        $this->activity->log($actorId, 'provider', 'referral', ActivitySeverity::Info, 'session_notes_saved', 'Session notes saved', "Notes updated for: " . ($session->service?->title ?? 'session') . '.', 'service_session', $session->id, null, 'log', $actorId);
+        $this->activity->log($actorId, 'provider', 'services', ActivitySeverity::Info, 'session_notes_saved', 'Session notes saved', "Notes updated for: " . ($session->service?->title ?? 'session') . '.', 'service_session', $session->id, null, 'log', $actorId);
         return $session->fresh();
     }
 
@@ -817,7 +817,7 @@ class ServiceService
         if ($r->status instanceof \App\Enums\ServiceRequestStatus && $r->status !== \App\Enums\ServiceRequestStatus::New) abort(422, 'Only pending requests can be withdrawn.');
         $r->update(['status' => \App\Enums\ServiceRequestStatus::Withdrawn->value]);
         $serviceTitle = $r->service?->title ?? 'a service';
-        $this->activity->log($inquirerId, 'provider', 'referral', ActivitySeverity::Info, 'service_request_withdrawn', 'You withdrew a service request', "Request for {$serviceTitle} withdrawn.", 'service_request', $r->id, $r->practitioner_id, 'log', $inquirerId);
+        $this->activity->log($inquirerId, 'provider', 'services', ActivitySeverity::Info, 'service_request_withdrawn', 'You withdrew a service request', "Request for {$serviceTitle} withdrawn.", 'service_request', $r->id, $r->practitioner_id, 'log', $inquirerId);
     }
 
     /** @deprecated Use getForExplore() instead */
