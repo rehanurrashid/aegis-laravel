@@ -61,20 +61,60 @@
       <AegisStatChip v-if="(stats?.pending_refunds ?? 0) > 0" icon="alert-circle" :value="stats.pending_refunds" label="Refund Requests" />
     </div>
 
-    <!-- ── TABS ────────────────────────────────────────────────────────── -->
-    <div class="tabs-segmented">
-      <button
-        v-for="tab in tabs"
-        :key="tab.key"
-        class="tab-pill"
-        :class="{ active: activeTab === tab.key }"
-        @click="activeTab = tab.key"
-      >
-        <AegisIcon :name="tab.icon" :size="12" />
-        {{ tab.label }}
-        <span v-if="tab.count != null && tab.count > 0" class="badge-pill">{{ tab.count }}</span>
-      </button>
-    </div>
+    <!-- ── SIDEBAR + CONTENT LAYOUT ────────────────────────────────────── -->
+    <div class="svc-layout">
+
+      <!-- LEFT NAV SIDEBAR -->
+      <nav class="page-sidebar svc-sidebar" role="tablist" aria-label="Services sections">
+
+        <div class="page-sidebar-group">
+          <div class="page-sidebar-label">Discover</div>
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'explore' }" @click="activeTab = 'explore'">
+            <span class="page-sidebar-icon"><AegisIcon name="search" :size="15" /></span>
+            Browse Services
+          </button>
+        </div>
+
+        <div class="page-sidebar-group">
+          <div class="page-sidebar-label">My Services</div>
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'listings' }" @click="activeTab = 'listings'">
+            <span class="page-sidebar-icon"><AegisIcon name="grid" :size="15" /></span>
+            My Listings
+            <span v-if="listings.length > 0" class="page-sidebar-badge">{{ listings.length }}</span>
+          </button>
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'requests' }" @click="activeTab = 'requests'">
+            <span class="page-sidebar-icon"><AegisIcon name="clock" :size="15" /></span>
+            Service Requests
+            <span v-if="newRequests.length + incomingRefundRequests.filter(r => r.is_actionable).length > 0" class="page-sidebar-badge">{{ newRequests.length + incomingRefundRequests.filter(r => r.is_actionable).length }}</span>
+          </button>
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'bookings' }" @click="activeTab = 'bookings'">
+            <span class="page-sidebar-icon"><AegisIcon name="calendar" :size="15" /></span>
+            Bookings &amp; Sessions
+            <span v-if="stats?.sessions > 0" class="page-sidebar-badge">{{ stats.sessions }}</span>
+          </button>
+        </div>
+
+        <div class="page-sidebar-group">
+          <div class="page-sidebar-label">As a Client</div>
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'outgoing' }" @click="activeTab = 'outgoing'">
+            <span class="page-sidebar-icon"><AegisIcon name="send" :size="15" /></span>
+            My Requests
+            <span v-if="pendingClientActions > 0" class="page-sidebar-badge">{{ pendingClientActions }}</span>
+          </button>
+        </div>
+
+        <div class="page-sidebar-group">
+          <div class="page-sidebar-label">Account</div>
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'settings' }" @click="activeTab = 'settings'">
+            <span class="page-sidebar-icon"><AegisIcon name="settings" :size="15" /></span>
+            Settings
+          </button>
+        </div>
+
+      </nav>
+
+      <!-- CONTENT AREA -->
+      <div class="svc-content">
 
     <!-- ══════════════════════════════════════════════════════════════════
          TAB 0: EXPLORE SERVICES
@@ -86,139 +126,102 @@
         <span>Browse clinical services offered by other practitioners — supervision, consultation, training, coaching, and more. All charges route directly to the provider's Stripe account.</span>
       </div>
 
-      <div class="search-layout">
+      <!-- ── INLINE FILTER BAR ─────────────────────────────────────────── -->
+      <div class="explore-filter-bar">
 
-        <!-- Filter sidebar ──────────────────────────────────────────── -->
-        <aside class="filter-sidebar" id="exploreFilterSidebar">
-          <div class="filter-sidebar-header">
-            <div class="filter-sidebar-title"><AegisIcon name="filter" :size="14" /> Filters</div>
-            <button type="button" class="filter-clear-btn" @click="clearExploreFilters">Clear All</button>
-          </div>
-
-          <!-- Category -->
-          <div class="filter-group" :class="{ open: exploreGroups.category }">
-            <div class="filter-group-header" @click="exploreGroups.category = !exploreGroups.category">
-              <span class="filter-group-label">
-                <AegisIcon name="grid" :size="16" /> Category
-                <span v-if="exploreFilters.category" class="filter-group-count visible">1</span>
-              </span>
-              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
-            </div>
-            <div class="filter-group-body">
-              <span
-                v-for="opt in serviceCategories"
-                :key="opt.value"
-                class="ftag"
-                :class="{ selected: exploreFilters.category === opt.value }"
-                @click="toggleExploreCategory(opt.value)"
-              >{{ opt.label }}</span>
-            </div>
-          </div>
-
-          <!-- Format -->
-          <div class="filter-group" :class="{ open: exploreGroups.format }">
-            <div class="filter-group-header" @click="exploreGroups.format = !exploreGroups.format">
-              <span class="filter-group-label">
-                <AegisIcon name="monitor" :size="16" /> Format
-                <span v-if="exploreFilters.format" class="filter-group-count visible">1</span>
-              </span>
-              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
-            </div>
-            <div class="filter-group-body">
-              <span v-for="f in ['telehealth','in_person','both']" :key="f" class="ftag" :class="{ selected: exploreFilters.format === f }" @click="exploreFilters.format = exploreFilters.format === f ? '' : f">
-                {{ { telehealth: 'Virtual', in_person: 'In-Person', both: 'Virtual & In-Person' }[f] }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Availability -->
-          <div class="filter-group" :class="{ open: exploreGroups.availability }">
-            <div class="filter-group-header" @click="exploreGroups.availability = !exploreGroups.availability">
-              <span class="filter-group-label">
-                <AegisIcon name="calendar" :size="16" /> Availability
-                <span v-if="exploreFilters.availability" class="filter-group-count visible">1</span>
-              </span>
-              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
-            </div>
-            <div class="filter-group-body">
-              <span v-for="a in ['open','limited']" :key="a" class="ftag" :class="{ selected: exploreFilters.availability === a }" @click="exploreFilters.availability = exploreFilters.availability === a ? '' : a">
-                {{ a === 'open' ? 'Open — accepting requests' : 'Limited spots' }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Sort -->
-          <div class="filter-group" :class="{ open: exploreGroups.sort }">
-            <div class="filter-group-header" @click="exploreGroups.sort = !exploreGroups.sort">
-              <span class="filter-group-label"><AegisIcon name="arrow-up-down" :size="16" /> Sort</span>
-              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
-            </div>
-            <div class="filter-group-body">
-              <span v-for="s in sortOptions" :key="s.value" class="ftag" :class="{ selected: exploreFilters.sort === s.value }" @click="exploreFilters.sort = s.value">{{ s.label }}</span>
-            </div>
-          </div>
-
-          <!-- Apply -->
-          <div class="filter-sidebar-apply">
-            <button type="button" class="btn btn-primary" @click="doExploreSearch">
-              <AegisIcon name="search" :size="13" /> Show Results
-            </button>
-          </div>
-        </aside>
-
-        <!-- Results grid ────────────────────────────────────────────── -->
-        <div class="explore-results-wrap">
-
-          <!-- Search bar -->
-          <div class="explore-search-bar">
-            <div class="search-wrap">
-              <AegisIcon name="search" :size="15" />
-              <input
-                v-model="exploreFilters.q"
-                type="text"
-                class="form-control"
-                placeholder="Search services, providers, specialties…"
-                @keydown.enter.prevent="doExploreSearch"
-              />
-            </div>
-            <span class="explore-count">
-              {{ exploreMeta.total ?? 0 }} service{{ (exploreMeta.total ?? 0) !== 1 ? 's' : '' }} found
-            </span>
-          </div>
-
-          <!-- Cards grid -->
-          <AegisEmptyState
-            v-if="!exploreResults.length && !exploreLoading"
-            icon="search"
-            title="No services found"
-            subtitle="Try adjusting your filters or search terms."
-          />
-
-          <div class="explore-grid">
-            <ServiceExploreCard
-              v-for="svc in exploreResults"
-              :key="svc.id"
-              :service="svc"
-              @request="openExploreRequest(svc)"
-            />
-          </div>
-
-          <!-- Loading spinner for infinite scroll -->
-          <div v-if="exploreLoading" class="explore-loading">
-            <AegisIcon name="loader" :size="20" />
-            Loading more…
-          </div>
-
-          <!-- Sentinel for IntersectionObserver -->
-          <div ref="exploreSentinel" class="explore-sentinel" aria-hidden="true"></div>
-
-          <AegisEmptyState
-            v-if="!exploreLoading && exploreMeta.current_page >= exploreMeta.last_page && exploreResults.length > 0"
-            icon="check-circle"
-            title="All services loaded"
-            :subtitle="`${exploreResults.length} service${exploreResults.length !== 1 ? 's' : ''} shown`"
+        <!-- Search -->
+        <div class="explore-filter-search">
+          <AegisIcon name="search" :size="14" />
+          <input
+            v-model="exploreFilters.q"
+            type="text"
+            class="form-control"
+            placeholder="Search services, providers…"
+            @keydown.enter.prevent="doExploreSearch"
           />
         </div>
+
+        <!-- Category dropdown -->
+        <div class="explore-filter-select-wrap" :class="{ 'has-value': exploreFilters.category }">
+          <AegisIcon name="grid" :size="13" />
+          <select v-model="exploreFilters.category" class="form-select explore-filter-select" @change="doExploreSearch">
+            <option value="">All Categories</option>
+            <option v-for="opt in serviceCategories" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+          </select>
+        </div>
+
+        <!-- Format dropdown -->
+        <div class="explore-filter-select-wrap" :class="{ 'has-value': exploreFilters.format }">
+          <AegisIcon name="monitor" :size="13" />
+          <select v-model="exploreFilters.format" class="form-select explore-filter-select" @change="doExploreSearch">
+            <option value="">Any Format</option>
+            <option value="telehealth">Virtual</option>
+            <option value="in_person">In-Person</option>
+            <option value="both">Virtual &amp; In-Person</option>
+          </select>
+        </div>
+
+        <!-- Availability dropdown -->
+        <div class="explore-filter-select-wrap" :class="{ 'has-value': exploreFilters.availability }">
+          <AegisIcon name="calendar" :size="13" />
+          <select v-model="exploreFilters.availability" class="form-select explore-filter-select" @change="doExploreSearch">
+            <option value="">Any Availability</option>
+            <option value="open">Open — accepting</option>
+            <option value="limited">Limited spots</option>
+          </select>
+        </div>
+
+        <!-- Sort dropdown -->
+        <div class="explore-filter-select-wrap">
+          <AegisIcon name="arrow-up-down" :size="13" />
+          <select v-model="exploreFilters.sort" class="form-select explore-filter-select" @change="doExploreSearch">
+            <option v-for="s in sortOptions" :key="s.value" :value="s.value">{{ s.label }}</option>
+          </select>
+        </div>
+
+        <!-- Clear + count row -->
+        <div class="explore-filter-meta">
+          <span class="explore-count">{{ exploreMeta.total ?? 0 }} result{{ (exploreMeta.total ?? 0) !== 1 ? 's' : '' }}</span>
+          <button
+            v-if="exploreFilters.q || exploreFilters.category || exploreFilters.format || exploreFilters.availability"
+            type="button"
+            class="explore-clear-btn"
+            @click="clearExploreFilters"
+          >
+            <AegisIcon name="x" :size="11" /> Clear filters
+          </button>
+        </div>
+      </div>
+
+      <!-- Cards grid -->
+      <AegisEmptyState
+        v-if="!exploreResults.length && !exploreLoading"
+        icon="search"
+        title="No services found"
+        subtitle="Try adjusting your filters or search terms."
+      />
+
+      <div class="explore-grid">
+        <ServiceExploreCard
+          v-for="svc in exploreResults"
+          :key="svc.id"
+          :service="svc"
+          @request="openExploreRequest(svc)"
+        />
+      </div>
+
+      <!-- Loading spinner -->
+      <div v-if="exploreLoading" class="explore-loading">
+        <AegisIcon name="loader" :size="20" />
+        Loading more…
+      </div>
+
+      <!-- Sentinel for IntersectionObserver -->
+      <div ref="exploreSentinel" class="explore-sentinel" aria-hidden="true"></div>
+
+      <div v-if="!exploreLoading && exploreMeta.current_page >= exploreMeta.last_page && exploreResults.length > 0" class="explore-end-note">
+        <AegisIcon name="check-circle" :size="13" />
+        {{ exploreResults.length }} service{{ exploreResults.length !== 1 ? 's' : '' }} shown
       </div>
 
       <!-- ServiceRequestModal for explore submissions -->
@@ -942,6 +945,9 @@
       <template #footer><button class="btn btn-outline" @click="modals.pause = false">Keep Active</button><button class="btn btn-danger" @click="submitPause"><AegisIcon name="pause" :size="14" /> Pause Listing</button></template>
     </AegisModal>
 
+      </div><!-- /svc-content -->
+    </div><!-- /svc-layout -->
+
   </AppLayout>
 </template>
 
@@ -1108,7 +1114,6 @@ function goToClientSessionsPage(page) {
 
 // ── Explore tab ───────────────────────────────────────────────────────────────
 const exploreFilters  = reactive({ q: props.exploreFilters?.q ?? '', category: props.exploreFilters?.category ?? '', format: props.exploreFilters?.format ?? '', availability: props.exploreFilters?.availability ?? '', sort: props.exploreFilters?.sort ?? 'newest' })
-const exploreGroups   = reactive({ category: true, format: false, availability: false, sort: false })
 const exploreLoading  = ref(false)
 const exploreSentinel = ref(null)
 const exploreMeta     = ref({ ...props.exploreMeta })
@@ -1409,28 +1414,91 @@ const serviceTypeOptions = [
 </script>
 
 <style scoped>
-/* ── EXPLORE ── */
-.search-layout {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 20px;
-  align-items: start;
+/* ── SERVICES LAYOUT ── */
+.svc-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 22px;
 }
-@media (max-width: 860px) { .search-layout { grid-template-columns: 1fr; } }
+.svc-sidebar {
+  width: 210px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 80px;
+}
+.svc-content {
+  flex: 1;
+  min-width: 0;
+}
 
-.explore-results-wrap { min-width: 0; }
-.explore-search-bar {
-  display: flex; align-items: center; gap: 12px;
+/* ── EXPLORE FILTER BAR ── */
+.explore-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 10px 14px;
   margin-bottom: 16px;
 }
-.explore-search-bar .search-wrap { flex: 1; position: relative; }
-.explore-search-bar .search-wrap .aegis-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-4); pointer-events: none; }
-.explore-search-bar .search-wrap .form-control { padding-left: 38px; }
-.explore-count { font-size: 12px; font-weight: 600; color: var(--text-4); white-space: nowrap; flex-shrink: 0; }
+
+.explore-filter-search {
+  position: relative;
+  flex: 1;
+  min-width: 180px;
+}
+.explore-filter-search .aegis-icon {
+  position: absolute; left: 10px; top: 50%;
+  transform: translateY(-50%); color: var(--text-4); pointer-events: none;
+}
+.explore-filter-search .form-control { padding-left: 32px; width: 100%; }
+
+.explore-filter-select-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.explore-filter-select-wrap .aegis-icon {
+  position: absolute; left: 9px; top: 50%;
+  transform: translateY(-50%); color: var(--text-4); pointer-events: none; z-index: 1;
+}
+.explore-filter-select {
+  padding-left: 28px;
+  padding-right: 28px;
+  min-width: 0;
+  width: auto;
+  font-size: 12px;
+  height: 34px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.explore-filter-select-wrap.has-value .explore-filter-select {
+  border-color: var(--gold);
+  background: var(--badge-bg-gold);
+  color: var(--gold-dark);
+  font-weight: 600;
+}
+.explore-filter-select-wrap.has-value .aegis-icon { color: var(--gold-dark); }
+
+.explore-filter-meta {
+  display: flex; align-items: center; gap: 10px;
+  margin-left: auto; flex-shrink: 0;
+}
+.explore-count { font-size: 12px; font-weight: 600; color: var(--text-4); white-space: nowrap; }
+.explore-clear-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 700; color: var(--text-3);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 100px; padding: 2px 9px; cursor: pointer;
+  transition: all var(--transition); white-space: nowrap;
+}
+.explore-clear-btn:hover { border-color: var(--gold); color: var(--gold-dark); }
 
 .explore-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 14px;
   margin-bottom: 12px;
 }
@@ -1439,40 +1507,10 @@ const serviceTypeOptions = [
   padding: 20px; color: var(--text-3); font-size: 13px; font-weight: 600;
 }
 .explore-sentinel { height: 1px; }
-
-/* filter sidebar — matches Network.vue pattern */
-.filter-sidebar {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 14px 10px;
-  position: sticky;
-  top: 80px;
+.explore-end-note {
+  display: flex; align-items: center; gap: 6px; justify-content: center;
+  padding: 12px; font-size: 12px; font-weight: 600; color: var(--text-4);
 }
-.filter-sidebar-header {
-  position: sticky; top: -14px; left: -10px; right: -10px;
-  width: calc(100% + 20px);
-  background: var(--surface); border-bottom: 1px solid var(--border);
-  padding: 12px 16px; z-index: 2; margin: -14px -10px 3px;
-  display: flex; justify-content: space-between; align-items: center;
-}
-.filter-sidebar-title { font-size: 13px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 6px; }
-.filter-clear-btn { font-size: 12px; color: var(--text-4); background: none; border: none; cursor: pointer; font-weight: 600; }
-.filter-clear-btn:hover { color: var(--gold-dark); }
-.filter-group { border-bottom: 1px solid var(--border); padding: 10px 6px; }
-.filter-group:last-of-type { border-bottom: none; }
-.filter-group-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 4px 0; }
-.filter-group-label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--text); }
-.filter-group-count { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: var(--gold-dark); color: #fff; font-size: 9px; font-weight: 800; }
-.filter-chevron { color: var(--text-4); transition: transform var(--transition); }
-.filter-group.open .filter-chevron { transform: rotate(180deg); }
-.filter-group-body { display: none; padding-top: 8px; flex-wrap: wrap; gap: 6px; }
-.filter-group.open .filter-group-body { display: flex; }
-.ftag { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 100px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-3); cursor: pointer; transition: all var(--transition); }
-.ftag:hover    { border-color: var(--gold); color: var(--gold-dark); }
-.ftag.selected { background: var(--badge-bg-gold); border-color: var(--gold); color: var(--gold-dark); font-weight: 700; }
-.filter-sidebar-apply { padding: 12px 6px 0; }
-.filter-sidebar-apply .btn { width: 100%; }
 
 /* ── LISTINGS ── */
 .services-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; margin-bottom: 22px; }
@@ -1552,4 +1590,38 @@ const serviceTypeOptions = [
 @media (max-width: 720px) { .svc-toolbar { grid-template-columns: 1fr; } .svc-toolbar .search-wrap, .svc-toolbar > .form-select { grid-column: 1 / -1; } }
 @media (max-width: 900px) { .services-grid { grid-template-columns: 1fr; } .settings-grid { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .pricing-options { grid-template-columns: 1fr 1fr; } }
+
+/* ── RESPONSIVE: svc-layout stacks on narrow screens ── */
+@media (max-width: 860px) {
+  .svc-layout { flex-direction: column; }
+  .svc-sidebar {
+    width: 100% !important;
+    position: static;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    border-radius: var(--radius-lg);
+  }
+  .svc-sidebar .page-sidebar-group {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 4px 6px;
+    border-bottom: none;
+  }
+  .svc-sidebar .page-sidebar-label { display: none; }
+  .svc-sidebar .page-sidebar-item {
+    width: auto;
+    flex: 0 0 auto;
+    border-left: none;
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  .svc-sidebar .page-sidebar-item.active::before { display: none; }
+  .svc-sidebar .page-sidebar-icon  { display: none; }
+  .explore-filter-bar { flex-wrap: wrap; }
+  .explore-filter-search { flex: 1 1 100%; }
+  .explore-filter-select { min-width: 120px; }
+  .explore-filter-meta  { margin-left: 0; }
+}
 </style>
