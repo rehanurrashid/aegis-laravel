@@ -575,7 +575,7 @@
               <div class="sub-cart-type">Practice Continuity Subscription</div>
             </div>
           </div>
-          <a :href="route('provider.settings.index') + '?section=billing'" class="btn btn-outline btn-sm">
+          <a :href="route('provider.settings.index') + '?section=billing'" class="btn btn-outline">
             <AegisIcon name="external-link" :size="12" /> Manage Plan
           </a>
         </div>
@@ -654,7 +654,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="inv in subscriptionInvoices" :key="inv.id" class="sub-inv-row">
+              <tr v-for="inv in subscriptionInvoices" :key="inv.id" class="sub-inv-row" style="cursor:pointer;" @click="openSubInvoice(inv)">
                 <td style="padding-left:20px;" class="tx-date">{{ formatSubscriptionDate(inv.date || inv.created) }}</td>
                 <td>
                   <div class="sub-inv-product">{{ inv.product_name || 'Aegis Subscription' }}</div>
@@ -663,8 +663,9 @@
                 <td class="tx-amount-out" style="font-size:14px;white-space:nowrap;">{{ formatCents(inv.amount_cents) }}</td>
                 <td><AegisBadge :label="inv.status" :variant="statusVariant(inv.status)" /></td>
                 <td style="padding-right:20px;text-align:right;">
-                  <a v-if="inv.hosted_url" :href="inv.hosted_url" target="_blank" class="btn-icon btn-icon-sm" data-tooltip="View on Stripe"><AegisIcon name="external-link" :size="12" /></a>
-                  <a v-else-if="inv.pdf_url" :href="inv.pdf_url" target="_blank" class="btn-icon btn-icon-sm" data-tooltip="Download PDF"><AegisIcon name="download" :size="12" /></a>
+                  <button type="button" class="btn-icon btn-icon-sm" data-tooltip="View invoice" @click.stop="openSubInvoice(inv)">
+                    <AegisIcon name="eye" :size="12" />
+                  </button>
                 </td>
               </tr>
             </tbody>
@@ -688,7 +689,7 @@
             Saved Payment Methods
           </div>
           <a :href="route('provider.settings.index') + '?section=payment_methods'" class="btn btn-outline">
-            <AegisIcon name="external-link" :size="12" /> Manage in Settings
+            <AegisIcon name="external-link" :size="12" /> Manage Payment Methods
           </a>
         </div>
         <div class="card-body">
@@ -823,35 +824,32 @@
         <div class="card-header">
           <div class="card-title fin-card-title">
             <span class="fin-card-icon"><AegisIcon name="link" :size="15" /></span>
-            Integrations
+            Stripe Connect
           </div>
+          <a :href="route('provider.settings.index') + '?section=stripe_connect'" class="btn btn-outline">
+            <AegisIcon name="external-link" :size="12" /> Manage Stripe
+          </a>
         </div>
         <div class="card-body">
-
-          <!-- Stripe Connect -->
-          <div class="stripe-setup-card" style="margin-bottom:20px;">
+          <div class="stripe-setup-card">
             <div class="stripe-setup-inner">
               <div class="stripe-setup-icon"><AegisIcon name="credit-card" :size="22" /></div>
               <div class="stripe-setup-body">
-                <div class="stripe-setup-title">Stripe Connect</div>
+                <div class="stripe-setup-title">Stripe Connect Express</div>
                 <div class="stripe-setup-desc">
-                  Connect your Stripe account to <strong>receive</strong> payments from clients booking your services. Aegis uses Stripe Connect — funds go directly to your bank account. Aegis never holds your money.
+                  Receive payments from clients booking your services. Funds go directly to your bank account — Aegis never holds your money.
                 </div>
-                <div class="stripe-setup-actions" style="margin-top:4px;">
+                <div style="margin-top:10px;">
                   <span v-if="stripeConnected" class="app-status-connected">
                     <AegisIcon name="check" :size="13" /> Connected
                   </span>
                   <span v-else class="app-status-disconnected">
-                    <AegisIcon name="alert-triangle" :size="13" /> Not connected
+                    <AegisIcon name="alert-triangle" :size="13" /> Not connected — set up in Settings
                   </span>
-                  <a :href="route('provider.settings.index') + '?section=stripe_connect'" class="btn btn-outline">
-                    <AegisIcon name="external-link" :size="12" /> Manage in Settings
-                  </a>
                 </div>
               </div>
             </div>
           </div>
-
         </div>
       </div>
     </div>
@@ -1363,7 +1361,10 @@ function openViewInvoice(inv)    { activeInvoice.value = inv; modals.value.viewR
  */
 function openTxReceipt(tx) {
   if (tx.modal_type === 'subscription') {
-    // Subscription invoices are managed in Settings — navigate there
+    // Try to match against a loaded subscription invoice by Stripe invoice ID
+    const matched = props.subscriptionInvoices?.find(i => i.id === tx.stripe_invoice_id || i.number === tx.stripe_invoice_id)
+    if (matched) { openSubInvoice(matched); return }
+    // Fallback — open directly on Stripe
     if (tx.stripe_invoice_url) { window.open(tx.stripe_invoice_url, '_blank'); return }
     activeTab.value = 'subscription'
     toast.info('Subscription invoice not found in recent history — check the Subscription tab.')
@@ -1382,6 +1383,22 @@ function openTxReceipt(tx) {
     if (ses) { activeInvoice.value = { ...ses, kind: 'session' }; modals.value.viewReceipt = true; return }
   }
   toast.info('Receipt details are not available for this transaction.')
+}
+
+function openSubInvoice(inv) {
+  // Normalize subscription invoice into the shape ViewInvoiceModal expects
+  activeInvoice.value = {
+    ...inv,
+    kind:            'subscription',
+    invoice_number:  inv.number || inv.id,
+    total_cents:     inv.amount_cents,
+    bp_name:         null,
+    cs_name:         null,
+    contract_title:  inv.product_name || 'Aegis Subscription',
+    pdf_url:         inv.pdf_url    ?? null,
+    hosted_url:      inv.hosted_url ?? null,
+  }
+  modals.value.viewReceipt = true
 }
 
 function handleReceiptApprove(inv) {
@@ -1805,7 +1822,8 @@ function paymentTypeLabel(t) {
 .stripe-setup-desc      { font-size: 13px; color: var(--text-2); line-height: 1.5; margin-bottom: 12px; }
 .stripe-setup-connected { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .stripe-setup-actions   { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.app-status-connected   { font-size: 12px; font-weight: 600; color: var(--green-dark); background: var(--green-light); padding: 3px 10px; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 5px; }
+.app-status-connected    { font-size: 12px; font-weight: 600; color: var(--green-dark); background: var(--green-light); border: 1px solid rgba(34,197,94,.3); padding: 3px 10px; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 5px; }
+.app-status-disconnected { font-size: 12px; font-weight: 600; color: var(--orange-dark, #c2500a); background: var(--orange-light, #fff4ed); border: 1px solid rgba(234,88,12,.25); padding: 3px 10px; border-radius: var(--radius-full); display: inline-flex; align-items: center; gap: 5px; }
 .integrations-empty     { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 36px 20px; text-align: center; color: var(--text-3); }
 
 /* ── Finances layout: sidebar + content ── */
