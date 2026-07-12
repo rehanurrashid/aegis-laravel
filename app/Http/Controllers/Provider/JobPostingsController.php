@@ -219,9 +219,33 @@ class JobPostingsController extends Controller
     public function acceptProposal(Request $request, BpJob $job, BpProposal $proposal): RedirectResponse
     {
         abort_if($proposal->job_id !== $job->id, 404);
-        $this->authorize('close', $job); // owner == accept authority
-        $validated = $request->validate(['final_rate_cents' => 'nullable|integer|min:0']);
-        $this->proposals->accept($proposal, $validated['final_rate_cents'] ?? null);
+        $this->authorize('close', $job);
+        $validated = $request->validate([
+            'final_rate_cents'        => 'nullable|integer|min:0',
+            'milestones'              => 'nullable|array|max:20',
+            'milestones.*.title'      => 'required_with:milestones|string|max:191',
+            'milestones.*.amount_cents' => 'required_with:milestones|integer|min:1',
+            'milestones.*.due_at'     => 'nullable|date',
+            'milestones.*.sort_order' => 'nullable|integer',
+        ]);
+
+        $contract = $this->proposals->accept($proposal, $validated['final_rate_cents'] ?? null);
+
+        // Create initial milestones if provided (milestone-based contracts)
+        if (!empty($validated['milestones']) && $contract) {
+            foreach ($validated['milestones'] as $i => $ms) {
+                BpMilestone::create([
+                    'id'          => 'bm_' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(12)),
+                    'contract_id' => $contract->id,
+                    'title'       => $ms['title'],
+                    'amount_cents'=> (int) $ms['amount_cents'],
+                    'due_at'      => $ms['due_at'] ?? null,
+                    'sort_order'  => $ms['sort_order'] ?? ($i + 1),
+                    'status'      => 'pending',
+                ]);
+            }
+        }
+
         return back()->with('success', 'Proposal accepted. Contract created.');
     }
 
