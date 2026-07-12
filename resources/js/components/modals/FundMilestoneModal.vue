@@ -54,10 +54,13 @@
       <!-- Payment method -->
       <div class="fund-modal-pm">
         <AegisIcon name="credit-card" :size="14" />
-        <span v-if="hasPaymentMethod">Charging your saved payment method</span>
+        <span v-if="hasPaymentMethod">
+          Charging saved
+          <strong>{{ cardBrand }} ···· {{ cardLast4 }}</strong>
+        </span>
         <span v-else class="fund-modal-pm-missing">
           No payment method saved.
-          <a :href="route('provider.finances.index')" class="link-btn">Add one in Finances →</a>
+          <a :href="route('provider.settings.index') + '#payment-methods'" class="link-btn">Add one in Settings →</a>
         </span>
       </div>
 
@@ -88,7 +91,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useForm } from '@inertiajs/vue3'
+import { useForm, usePage } from '@inertiajs/vue3'
 import { useToast } from '@/composables/useToast'
 import { usePricingStore } from '@/stores/pricing'
 
@@ -102,6 +105,12 @@ const emit = defineEmits(['update:modelValue'])
 
 const toast           = useToast()
 const pricing         = usePricingStore()
+const page            = usePage()
+const cardLast4       = computed(() => page.props.auth?.user?.pm_last4 ?? '····')
+const cardBrand       = computed(() => {
+  const b = page.props.auth?.user?.pm_brand
+  return b ? b.charAt(0).toUpperCase() + b.slice(1) : 'Card'
+})
 const autoReleaseDays = 7
 
 const form = useForm({})

@@ -144,6 +144,10 @@ class HandleInertiaRequests extends Middleware
                                                ->value('meta_value') ?? 'available',
                     'is_paused'          => \App\Models\UserMeta::where('user_id', $user->id)->where('meta_key', 'account_paused')->value('meta_value') === '1',
                     'is_deactivated'     => $user->deactivated_at !== null,
+                    // Payment method — needed by fund modals (ContractModal, FundMilestoneModal, FundContractModal)
+                    'stripe_payment_method_id' => $user->stripe_payment_method_id ?? null,
+                    'pm_last4'           => \App\Models\UserMeta::where('user_id', $user->id)->where('meta_key', 'pm_last4')->value('meta_value'),
+                    'pm_brand'           => \App\Models\UserMeta::where('user_id', $user->id)->where('meta_key', 'pm_brand')->value('meta_value'),
                 ] : null,
                 'portal' => $user
                     ? ($user->role instanceof UserRole

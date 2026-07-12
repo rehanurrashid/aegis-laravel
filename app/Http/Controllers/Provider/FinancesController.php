@@ -646,10 +646,37 @@ class FinancesController extends Controller
         try {
             if (!$user->hasStripeId()) $user->createAsStripeCustomer(['name' => $user->display_name, 'email' => $user->email]);
             $user->addPaymentMethod($data['payment_method_id']);
-            if (!empty($data['set_default'])) { $user->updateDefaultPaymentMethod($data['payment_method_id']); $user->update(['stripe_payment_method_id' => $data['payment_method_id']]); }
+            if (!empty($data['set_default'])) {
+                $user->updateDefaultPaymentMethod($data['payment_method_id']);
+                $user->update(['stripe_payment_method_id' => $data['payment_method_id']]);
+                // Cache card display info for fund modals
+                try {
+                    $pm = $user->stripe()->paymentMethods->retrieve($data['payment_method_id']);
+                    $this->cachePmMeta($user, $pm->card->last4 ?? null, $pm->card->brand ?? null);
+                } catch (\Throwable) {}
+            }
             return redirect()->route('provider.finances.index', ['tab' => 'methods'])->with('success', 'Payment method saved.');
         } catch (\Throwable $e) {
             return redirect()->route('provider.finances.index', ['tab' => 'methods'])->withErrors(['payment' => 'Could not save payment method. ' . $e->getMessage()]);
+        }
+    }
+
+    private function cachePmMeta(\App\Models\User $user, ?string $last4, ?string $brand): void
+    {
+        foreach (['pm_last4' => $last4, 'pm_brand' => $brand] as $key => $value) {
+            if ($value === null) continue;
+            $existing = \App\Models\UserMeta::where('user_id', $user->id)->where('meta_key', $key)->first();
+            if ($existing) {
+                $existing->update(['meta_value' => $value]);
+            } else {
+                \App\Models\UserMeta::create([
+                    'id'         => 'um_' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(12)),
+                    'user_id'    => $user->id,
+                    'meta_key'   => $key,
+                    'meta_value' => $value,
+                    'meta_type'  => 'string',
+                ]);
+            }
         }
     }
 

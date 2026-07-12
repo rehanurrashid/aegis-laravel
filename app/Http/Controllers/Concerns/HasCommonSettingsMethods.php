@@ -334,6 +334,13 @@ trait HasCommonSettingsMethods
             if (!empty($data['set_default'])) {
                 $user->updateDefaultPaymentMethod($data['payment_method_id']);
                 $user->update(['stripe_payment_method_id' => $data['payment_method_id']]);
+
+                // Cache last4 + brand in user_meta so fund modals can display them
+                // without a live Stripe API call on every page load.
+                try {
+                    $pm = $user->stripe()->paymentMethods->retrieve($data['payment_method_id']);
+                    $this->savePmMeta($user, $pm->card->last4 ?? null, $pm->card->brand ?? null);
+                } catch (\Throwable) { /* non-fatal — display falls back gracefully */ }
             }
 
             $this->activity->log(
@@ -360,6 +367,12 @@ trait HasCommonSettingsMethods
             $user->updateDefaultPaymentMethod($data['payment_method_id']);
             $user->update(['stripe_payment_method_id' => $data['payment_method_id']]);
 
+            // Cache last4 + brand so fund modals display card details without a live Stripe call
+            try {
+                $pm = $user->stripe()->paymentMethods->retrieve($data['payment_method_id']);
+                $this->savePmMeta($user, $pm->card->last4 ?? null, $pm->card->brand ?? null);
+            } catch (\Throwable) {}
+
             $this->activity->log(
                 $user->id, $user->role?->portal() ?? 'provider', 'settings',
                 ActivitySeverity::Info,
@@ -371,6 +384,29 @@ trait HasCommonSettingsMethods
             return back()->with('success', 'Default payment method updated.');
         } catch (\Throwable $e) {
             return back()->withErrors(['payment' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Persist card display metadata (last4, brand) into user_meta so it can be
+     * read by the Inertia middleware without a live Stripe API call per request.
+     */
+    private function savePmMeta(\App\Models\User $user, ?string $last4, ?string $brand): void
+    {
+        foreach (['pm_last4' => $last4, 'pm_brand' => $brand] as $key => $value) {
+            if ($value === null) continue;
+            $existing = \App\Models\UserMeta::where('user_id', $user->id)->where('meta_key', $key)->first();
+            if ($existing) {
+                $existing->update(['meta_value' => $value]);
+            } else {
+                \App\Models\UserMeta::create([
+                    'id'         => 'um_' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(12)),
+                    'user_id'    => $user->id,
+                    'meta_key'   => $key,
+                    'meta_value' => $value,
+                    'meta_type'  => 'string',
+                ]);
+            }
         }
     }
 
