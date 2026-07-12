@@ -21,32 +21,36 @@
 <template>
   <div class="bpft-root">
 
-    <!-- ── Escrow summary banner (only when funds are held or unfunded) ── -->
+    <!-- ── Escrow summary strip (only when funds are held or unfunded) ── -->
     <div
       v-if="escrowSummary.total_held_cents > 0 || escrowSummary.total_unfunded_cents > 0"
-      class="bpft-escrow-banner"
+      class="bpft-escrow-strip"
     >
-      <div class="bpft-escrow-banner-inner">
-        <div class="bpft-escrow-stat" v-if="escrowSummary.total_held_cents > 0">
-          <AegisIcon name="shield-check" :size="15" />
-          <div>
-            <div class="bpft-escrow-stat-val">{{ formatCents(escrowSummary.total_held_cents) }}</div>
-            <div class="bpft-escrow-stat-label">Held in escrow</div>
-          </div>
+      <div v-if="escrowSummary.total_held_cents > 0" class="stat-chip bpft-escrow-chip">
+        <div class="stat-chip-icon" style="background:var(--icon-bg-gold);color:var(--gold-dark)">
+          <AegisIcon name="shield-check" :size="18" />
         </div>
-        <div class="bpft-escrow-stat bpft-escrow-stat--warn" v-if="escrowSummary.total_unfunded_cents > 0">
-          <AegisIcon name="alert-circle" :size="15" />
-          <div>
-            <div class="bpft-escrow-stat-val">{{ formatCents(escrowSummary.total_unfunded_cents) }}</div>
-            <div class="bpft-escrow-stat-label">Unfunded milestones</div>
-          </div>
+        <div>
+          <div class="stat-chip-value">{{ formatCents(escrowSummary.total_held_cents) }}</div>
+          <div class="stat-chip-label">Held in Escrow</div>
         </div>
-        <div v-if="escrowSummary.funded_count > 0" class="bpft-escrow-stat">
-          <AegisIcon name="check-circle" :size="15" />
-          <div>
-            <div class="bpft-escrow-stat-val">{{ escrowSummary.funded_count }}</div>
-            <div class="bpft-escrow-stat-label">Milestone{{ escrowSummary.funded_count !== 1 ? 's' : '' }} funded</div>
-          </div>
+      </div>
+      <div v-if="escrowSummary.total_unfunded_cents > 0" class="stat-chip bpft-escrow-chip bpft-escrow-chip--warn">
+        <div class="stat-chip-icon" style="background:rgba(239,68,68,0.08);color:var(--red)">
+          <AegisIcon name="alert-circle" :size="18" />
+        </div>
+        <div>
+          <div class="stat-chip-value" style="color:var(--red)">{{ formatCents(escrowSummary.total_unfunded_cents) }}</div>
+          <div class="stat-chip-label">Unfunded Milestones</div>
+        </div>
+      </div>
+      <div v-if="escrowSummary.funded_count > 0" class="stat-chip bpft-escrow-chip">
+        <div class="stat-chip-icon" style="background:rgba(34,197,94,0.08);color:var(--green)">
+          <AegisIcon name="check-circle" :size="18" />
+        </div>
+        <div>
+          <div class="stat-chip-value" style="color:var(--green)">{{ escrowSummary.funded_count }}</div>
+          <div class="stat-chip-label">Milestone{{ escrowSummary.funded_count !== 1 ? 's' : '' }} Funded</div>
         </div>
       </div>
     </div>
@@ -137,10 +141,7 @@
             <thead>
               <tr>
                 <th class="bpft-th">Business Partner</th>
-                <th class="bpft-th">Contract / Invoice</th>
-                <th class="bpft-th">Amount</th>
                 <th class="bpft-th">Status</th>
-                <th class="bpft-th">Due</th>
                 <th class="bpft-th"></th>
               </tr>
             </thead>
@@ -866,41 +867,19 @@ function openMilestoneDispute(con, ms) {
 .bpft-root { display: flex; flex-direction: column; gap: 0; }
 
 /* ── Escrow banner ── */
-.bpft-escrow-banner {
-  background: var(--primary);
-  border-radius: var(--radius-lg);
-  padding: 16px 20px;
+/* ── Escrow strip ── */
+.bpft-escrow-strip {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 18px;
 }
-.bpft-escrow-banner-inner {
-  display: flex;
-  align-items: center;
-  gap: 28px;
-  flex-wrap: wrap;
+.bpft-escrow-chip {
+  flex: 1;
+  min-width: 160px;
 }
-.bpft-escrow-stat {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  color: rgba(255,255,255,0.7);
-}
-.bpft-escrow-stat--warn { color: var(--gold); }
-.bpft-escrow-stat-val {
-  font-family: var(--font-serif);
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--gold);
-  line-height: 1;
-}
-.bpft-escrow-stat--warn .bpft-escrow-stat-val { color: #fff; }
-.bpft-escrow-stat-label {
-  font-family: var(--font-sans);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.5);
-  margin-top: 4px;
+.bpft-escrow-chip--warn {
+  border-color: rgba(239,68,68,0.25);
 }
 
 /* ── Sub-tab pills ── */
