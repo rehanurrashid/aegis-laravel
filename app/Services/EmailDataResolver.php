@@ -106,16 +106,43 @@ class EmailDataResolver
             }
         }
         if (! empty($d['contract_id']) && empty($d['proposal_id'])) {
-            // Contract-only enrichment (bp/35-contract-created, gaps/66-contract-signed)
+            // Contract-only enrichment
+            // Supports: 50-contract-pending-signature, 51-contract-fully-executed,
+            //           41-contract-created (legacy), gaps/66-contract-signed (legacy)
             $c = \App\Models\BpContract::find($d['contract_id']);
             if ($c) {
+                $recipientRole   = $d['recipient_role'] ?? null;
+                $counterpartyId  = ($d['user_id'] ?? null) === $c->practitioner_id
+                    ? $c->bp_id
+                    : $c->practitioner_id;
+                $counterpartyName = User::find($counterpartyId)?->display_name ?? '';
+                $bpName           = User::find($c->bp_id)?->display_name ?? '';
+                $practName        = User::find($c->practitioner_id)?->display_name ?? '';
+
+                // Portal-specific URL: provider gets their portal URL, BP gets theirs
+                $contractUrl = match ($recipientRole) {
+                    'provider' => $base . '/provider/support-services',
+                    'bp'       => $base . '/business/contracts',
+                    default    => $base . '/provider/support-services',
+                };
+
                 $d += [
                     'contract_title'    => $c->title,
-                    'contract_url'      => $base . '/bp/contracts/' . $c->id,
-                    'bp_name'           => User::find($c->bp_id)?->display_name ?? '',
-                    'practitioner_name' => User::find($c->practitioner_id)?->display_name ?? '',
+                    'contract_url'      => $contractUrl,
+                    'contract_value'    => '$' . number_format(($c->total_value_cents ?? 0) / 100, 2),
+                    'counterparty_name' => $counterpartyName,
+                    'bp_name'           => $bpName,
+                    'practitioner_name' => $practName,
+                    'recipient_name'    => $recipientRole === 'provider' ? $practName : $bpName,
                     'created_at'        => $c->created_at?->toFormattedDateString() ?? '',
+                    'signed_at'         => $c->fully_executed_at?->format('F j, Y') ?? '',
                 ];
+                // pdf_url may already be set by the listener; only add fallback if not set
+                if (empty($d['pdf_url'])) {
+                    $d['pdf_url'] = $recipientRole === 'provider'
+                        ? $base . '/provider/support-services/contracts/' . $c->id . '/pdf'
+                        : $base . '/business/contracts/' . $c->id . '/pdf';
+                }
             }
         }
         if (! empty($d['invoice_id'])) {

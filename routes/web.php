@@ -312,8 +312,10 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::post('/support-services/contracts/{contract}/milestones/{milestone}/review', [ProviderJobPostingsController::class, 'reviewMilestone'])->name('jobs.contract.milestones.review');
         Route::post('/support-services/contracts/{contract}/milestones/{milestone}/approve', [ProviderJobPostingsController::class, 'approveMilestone'])->name('jobs.contract.milestones.approve');
         Route::post('/support-services/contracts/{contract}/milestones/{milestone}/pay', [ProviderJobPostingsController::class, 'payMilestone'])->name('jobs.contract.milestones.pay');
-        // Wave 5: Self-service refund (before BP submits)
+        // Wave 5: Self-service refund
         Route::post('/support-services/contracts/{contract}/milestones/{milestone}/refund', [ProviderJobPostingsController::class, 'refundMilestone'])->name('jobs.contract.milestones.refund');
+        // Wave 6: Contract PDF
+        Route::get('/support-services/contracts/{contract}/pdf', [\App\Http\Controllers\Provider\ContractPdfController::class, 'show'])->name('jobs.contract.pdf');
         Route::post('/support-services/bp-invoices/{invoice}/pay', [ProviderJobPostingsController::class, 'payBPInvoice'])->name('jobs.bp-invoice.pay');
 
         // Continuity Documents
@@ -647,6 +649,8 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:busine
         Route::get('/contracts', [ContractsController::class, 'index'])->name('contracts.index');
         Route::post('/contracts/{contract}/sign', [ContractsController::class, 'sign'])->name('contracts.sign');
         Route::post('/contracts/{contract}/cancel', [ContractsController::class, 'cancel'])->name('contracts.cancel');
+        // Wave 6: Contract PDF
+        Route::get('/contracts/{contract}/pdf', [\App\Http\Controllers\BusinessPartner\ContractPdfController::class, 'show'])->name('contracts.pdf');
 
         // Milestones — BPs submit work only
         Route::get('/milestones', [MilestonesController::class, 'index'])->name('milestones.index');

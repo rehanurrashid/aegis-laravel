@@ -83,25 +83,54 @@
 
     </div>
 
+    <!-- Signed success state -->
+    <div v-if="signed" class="sign-success">
+      <AegisIcon name="check-circle" :size="24" />
+      <div class="sign-success-title">You've signed the contract.</div>
+      <div class="sign-success-desc">
+        {{ bothSigned
+          ? 'Both parties have signed. The contract is now fully executed. The provider must fund escrow to activate.'
+          : 'Awaiting the other party's signature.' }}
+      </div>
+    </div>
+
     <template #footer>
-      <button type="button" class="btn btn-outline" :disabled="form.processing" @click="onClose">
-        Cancel
-      </button>
-      <button
-        type="button"
-        class="btn btn-primary"
-        :disabled="form.processing || !canSign"
-        @click="sign"
+      <!-- After signing: show PDF link -->
+      <a
+        v-if="signed"
+        :href="pdfUrl"
+        target="_blank"
+        rel="noopener"
+        class="btn btn-outline"
       >
-        <AegisIcon v-if="form.processing" name="refresh-cw" :size="13" class="btn-spin" />
-        {{ form.processing ? 'Signing…' : 'Sign contract' }}
+        <AegisIcon name="download" :size="13" />
+        Download signed copy
+      </a>
+      <button v-if="signed" type="button" class="btn btn-ghost" @click="onClose">
+        Close
       </button>
+
+      <!-- Before signing -->
+      <template v-if="!signed">
+        <button type="button" class="btn btn-outline" :disabled="form.processing" @click="onClose">
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          :disabled="form.processing || !canSign"
+          @click="sign"
+        >
+          <AegisIcon v-if="form.processing" name="refresh-cw" :size="13" class="btn-spin" />
+          {{ form.processing ? 'Signing…' : 'Sign contract' }}
+        </button>
+      </template>
     </template>
   </AegisModal>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useForm, usePage } from '@inertiajs/vue3'
 import useVuelidate from '@vuelidate/core'
 import { required, minLength, sameAs } from '@vuelidate/validators'
@@ -151,9 +180,20 @@ const canSign = computed(() =>
 )
 
 // ── Actions ───────────────────────────────────────────────────────────────────
+const signed     = ref(false)
+const bothSigned = ref(false)
+
+const pdfUrl = computed(() => {
+  if (!props.contract) return '#'
+  const base = window.location.origin
+  return props.portal === 'provider'
+    ? `${base}/provider/support-services/contracts/${props.contract.id}/pdf`
+    : `${base}/business/contracts/${props.contract.id}/pdf`
+})
+
 function onClose() {
   emit('update:modelValue', null)
-  setTimeout(() => { form.reset(); v$.value.$reset() }, 200)
+  setTimeout(() => { form.reset(); v$.value.$reset(); signed.value = false }, 200)
 }
 
 async function sign() {
@@ -166,9 +206,13 @@ async function sign() {
 
   form.post(route(routeName, { contract: props.contract.id }), {
     preserveScroll: true,
-    onSuccess: () => {
+    onSuccess: (page) => {
       toast.success('Contract signed successfully.')
-      onClose()
+      signed.value = true
+      // If both parties have now signed, the page will reload with fully_executed=true
+      const contracts = page?.props?.activeContracts ?? page?.props?.contracts ?? []
+      const updated = contracts.find?.((c) => c.id === props.contract.id)
+      if (updated?.fully_executed) bothSigned.value = true
     },
     onError: (e) => toast.error(e.contract ?? 'Could not sign contract.'),
   })
