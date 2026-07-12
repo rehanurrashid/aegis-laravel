@@ -79,9 +79,17 @@
         <AegisIcon name="external-link" :size="12" /> View on Stripe
       </a>
 
-      <button v-if="kind !== 'subscription'" type="button" class="btn btn-ghost" @click="downloadPdf">
+      <a
+        v-if="kind !== 'subscription' && invoice?.id"
+        :href="kind === 'bp_invoice'
+          ? `/provider/support-services/bp-invoices/${invoice.id}/pdf`
+          : `/provider/finances/invoices/${invoice.id}/pdf`"
+        target="_blank"
+        rel="noopener"
+        class="btn btn-ghost"
+      >
         <AegisIcon name="download" :size="12" /> Download PDF
-      </button>
+      </a>
 
       <!-- Approve & Pay (BP only) -->
       <button
@@ -113,9 +121,6 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useToast } from '@/composables/useToast'
-
-const toast = useToast()
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -200,10 +205,6 @@ function formatCents(c) {
 
 function handleApprove() {
   emit('approve', props.invoice)
-}
-
-function downloadPdf() {
-  toast.info('PDF export is not yet available in this demo.')
 }
 </script>
 

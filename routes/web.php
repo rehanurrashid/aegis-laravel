@@ -318,6 +318,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         // Wave 6: Contract PDF
         Route::get('/support-services/contracts/{contract}/pdf', [\App\Http\Controllers\Provider\ContractPdfController::class, 'show'])->name('jobs.contract.pdf');
         Route::post('/support-services/bp-invoices/{invoice}/pay', [ProviderJobPostingsController::class, 'payBPInvoice'])->name('jobs.bp-invoice.pay');
+        Route::get('/support-services/bp-invoices/{invoice}/pdf', [\App\Http\Controllers\Provider\BpInvoicePdfController::class, 'show'])->name('jobs.bp-invoice.pdf');
         // Wave 10: Contract reviews
         Route::post('/support-services/contracts/{contract}/review', [\App\Http\Controllers\ContractReviewController::class, 'store'])->name('jobs.contract.review');
         Route::post('/support-services/contracts/{contract}/review/dismiss', [\App\Http\Controllers\ContractReviewController::class, 'dismiss'])->name('jobs.contract.review.dismiss');
