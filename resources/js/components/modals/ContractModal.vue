@@ -296,12 +296,49 @@
         </span>
       </div>
 
-      <!-- Completed notice -->
-      <div v-if="isCompleted" class="alert alert-success" style="margin-top:14px;margin-bottom:0">
-        <div class="alert-icon"><AegisIcon name="check" :size="16" /></div>
-        <div class="alert-content">
-          <strong>Contract completed.</strong>
-          This engagement has ended. The partner remains in your Hired Business Partners history.
+      <!-- Completed section with review state -->
+      <div v-if="isCompleted" class="contract-completed-section">
+        <div class="contract-completed-header">
+          <AegisIcon name="check-circle" :size="16" />
+          <strong>Contract completed</strong>
+          <span class="contract-completed-date" v-if="contract?.completed_at">
+            · {{ new Date(contract.completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}
+          </span>
+        </div>
+
+        <!-- Review submitted — show rating + text -->
+        <div v-if="contract?.has_reviewed && contract?.my_review" class="contract-review-display">
+          <div class="crd-label">Your review of {{ contract?.bp?.display_name ?? 'this BP' }}</div>
+          <div class="crd-stars">
+            <AegisIcon
+              v-for="n in 5"
+              :key="n"
+              name="star"
+              :size="14"
+              :filled="n <= (contract.my_review.rating ?? 0)"
+              :style="{ color: n <= (contract.my_review.rating ?? 0) ? 'var(--gold-dark)' : 'var(--border-dark)' }"
+            />
+            <span class="crd-rating">{{ contract.my_review.rating }}/5</span>
+          </div>
+          <p v-if="contract.my_review.review_text" class="crd-text">
+            "{{ contract.my_review.review_text }}"
+          </p>
+        </div>
+
+        <!-- No review yet — prompt -->
+        <div v-else class="contract-review-prompt">
+          <div class="crp-text">
+            <AegisIcon name="star" :size="13" />
+            You haven't reviewed {{ contract?.bp?.display_name ?? 'this Business Partner' }} yet.
+          </div>
+          <button
+            type="button"
+            class="btn btn-outline crp-btn"
+            @click="emit('leave-review', contract)"
+          >
+            <AegisIcon name="star" :size="12" />
+            Leave a Review
+          </button>
         </div>
       </div>
     </div>
@@ -389,7 +426,7 @@ const props = defineProps({
   contract:   { type: Object, default: null },
   milestones: { type: Array,  default: () => [] },
 })
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'leave-review'])
 
 const toast = useToast()
 const { confirmAction } = useConfirm()
@@ -787,6 +824,94 @@ function endAndRelease() {
 .contract-invoice-note { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-3); background: var(--badge-bg-gold); border-radius: var(--radius-sm); padding: 10px 14px; border-left: 3px solid var(--gold); margin-top: 16px; }
 .link-gold { color: var(--gold-dark); font-weight: 600; text-decoration: none; }
 .link-gold:hover { text-decoration: underline; }
+
+/* ── Completed section ───────────────────────────────────────────── */
+.contract-completed-section {
+  margin-top: 16px;
+  border: 1px solid var(--green);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--green-light);
+}
+.contract-completed-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 16px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--green-dark);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  background: var(--green-light);
+}
+.contract-completed-date {
+  font-weight: 400;
+  color: var(--text-3);
+}
+
+/* Review submitted display */
+.contract-review-display {
+  padding: 14px 16px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.crd-label {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-4);
+}
+.crd-stars {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.crd-rating {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold-dark);
+  margin-left: 4px;
+}
+.crd-text {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.5;
+  font-style: italic;
+  margin: 0;
+}
+
+/* No review prompt */
+.contract-review-prompt {
+  padding: 12px 16px;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.crp-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-3);
+}
+.crp-btn {
+  font-size: 12px;
+  padding: 5px 12px;
+  height: auto;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
 
 /* ── Milestone status chips ──────────────────────────────────────── */
 .milestone-funded-chip,

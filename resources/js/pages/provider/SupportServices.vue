@@ -444,6 +444,7 @@
       v-model="showContract"
       :contract="activeContract"
       :milestones="activeContract ? (milestonesByContract?.[activeContract.id] ?? []) : []"
+      @leave-review="(c) => openReviewForContract(c)"
     />
     <EngagementRequestModal v-model="showRequestDetail" :request="activeEngagementRequest" />
 
