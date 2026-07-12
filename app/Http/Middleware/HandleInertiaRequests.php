@@ -175,11 +175,12 @@ class HandleInertiaRequests extends Middleware
                     ?->typed_value ?? ['theme' => 'gold', 'dark_mode' => false])
                 : ['theme' => 'gold', 'dark_mode' => false],
             'flash'        => [
-                'success' => session('success'),
-                'error'   => session()->get('error'),
-                'info'    => session('info'),
-                'warning' => session('warning'),
-                'status'  => session('status'),
+                'success'            => session('success'),
+                'error'              => session()->get('error'),
+                'info'               => session('info'),
+                'warning'            => session('warning'),
+                'status'             => session('status'),
+                'review_contract_id' => session('review_contract_id'),
             ],
         ]);
     }

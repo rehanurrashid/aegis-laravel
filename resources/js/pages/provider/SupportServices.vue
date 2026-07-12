@@ -442,8 +442,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { ref, computed, watch } from 'vue'
+import { router, usePage } from '@inertiajs/vue3'
 import { syncFormEnhancements } from '@/plugins/FormEnhancerPlugin'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AegisPagination from '@/components/ui/AegisPagination.vue'
@@ -532,22 +532,24 @@ const activeContract = ref(null)
 // ── Review modal — auto-opens on mount when a completed contract has no review yet ──
 const showReview       = ref(false)
 const reviewContract   = ref(null)
+const page             = usePage()
 
-onMounted(() => {
-  // Find the first completed contract the provider hasn't reviewed yet
-  const pending = props.activeContracts.find(
-    c => c.status === 'completed' && !c.has_reviewed
-  )
-  if (pending) {
+// Only open after a contract just completed — reads flash set by releasePayment / reviewMilestone
+watch(
+  () => page.props.flash?.review_contract_id,
+  (contractId) => {
+    if (!contractId) return
+    const c = props.activeContracts.find(c => c.id === contractId)
+    if (!c) return
     reviewContract.value = {
-      id:                pending.id,
-      title:             pending.title,
-      counterparty_name: pending.bp?.display_name ?? pending.bp_name ?? 'Business Partner',
+      id:                c.id,
+      title:             c.title,
+      counterparty_name: c.bp?.display_name ?? 'Business Partner',
     }
-    // Small delay so the page renders first
-    setTimeout(() => { showReview.value = true }, 800)
-  }
-})
+    showReview.value = true
+  },
+  { immediate: true }
+)
 
 // Unwrap backed enum values — Inertia may serialise them as {value:'x'} objects
 // instead of plain strings depending on Laravel/Inertia version. Always use val()

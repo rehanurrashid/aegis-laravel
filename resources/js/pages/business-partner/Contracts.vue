@@ -178,11 +178,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import AppLayout              from '@/layouts/AppLayout.vue'
 import BpContractDetailModal  from '@/components/modals/BpContractDetailModal.vue'
 import ReviewContractModal    from '@/components/modals/ReviewContractModal.vue'
 import { usePricingStore }    from '@/stores/pricing'
+import { usePage }            from '@inertiajs/vue3'
 
 const props   = defineProps({ contracts: { type: Array, default: () => [] } })
 const pricing = usePricingStore()
@@ -193,20 +194,23 @@ const activeContract = ref(null)
 // ── Review auto-trigger ────────────────────────────────────────────────────────
 const showReview     = ref(false)
 const reviewContract = ref(null)
+const page           = usePage()
 
-onMounted(() => {
-  const pending = props.contracts.find(
-    c => c.status === 'completed' && !c.has_reviewed
-  )
-  if (pending) {
+watch(
+  () => page.props.flash?.review_contract_id,
+  (contractId) => {
+    if (!contractId) return
+    const c = props.contracts.find(c => c.id === contractId)
+    if (!c) return
     reviewContract.value = {
-      id:                pending.id,
-      title:             pending.title,
-      counterparty_name: pending.client_name ?? 'the Practitioner',
+      id:                c.id,
+      title:             c.title,
+      counterparty_name: c.client_name ?? 'the Practitioner',
     }
-    setTimeout(() => { showReview.value = true }, 800)
-  }
-})
+    showReview.value = true
+  },
+  { immediate: true }
+)
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const tabs = [

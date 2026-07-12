@@ -41,7 +41,7 @@
             :aria-label="`${n} star${n > 1 ? 's' : ''}`"
             @click="form.rating = n"
           >
-            <AegisIcon name="star" :size="22" />
+            <AegisIcon name="star" :size="22" :filled="n <= form.rating" />
           </button>
         </div>
         <div v-if="form.errors.rating" class="form-error">{{ form.errors.rating }}</div>
@@ -60,7 +60,7 @@
               :class="{ filled: n <= form[dim.key] }"
               @click="form[dim.key] = n"
             >
-              <AegisIcon name="star" :size="16" />
+              <AegisIcon name="star" :size="16" :filled="n <= form[dim.key]" />
             </button>
           </div>
         </div>
@@ -212,11 +212,11 @@ function skip() {
   border: none;
   cursor: pointer;
   padding: 2px;
-  color: var(--border);
+  color: var(--border-dark);
   transition: color var(--transition), transform 0.1s;
   line-height: 1;
 }
-.star-btn:hover,
+.star-btn:hover { color: var(--gold-dark); }
 .star-btn.filled { color: var(--gold-dark); }
 .star-btn:active { transform: scale(0.9); }
 

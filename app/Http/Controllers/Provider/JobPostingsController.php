@@ -271,7 +271,9 @@ class JobPostingsController extends Controller
         try {
             $payout = $this->payouts->endContractAndRelease($contract, $request->user());
             $amount = number_format($payout->amount_cents / 100, 2);
-            return back()->with('success', "Payment of \${$amount} released to BP via Stripe. Contract ended.");
+            return back()
+                ->with('success', "Payment of \${$amount} released to BP via Stripe. Contract ended.")
+                ->with('review_contract_id', $contract->id);
         } catch (\Throwable $e) {
             return back()->withErrors(['contract' => $e->getMessage()]);
         }
@@ -446,10 +448,16 @@ class JobPostingsController extends Controller
 
         try {
             if ($action === 'approved') {
-                // Approve → release escrow funds to BP via Stripe transfer
                 $this->contracts->approveMilestone($milestone, $provider);
                 $this->escrow->releaseMilestone($milestone, $provider);
-                return back()->with('success', 'Milestone approved. Payment released to Business Partner.');
+
+                // Check if all milestones are now settled — prompt review
+                $allDone = !$contract->milestones()
+                    ->whereNotIn('status', ['released', 'paid', 'refunded'])
+                    ->exists();
+
+                $response = back()->with('success', 'Milestone approved. Payment released to Business Partner.');
+                return $allDone ? $response->with('review_contract_id', $contract->id) : $response;
             }
 
             if ($action === 'revision_requested') {
