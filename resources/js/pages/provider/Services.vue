@@ -594,7 +594,7 @@
                 <span class="orq-modal-value">{{ activeOutgoingRequest.service_title }}</span>
               </div>
               <div class="orq-modal-row">
-                <span class="orq-modal-label"><AegisIcon name="tag" :size="12" /> Type</span>
+                <span class="orq-modal-label"><AegisIcon name="activity" :size="12" /> Type</span>
                 <span class="orq-modal-value">{{ activeOutgoingRequest.request_type }}</span>
               </div>
               <div class="orq-modal-row">
@@ -1780,6 +1780,7 @@ a.sic-party-name:hover { text-decoration: underline; color: var(--gold); }
   display: flex; align-items: center; gap: 12px;
   background: var(--surface-2); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 12px 14px; margin-bottom: 14px;
+  flex-wrap: nowrap;
 }
 .orq-modal-name { font-size: 15px; font-weight: 700; color: var(--text); }
 .orq-modal-cred { font-size: 12px; color: var(--text-3); font-weight: 600; margin-top: 2px; }
@@ -1790,7 +1791,7 @@ a.sic-party-name:hover { text-decoration: underline; color: var(--gold); }
   padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px;
 }
 .orq-modal-row:last-child { border-bottom: none; }
-.orq-modal-label { color: var(--text-3); font-weight: 600; flex-shrink: 0; width: 100px; }
+.orq-modal-label { display: inline-flex; align-items: center; gap: 6px; color: var(--text-3); font-weight: 600; flex-shrink: 0; width: 110px; }
 .orq-modal-value { font-weight: 600; color: var(--text); text-align: right; }
 
 .orq-modal-block {
