@@ -35,21 +35,21 @@
           <div class="stat-chip-label">Held in Escrow</div>
         </div>
       </div>
-      <div v-if="escrowSummary.total_unfunded_cents > 0" class="stat-chip bpft-escrow-chip bpft-escrow-chip--warn">
-        <div class="stat-chip-icon" style="background:rgba(239,68,68,0.08);color:var(--red)">
+      <div v-if="escrowSummary.total_unfunded_cents > 0" class="stat-chip bpft-escrow-chip">
+        <div class="stat-chip-icon" style="background:var(--icon-bg-gold);color:var(--gold-dark)">
           <AegisIcon name="alert-circle" :size="18" />
         </div>
         <div>
-          <div class="stat-chip-value" style="color:var(--red)">{{ formatCents(escrowSummary.total_unfunded_cents) }}</div>
+          <div class="stat-chip-value">{{ formatCents(escrowSummary.total_unfunded_cents) }}</div>
           <div class="stat-chip-label">Unfunded Milestones</div>
         </div>
       </div>
       <div v-if="escrowSummary.funded_count > 0" class="stat-chip bpft-escrow-chip">
-        <div class="stat-chip-icon" style="background:rgba(34,197,94,0.08);color:var(--green)">
+        <div class="stat-chip-icon" style="background:var(--icon-bg-gold);color:var(--gold-dark)">
           <AegisIcon name="check-circle" :size="18" />
         </div>
         <div>
-          <div class="stat-chip-value" style="color:var(--green)">{{ escrowSummary.funded_count }}</div>
+          <div class="stat-chip-value">{{ escrowSummary.funded_count }}</div>
           <div class="stat-chip-label">Milestone{{ escrowSummary.funded_count !== 1 ? 's' : '' }} Funded</div>
         </div>
       </div>
@@ -582,9 +582,6 @@ function doCancelContract() {
 .bpft-escrow-chip {
   flex: 1;
   min-width: 160px;
-}
-.bpft-escrow-chip--warn {
-  border-color: rgba(239,68,68,0.25);
 }
 
 /* ── Sub-tab pills ── */

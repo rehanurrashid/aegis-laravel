@@ -17,6 +17,7 @@ use App\Enums\StewardStatus;
 use App\Http\Controllers\Controller;
 use App\Models\BpContract;
 use App\Models\BpInvoice;
+use App\Models\BpMilestone;
 use App\Models\ContinuityPlan;
 use App\Models\CsInvoice;
 use App\Models\CsPayout;
@@ -318,7 +319,7 @@ class FinancesController extends Controller
             ->orderByDesc('created_at')->limit(100)->get();
 
         $csInvIndex = $csInvCollection->pluck('id', 'invoice_number');
-        $bpInvIndex = $bpInvCollection->pluck('id', 'invoice_number');
+        $bpInvIndex = $contractInvoiceCollection->concat($orphanInvCollection)->pluck('id', 'invoice_number');
 
         $recentTransactions = $recentTxRaw->map(function (PractitionerPayment $p) use ($csInvIndex, $bpInvIndex) {
             $kind = $p->kind instanceof PractitionerPaymentKind ? $p->kind->value : (string) $p->kind;
