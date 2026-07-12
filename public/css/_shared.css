@@ -2045,16 +2045,30 @@ p {
   white-space: nowrap;
 }
 
-.badge-green     { background: var(--green-light);     color: var(--green-dark); }
-.badge-red       { background: var(--red-light);       color: var(--red-dark); }
-.badge-gold      { background: rgba(196,169,106,0.15); color: var(--gold-dark); }
-.badge-blue      { background: var(--blue-light);      color: var(--blue-dark); }
-.badge-orange    { background: var(--orange-light);    color: var(--orange-dark); }
-.badge-purple    { background: var(--purple-light);    color: var(--purple-dark); }
-.badge-gray      { background: var(--surface-3);       color: var(--text-3); }
-.badge-dark      { background: var(--primary);         color: var(--text-inverted); }
-.badge-emergency { background: var(--emergency-light); color: var(--emergency-dark); }
-.badge-teal      { background: var(--teal-light);      color: var(--teal-dark); }
+.badge-green     { background: var(--green-light);       color: var(--green-dark);     border: 1px solid var(--green); }
+.badge-red       { background: var(--red-light);         color: var(--red-dark);       border: 1px solid var(--red); }
+.badge-gold      { background: rgba(196,169,106,0.15);   color: var(--gold-dark);      border: 1px solid var(--gold); }
+.badge-blue      { background: var(--blue-light);        color: var(--blue-dark);      border: 1px solid var(--blue); }
+.badge-orange    { background: var(--orange-light);      color: var(--orange-dark);    border: 1px solid var(--orange); }
+.badge-purple    { background: var(--purple-light);      color: var(--purple-dark);    border: 1px solid var(--purple); }
+.badge-gray      { background: var(--surface-3);         color: var(--text-3);         border: 1px solid var(--border-dark); }
+.badge-dark      { background: var(--primary);           color: var(--text-inverted);  border: 1px solid var(--primary-dark, var(--primary)); }
+.badge-emergency { background: var(--emergency-light);   color: var(--emergency-dark); border: 1px solid var(--emergency); }
+.badge-teal      { background: var(--teal-light);        color: var(--teal-dark);      border: 1px solid var(--teal); }
+
+/* ─── AegisBadge component variants (badge--{variant}) ─────────────────────────
+   These map 1:1 to the AegisBadge.vue variantClass computed.
+   Always 1px bordered for visual consistency across all badge surfaces.
+   ─────────────────────────────────────────────────────────────────────────── */
+.badge--neutral  { background: var(--surface-3);         color: var(--text-3);         border: 1px solid var(--border-dark); }
+.badge--green    { background: var(--green-light);       color: var(--green-dark);     border: 1px solid var(--green); }
+.badge--red      { background: var(--red-light);         color: var(--red-dark);       border: 1px solid var(--red); }
+.badge--gold     { background: rgba(196,169,106,0.15);   color: var(--gold-dark);      border: 1px solid var(--gold); }
+.badge--blue     { background: var(--blue-light);        color: var(--blue-dark);      border: 1px solid var(--blue); }
+.badge--orange   { background: var(--orange-light);      color: var(--orange-dark);    border: 1px solid var(--orange); }
+.badge--purple   { background: var(--purple-light);      color: var(--purple-dark);    border: 1px solid var(--purple); }
+.badge--teal     { background: var(--teal-light);        color: var(--teal-dark);      border: 1px solid var(--teal); }
+.badge--soft     { background: var(--surface-2);         color: var(--text-2);         border: 1px solid var(--border); }
 
 /* ─── Aegis Verified Badge (LinkedIn-style blue check) ─────────
    Three variants:
@@ -5122,12 +5136,12 @@ html.theme-slate body {
   }
 
   /* ── Badge variants used on this page ── */
-  .badge-active  { background: var(--green-light);            color: var(--green-dark); }
-  .badge-pending { background: var(--orange-light);           color: var(--orange); }
-  .badge-draft   { background: var(--surface-3);              color: var(--text-3); }
-  .badge-gold    { background: var(--badge-bg-gold);        color: var(--gold-dark); }
-  .badge-danger  { background: var(--red-light);              color: var(--red-dark); }
-  .badge-info    { background: var(--blue-light);             color: var(--blue-dark); }
+  .badge-active  { background: var(--green-light);   color: var(--green-dark);  border: 1px solid var(--green); }
+  .badge-pending { background: var(--orange-light);  color: var(--orange);      border: 1px solid var(--orange); }
+  .badge-draft   { background: var(--surface-3);     color: var(--text-3);      border: 1px solid var(--border-dark); }
+  .badge-gold    { background: var(--badge-bg-gold); color: var(--gold-dark);   border: 1px solid var(--gold); }
+  .badge-danger  { background: var(--red-light);     color: var(--red-dark);    border: 1px solid var(--red); }
+  .badge-info    { background: var(--blue-light);    color: var(--blue-dark);   border: 1px solid var(--blue); }
   .badge-sm      { font-size: 10px; padding: 1px 7px; }
   .badge-xs      { font-size: 9px;  padding: 1px 5px; }
 
