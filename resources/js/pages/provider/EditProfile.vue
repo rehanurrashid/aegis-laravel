@@ -56,19 +56,16 @@
     </div>
 
     <!-- ══════════════ PROFILE COMPLETION STRIP ══════════════ -->
-    <div class="profile-strip">
-      <div class="profile-strip-icon"><AegisIcon name="user" :size="16" /></div>
-      <div class="profile-strip-text">
-        <div class="profile-strip-title">Finish your profile</div>
-        <div class="profile-strip-sub">{{ completionItemsRemaining }} items remaining — add a profile photo and liability insurance</div>
-      </div>
-      <div class="profile-strip-bar"><div class="profile-strip-bar-fill" :style="{ width: completionPct + '%' }"></div></div>
-      <div class="profile-strip-pct">{{ completionPct }}%</div>
-      <button type="button" class="btn btn-primary btn-sm" style="flex-shrink:0;white-space:nowrap" @click="activeSection = 'professional'">
-        Complete
-        <AegisIcon name="arrow-right-line" :size="12" />
-      </button>
-    </div>
+    <ProfileCompletionStrip
+      :pct="completionPct"
+      :subtitle="`${completionItemsRemaining} items remaining — add a profile photo and liability insurance`"
+    >
+      <template #action>
+        <button type="button" class="btn btn-primary" style="flex-shrink:0;white-space:nowrap" @click="activeSection = 'professional'">
+          Complete <AegisIcon name="arrow-right-line" :size="12" />
+        </button>
+      </template>
+    </ProfileCompletionStrip>
 
     <!-- ══════════════ TWO-COLUMN LAYOUT ══════════════ -->
     <div class="ep-layout">
@@ -1019,6 +1016,7 @@ import AegisEmptyState from '@/components/ui/AegisEmptyState.vue'
 import CredentialModal from '@/components/modals/CredentialModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
+import ProfileCompletionStrip from '@/components/features/ProfileCompletionStrip.vue'
 
 const props = defineProps({
   user:        { type: Object, required: true },
