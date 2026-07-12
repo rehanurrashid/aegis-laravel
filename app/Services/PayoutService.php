@@ -462,12 +462,21 @@ class PayoutService
 
     public function chargeProviderToBp(User $provider, User $bp, int $amountCents, string $currency = 'usd', array $meta = [], string $description = ''): array
     {
-        $isDemoProvider = str_starts_with((string) $provider->stripe_id, 'cus_demo_')
-            || str_starts_with((string) $provider->stripe_payment_method_id, 'pm_demo_');
-        $isDemoBp = str_starts_with((string) $bp->stripe_account_id, 'acct_demo_');
+        $providerPm  = (string) ($provider->stripe_payment_method_id ?? '');
+        $providerCus = (string) ($provider->stripe_id ?? '');
+        $bpAccount   = (string) ($bp->stripe_account_id ?? '');
 
-        if ($isDemoProvider || $isDemoBp) {
-            return ['stripe_payment_intent_id' => 'pi_demo_' . Str::lower(Str::random(16)), 'stripe_transfer_id' => null, 'status' => 'paid', 'stub' => true, 'stub_reason' => 'Demo mode.'];
+        $isDemoProvider = str_starts_with($providerCus, 'cus_demo_')
+            || str_starts_with($providerPm, 'pm_demo_');
+        $isDemoBp = str_starts_with($bpAccount, 'acct_demo_')
+            || empty($bpAccount);
+
+        // Also stub in sandbox/local when Stripe secret is a test key
+        $stripeSecret  = (string) config('services.stripe.secret', '');
+        $isSandbox     = str_starts_with($stripeSecret, 'sk_test_');
+
+        if ($isDemoProvider || $isDemoBp || $isSandbox) {
+            return ['stripe_payment_intent_id' => 'pi_demo_' . Str::lower(Str::random(16)), 'stripe_transfer_id' => null, 'status' => 'paid', 'stub' => true, 'stub_reason' => 'Demo/sandbox mode.'];
         }
 
         if (!$provider->stripe_id || !$provider->stripe_payment_method_id) {
