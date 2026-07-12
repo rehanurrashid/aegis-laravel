@@ -257,13 +257,13 @@
       <!-- Active contracts -->
       <template v-if="hiredSubTab === 'active'">
         <AegisEmptyState v-if="!activeHiredContracts.length" icon="users" title="No active contracts" description="Accepted proposals will appear here once a contract is active." />
-        <div v-else class="jp-grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">
-          <div v-for="c in activeHiredContracts" :key="c.id" class="jp-card" style="border-color:var(--green)" @click="openContract(c)">
+        <div v-else class="jp-grid">
+          <div v-for="c in activeHiredContracts" :key="c.id" class="jp-card is-active" @click="openContract(c)">
             <div class="jp-card-header">
-              <div class="jp-card-logo avatar avatar-gold" style="font-size:13px;font-weight:700;border-radius:var(--radius-sm)" :style="avatarStyle(c.bp)">
+              <div class="jp-card-logo avatar avatar-gold" :style="avatarStyle(c.bp)">
                 <template v-if="!c.bp?.avatar_url">{{ initials(c.bp?.display_name) }}</template>
               </div>
-              <div>
+              <div class="jp-card-body">
                 <div class="jp-card-title">{{ c.bp?.display_name ?? 'Business Partner' }}</div>
                 <div class="jp-card-practice">{{ c.title }} · {{ bpTypeLabel(c.bp?.bp_type) }}</div>
               </div>
@@ -281,19 +281,19 @@
       <!-- Closed / completed contracts -->
       <template v-else>
         <AegisEmptyState v-if="!closedHiredContracts.length" icon="archive" title="No closed contracts yet" description="Completed and ended contracts will be kept here for your records." />
-        <div v-else class="jp-grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">
-          <div v-for="c in closedHiredContracts" :key="c.id" class="jp-card" style="opacity:0.82" @click="openContract(c)">
+        <div v-else class="jp-grid">
+          <div v-for="c in closedHiredContracts" :key="c.id" class="jp-card is-closed" @click="openContract(c)">
             <div class="jp-card-header">
-              <div class="jp-card-logo avatar avatar-gold" style="font-size:13px;font-weight:700;border-radius:var(--radius-sm)" :style="avatarStyle(c.bp)">
+              <div class="jp-card-logo avatar avatar-gold" :style="avatarStyle(c.bp)">
                 <template v-if="!c.bp?.avatar_url">{{ initials(c.bp?.display_name) }}</template>
               </div>
-              <div>
+              <div class="jp-card-body">
                 <div class="jp-card-title">{{ c.bp?.display_name ?? 'Business Partner' }}</div>
                 <div class="jp-card-practice">{{ c.title }} · {{ bpTypeLabel(c.bp?.bp_type) }}</div>
               </div>
             </div>
             <div class="jp-card-footer">
-              <span class="badge badge--grey"><AegisIcon name="archive" :size="10" /> Closed</span>
+              <AegisBadge label="Closed" variant="grey" />
               <div class="jp-card-actions" @click.stop>
                 <button class="btn-icon" data-tooltip="View contract" @click="openContract(c)"><AegisIcon name="file-text" :size="14" /></button>
               </div>
@@ -793,58 +793,273 @@ function onUseTemplate(t) {
 </script>
 
 <style scoped>
-.jp-my-table { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
-.jp-my-table-head { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 120px; background: var(--surface-2); border-bottom: 1px solid var(--border); padding: 10px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-3); }
-.jp-my-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 120px; padding: 14px 16px; border-bottom: 1px solid var(--border); align-items: center; transition: background var(--transition); cursor: pointer; }
+/* ── My Postings table ───────────────────────────────────────────── */
+.jp-my-table {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.jp-my-table-head {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 120px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-4);
+}
+.jp-my-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 120px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+  font-family: var(--font-sans);
+  transition: background var(--transition);
+  cursor: pointer;
+}
 .jp-my-row:last-child { border-bottom: none; }
 .jp-my-row:hover { background: var(--surface-2); }
-.jp-my-title { font-size: 13px; font-weight: 700; color: var(--text); }
-.jp-my-sub { font-size: 11px; color: var(--text-3); margin-top: 2px; display: flex; align-items: center; gap: 4px; }
+.jp-my-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+.jp-my-sub {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-4);
+}
 
-.jp-app-table-head { display: grid; grid-template-columns: 44px 2fr 1.2fr 1fr 1fr 110px; gap: 12px; padding: 10px 16px; background: var(--surface-2); border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-3); }
-.jp-app-row { display: grid; grid-template-columns: 44px 2fr 1.2fr 1fr 1fr 110px; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); align-items: center; transition: background var(--transition); cursor: pointer; }
+/* ── Applications table ──────────────────────────────────────────── */
+.jp-app-table-head {
+  display: grid;
+  grid-template-columns: 44px 2fr 1.2fr 1fr 1fr 110px;
+  gap: 12px;
+  padding: 10px 20px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-4);
+}
+.jp-app-row {
+  display: grid;
+  grid-template-columns: 44px 2fr 1.2fr 1fr 1fr 110px;
+  gap: 12px;
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+  font-family: var(--font-sans);
+  transition: background var(--transition);
+  cursor: pointer;
+}
 .jp-app-row:hover { background: var(--surface-2); }
-.jp-app-avatar { width: 38px; height: 38px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--text-inverted); flex-shrink: 0; }
-.jp-app-name { font-size: 13px; font-weight: 700; color: var(--text); }
-.jp-app-role { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+.jp-app-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-inverted);
+  flex-shrink: 0;
+}
+.jp-app-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.jp-app-role { font-size: 11px; color: var(--text-4); }
 
-.jp-grid { display: grid; gap: 14px; }
-.jp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 10px; transition: all var(--transition); cursor: pointer; }
-.jp-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
-.jp-card-header { display: flex; align-items: flex-start; gap: 12px; flex: 1; }
-.jp-card-logo { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.jp-card-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 2px; line-height: 1.3; }
-.jp-card-practice { font-size: 12px; color: var(--text-2); }
-.jp-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--border); }
-.jp-card-actions { display: flex; gap: 6px; }
+/* ── Hired cards grid ────────────────────────────────────────────── */
+.jp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(288px, 1fr));
+  gap: 14px;
+}
 
-.jp-kanban { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; min-height: 320px; }
-.jp-kanban-col { background: var(--surface-2); border-radius: var(--radius-lg); padding: 10px; }
-.jp-kanban-col-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; padding: 4px 6px 8px; display: flex; align-items: center; justify-content: space-between; }
-.jp-kanban-count { background: var(--gold-dark); border-radius: var(--radius-full); padding: 1px 7px; font-size: 10px; font-weight: 700; color: #fff; }
-.jp-kanban-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; margin-bottom: 8px; transition: all var(--transition); cursor: pointer; }
+.jp-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: box-shadow var(--transition), transform var(--transition);
+  cursor: pointer;
+  position: relative;
+}
+.jp-card:hover {
+  box-shadow: var(--shadow);
+  transform: translateY(-2px);
+}
+
+/* Left accent stripe — replaces border-color hack */
+.jp-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--border);
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  transition: background var(--transition);
+}
+.jp-card.is-active::before { background: var(--green); }
+.jp-card.is-closed::before { background: var(--border-dark); }
+.jp-card.is-closed { opacity: 0.8; }
+
+.jp-card-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 18px 14px 22px; /* extra-left for stripe */
+  flex: 1;
+}
+.jp-card-logo {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.jp-card-body { min-width: 0; flex: 1; }
+.jp-card-title {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 3px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jp-card-practice {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.jp-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 18px 12px 22px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.jp-card-actions { display: flex; gap: 4px; }
+
+/* ── Hiring Pipeline kanban ──────────────────────────────────────── */
+.jp-kanban {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  min-height: 320px;
+}
+.jp-kanban-col {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 10px;
+}
+.jp-kanban-col-header {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  padding: 2px 4px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+.jp-kanban-count {
+  background: var(--gold-dark);
+  border-radius: var(--radius-full);
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.6;
+}
+.jp-kanban-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  transition: box-shadow var(--transition), transform var(--transition);
+  cursor: pointer;
+}
 .jp-kanban-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
-.jp-kanban-name { font-size: 12px; font-weight: 700; color: var(--text); }
-.jp-kanban-role { font-size: 11px; color: var(--text-3); margin-top: 2px; }
-.jp-kanban-rate { font-size: 11px; font-weight: 700; color: var(--green); margin-top: 2px; }
+.jp-kanban-name { font-family: var(--font-sans); font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.jp-kanban-role { font-family: var(--font-sans); font-size: 11px; color: var(--text-4); margin-bottom: 2px; }
+.jp-kanban-rate { font-family: var(--font-sans); font-size: 11px; font-weight: 700; color: var(--green-dark); }
 
+/* ── Pager ───────────────────────────────────────────────────────── */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.pager-info {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-4);
+}
+
+/* ── Requests tab table ──────────────────────────────────────────── */
+.ert-partner-cell  { display: flex; align-items: center; gap: 10px; }
+.ert-partner-link  { font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--gold-dark); text-decoration: none; }
+.ert-partner-link:hover { text-decoration: underline; }
+.ert-partner-name  { font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--text); }
+.ert-partner-type  { font-family: var(--font-sans); font-size: 11px; color: var(--text-4); margin-top: 2px; }
+.ert-details-cell  { max-width: 200px; }
+.ert-details-primary { font-family: var(--font-sans); font-size: 12px; font-weight: 600; color: var(--text); }
+.ert-details-sub   { display: inline-flex; align-items: center; gap: 3px; font-family: var(--font-sans); font-size: 11px; color: var(--text-4); margin-top: 2px; }
+.ert-date-cell     { font-family: var(--font-sans); font-size: 11px; color: var(--text-4); white-space: nowrap; }
+.ert-actions-cell  { display: flex; gap: 6px; justify-content: flex-end; }
+.ert-pagination    { display: flex; align-items: center; gap: 10px; justify-content: center; margin-top: 20px; }
+.ert-page-info     { font-family: var(--font-sans); font-size: 12px; color: var(--text-3); font-weight: 600; min-width: 60px; text-align: center; }
+
+/* ── Responsive ──────────────────────────────────────────────────── */
 @media (max-width: 900px) {
   .jp-kanban { grid-template-columns: repeat(3, 1fr); }
   .jp-my-table-head, .jp-my-row { grid-template-columns: 2fr 1fr 1fr 90px; }
-  .jp-my-table-head > *:nth-child(3), .jp-my-table-head > *:nth-child(4),
-  .jp-my-row > *:nth-child(3), .jp-my-row > *:nth-child(4) { display: none; }
+  .jp-my-table-head > *:nth-child(3),
+  .jp-my-table-head > *:nth-child(4),
+  .jp-my-row > *:nth-child(3),
+  .jp-my-row > *:nth-child(4) { display: none; }
+  .jp-grid { grid-template-columns: 1fr; }
 }
-/* ── Requests tab table ── */
-.ert-partner-cell  { display: flex; align-items: center; gap: 10px; }
-.ert-partner-link  { font-size: 13px; font-weight: 600; color: var(--gold-dark); text-decoration: none; }
-.ert-partner-link:hover { text-decoration: underline; }
-.ert-partner-name  { font-size: 13px; font-weight: 600; color: var(--text); }
-.ert-partner-type  { font-size: 11px; color: var(--text-4); margin-top: 2px; }
-.ert-details-cell  { max-width: 200px; }
-.ert-details-primary { font-size: 12px; font-weight: 600; color: var(--text); }
-.ert-details-sub   { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-4); margin-top: 2px; }
-.ert-date-cell     { font-size: 11px; color: var(--text-4); white-space: nowrap; }
-.ert-actions-cell  { display: flex; gap: 6px; justify-content: flex-end; }
-.ert-pagination    { display: flex; align-items: center; gap: 10px; justify-content: center; margin-top: 20px; }
-.ert-page-info     { font-size: 12px; color: var(--text-3); font-weight: 600; min-width: 60px; text-align: center; }
 </style>
