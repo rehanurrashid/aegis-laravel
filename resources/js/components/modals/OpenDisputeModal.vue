@@ -5,7 +5,7 @@
   Props:
     modelValue     v-model
     subject        Object with { type, id, amount_cents, label }
-                   type: 'cs_invoice' | 'bp_invoice' | 'bp_payout' | 'session'
+                   type: 'cs_invoice' | 'bp_invoice' | 'bp_payout' | 'bp_milestone' | 'session'
     postRoute      Ziggy route name that posts to the portal-specific
                    disputes.store (provider.disputes.store, cs.disputes.store, bp.disputes.store)
 -->
@@ -54,7 +54,12 @@
 
       <div class="dispute-notice">
         <AegisIcon name="info" :size="14" />
-        <div>
+        <div v-if="subject?.type === 'bp_milestone'">
+          Opening a dispute freezes the escrow funds held for this milestone.
+          Aegis will mediate — funds remain in Aegis escrow until resolved. Admin may fully
+          release to the Business Partner, fully refund to you, or split the amount.
+        </div>
+        <div v-else>
           Opening a dispute freezes payment on the underlying invoice until it's resolved.
           Aegis mediates — we don't hold funds, and any refund goes through Stripe's normal rails.
         </div>
@@ -62,10 +67,10 @@
     </div>
 
     <template #footer>
-      <button type="button" class="btn btn-outline btn-sm" @click="$emit('update:modelValue', false)">Cancel</button>
+      <button type="button" class="btn btn-outline" @click="$emit('update:modelValue', false)">Cancel</button>
       <button
         type="button"
-        class="btn btn-danger btn-sm"
+        class="btn btn-danger"
         :disabled="form.processing || !canSubmit"
         @click="submit"
       >
@@ -78,8 +83,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useForm } from '@inertiajs/vue3'
-import AegisModal from '@/components/ui/AegisModal.vue'
-import AegisIcon  from '@/components/ui/AegisIcon.vue'
 import { useToast } from '@/composables/useToast'
 
 const props = defineProps({

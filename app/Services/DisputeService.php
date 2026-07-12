@@ -13,6 +13,7 @@ use App\Events\Dispute\DisputeOpened;
 use App\Events\Dispute\DisputeReplied;
 use App\Events\Dispute\DisputeResolved;
 use App\Models\BpInvoice;
+use App\Models\BpMilestone;
 use App\Models\CsInvoice;
 use App\Models\Dispute;
 use App\Models\DisputeMessage;
@@ -20,6 +21,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use App\Services\EscrowService;
 use RuntimeException;
 
 /**
@@ -45,7 +47,19 @@ use RuntimeException;
  */
 class DisputeService
 {
-    public function __construct(private ActivityService $activity) {}
+    public function __construct(
+        private ActivityService $activity,
+        private ?EscrowService  $escrow = null,
+    ) {}
+
+    /**
+     * Inject EscrowService lazily (avoids circular DI in existing usages).
+     */
+    public function withEscrow(EscrowService $escrow): static
+    {
+        $this->escrow = $escrow;
+        return $this;
+    }
 
     /**
      * Open a dispute against an invoice / payout / session.
@@ -202,14 +216,38 @@ class DisputeService
                 $refundCents = $resolution === DisputeResolution::RefundFull
                     ? (int) $dispute->amount_disputed_cents
                     : (int) $resolutionCents;
-                $refundIssued = $this->issueStripeRefund($dispute, $refundCents);
+
+                if ($dispute->subject_type === 'bp_milestone' && $this->escrow) {
+                    // Escrow refund: pull from Aegis platform balance back to provider card
+                    $milestone = BpMilestone::find($dispute->subject_id);
+                    if ($milestone) {
+                        $provider = \App\Models\User::find($dispute->disputer_id);
+                        $this->escrow->refundMilestone(
+                            $milestone, $refundCents,
+                            $admin,
+                            ($resolution === DisputeResolution::RefundFull ? 'Full refund' : 'Partial refund')
+                            . ' — dispute resolved by admin: ' . Str::limit($summary, 100),
+                        );
+                        $refundIssued = true;
+                    }
+                } else {
+                    $refundIssued = $this->issueStripeRefund($dispute, $refundCents);
+                }
                 break;
 
             case DisputeResolution::PayFull:
             case DisputeResolution::PayPartial:
             case DisputeResolution::NoAction:
-                // Money already flowed correctly; just unfreeze the subject
-                $this->unfreezeSubject($dispute->subject_type, $dispute->subject_id);
+                if ($dispute->subject_type === 'bp_milestone' && $this->escrow) {
+                    // Release escrow to BP
+                    $milestone = BpMilestone::find($dispute->subject_id);
+                    if ($milestone) {
+                        $this->escrow->releaseMilestone($milestone, $admin);
+                    }
+                } else {
+                    // Money already flowed; just unfreeze the subject
+                    $this->unfreezeSubject($dispute->subject_type, $dispute->subject_id);
+                }
                 break;
 
             case DisputeResolution::StripeDisputeEscalated:
@@ -296,6 +334,12 @@ class DisputeService
                 $p = \App\Models\BpPayout::findOrFail($subjectId);
                 return [$p->bp_id, (int) $p->amount_cents];
             })(),
+            'bp_milestone' => (function () use ($subjectId) {
+                // For milestone disputes: provider (practitioner) is the disputer (they paid),
+                // BP is the respondent. DisputeService::open() determines which side opens.
+                $m = BpMilestone::with('contract:id,practitioner_id,bp_id')->findOrFail($subjectId);
+                return [$m->contract->bp_id, (int) $m->funded_cents ?: (int) $m->amount_cents];
+            })(),
             'session' => (function () use ($subjectId) {
                 $s = \App\Models\ServiceSession::findOrFail($subjectId);
                 return [$s->practitioner_id, (int) $s->amount_cents];
@@ -319,6 +363,13 @@ class DisputeService
             BpInvoice::where('id', $subjectId)
                 ->whereIn('status', [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value])
                 ->update(['status' => InvoiceStatus::Disputed->value]);
+        } elseif ($subjectType === 'bp_milestone') {
+            BpMilestone::where('id', $subjectId)
+                ->whereIn('status', ['submitted', 'approved', 'funded', 'in_progress', 'revision_requested'])
+                ->update([
+                    'status'          => 'disputed',
+                    'auto_release_at' => null,  // stop auto-release while disputed
+                ]);
         }
     }
 
@@ -335,6 +386,11 @@ class DisputeService
             BpInvoice::where('id', $subjectId)
                 ->where('status', InvoiceStatus::Disputed->value)
                 ->update(['status' => InvoiceStatus::Sent->value]);
+        } elseif ($subjectType === 'bp_milestone') {
+            // Unfreeze returns milestone to 'submitted' — provider can still review.
+            BpMilestone::where('id', $subjectId)
+                ->where('status', 'disputed')
+                ->update(['status' => 'submitted']);
         }
     }
 
@@ -360,6 +416,11 @@ class DisputeService
             $piId = $payment?->stripe_payment_intent_id ?? $payment?->stripe_charge_id;
         } elseif ($dispute->subject_type === 'bp_payout') {
             $piId = optional(\App\Models\BpPayout::find($dispute->subject_id))->stripe_payment_intent_id;
+        } elseif ($dispute->subject_type === 'bp_milestone') {
+            // For escrow-backed milestones: PI is on the milestone row itself.
+            // EscrowService::refundMilestone() handles this directly via escrow_intent_id.
+            // This path only reached if EscrowService is unavailable (fallback).
+            $piId = optional(BpMilestone::find($dispute->subject_id))->escrow_intent_id;
         } elseif ($dispute->subject_type === 'session') {
             $piId = optional(\App\Models\ServiceSession::find($dispute->subject_id))->stripe_payment_intent_id;
         }

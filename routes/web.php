@@ -302,7 +302,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::post('/support-services/contracts/{contract}/cancel', [ProviderJobPostingsController::class, 'cancelContract'])->name('jobs.contract.cancel');
         Route::post('/support-services/contracts/{contract}/end', [ProviderJobPostingsController::class, 'endContract'])->name('jobs.contract.end');
         Route::post('/support-services/contracts/{contract}/release-payment', [ProviderJobPostingsController::class, 'releasePayment'])->name('jobs.contract.release-payment');
-        // Wave 3 — Escrow + signing
+        // Wave 3: Escrow + signing
         Route::post('/support-services/contracts/{contract}/sign', [ProviderJobPostingsController::class, 'signContract'])->name('jobs.contract.sign');
         Route::post('/support-services/contracts/{contract}/fund', [ProviderJobPostingsController::class, 'fundContract'])->name('jobs.contract.fund');
         Route::post('/support-services/contracts/{contract}/milestones', [ProviderJobPostingsController::class, 'storeMilestone'])->name('jobs.contract.milestones.store');
@@ -312,6 +312,8 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::post('/support-services/contracts/{contract}/milestones/{milestone}/review', [ProviderJobPostingsController::class, 'reviewMilestone'])->name('jobs.contract.milestones.review');
         Route::post('/support-services/contracts/{contract}/milestones/{milestone}/approve', [ProviderJobPostingsController::class, 'approveMilestone'])->name('jobs.contract.milestones.approve');
         Route::post('/support-services/contracts/{contract}/milestones/{milestone}/pay', [ProviderJobPostingsController::class, 'payMilestone'])->name('jobs.contract.milestones.pay');
+        // Wave 5: Self-service refund (before BP submits)
+        Route::post('/support-services/contracts/{contract}/milestones/{milestone}/refund', [ProviderJobPostingsController::class, 'refundMilestone'])->name('jobs.contract.milestones.refund');
         Route::post('/support-services/bp-invoices/{invoice}/pay', [ProviderJobPostingsController::class, 'payBPInvoice'])->name('jobs.bp-invoice.pay');
 
         // Continuity Documents
@@ -646,7 +648,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:busine
         Route::post('/contracts/{contract}/sign', [ContractsController::class, 'sign'])->name('contracts.sign');
         Route::post('/contracts/{contract}/cancel', [ContractsController::class, 'cancel'])->name('contracts.cancel');
 
-        // Milestones — BPs submit work only; Providers create milestones via provider routes
+        // Milestones — BPs submit work only
         Route::get('/milestones', [MilestonesController::class, 'index'])->name('milestones.index');
         Route::post('/milestones/{milestone}/submit', [MilestonesController::class, 'submit'])->name('milestones.submit');
 

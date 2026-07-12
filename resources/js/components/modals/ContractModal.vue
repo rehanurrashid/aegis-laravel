@@ -187,6 +187,17 @@
                 <AegisIcon name="dollar" :size="12" />
                 Fund
               </button>
+              <!-- Refund (funded / in_progress — before BP submits) -->
+              <button
+                v-if="['funded', 'in_progress'].includes(milestoneStatusVal(m)) && isActive"
+                class="btn btn-ghost btn-danger-ghost"
+                :disabled="busyMilestone === m.id"
+                data-tooltip="Refund escrow before BP submits"
+                @click.stop="openRefundMilestone(m)"
+              >
+                <AegisIcon name="arrow-left" :size="12" />
+                Refund
+              </button>
               <!-- Review (submitted) — approve / revise / reject -->
               <button
                 v-if="milestoneStatusVal(m) === 'submitted'"
@@ -327,6 +338,11 @@
     :submission="activeSubmission"
     @update:model-value="showReview = false"
   />
+  <MilestoneRefundModal
+    :contract="showRefund ? contract : null"
+    :milestone="activeMilestone"
+    @update:model-value="showRefund = false"
+  />
 </template>
 
 <script setup>
@@ -337,7 +353,8 @@ import { useConfirm } from '@/composables/useConfirm'
 import FundContractModal    from '@/components/modals/FundContractModal.vue'
 import FundMilestoneModal   from '@/components/modals/FundMilestoneModal.vue'
 import SignContractModal    from '@/components/modals/SignContractModal.vue'
-import MilestoneReviewModal from '@/components/modals/MilestoneReviewModal.vue'
+import MilestoneReviewModal  from '@/components/modals/MilestoneReviewModal.vue'
+import MilestoneRefundModal   from '@/components/modals/MilestoneRefundModal.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -418,6 +435,12 @@ const activeSubmission  = ref(null)   // for review
 function openFundContract() { showFundContract.value = true }
 function openFundMilestone(m) { activeMilestone.value = m; showFundMilestone.value = true }
 function openSignModal()    { showSign.value = true }
+const showRefund        = ref(false)
+function openRefundMilestone(m) {
+  activeMilestone.value = m
+  showRefund.value = true
+}
+
 function openReviewMilestone(m) {
   activeMilestone.value = m
   // submission is passed in via prop (milestones include latest submission)

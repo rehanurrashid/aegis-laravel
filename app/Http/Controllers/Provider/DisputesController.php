@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Provider;
 
 use App\Enums\DisputeReason;
 use App\Http\Controllers\Controller;
+use App\Services\EscrowService;
 use App\Models\Dispute;
 use App\Services\DisputeService;
 use Illuminate\Http\RedirectResponse;
@@ -15,7 +16,10 @@ use Inertia\Response;
 
 class DisputesController extends Controller
 {
-    public function __construct(private DisputeService $disputes) {}
+    public function __construct(
+        private DisputeService $disputes,
+        private EscrowService  $escrow,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -44,7 +48,7 @@ class DisputesController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'subject_type'          => 'required|in:cs_invoice,bp_invoice,bp_payout,session',
+            'subject_type'          => 'required|in:cs_invoice,bp_invoice,bp_payout,bp_milestone,session',
             'subject_id'            => 'required|string',
             'reason'                => 'required|in:non_delivery,quality_issue,unauthorized_charge,duplicate_charge,wrong_amount,other',
             'amount_disputed_cents' => 'required|integer|min:1',
@@ -52,7 +56,7 @@ class DisputesController extends Controller
         ]);
 
         try {
-            $this->disputes->open(
+            $this->disputes->withEscrow($this->escrow)->open(
                 disputer:            $request->user(),
                 subjectType:         $data['subject_type'],
                 subjectId:           $data['subject_id'],

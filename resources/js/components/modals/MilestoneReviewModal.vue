@@ -158,15 +158,24 @@
       </button>
     </template>
   </AegisModal>
+
+  <!-- Dispute modal — opened when provider selects "reject" -->
+  <OpenDisputeModal
+    v-model="showDisputeModal"
+    :subject="disputeSubject"
+    post-route="provider.disputes.store"
+    @opened="onDisputeOpened"
+  />
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useForm } from '@inertiajs/vue3'
 import useVuelidate from '@vuelidate/core'
 import { required, maxLength, requiredIf } from '@vuelidate/validators'
 import { useToast } from '@/composables/useToast'
 import { usePricingStore } from '@/stores/pricing'
+import OpenDisputeModal from '@/components/modals/OpenDisputeModal.vue'
 
 const props = defineProps({
   contract:   { type: Object, default: null },
@@ -175,6 +184,23 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+
+// ── Dispute sub-modal (reject path) ──────────────────────────────────────────
+const showDisputeModal = ref(false)
+const disputeSubject   = computed(() => {
+  if (!props.milestone) return null
+  return {
+    type:         'bp_milestone',
+    id:           props.milestone.id,
+    amount_cents: props.milestone.amount_cents,
+    label:        props.milestone.title,
+  }
+})
+
+function onDisputeOpened() {
+  // Dispute opened — close the review modal too
+  emit('update:modelValue', null)
+}
 
 const toast   = useToast()
 const pricing = usePricingStore()
@@ -266,6 +292,12 @@ async function submit() {
   const valid = await v$.value.$validate()
   if (!valid) return
 
+  // "rejected" opens the dispute modal with milestone pre-filled
+  if (form.action === 'rejected') {
+    showDisputeModal.value = true
+    return
+  }
+
   form.post(route('provider.jobs.contract.milestones.review', {
     contract:  props.contract.id,
     milestone: props.milestone.id,
@@ -275,7 +307,6 @@ async function submit() {
       const msgs = {
         approved:           'Milestone approved. Payment released to Business Partner.',
         revision_requested: 'Revision requested. Business Partner has been notified.',
-        rejected:           'Dispute opened. Aegis will mediate the escrow.',
       }
       toast.success(msgs[form.action] ?? 'Review submitted.')
       onClose()
