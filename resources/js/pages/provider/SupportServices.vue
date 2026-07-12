@@ -243,80 +243,13 @@
       <div class="section-header" style="margin-bottom:16px">
         <div class="section-title-h"><AegisIcon name="check" :size="16" /> Hired Business Partners</div>
       </div>
-      <!-- Active / Closed sub-tabs -->
-      <div class="tabs-segmented" style="margin-bottom:16px">
-        <button :class="['tab-pill', { active: hiredSubTab === 'active' }]" @click="hiredSubTab = 'active'">
-          Active
-          <span v-if="activeHiredContracts.length" class="badge-pill">{{ activeHiredContracts.length }}</span>
-        </button>
-        <button :class="['tab-pill', { active: hiredSubTab === 'closed' }]" @click="hiredSubTab = 'closed'">
-          Closed
-          <span v-if="closedHiredContracts.length" class="badge-pill">{{ closedHiredContracts.length }}</span>
-        </button>
-      </div>
-      <!-- Active contracts -->
-      <template v-if="hiredSubTab === 'active'">
-        <AegisEmptyState v-if="!activeHiredContracts.length" icon="users" title="No active contracts" description="Accepted proposals will appear here once a contract is active." />
-        <div v-else class="jp-grid">
-          <div v-for="c in activeHiredContracts" :key="c.id" class="jp-card is-active" @click="openContract(c)">
-            <div class="jp-card-header">
-              <div class="jp-card-logo avatar avatar-gold" :style="avatarStyle(c.bp)">
-                <template v-if="!c.bp?.avatar_url">{{ initials(c.bp?.display_name) }}</template>
-              </div>
-              <div class="jp-card-body">
-                <div class="jp-card-title">{{ c.bp?.display_name ?? 'Business Partner' }}</div>
-                <div class="jp-card-practice">{{ c.title }} · {{ bpTypeLabel(c.bp?.bp_type) }}</div>
-              </div>
-            </div>
-            <div class="jp-card-footer">
-              <AegisBadge :label="contractStatusLabel(c)" :variant="contractStatusVariant(c)" />
-              <div class="jp-card-actions" @click.stop>
-                <button class="btn-icon" data-tooltip="Message" :disabled="msgLoading === c.bp?.id" @click="openConversation(c.bp?.id)"><AegisIcon name="message-square" :size="14" /></button>
-                <button class="btn-icon" data-tooltip="View contract" @click="openContract(c)"><AegisIcon name="file-text" :size="14" /></button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </template>
-      <!-- Closed / completed contracts -->
-      <template v-else>
-        <AegisEmptyState v-if="!closedHiredContracts.length" icon="archive" title="No closed contracts yet" description="Completed and ended contracts will be kept here for your records." />
-        <div v-else class="jp-grid">
-          <div v-for="c in closedHiredContracts" :key="c.id" class="jp-card is-closed" @click="openContract(c)">
-            <div class="jp-card-header">
-              <div class="jp-card-logo avatar avatar-gold" :style="avatarStyle(c.bp)">
-                <template v-if="!c.bp?.avatar_url">{{ initials(c.bp?.display_name) }}</template>
-              </div>
-              <div class="jp-card-body">
-                <div class="jp-card-title">{{ c.bp?.display_name ?? 'Business Partner' }}</div>
-                <div class="jp-card-practice">{{ c.title }} · {{ bpTypeLabel(c.bp?.bp_type) }}</div>
-              </div>
-            </div>
-            <div class="jp-card-footer">
-              <div class="jp-card-footer-left">
-                <AegisBadge label="Closed" variant="grey" />
-                <span v-if="val(c.status) === 'completed' && c.has_reviewed" class="review-chip review-chip-done" :data-tooltip="c.my_review?.review_text || 'Review submitted'">
-                  <AegisIcon name="star" :size="11" :filled="true" /> {{ c.my_review?.rating }}/5
-                </span>
-                <span v-else-if="val(c.status) === 'completed'" class="review-chip review-chip-pending">
-                  <AegisIcon name="star" :size="11" /> No review
-                </span>
-              </div>
-              <div class="jp-card-actions" @click.stop>
-                <button
-                  v-if="val(c.status) === 'completed' && !c.has_reviewed"
-                  class="btn-icon"
-                  data-tooltip="Leave a review"
-                  @click="openReviewForContract(c)"
-                >
-                  <AegisIcon name="star" :size="14" />
-                </button>
-                <button class="btn-icon" data-tooltip="View contract" @click="openContract(c)"><AegisIcon name="file-text" :size="14" /></button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </template>
+
+      <BpFinanceTable
+        :invoices="flatInvoices"
+        :contracts="props.activeContracts"
+        :invoices-by-contract="props.invoicesByContract"
+        :has-payment-method="hasPaymentMethod"
+      />
     </div>
 
     <!-- ============================================================
@@ -477,6 +410,7 @@ import HireModal from '@/components/modals/HireModal.vue'
 import EngagementRequestModal from '@/components/modals/EngagementRequestModal.vue'
 import ContractModal from '@/components/modals/ContractModal.vue'
 import ReviewContractModal from '@/components/modals/ReviewContractModal.vue'
+import BpFinanceTable from '@/components/ui/BpFinanceTable.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useMessageButton } from '@/composables/useMessageButton'
@@ -522,7 +456,14 @@ const pipelineJobFilter = ref('')
 const activeHiredContracts = computed(() => props.activeContracts.filter(c => ['active', 'pending_signature', 'pending_funding'].includes(val(c.status))))
 const closedHiredContracts = computed(() => props.activeContracts.filter(c => !['active', 'pending_signature', 'pending_funding'].includes(val(c.status))))
 
-const showPostJob = ref(false)
+// BpFinanceTable: flat invoice list derived from invoicesByContract grouped map
+const flatInvoices = computed(() =>
+  Object.values(props.invoicesByContract ?? {}).flat()
+)
+// BpFinanceTable: payment method flag from shared auth
+const hasPaymentMethod = computed(() => !!(page.props.auth?.user?.stripe_payment_method_id))
+
+const showPostJob  = ref(false)
 const showTemplates = ref(false)
 const showEdit = ref(false)
 const editingJob = ref(null)
