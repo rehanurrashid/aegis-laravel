@@ -1714,10 +1714,24 @@ const serviceTypeOptions = [
 .orq-td--service  { width: 30%; }
 .orq-td--status   { width: 24%; }
 .orq-td--actions  { width: 10%; text-align: right; }
-.orq-service-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.orq-service-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
 .orq-modal-party-info { flex: 1; min-width: 0; }
 .orq-modal-name { font-size: 15px; font-weight: 700; color: var(--gold-dark); text-decoration: none; }
 a.orq-modal-name:hover { text-decoration: underline; }
+/* Party cell shared styles (scoped — not inherited from SessionInvoiceCard) */
+.sic-party { display: flex; align-items: center; gap: 9px; }
+.sic-avatar {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  background: var(--badge-bg-gold); color: var(--gold-dark);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; overflow: hidden;
+}
+.sic-avatar-initials { line-height: 1; letter-spacing: .3px; }
+.sic-party-info { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sic-party-name { font-size: 13px; font-weight: 700; color: var(--gold-dark); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+a.sic-party-name:hover { text-decoration: underline; color: var(--gold); }
+.sic-date-sub { font-size: 11px; color: var(--text-4); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sic-td { padding: 10px 12px; vertical-align: middle; font-size: 13px; border-bottom: 1px solid var(--border); }
 
 /* ── OUTGOING REQUESTS — card list ── */
 .orq-list { display: flex; flex-direction: column; gap: 8px; }
