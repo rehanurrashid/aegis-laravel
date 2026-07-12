@@ -206,7 +206,7 @@ const filterChips = computed(() => {
 </script>
 
 <style scoped>
-.session-table-root { display: flex; flex-direction: column; gap: 12px; }
+.session-table-root { display: flex; flex-direction: column; }
 
 /* ── Toolbar ── */
 .st-toolbar {
