@@ -928,6 +928,13 @@
             <div class="orq-modal-cred">{{ activeRequest.requester_detail }}</div>
           </div>
           <AegisBadge label="New Request" variant="gold" style="margin-left:auto;flex-shrink:0" />
+          <button
+            type="button"
+            class="btn-icon"
+            :data-tooltip="`Message ${activeRequest?.requester_name}`"
+            :disabled="msgLoading === activeRequest?.requester_id"
+            @click.stop="openConversation(activeRequest.requester_id)"
+          ><AegisIcon name="message" :size="14" /></button>
         </div>
 
         <!-- Detail grid -->
@@ -968,14 +975,6 @@
 
       </template>
       <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.requestDetail = false">Close</button>
-        <button
-          type="button"
-          class="btn-icon"
-          :data-tooltip="`Message ${activeRequest?.requester_name}`"
-          :disabled="msgLoading === activeRequest?.requester_id"
-          @click="openConversation(activeRequest.requester_id)"
-        ><AegisIcon name="message" :size="14" /></button>
         <button
           type="button"
           class="btn btn-outline"
