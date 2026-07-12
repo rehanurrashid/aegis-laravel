@@ -445,164 +445,205 @@
     ══════════════════════════════════════════════════════════════════ -->
     <div v-show="activeTab === 'outgoing'">
 
-      <!-- Section A: My Booked Sessions ──────────────────────────────── -->
-      <div class="section-header" style="margin-top:0">
-        <div class="section-title">
-          My Booked Sessions
-          <span class="section-badge">{{ clientSessions.length }}</span>
-        </div>
-        <div class="section-subtitle">Sessions you've requested from other practitioners. Pay deposit to confirm, then pay balance after the session.</div>
-      </div>
-
-      <BookedSessionTable
-        :sessions="clientSessions"
-        :meta="clientSessionsMeta"
-        empty-title="No booked sessions"
-        empty-subtitle="Browse the Explore tab to find supervision, consultation, and other practitioner services."
-        style="margin-bottom:28px"
-        @pay-deposit="activeClientSession = $event; modals.payDeposit = true"
-        @pay-balance="activeClientSession = $event; modals.payBalance = true"
-        @request-refund="activeClientSession = $event; modals.requestRefund = true"
-        @escalate-refund="escalateRefund($event)"
-        @page-change="goToClientSessionsPage"
-      >
-        <template #empty>
-          <button class="btn btn-primary" @click="activeTab = 'explore'">
-            <AegisIcon name="search" :size="13" /> Browse Services
-          </button>
-        </template>
-      </BookedSessionTable>
-
-      <!-- Section B: Outgoing service requests ───────────────────────────── -->
-      <div class="section-header">
-        <div class="section-title">
-          My Service Requests
-          <span class="section-badge">{{ props.outgoingRequests.length }}</span>
-        </div>
-        <div class="section-subtitle">Requests you have sent to other providers.</div>
-      </div>
-
-      <AegisEmptyState v-if="!props.outgoingRequests.length" icon="send" title="No outgoing requests" subtitle="When you request a service from another provider, it will appear here." />
-
-      <div v-else class="orq-list">
-        <div
-          v-for="r in props.outgoingRequests"
-          :key="r.id"
-          class="orq-card"
-          :class="`orq-card--${r.status}`"
-          @click="activeOutgoingRequest = r; modals.outgoingDetail = true"
+      <!-- PRIMARY TABS ─────────────────────────────────────────────── -->
+      <div class="tabs-primary" role="tablist" style="margin-bottom:20px">
+        <button
+          type="button" role="tab"
+          class="tab-primary"
+          :class="{ active: outgoingSubTab === 'sessions' }"
+          :aria-selected="outgoingSubTab === 'sessions'"
+          @click="outgoingSubTab = 'sessions'"
         >
-          <!-- Avatar + provider -->
-          <div class="orq-provider">
-            <div class="orq-avatar">{{ r.provider_avatar || '?' }}</div>
-            <div class="orq-provider-info">
-              <div class="orq-provider-name">{{ r.provider_name }}</div>
-              <div class="orq-provider-cred">{{ r.provider_detail }}</div>
-            </div>
-          </div>
-
-          <!-- Service + type -->
-          <div class="orq-service">
-            <div class="orq-service-title">{{ r.service_title }}</div>
-            <div class="orq-service-type">{{ r.request_type }}</div>
-          </div>
-
-          <!-- Status badge -->
-          <div class="orq-status">
-            <AegisBadge :label="statusLabel(r.status)" :variant="statusVariant(r.status)" />
-            <div class="orq-date">{{ r.time_label }}</div>
-          </div>
-
-          <!-- Action -->
-          <div class="orq-action" @click.stop>
-            <button
-              v-if="r.status === 'new'"
-              class="btn btn-outline"
-              data-tooltip="Withdraw this request"
-              @click="withdrawOutgoingRequest(r.id)"
-            >
-              <AegisIcon name="x" :size="13" /> Withdraw
-            </button>
-            <button
-              class="btn-icon"
-              data-tooltip="View details"
-              @click="activeOutgoingRequest = r; modals.outgoingDetail = true"
-            >
-              <AegisIcon name="eye" :size="14" />
-            </button>
-          </div>
-        </div>
+          <AegisIcon name="calendar" :size="14" />
+          My Booked Sessions
+          <span class="tab-count">{{ clientSessions.length }}</span>
+        </button>
+        <button
+          type="button" role="tab"
+          class="tab-primary"
+          :class="{ active: outgoingSubTab === 'requests' }"
+          :aria-selected="outgoingSubTab === 'requests'"
+          @click="outgoingSubTab = 'requests'"
+        >
+          <AegisIcon name="send" :size="14" />
+          My Service Requests
+          <span class="tab-count">{{ props.outgoingRequests.length }}</span>
+        </button>
       </div>
 
-      <!-- Request Detail Modal -->
-      <AegisModal v-model="modals.outgoingDetail" title="Request Details" size="md">
-        <template v-if="activeOutgoingRequest">
+      <!-- SECTION A: My Booked Sessions ─────────────────────────────── -->
+      <div v-show="outgoingSubTab === 'sessions'">
+        <BookedSessionTable
+          :sessions="clientSessions"
+          :meta="clientSessionsMeta"
+          empty-title="No booked sessions"
+          empty-subtitle="Browse the Explore tab to find supervision, consultation, and other practitioner services."
+          @pay-deposit="activeClientSession = $event; modals.payDeposit = true"
+          @pay-balance="activeClientSession = $event; modals.payBalance = true"
+          @request-refund="activeClientSession = $event; modals.requestRefund = true"
+          @escalate-refund="escalateRefund($event)"
+          @page-change="goToClientSessionsPage"
+        >
+          <template #empty>
+            <button class="btn btn-primary" @click="activeTab = 'explore'">
+              <AegisIcon name="search" :size="13" /> Browse Services
+            </button>
+          </template>
+        </BookedSessionTable>
+      </div>
 
-          <!-- Provider row -->
-          <div class="orq-modal-provider">
-            <div class="orq-avatar orq-avatar--lg">{{ activeOutgoingRequest.provider_avatar || '?' }}</div>
-            <div>
-              <div class="orq-modal-name">{{ activeOutgoingRequest.provider_name }}</div>
-              <div class="orq-modal-cred">{{ activeOutgoingRequest.provider_detail }}</div>
-            </div>
-            <AegisBadge :label="statusLabel(activeOutgoingRequest.status)" :variant="statusVariant(activeOutgoingRequest.status)" style="margin-left:auto" />
+      <!-- SECTION B: My Service Requests ────────────────────────────── -->
+      <div v-show="outgoingSubTab === 'requests'">
+
+        <AegisEmptyState
+          v-if="!props.outgoingRequests.length"
+          icon="send"
+          title="No outgoing requests"
+          subtitle="When you request a service from another provider, it will appear here."
+        />
+
+        <template v-else>
+          <div class="sic-table-wrap">
+            <table class="sic-table">
+              <thead>
+                <tr>
+                  <th class="sic-th">Provider</th>
+                  <th class="sic-th">Service</th>
+                  <th class="sic-th">Status</th>
+                  <th class="sic-th"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="r in props.outgoingRequests"
+                  :key="r.id"
+                  class="orq-row"
+                  :class="`orq-row--${r.status}`"
+                  @click="activeOutgoingRequest = r; modals.outgoingDetail = true"
+                >
+                  <!-- Provider -->
+                  <td class="sic-td orq-td--provider">
+                    <div class="sic-party">
+                      <div class="sic-avatar">
+                        <span class="sic-avatar-initials">{{ r.provider_avatar || initials(r.provider_name) }}</span>
+                      </div>
+                      <div class="sic-party-info">
+                        <a
+                          v-if="r.provider_slug"
+                          :href="`/public/provider/${r.provider_slug}`"
+                          class="sic-party-name"
+                          @click.stop
+                        >{{ r.provider_name }}</a>
+                        <span v-else class="sic-party-name">{{ r.provider_name }}</span>
+                        <span class="sic-date-sub">{{ r.provider_detail }}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <!-- Service -->
+                  <td class="sic-td orq-td--service">
+                    <div class="orq-service-title">{{ r.service_title }}</div>
+                    <div class="sic-date-sub">{{ r.request_type }} · {{ r.time_label }}</div>
+                  </td>
+                  <!-- Status -->
+                  <td class="sic-td orq-td--status">
+                    <AegisBadge :label="statusLabel(r.status)" :variant="statusVariant(r.status)" />
+                  </td>
+                  <!-- Action -->
+                  <td class="sic-td orq-td--actions" @click.stop>
+                    <button
+                      type="button"
+                      class="btn-icon"
+                      data-tooltip="View details"
+                      @click="activeOutgoingRequest = r; modals.outgoingDetail = true"
+                    >
+                      <AegisIcon name="chevron-right" :size="15" />
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-
-          <!-- Detail grid -->
-          <div class="orq-modal-grid">
-            <div class="orq-modal-row">
-              <span class="orq-modal-label">Service</span>
-              <span class="orq-modal-value">{{ activeOutgoingRequest.service_title }}</span>
-            </div>
-            <div class="orq-modal-row">
-              <span class="orq-modal-label">Type</span>
-              <span class="orq-modal-value">{{ activeOutgoingRequest.request_type }}</span>
-            </div>
-            <div class="orq-modal-row">
-              <span class="orq-modal-label">Sent</span>
-              <span class="orq-modal-value">{{ activeOutgoingRequest.sent_date_label }} <span style="color:var(--text-4)">({{ activeOutgoingRequest.time_label }})</span></span>
-            </div>
-            <div v-if="activeOutgoingRequest.responded_at" class="orq-modal-row">
-              <span class="orq-modal-label">Responded</span>
-              <span class="orq-modal-value">{{ activeOutgoingRequest.responded_at }}</span>
-            </div>
-          </div>
-
-          <!-- My message -->
-          <div v-if="activeOutgoingRequest.message" class="orq-modal-block">
-            <div class="orq-modal-block-label">
-              <AegisIcon name="message-square" :size="13" /> Your message
-            </div>
-            <div class="orq-modal-block-body">{{ activeOutgoingRequest.message }}</div>
-          </div>
-
-          <!-- Provider response -->
-          <div v-if="activeOutgoingRequest.response_note" class="orq-modal-block orq-modal-block--response">
-            <div class="orq-modal-block-label">
-              <AegisIcon name="corner-up-left" :size="13" /> Provider response
-            </div>
-            <div class="orq-modal-block-body">{{ activeOutgoingRequest.response_note }}</div>
-          </div>
-
-          <!-- No response yet -->
-          <div v-else-if="activeOutgoingRequest.status === 'new'" class="orq-modal-pending">
-            <AegisIcon name="clock" :size="14" />
-            Awaiting provider response — most providers respond within 72 hours.
-          </div>
-
         </template>
-        <template #footer>
-          <button type="button" class="btn btn-outline" @click="modals.outgoingDetail = false">Close</button>
-          <button
-            v-if="activeOutgoingRequest?.status === 'new'"
-            type="button"
-            class="btn btn-danger"
-            @click="modals.outgoingDetail = false; withdrawOutgoingRequest(activeOutgoingRequest.id)"
-          >
-            <AegisIcon name="x" :size="13" /> Withdraw Request
-          </button>
-        </template>
-      </AegisModal>
+
+        <!-- Request Detail Modal -->
+        <AegisModal v-model="modals.outgoingDetail" title="Request Details" size="md">
+          <template v-if="activeOutgoingRequest">
+
+            <!-- Provider row -->
+            <div class="orq-modal-provider">
+              <div class="orq-avatar orq-avatar--lg">
+                <span>{{ activeOutgoingRequest.provider_avatar || initials(activeOutgoingRequest.provider_name) }}</span>
+              </div>
+              <div class="orq-modal-party-info">
+                <a
+                  v-if="activeOutgoingRequest.provider_slug"
+                  :href="`/public/provider/${activeOutgoingRequest.provider_slug}`"
+                  class="orq-modal-name"
+                  target="_blank"
+                >{{ activeOutgoingRequest.provider_name }}</a>
+                <div v-else class="orq-modal-name">{{ activeOutgoingRequest.provider_name }}</div>
+                <div class="orq-modal-cred">{{ activeOutgoingRequest.provider_detail }}</div>
+              </div>
+              <AegisBadge :label="statusLabel(activeOutgoingRequest.status)" :variant="statusVariant(activeOutgoingRequest.status)" style="margin-left:auto;flex-shrink:0" />
+            </div>
+
+            <!-- Detail grid -->
+            <div class="orq-modal-grid">
+              <div class="orq-modal-row">
+                <span class="orq-modal-label"><AegisIcon name="briefcase" :size="12" /> Service</span>
+                <span class="orq-modal-value">{{ activeOutgoingRequest.service_title }}</span>
+              </div>
+              <div class="orq-modal-row">
+                <span class="orq-modal-label"><AegisIcon name="tag" :size="12" /> Type</span>
+                <span class="orq-modal-value">{{ activeOutgoingRequest.request_type }}</span>
+              </div>
+              <div class="orq-modal-row">
+                <span class="orq-modal-label"><AegisIcon name="calendar" :size="12" /> Sent</span>
+                <span class="orq-modal-value">{{ activeOutgoingRequest.sent_date_label }} <span style="color:var(--text-4)">({{ activeOutgoingRequest.time_label }})</span></span>
+              </div>
+              <div v-if="activeOutgoingRequest.responded_at" class="orq-modal-row">
+                <span class="orq-modal-label"><AegisIcon name="check-circle" :size="12" /> Responded</span>
+                <span class="orq-modal-value">{{ activeOutgoingRequest.responded_at }}</span>
+              </div>
+            </div>
+
+            <!-- My message -->
+            <div v-if="activeOutgoingRequest.message" class="orq-modal-block">
+              <div class="orq-modal-block-label">
+                <AegisIcon name="message-square" :size="13" /> Your message
+              </div>
+              <div class="orq-modal-block-body">{{ activeOutgoingRequest.message }}</div>
+            </div>
+
+            <!-- Provider response -->
+            <div v-if="activeOutgoingRequest.response_note" class="orq-modal-block orq-modal-block--response">
+              <div class="orq-modal-block-label">
+                <AegisIcon name="corner-up-left" :size="13" /> Provider response
+              </div>
+              <div class="orq-modal-block-body">{{ activeOutgoingRequest.response_note }}</div>
+            </div>
+
+            <!-- Awaiting -->
+            <div v-else-if="activeOutgoingRequest.status === 'new'" class="orq-modal-pending">
+              <AegisIcon name="clock" :size="14" />
+              Awaiting provider response — most providers respond within 72 hours.
+            </div>
+
+          </template>
+          <template #footer>
+            <button type="button" class="btn btn-outline" @click="modals.outgoingDetail = false">Close</button>
+            <button
+              v-if="activeOutgoingRequest?.status === 'new'"
+              type="button"
+              class="btn btn-danger"
+              @click="modals.outgoingDetail = false; withdrawOutgoingRequest(activeOutgoingRequest.id)"
+            >
+              <AegisIcon name="x" :size="13" /> Withdraw Request
+            </button>
+          </template>
+        </AegisModal>
+
+      </div>
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════════
@@ -1033,6 +1074,7 @@ const activeClientSession = ref(null)
 const activeRefundRequest = ref(null)
 const activeExploreService = ref(null)
 const activeOutgoingRequest = ref(null)
+const outgoingSubTab        = ref('sessions')
 
 function setActiveService(s) {
   activeService.value = s
@@ -1660,6 +1702,22 @@ const serviceTypeOptions = [
 .sic-table-wrap { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 12px; }
 .sic-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .sic-th { padding: 9px 12px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-4); background: var(--surface-2); border-bottom: 1px solid var(--border); }
+
+/* ── SERVICE REQUESTS TABLE ── */
+.orq-row { cursor: pointer; transition: background var(--transition); }
+.orq-row:hover { background: var(--surface-2); }
+.orq-row--new       { border-left: 3px solid var(--gold-dark); }
+.orq-row--accepted  { border-left: 3px solid var(--green); }
+.orq-row--declined  { border-left: 3px solid var(--red, #ef4444); }
+.orq-row--withdrawn { border-left: 3px solid var(--border-dark); opacity: .7; }
+.orq-td--provider { width: 36%; }
+.orq-td--service  { width: 30%; }
+.orq-td--status   { width: 24%; }
+.orq-td--actions  { width: 10%; text-align: right; }
+.orq-service-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.orq-modal-party-info { flex: 1; min-width: 0; }
+.orq-modal-name { font-size: 15px; font-weight: 700; color: var(--gold-dark); text-decoration: none; }
+a.orq-modal-name:hover { text-decoration: underline; }
 
 /* ── OUTGOING REQUESTS — card list ── */
 .orq-list { display: flex; flex-direction: column; gap: 8px; }
