@@ -7,12 +7,12 @@
   <AegisModal v-model="isOpen" :title="title" size="xl" @update:model-value="onUpdateOpen">
     <div v-if="job" class="modal-sub" style="margin-bottom:14px">{{ counts.total }} total · {{ counts.new }} new · {{ counts.shortlisted }} shortlisted · {{ counts.rejected }} rejected</div>
 
-    <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
-      <button class="btn btn-sm" :class="filter === 'all' ? 'btn-primary' : 'btn-outline'" @click="filter = 'all'">All ({{ counts.total }})</button>
-      <button class="btn btn-sm" :class="filter === 'new' ? 'btn-primary' : 'btn-outline'" @click="filter = 'new'">New ({{ counts.new }})</button>
-      <button class="btn btn-sm" :class="filter === 'reviewed' ? 'btn-primary' : 'btn-outline'" @click="filter = 'reviewed'">Reviewed ({{ counts.reviewed }})</button>
-      <button class="btn btn-sm" :class="filter === 'shortlisted' ? 'btn-primary' : 'btn-outline'" @click="filter = 'shortlisted'">Shortlisted ({{ counts.shortlisted }})</button>
-      <button class="btn btn-sm" :class="filter === 'rejected' ? 'btn-primary' : 'btn-outline'" @click="filter = 'rejected'">Rejected ({{ counts.rejected }})</button>
+    <div class="ma-filter-row">
+      <button class="ma-filter-btn" :class="{ active: filter === 'all' }" @click="filter = 'all'">All <span class="ma-filter-count">{{ counts.total }}</span></button>
+      <button class="ma-filter-btn" :class="{ active: filter === 'new' }" @click="filter = 'new'">New <span class="ma-filter-count">{{ counts.new }}</span></button>
+      <button class="ma-filter-btn" :class="{ active: filter === 'reviewed' }" @click="filter = 'reviewed'">Reviewed <span class="ma-filter-count">{{ counts.reviewed }}</span></button>
+      <button class="ma-filter-btn" :class="{ active: filter === 'shortlisted' }" @click="filter = 'shortlisted'">Shortlisted <span class="ma-filter-count">{{ counts.shortlisted }}</span></button>
+      <button class="ma-filter-btn" :class="{ active: filter === 'rejected' }" @click="filter = 'rejected'">Rejected <span class="ma-filter-count">{{ counts.rejected }}</span></button>
     </div>
 
     <AegisEmptyState v-if="!filteredProposals.length" icon="users" title="No applicants in this view" description="Try a different filter." />
@@ -86,7 +86,7 @@ function initials(name) {
   if (!name) return 'BP'
   return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
 }
-const palette = ['var(--gold-dark)', 'var(--blue-dark)', 'var(--green-dark)', 'var(--purple-dark, #6b4fa0)']
+const palette = ['var(--gold-dark)', 'var(--blue-dark)', 'var(--green-dark)', 'var(--gold)']
 function avatarStyle(bp) {
   if (bp?.avatar_url) {
     return { backgroundImage: `url(${bp.avatar_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
@@ -107,9 +107,53 @@ function statusBadgeClass(p) {
 </script>
 
 <style scoped>
+.ma-filter-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.ma-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
+}
+.ma-filter-btn:hover { border-color: var(--border-dark); color: var(--text); }
+.ma-filter-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--text-inverted);
+}
+.ma-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: rgba(255,255,255,0.18);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+.ma-filter-btn:not(.active) .ma-filter-count {
+  background: var(--surface-3);
+  color: var(--text-4);
+}
 .ma-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; transition: background var(--transition); }
 .ma-row:hover { background: var(--surface-2); }
-.ma-avatar { width: 38px; height: 38px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--text-inverted); flex-shrink: 0; }
-.ma-name { font-size: 13px; font-weight: 700; color: var(--text); }
-.ma-role { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+.ma-avatar { width: 38px; height: 38px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-family: var(--font-sans); font-size: 13px; font-weight: 700; color: var(--text-inverted); flex-shrink: 0; }
+.ma-name { font-family: var(--font-sans); font-size: 13px; font-weight: 700; color: var(--text); }
+.ma-role { font-family: var(--font-sans); font-size: 11px; color: var(--text-3); margin-top: 1px; }
 </style>

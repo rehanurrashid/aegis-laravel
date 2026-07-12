@@ -484,11 +484,11 @@ async function submit() {
   align-items: flex-start;
   gap: 12px;
   padding: 12px 14px;
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   cursor: pointer;
   background: var(--surface);
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, background 0.15s;
   user-select: none;
 }
 .ms-review-action-card:hover {
@@ -497,11 +497,10 @@ async function submit() {
 }
 .ms-review-action-card.is-selected {
   background: var(--surface-2);
-  box-shadow: 0 0 0 2px currentColor;
 }
-.ms-review-action-card.is-selected.is-green  { border-color: var(--green); color: var(--green); }
-.ms-review-action-card.is-selected.is-gold   { border-color: var(--gold-dark); color: var(--gold-dark); }
-.ms-review-action-card.is-selected.is-red    { border-color: var(--red); color: var(--red); }
+.ms-review-action-card.is-selected.is-green  { border-color: var(--green); }
+.ms-review-action-card.is-selected.is-gold   { border-color: var(--gold-dark); }
+.ms-review-action-card.is-selected.is-red    { border-color: var(--red); }
 .ms-review-action-card.is-green:hover  { border-color: var(--green); }
 .ms-review-action-card.is-gold:hover   { border-color: var(--gold-dark); }
 .ms-review-action-card.is-red:hover    { border-color: var(--red); }

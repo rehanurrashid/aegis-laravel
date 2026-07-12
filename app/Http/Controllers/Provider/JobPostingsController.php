@@ -39,6 +39,7 @@ class JobPostingsController extends Controller
         private MessagingService $messaging,
         private \App\Services\InvoiceService $invoices,
         private PayoutService $payouts,
+        private EscrowService $escrow,
     ) {}
 
     public function index(Request $request): Response
@@ -320,6 +321,57 @@ class JobPostingsController extends Controller
         abort_if($milestone->contract_id !== $contract->id, 404);
         $this->contracts->approveMilestone($milestone, $request->user());
         return back()->with('success', 'Milestone approved. You can now release payment.');
+    }
+
+    /**
+     * Unified milestone review handler — dispatches to approve/revision/reject
+     * based on the `action` field sent by MilestoneReviewModal.vue.
+     *
+     * action = 'approved'           → ContractService::approveMilestone → EscrowService::releaseMilestone
+     * action = 'revision_requested' → ContractService::requestRevision (notes required)
+     * action = 'rejected'           → Returns error: use OpenDisputeModal directly
+     */
+    public function reviewMilestone(Request $request, BpContract $contract, BpMilestone $milestone): RedirectResponse
+    {
+        $this->authorize('cancel', $contract);
+        abort_if($milestone->contract_id !== $contract->id, 404);
+
+        $statusVal = $milestone->status instanceof \BackedEnum ? $milestone->status->value : (string) $milestone->status;
+        if ($statusVal !== 'submitted') {
+            return back()->withErrors(['milestone' => "Milestone must be in 'submitted' status to review (current: {$statusVal})."]);
+        }
+
+        $data = $request->validate([
+            'action' => 'required|in:approved,revision_requested,rejected',
+            'notes'  => 'nullable|string|max:2000',
+        ]);
+
+        $action   = $data['action'];
+        $provider = $request->user();
+
+        try {
+            if ($action === 'approved') {
+                // Approve → release escrow funds to BP via Stripe transfer
+                $this->contracts->approveMilestone($milestone, $provider);
+                $this->escrow->releaseMilestone($milestone, $provider);
+                return back()->with('success', 'Milestone approved. Payment released to Business Partner.');
+            }
+
+            if ($action === 'revision_requested') {
+                $notes = trim($data['notes'] ?? '');
+                if (strlen($notes) < 10) {
+                    return back()->withErrors(['notes' => 'Revision notes must be at least 10 characters.']);
+                }
+                $this->contracts->requestRevision($milestone, $provider, $notes);
+                return back()->with('success', 'Revision requested. The Business Partner has been notified.');
+            }
+
+            // rejected → client should open dispute via OpenDisputeModal; if reached here, guide them
+            return back()->withErrors(['milestone' => 'To reject a milestone, open a dispute from the Actions menu. Aegis will mediate the escrow resolution.']);
+
+        } catch (\Throwable $e) {
+            return back()->withErrors(['milestone' => $e->getMessage()]);
+        }
     }
 
     public function requestMilestoneRevision(Request $request, BpContract $contract, BpMilestone $milestone): RedirectResponse

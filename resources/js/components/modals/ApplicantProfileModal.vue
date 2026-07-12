@@ -48,32 +48,52 @@
       <div class="ap-cover-text">{{ proposal.cover_letter || 'No cover letter provided.' }}</div>
     </div>
 
-    <div v-if="proposal" class="card" style="padding:18px 20px;margin-bottom:14px">
-      <div class="section-title-h" style="margin-bottom:12px"><AegisIcon name="menu" :size="15" /> Application Status</div>
+    <div v-if="proposal" class="ap-status-card">
+      <div class="ap-status-card-header">
+        <div class="ap-status-card-title">
+          <AegisIcon name="menu" :size="14" />
+          Application Status
+        </div>
+        <!-- Current stage pill -->
+        <span v-if="!isTerminal" class="ap-stage-pill" :class="stagePillClass">{{ currentStageLabel }}</span>
+      </div>
 
       <!-- Terminal state banners -->
-      <div v-if="isHired" class="alert alert-success" style="margin-bottom:0">
-        <div class="alert-icon"><AegisIcon name="check" :size="16" /></div>
-        <div class="alert-content"><strong>{{ proposal.bp?.display_name ?? 'This applicant' }} has been hired.</strong> A contract has been created.</div>
+      <div v-if="isHired" class="ap-terminal ap-terminal-hired">
+        <div class="ap-terminal-icon"><AegisIcon name="check-circle" :size="18" /></div>
+        <div>
+          <div class="ap-terminal-title">{{ proposal.bp?.display_name ?? 'This applicant' }} has been hired</div>
+          <div class="ap-terminal-sub">A contract has been created and is ready to sign.</div>
+        </div>
       </div>
-      <div v-else-if="isDeclined" class="alert alert-danger" style="margin-bottom:0">
-        <div class="alert-icon"><AegisIcon name="x" :size="16" /></div>
-        <div class="alert-content">This application was declined.</div>
+      <div v-else-if="isDeclined" class="ap-terminal ap-terminal-declined">
+        <div class="ap-terminal-icon"><AegisIcon name="x-circle" :size="18" /></div>
+        <div>
+          <div class="ap-terminal-title">Application declined</div>
+          <div class="ap-terminal-sub">This proposal was not accepted. You can still message the applicant.</div>
+        </div>
       </div>
 
-      <!-- Active pipeline actions — hidden once hired or declined -->
+      <!-- Active pipeline actions -->
       <template v-if="!isTerminal">
-        <div class="ap-status-btns" style="margin-bottom:12px">
-          <button class="ap-status-btn ap-status-review"    :disabled="busy" @click="$emit('reviewed', proposal)"><AegisIcon name="eye"      :size="12" /> Mark Reviewed</button>
-          <button class="ap-status-btn ap-status-shortlist" :disabled="busy" @click="$emit('shortlist', proposal)"><AegisIcon name="star"     :size="12" /> Shortlist</button>
-          <button class="ap-status-btn ap-status-schedule"  :disabled="busy" @click="$emit('schedule', proposal)"><AegisIcon name="calendar" :size="12" /> Schedule Interview</button>
-          <button class="ap-status-btn ap-status-reject"    :disabled="busy" @click="$emit('reject', proposal)"><AegisIcon name="x"       :size="12" /> Reject</button>
+        <div class="ap-pipeline-stages">
+          <button
+            v-for="act in pipelineActions"
+            :key="act.key"
+            class="ap-pipeline-btn"
+            :class="act.cls"
+            :disabled="busy"
+            @click="$emit(act.emit, proposal)"
+          >
+            <div class="ap-pipeline-btn-icon"><AegisIcon :name="act.icon" :size="14" /></div>
+            <div class="ap-pipeline-btn-label">{{ act.label }}</div>
+          </button>
         </div>
       </template>
 
-      <div class="form-group" style="margin-top:4px">
+      <div class="ap-notes-wrap">
         <label class="form-label" for="apNotes">Private Notes on Applicant</label>
-        <textarea id="apNotes" v-model="notes" class="form-textarea" style="min-height:70px" placeholder="Your private notes — great communicator, strong billing background..." @blur="saveNotes"></textarea>
+        <textarea id="apNotes" v-model="notes" class="form-textarea" style="min-height:70px" placeholder="Your private notes — great communicator, strong billing background..." @blur="saveNotes" />
       </div>
     </div>
 
@@ -143,6 +163,22 @@ const isHired    = computed(() =>
 const isDeclined = computed(() => statusVal.value === 'declined' || props.proposal?.pipeline_stage === 'rejected')
 const isTerminal = computed(() => isHired.value || isDeclined.value)
 
+const currentStageLabel = computed(() => {
+  const stage = props.proposal?.pipeline_stage
+  return { new: 'New', reviewed: 'Reviewed', shortlisted: 'Shortlisted', interview: 'Interview Scheduled' }[stage] ?? 'New'
+})
+const stagePillClass = computed(() => {
+  const stage = props.proposal?.pipeline_stage
+  return { new: 'is-new', reviewed: 'is-reviewed', shortlisted: 'is-shortlisted', interview: 'is-interview' }[stage] ?? 'is-new'
+})
+
+const pipelineActions = [
+  { key: 'review',    emit: 'reviewed',  icon: 'eye',      label: 'Mark Reviewed',     cls: 'is-review' },
+  { key: 'shortlist', emit: 'shortlist', icon: 'star',     label: 'Shortlist',          cls: 'is-shortlist' },
+  { key: 'schedule',  emit: 'schedule',  icon: 'calendar', label: 'Schedule Interview', cls: 'is-schedule' },
+  { key: 'reject',    emit: 'reject',    icon: 'x',        label: 'Reject',             cls: 'is-reject' },
+]
+
 watch(() => props.proposal, (p) => { notes.value = p?.internal_notes ?? '' }, { immediate: true })
 
 const initials = computed(() => {
@@ -186,23 +222,168 @@ function messageApplicant() {
 </script>
 
 <style scoped>
+/* ── Hero ─────────────────────────────────────────────────────────── */
 .ap-hero { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 20px; }
 .ap-name { font-family: var(--font-serif); font-size: 22px; font-weight: 700; color: var(--text); }
 .ap-name-link { text-decoration: none; cursor: pointer; color: var(--gold-dark); }
-.ap-name-link:hover { color: var(--gold-dark); text-decoration: underline; }
-.ap-role { font-size: 13px; color: var(--text-2); margin-top: 2px; }
-.ap-meta { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--text-3); margin-top: 8px; }
+.ap-name-link:hover { text-decoration: underline; }
+.ap-role { font-family: var(--font-sans); font-size: 13px; color: var(--text-2); margin-top: 2px; }
+.ap-meta { display: flex; gap: 12px; flex-wrap: wrap; font-family: var(--font-sans); font-size: 12px; color: var(--text-3); margin-top: 8px; }
 .ap-meta span { display: flex; align-items: center; gap: 4px; }
-.ap-cover-text { font-size: 13px; color: var(--text-2); line-height: 1.7; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; white-space: pre-line; }
-.ap-status-btns { display: flex; flex-wrap: wrap; gap: 8px; }
-.ap-status-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; font-size: 12.5px; font-weight: 600; border-radius: 99px; border: 1px solid; cursor: pointer; transition: all 0.15s; background: var(--surface); }
-.ap-status-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.ap-status-review    { color: var(--orange); border-color: var(--orange); }
-.ap-status-review:hover:not(:disabled)    { background: var(--orange); color: #fff; }
-.ap-status-shortlist  { color: var(--green); border-color: var(--green); }
-.ap-status-shortlist:hover:not(:disabled) { background: var(--green); color: #fff; }
-.ap-status-schedule   { color: var(--blue-dark); border-color: var(--soft-blue); background: var(--blue-light); }
-.ap-status-schedule:hover:not(:disabled)  { background: var(--blue-dark); color: #fff; }
-.ap-status-reject     { color: var(--red); border-color: var(--red); }
-.ap-status-reject:hover:not(:disabled)    { background: var(--red); color: #fff; }
+
+/* ── Cover letter ─────────────────────────────────────────────────── */
+.ap-cover-text {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.7;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  white-space: pre-line;
+}
+
+/* ── Application Status card ──────────────────────────────────────── */
+.ap-status-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-sm);
+}
+.ap-status-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.ap-status-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Stage pill — current pipeline stage */
+.ap-stage-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  border: 1px solid;
+}
+.ap-stage-pill.is-new       { background: var(--surface-3); border-color: var(--border-dark); color: var(--text-4); }
+.ap-stage-pill.is-reviewed  { background: var(--orange-light); border-color: var(--orange); color: var(--orange-dark); }
+.ap-stage-pill.is-shortlisted { background: var(--blue-light); border-color: var(--blue); color: var(--blue-dark); }
+.ap-stage-pill.is-interview { background: var(--badge-bg-gold, rgba(160,129,62,0.07)); border-color: var(--gold); color: var(--gold-dark); }
+
+/* ── Terminal banners ─────────────────────────────────────────────── */
+.ap-terminal {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.ap-terminal-hired   { background: var(--green-light); }
+.ap-terminal-declined { background: var(--red-light); }
+.ap-terminal-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ap-terminal-hired   .ap-terminal-icon { background: var(--green); color: #fff; }
+.ap-terminal-declined .ap-terminal-icon { background: var(--red); color: #fff; }
+.ap-terminal-title {
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+.ap-terminal-sub {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+/* ── Pipeline action buttons ──────────────────────────────────────── */
+.ap-pipeline-stages {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid var(--border);
+}
+.ap-pipeline-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px;
+  background: var(--surface);
+  border: none;
+  border-right: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+  font-family: var(--font-sans);
+}
+.ap-pipeline-btn:last-child { border-right: none; }
+.ap-pipeline-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ap-pipeline-btn-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition), color var(--transition);
+}
+.ap-pipeline-btn-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-align: center;
+  line-height: 1.3;
+  transition: color var(--transition);
+}
+
+/* Review — orange */
+.ap-pipeline-btn.is-review .ap-pipeline-btn-icon { background: var(--orange-light); color: var(--orange-dark); }
+.ap-pipeline-btn.is-review:hover:not(:disabled) { background: var(--orange-light); }
+.ap-pipeline-btn.is-review:hover:not(:disabled) .ap-pipeline-btn-label { color: var(--orange-dark); }
+
+/* Shortlist — gold */
+.ap-pipeline-btn.is-shortlist .ap-pipeline-btn-icon { background: rgba(160,129,62,0.08); color: var(--gold-dark); }
+.ap-pipeline-btn.is-shortlist:hover:not(:disabled) { background: rgba(160,129,62,0.05); }
+.ap-pipeline-btn.is-shortlist:hover:not(:disabled) .ap-pipeline-btn-label { color: var(--gold-dark); }
+
+/* Schedule — blue */
+.ap-pipeline-btn.is-schedule .ap-pipeline-btn-icon { background: var(--blue-light); color: var(--blue-dark); }
+.ap-pipeline-btn.is-schedule:hover:not(:disabled) { background: var(--blue-light); }
+.ap-pipeline-btn.is-schedule:hover:not(:disabled) .ap-pipeline-btn-label { color: var(--blue-dark); }
+
+/* Reject — red */
+.ap-pipeline-btn.is-reject .ap-pipeline-btn-icon { background: var(--red-light); color: var(--red); }
+.ap-pipeline-btn.is-reject:hover:not(:disabled) { background: var(--red-light); }
+.ap-pipeline-btn.is-reject:hover:not(:disabled) .ap-pipeline-btn-label { color: var(--red); }
+
+/* ── Private notes ────────────────────────────────────────────────── */
+.ap-notes-wrap {
+  padding: 16px 18px;
+}
 </style>
