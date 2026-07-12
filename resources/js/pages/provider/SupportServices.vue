@@ -74,7 +74,7 @@
       <div class="section-header" style="margin-bottom:16px">
         <div class="section-title-h"><AegisIcon name="briefcase" :size="16" /> My Support Requests</div>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-outline btn-sm" @click="showTemplates = true">
+          <button class="btn btn-outline" @click="showTemplates = true">
             <AegisIcon name="download" :size="12" />
             Use Template
           </button>
@@ -129,7 +129,7 @@
             <button v-if="['open','draft','paused'].includes(val(job.status))" class="btn-icon" data-tooltip="Edit" @click="openEdit(job)"><AegisIcon name="pencil" :size="12" /></button>
             <button v-if="proposalCount(job.id) > 0" class="btn-icon" :data-tooltip="proposalCount(job.id) + ' applicants'" @click="openManageApps(job)"><AegisIcon name="users" :size="12" /></button>
             <button v-if="val(job.status) === 'open'" class="btn-icon btn-icon-danger" data-tooltip="Pause" @click="confirmPause(job)"><AegisIcon name="pause" :size="12" /></button>
-            <button v-else-if="val(job.status) === 'draft'" class="btn btn-xs btn-success" @click="confirmPublish(job)">Publish</button>
+            <button v-else-if="val(job.status) === 'draft'" class="btn btn-primary" @click="confirmPublish(job)">Publish</button>
             <button v-else-if="val(job.status) === 'paused'" class="btn-icon" data-tooltip="Resume posting" @click="confirmResume(job)"><AegisIcon name="refresh-cw" :size="12" /></button>
           </div>
         </div>
@@ -380,11 +380,11 @@
 
         <!-- Pagination -->
         <div v-if="totalRequestPages > 1" class="ert-pagination">
-          <button class="btn btn-outline btn-sm" :disabled="requestsPage === 1" @click="requestsPage--">
+          <button class="btn btn-outline" :disabled="requestsPage === 1" @click="requestsPage--">
             <AegisIcon name="chevron-left" :size="13" /> Prev
           </button>
           <span class="ert-page-info">{{ requestsPage }} / {{ totalRequestPages }}</span>
-          <button class="btn btn-outline btn-sm" :disabled="requestsPage === totalRequestPages" @click="requestsPage++">
+          <button class="btn btn-outline" :disabled="requestsPage === totalRequestPages" @click="requestsPage++">
             Next <AegisIcon name="chevron-right" :size="13" />
           </button>
         </div>

@@ -89,7 +89,7 @@ function rateLine(j) {
 }
 
 function apply() {
-  router.get(route('bp.find-jobs'), filters, {
+  router.get(route('bp.jobs.index'), filters, {
     preserveScroll: true, preserveState: true, replace: true, only: ['jobs', 'filters'],
   })
 }

@@ -1,9 +1,14 @@
 <!--
   ProposalModal.vue — BP submits a proposal to a posted job.
 
-  Replaces _shared/modals/proposal_modal.php. Receives the parent job
-  via the `job` prop. Fields mirror the schema (cover letter, bid
-  cents, estimated weeks, attachments).
+  Wave 1 fixes:
+  - Route: bp.proposals.store (non-existent) → bp.jobs.propose (correct route with {job} param)
+  - Field name: bid_cents → proposed_rate_cents (matches SubmitProposalRequest)
+  - Field name: estimated_weeks → timeline_days (matches SubmitProposalRequest)
+  - Added portfolio_url field (SubmitProposalRequest supports it, was missing from UI)
+  - Added Vuelidate on required fields (was missing entirely)
+  - AegisDropzone import kept (not globally registered) — attachments stored in
+    bp_proposal_attachments table (Wave 1 migration 4); server-side wiring in Wave 4
 -->
 <template>
   <AegisModal
@@ -21,16 +26,33 @@
           <div class="proposal-job-poster">{{ job.poster_name }}</div>
         </div>
         <AegisBadge
-          :label="job.engagement === 'fixed' ? 'Fixed price' : 'Hourly'"
+          :label="job.engagement === 'fixed' ? 'Fixed price' : job.engagement === 'hourly' ? 'Hourly' : 'Retainer'"
           variant="gold"
         />
       </header>
+
+      <!-- HIPAA / NDA / BAA disclosure -->
+      <div
+        v-if="job.requires_hipaa || job.requires_nda || job.requires_baa"
+        class="proposal-compliance-notice"
+      >
+        <AegisIcon name="shield-check" :size="14" />
+        <span>
+          This role requires:
+          <strong v-if="job.requires_hipaa">HIPAA compliance</strong>
+          <span v-if="job.requires_hipaa && (job.requires_nda || job.requires_baa)"> · </span>
+          <strong v-if="job.requires_nda">NDA</strong>
+          <span v-if="job.requires_nda && job.requires_baa"> · </span>
+          <strong v-if="job.requires_baa">BAA</strong>.
+          By submitting, you confirm you meet these requirements.
+        </span>
+      </div>
 
       <form @submit.prevent="submit">
         <!-- Bid -->
         <div class="form-group">
           <label class="form-label">
-            {{ job.engagement === 'fixed' ? 'Your bid (total)' : 'Your rate (per hour)' }}
+            {{ job.engagement === 'fixed' ? 'Your bid (total project)' : job.engagement === 'hourly' ? 'Your hourly rate' : 'Monthly retainer' }}
             <span class="req">*</span>
           </label>
           <div class="input-affix">
@@ -41,44 +63,78 @@
               min="1"
               step="1"
               class="form-input"
+              :class="{ 'is-error': fieldError('proposed_rate_cents') }"
               :placeholder="job.engagement === 'fixed' ? '2500' : '85'"
+              @blur="v$.proposed_rate_cents.$touch()"
             />
-            <span v-if="job.engagement !== 'fixed'" class="input-affix-suffix">/hr</span>
+            <span v-if="job.engagement === 'hourly'" class="input-affix-suffix">/hr</span>
+            <span v-else-if="job.engagement === 'retainer'" class="input-affix-suffix">/mo</span>
           </div>
-          <div v-if="form.errors.bid_cents" class="form-error">{{ form.errors.bid_cents }}</div>
+          <div v-if="fieldError('proposed_rate_cents')" class="form-error">{{ fieldError('proposed_rate_cents') }}</div>
         </div>
 
-        <!-- Duration -->
+        <!-- Timeline -->
         <div class="form-group">
-          <label class="form-label" for="prop-weeks">Estimated duration</label>
-          <select id="prop-weeks" v-model="form.estimated_weeks" class="form-input">
-            <option :value="1">Less than 1 week</option>
-            <option :value="2">1–2 weeks</option>
-            <option :value="4">3–4 weeks</option>
-            <option :value="8">1–2 months</option>
-            <option :value="16">3–4 months</option>
-            <option :value="24">5–6 months</option>
-            <option :value="52">More than 6 months</option>
+          <label class="form-label" for="prop-timeline">Estimated duration <span class="req">*</span></label>
+          <select
+            id="prop-timeline"
+            v-model.number="form.timeline_days"
+            class="form-select"
+            :class="{ 'is-error': fieldError('timeline_days') }"
+            @blur="v$.timeline_days.$touch()"
+          >
+            <option :value="null" disabled>Select duration…</option>
+            <option :value="7">Less than 1 week</option>
+            <option :value="14">1–2 weeks</option>
+            <option :value="30">3–4 weeks</option>
+            <option :value="60">1–2 months</option>
+            <option :value="120">3–4 months</option>
+            <option :value="180">5–6 months</option>
+            <option :value="365">More than 6 months</option>
           </select>
+          <div v-if="fieldError('timeline_days')" class="form-error">{{ fieldError('timeline_days') }}</div>
+        </div>
+
+        <!-- Portfolio URL -->
+        <div class="form-group">
+          <label class="form-label" for="prop-portfolio">
+            Portfolio / work samples URL <span class="form-label-hint">(optional)</span>
+          </label>
+          <input
+            id="prop-portfolio"
+            v-model="form.portfolio_url"
+            type="url"
+            class="form-input"
+            :class="{ 'is-error': fieldError('portfolio_url') }"
+            placeholder="https://yourportfolio.com"
+            @blur="v$.portfolio_url.$touch()"
+          />
+          <div v-if="fieldError('portfolio_url')" class="form-error">{{ fieldError('portfolio_url') }}</div>
         </div>
 
         <!-- Cover letter -->
         <div class="form-group">
-          <label class="form-label" for="prop-cover">Cover letter <span class="req">*</span></label>
+          <label class="form-label" for="prop-cover">
+            Cover letter <span class="req">*</span>
+          </label>
           <textarea
             id="prop-cover"
             v-model="form.cover_letter"
-            class="form-input"
+            class="form-textarea"
+            :class="{ 'is-error': fieldError('cover_letter') }"
             rows="7"
             placeholder="Why you're the right fit for this role. Be specific — reference the posting and your relevant work."
-          ></textarea>
-          <div class="form-hint">{{ form.cover_letter.length }} / 2000 characters</div>
-          <div v-if="form.errors.cover_letter" class="form-error">{{ form.errors.cover_letter }}</div>
+            @blur="v$.cover_letter.$touch()"
+          />
+          <div class="form-hint">{{ form.cover_letter.length }} / 3000 characters</div>
+          <div v-if="fieldError('cover_letter')" class="form-error">{{ fieldError('cover_letter') }}</div>
         </div>
 
-        <!-- Attachments -->
+        <!-- Attachments (stored in bp_proposal_attachments; server wiring in Wave 4) -->
         <div class="form-group">
-          <label class="form-label">Attachments <span class="form-label-hint">(optional)</span></label>
+          <label class="form-label">
+            Attachments <span class="form-label-hint">(optional — PDF, DOC, or images)</span>
+          </label>
           <AegisDropzone
             multiple
             accept=".pdf,.doc,.docx,image/*"
@@ -112,17 +168,22 @@
         class="btn btn-primary"
         :disabled="form.processing || !canSubmit"
         @click="submit"
-      >{{ form.processing ? 'Submitting…' : 'Submit proposal' }}</button>
+      >
+        <AegisIcon v-if="form.processing" name="refresh-cw" :size="13" class="btn-spin" />
+        {{ form.processing ? 'Submitting…' : 'Submit proposal' }}
+      </button>
     </template>
   </AegisModal>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useForm } from '@inertiajs/vue3'
+import { useForm }  from '@inertiajs/vue3'
+import useVuelidate from '@vuelidate/core'
+import { required, minLength, maxLength, minValue, url } from '@vuelidate/validators'
 import { useModal } from '@/composables/useModal'
 import { useToast } from '@/composables/useToast'
-import AegisBadge from '@/components/ui/AegisBadge.vue'
+import AegisBadge   from '@/components/ui/AegisBadge.vue'
 import AegisDropzone from '@/components/ui/AegisDropzone.vue'
 
 const props = defineProps({
@@ -134,34 +195,50 @@ const toast = useToast()
 
 const bidInput = ref(null)
 
+// useForm at top-level (required by platform rules)
 const form = useForm({
-  job_id:          null,
-  bid_cents:       null,
-  estimated_weeks: 4,
-  cover_letter:    '',
-  attachments:     [],
+  job_id:              null,
+  proposed_rate_cents: null,   // FIXED: was bid_cents
+  timeline_days:       null,   // FIXED: was estimated_weeks
+  portfolio_url:       '',
+  cover_letter:        '',
+  attachments:         [],
 })
 
-// Sync job_id when the parent updates the job prop.
+// Sync job_id when parent updates job prop
 watch(() => props.job?.id, (id) => { form.job_id = id ?? null }, { immediate: true })
 
-// Bid input is in dollars; convert to integer cents on the form.
+// Dollar → cents
 watch(bidInput, (v) => {
-  form.bid_cents = v != null && v !== '' ? Math.round(Number(v) * 100) : null
+  form.proposed_rate_cents = v != null && v !== '' ? Math.round(Number(v) * 100) : null
 })
 
+// ── Vuelidate ───────────────────────────────────────────────────────────────
+const rules = {
+  proposed_rate_cents: { required, minValue: minValue(1) },
+  timeline_days:       { required },
+  portfolio_url:       {},
+  cover_letter:        { required, minLength: minLength(50), maxLength: maxLength(3000) },
+}
+const v$ = useVuelidate(rules, form)
+
+function fieldError(f) {
+  const e = v$.value[f]?.$errors
+  return e?.length ? e[0].$message : null
+}
+
 const canSubmit = computed(() =>
-  form.bid_cents > 0 && form.cover_letter.trim().length > 0 && form.cover_letter.length <= 2000,
+  (form.proposed_rate_cents ?? 0) > 0 &&
+  form.timeline_days != null &&
+  form.cover_letter.trim().length >= 50 &&
+  form.cover_letter.length <= 3000,
 )
 
-function onFiles(files) {
-  form.attachments = [...form.attachments, ...files]
-}
+// ── Attachments ─────────────────────────────────────────────────────────────
+function onFiles(files)         { form.attachments = [...form.attachments, ...files] }
+function removeAttachment(i)    { form.attachments.splice(i, 1) }
 
-function removeAttachment(i) {
-  form.attachments.splice(i, 1)
-}
-
+// ── Modal lifecycle ─────────────────────────────────────────────────────────
 function onUpdateOpen(v) { if (!v) onClose() }
 
 function onClose() {
@@ -169,19 +246,24 @@ function onClose() {
   setTimeout(() => {
     form.reset()
     bidInput.value = null
+    v$.value.$reset()
   }, 200)
 }
 
-function submit() {
-  if (!canSubmit.value) return
-  form.post(route('bp.proposals.store'), {
+// ── Submit ──────────────────────────────────────────────────────────────────
+async function submit() {
+  const valid = await v$.value.$validate()
+  if (!valid) return
+
+  // FIXED route: bp.jobs.propose with {job} param (not bp.proposals.store)
+  form.post(route('bp.jobs.propose', { job: form.job_id }), {
     preserveScroll: true,
-    forceFormData: true,
+    forceFormData:  true,   // needed for file attachments
     onSuccess: () => {
       toast.success('Proposal submitted.')
       onClose()
     },
-    onError: () => toast.error('Could not submit proposal.'),
+    onError: () => toast.error('Could not submit proposal. Check the form for errors.'),
   })
 }
 </script>

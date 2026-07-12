@@ -44,7 +44,9 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Steward\StewardResigned::class,       Listeners\ActivityFanoutListener::class);
         Event::listen(Events\Business\ContractCancelled::class,    Listeners\ActivityFanoutListener::class);
         Event::listen(Events\Business\InvoiceVoided::class,        Listeners\ActivityFanoutListener::class);
-        Event::listen(Events\Business\ProposalSubmitted::class,    Listeners\ActivityFanoutListener::class);
+        // NOTE: ProposalSubmitted removed from ActivityFanoutListener — was double-firing.
+        // ProposalService::submit() writes ActivityService::log() directly for both parties.
+        // SendEmailNotificationListener handles the email (registered below at line ~154).
         Event::listen(Events\Business\ProposalWithdrawn::class,    Listeners\ActivityFanoutListener::class);
         Event::listen(Events\Incident\IncidentReopened::class,     Listeners\ActivityFanoutListener::class);
         Event::listen(Events\Incident\IncidentWithdrawn::class,    Listeners\ActivityFanoutListener::class);

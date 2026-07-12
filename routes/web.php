@@ -641,9 +641,8 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:busine
         Route::post('/contracts/{contract}/sign', [ContractsController::class, 'sign'])->name('contracts.sign');
         Route::post('/contracts/{contract}/cancel', [ContractsController::class, 'cancel'])->name('contracts.cancel');
 
-        // Milestones
+        // Milestones — BPs can only submit work; Providers create milestones via provider routes.
         Route::get('/milestones', [MilestonesController::class, 'index'])->name('milestones.index');
-        Route::post('/milestones', [MilestonesController::class, 'store'])->name('milestones.store');
         Route::post('/milestones/{milestone}/submit', [MilestonesController::class, 'submit'])->name('milestones.submit');
 
         // Invoices
