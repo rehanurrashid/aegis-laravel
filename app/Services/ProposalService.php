@@ -104,17 +104,23 @@ class ProposalService
 
             $job = BpJob::find($proposal->job_id);
 
+            $contractId    = 'bc_' . Str::lower(Str::random(12));
+            $transferGroup = 'aegis_contract_' . $contractId;
+
             $contract = BpContract::create([
-                'id'                => 'bc_' . Str::lower(Str::random(12)),
+                'id'                => $contractId,
                 'job_id'            => $job->id,
                 'proposal_id'       => $proposal->id,
                 'practitioner_id'   => $job->practitioner_id,
                 'bp_id'             => $proposal->bp_id,
                 'title'             => $job->title,
                 'total_value_cents' => $proposal->proposed_rate_cents,
-                'status'            => 'active',
-                'signed_at'         => now(),
-                'started_at'        => now(),
+                'payment_type'      => $job->budget_type?->value === 'fixed' ? 'one_time' : 'milestone',
+                'funding_mode'      => 'per_milestone',
+                // Escrow-backed: born in pending_signature, not active
+                'status'            => 'pending_signature',
+                'transfer_group'    => $transferGroup,
+                'terms'             => $this->generateTerms($job, $proposal),
             ]);
 
             $job->update(['status' => 'filled']);
@@ -140,7 +146,7 @@ class ProposalService
                 $bp->id, 'business_partner', 'job_postings', ActivitySeverity::Info,
                 'proposal_accepted',
                 "Your proposal was accepted: {$job->title}",
-                'A contract has been created. Review and sign to begin work.',
+                'A contract has been created. Review the terms and sign to unlock escrow funding.',
                 'bp_contract', $contract->id, $practitioner->id,
                 'notification', $practitioner->id
             );
@@ -301,5 +307,66 @@ class ProposalService
         return BpProposal::where('bp_id', $bpId)
             ->orderByDesc('submitted_at')
             ->get();
+    }
+
+    /**
+     * Generate plain-text contract terms from job + proposal data.
+     * Used as the basis for the dual-signature contract (Wave 6 adds PDF export).
+     */
+    private function generateTerms(BpJob $job, BpProposal $proposal): string
+    {
+        $rate    = '$' . number_format(($proposal->proposed_rate_cents ?? 0) / 100, 2);
+        $rateType = $proposal->proposed_rate_type instanceof \App\Enums\BpBudgetType
+            ? $proposal->proposed_rate_type->value
+            : (string) ($proposal->proposed_rate_type ?? 'fixed');
+        $rateLabel = match ($rateType) {
+            'hourly'   => "{$rate} per hour",
+            'retainer' => "{$rate} per month",
+            default    => "{$rate} (fixed price)",
+        };
+        $timeline = $proposal->timeline_days
+            ? ($proposal->timeline_days . ' days estimated')
+            : 'Timeline to be agreed between parties';
+
+        $hipaa = $job->requires_hipaa ? "\n• HIPAA Business Associate Agreement required." : '';
+        $nda   = $job->requires_nda   ? "\n• Non-Disclosure Agreement required." : '';
+        $baa   = $job->requires_baa   ? "\n• Business Associate Agreement required." : '';
+
+        return <<<TEXT
+SERVICE CONTRACT — AEGIS PLATFORM
+
+Role: {$job->title}
+Category: {$job->category}
+Rate: {$rateLabel}
+Timeline: {$timeline}
+
+SCOPE OF WORK
+{$job->description}
+
+COMPLIANCE REQUIREMENTS{$hipaa}{$nda}{$baa}
+
+PAYMENT TERMS
+All payments are processed through Aegis Platform. Funds are held in escrow by
+Aegis until work is approved by the Provider. For milestone-based contracts, each
+milestone is funded and released independently. The Provider agrees to fund each
+milestone before work begins. The Business Partner agrees not to invoice outside
+of the Aegis Platform for work covered by this contract.
+
+AUTO-RELEASE POLICY
+If the Provider does not review a submitted milestone within the review window
+(typically 7 days), the escrow funds are automatically released to the Business
+Partner.
+
+DISPUTE RESOLUTION
+Disputes are mediated by Aegis Platform administration. Both parties agree to
+engage in good faith before escalating. Aegis's decision on escrow release or
+refund is final within the platform.
+
+GOVERNING LAW
+This contract is governed by applicable United States law.
+
+By signing below, both parties agree to these terms and to Aegis Platform's
+Terms of Service (https://aegis.devlet.tech/terms).
+TEXT;
     }
 }

@@ -53,6 +53,13 @@ use App\Events\News\NewsPostPublished;
 use App\Events\Business\EngagementRequested;
 use App\Events\Service\ServiceRequestSubmitted;
 use App\Events\Business\ContractSigned;
+use App\Events\Business\ContractFullyFunded;
+use App\Events\Business\EscrowFunded;
+use App\Events\Business\MilestoneReadyForReview;
+use App\Events\Business\MilestoneRevisionRequested;
+use App\Events\Business\MilestoneReleased;
+use App\Events\Business\MilestoneRefunded;
+use App\Events\Business\MilestoneAutoReleased;
 use App\Events\Business\InvoicePaid;
 use App\Events\Business\InvoiceSent;
 use App\Events\Business\PayoutReleased;
@@ -171,8 +178,16 @@ class SendEmailNotificationListener
             $event instanceof MilestoneSubmitted      => $this->milestoneSubmitted($event),
             $event instanceof MilestoneApproved       => $this->milestoneApproved($event),
             $event instanceof ProposalSubmitted       => $this->proposalSubmittedBp($event),
-            $event instanceof ProposalWithdrawn       => $this->proposalWithdrawnBp($event),
-            $event instanceof ServiceRequestResponded => $this->serviceRequestResponded($event),
+            $event instanceof ProposalWithdrawn          => $this->proposalWithdrawnBp($event),
+            $event instanceof ServiceRequestResponded     => $this->serviceRequestResponded($event),
+            // Wave 2 — Escrow events
+            $event instanceof EscrowFunded                => $this->escrowFunded($event),
+            $event instanceof ContractFullyFunded         => $this->contractFullyFunded($event),
+            $event instanceof MilestoneReadyForReview     => $this->milestoneReadyForReview($event),
+            $event instanceof MilestoneRevisionRequested  => $this->milestoneRevisionRequested($event),
+            $event instanceof MilestoneReleased           => $this->milestoneReleased($event),
+            $event instanceof MilestoneRefunded           => $this->milestoneRefunded($event),
+            $event instanceof MilestoneAutoReleased       => $this->milestoneAutoReleased($event),
             $event instanceof SessionDepositPaid      => $this->sessionDepositPaid($event),
             $event instanceof SessionBalancePaid      => $this->sessionBalancePaid($event),
             $event instanceof SessionRefundRequested  => $this->sessionRefundRequested($event),
@@ -1406,4 +1421,147 @@ class SendEmailNotificationListener
         }
         return $mails;
     }
+    // ═══════════════════════════════════════════════════════════════════════
+    // WAVE 2 — ESCROW EVENT HANDLERS
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private function escrowFunded(EscrowFunded $e): array
+    {
+        $ms = $e->milestone;
+        // Notify BP that funds are now in escrow and work can begin
+        return [[
+            'user_id'  => $e->contract->bp_id,
+            'gate_key' => 'notify_contract',
+            'template' => 'emails.business.53-milestone-funded',
+            'data'     => [
+                'contract_id'  => $e->contract->id,
+                'milestone_id' => $ms?->id,
+                'amount_cents' => $e->amountCents,
+                'provider_id'  => $e->provider->id,
+            ],
+        ]];
+    }
+
+    private function contractFullyFunded(ContractFullyFunded $e): array
+    {
+        return [[
+            'user_id'  => $e->contract->bp_id,
+            'gate_key' => 'notify_contract',
+            'template' => 'emails.business.52-contract-funded',
+            'data'     => [
+                'contract_id' => $e->contract->id,
+                'provider_id' => $e->provider->id,
+            ],
+        ]];
+    }
+
+    private function milestoneReadyForReview(MilestoneReadyForReview $e): array
+    {
+        return [[
+            'user_id'  => $e->milestone->contract->practitioner_id,
+            'gate_key' => 'notify_contract',
+            'template' => 'emails.business.54-milestone-submitted',
+            'data'     => [
+                'milestone_id'   => $e->milestone->id,
+                'contract_id'    => $e->milestone->contract_id,
+                'submission_id'  => $e->submission->id,
+                'bp_id'          => $e->milestone->contract->bp_id,
+                'auto_release_at'=> $e->milestone->auto_release_at?->toIso8601String(),
+            ],
+        ]];
+    }
+
+    private function milestoneRevisionRequested(MilestoneRevisionRequested $e): array
+    {
+        return [[
+            'user_id'  => $e->milestone->contract->bp_id,
+            'gate_key' => 'notify_contract',
+            'template' => 'emails.business.56-milestone-revision-requested',
+            'data'     => [
+                'milestone_id'   => $e->milestone->id,
+                'contract_id'    => $e->milestone->contract_id,
+                'revision_notes' => $e->revisionNotes,
+                'provider_id'    => $e->provider->id,
+                'revision_count' => $e->milestone->revision_count,
+            ],
+        ]];
+    }
+
+    private function milestoneReleased(MilestoneReleased $e): array
+    {
+        return [[
+            'user_id'  => $e->milestone->contract->bp_id,
+            'gate_key' => 'notify_contract',
+            'template' => 'emails.business.55-milestone-approved',
+            'data'     => [
+                'milestone_id' => $e->milestone->id,
+                'contract_id'  => $e->milestone->contract_id,
+                'payout_id'    => $e->payout->id,
+                'amount_cents' => $e->payout->amount_cents,
+                'approver_id'  => $e->approver->id,
+            ],
+        ]];
+    }
+
+    private function milestoneRefunded(MilestoneRefunded $e): array
+    {
+        $contract = $e->milestone->contract;
+        // Notify provider (got money back) and BP (lost escrow)
+        return [
+            [
+                'user_id'  => $contract->practitioner_id,
+                'gate_key' => 'notify_contract',
+                'template' => 'emails.business.59-milestone-refunded',
+                'data'     => [
+                    'milestone_id'   => $e->milestone->id,
+                    'contract_id'    => $contract->id,
+                    'refunded_cents' => $e->refundedCents,
+                    'reason'         => $e->reason,
+                    'recipient_role' => 'provider',
+                ],
+            ],
+            [
+                'user_id'  => $contract->bp_id,
+                'gate_key' => 'notify_contract',
+                'template' => 'emails.business.59-milestone-refunded',
+                'data'     => [
+                    'milestone_id'   => $e->milestone->id,
+                    'contract_id'    => $contract->id,
+                    'refunded_cents' => $e->refundedCents,
+                    'reason'         => $e->reason,
+                    'recipient_role' => 'bp',
+                ],
+            ],
+        ];
+    }
+
+    private function milestoneAutoReleased(MilestoneAutoReleased $e): array
+    {
+        $contract = $e->milestone->contract;
+        return [
+            [
+                'user_id'  => $contract->bp_id,
+                'gate_key' => 'notify_contract',
+                'template' => 'emails.business.57-milestone-auto-released',
+                'data'     => [
+                    'milestone_id' => $e->milestone->id,
+                    'contract_id'  => $contract->id,
+                    'payout_id'    => $e->payout->id,
+                    'amount_cents' => $e->payout->amount_cents,
+                ],
+            ],
+            [
+                'user_id'  => $contract->practitioner_id,
+                'gate_key' => 'notify_contract',
+                'template' => 'emails.business.57-milestone-auto-released',
+                'data'     => [
+                    'milestone_id' => $e->milestone->id,
+                    'contract_id'  => $contract->id,
+                    'amount_cents' => $e->payout->amount_cents,
+                    'recipient_role' => 'provider',
+                ],
+            ],
+        ];
+    }
+
 }

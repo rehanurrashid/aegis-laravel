@@ -46,7 +46,6 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Business\InvoiceVoided::class,        Listeners\ActivityFanoutListener::class);
         // NOTE: ProposalSubmitted removed from ActivityFanoutListener — was double-firing.
         // ProposalService::submit() writes ActivityService::log() directly for both parties.
-        // SendEmailNotificationListener handles the email (registered below at line ~154).
         Event::listen(Events\Business\ProposalWithdrawn::class,    Listeners\ActivityFanoutListener::class);
         Event::listen(Events\Incident\IncidentReopened::class,     Listeners\ActivityFanoutListener::class);
         Event::listen(Events\Incident\IncidentWithdrawn::class,    Listeners\ActivityFanoutListener::class);
@@ -155,6 +154,20 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Business\MilestoneApproved::class,   Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Business\ProposalSubmitted::class,   Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Business\ProposalWithdrawn::class,   Listeners\SendEmailNotificationListener::class);
+
+        // ── Wave 2: Escrow events ─────────────────────────────────────────────
+        Event::listen(Events\Business\EscrowFunded::class,               Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\EscrowFunded::class,               Listeners\ActivityFanoutListener::class);
+        Event::listen(Events\Business\ContractFullyFunded::class,        Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\MilestoneReadyForReview::class,    Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\MilestoneRevisionRequested::class, Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\MilestoneRevisionRequested::class, Listeners\ActivityFanoutListener::class);
+        Event::listen(Events\Business\MilestoneReleased::class,          Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\MilestoneReleased::class,          Listeners\ActivityFanoutListener::class);
+        Event::listen(Events\Business\MilestoneRefunded::class,          Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\MilestoneRefunded::class,          Listeners\ActivityFanoutListener::class);
+        Event::listen(Events\Business\MilestoneAutoReleased::class,      Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\MilestoneAutoReleased::class,      Listeners\ActivityFanoutListener::class);
 
         // Service request response
         Event::listen(Events\Service\ServiceRequestResponded::class, Listeners\SendEmailNotificationListener::class);
