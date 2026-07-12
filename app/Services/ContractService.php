@@ -22,8 +22,12 @@ class ContractService
 {
     public function __construct(private ActivityService $activity) {}
 
-    public function create(string $jobId, string $proposalId, string $practitionerId, string $bpId, int $totalCents): BpContract
+    public function create(string $jobId, string $proposalId, string $practitionerId, string $bpId, int $totalCents, string $paymentType = 'one_time', string $fundingMode = 'per_milestone'): BpContract
     {
+        // Milestone-based contracts start as pending_funding — at least one milestone
+        // must be added and funded before work begins. One-time contracts go active immediately.
+        $initialStatus = $paymentType === 'milestone' ? 'pending_funding' : 'active';
+
         return BpContract::create([
             'id'                => 'bc_' . Str::lower(Str::random(12)),
             'job_id'            => $jobId,
@@ -32,7 +36,9 @@ class ContractService
             'bp_id'             => $bpId,
             'title'             => 'Contract',
             'total_value_cents' => $totalCents,
-            'status'            => 'active',
+            'payment_type'      => $paymentType,
+            'funding_mode'      => $fundingMode,
+            'status'            => $initialStatus,
         ]);
     }
 

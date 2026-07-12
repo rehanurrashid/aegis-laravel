@@ -185,6 +185,10 @@
           title="No milestones yet"
           description="Add milestones to track deliverables and release incremental payments."
         />
+        <div v-if="paymentType === 'milestone' && !localMilestones.length && !showAddMilestone" class="milestone-required-notice">
+          <AegisIcon name="alert-circle" :size="14" />
+          <span>Milestone contracts require at least one milestone before work can begin. Use <strong>Add Milestone</strong> above to get started.</span>
+        </div>
 
         <div v-else-if="localMilestones.length" class="milestone-list">
           <div v-for="m in localMilestones" :key="m.id" class="milestone-row">
@@ -907,6 +911,14 @@ function invoiceStatusVariant(s) {
 .contract-invoice-note { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-3); background: var(--badge-bg-gold); border-radius: var(--radius-sm); padding: 10px 14px; border-left: 3px solid var(--gold); margin-top: 16px; }
 .link-gold { color: var(--gold-dark); font-weight: 600; text-decoration: none; }
 .link-gold:hover { text-decoration: underline; }
+
+.milestone-required-notice {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 10px 14px; margin-top: 8px;
+  background: rgba(160,129,62,0.07); border: 1px solid var(--gold);
+  border-radius: var(--radius-sm);
+  font-size: 12.5px; color: var(--gold-dark); line-height: 1.5;
+}
 
 /* ── Invoice section ─────────────────────────────────────────────── */
 .invoice-section { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 4px; margin-bottom: 4px; }
