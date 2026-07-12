@@ -69,7 +69,13 @@
 
         <div class="page-sidebar-group">
           <div class="page-sidebar-label">Discover</div>
-          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'explore' }" @click="activeTab = 'explore'">
+          <button
+            type="button" role="tab"
+            class="page-sidebar-item"
+            :class="{ active: activeTab === 'explore' }"
+            data-tooltip="Browse supervision, consultation, training and other services offered by practitioners on Aegis"
+            @click="activeTab = 'explore'"
+          >
             <span class="page-sidebar-icon"><AegisIcon name="search" :size="15" /></span>
             Browse Services
           </button>
@@ -77,29 +83,64 @@
 
         <div class="page-sidebar-group">
           <div class="page-sidebar-label">My Services</div>
-          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'listings' }" @click="activeTab = 'listings'">
+          <button
+            type="button" role="tab"
+            class="page-sidebar-item"
+            :class="{ active: activeTab === 'listings' }"
+            data-tooltip="Manage the clinical services you offer to other practitioners — create, edit, publish or pause listings"
+            @click="activeTab = 'listings'"
+          >
             <span class="page-sidebar-icon"><AegisIcon name="grid" :size="15" /></span>
             My Listings
             <span v-if="listings.length > 0" class="page-sidebar-badge">{{ listings.length }}</span>
           </button>
-          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'requests' }" @click="activeTab = 'requests'">
-            <span class="page-sidebar-icon"><AegisIcon name="clock" :size="15" /></span>
-            Service Requests
-            <span v-if="newRequests.length + incomingRefundRequests.filter(r => r.is_actionable).length > 0" class="page-sidebar-badge">{{ newRequests.length + incomingRefundRequests.filter(r => r.is_actionable).length }}</span>
+          <button
+            type="button" role="tab"
+            class="page-sidebar-item"
+            :class="{ active: activeTab === 'requests' }"
+            data-tooltip="Review service requests sent to you by other practitioners — accept, decline or counter"
+            @click="activeTab = 'requests'"
+          >
+            <span class="page-sidebar-icon"><AegisIcon name="inbox" :size="15" /></span>
+            Incoming Requests
+            <span v-if="incomingRequestsBadge > 0" class="page-sidebar-badge">{{ incomingRequestsBadge }}</span>
           </button>
-          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'bookings' }" @click="activeTab = 'bookings'">
+          <button
+            type="button" role="tab"
+            class="page-sidebar-item"
+            :class="{ active: activeTab === 'bookings' }"
+            data-tooltip="Sessions you are running for other practitioners — track deposits, balances and refund requests"
+            @click="activeTab = 'bookings'"
+          >
             <span class="page-sidebar-icon"><AegisIcon name="calendar" :size="15" /></span>
-            Clinical Sessions
-            <span v-if="stats?.sessions > 0" class="page-sidebar-badge">{{ stats.sessions }}</span>
+            My Sessions
+            <span v-if="activeProviderSessionsBadge > 0" class="page-sidebar-badge">{{ activeProviderSessionsBadge }}</span>
           </button>
         </div>
 
         <div class="page-sidebar-group">
           <div class="page-sidebar-label">As a Client</div>
-          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'outgoing' }" @click="activeTab = 'outgoing'">
+          <button
+            type="button" role="tab"
+            class="page-sidebar-item"
+            :class="{ active: activeTab === 'outgoing-requests' }"
+            data-tooltip="Service requests you have sent to other practitioners — pending responses, accepted or declined"
+            @click="activeTab = 'outgoing-requests'"
+          >
             <span class="page-sidebar-icon"><AegisIcon name="send" :size="15" /></span>
             My Requests
-            <span v-if="pendingClientActions > 0" class="page-sidebar-badge">{{ pendingClientActions }}</span>
+            <span v-if="pendingOutgoing.length > 0" class="page-sidebar-badge">{{ pendingOutgoing.length }}</span>
+          </button>
+          <button
+            type="button" role="tab"
+            class="page-sidebar-item"
+            :class="{ active: activeTab === 'outgoing-bookings' }"
+            data-tooltip="Sessions you have booked with other practitioners — pay deposit to confirm, pay balance after your session"
+            @click="activeTab = 'outgoing-bookings'"
+          >
+            <span class="page-sidebar-icon"><AegisIcon name="credit-card" :size="15" /></span>
+            My Bookings
+            <span v-if="clientPaymentActionsBadge > 0" class="page-sidebar-badge">{{ clientPaymentActionsBadge }}</span>
           </button>
         </div>
 
@@ -441,59 +482,9 @@
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════════
-         TAB 4: MY REQUESTS (I am the client — sessions I booked)
+         TAB 4: MY REQUESTS — requests I sent to other providers
     ══════════════════════════════════════════════════════════════════ -->
-    <div v-show="activeTab === 'outgoing'">
-
-      <!-- PRIMARY TABS ─────────────────────────────────────────────── -->
-      <div class="tabs-primary" role="tablist" style="margin-bottom:20px">
-        <button
-          type="button" role="tab"
-          class="tab-primary"
-          :class="{ active: outgoingSubTab === 'sessions' }"
-          :aria-selected="outgoingSubTab === 'sessions'"
-          @click="outgoingSubTab = 'sessions'"
-        >
-          <AegisIcon name="calendar" :size="14" />
-          My Booked Sessions
-          <span class="tab-count">{{ clientSessions.length }}</span>
-        </button>
-        <button
-          type="button" role="tab"
-          class="tab-primary"
-          :class="{ active: outgoingSubTab === 'requests' }"
-          :aria-selected="outgoingSubTab === 'requests'"
-          @click="outgoingSubTab = 'requests'"
-        >
-          <AegisIcon name="send" :size="14" />
-          My Service Requests
-          <span class="tab-count">{{ props.outgoingRequests.length }}</span>
-        </button>
-      </div>
-
-      <!-- SECTION A: My Booked Sessions ─────────────────────────────── -->
-      <div v-show="outgoingSubTab === 'sessions'">
-        <BookedSessionTable
-          :sessions="clientSessions"
-          :meta="clientSessionsMeta"
-          empty-title="No booked sessions"
-          empty-subtitle="Browse the Explore tab to find supervision, consultation, and other practitioner services."
-          @pay-deposit="activeClientSession = $event; modals.payDeposit = true"
-          @pay-balance="activeClientSession = $event; modals.payBalance = true"
-          @request-refund="activeClientSession = $event; modals.requestRefund = true"
-          @escalate-refund="escalateRefund($event)"
-          @page-change="goToClientSessionsPage"
-        >
-          <template #empty>
-            <button class="btn btn-primary" @click="activeTab = 'explore'">
-              <AegisIcon name="search" :size="13" /> Browse Services
-            </button>
-          </template>
-        </BookedSessionTable>
-      </div>
-
-      <!-- SECTION B: My Service Requests ────────────────────────────── -->
-      <div v-show="outgoingSubTab === 'requests'">
+    <div v-show="activeTab === 'outgoing-requests'">
 
         <AegisEmptyState
           v-if="!props.outgoingRequests.length"
@@ -643,11 +634,33 @@
           </template>
         </AegisModal>
 
-      </div>
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════════
-         TAB 5: SETTINGS
+         TAB 5: MY BOOKINGS — sessions I booked as a client
+    ══════════════════════════════════════════════════════════════════ -->
+    <div v-show="activeTab === 'outgoing-bookings'">
+      <BookedSessionTable
+        :sessions="clientSessions"
+        :meta="clientSessionsMeta"
+        empty-title="No booked sessions"
+        empty-subtitle="Browse services from other practitioners to book supervision, consultation, training and more."
+        @pay-deposit="activeClientSession = $event; modals.payDeposit = true"
+        @pay-balance="activeClientSession = $event; modals.payBalance = true"
+        @request-refund="activeClientSession = $event; modals.requestRefund = true"
+        @escalate-refund="escalateRefund($event)"
+        @page-change="goToClientSessionsPage"
+      >
+        <template #empty>
+          <button class="btn btn-primary" @click="activeTab = 'explore'">
+            <AegisIcon name="search" :size="13" /> Browse Services
+          </button>
+        </template>
+      </BookedSessionTable>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         TAB 6: SETTINGS
     ══════════════════════════════════════════════════════════════════ -->
     <div v-show="activeTab === 'settings'">
       <div class="settings-grid">
@@ -1037,7 +1050,7 @@ const { openConversation, loading: msgLoading } = useMessageButton()
 const { openModal } = useModal()
 
 // ── Tab state ─────────────────────────────────────────────────────────────────
-const VALID_TABS = ['explore','listings','requests','outgoing','bookings','settings']
+const VALID_TABS = ['explore','listings','requests','outgoing-requests','outgoing-bookings','bookings','settings']
 const activeTab  = ref('listings')
 onMounted(() => {
   const tab = new URLSearchParams(window.location.search).get('tab')
@@ -1049,7 +1062,8 @@ const tabs = computed(() => [
   { key: 'listings',  label: 'My Listings',           icon: 'grid',     count: props.listings.length },
   { key: 'requests',  label: 'Service Requests',      icon: 'clock',    count: newRequests.value.length + props.incomingRefundRequests.filter(r => r.is_actionable).length },
   { key: 'bookings',  label: 'Clinical Sessions',   icon: 'calendar', count: props.stats?.sessions ?? null },
-  { key: 'outgoing',  label: 'My Requests',           icon: 'send',     count: pendingClientActions.value || null },
+  { key: 'outgoing-requests', label: 'My Requests',  icon: 'send',        count: pendingOutgoing.value.length || null },
+  { key: 'outgoing-bookings',  label: 'My Bookings',  icon: 'credit-card', count: clientPaymentActionsBadge.value || null },
   { key: 'settings',  label: 'Settings',              icon: 'settings', count: null },
 ])
 
@@ -1074,7 +1088,6 @@ const activeClientSession = ref(null)
 const activeRefundRequest = ref(null)
 const activeExploreService = ref(null)
 const activeOutgoingRequest = ref(null)
-const outgoingSubTab        = ref('sessions')
 
 function setActiveService(s) {
   activeService.value = s
@@ -1102,11 +1115,25 @@ function setActiveBooking(b) { activeBooking.value = b }
 // ── Computed counts ───────────────────────────────────────────────────────────
 const newRequests = computed(() => props.serviceRequests.filter(r => r.status === 'new'))
 const pendingOutgoing = computed(() => props.outgoingRequests.filter(r => r.status === 'new'))
-const pendingClientActions = computed(() => {
-  const depositDue  = props.clientSessions.filter(s => s.can_pay_deposit).length
-  const balanceDue  = props.clientSessions.filter(s => s.can_pay_balance).length
-  return depositDue + balanceDue + pendingOutgoing.value.length
+
+// Badge: Incoming Requests = new requests + actionable refund requests
+const incomingRequestsBadge = computed(() =>
+  newRequests.value.length + props.incomingRefundRequests.filter(r => r.is_actionable).length
+)
+// Badge: My Sessions = active (scheduled) sessions as provider
+const activeProviderSessionsBadge = computed(() =>
+  props.bookings?.filter(b => b.status === 'scheduled').length ?? 0
+)
+// Badge: My Bookings = deposit due + balance due
+const clientPaymentActionsBadge = computed(() => {
+  const depositDue = props.clientSessions.filter(s => s.can_pay_deposit).length
+  const balanceDue = props.clientSessions.filter(s => s.can_pay_balance).length
+  return depositDue + balanceDue
 })
+// Legacy compat
+const pendingClientActions = computed(() =>
+  clientPaymentActionsBadge.value + pendingOutgoing.value.length
+)
 
 // ── Listing filters (backend-driven) ─────────────────────────────────────────
 const listingSearch       = ref(props.filters?.q ?? '')
