@@ -134,3 +134,118 @@ function fund() {
   })
 }
 </script>
+
+<style scoped>
+/* ── Fund modal wrapper ──────────────────────────────────────────── */
+.fund-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Summary card ────────────────────────────────────────────────── */
+.fund-modal-summary {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.fund-modal-summary-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.fund-modal-summary-row:last-child { border-bottom: none; }
+.fund-modal-summary-row-bold { background: var(--surface-3); }
+.fund-modal-summary-label {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-4);
+  flex-shrink: 0;
+}
+.fund-modal-summary-value {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: right;
+  min-width: 0;
+  word-break: break-word;
+}
+.fund-modal-description {
+  font-size: 12px;
+  color: var(--text-3);
+  font-weight: 400;
+}
+.fund-modal-amount {
+  font-family: var(--font-sans);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--gold-dark);
+}
+
+/* ── Escrow disclosure ───────────────────────────────────────────── */
+.fund-modal-disclosure {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: rgba(160,129,62,0.07);
+  border: 1px solid var(--gold-light);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--gold-dark);
+  line-height: 1.5;
+}
+.fund-modal-disclosure > :deep(svg) { flex-shrink: 0; margin-top: 1px; color: var(--gold-dark); }
+.fund-modal-disclosure-text strong { font-weight: 700; }
+
+/* ── Payment method row ──────────────────────────────────────────── */
+.fund-modal-pm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-3);
+}
+.fund-modal-pm > :deep(svg) { color: var(--text-4); flex-shrink: 0; }
+.fund-modal-pm-missing { color: var(--red); }
+
+/* ── Alert banners ───────────────────────────────────────────────── */
+.alert-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  border-left: 3px solid transparent;
+}
+.alert-banner-green {
+  background: var(--green-light);
+  border-left-color: var(--green);
+  color: var(--green-dark);
+}
+.alert-banner > :deep(svg) { flex-shrink: 0; margin-top: 1px; }
+
+/* ── Link button ─────────────────────────────────────────────────── */
+.link-btn {
+  color: var(--gold-dark);
+  font-weight: 600;
+  text-decoration: none;
+  margin-left: 4px;
+}
+.link-btn:hover { text-decoration: underline; }
+</style>

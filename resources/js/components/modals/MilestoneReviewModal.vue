@@ -315,3 +315,230 @@ async function submit() {
   })
 }
 </script>
+
+<style scoped>
+/* ── Modal wrapper ───────────────────────────────────────────────── */
+.ms-review-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Header block ────────────────────────────────────────────────── */
+.ms-review-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 0 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.ms-review-eyebrow {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-4);
+  margin-bottom: 4px;
+}
+.ms-review-title {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+.ms-review-meta {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-3);
+}
+.ms-review-auto-release {
+  color: var(--gold-dark);
+  font-weight: 600;
+}
+
+/* ── Alert banners ───────────────────────────────────────────────── */
+.alert-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+  border-left: 3px solid transparent;
+}
+.alert-banner-warning {
+  background: rgba(160,129,62,0.07);
+  border-left-color: var(--gold);
+  color: var(--gold-dark);
+}
+.alert-banner-green {
+  background: var(--green-light);
+  border-left-color: var(--green);
+  color: var(--green-dark);
+}
+.alert-banner-red {
+  background: var(--red-light);
+  border-left-color: var(--red);
+  color: var(--red-dark);
+}
+.alert-banner > :deep(svg) { flex-shrink: 0; margin-top: 1px; }
+
+/* ── Submission notes ────────────────────────────────────────────── */
+.ms-review-submission {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.ms-review-section-title {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-4);
+  margin-bottom: 8px;
+}
+.ms-review-notes {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ms-review-notes-empty {
+  color: var(--text-4);
+  font-style: italic;
+}
+.ms-review-hours {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 4px 10px;
+  background: var(--surface-3);
+  border-radius: 99px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+/* ── Revision history ────────────────────────────────────────────── */
+.ms-review-revision-history {
+  background: rgba(160,129,62,0.07);
+  border: 1px solid var(--gold-light);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+.ms-review-revision-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--gold-dark);
+  line-height: 1.5;
+}
+
+/* ── Section divider ─────────────────────────────────────────────── */
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-4);
+  margin: 16px 0 14px;
+}
+.section-divider::before,
+.section-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── Action cards ────────────────────────────────────────────────── */
+.ms-review-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.ms-review-action-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: var(--surface);
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  user-select: none;
+}
+.ms-review-action-card:hover {
+  border-color: var(--border-dark);
+  background: var(--surface-2);
+}
+.ms-review-action-card.is-selected {
+  background: var(--surface-2);
+  box-shadow: 0 0 0 2px currentColor;
+}
+.ms-review-action-card.is-selected.is-green  { border-color: var(--green); color: var(--green); }
+.ms-review-action-card.is-selected.is-gold   { border-color: var(--gold-dark); color: var(--gold-dark); }
+.ms-review-action-card.is-selected.is-red    { border-color: var(--red); color: var(--red); }
+.ms-review-action-card.is-green:hover  { border-color: var(--green); }
+.ms-review-action-card.is-gold:hover   { border-color: var(--gold-dark); }
+.ms-review-action-card.is-red:hover    { border-color: var(--red); }
+
+.ms-review-action-radio { display: none; }
+.ms-review-action-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: background 0.15s, color 0.15s;
+  color: var(--text-3);
+}
+.ms-review-action-card.is-selected.is-green  .ms-review-action-icon { background: var(--green-light); color: var(--green-dark); }
+.ms-review-action-card.is-selected.is-gold   .ms-review-action-icon { background: var(--badge-bg-gold, rgba(160,129,62,0.07)); color: var(--gold-dark); }
+.ms-review-action-card.is-selected.is-red    .ms-review-action-icon { background: var(--red-light); color: var(--red); }
+.ms-review-action-body { flex: 1; min-width: 0; }
+.ms-review-action-title {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.ms-review-action-desc {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-4);
+  line-height: 1.4;
+}
+
+/* ── Notes textarea ──────────────────────────────────────────────── */
+.ms-review-notes-field { margin-top: 4px; }
+.req { color: var(--red); margin-left: 2px; }
+</style>

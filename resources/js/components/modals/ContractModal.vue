@@ -96,18 +96,38 @@
             Escrow balance
           </div>
           <div class="contract-escrow-bar-stats">
-            <span class="escrow-stat-held">
-              {{ formatMoney(escrowHeld) }} held
-            </span>
+            <span class="escrow-stat-held">{{ formatMoney(escrowHeld) }} held</span>
             <span>·</span>
             <span class="escrow-stat-released">{{ formatMoney(escrowReleased) }} released</span>
             <span>·</span>
             <span>{{ formatMoney(escrowUnfunded) }} unfunded</span>
           </div>
         </div>
+
+        <!-- Three amount chips -->
+        <div class="contract-escrow-amounts">
+          <div class="contract-escrow-chip is-held">
+            <div class="contract-escrow-chip-label">In escrow</div>
+            <div class="contract-escrow-chip-value">{{ formatMoney(escrowHeld) }}</div>
+          </div>
+          <div class="contract-escrow-chip is-released">
+            <div class="contract-escrow-chip-label">Released</div>
+            <div class="contract-escrow-chip-value">{{ formatMoney(escrowReleased) }}</div>
+          </div>
+          <div class="contract-escrow-chip is-unfunded">
+            <div class="contract-escrow-chip-label">Unfunded</div>
+            <div class="contract-escrow-chip-value">{{ formatMoney(escrowUnfunded) }}</div>
+          </div>
+        </div>
+
+        <!-- Progress bar -->
         <div class="contract-escrow-progress">
           <div class="contract-escrow-progress-released" :style="{ width: escrowPct(escrowReleased) }" />
           <div class="contract-escrow-progress-held"     :style="{ width: escrowPct(escrowHeld) }" />
+        </div>
+        <div class="contract-escrow-progress-label">
+          <span>0%</span>
+          <span>{{ formatMoney(contract?.total_value_cents ?? 0) }} total</span>
         </div>
       </div>
 
@@ -637,6 +657,115 @@ function endAndRelease() {
 .contract-summary-val.is-money { font-size: 20px; font-weight: 700; color: var(--green-dark); }
 .contract-id-mono { font-size: 11px; font-family: monospace; color: var(--text-3); }
 
+/* ── Escrow balance bar ───────────────────────────────────────────── */
+.contract-escrow-bar-wrap {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.contract-escrow-bar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.contract-escrow-bar-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--gold-dark);
+}
+.contract-escrow-bar-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-4);
+  flex-wrap: wrap;
+}
+.escrow-stat-held     { font-weight: 600; color: var(--gold-dark); }
+.escrow-stat-released { font-weight: 600; color: var(--green-dark); }
+
+/* Three-row amount chips */
+.contract-escrow-amounts {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.contract-escrow-chip {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 8px;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  text-align: center;
+}
+.contract-escrow-chip:last-child { border-right: none; }
+.contract-escrow-chip-label {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-4);
+  margin-bottom: 4px;
+}
+.contract-escrow-chip-value {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.contract-escrow-chip.is-held    .contract-escrow-chip-value { color: var(--gold-dark); }
+.contract-escrow-chip.is-released .contract-escrow-chip-value { color: var(--green-dark); }
+.contract-escrow-chip.is-unfunded .contract-escrow-chip-value { color: var(--text-4); }
+
+/* Progress bar */
+.contract-escrow-progress {
+  height: 8px;
+  background: var(--surface-3);
+  border-radius: 99px;
+  overflow: hidden;
+  display: flex;
+  gap: 0;
+}
+.contract-escrow-progress-released {
+  height: 100%;
+  background: var(--green);
+  border-radius: 99px 0 0 99px;
+  transition: width 0.4s ease;
+  min-width: 0;
+}
+.contract-escrow-progress-held {
+  height: 100%;
+  background: var(--gold);
+  transition: width 0.4s ease;
+  min-width: 0;
+}
+.contract-escrow-progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--text-4);
+  margin-top: 6px;
+}
+
+/* ── Milestone section ────────────────────────────────────────────── */
 .milestone-section { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 4px; margin-bottom: 16px; }
 .milestone-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .milestone-section-title  { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; }
