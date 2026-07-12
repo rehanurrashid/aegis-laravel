@@ -96,40 +96,6 @@ class FinancesController extends Controller
             ];
         })->values();
 
-        // ── 2. BP INVOICES ───────────────────────────────────────────────────
-        $bpInvCollection = BpInvoice::where('practitioner_id', $user->id)
-            ->with(['bp:id,display_name,slug,stripe_connected', 'contract:id,title'])
-            ->orderByDesc('created_at')->limit(100)->get();
-
-        $bpInvIds     = $bpInvCollection->pluck('id')->all();
-        $bpDisputeMap = Dispute::whereIn('subject_id', $bpInvIds)
-            ->where('subject_type', 'bp_invoice')
-            ->whereNull('resolved_at')
-            ->pluck('id', 'subject_id');
-
-        $bpInvoices = $bpInvCollection->map(function (BpInvoice $inv) use ($bpDisputeMap) {
-            $status = $inv->status instanceof InvoiceStatus ? $inv->status->value : (string) $inv->status;
-            return [
-                'id'               => $inv->id,
-                'contract_id'      => $inv->contract_id,
-                'invoice_number'   => $inv->invoice_number ?? substr($inv->id, 0, 10),
-                'bp_name'          => $inv->bp?->display_name ?? '—',
-                'bp_slug'          => $inv->bp?->slug,
-                'bp_connected'     => (bool) ($inv->bp?->stripe_connected ?? false),
-                'contract_title'   => $inv->contract?->title ?? $inv->notes ?? '—',
-                'total_cents'      => (int) $inv->total_cents,
-                'status'           => $status,
-                'issued_at'        => $inv->issued_at?->toDateString(),
-                'issued_month'     => $inv->issued_at?->format('F Y'),
-                'due_at'           => $inv->due_at?->format('M j, Y'),
-                'notes_short'      => $inv->notes ? mb_strimwidth($inv->notes, 0, 60, '…') : null,
-                'payable'          => in_array($status, [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value], true),
-                'active_dispute_id'=> $bpDisputeMap[$inv->id] ?? null,
-                'paid_at'          => $inv->paid_at?->toDateString(),
-                'kind'             => 'bp_invoice',
-            ];
-        })->values();
-
         // ── 3. CLIENT SESSIONS — I am the CLIENT (paying other practitioners) ─
         $clientSessionsPaginator = ServiceSession::where('client_id', $user->id)
             ->with(['practitioner:id,display_name,slug,stripe_connected,stripe_account_id', 'service:id,title'])
@@ -177,34 +143,131 @@ class FinancesController extends Controller
                                && ($s['status'] ?? '') === 'scheduled',
         ]));
 
+        // ── 7. BP Contracts + Milestones + Invoices ────────────────────────────
+        // IDENTICAL queries to JobPostingsController (SupportServices source of truth).
+        // Finances adds: dispute map, stripe fields for payment routing.
+
+        $bpContracts = BpContract::with([
+                'bp:id,display_name,bp_type,avatar_initials,avatar_path,slug,stripe_connected,stripe_account_id',
+            ])
+            ->where('practitioner_id', $user->id)
+            ->whereIn('status', ['active', 'completed',
+                ContractStatus::PendingSignature->value,
+                ContractStatus::PendingFunding->value,
+            ])
+            ->orderByDesc('started_at')
+            ->get();
+
+        $contractIds = $bpContracts->pluck('id');
+
+        // Reviews — same as SupportServices
+        $myReviews = \App\Models\BpContractReview::where('reviewer_id', $user->id)
+            ->whereIn('contract_id', $contractIds)
+            ->where('review_dismissed', false)
+            ->get(['contract_id', 'rating', 'review_text', 'is_public'])
+            ->keyBy('contract_id');
+
+        // Milestones — identical to SupportServices groupBy approach
+        $milestonesByContract = BpMilestone::whereIn('contract_id', $contractIds)
+            ->orderBy('sort_order')
+            ->get()
+            ->groupBy('contract_id')
+            ->map(fn ($group) => $group->values());
+
+        // Contract invoices — identical scope to SupportServices (contract_id IN contracts)
+        $contractInvoiceCollection = BpInvoice::whereIn('contract_id', $contractIds)
+            ->with(['bp:id,display_name,slug,stripe_connected'])
+            ->orderByDesc('issued_at')
+            ->get();
+
+        $contractInvIds = $contractInvoiceCollection->pluck('id')->all();
+
+        $bpInvDisputeMap = Dispute::whereIn('subject_id', $contractInvIds)
+            ->where('subject_type', 'bp_invoice')
+            ->whereNull('resolved_at')
+            ->pluck('id', 'subject_id');
+
+        // invoicesByContract — for ContractModal invoice section
+        $invoicesByContract = $contractInvoiceCollection
+            ->map(fn (BpInvoice $inv) => [
+                'id'               => $inv->id,
+                'contract_id'      => $inv->contract_id,
+                'invoice_number'   => $inv->invoice_number ?? substr($inv->id, 0, 10),
+                'bp_name'          => $inv->bp?->display_name ?? '—',
+                'bp_slug'          => $inv->bp?->slug,
+                'bp_connected'     => (bool) ($inv->bp?->stripe_connected ?? false),
+                'contract_title'   => $bpContracts->firstWhere('id', $inv->contract_id)?->title ?? '—',
+                'total_cents'      => (int) $inv->total_cents,
+                'status'           => $inv->status instanceof InvoiceStatus ? $inv->status->value : (string) $inv->status,
+                'issued_at'        => $inv->issued_at?->toDateString(),
+                'issued_month'     => $inv->issued_at?->format('F Y'),
+                'due_at'           => $inv->due_at?->format('M j, Y'),
+                'paid_at'          => $inv->paid_at?->toDateString(),
+                'notes_short'      => $inv->notes ? mb_strimwidth($inv->notes, 0, 60, '…') : null,
+                'payable'          => in_array(
+                    $inv->status instanceof InvoiceStatus ? $inv->status->value : (string) $inv->status,
+                    [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value], true
+                ),
+                'active_dispute_id'=> $bpInvDisputeMap[$inv->id] ?? null,
+                'kind'             => 'bp_invoice',
+            ])
+            ->groupBy('contract_id')
+            ->map(fn ($g) => $g->values());
+
+        // bpInvoices flat list — Invoices sub-tab on Finances
+        // Starts from same contract-scoped invoices, appends orphans (no contract_id)
+        $orphanInvCollection = BpInvoice::where('practitioner_id', $user->id)
+            ->whereNotIn('id', $contractInvIds ?: ['__none__'])
+            ->with(['bp:id,display_name,slug,stripe_connected', 'contract:id,title'])
+            ->orderByDesc('created_at')
+            ->get();
+
+        $orphanInvIds    = $orphanInvCollection->pluck('id')->all();
+        $orphanDisputeMap = Dispute::whereIn('subject_id', $orphanInvIds ?: ['__none__'])
+            ->where('subject_type', 'bp_invoice')
+            ->whereNull('resolved_at')
+            ->pluck('id', 'subject_id');
+
+        $shapeInvoice = function (BpInvoice $inv) use ($bpInvDisputeMap, $orphanDisputeMap, $bpContracts) {
+            $status    = $inv->status instanceof InvoiceStatus ? $inv->status->value : (string) $inv->status;
+            $disputeId = $bpInvDisputeMap[$inv->id] ?? $orphanDisputeMap[$inv->id] ?? null;
+            return [
+                'id'               => $inv->id,
+                'contract_id'      => $inv->contract_id,
+                'invoice_number'   => $inv->invoice_number ?? substr($inv->id, 0, 10),
+                'bp_name'          => $inv->bp?->display_name ?? '—',
+                'bp_slug'          => $inv->bp?->slug,
+                'bp_connected'     => (bool) ($inv->bp?->stripe_connected ?? false),
+                'contract_title'   => $inv->contract?->title
+                                   ?? $bpContracts->firstWhere('id', $inv->contract_id)?->title
+                                   ?? $inv->notes ?? '—',
+                'total_cents'      => (int) $inv->total_cents,
+                'status'           => $status,
+                'issued_at'        => $inv->issued_at?->toDateString(),
+                'issued_month'     => $inv->issued_at?->format('F Y'),
+                'due_at'           => $inv->due_at?->format('M j, Y'),
+                'paid_at'          => $inv->paid_at?->toDateString(),
+                'notes_short'      => $inv->notes ? mb_strimwidth($inv->notes, 0, 60, '…') : null,
+                'payable'          => in_array($status, [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value], true),
+                'active_dispute_id'=> $disputeId,
+                'kind'             => 'bp_invoice',
+            ];
+        };
+
+        $bpInvoices = $contractInvoiceCollection->map($shapeInvoice)
+            ->concat($orphanInvCollection->map($shapeInvoice))
+            ->sortByDesc('issued_at')
+            ->values();
+
+        // ── 6. Merged invoices ledger (built after bpInvoices is ready) ─────────
         $allInvoices = collect()
             ->concat($csInvoices)
             ->concat($bpInvoices)
             ->concat($clientSessionsForLedger)
             ->values();
 
-        // ── 7. BP Contracts — same raw shape as SupportServices/JobPostingsController ──
-        $bpContracts = BpContract::with([
-                'bp:id,display_name,bp_type,avatar_initials,avatar_path,slug,stripe_connected,stripe_account_id',
-                'milestones',
-            ])
-            ->where('practitioner_id', $user->id)
-            ->whereIn('status', [
-                \App\Enums\ContractStatus::PendingSignature->value,
-                \App\Enums\ContractStatus::PendingFunding->value,
-                ContractStatus::Active->value,
-            ])
-            ->orderByDesc('started_at')
-            ->get();
-
-        // Load reviews for completed contracts (same as SupportServices)
-        $myReviews = \App\Models\BpContractReview::where('reviewer_id', $user->id)
-            ->whereIn('contract_id', $bpContracts->pluck('id'))
-            ->where('review_dismissed', false)
-            ->get(['contract_id', 'rating', 'review_text', 'is_public'])
-            ->keyBy('contract_id');
-
-        $activeBpContracts = $bpContracts->map(function ($c) use ($myReviews) {
+        // Attach milestones + reviews to contracts
+        $activeBpContracts = $bpContracts->map(function ($c) use ($milestonesByContract, $myReviews) {
             $review = $myReviews->get($c->id);
             $c->has_reviewed = !is_null($review);
             $c->my_review    = $review ? [
@@ -212,12 +275,9 @@ class FinancesController extends Controller
                 'review_text' => $review->review_text,
                 'is_public'   => $review->is_public,
             ] : null;
-            // Escrow summary fields (used by BpContractRow for the escrow line display)
-            $c->escrow_funded_cents   = (int) ($c->escrow_funded_cents ?? 0);
-            $c->escrow_released_cents = (int) ($c->escrow_released_cents ?? 0);
-            $c->escrow_refunded_cents = (int) ($c->escrow_refunded_cents ?? 0);
-            $c->escrow_held_cents     = max(0, $c->escrow_funded_cents - $c->escrow_released_cents - $c->escrow_refunded_cents);
-            $c->unfunded_cents        = max(0, (int) $c->total_value_cents - $c->escrow_funded_cents);
+            $c->setRelation('milestones', $milestonesByContract->get($c->id, collect()));
+            $c->escrow_held_cents = $c->escrowHeldCents();
+            $c->unfunded_cents    = max(0, (int) $c->total_value_cents - (int) ($c->escrow_funded_cents ?? 0));
             return $c;
         });
 
@@ -473,7 +533,7 @@ class FinancesController extends Controller
             'providerSessions'         => $providerSessions,       // sessions I run (I receive)
             'allInvoices'              => $allInvoices,
             'activeContracts'          => $activeBpContracts,
-            'invoicesByContract'       => $bpInvoices->filter(fn ($i) => isset($i['contract_id']))->groupBy('contract_id')->map(fn ($g) => $g->values()),
+            'invoicesByContract'       => $invoicesByContract,
             'escrowSummary'            => [
                 'total_held_cents'          => (int) $activeBpContracts->sum('escrow_held_cents'),
                 'total_unfunded_cents'       => (int) $activeBpContracts->sum('unfunded_cents'),

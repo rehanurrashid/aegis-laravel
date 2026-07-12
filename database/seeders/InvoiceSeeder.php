@@ -72,7 +72,7 @@ class InvoiceSeeder extends Seeder
                 'id'              => 'bpinv_jamal_sarah_overdue',
                 'bp_id'           => 'bp_jamal',
                 'practitioner_id' => 'p_sarah',
-                'contract_id'     => null,
+                'contract_id'     => 'contract_jamal_sarah_cred',
                 'invoice_number'  => 'JTORRES-2024-0003',
                 'status'          => 'overdue',
                 'subtotal_cents'  => 48000,
