@@ -162,3 +162,84 @@ async function refund() {
   })
 }
 </script>
+
+<style scoped>
+/* ── Modal wrapper ───────────────────────────────────────────────── */
+.ms-refund-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Summary card ────────────────────────────────────────────────── */
+.ms-refund-summary {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.ms-refund-summary-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.ms-refund-summary-row:last-child { border-bottom: none; }
+.ms-refund-summary-row-bold {
+  background: var(--surface-3);
+}
+.ms-refund-label {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-4);
+  flex-shrink: 0;
+}
+.ms-refund-value {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: right;
+  word-break: break-word;
+  min-width: 0;
+}
+.ms-refund-amount {
+  font-family: var(--font-sans);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--red);
+}
+
+/* ── Alert banners ───────────────────────────────────────────────── */
+.alert-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid transparent;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.alert-banner > :deep(svg) { flex-shrink: 0; margin-top: 1px; }
+
+.alert-banner-warning {
+  background: rgba(160,129,62,0.07);
+  border-left-color: var(--gold);
+  color: var(--gold-dark);
+}
+.alert-banner-blue {
+  background: var(--blue-light);
+  border-left-color: var(--blue);
+  color: var(--blue-dark);
+}
+
+/* ── Form ────────────────────────────────────────────────────────── */
+.req {
+  color: var(--red);
+  margin-left: 2px;
+}
+</style>
