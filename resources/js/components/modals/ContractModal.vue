@@ -332,10 +332,12 @@
       <button
         v-else-if="isActive && !isMilestoneDriven"
         class="btn btn-primary"
+        :class="{ 'btn-spin': busy }"
         :disabled="busy"
         @click="endAndRelease"
       >
-        <AegisIcon name="dollar" :size="13" />
+        <AegisIcon v-if="busy" name="refresh-cw" :size="13" class="spin" />
+        <AegisIcon v-else name="dollar" :size="13" />
         {{ busy ? 'Processing…' : 'End Contract & Release Payment' }}
       </button>
     </template>

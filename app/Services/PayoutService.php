@@ -8,6 +8,7 @@ use App\Enums\ActivitySeverity;
 use App\Enums\PractitionerPaymentKind;
 use App\Enums\PractitionerPaymentStatus;
 use App\Enums\ServiceSessionPaymentStatus;
+use App\Events\Business\ContractCompleted;
 use App\Events\Business\PayoutReleased;
 use App\Models\BpContract;
 use App\Models\BpMilestone;
@@ -550,6 +551,7 @@ class PayoutService
         $contract->update(['status' => 'completed', 'ended_at' => now(), 'completed_at' => now()]);
         $this->logPaymentActivity($provider, $bp, $payout, $contract->title, $contract->total_value_cents, $result);
         event(new PayoutReleased($payout->fresh()));
+        event(new ContractCompleted($contract->fresh()));
         return $payout;
     }
 
