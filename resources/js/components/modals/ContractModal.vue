@@ -1,6 +1,7 @@
 <!--
-  ContractModal.vue — Provider contract viewer with milestone CRUD + Stripe payment actions.
+  ContractModal.vue — Provider contract viewer with milestone CRUD + escrow funding + review.
   Supports payment_type: 'one_time' | 'milestone'
+  Wave 3: Added escrow progress bar, Fund buttons, Sign CTA, MilestoneReviewModal wiring.
   AEGIS_VUE_RULES.md governs every pattern.
 -->
 <template>
@@ -46,6 +47,70 @@
         </div>
       </div>
 
+      <!-- Signature status banner (pending_signature state) -->
+      <div v-if="statusVal === 'pending_signature'" class="contract-sig-banner">
+        <div class="contract-sig-banner-title">
+          <AegisIcon name="file-pen" :size="14" />
+          Awaiting signatures before work can begin
+        </div>
+        <div class="contract-sig-status-row">
+          <div class="contract-sig-item" :class="{ signed: contract.practitioner_signed_at }">
+            <AegisIcon :name="contract.practitioner_signed_at ? 'check-circle' : 'circle'" :size="13" />
+            You: {{ contract.practitioner_signed_at ? 'Signed' : 'Not signed' }}
+          </div>
+          <div class="contract-sig-item" :class="{ signed: contract.bp_signed_at }">
+            <AegisIcon :name="contract.bp_signed_at ? 'check-circle' : 'circle'" :size="13" />
+            {{ contract.bp?.display_name ?? 'BP' }}: {{ contract.bp_signed_at ? 'Signed' : 'Not signed' }}
+          </div>
+        </div>
+        <button
+          v-if="!contract.practitioner_signed_at"
+          class="btn btn-primary"
+          @click="openSignModal"
+        >
+          <AegisIcon name="file-pen" :size="13" />
+          Sign contract
+        </button>
+      </div>
+
+      <!-- Pending funding banner -->
+      <div v-if="statusVal === 'pending_funding'" class="contract-fund-banner">
+        <AegisIcon name="shield-check" :size="14" />
+        <div>
+          <div class="contract-fund-banner-title">Contract signed — ready to fund</div>
+          <div class="contract-fund-banner-desc">
+            Fund escrow to activate the contract and unlock milestones for the Business Partner.
+          </div>
+        </div>
+        <button class="btn btn-primary" @click="openFundContract">
+          <AegisIcon name="dollar" :size="13" />
+          Fund escrow
+        </button>
+      </div>
+
+      <!-- Escrow balance bar (active milestone contracts) -->
+      <div v-if="statusVal === 'active' && paymentType === 'milestone'" class="contract-escrow-bar-wrap">
+        <div class="contract-escrow-bar-header">
+          <div class="contract-escrow-bar-title">
+            <AegisIcon name="shield-check" :size="13" />
+            Escrow balance
+          </div>
+          <div class="contract-escrow-bar-stats">
+            <span class="escrow-stat-held">
+              {{ formatMoney(escrowHeld) }} held
+            </span>
+            <span>·</span>
+            <span class="escrow-stat-released">{{ formatMoney(escrowReleased) }} released</span>
+            <span>·</span>
+            <span>{{ formatMoney(escrowUnfunded) }} unfunded</span>
+          </div>
+        </div>
+        <div class="contract-escrow-progress">
+          <div class="contract-escrow-progress-released" :style="{ width: escrowPct(escrowReleased) }" />
+          <div class="contract-escrow-progress-held"     :style="{ width: escrowPct(escrowHeld) }" />
+        </div>
+      </div>
+
       <!-- Milestone section (shown for milestone-based OR when milestones exist) -->
       <div v-if="paymentType === 'milestone' || localMilestones.length" class="milestone-section">
         <div class="milestone-section-header">
@@ -56,7 +121,7 @@
           </span>
           <button
             v-if="isActive && !showAddMilestone"
-            class="btn btn-outline btn-sm"
+            class="btn btn-outline"
             @click="showAddMilestone = true"
           >
             <AegisIcon name="plus" :size="12" /> Add Milestone
@@ -86,8 +151,8 @@
             </div>
           </div>
           <div class="milestone-add-actions">
-            <button class="btn btn-outline btn-sm" @click="cancelAdd">Cancel</button>
-            <button class="btn btn-primary btn-sm" :disabled="addingMilestone" @click="submitAdd">
+            <button class="btn btn-outline" @click="cancelAdd">Cancel</button>
+            <button class="btn btn-primary" :disabled="addingMilestone" @click="submitAdd">
               {{ addingMilestone ? 'Adding…' : 'Add Milestone' }}
             </button>
           </div>
@@ -112,26 +177,61 @@
             </div>
             <div class="milestone-row-right">
               <AegisBadge :label="milestoneBadgeLabel(m.status)" :variant="milestoneBadgeVariant(m.status)" />
-              <!-- Approve (submitted only) -->
+              <!-- Fund (pending / pending_funding) — escrow charge -->
+              <button
+                v-if="['pending', 'pending_funding'].includes(milestoneStatusVal(m)) && isActive"
+                class="btn btn-primary"
+                :disabled="busyMilestone === m.id"
+                @click="openFundMilestone(m)"
+              >
+                <AegisIcon name="dollar" :size="12" />
+                Fund
+              </button>
+              <!-- Review (submitted) — approve / revise / reject -->
               <button
                 v-if="milestoneStatusVal(m) === 'submitted'"
-                class="btn btn-xs btn-success"
+                class="btn btn-primary"
                 :disabled="busyMilestone === m.id"
-                @click="doApproveMilestone(m)"
+                @click="openReviewMilestone(m)"
               >
-                Approve
+                <AegisIcon name="check" :size="12" />
+                Review
               </button>
-              <!-- Pay (approved only) -->
-              <button
-                v-if="milestoneStatusVal(m) === 'approved'"
-                class="btn btn-xs btn-primary"
-                :disabled="busyMilestone === m.id"
-                @click="doPayMilestone(m)"
+              <!-- Auto-release countdown chip -->
+              <span
+                v-if="milestoneStatusVal(m) === 'submitted' && m.auto_release_at"
+                class="milestone-auto-release-chip"
+                :data-tooltip="`Auto-releases if not reviewed by ${m.auto_release_at}`"
               >
-                <AegisIcon name="dollar" :size="11" />
-                {{ busyMilestone === m.id ? 'Processing…' : 'Pay' }}
-              </button>
-              <!-- Delete (pending only) -->
+                <AegisIcon name="hourglass" :size="11" />
+                {{ formatAutoRelease(m.auto_release_at) }}
+              </span>
+              <!-- Funded indicator -->
+              <span
+                v-if="milestoneStatusVal(m) === 'funded' || milestoneStatusVal(m) === 'in_progress'"
+                class="milestone-funded-chip"
+              >
+                <AegisIcon name="shield-check" :size="11" />
+                Funded
+              </span>
+              <!-- Released / paid -->
+              <span
+                v-if="['released', 'paid'].includes(milestoneStatusVal(m))"
+                class="milestone-paid-chip"
+              >
+                <AegisIcon name="check-circle" :size="11" />
+                Paid
+              </span>
+              <!-- Revision requested -->
+              <span
+                v-if="milestoneStatusVal(m) === 'revision_requested'"
+                class="milestone-revision-chip"
+                :data-tooltip="m.revision_notes"
+              >
+                <AegisIcon name="refresh-cw" :size="11" />
+                Revision {{ m.revision_count > 1 ? `#${m.revision_count}` : '' }}
+              </span>
+              <!-- Delete (unfunded pending only) -->
               <button
                 v-if="milestoneStatusVal(m) === 'pending' && isActive"
                 class="btn-icon btn-icon-danger"
@@ -203,13 +303,41 @@
       </button>
     </template>
   </AegisModal>
+
+  <!-- Wave 3 sub-modals (rendered outside AegisModal to avoid z-index stacking) -->
+  <SignContractModal
+    v-model="showSign"
+    :contract="contract"
+    portal="provider"
+  />
+  <FundContractModal
+    :contract="showFundContract ? contract : null"
+    :has-payment-method="hasPaymentMethod"
+    @update:model-value="showFundContract = false"
+  />
+  <FundMilestoneModal
+    :contract="showFundMilestone ? contract : null"
+    :milestone="activeMilestone"
+    :has-payment-method="hasPaymentMethod"
+    @update:model-value="showFundMilestone = false"
+  />
+  <MilestoneReviewModal
+    :contract="showReview ? contract : null"
+    :milestone="activeMilestone"
+    :submission="activeSubmission"
+    @update:model-value="showReview = false"
+  />
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { router, useForm } from '@inertiajs/vue3'
-import { useToast } from '@/composables/useToast'
+import { router, useForm, usePage } from '@inertiajs/vue3'
+import { useToast }   from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
+import FundContractModal    from '@/components/modals/FundContractModal.vue'
+import FundMilestoneModal   from '@/components/modals/FundMilestoneModal.vue'
+import SignContractModal    from '@/components/modals/SignContractModal.vue'
+import MilestoneReviewModal from '@/components/modals/MilestoneReviewModal.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -238,6 +366,8 @@ function close() { emit('update:modelValue', false) }
 // Helpers
 const val = (v) => (v && typeof v === 'object' && 'value' in v) ? v.value : (v ?? '')
 
+const page = usePage()
+
 const statusVal   = computed(() => val(props.contract?.status))
 const paymentType = computed(() => val(props.contract?.payment_type) || 'one_time')
 // If milestones exist, always treat as milestone-driven regardless of payment_type
@@ -246,19 +376,69 @@ const isActive    = computed(() => statusVal.value === 'active')
 const isCompleted = computed(() => ['completed', 'closed'].includes(statusVal.value))
 
 const statusLabel = computed(() => ({
-  active: 'Active', completed: 'Completed', cancelled: 'Cancelled', draft: 'Draft', closed: 'Closed'
+  active: 'Active', pending_signature: 'Awaiting Signature', pending_funding: 'Awaiting Funding',
+  completed: 'Completed', cancelled: 'Cancelled', draft: 'Draft', closed: 'Closed', disputed: 'Disputed',
 }[statusVal.value] ?? statusVal.value ?? '—'))
 
 const statusVariant = computed(() => ({
-  active: 'green', completed: 'grey', cancelled: 'red', draft: 'grey', closed: 'grey'
+  active: 'green', pending_signature: 'gold', pending_funding: 'blue',
+  completed: 'grey', cancelled: 'red', draft: 'grey', closed: 'grey', disputed: 'red',
 }[statusVal.value] ?? 'grey'))
+
+// ── Escrow computed ───────────────────────────────────────────────────────────
+const escrowFunded   = computed(() => props.contract?.escrow_funded_cents ?? 0)
+const escrowReleased = computed(() => props.contract?.escrow_released_cents ?? 0)
+const escrowRefunded = computed(() => props.contract?.escrow_refunded_cents ?? 0)
+const escrowHeld     = computed(() => Math.max(0, escrowFunded.value - escrowReleased.value - escrowRefunded.value))
+const escrowUnfunded = computed(() => Math.max(0, (props.contract?.total_value_cents ?? 0) - escrowFunded.value))
+const hasPaymentMethod = computed(() => !!(page.props.auth?.user?.stripe_payment_method_id))
+
+function escrowPct(cents) {
+  const total = props.contract?.total_value_cents ?? 0
+  if (!total) return '0%'
+  return Math.min(100, Math.round((cents / total) * 100)) + '%'
+}
+
+function formatAutoRelease(iso) {
+  const diff  = new Date(iso) - Date.now()
+  if (diff <= 0) return 'soon'
+  const days  = Math.floor(diff / 86400000)
+  const hours = Math.floor((diff % 86400000) / 3600000)
+  return days > 0 ? `in ${days}d ${hours}h` : `in ${hours}h`
+}
+
+// ── Wave 3 modal state ────────────────────────────────────────────────────────
+const showFundContract  = ref(false)
+const showFundMilestone = ref(false)
+const showSign          = ref(false)
+const showReview        = ref(false)
+const activeMilestone   = ref(null)   // for fund + review
+const activeSubmission  = ref(null)   // for review
+
+function openFundContract() { showFundContract.value = true }
+function openFundMilestone(m) { activeMilestone.value = m; showFundMilestone.value = true }
+function openSignModal()    { showSign.value = true }
+function openReviewMilestone(m) {
+  activeMilestone.value = m
+  // submission is passed in via prop (milestones include latest submission)
+  activeSubmission.value = m.latest_submission ?? null
+  showReview.value = true
+}
 
 function milestoneStatusVal(m) { return val(m.status) }
 function milestoneBadgeLabel(s) {
-  return { pending: 'Pending', submitted: 'Submitted', approved: 'Approved', rejected: 'Rejected', paid: 'Paid' }[val(s)] ?? val(s)
+  return {
+    pending: 'Pending', pending_funding: 'Awaiting Funding', funded: 'Funded',
+    in_progress: 'In Progress', submitted: 'Under Review', revision_requested: 'Revision',
+    approved: 'Approved', released: 'Paid', paid: 'Paid', disputed: 'Disputed', refunded: 'Refunded',
+  }[val(s)] ?? val(s)
 }
 function milestoneBadgeVariant(s) {
-  return { pending: 'grey', submitted: 'gold', approved: 'blue', rejected: 'red', paid: 'green' }[val(s)] ?? 'grey'
+  return {
+    pending: 'neutral', pending_funding: 'neutral', funded: 'blue', in_progress: 'blue',
+    submitted: 'gold', revision_requested: 'gold', approved: 'green',
+    released: 'green', paid: 'green', disputed: 'red', refunded: 'neutral',
+  }[val(s)] ?? 'neutral'
 }
 
 const milestoneTotalCents = computed(() =>
@@ -266,7 +446,7 @@ const milestoneTotalCents = computed(() =>
 )
 const allMilestonesPaid = computed(() =>
   localMilestones.value.length > 0 &&
-  localMilestones.value.every(m => val(m.status) === 'paid')
+  localMilestones.value.every(m => ['paid', 'released'].includes(val(m.status)))
 )
 
 function formatMoney(cents) {

@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
+use App\Services\EscrowService;
+use App\Enums\ContractStatus;
+use App\Enums\MilestoneStatus;
+use App\Models\BpMilestoneSubmission;
 use App\Http\Requests\Business\CreateJobRequest;
 use App\Http\Requests\Business\JobStatusRequest;
 use App\Http\Requests\Business\ProposalNoteRequest;
@@ -67,9 +71,33 @@ class JobPostingsController extends Controller
 
         $contracts = BpContract::with('bp:id,display_name,bp_type,avatar_initials,avatar_path,slug')
             ->where('practitioner_id', $user->id)
-            ->whereIn('status', ['active', 'completed'])
-            ->orderByDesc('started_at')
-            ->get();
+            ->whereIn('status', ['pending_signature', 'pending_funding', 'active', 'completed'])
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function (\App\Models\BpContract $c) {
+                $statusVal = $c->status instanceof \BackedEnum ? $c->status->value : (string) $c->status;
+                return array_merge($c->toArray(), [
+                    'status'                 => $statusVal,
+                    'total_value_cents'      => (int) $c->total_value_cents,
+                    'escrow_funded_cents'    => (int) ($c->escrow_funded_cents ?? 0),
+                    'escrow_released_cents'  => (int) ($c->escrow_released_cents ?? 0),
+                    'escrow_refunded_cents'  => (int) ($c->escrow_refunded_cents ?? 0),
+                    'payment_type'           => $c->payment_type ?? 'one_time',
+                    'funding_mode'           => $c->funding_mode ?? 'per_milestone',
+                    'provider_has_signed'    => (bool) $c->practitioner_signed_at,
+                    'bp_has_signed'          => (bool) $c->bp_signed_at,
+                    'fully_executed'         => (bool) $c->fully_executed_at,
+                    'terms'                  => $c->terms,
+                    'bp'                     => $c->bp ? [
+                        'id'              => $c->bp->id,
+                        'display_name'    => $c->bp->display_name,
+                        'bp_type'         => $c->bp->bp_type instanceof \BackedEnum ? $c->bp->bp_type->value : (string) ($c->bp->bp_type ?? ''),
+                        'avatar_initials' => $c->bp->avatar_initials,
+                        'avatar_path'     => $c->bp->avatar_path,
+                        'slug'            => $c->bp->slug,
+                    ] : null,
+                ]);
+            });
 
         $totalSpent = BpContract::where('practitioner_id', $user->id)->sum('total_value_cents');
 
@@ -119,9 +147,41 @@ class JobPostingsController extends Controller
             'proposalsByJob'   => $proposalsByJob,
             'activeContracts'  => $contracts,
             'engagementRequests' => $engagementRequests,
-            'milestonesByContract' => BpMilestone::whereIn('contract_id', $contracts->pluck('id'))
+            'milestonesByContract' => \App\Models\BpMilestone::with(['submissions' => fn ($q) => $q->latest()->limit(1)])
+                ->whereIn('contract_id', collect($contracts)->pluck('id'))
                 ->orderBy('sort_order')
                 ->get()
+                ->map(function (\App\Models\BpMilestone $m) {
+                    $statusVal = $m->status instanceof \BackedEnum ? $m->status->value : (string) $m->status;
+                    $sub = $m->submissions->first();
+                    return [
+                        'id'               => $m->id,
+                        'contract_id'      => $m->contract_id,
+                        'title'            => $m->title,
+                        'description'      => $m->description,
+                        'amount_cents'     => (int) $m->amount_cents,
+                        'status'           => $statusVal,
+                        'sort_order'       => (int) $m->sort_order,
+                        'due_at'           => $m->due_at?->toDateString(),
+                        'submitted_at'     => $m->submitted_at?->toDateString(),
+                        'approved_at'      => $m->approved_at?->toDateString(),
+                        'paid_at'          => $m->paid_at?->toDateString(),
+                        'funded_cents'     => (int) ($m->funded_cents ?? 0),
+                        'released_cents'   => (int) ($m->released_cents ?? 0),
+                        'refunded_cents'   => (int) ($m->refunded_cents ?? 0),
+                        'auto_release_at'  => $m->auto_release_at?->toISOString(),
+                        'revision_count'   => (int) ($m->revision_count ?? 0),
+                        'revision_notes'   => $m->revision_notes,
+                        'rejection_reason' => $m->rejection_reason,
+                        'latest_submission'=> $sub ? [
+                            'id'               => $sub->id,
+                            'submission_notes' => $sub->submission_notes,
+                            'hours_logged'     => $sub->hours_logged,
+                            'submitted_by'     => $sub->submitted_by,
+                            'created_at'       => $sub->created_at?->toDateString(),
+                        ] : null,
+                    ];
+                })
                 ->groupBy('contract_id')
                 ->map(fn ($group) => $group->values()),
             'bpStats'          => $bpStats,
@@ -134,7 +194,7 @@ class JobPostingsController extends Controller
                 'total_jobs'        => $jobs->count(),
                 'total_proposals'   => $proposalsByJob->flatten()->count(),
                 'pending_proposals' => $proposalsByJob->flatten()->where('status', 'pending')->count(),
-                'hired'             => $contracts->where('status', 'active')->count(),
+                'hired'             => $contracts->whereIn('status', ['pending_signature', 'pending_funding', 'active'])->count(),
                 'total_spent_cents' => (int) $totalSpent,
                 'engagement_requests' => count($engagementRequests),
             ],
@@ -314,8 +374,12 @@ class JobPostingsController extends Controller
     {
         $this->authorize('cancel', $contract);
         abort_if($milestone->contract_id !== $contract->id, 404);
-        $this->contracts->approveMilestone($milestone, $request->user());
-        return back()->with('success', 'Milestone approved. You can now release payment.');
+        try {
+            $this->contracts->approveMilestone($milestone, $request->user());
+            return back()->with('success', 'Milestone approved and payment released to Business Partner.');
+        } catch (\Throwable $e) {
+            return back()->withErrors(['milestone' => $e->getMessage()]);
+        }
     }
 
     public function payMilestone(Request $request, BpContract $contract, BpMilestone $milestone): RedirectResponse
@@ -330,6 +394,102 @@ class JobPostingsController extends Controller
             return back()->withErrors(['milestone' => $e->getMessage()]);
         }
     }
+    /**
+     * Wave 3: Fund full contract into Aegis escrow (full_upfront mode).
+     */
+    public function fundContract(Request $request, BpContract $contract): RedirectResponse
+    {
+        $this->authorize('cancel', $contract);
+        try {
+            $this->escrow->fundContract($contract, $request->user());
+            return back()->with('success', 'Contract funded. All milestones are now active.');
+        } catch (\Throwable $e) {
+            return back()->withErrors(['contract' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Wave 3: Fund a single milestone into Aegis escrow (per_milestone mode).
+     */
+    public function fundMilestone(Request $request, BpContract $contract, BpMilestone $milestone): RedirectResponse
+    {
+        $this->authorize('cancel', $contract);
+        abort_if($milestone->contract_id !== $contract->id, 404);
+        try {
+            $this->escrow->fundMilestone($milestone, $request->user());
+            return back()->with('success', 'Milestone funded. Business Partner can now begin work.');
+        } catch (\Throwable $e) {
+            return back()->withErrors(['milestone' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Wave 3: Provider reviews a submitted milestone.
+     * Actions: approved | revision_requested | rejected
+     */
+    public function reviewMilestone(Request $request, BpContract $contract, BpMilestone $milestone): RedirectResponse
+    {
+        $this->authorize('cancel', $contract);
+        abort_if($milestone->contract_id !== $contract->id, 404);
+
+        $data = $request->validate([
+            'action' => ['required', 'in:approved,revision_requested,rejected'],
+            'notes'  => ['nullable', 'string', 'max:1000',
+                         'required_if:action,revision_requested'],
+        ]);
+
+        try {
+            match ($data['action']) {
+                'approved' => $this->contracts->approveMilestone($milestone, $request->user()),
+                'revision_requested' => $this->contracts->requestRevision(
+                    $milestone, $request->user(), $data['notes'] ?? ''
+                ),
+                'rejected' => $this->openMilestoneDispute($contract, $milestone, $request->user(), $data['notes']),
+            };
+
+            $msgs = [
+                'approved'           => 'Milestone approved and payment released.',
+                'revision_requested' => 'Revision requested. Business Partner has been notified.',
+                'rejected'           => 'Dispute opened. Aegis will mediate the escrow.',
+            ];
+            return back()->with('success', $msgs[$data['action']]);
+        } catch (\Throwable $e) {
+            return back()->withErrors(['milestone' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Wave 3: Provider signs the contract (dual-signature).
+     */
+    public function signContract(Request $request, BpContract $contract): RedirectResponse
+    {
+        abort_unless(
+            $contract->practitioner_id === $request->user()->id,
+            403, 'Not authorised to sign this contract.'
+        );
+        $data = $request->validate(['name' => 'required|string|max:120']);
+        try {
+            $this->contracts->sign($contract, $request->user(), $data);
+            return back()->with('success', 'Contract signed.');
+        } catch (\Throwable $e) {
+            return back()->withErrors(['contract' => $e->getMessage()]);
+        }
+    }
+
+    private function openMilestoneDispute(BpContract $contract, BpMilestone $milestone, \App\Models\User $provider, ?string $reason): void
+    {
+        // Delegate to DisputeService — Wave 5 wires full dispute flow.
+        // For now, flag milestone as disputed to freeze escrow.
+        $statusVal = $milestone->status instanceof \BackedEnum ? $milestone->status->value : (string) $milestone->status;
+        if ($statusVal === MilestoneStatus::Submitted->value) {
+            $milestone->update([
+                'status'           => MilestoneStatus::Disputed->value,
+                'rejection_reason' => $reason,
+                'auto_release_at'  => null,
+            ]);
+        }
+    }
+
     /**
      * Gap 5: Provider pays a BP-issued invoice directly.
      * Uses chargeProviderToBp() (destination charge) then calls InvoiceService::recordPayment().

@@ -269,7 +269,7 @@
               </div>
             </div>
             <div class="jp-card-footer">
-              <span class="badge badge-green"><AegisIcon name="check" :size="10" /> Active Contract</span>
+              <AegisBadge :label="contractStatusLabel(c)" :variant="contractStatusVariant(c)" />
               <div class="jp-card-actions" @click.stop>
                 <button class="btn-icon" data-tooltip="Message" :disabled="msgLoading === c.bp?.id" @click="openConversation(c.bp?.id)"><AegisIcon name="message-square" :size="14" /></button>
                 <button class="btn-icon" data-tooltip="View contract" @click="openContract(c)"><AegisIcon name="file-text" :size="14" /></button>
@@ -491,8 +491,8 @@ const postingFilter = ref('all')
 const applicationsJobFilter = ref('')
 const pipelineJobFilter = ref('')
 
-const activeHiredContracts = computed(() => props.activeContracts.filter(c => val(c.status) === 'active'))
-const closedHiredContracts = computed(() => props.activeContracts.filter(c => val(c.status) !== 'active'))
+const activeHiredContracts = computed(() => props.activeContracts.filter(c => ['active', 'pending_signature', 'pending_funding'].includes(val(c.status))))
+const closedHiredContracts = computed(() => props.activeContracts.filter(c => !['active', 'pending_signature', 'pending_funding'].includes(val(c.status))))
 
 const showPostJob = ref(false)
 const showTemplates = ref(false)
@@ -761,8 +761,28 @@ function openHire(proposal) {
   showHire.value = true
 }
 
-function openContract(contract) {
-  activeContract.value = contract
+function contractStatusLabel(c) {
+  return {
+    active:            'Active',
+    pending_signature: 'Awaiting Signature',
+    pending_funding:   'Awaiting Funding',
+    completed:         'Completed',
+    cancelled:         'Cancelled',
+  }[val(c.status)] ?? val(c.status)
+}
+
+function contractStatusVariant(c) {
+  return {
+    active:            'green',
+    pending_signature: 'gold',
+    pending_funding:   'blue',
+    completed:         'neutral',
+    cancelled:         'red',
+  }[val(c.status)] ?? 'neutral'
+}
+
+function openContract(c) {
+  activeContract.value = c
   showContract.value = true
 }
 
