@@ -362,6 +362,7 @@
       <BpFinanceTable
         :invoices="bpInvoices"
         :contracts="activeContracts"
+        :invoices-by-contract="invoicesByContract"
         :escrow-summary="escrowSummary"
         :has-payment-method="has_valid_default_pm"
       />
@@ -986,6 +987,7 @@ const props = defineProps({
   activeSessionsAsProvider:{ type: Number,  default: 0 },
   allInvoices:             { type: Array,   default: () => [] },
   activeContracts:         { type: Array,   default: () => [] },
+  invoicesByContract:      { type: Object,  default: () => ({}) },
   escrowSummary:           { type: Object,  default: () => ({ total_held_cents: 0, total_unfunded_cents: 0, funded_count: 0, contracts_needing_funding: 0 }) },
   csStewards:              { type: Array,   default: () => [] },
   upcomingPayments:        { type: Array,   default: () => [] },

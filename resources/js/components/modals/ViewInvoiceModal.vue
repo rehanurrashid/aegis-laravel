@@ -172,14 +172,27 @@ const lineDescription = computed(() => {
 
 const statusLabel = computed(() => {
   const s = props.invoice?.status || 'sent'
+  // BP invoices use 'sent' to mean awaiting provider approval
+  if (kind.value === 'bp_invoice') {
+    return ({
+      sent:     'Awaiting Approval',
+      overdue:  'Overdue',
+      disputed: 'Disputed',
+      paid:     'Paid',
+      void:     'Void',
+      draft:    'Draft',
+    })[s] ?? s.charAt(0).toUpperCase() + s.slice(1)
+  }
   return s.charAt(0).toUpperCase() + s.slice(1)
 })
 
-const statusVariant = computed(() => ({
-  paid: 'green', sent: 'blue', overdue: 'red', draft: 'neutral',
-  void: 'neutral', disputed: 'gold', pending: 'gold', scheduled: 'blue',
-  completed: 'green', cancelled: 'neutral',
-})[props.invoice?.status] || 'neutral')
+const statusVariant = computed(() => {
+  const s = props.invoice?.status
+  if (kind.value === 'bp_invoice') {
+    return ({ sent: 'gold', overdue: 'red', disputed: 'red', paid: 'green', void: 'neutral', draft: 'neutral' })[s] || 'neutral'
+  }
+  return ({ paid: 'green', sent: 'blue', overdue: 'red', draft: 'neutral', void: 'neutral', disputed: 'gold', pending: 'gold', scheduled: 'blue', completed: 'green', cancelled: 'neutral' })[s] || 'neutral'
+})
 
 function formatCents(c) {
   return '$' + (Number(c || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })

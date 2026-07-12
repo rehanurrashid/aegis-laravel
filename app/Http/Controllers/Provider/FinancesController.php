@@ -111,6 +111,7 @@ class FinancesController extends Controller
             $status = $inv->status instanceof InvoiceStatus ? $inv->status->value : (string) $inv->status;
             return [
                 'id'               => $inv->id,
+                'contract_id'      => $inv->contract_id,
                 'invoice_number'   => $inv->invoice_number ?? substr($inv->id, 0, 10),
                 'bp_name'          => $inv->bp?->display_name ?? '—',
                 'bp_slug'          => $inv->bp?->slug,
@@ -502,6 +503,7 @@ class FinancesController extends Controller
             'providerSessions'         => $providerSessions,       // sessions I run (I receive)
             'allInvoices'              => $allInvoices,
             'activeContracts'          => $activeBpContracts,
+            'invoicesByContract'       => $bpInvoices->filter(fn ($i) => isset($i['contract_id']))->groupBy('contract_id')->map(fn ($g) => $g->values()),
             'escrowSummary'            => [
                 'total_held_cents'     => $activeBpContracts->sum('escrow_held_cents'),
                 'total_unfunded_cents' => $activeBpContracts->sum('unfunded_cents'),

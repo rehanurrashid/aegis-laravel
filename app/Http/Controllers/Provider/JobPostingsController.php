@@ -148,6 +148,29 @@ class JobPostingsController extends Controller
                 ->get()
                 ->groupBy('contract_id')
                 ->map(fn ($group) => $group->values()),
+            'invoicesByContract' => BpInvoice::whereIn('contract_id', $contracts->pluck('id'))
+                ->orderByDesc('issued_at')
+                ->get()
+                ->map(fn (BpInvoice $inv) => [
+                    'id'             => $inv->id,
+                    'contract_id'    => $inv->contract_id,
+                    'invoice_number' => $inv->invoice_number ?? substr($inv->id, 0, 10),
+                    'total_cents'    => (int) $inv->total_cents,
+                    'status'         => $inv->status instanceof \App\Enums\InvoiceStatus ? $inv->status->value : (string) $inv->status,
+                    'issued_at'      => $inv->issued_at?->toDateString(),
+                    'issued_month'   => $inv->issued_at?->format('F Y'),
+                    'due_at'         => $inv->due_at?->format('M j, Y'),
+                    'paid_at'        => $inv->paid_at?->toDateString(),
+                    'notes_short'    => $inv->notes ? mb_strimwidth($inv->notes, 0, 60, '…') : null,
+                    'payable'        => in_array(
+                        $inv->status instanceof \App\Enums\InvoiceStatus ? $inv->status->value : (string) $inv->status,
+                        [\App\Enums\InvoiceStatus::Sent->value, \App\Enums\InvoiceStatus::Overdue->value],
+                        true
+                    ),
+                    'kind'           => 'bp_invoice',
+                ])
+                ->groupBy('contract_id')
+                ->map(fn ($group) => $group->values()),
             'bpStats'          => $bpStats,
             'stats' => [
                 'open'              => $jobs->where('status', 'open')->count(),

@@ -273,6 +273,7 @@
       v-model="modals.viewContract"
       :contract="activeContract"
       :milestones="activeContract?.milestones ?? []"
+      :invoices="activeContract ? (props.invoicesByContract?.[activeContract.id] ?? []) : []"
     />
 
     <!-- ── Reject Invoice ── -->
@@ -354,10 +355,11 @@ import ViewInvoiceModal          from '@/components/modals/ViewInvoiceModal.vue'
 import ContractModal             from '@/components/modals/ContractModal.vue'
 
 const props = defineProps({
-  invoices:           { type: Array,   default: () => [] },
-  contracts:          { type: Array,   default: () => [] },
-  escrowSummary:      { type: Object,  default: () => ({ total_held_cents: 0, total_unfunded_cents: 0, funded_count: 0, contracts_needing_funding: 0 }) },
-  hasPaymentMethod:   { type: Boolean, default: false },
+  invoices:             { type: Array,   default: () => [] },
+  contracts:            { type: Array,   default: () => [] },
+  invoicesByContract:   { type: Object,  default: () => ({}) },
+  escrowSummary:        { type: Object,  default: () => ({ total_held_cents: 0, total_unfunded_cents: 0, funded_count: 0, contracts_needing_funding: 0 }) },
+  hasPaymentMethod:     { type: Boolean, default: false },
   has_valid_default_pm: { type: Boolean, default: false },
 })
 
@@ -544,7 +546,26 @@ function doRejectInvoice() {
 
 // ── Contract actions ──────────────────────────────────────────────────────────
 function openContract(con) {
-  activeContract.value = con
+  // ContractModal (source of truth: SupportServices) expects the raw Eloquent model shape.
+  // Finances DTO uses different field names — adapt here so the same modal works on both pages.
+  activeContract.value = {
+    ...con,
+    // ContractModal reads contract.bp?.display_name
+    bp: { display_name: con.bp_name, slug: con.bp_slug },
+    // ContractModal reads contract.total_value_cents
+    total_value_cents: con.total_cents,
+    // ContractModal reads contract.started_at (raw date) — extract from term string
+    started_at: con.term ? null : null, // term is display only; ContractModal shows '—' gracefully
+    // ContractModal reads contract.practitioner_signed_at (date or null)
+    practitioner_signed_at: con.provider_has_signed ? true : null,
+    // ContractModal reads contract.bp_signed_at (date or null)
+    bp_signed_at: con.bp_has_signed ? true : null,
+    // ContractModal reads contract.payment_type
+    payment_type: con.billing_type,
+    // ContractModal reads contract.status as string
+    status: con.status,
+    // Already correct: id, title, milestones
+  }
   modals.value.viewContract = true
 }
 

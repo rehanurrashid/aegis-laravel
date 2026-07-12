@@ -288,12 +288,48 @@
         </div>
       </div>
 
-      <!-- Invoice reference note -->
-      <div class="contract-invoice-note">
-        <AegisIcon name="file-text" :size="13" />
-        <span>Invoices and payment records for this contract are available in
-          <a :href="route('provider.finances.index')" class="link-gold">Finances</a>.
-        </span>
+      <!-- ── Invoice section ── -->
+      <div class="invoice-section">
+        <div class="invoice-section-header">
+          <span class="invoice-section-title">
+            <AegisIcon name="file-text" :size="14" />
+            Invoices
+            <span v-if="invoices.length" class="badge-pill">{{ invoices.length }}</span>
+          </span>
+          <span v-if="pendingInvoiceCount > 0" class="invoice-pending-badge">
+            {{ pendingInvoiceCount }} awaiting approval
+          </span>
+        </div>
+
+        <AegisEmptyState
+          v-if="!invoices.length"
+          icon="file-text"
+          title="No invoices yet"
+          description="Invoices from this Business Partner will appear here once submitted."
+        />
+
+        <div v-else class="invoice-list">
+          <div
+            v-for="inv in invoices"
+            :key="inv.id"
+            class="invoice-row"
+            @click="openInvoice(inv)"
+          >
+            <div class="invoice-row-left">
+              <div class="invoice-row-number">#{{ inv.invoice_number }}</div>
+              <div class="invoice-row-meta">
+                {{ formatMoney(inv.total_cents) }}
+                <template v-if="inv.issued_month"> · {{ inv.issued_month }}</template>
+                <template v-if="inv.due_at && inv.status !== 'paid'"> · Due {{ inv.due_at }}</template>
+                <template v-if="inv.paid_at && inv.status === 'paid'"> · Paid {{ inv.paid_at }}</template>
+              </div>
+            </div>
+            <div class="invoice-row-right">
+              <AegisBadge :label="invoiceStatusLabel(inv.status)" :variant="invoiceStatusVariant(inv.status)" />
+              <AegisIcon name="chevron-right" :size="13" class="invoice-row-chevron" />
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Completed section with review state -->
@@ -408,6 +444,13 @@
     :milestone="activeMilestone"
     @update:model-value="showRefund = false"
   />
+  <!-- Centralized invoice modal — same component used on Finances.vue -->
+  <ViewInvoiceModal
+    v-model="showInvoice"
+    :invoice="activeInvoice"
+    :can-approve="activeInvoice?.payable && !activeInvoice?.active_dispute_id"
+    @approve="doApproveInvoice"
+  />
 </template>
 
 <script setup>
@@ -420,11 +463,13 @@ import FundMilestoneModal   from '@/components/modals/FundMilestoneModal.vue'
 import SignContractModal    from '@/components/modals/SignContractModal.vue'
 import MilestoneReviewModal  from '@/components/modals/MilestoneReviewModal.vue'
 import MilestoneRefundModal   from '@/components/modals/MilestoneRefundModal.vue'
+import ViewInvoiceModal      from '@/components/modals/ViewInvoiceModal.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   contract:   { type: Object, default: null },
   milestones: { type: Array,  default: () => [] },
+  invoices:   { type: Array,  default: () => [] },
 })
 const emit = defineEmits(['update:modelValue', 'leave-review'])
 
@@ -506,6 +551,32 @@ function openRefundMilestone(m) {
   showRefund.value = true
 }
 
+// ── Invoice modal state ───────────────────────────────────────────────────────
+const showInvoice   = ref(false)
+const activeInvoice = ref(null)
+
+function openInvoice(inv) {
+  activeInvoice.value = inv
+  showInvoice.value = true
+}
+
+function doApproveInvoice(inv) {
+  const target = inv ?? activeInvoice.value
+  if (!target) return
+  router.post(
+    route('provider.jobs.bp-invoice.pay', { invoice: target.id }),
+    {},
+    {
+      preserveScroll: true,
+      onSuccess: () => {
+        showInvoice.value = false
+        toast.success('Payment sent — routed directly via Stripe Connect.')
+      },
+      onError: () => toast.error('Payment failed. Check your payment method in Settings → Billing.'),
+    }
+  )
+}
+
 function openReviewMilestone(m) {
   activeMilestone.value = m
   // submission is passed in via prop (milestones include latest submission)
@@ -535,6 +606,10 @@ const milestoneTotalCents = computed(() =>
 const allMilestonesPaid = computed(() =>
   localMilestones.value.length > 0 &&
   localMilestones.value.every(m => ['paid', 'released'].includes(val(m.status)))
+)
+
+const pendingInvoiceCount = computed(() =>
+  props.invoices.filter(i => ['sent', 'overdue'].includes(i.status)).length
 )
 
 function formatMoney(cents) {
@@ -684,6 +759,14 @@ function endAndRelease() {
 
 // PDF download is now handled server-side at /provider/support-services/contracts/{id}/pdf
 
+// ── Invoice helpers ───────────────────────────────────────────────────────────
+function invoiceStatusLabel(s) {
+  return ({ sent: 'Awaiting Approval', overdue: 'Overdue', disputed: 'Disputed', paid: 'Paid', void: 'Void', draft: 'Draft' })[s] ?? s
+}
+function invoiceStatusVariant(s) {
+  return ({ sent: 'gold', overdue: 'red', disputed: 'red', paid: 'green', void: 'neutral', draft: 'neutral' })[s] ?? 'neutral'
+}
+
 </script>
 
 <style scoped>
@@ -824,6 +907,33 @@ function endAndRelease() {
 .contract-invoice-note { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-3); background: var(--badge-bg-gold); border-radius: var(--radius-sm); padding: 10px 14px; border-left: 3px solid var(--gold); margin-top: 16px; }
 .link-gold { color: var(--gold-dark); font-weight: 600; text-decoration: none; }
 .link-gold:hover { text-decoration: underline; }
+
+/* ── Invoice section ─────────────────────────────────────────────── */
+.invoice-section { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 4px; margin-bottom: 4px; }
+.invoice-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.invoice-section-title { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; }
+.invoice-pending-badge {
+  display: inline-flex; align-items: center;
+  font-size: 10px; font-weight: 700;
+  color: var(--gold-dark); background: rgba(160,129,62,0.10);
+  border: 1px solid var(--gold); border-radius: var(--radius-full);
+  padding: 2px 8px;
+}
+.invoice-list { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.invoice-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; background: var(--surface);
+  border-bottom: 1px solid var(--border); cursor: pointer;
+  transition: background var(--transition);
+  gap: 12px;
+}
+.invoice-row:last-child { border-bottom: none; }
+.invoice-row:hover { background: var(--surface-2); }
+.invoice-row-left { flex: 1; min-width: 0; }
+.invoice-row-number { font-size: 13px; font-weight: 600; color: var(--text); }
+.invoice-row-meta { font-size: 11px; color: var(--text-4); margin-top: 2px; }
+.invoice-row-right { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.invoice-row-chevron { color: var(--text-4); }
 
 /* ── Completed section ───────────────────────────────────────────── */
 .contract-completed-section {

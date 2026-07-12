@@ -444,6 +444,7 @@
       v-model="showContract"
       :contract="activeContract"
       :milestones="activeContract ? (milestonesByContract?.[activeContract.id] ?? []) : []"
+      :invoices="activeContract ? (invoicesByContract?.[activeContract.id] ?? []) : []"
       @leave-review="(c) => openReviewForContract(c)"
     />
     <EngagementRequestModal v-model="showRequestDetail" :request="activeEngagementRequest" />
@@ -486,6 +487,7 @@ const props = defineProps({
   activeContracts:       { type: Array,  default: () => [] },
   engagementRequests:    { type: Array,  default: () => [] },
   milestonesByContract:  { type: Object, default: () => ({}) },
+  invoicesByContract:    { type: Object, default: () => ({}) },
   bpStats:         { type: Object, default: () => ({}) },
   stats: {
     type: Object,
