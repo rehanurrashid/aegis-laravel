@@ -421,8 +421,7 @@
           <thead>
             <tr>
               <th class="sic-th">Requester</th>
-              <th class="sic-th">Service</th>
-              <th class="sic-th">Date Requested</th>
+              <th class="sic-th">Status</th>
               <th class="sic-th"></th>
             </tr>
           </thead>
@@ -431,9 +430,9 @@
               v-for="r in newRequests"
               :key="r.id"
               class="req-row"
-              @click="setActiveRequest(r)"
+              @click="setActiveRequest(r); modals.requestDetail = true"
             >
-              <!-- Requester -->
+              <!-- Col 1: Requester + service + date -->
               <td class="sic-td req-td--requester">
                 <div class="sic-party">
                   <div class="sic-avatar">
@@ -447,44 +446,28 @@
                       @click.stop
                     >{{ r.requester_name }}</a>
                     <span v-else class="sic-party-name">{{ r.requester_name }}</span>
-                    <span class="sic-date-sub">{{ r.requester_detail }}</span>
+                    <span class="sic-service-name">{{ r.service_title }}</span>
+                    <span class="sic-date-sub">{{ r.requested_date_label }} · {{ r.time_label }}</span>
                   </div>
                 </div>
               </td>
-              <!-- Service -->
-              <td class="sic-td req-td--service">
-                <div class="orq-service-title">{{ r.service_title }}</div>
-                <div class="sic-date-sub">{{ r.request_type }}</div>
-              </td>
-              <!-- Date -->
-              <td class="sic-td req-td--date">
-                <div style="font-size:13px;font-weight:600;color:var(--text)">{{ r.requested_date_label }}</div>
-                <div class="sic-date-sub">{{ r.time_label }}</div>
-              </td>
-              <!-- Actions -->
-              <td class="sic-td req-td--actions" @click.stop>
-                <div class="req-row-actions">
-                  <button
-                    class="btn-icon"
-                    :data-tooltip="`Message ${r.requester_name}`"
-                    :disabled="msgLoading === r.requester_id"
-                    @click="openConversation(r.requester_id)"
-                  ><AegisIcon name="message" :size="14" /></button>
-                  <button
-                    class="btn-icon"
-                    data-tooltip="Counter Propose"
-                    @click="setActiveRequest(r); modals.counter = true"
-                  ><AegisIcon name="refresh" :size="14" /></button>
-                  <button
-                    class="btn-icon"
-                    data-tooltip="Dismiss request"
-                    @click="setActiveRequest(r); dismissForm.reason = ''; dismissForm.otherReason = ''; modals.dismiss = true"
-                  ><AegisIcon name="x" :size="14" /></button>
-                  <button
-                    class="btn btn-primary"
-                    @click="setActiveRequest(r); modals.accept = true"
-                  ><AegisIcon name="check" :size="13" /> Accept</button>
+              <!-- Col 2: Type badge + price -->
+              <td class="sic-td req-td--meta">
+                <div class="sic-badges">
+                  <AegisBadge label="New Request" variant="gold" />
                 </div>
+                <div class="sic-date-sub" style="margin-top:4px">{{ r.request_type }} · {{ r.service_price }}</div>
+              </td>
+              <!-- Col 3: Chevron -->
+              <td class="sic-td req-td--actions" @click.stop>
+                <button
+                  type="button"
+                  class="btn-icon"
+                  data-tooltip="View request & take action"
+                  @click="setActiveRequest(r); modals.requestDetail = true"
+                >
+                  <AegisIcon name="chevron-right" :size="15" />
+                </button>
               </td>
             </tr>
           </tbody>
@@ -925,6 +908,92 @@
     </AegisModal>
 
     <!-- Accept Request Modal — now includes CounterOfferInline ──────────── -->
+    <!-- Request Detail Modal -->
+    <AegisModal v-model="modals.requestDetail" title="Request Details" size="md">
+      <template v-if="activeRequest">
+
+        <!-- Requester row -->
+        <div class="orq-modal-provider">
+          <div class="sic-avatar sic-avatar--lg">
+            <span class="sic-avatar-initials">{{ activeRequest.requester_avatar || initials(activeRequest.requester_name) }}</span>
+          </div>
+          <div class="orq-modal-party-info">
+            <a
+              v-if="activeRequest.requester_slug"
+              :href="route('public.provider', { slug: activeRequest.requester_slug })"
+              class="orq-modal-name"
+              target="_blank"
+            >{{ activeRequest.requester_name }}</a>
+            <div v-else class="orq-modal-name">{{ activeRequest.requester_name }}</div>
+            <div class="orq-modal-cred">{{ activeRequest.requester_detail }}</div>
+          </div>
+          <AegisBadge label="New Request" variant="gold" style="margin-left:auto;flex-shrink:0" />
+        </div>
+
+        <!-- Detail grid -->
+        <div class="orq-modal-grid">
+          <div class="orq-modal-row">
+            <span class="orq-modal-label"><AegisIcon name="briefcase" :size="12" /> Service</span>
+            <span class="orq-modal-value">{{ activeRequest.service_title }}</span>
+          </div>
+          <div class="orq-modal-row">
+            <span class="orq-modal-label"><AegisIcon name="activity" :size="12" /> Type</span>
+            <span class="orq-modal-value">{{ activeRequest.request_type }}</span>
+          </div>
+          <div class="orq-modal-row">
+            <span class="orq-modal-label"><AegisIcon name="dollar-sign" :size="12" /> Price</span>
+            <span class="orq-modal-value">{{ activeRequest.service_price }}</span>
+          </div>
+          <div v-if="activeRequest.preferred_date" class="orq-modal-row">
+            <span class="orq-modal-label"><AegisIcon name="calendar" :size="12" /> Preferred</span>
+            <span class="orq-modal-value">{{ activeRequest.preferred_date }} {{ activeRequest.preferred_time }}</span>
+          </div>
+          <div class="orq-modal-row">
+            <span class="orq-modal-label"><AegisIcon name="clock" :size="12" /> Received</span>
+            <span class="orq-modal-value">{{ activeRequest.requested_date_label }} ({{ activeRequest.time_label }})</span>
+          </div>
+          <div v-if="activeRequest.preferred_timezone" class="orq-modal-row">
+            <span class="orq-modal-label"><AegisIcon name="map-pin" :size="12" /> Timezone</span>
+            <span class="orq-modal-value">{{ activeRequest.preferred_timezone }}</span>
+          </div>
+        </div>
+
+        <!-- Message -->
+        <div v-if="activeRequest.message" class="orq-modal-block">
+          <div class="orq-modal-block-label">
+            <AegisIcon name="message-square" :size="13" /> Message from requester
+          </div>
+          <div class="orq-modal-block-body">{{ activeRequest.message }}</div>
+        </div>
+
+      </template>
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="modals.requestDetail = false">Close</button>
+        <button
+          type="button"
+          class="btn-icon"
+          :data-tooltip="`Message ${activeRequest?.requester_name}`"
+          :disabled="msgLoading === activeRequest?.requester_id"
+          @click="openConversation(activeRequest.requester_id)"
+        ><AegisIcon name="message" :size="14" /></button>
+        <button
+          type="button"
+          class="btn btn-outline"
+          @click="modals.requestDetail = false; modals.counter = true"
+        ><AegisIcon name="refresh" :size="13" /> Counter Propose</button>
+        <button
+          type="button"
+          class="btn btn-outline"
+          @click="modals.requestDetail = false; dismissForm.reason = ''; dismissForm.otherReason = ''; modals.dismiss = true"
+        ><AegisIcon name="x" :size="13" /> Dismiss</button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          @click="modals.requestDetail = false; modals.accept = true"
+        ><AegisIcon name="check" :size="13" /> Accept Request</button>
+      </template>
+    </AegisModal>
+
     <AegisModal v-model="modals.accept" title="Accept Service Request" size="sm">
       <div class="alert alert-success" style="margin-bottom:18px">
         <AegisIcon name="check" :size="16" />
@@ -1123,6 +1192,7 @@ const modals = reactive({
   clientInvoice: false, providerInvoice: false, reviewRefund: false,
   // Outgoing request detail
   outgoingDetail: false,
+  requestDetail: false,
 })
 
 // ── Active item tracking ──────────────────────────────────────────────────────
@@ -1778,11 +1848,9 @@ const serviceTypeOptions = [
 /* ── INCOMING PENDING REQUESTS TABLE ── */
 .req-row { cursor: pointer; transition: background var(--transition); background: var(--surface, #fff); border-left: 3px solid var(--gold-dark); }
 .req-row:hover { background: var(--surface-2); }
-.req-td--requester { width: 32%; }
-.req-td--service   { width: 28%; }
-.req-td--date      { width: 20%; }
-.req-td--actions   { width: 20%; text-align: right; }
-.req-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; flex-wrap: wrap; }
+.req-td--requester { width: 58%; }
+.req-td--meta      { width: 34%; }
+.req-td--actions   { width: 8%; text-align: right; }
 
 /* ── SERVICE REQUESTS TABLE ── */
 .orq-row { cursor: pointer; transition: background var(--transition); background: var(--surface, #fff); }
