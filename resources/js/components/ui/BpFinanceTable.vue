@@ -246,7 +246,6 @@
             @fund-contract="openFundContract"
             @cancel="openCancelContract"
             @autopay="openAutoPay"
-            @view="openViewContract"
             @fund-milestone="openFundMilestone"
             @refund-milestone="openRefundMilestone"
             @review-milestone="openReviewMilestone"
