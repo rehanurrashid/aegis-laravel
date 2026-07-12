@@ -77,13 +77,21 @@ class JobPostingsController extends Controller
             ->get();
 
         // For completed contracts: check if provider has already reviewed each one
-        $reviewedContractIds = \App\Models\BpContractReview::where('reviewer_id', $user->id)
+        // For completed contracts: load the provider's own review (rating + snippet)
+        $myReviews = \App\Models\BpContractReview::where('reviewer_id', $user->id)
             ->whereIn('contract_id', $contracts->pluck('id'))
-            ->pluck('contract_id')
-            ->flip();
+            ->where('review_dismissed', false)
+            ->get(['contract_id', 'rating', 'review_text', 'is_public'])
+            ->keyBy('contract_id');
 
-        $contractsWithReviewFlag = $contracts->map(function ($c) use ($reviewedContractIds) {
-            $c->has_reviewed = $reviewedContractIds->has($c->id);
+        $contractsWithReviewFlag = $contracts->map(function ($c) use ($myReviews) {
+            $review = $myReviews->get($c->id);
+            $c->has_reviewed = !is_null($review);
+            $c->my_review    = $review ? [
+                'rating'      => $review->rating,
+                'review_text' => $review->review_text,
+                'is_public'   => $review->is_public,
+            ] : null;
             return $c;
         });
 

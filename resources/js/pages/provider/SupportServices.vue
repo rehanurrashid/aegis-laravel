@@ -293,8 +293,24 @@
               </div>
             </div>
             <div class="jp-card-footer">
-              <AegisBadge label="Closed" variant="grey" />
+              <div class="jp-card-footer-left">
+                <AegisBadge label="Closed" variant="grey" />
+                <span v-if="val(c.status) === 'completed' && c.has_reviewed" class="review-chip review-chip-done" :data-tooltip="c.my_review?.review_text || 'Review submitted'">
+                  <AegisIcon name="star" :size="11" :filled="true" /> {{ c.my_review?.rating }}/5
+                </span>
+                <span v-else-if="val(c.status) === 'completed'" class="review-chip review-chip-pending">
+                  <AegisIcon name="star" :size="11" /> No review
+                </span>
+              </div>
               <div class="jp-card-actions" @click.stop>
+                <button
+                  v-if="val(c.status) === 'completed' && !c.has_reviewed"
+                  class="btn-icon"
+                  data-tooltip="Leave a review"
+                  @click="openReviewForContract(c)"
+                >
+                  <AegisIcon name="star" :size="14" />
+                </button>
                 <button class="btn-icon" data-tooltip="View contract" @click="openContract(c)"><AegisIcon name="file-text" :size="14" /></button>
               </div>
             </div>
@@ -817,6 +833,15 @@ function openContract(c) {
   showContract.value = true
 }
 
+function openReviewForContract(c) {
+  reviewContract.value = {
+    id:                c.id,
+    title:             c.title,
+    counterparty_name: c.bp?.display_name ?? 'Business Partner',
+  }
+  showReview.value = true
+}
+
 function onUseTemplate(t) {
   postJobPrefill.value = t
   showPostJob.value = true
@@ -1003,7 +1028,38 @@ function onUseTemplate(t) {
   border-top: 1px solid var(--border);
   background: var(--surface-2);
 }
+.jp-card-footer-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
 .jp-card-actions { display: flex; gap: 4px; }
+
+/* Review state chips on closed cards */
+.review-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  border: 1px solid;
+}
+.review-chip-done {
+  background: rgba(160,129,62,0.08);
+  border-color: var(--gold);
+  color: var(--gold-dark);
+}
+.review-chip-pending {
+  background: var(--surface-3);
+  border-color: var(--border-dark);
+  color: var(--text-4);
+}
 
 /* ── Hiring Pipeline kanban ──────────────────────────────────────── */
 .jp-kanban {

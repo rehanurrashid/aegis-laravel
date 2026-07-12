@@ -289,13 +289,15 @@ class ContractService
             ->get();
 
         // Pre-fetch review records for this BP to avoid N+1
-        $reviewedIds = \App\Models\BpContractReview::where('reviewer_id', $bpId)
+        $myReviews = \App\Models\BpContractReview::where('reviewer_id', $bpId)
             ->whereIn('contract_id', $contracts->pluck('id'))
-            ->pluck('contract_id')
-            ->flip();
+            ->where('review_dismissed', false)
+            ->get(['contract_id', 'rating', 'review_text', 'is_public'])
+            ->keyBy('contract_id');
 
-        return $contracts->map(function (BpContract $c) use ($reviewedIds) {
+        return $contracts->map(function (BpContract $c) use ($myReviews) {
                 $status = $c->status instanceof \BackedEnum ? $c->status->value : (string) $c->status;
+                $review = $myReviews->get($c->id);
                 return [
                     'id'                      => $c->id,
                     'title'                   => $c->title,
@@ -305,7 +307,12 @@ class ContractService
                     'funding_mode'            => $c->funding_mode ?? 'per_milestone',
                     'amount_cents'            => (int) $c->total_value_cents,
                     'status'                  => $status,
-                    'has_reviewed'            => $reviewedIds->has($c->id),
+                    'has_reviewed'            => !is_null($review),
+                    'my_review'               => $review ? [
+                        'rating'      => $review->rating,
+                        'review_text' => $review->review_text,
+                        'is_public'   => $review->is_public,
+                    ] : null,
                     'cancel_reason'           => $c->cancel_reason,
                     'terms'                   => $c->terms,
                     // Escrow

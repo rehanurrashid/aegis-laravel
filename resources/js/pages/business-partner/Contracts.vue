@@ -148,6 +148,28 @@
             />
           </div>
         </div>
+
+        <!-- Review strip for completed contracts -->
+        <div v-if="c.status === 'completed'" class="contract-review-strip" @click.stop>
+          <template v-if="c.has_reviewed">
+            <div class="contract-review-strip-done">
+              <div class="crs-stars">
+                <AegisIcon v-for="i in (c.my_review?.rating ?? 0)" :key="'f'+i" name="star" :size="12" :filled="true" />
+                <AegisIcon v-for="i in (5 - (c.my_review?.rating ?? 0))" :key="'e'+i" name="star" :size="12" />
+              </div>
+              <span class="crs-label">Your review submitted</span>
+            </div>
+          </template>
+          <template v-else>
+            <div class="contract-review-strip-pending">
+              <AegisIcon name="star" :size="12" />
+              <span>You haven't reviewed this contract yet</span>
+              <button type="button" class="btn btn-outline crs-btn" @click="openReviewForContract(c)">
+                Leave a Review
+              </button>
+            </div>
+          </template>
+        </div>
       </AegisCard>
     </div>
 
@@ -284,6 +306,15 @@ function statusVariant(s) {
 function openDetail(c) {
   activeContract.value = c
 }
+
+function openReviewForContract(c) {
+  reviewContract.value = {
+    id:                c.id,
+    title:             c.title,
+    counterparty_name: c.client_name ?? 'the Practitioner',
+  }
+  showReview.value = true
+}
 </script>
 
 <style scoped>
@@ -300,4 +331,12 @@ function openDetail(c) {
 .contract-escrow-bar { height: 4px; background: var(--surface-2); border-radius: 2px; display: flex; overflow: hidden; }
 .contract-escrow-bar-released { background: var(--green-dark); transition: width 0.3s; }
 .contract-escrow-bar-held { background: var(--gold-dark); transition: width 0.3s; }
+
+/* ── Review strip on completed cards ─────────────────────────────── */
+.contract-review-strip { padding: 10px 0 2px; margin-top: 12px; border-top: 1px solid var(--border-subtle); }
+.contract-review-strip-done { display: flex; align-items: center; gap: 8px; font-family: var(--font-sans); font-size: 12px; color: var(--gold-dark); }
+.crs-stars { display: flex; gap: 2px; color: var(--gold-dark); }
+.crs-label { font-size: 12px; color: var(--text-3); font-family: var(--font-sans); }
+.contract-review-strip-pending { display: flex; align-items: center; gap: 8px; font-family: var(--font-sans); font-size: 12px; color: var(--text-4); }
+.crs-btn { margin-left: auto; font-size: 11px; padding: 3px 10px; height: auto; }
 </style>
