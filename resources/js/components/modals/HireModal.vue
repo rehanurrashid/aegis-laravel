@@ -45,8 +45,14 @@
 
     <template #footer>
       <button type="button" class="btn btn-outline" :disabled="busy" @click="close">Cancel</button>
-      <button type="button" class="btn btn-success" :disabled="busy" @click="confirm">
-        <AegisIcon name="send" :size="13" />
+      <button
+        type="button"
+        class="btn btn-success"
+        :class="{ 'btn-spin': busy }"
+        :disabled="busy"
+        @click="confirm"
+      >
+        <AegisIcon v-if="busy" name="refresh-cw" :size="13" class="spin" />
         {{ busy ? 'Sending…' : 'Send Offer' }}
       </button>
     </template>

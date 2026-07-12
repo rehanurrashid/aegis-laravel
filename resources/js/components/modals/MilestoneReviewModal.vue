@@ -149,11 +149,14 @@
       <button
         type="button"
         class="btn btn-primary"
-        :class="{ 'btn-danger': form.action === 'rejected' }"
+        :class="{
+          'btn-danger':    form.action === 'rejected',
+          'btn-spin':      form.processing,
+        }"
         :disabled="form.processing || !canSubmit"
         @click="submit"
       >
-        <AegisIcon v-if="form.processing" name="refresh-cw" :size="13" class="btn-spin" />
+        <AegisIcon v-if="form.processing" name="refresh-cw" :size="13" class="spin" />
         {{ submitLabel }}
       </button>
     </template>

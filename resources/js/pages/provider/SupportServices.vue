@@ -411,7 +411,7 @@
       @shortlist="(p) => openStage(p, 'shortlisted')"
       @schedule="(p) => openSchedule(p)"
       @reject="(p) => openReject(p)"
-      @hire="(p) => openHire(p)"
+      @hire="(p) => { showProfile = false; openHire(p) }"
     />
     <StageActionModal v-model="showStage" :proposal="activeProposal" :stage="stageMode" @done="showProfile = false" />
     <ScheduleInterviewModal v-model="showSchedule" :proposal="activeProposal" :job-title="activeProposal ? jobTitle(activeProposal.job_id) : ''" @done="showProfile = false" />
