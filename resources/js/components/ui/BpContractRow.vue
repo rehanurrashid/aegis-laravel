@@ -1,25 +1,26 @@
 <!--
   BpContractRow.vue — sic-row pattern for contract rows.
-  Emits @open(contract) — parent (BpFinanceTable) mounts ContractModal centrally.
+  Receives raw BpContract Eloquent model (same shape as SupportServices/ContractModal).
+  Emits @open(contract) — BpFinanceTable mounts ContractModal centrally.
 -->
 <template>
-  <div class="bpcr-wrap" :class="`bpcr--${sv(contract.status)}`">
+  <div class="bpcr-wrap" :class="`bpcr--${statusVal}`">
     <div class="bpcr-row">
 
-      <!-- Col 1: Avatar + name + contract title + billing type -->
+      <!-- Col 1: Avatar + name + contract title + billing type + term -->
       <div class="bpcr-td bpcr-td--party" @click="$emit('open', contract)">
         <div class="bpcr-party">
-          <div class="bpcr-avatar">{{ initials(contract.bp_name) }}</div>
+          <div class="bpcr-avatar">{{ initials(bpName) }}</div>
           <div class="bpcr-party-info">
             <a
-              v-if="contract.bp_slug"
-              :href="`/public/business/${contract.bp_slug}`"
+              v-if="bpSlug"
+              :href="`/public/business/${bpSlug}`"
               class="bpcr-party-name bpcr-party-name--link"
               @click.stop
-            >{{ contract.bp_name }}</a>
-            <span v-else class="bpcr-party-name">{{ contract.bp_name }}</span>
+            >{{ bpName }}</a>
+            <span v-else class="bpcr-party-name">{{ bpName }}</span>
             <span class="bpcr-service-name">{{ contract.title }}</span>
-            <span class="bpcr-date-sub">{{ contract.billing_type_label }} · {{ contract.term }}</span>
+            <span class="bpcr-date-sub">{{ billingTypeLabel }} · {{ term }}</span>
           </div>
         </div>
       </div>
@@ -27,13 +28,13 @@
       <!-- Col 2: Status + review badge + amount + escrow line -->
       <div class="bpcr-td bpcr-td--status" @click="$emit('open', contract)">
         <div class="bpcr-badges">
-          <AegisBadge :label="contractStatusLabel(contract.status)" :variant="contractStatusVariant(contract.status)" />
+          <AegisBadge :label="statusLabel" :variant="statusVariant" />
           <span v-if="submittedMilestoneCount > 0" class="bpcr-review-badge">
             {{ submittedMilestoneCount }} needs review
           </span>
         </div>
-        <div class="bpcr-amount-sub">{{ formatCents(contract.total_cents) }}</div>
-        <div v-if="isMilestoneDriven && sv(contract.status) === 'active'" class="bpcr-escrow-line">
+        <div class="bpcr-amount-sub">{{ formatCents(contract.total_value_cents) }}</div>
+        <div v-if="isMilestoneDriven && statusVal === 'active'" class="bpcr-escrow-line">
           <span class="bpcr-escrow-held">
             <AegisIcon name="shield-check" :size="10" />
             {{ formatCents(contract.escrow_held_cents ?? 0) }} held
@@ -67,13 +68,58 @@ defineEmits(['open'])
 
 const sv = (v) => (v && typeof v === 'object' && 'value' in v) ? v.value : (v ?? '')
 
+// Read native Eloquent model fields (same as ContractModal)
+const bpName   = computed(() => props.contract.bp?.display_name ?? props.contract.bp_name ?? '—')
+const bpSlug   = computed(() => props.contract.bp?.slug ?? props.contract.bp_slug ?? null)
+const statusVal = computed(() => sv(props.contract.status))
+
+const billingTypeLabel = computed(() => {
+  const t = sv(props.contract.payment_type) || props.contract.billing_type || 'one_time'
+  return ({ milestone: 'Milestone-based', retainer: 'Monthly retainer', one_time: 'One-time' })[t] ?? t
+})
+
+const term = computed(() => {
+  // If already formatted string (DTO), use as-is
+  if (typeof props.contract.term === 'string') return props.contract.term
+  // Raw Eloquent model — derive from dates
+  const start = props.contract.started_at
+    ? new Date(props.contract.started_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    : '—'
+  const end = props.contract.completed_at
+    ? new Date(props.contract.completed_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    : 'Ongoing'
+  return `${start} – ${end}`
+})
+
+const milestones = computed(() => props.contract.milestones ?? [])
+
 const isMilestoneDriven = computed(() =>
-  props.contract.billing_type === 'milestone' || (props.contract.milestones?.length ?? 0) > 0
+  sv(props.contract.payment_type) === 'milestone' || milestones.value.length > 0
 )
 
 const submittedMilestoneCount = computed(() =>
-  (props.contract.milestones ?? []).filter(m => sv(m.status) === 'submitted').length
+  milestones.value.filter(m => sv(m.status) === 'submitted').length
 )
+
+const statusLabel = computed(() => ({
+  active:            'Active',
+  pending_signature: 'Awaiting Signature',
+  pending_funding:   'Awaiting Funding',
+  completed:         'Completed',
+  cancelled:         'Cancelled',
+  disputed:          'Disputed',
+  draft:             'Draft',
+})[statusVal.value] ?? statusVal.value)
+
+const statusVariant = computed(() => ({
+  active:            'green',
+  pending_signature: 'gold',
+  pending_funding:   'blue',
+  completed:         'neutral',
+  cancelled:         'red',
+  disputed:          'red',
+  draft:             'neutral',
+})[statusVal.value] ?? 'neutral')
 
 function formatCents(c) {
   return '$' + ((c ?? 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })
@@ -81,28 +127,6 @@ function formatCents(c) {
 function initials(name) {
   if (!name) return 'BP'
   return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-}
-function contractStatusLabel(s) {
-  return ({
-    active:            'Active',
-    pending_signature: 'Awaiting Signature',
-    pending_funding:   'Awaiting Funding',
-    completed:         'Completed',
-    cancelled:         'Cancelled',
-    disputed:          'Disputed',
-    draft:             'Draft',
-  })[sv(s)] ?? sv(s)
-}
-function contractStatusVariant(s) {
-  return ({
-    active:            'green',
-    pending_signature: 'gold',
-    pending_funding:   'blue',
-    completed:         'neutral',
-    cancelled:         'red',
-    disputed:          'red',
-    draft:             'neutral',
-  })[sv(s)] ?? 'neutral'
 }
 </script>
 

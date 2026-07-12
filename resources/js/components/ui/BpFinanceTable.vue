@@ -459,14 +459,14 @@ const submittedMilestoneCount = computed(() =>
 function applyConFilter(list, f) {
   if (f === 'all')        return list
   if (f === 'action')     return list.filter(c => {
-    const needsSign = sv(c.status) === 'pending_signature' && !c.provider_has_signed
+    const needsSign = sv(c.status) === 'pending_signature' && !c.practitioner_signed_at
     const needsFund = sv(c.status) === 'pending_funding'
     const unfunded  = sv(c.status) === 'active' && (c.unfunded_cents ?? 0) > 0
     const hasReview = (c.milestones ?? []).some(m => sv(m.status) === 'submitted')
     return needsSign || needsFund || unfunded || hasReview
   })
   if (f === 'active')     return list.filter(c => sv(c.status) === 'active')
-  if (f === 'milestone')  return list.filter(c => c.billing_type === 'milestone' || (c.milestones?.length ?? 0) > 0)
+  if (f === 'milestone')  return list.filter(c => sv(c.payment_type) === 'milestone' || (c.milestones?.length ?? 0) > 0)
   if (f === 'pending')    return list.filter(c => ['pending_signature','pending_funding'].includes(sv(c.status)))
   return list
 }
@@ -474,7 +474,7 @@ function applyConSearch(list, q) {
   if (!q.trim()) return list
   const lq = q.toLowerCase()
   return list.filter(c =>
-    (c.bp_name ?? '').toLowerCase().includes(lq) ||
+    (c.bp?.display_name ?? c.bp_name ?? '').toLowerCase().includes(lq) ||
     (c.title ?? '').toLowerCase().includes(lq)
   )
 }
@@ -496,7 +496,7 @@ const conChips = computed(() => [
   { value: 'all',       label: 'All',              count: 0 },
   { value: 'action',    label: 'Action Required',  count: actionRequiredCount.value, warn: true },
   { value: 'active',    label: 'Active',           count: props.contracts.filter(c => sv(c.status) === 'active').length },
-  { value: 'milestone', label: 'Milestones',       count: props.contracts.filter(c => c.billing_type === 'milestone' || (c.milestones?.length ?? 0) > 0).length },
+  { value: 'milestone', label: 'Milestones',       count: props.contracts.filter(c => sv(c.payment_type) === 'milestone' || (c.milestones?.length ?? 0) > 0).length },
   { value: 'pending',   label: 'Pending',          count: props.contracts.filter(c => ['pending_signature','pending_funding'].includes(sv(c.status))).length, warn: true },
 ])
 
@@ -546,26 +546,9 @@ function doRejectInvoice() {
 
 // ── Contract actions ──────────────────────────────────────────────────────────
 function openContract(con) {
-  // ContractModal (source of truth: SupportServices) expects the raw Eloquent model shape.
-  // Finances DTO uses different field names — adapt here so the same modal works on both pages.
-  activeContract.value = {
-    ...con,
-    // ContractModal reads contract.bp?.display_name
-    bp: { display_name: con.bp_name, slug: con.bp_slug },
-    // ContractModal reads contract.total_value_cents
-    total_value_cents: con.total_cents,
-    // ContractModal reads contract.started_at (raw date) — extract from term string
-    started_at: con.term ? null : null, // term is display only; ContractModal shows '—' gracefully
-    // ContractModal reads contract.practitioner_signed_at (date or null)
-    practitioner_signed_at: con.provider_has_signed ? true : null,
-    // ContractModal reads contract.bp_signed_at (date or null)
-    bp_signed_at: con.bp_has_signed ? true : null,
-    // ContractModal reads contract.payment_type
-    payment_type: con.billing_type,
-    // ContractModal reads contract.status as string
-    status: con.status,
-    // Already correct: id, title, milestones
-  }
+  // Contract is now the raw Eloquent model — same shape ContractModal expects
+  // No adapter needed: same fields as SupportServices passes
+  activeContract.value = con
   modals.value.viewContract = true
 }
 
