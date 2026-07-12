@@ -152,6 +152,28 @@
           </button>
         </div>
 
+        <div class="page-sidebar-group">
+          <div class="page-sidebar-label">Help</div>
+          <button
+            type="button"
+            class="page-sidebar-item"
+            data-tooltip="Learn how accepting requests and receiving session payments works"
+            @click="modals.howItWorksProvider = true"
+          >
+            <span class="page-sidebar-icon"><AegisIcon name="info" :size="15" /></span>
+            As a Provider
+          </button>
+          <button
+            type="button"
+            class="page-sidebar-item"
+            data-tooltip="Learn how booking sessions, paying deposits and requesting refunds works"
+            @click="modals.howItWorksClient = true"
+          >
+            <span class="page-sidebar-icon"><AegisIcon name="info" :size="15" /></span>
+            As a Client
+          </button>
+        </div>
+
       </nav>
 
       <!-- CONTENT AREA -->
@@ -583,6 +605,116 @@
             </table>
           </div>
         </template>
+
+        <!-- How It Works — Provider -->
+        <AegisModal v-model="modals.howItWorksProvider" title="How It Works — As a Provider" size="md">
+          <div class="hiw-intro">
+            You can offer clinical services (supervision, consultation, training, coaching) to other practitioners on Aegis.
+            Here's what happens at each stage.
+          </div>
+
+          <div class="hiw-steps">
+            <div class="hiw-step">
+              <div class="hiw-step-icon hiw-step-icon--1"><AegisIcon name="grid" :size="16" /></div>
+              <div class="hiw-step-body">
+                <div class="hiw-step-title">1 · Create a listing</div>
+                <div class="hiw-step-desc">Go to <strong>My Listings</strong> and publish a service. Set your title, category, price, format (virtual/in-person) and availability. Your listing appears in Browse Services for other practitioners to find.</div>
+              </div>
+            </div>
+            <div class="hiw-step">
+              <div class="hiw-step-icon hiw-step-icon--2"><AegisIcon name="inbox" :size="16" /></div>
+              <div class="hiw-step-body">
+                <div class="hiw-step-title">2 · Receive & accept requests</div>
+                <div class="hiw-step-desc">When another practitioner requests your service, it appears in <strong>Incoming Requests</strong>. Review their message, preferred date and credentials. Accept, counter-propose a date/price, or decline.</div>
+              </div>
+            </div>
+            <div class="hiw-step">
+              <div class="hiw-step-icon hiw-step-icon--3"><AegisIcon name="credit-card" :size="16" /></div>
+              <div class="hiw-step-body">
+                <div class="hiw-step-title">3 · Client pays a 30% deposit</div>
+                <div class="hiw-step-desc">Once you accept, the client is prompted to pay a <strong>30% deposit</strong> to confirm the session. Funds transfer directly to your connected Stripe account via Stripe Connect — Aegis never holds your money.</div>
+              </div>
+            </div>
+            <div class="hiw-step">
+              <div class="hiw-step-icon hiw-step-icon--4"><AegisIcon name="check-circle" :size="16" /></div>
+              <div class="hiw-step-body">
+                <div class="hiw-step-title">4 · Client pays 70% balance after session</div>
+                <div class="hiw-step-desc">After the session takes place, the client confirms it complete and pays the remaining <strong>70% balance</strong>. You receive this directly to your Stripe account. Track all sessions under <strong>My Sessions</strong>.</div>
+              </div>
+            </div>
+            <div class="hiw-step">
+              <div class="hiw-step-icon hiw-step-icon--5"><AegisIcon name="alert-circle" :size="16" /></div>
+              <div class="hiw-step-body">
+                <div class="hiw-step-title">5 · Handle refund requests</div>
+                <div class="hiw-step-desc">If a client requests a refund, you have <strong>5 days</strong> to approve or deny it. Approving issues a Stripe refund immediately (pulled from your Connect account). Denying lets the client escalate to a formal dispute reviewed by Aegis admin.</div>
+              </div>
+            </div>
+            <div class="hiw-step">
+              <div class="hiw-step-icon hiw-step-icon--6"><AegisIcon name="dollar-sign" :size="16" /></div>
+              <div class="hiw-step-body">
+                <div class="hiw-step-title">Connect Stripe to receive payouts</div>
+                <div class="hiw-step-desc">Go to <strong>Settings → My Services</strong> to complete Stripe Connect Express onboarding. You must be connected before clients can pay you. Your Stripe Connected status is shown on every session card.</div>
+              </div>
+            </div>
+          </div>
+
+          <template #footer>
+            <button type="button" class="btn btn-primary" @click="modals.howItWorksProvider = false; activeTab = 'listings'">
+              <AegisIcon name="grid" :size="13" /> View My Listings
+            </button>
+          </template>
+        </AegisModal>
+
+        <!-- How It Works — Client -->
+        <AegisModal v-model="modals.howItWorksClient" title="How It Works — As a Client" size="md">
+          <div class="hiw-intro">
+            You can book clinical services from other practitioners on Aegis — supervision, consultation, training, coaching and more.
+          </div>
+
+          <div class="hiw-steps">
+            <div class="hiw-step">
+              <div class="hiw-step-icon hiw-step-icon--1"><AegisIcon name="search" :size="16" /></div>
+              <div class="hiw-step-body">
+                <div class="hiw-step-title">1 · Browse & request a service</div>
+                <div class="hiw-step-desc">Go to <strong>Browse Services</strong> to find practitioners offering supervision, consultation, training and coaching. Click <em>Request</em> on any listing, choose a preferred date and time, and send a message.</div>
+              </div>
+            </div>
+            <div class="hiw-step">
+              <div class="hiw-step-icon hiw-step-icon--2"><AegisIcon name="clock" :size="16" /></div>
+              <div class="hiw-step-body">
+                <div class="hiw-step-title">2 · Wait for the provider to respond</div>
+                <div class="hiw-step-desc">Track your pending requests in <strong>My Requests</strong>. The provider typically responds within 72 hours — they may accept, decline, or propose a different date or price.</div>
+              </div>
+            </div>
+            <div class="hiw-step">
+              <div class="hiw-step-icon hiw-step-icon--3"><AegisIcon name="credit-card" :size="16" /></div>
+              <div class="hiw-step-body">
+                <div class="hiw-step-title">3 · Pay 30% deposit to confirm</div>
+                <div class="hiw-step-desc">Once accepted, pay a <strong>30% deposit</strong> to secure your slot. This confirms the session and notifies the provider. You need a saved payment method in <strong>Settings → Billing</strong> before you can pay.</div>
+              </div>
+            </div>
+            <div class="hiw-step">
+              <div class="hiw-step-icon hiw-step-icon--4"><AegisIcon name="check" :size="16" /></div>
+              <div class="hiw-step-body">
+                <div class="hiw-step-title">4 · Confirm complete & pay 70% balance</div>
+                <div class="hiw-step-desc">After your session, return to <strong>My Bookings</strong> and confirm the session is complete. This triggers the remaining <strong>70% balance</strong> payment. You won't be charged until you confirm.</div>
+              </div>
+            </div>
+            <div class="hiw-step">
+              <div class="hiw-step-icon hiw-step-icon--5"><AegisIcon name="arrow-left" :size="16" /></div>
+              <div class="hiw-step-body">
+                <div class="hiw-step-title">5 · Request a refund if needed</div>
+                <div class="hiw-step-desc">If the session didn't happen or there was an issue, open the session from <strong>My Bookings</strong> and request a refund. The provider has 5 days to approve or deny. If denied, you can escalate to a formal dispute.</div>
+              </div>
+            </div>
+          </div>
+
+          <template #footer>
+            <button type="button" class="btn btn-primary" @click="modals.howItWorksClient = false; activeTab = 'explore'">
+              <AegisIcon name="search" :size="13" /> Browse Services
+            </button>
+          </template>
+        </AegisModal>
 
         <!-- Request Detail Modal -->
         <AegisModal v-model="modals.outgoingDetail" title="Request Details" size="md">
@@ -1192,6 +1324,8 @@ const modals = reactive({
   // Outgoing request detail
   outgoingDetail: false,
   requestDetail: false,
+  howItWorksProvider: false,
+  howItWorksClient: false,
 })
 
 // ── Active item tracking ──────────────────────────────────────────────────────
@@ -1850,6 +1984,36 @@ const serviceTypeOptions = [
 .req-td--requester { width: 58%; }
 .req-td--meta      { width: 34%; }
 .req-td--actions   { width: 8%; text-align: right; }
+
+/* ── HOW IT WORKS MODAL ── */
+.hiw-intro {
+  font-size: 13px; color: var(--text-2); line-height: 1.6;
+  padding: 10px 14px; background: var(--badge-bg-gold);
+  border: 1px solid var(--gold); border-radius: var(--radius);
+  margin-bottom: 18px;
+}
+.hiw-steps { display: flex; flex-direction: column; gap: 0; }
+.hiw-step {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.hiw-step:last-child { border-bottom: none; }
+.hiw-step-icon {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); color: var(--text-3);
+}
+.hiw-step-icon--1 { background: var(--badge-bg-gold); color: var(--gold-dark); }
+.hiw-step-icon--2 { background: rgba(59,130,246,.1); color: #3b82f6; }
+.hiw-step-icon--3 { background: rgba(59,130,246,.1); color: #3b82f6; }
+.hiw-step-icon--4 { background: rgba(34,197,94,.1); color: var(--green); }
+.hiw-step-icon--5 { background: rgba(245,158,11,.1); color: var(--gold-dark); }
+.hiw-step-icon--6 { background: rgba(34,197,94,.1); color: var(--green); }
+.hiw-step-body { min-width: 0; }
+.hiw-step-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.hiw-step-desc  { font-size: 12px; color: var(--text-3); line-height: 1.6; }
+.hiw-step-desc strong { color: var(--text-2); font-weight: 700; }
+.hiw-step-desc em { color: var(--gold-dark); font-style: normal; font-weight: 600; }
 
 /* ── SERVICE REQUESTS TABLE ── */
 .orq-row { cursor: pointer; transition: background var(--transition); background: var(--surface, #fff); }
