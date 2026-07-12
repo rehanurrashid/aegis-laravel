@@ -150,10 +150,7 @@
                 v-for="inv in pagedInvoices"
                 :key="inv.id"
                 :invoice="inv"
-                @approve="openApproveInvoice"
-                @reject="openRejectInvoice"
-                @view="openViewInvoice"
-                @dispute="openBpInvoiceDispute"
+                @open="openInvoice"
               />
             </tbody>
           </table>
@@ -241,15 +238,7 @@
             v-for="con in pagedContracts"
             :key="con.id"
             :contract="con"
-            :has-payment-method="effectiveHasPm"
-            @sign="openSignContract"
-            @fund-contract="openFundContract"
-            @cancel="openCancelContract"
-            @autopay="openAutoPay"
-            @fund-milestone="openFundMilestone"
-            @refund-milestone="openRefundMilestone"
-            @review-milestone="openReviewMilestone"
-            @dispute-milestone="openMilestoneDispute"
+            @open="openContract"
           />
         </div>
 
@@ -271,43 +260,22 @@
          MODALS
     ══════════════════════════════════════════════════════════════ -->
 
-    <!-- Approve & Pay Invoice -->
-    <AegisModal v-model="modals.approveInvoice" title="Approve &amp; Pay Invoice" size="lg">
-      <div v-if="activeInvoice">
-        <div class="alert alert-success" style="margin-bottom:14px">
-          <div class="alert-icon"><AegisIcon name="check" :size="18" /></div>
-          <div class="alert-content">
-            <strong>Invoice #{{ activeInvoice.invoice_number }} · {{ activeInvoice.bp_name }}</strong>
-            — {{ formatCents(activeInvoice.total_cents) }} will be charged to your default card and routed directly to
-            {{ activeInvoice.bp_name }} via Stripe Connect. Aegis holds no funds.
-          </div>
-        </div>
-        <div class="receipt">
-          <div class="receipt-row">
-            <span>{{ activeInvoice.contract_title || 'Services' }}</span>
-            <span>{{ formatCents(activeInvoice.total_cents) }}</span>
-          </div>
-          <div class="receipt-row total">
-            <span>Total</span>
-            <span>{{ formatCents(activeInvoice.total_cents) }}</span>
-          </div>
-        </div>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.approveInvoice = false">Cancel</button>
-        <button
-          type="button"
-          class="btn btn-success"
-          :disabled="paying === activeInvoice?.id"
-          @click="doApproveInvoice"
-        >
-          <AegisIcon name="check" :size="13" />
-          {{ paying === activeInvoice?.id ? 'Processing…' : 'Approve & Pay ' + (activeInvoice ? formatCents(activeInvoice.total_cents) : '') }}
-        </button>
-      </template>
-    </AegisModal>
+    <!-- ── Centralized: ViewInvoiceModal (shared with SupportServices) ── -->
+    <ViewInvoiceModal
+      v-model="modals.viewInvoice"
+      :invoice="activeInvoice"
+      :can-approve="activeInvoice?.payable && !activeInvoice?.active_dispute_id"
+      @approve="doApproveInvoice"
+    />
 
-    <!-- Reject Invoice -->
+    <!-- ── Centralized: ContractModal (shared with SupportServices) ── -->
+    <ContractModal
+      v-model="modals.viewContract"
+      :contract="activeContract"
+      :milestones="activeContract?.milestones ?? []"
+    />
+
+    <!-- ── Reject Invoice ── -->
     <AegisModal v-model="modals.rejectInvoice" title="Reject Invoice" size="lg">
       <div v-if="activeInvoice">
         <div class="alert alert-danger" style="margin-bottom:14px">
@@ -327,214 +295,50 @@
             <option>Missing documentation</option>
             <option>Other</option>
           </select>
-          <div v-if="rejectForm.errors.reason" class="form-error">{{ rejectForm.errors.reason }}</div>
         </div>
         <div class="form-group">
           <label class="form-label">Message to Business Partner</label>
-          <textarea
-            class="form-textarea"
-            rows="3"
-            v-model="rejectForm.message"
-            :class="{ 'is-error': rejectForm.errors.message }"
-            placeholder="Explain the rejection so they can resubmit correctly…"
-          ></textarea>
+          <textarea class="form-textarea" rows="3" v-model="rejectForm.message" placeholder="Explain the rejection…"></textarea>
         </div>
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.rejectInvoice = false">Cancel</button>
-        <button
-          type="button"
-          class="btn btn-danger"
-          :disabled="rejectForm.processing"
-          @click="doRejectInvoice"
-        >
-          <AegisIcon name="x" :size="13" />
-          {{ rejectForm.processing ? 'Rejecting…' : 'Reject Invoice' }}
+        <button type="button" class="btn btn-danger" :disabled="rejectForm.processing" @click="doRejectInvoice">
+          <AegisIcon name="x" :size="13" /> {{ rejectForm.processing ? 'Rejecting…' : 'Reject Invoice' }}
         </button>
       </template>
     </AegisModal>
 
-    <!-- View Invoice Receipt -->
-    <ViewInvoiceModal
-      v-model="modals.viewInvoice"
-      :invoice="activeInvoice"
-      :can-approve="activeInvoice?.payable && !activeInvoice?.active_dispute_id"
-      @approve="handleReceiptApprove"
-    />
-
-    <!-- Cancel Contract -->
+    <!-- ── Cancel Contract ── -->
     <AegisModal v-model="modals.cancelContract" title="Cancel Contract" size="lg">
       <div class="alert alert-danger" style="margin-bottom:14px">
         <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
         <div class="alert-content">
-          <strong>Cancelling {{ activeContract ? 'your contract with ' + activeContract.bp_name : 'this contract' }} will stop scheduled payments.</strong>
+          <strong>Cancelling {{ activeContract ? 'your contract with ' + activeContract.bp_name : 'this contract' }} will stop all payments.</strong>
           Per contract terms, 30-day notice is required.
         </div>
       </div>
       <div class="form-group">
         <label class="form-label">Reason <span class="required">*</span></label>
-        <select class="form-select" v-model="cancelForm.reason" :class="{ 'is-error': cancelForm.errors.reason }">
+        <select class="form-select" v-model="cancelForm.reason">
           <option>Switching to different provider</option>
           <option>No longer needed</option>
           <option>Cost reduction</option>
           <option>Service quality issues</option>
           <option>Other</option>
         </select>
-        <div v-if="cancelForm.errors.reason" class="form-error">{{ cancelForm.errors.reason }}</div>
       </div>
       <div class="form-group">
         <label class="form-label">Feedback (optional)</label>
-        <textarea
-          class="form-textarea"
-          rows="2"
-          v-model="cancelForm.feedback"
-          placeholder="Let the Business Partner know why you're cancelling…"
-        ></textarea>
+        <textarea class="form-textarea" rows="2" v-model="cancelForm.feedback" placeholder="Let the Business Partner know why…"></textarea>
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.cancelContract = false">Keep Contract</button>
-        <button
-          type="button"
-          class="btn btn-danger"
-          :disabled="cancelForm.processing"
-          @click="doCancelContract"
-        >
-          <AegisIcon name="x" :size="13" />
-          Send Cancellation Notice
+        <button type="button" class="btn btn-danger" :disabled="cancelForm.processing" @click="doCancelContract">
+          <AegisIcon name="x" :size="13" /> Send Cancellation Notice
         </button>
       </template>
     </AegisModal>
-
-    <!-- Auto-Pay Settings -->
-    <AegisModal
-      v-model="modals.autoPay"
-      :title="'Auto-Pay Settings' + (activeContract ? ' — ' + activeContract.bp_name : '')"
-      size="lg"
-    >
-      <div class="setting-row" style="margin-bottom:14px">
-        <div class="setting-info">
-          <div class="setting-label">Enable Auto-Pay</div>
-          <div class="setting-desc">Automatically charge your default method when an invoice is due. Payment routes directly to the Business Partner.</div>
-        </div>
-        <button
-          type="button"
-          class="toggle"
-          :class="{ on: autoPayForm.enabled }"
-          :aria-pressed="autoPayForm.enabled"
-          @click="autoPayForm.enabled = !autoPayForm.enabled"
-        ></button>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Payment Day</label>
-        <select class="form-select" v-model="autoPayForm.day">
-          <option value="1st">1st of month</option>
-          <option value="15th">15th of month</option>
-          <option value="last">Last day of month</option>
-          <option value="due">Invoice due date</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Notify me before charge</label>
-        <select class="form-select" v-model="autoPayForm.notify">
-          <option value="3_days">3 days before</option>
-          <option value="1_day">1 day before</option>
-          <option value="same_day">Same day only</option>
-          <option value="none">Don't notify</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Max auto-pay limit (leave blank for no limit)</label>
-        <input class="form-input" type="number" min="0" v-model="autoPayForm.limit" placeholder="e.g. 2500">
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.autoPay = false">Cancel</button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          :disabled="autoPayForm.processing"
-          @click="doSaveAutoPay"
-        >
-          <AegisIcon name="check" :size="13" /> Save Settings
-        </button>
-      </template>
-    </AegisModal>
-
-    <!-- View Contract (summary) -->
-    <AegisModal
-      v-model="modals.viewContract"
-      :title="activeContract ? 'Contract — ' + activeContract.bp_name : 'Contract'"
-      size="lg"
-    >
-      <div v-if="activeContract" class="contract-preview">
-        <div class="contract-preview-title">Aegis Service Agreement</div>
-        <div class="contract-preview-row"><strong>Business Partner:</strong> {{ activeContract.bp_name }}</div>
-        <div class="contract-preview-row"><strong>Services:</strong> {{ activeContract.title }}</div>
-        <div class="contract-preview-row"><strong>Payment Type:</strong> {{ activeContract.billing_type_label }}</div>
-        <div class="contract-preview-row"><strong>Total Value:</strong> {{ formatCents(activeContract.total_cents) }}</div>
-        <div class="contract-preview-row"><strong>Term:</strong> {{ activeContract.term }}</div>
-        <div class="contract-preview-row"><strong>Termination:</strong> 30-day written notice</div>
-      </div>
-      <template #footer>
-        <a
-          v-if="activeContract"
-          :href="route('provider.jobs.contract.pdf', activeContract.id)"
-          target="_blank"
-          rel="noopener"
-          class="btn btn-ghost"
-        >
-          <AegisIcon name="download" :size="12" /> Download PDF
-        </a>
-        <a :href="route('provider.jobs.index')" class="btn btn-ghost">
-          <AegisIcon name="external-link" :size="12" /> Open in Support Services
-        </a>
-        <button type="button" class="btn btn-outline" @click="modals.viewContract = false">Close</button>
-      </template>
-    </AegisModal>
-
-    <!-- Sign Contract — reuse existing SignContractModal -->
-    <SignContractModal
-      v-model="modals.signContract"
-      :contract="activeContract"
-      portal="provider"
-    />
-
-    <!-- Fund Contract (full upfront) — reuse FundContractModal -->
-    <FundContractModal
-      v-model="modals.fundContract"
-      :contract="activeContract"
-      :has-payment-method="effectiveHasPm"
-    />
-
-    <!-- Fund Milestone (per-milestone escrow) — reuse FundMilestoneModal -->
-    <FundMilestoneModal
-      v-model="modals.fundMilestone"
-      :contract="activeContract"
-      :milestone="activeMilestone"
-      :has-payment-method="effectiveHasPm"
-    />
-
-    <!-- Refund Milestone escrow — reuse MilestoneRefundModal -->
-    <MilestoneRefundModal
-      v-model="modals.refundMilestone"
-      :contract="activeContract"
-      :milestone="activeMilestone"
-    />
-
-    <!-- Review Milestone (approve / revise / dispute path) — reuse MilestoneReviewModal -->
-    <MilestoneReviewModal
-      v-model="modals.reviewMilestone"
-      :contract="activeContract"
-      :milestone="activeMilestone"
-      :submission="activeSubmission"
-    />
-
-    <!-- Open Dispute (invoice or milestone) -->
-    <OpenDisputeModal
-      v-model="modals.openDispute"
-      :subject="disputeTarget"
-      post-route="provider.disputes.store"
-      @opened="router.reload({ only: ['bpInvoices', 'activeContracts', 'disputes'] })"
-    />
 
   </div>
 </template>
@@ -547,12 +351,7 @@ import AegisPagination           from '@/components/ui/AegisPagination.vue'
 import BpInvoiceRow              from '@/components/ui/BpInvoiceRow.vue'
 import BpContractRow             from '@/components/ui/BpContractRow.vue'
 import ViewInvoiceModal          from '@/components/modals/ViewInvoiceModal.vue'
-import OpenDisputeModal          from '@/components/modals/OpenDisputeModal.vue'
-import SignContractModal         from '@/components/modals/SignContractModal.vue'
-import FundContractModal         from '@/components/modals/FundContractModal.vue'
-import FundMilestoneModal        from '@/components/modals/FundMilestoneModal.vue'
-import MilestoneRefundModal      from '@/components/modals/MilestoneRefundModal.vue'
-import MilestoneReviewModal      from '@/components/modals/MilestoneReviewModal.vue'
+import ContractModal             from '@/components/modals/ContractModal.vue'
 
 const props = defineProps({
   invoices:           { type: Array,   default: () => [] },
@@ -583,31 +382,18 @@ const conPage   = ref(1)
 // ── Active record refs ─────────────────────────────────────────────────────────
 const activeInvoice    = ref(null)
 const activeContract   = ref(null)
-const activeMilestone  = ref(null)
-const activeSubmission = ref(null)
-const disputeTarget    = ref(null)
-const paying           = ref(null)
 
 // ── Modal flags ────────────────────────────────────────────────────────────────
 const modals = ref({
-  approveInvoice: false,
+  viewInvoice:    false,   // ViewInvoiceModal (centralized)
   rejectInvoice:  false,
-  viewInvoice:    false,
   cancelContract: false,
-  autoPay:        false,
-  viewContract:   false,
-  signContract:   false,
-  fundContract:   false,
-  fundMilestone:  false,
-  refundMilestone:false,
-  reviewMilestone:false,
-  openDispute:    false,
+  viewContract:   false,   // ContractModal (centralized, same as SupportServices)
 })
 
 // ── Forms ─────────────────────────────────────────────────────────────────────
-const rejectForm  = useForm({ reason: 'Incorrect amount', message: '' })
-const cancelForm  = useForm({ reason: 'No longer needed', feedback: '' })
-const autoPayForm = useForm({ enabled: false, day: '1st', notify: '3_days', limit: '' })
+const rejectForm = useForm({ reason: 'Incorrect amount', message: '' })
+const cancelForm = useForm({ reason: 'No longer needed', feedback: '' })
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const sv = (v) => (v && typeof v === 'object' && 'value' in v) ? v.value : (v ?? '')
@@ -716,50 +502,25 @@ const conChips = computed(() => [
 watch([invSearch, invFilter], () => { invPage.value = 1 })
 watch([conSearch, conFilter], () => { conPage.value = 1 })
 
-// ── Invoice actions ───────────────────────────────────────────────────────────
-function openApproveInvoice(inv) {
-  activeInvoice.value = inv
-  modals.value.approveInvoice = true
-}
-function openRejectInvoice(inv) {
-  activeInvoice.value = inv
-  rejectForm.reason = 'Incorrect amount'
-  rejectForm.message = ''
-  modals.value.rejectInvoice = true
-}
-function openViewInvoice(inv) {
+// ── Invoice actions ─────────────────────────────────────────────────────────
+function openInvoice(inv) {
   activeInvoice.value = inv
   modals.value.viewInvoice = true
 }
-function openBpInvoiceDispute(inv) {
-  disputeTarget.value = {
-    type:         'bp_invoice',
-    id:           inv.id,
-    amount_cents: inv.total_cents,
-    label:        `BP Invoice ${inv.invoice_number} · ${inv.bp_name}`,
-  }
-  modals.value.openDispute = true
-}
-function handleReceiptApprove(inv) {
-  modals.value.viewInvoice = false
-  activeInvoice.value = inv
-  modals.value.approveInvoice = true
-}
 
-function doApproveInvoice() {
-  if (!activeInvoice.value) return
-  paying.value = activeInvoice.value.id
+function doApproveInvoice(inv) {
+  const target = inv ?? activeInvoice.value
+  if (!target) return
   router.post(
-    route('provider.jobs.bp-invoice.pay', { invoice: activeInvoice.value.id }),
+    route('provider.jobs.bp-invoice.pay', { invoice: target.id }),
     {},
     {
       preserveScroll: true,
       onSuccess: () => {
-        modals.value.approveInvoice = false
+        modals.value.viewInvoice = false
         toast.success('Payment sent — routed directly to the recipient via Stripe Connect.')
       },
       onError: () => toast.error('Payment failed. Please check your default payment method.'),
-      onFinish: () => { paying.value = null },
     }
   )
 }
@@ -772,6 +533,7 @@ function doRejectInvoice() {
       preserveScroll: true,
       onSuccess: () => {
         modals.value.rejectInvoice = false
+        modals.value.viewInvoice   = false
         rejectForm.reset()
         toast.success('Invoice rejected — Business Partner notified.')
       },
@@ -781,28 +543,7 @@ function doRejectInvoice() {
 }
 
 // ── Contract actions ──────────────────────────────────────────────────────────
-function openSignContract(con) {
-  activeContract.value = con
-  modals.value.signContract = true
-}
-function openFundContract(con) {
-  activeContract.value = con
-  modals.value.fundContract = true
-}
-function openCancelContract(con) {
-  activeContract.value = con
-  cancelForm.reset()
-  modals.value.cancelContract = true
-}
-function openAutoPay(con) {
-  activeContract.value = con
-  autoPayForm.enabled = !!con.autopay_enabled
-  autoPayForm.day     = '1st'
-  autoPayForm.notify  = '3_days'
-  autoPayForm.limit   = ''
-  modals.value.autoPay = true
-}
-function openViewContract(con) {
+function openContract(con) {
   activeContract.value = con
   modals.value.viewContract = true
 }
@@ -820,46 +561,7 @@ function doCancelContract() {
     }
   )
 }
-function doSaveAutoPay() {
-  if (!activeContract.value) return
-  autoPayForm.post(
-    route('provider.finances.bp-contract.autopay', { contract: activeContract.value.id }),
-    {
-      preserveScroll: true,
-      onSuccess: () => {
-        modals.value.autoPay = false
-        toast.success(autoPayForm.enabled ? 'Auto-pay enabled.' : 'Auto-pay turned off.')
-      },
-    }
-  )
-}
 
-// ── Milestone actions ─────────────────────────────────────────────────────────
-function openFundMilestone(con, ms) {
-  activeContract.value   = con
-  activeMilestone.value  = ms
-  modals.value.fundMilestone = true
-}
-function openRefundMilestone(con, ms) {
-  activeContract.value   = con
-  activeMilestone.value  = ms
-  modals.value.refundMilestone = true
-}
-function openReviewMilestone(con, ms) {
-  activeContract.value   = con
-  activeMilestone.value  = ms
-  activeSubmission.value = ms.latest_submission ?? null
-  modals.value.reviewMilestone = true
-}
-function openMilestoneDispute(con, ms) {
-  disputeTarget.value = {
-    type:         'bp_milestone',
-    id:           ms.id,
-    amount_cents: ms.amount_cents,
-    label:        `Milestone — ${ms.title} (${con.bp_name})`,
-  }
-  modals.value.openDispute = true
-}
 </script>
 
 <style scoped>
