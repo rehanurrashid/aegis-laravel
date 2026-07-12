@@ -359,247 +359,14 @@
     <!-- ══════════════════════════════ TAB: BUSINESS PARTNERS ══════════════════════════════ -->
     <div v-show="activeTab === 'bp'">
 
-      <!-- Escrow summary bar (Wave 8) -->
-      <div v-if="escrowSummary.total_held_cents > 0 || escrowSummary.total_unfunded_cents > 0" class="escrow-summary-bar">
-        <div class="escrow-summary-item">
-          <AegisIcon name="shield-check" :size="14" />
-          <div>
-            <div class="escrow-summary-label">Held in escrow</div>
-            <div class="escrow-summary-value">{{ formatCents(escrowSummary.total_held_cents) }}</div>
-          </div>
-        </div>
-        <div class="escrow-summary-divider" />
-        <div class="escrow-summary-item" :class="{ 'is-warning': escrowSummary.total_unfunded_cents > 0 }">
-          <AegisIcon name="alert-circle" :size="14" />
-          <div>
-            <div class="escrow-summary-label">Unfunded milestones</div>
-            <div class="escrow-summary-value">{{ formatCents(escrowSummary.total_unfunded_cents) }}</div>
-          </div>
-        </div>
-        <div class="escrow-summary-divider" />
-        <div class="escrow-summary-item">
-          <AegisIcon name="info" :size="14" />
-          <div class="escrow-summary-label escrow-summary-desc">
-            Aegis holds funds in escrow until you approve milestone work.
-            Funds auto-release after the review window.
-          </div>
-        </div>
-      </div>
+      <BpFinanceTable
+        :invoices="bpInvoices"
+        :contracts="activeContracts"
+        :escrow-summary="escrowSummary"
+        :has-payment-method="has_valid_default_pm"
+      />
 
-      <div class="tabs-pill" style="margin-bottom:20px;display:inline-flex;">
-          <button type="button" class="tab-pill" :class="{ active: bpFilter === 'all' }" @click="bpFilter = 'all'">
-            All <span v-if="allBpItems > 0" class="badge-pill">{{ allBpItems }}</span>
-          </button>
-          <button type="button" class="tab-pill" :class="{ active: bpFilter === 'pending' }" @click="bpFilter = 'pending'">
-            Invoices <span v-if="bpInvoices.length > 0" class="badge-pill">{{ bpInvoices.length }}</span>
-          </button>
-          <button type="button" class="tab-pill" :class="{ active: bpFilter === 'active' }" @click="bpFilter = 'active'">
-            Contracts <span v-if="activeContracts.length > 0" class="badge-pill">{{ activeContracts.length }}</span>
-          </button>
-          <button type="button" class="tab-pill" :class="{ active: bpFilter === 'escrow' }" @click="bpFilter = 'escrow'">
-            Escrow
-            <span v-if="escrowSummary.contracts_needing_funding > 0" class="badge-pill badge-pill--warning">{{ escrowSummary.contracts_needing_funding }}</span>
-          </button>
-        </div>
-
-      <AegisEmptyState
-        v-if="!bpInvoices.length && !activeContracts.length"
-        icon="file-text"
-        title="No Business Partners yet"
-        description="Business Partners are hired via the Support Services marketplace. Contracts and invoices appear here."
-      >
-        <template #action>
-          <a :href="route('provider.jobs.index')" class="btn btn-primary">
-            <AegisIcon name="plus" :size="13" /> Go to Support Services
-          </a>
-        </template>
-      </AegisEmptyState>
-
-      <!-- Pending invoice cards -->
-      <template v-if="bpFilter === 'all' || bpFilter === 'pending'">
-        <div v-for="inv in bpInvoices" :key="inv.id" class="invoice-card pending-approval">
-          <div class="invoice-body">
-            <div class="invoice-status">
-              <AegisBadge label="Awaiting Approval" variant="gold" />
-              <span class="invoice-status-right">
-                <span class="connect-pill" :class="inv.bp_connected ? 'is-connected' : 'is-not-connected'">
-                  <span class="status-dot"></span>{{ inv.bp_connected ? 'Stripe Connected' : 'Not Connected' }}
-                </span>
-                <span class="invoice-auto"><AegisIcon name="clock" :size="13" /> Auto-approves in 5 days</span>
-              </span>
-            </div>
-            <div class="invoice-head">
-              <div>
-                <div class="invoice-vendor">{{ inv.bp_name }}</div>
-                <div class="invoice-service">{{ inv.contract_title }}</div>
-              </div>
-              <div>
-                <div class="invoice-amount">{{ formatCents(inv.total_cents) }}</div>
-                <div class="invoice-period">{{ inv.issued_month }}</div>
-              </div>
-            </div>
-            <div class="invoice-meta">
-              <div>
-                <div class="invoice-meta-label">Invoice</div>
-                <div class="invoice-meta-value">#{{ inv.invoice_number }}</div>
-              </div>
-              <div>
-                <div class="invoice-meta-label">Notes</div>
-                <div class="invoice-meta-value">{{ inv.notes_short || '—' }}</div>
-              </div>
-              <div>
-                <div class="invoice-meta-label">Due Date</div>
-                <div class="invoice-meta-value due">{{ inv.due_at || '—' }}</div>
-              </div>
-            </div>
-            <div class="invoice-actions">
-              <button type="button" class="btn-primary-full" @click="openApproveInvoice(inv)">
-                <AegisIcon name="check" :size="15" /> Approve &amp; Pay
-              </button>
-              <button type="button" class="btn-icon" data-tooltip="View invoice" @click="openViewInvoice(inv)">
-                <AegisIcon name="eye" :size="15" />
-              </button>
-              <button type="button" class="btn-icon" data-tooltip="Dispute this invoice" @click="openBpDispute(inv)">
-                <AegisIcon name="alert-triangle" :size="15" />
-              </button>
-              <button type="button" class="btn-icon btn-icon-danger" data-tooltip="Reject" @click="openRejectInvoice(inv)">
-                <AegisIcon name="x" :size="15" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <!-- Active + pending contracts (Wave 8: all statuses + escrow) -->
-      <template v-if="bpFilter === 'all' || bpFilter === 'active'">
-        <div v-for="con in activeContracts" :key="con.id" class="invoice-card active-contract"
-             :class="{ 'contract--pending-sig': con.status === 'pending_signature', 'contract--pending-fund': con.status === 'pending_funding' }">
-          <div class="invoice-body">
-            <div class="invoice-status">
-              <AegisBadge :label="contractStatusLabel(con.status)" :variant="contractStatusVariant(con.status)" />
-              <span class="invoice-status-right">
-                <span class="connect-pill" :class="con.bp_connected ? 'is-connected' : 'is-not-connected'">
-                  <span class="status-dot"></span>{{ con.bp_connected ? 'Stripe Connected' : 'Not Connected' }}
-                </span>
-              </span>
-            </div>
-            <div class="invoice-head">
-              <div>
-                <div class="invoice-vendor">{{ con.bp_name }}</div>
-                <div class="invoice-service">{{ con.title }}</div>
-              </div>
-              <div>
-                <div class="invoice-amount">{{ formatCents(con.total_cents) }}</div>
-                <div class="invoice-period">{{ con.billing_type_label }}</div>
-              </div>
-            </div>
-
-            <!-- Escrow progress bar (active milestone contracts) -->
-            <div v-if="con.status === 'active' && con.billing_type === 'milestone' && con.total_cents > 0" class="escrow-progress-wrap">
-              <div class="escrow-progress-labels">
-                <span class="escrow-label-held">
-                  <AegisIcon name="shield-check" :size="11" />
-                  {{ formatCents(con.escrow_held_cents ?? 0) }} held
-                </span>
-                <span>·</span>
-                <span class="escrow-label-released">{{ formatCents(con.escrow_released_cents ?? 0) }} released</span>
-                <span>·</span>
-                <span>{{ formatCents(con.unfunded_cents ?? 0) }} unfunded</span>
-              </div>
-              <div class="escrow-progress-bar">
-                <div class="escrow-bar-released" :style="{ width: escrowPct(con.escrow_released_cents ?? 0, con.total_cents) }" />
-                <div class="escrow-bar-held" :style="{ width: escrowPct(con.escrow_held_cents ?? 0, con.total_cents) }" />
-              </div>
-            </div>
-
-            <!-- Pending funding CTA -->
-            <div v-if="con.status === 'pending_funding' || (con.status === 'active' && (con.unfunded_cents ?? 0) > 0)" class="escrow-fund-prompt">
-              <AegisIcon name="alert-circle" :size="13" />
-              <span>
-                {{ formatCents(con.unfunded_cents ?? 0) }} in unfunded milestones.
-                <a :href="route('provider.jobs.index')" class="link-gold">Fund escrow in Support Services →</a>
-              </span>
-            </div>
-
-            <!-- Pending signature notice -->
-            <div v-if="con.status === 'pending_signature'" class="escrow-fund-prompt escrow-fund-prompt--sig">
-              <AegisIcon name="file-pen" :size="13" />
-              <span>
-                Awaiting signatures before funding.
-                <a :href="route('provider.jobs.index')" class="link-gold">Sign in Support Services →</a>
-              </span>
-            </div>
-
-            <div class="invoice-meta">
-              <div>
-                <div class="invoice-meta-label">Contract Term</div>
-                <div class="invoice-meta-value">{{ con.term }}</div>
-              </div>
-              <div>
-                <div class="invoice-meta-label">Last Paid</div>
-                <div class="invoice-meta-value">{{ con.last_paid || '—' }}</div>
-              </div>
-              <div>
-                <div class="invoice-meta-label">Total Value</div>
-                <div class="invoice-meta-value">{{ formatCents(con.total_cents) }}</div>
-              </div>
-            </div>
-            <div class="invoice-actions">
-              <a :href="route('provider.jobs.index')" class="btn btn-outline" data-tooltip="Open in Support Services">
-                <AegisIcon name="external-link" :size="13" /> Manage
-              </a>
-              <button type="button" class="btn-icon" data-tooltip="View contract" @click="openViewContract(con)">
-                <AegisIcon name="file-text" :size="15" />
-              </button>
-              <button type="button" class="btn-icon" data-tooltip="Auto-pay settings" @click="openAutoPay(con)">
-                <AegisIcon name="settings" :size="15" />
-              </button>
-              <button type="button" class="btn-icon btn-icon-danger" data-tooltip="Cancel contract" @click="openCancelContract(con)">
-                <AegisIcon name="trash" :size="15" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <!-- Escrow tab: fund-now view for unfunded milestones -->
-      <template v-if="bpFilter === 'escrow'">
-        <AegisEmptyState
-          v-if="!activeContracts.some(c => (c.unfunded_cents ?? 0) > 0)",
-          icon="shield-check"
-          title="All milestones funded"
-          description="There are no unfunded milestones. Business Partners can begin work on all funded milestones."
-        />
-        <template v-for="con in activeContracts.filter(c => (c.unfunded_cents ?? 0) > 0)" :key="con.id">
-          <div class="escrow-fund-card">
-            <div class="escrow-fund-card-header">
-              <div>
-                <div class="escrow-fund-card-title">{{ con.title }}</div>
-                <div class="escrow-fund-card-meta">{{ con.bp_name }} · {{ formatCents(con.unfunded_cents) }} unfunded</div>
-              </div>
-              <AegisBadge :label="contractStatusLabel(con.status)" :variant="contractStatusVariant(con.status)" />
-            </div>
-            <div v-for="ms in (con.milestones ?? []).filter(m => ['pending','pending_funding'].includes(m.status) && !(m.funded_cents > 0))" :key="ms.id" class="escrow-fund-milestone">
-              <div class="escrow-fund-milestone-info">
-                <div class="escrow-fund-milestone-title">{{ ms.title }}</div>
-                <div class="escrow-fund-milestone-meta">
-                  {{ formatCents(ms.amount_cents) }}
-                  <span v-if="ms.due_at">· Due {{ ms.due_at }}</span>
-                </div>
-              </div>
-              <AegisBadge label="Unfunded" variant="neutral" />
-            </div>
-            <div class="escrow-fund-card-cta">
-              <a :href="route('provider.jobs.index')" class="btn btn-primary">
-                <AegisIcon name="dollar" :size="13" />
-                Fund milestones in Support Services
-              </a>
-            </div>
-          </div>
-        </template>
-      </template>
     </div>
-
     <!-- ══════════════════════════════ TAB: CLINICAL SESSIONS ══════════════════════════════ -->
     <!-- ══════════════════════════════════════════════════════════════════
          TAB: CLINICAL SESSIONS (Wave 6 — two-section rebuild)
@@ -996,65 +763,7 @@
 
     <!-- ══════════════════════════════ MODALS ══════════════════════════════ -->
 
-    <!-- Approve BP Invoice -->
-    <AegisModal v-model="modals.approveInvoice" title="Approve &amp; Pay Invoice" size="lg">
-      <div v-if="activeInvoice">
-        <div class="alert alert-success" style="margin-bottom:14px;">
-          <div class="alert-icon"><AegisIcon name="check" :size="18" /></div>
-          <div class="alert-content">
-            <strong>Invoice #{{ activeInvoice.invoice_number }} · {{ activeInvoice.bp_name }}</strong>
-            — {{ formatCents(activeInvoice.total_cents) }} will be charged to your default card and routed directly to {{ activeInvoice.bp_name }} via Stripe Connect.
-          </div>
-        </div>
-        <div class="receipt">
-          <div class="receipt-row"><span>{{ activeInvoice.contract_title || 'Services' }}</span><span>{{ formatCents(activeInvoice.total_cents) }}</span></div>
-          <div class="receipt-row total"><span>Total</span><span>{{ formatCents(activeInvoice.total_cents) }}</span></div>
-        </div>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.approveInvoice = false">Cancel</button>
-        <button type="button" class="btn btn-success" :disabled="paying === activeInvoice?.id" @click="doApproveBpInvoice">
-          <AegisIcon name="check" :size="13" />
-          {{ paying === activeInvoice?.id ? 'Processing…' : ('Approve & Pay ' + (activeInvoice ? formatCents(activeInvoice.total_cents) : '')) }}
-        </button>
-      </template>
-    </AegisModal>
 
-    <!-- Reject BP Invoice -->
-    <AegisModal v-model="modals.rejectInvoice" title="Reject Invoice" size="lg">
-      <div v-if="activeInvoice">
-        <div class="alert alert-danger" style="margin-bottom:14px;">
-          <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
-          <div class="alert-content">
-            <strong>Rejecting will notify {{ activeInvoice.bp_name }}.</strong> They can revise and resubmit.
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Reason for Rejection <span class="required">*</span></label>
-          <select class="form-select" v-model="rejectForm.reason" :class="{ 'is-error': rejectForm.errors.reason }">
-            <option>Incorrect amount</option>
-            <option>Services not delivered</option>
-            <option>Duplicate invoice</option>
-            <option>Unauthorized charges</option>
-            <option>Missing documentation</option>
-            <option>Other</option>
-          </select>
-          <div v-if="rejectForm.errors.reason" class="form-error">{{ rejectForm.errors.reason }}</div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Message to Business Partner</label>
-          <textarea class="form-textarea" rows="3" v-model="rejectForm.message"
-            :class="{ 'is-error': rejectForm.errors.message }"
-            placeholder="Explain the rejection so they can resubmit correctly…"></textarea>
-        </div>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.rejectInvoice = false">Cancel</button>
-        <button type="button" class="btn btn-danger" :disabled="rejectForm.processing" @click="doRejectInvoice">
-          <AegisIcon name="x" :size="13" /> {{ rejectForm.processing ? 'Rejecting…' : 'Reject Invoice' }}
-        </button>
-      </template>
-    </AegisModal>
 
     <!-- Centralized View Invoice (all payment types) -->
     <ViewInvoiceModal
@@ -1091,101 +800,8 @@
       </template>
     </AegisModal>
 
-    <!-- Cancel BP Contract -->
-    <AegisModal v-model="modals.cancelBpContract" title="Cancel Contract" size="lg">
-      <div class="alert alert-danger" style="margin-bottom:14px;">
-        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
-        <div class="alert-content">
-          <strong>Cancelling {{ activeContract ? 'your contract with ' + activeContract.bp_name : 'this contract' }} will stop scheduled payments.</strong> Per contract terms, 30-day notice is required.
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Reason <span class="required">*</span></label>
-        <select class="form-select" v-model="cancelContractForm.reason" :class="{ 'is-error': cancelContractForm.errors.reason }">
-          <option>Switching to different provider</option>
-          <option>No longer needed</option>
-          <option>Cost reduction</option>
-          <option>Service quality issues</option>
-          <option>Other</option>
-        </select>
-        <div v-if="cancelContractForm.errors.reason" class="form-error">{{ cancelContractForm.errors.reason }}</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Feedback (optional)</label>
-        <textarea class="form-textarea" rows="2" v-model="cancelContractForm.feedback"
-          placeholder="Let the Business Partner know why you're cancelling…"></textarea>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.cancelBpContract = false">Keep Contract</button>
-        <button type="button" class="btn btn-danger" :disabled="cancelContractForm.processing" @click="doCancelBpContract">
-          <AegisIcon name="x" :size="13" /> Send Cancellation Notice
-        </button>
-      </template>
-    </AegisModal>
 
-    <!-- Auto-Pay Settings (BP contract) -->
-    <AegisModal v-model="modals.autoPay" :title="'Auto-Pay Settings' + (activeContract ? ' — ' + activeContract.bp_name : '')" size="lg">
-      <div class="setting-row" style="margin-bottom:14px;">
-        <div class="setting-info">
-          <div class="setting-label">Enable Auto-Pay</div>
-          <div class="setting-desc">Automatically charge your default method when an invoice is due. Payment routes directly to the Business Partner.</div>
-        </div>
-        <button
-          type="button"
-          class="toggle"
-          :class="{ on: autoPayForm.enabled }"
-          :aria-pressed="autoPayForm.enabled"
-          @click="autoPayForm.enabled = !autoPayForm.enabled"
-        ></button>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Payment Day</label>
-        <select class="form-select" v-model="autoPayForm.day">
-          <option value="1st">1st of month</option>
-          <option value="15th">15th of month</option>
-          <option value="last">Last day of month</option>
-          <option value="due">Invoice due date</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Notify me before charge</label>
-        <select class="form-select" v-model="autoPayForm.notify">
-          <option value="3_days">3 days before</option>
-          <option value="1_day">1 day before</option>
-          <option value="same_day">Same day only</option>
-          <option value="none">Don't notify</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Max auto-pay limit (leave blank for no limit)</label>
-        <input class="form-input" type="number" min="0" v-model="autoPayForm.limit" placeholder="e.g. 2500">
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.autoPay = false">Cancel</button>
-        <button type="button" class="btn btn-primary" :disabled="autoPayForm.processing" @click="doSaveAutoPay">
-          <AegisIcon name="check" :size="13" /> Save Settings
-        </button>
-      </template>
-    </AegisModal>
 
-    <!-- View Contract -->
-    <AegisModal v-model="modals.viewContract" :title="activeContract ? 'Contract — ' + activeContract.bp_name : 'Contract'" size="lg">
-      <div v-if="activeContract" class="contract-preview">
-        <div class="contract-preview-title">Aegis Service Agreement</div>
-        <div class="contract-preview-row"><strong>Business Partner:</strong> {{ activeContract.bp_name }}</div>
-        <div class="contract-preview-row"><strong>Services:</strong> {{ activeContract.title }}</div>
-        <div class="contract-preview-row"><strong>Payment Type:</strong> {{ activeContract.billing_type_label }}</div>
-        <div class="contract-preview-row"><strong>Total Value:</strong> {{ formatCents(activeContract.total_cents) }}</div>
-        <div class="contract-preview-row"><strong>Term:</strong> {{ activeContract.term }}</div>
-        <div class="contract-preview-row"><strong>Termination:</strong> 30-day written notice</div>
-      </div>
-      <template #footer>
-        <a v-if="activeContract" :href="route('provider.jobs.index')" class="btn btn-ghost">
-          <AegisIcon name="external-link" :size="12" /> Open in Support Services
-        </a>
-        <button type="button" class="btn btn-outline" @click="modals.viewContract = false">Close</button>
-      </template>
-    </AegisModal>
 
 
 
@@ -1340,6 +956,7 @@ import AppLayout                   from '@/layouts/AppLayout.vue'
 import OpenDisputeModal             from '@/components/modals/OpenDisputeModal.vue'
 import ViewInvoiceModal             from '@/components/modals/ViewInvoiceModal.vue'
 import AegisPagination              from '@/components/ui/AegisPagination.vue'
+import BpFinanceTable               from '@/components/ui/BpFinanceTable.vue'
 import SettingsSubscriptionInvoices from '@/components/settings/SettingsSubscriptionInvoices.vue'
 // Wave 6 — session payment modals (local import required)
 import SessionInvoiceCard           from '@/components/ui/SessionInvoiceCard.vue'
@@ -1397,18 +1014,6 @@ onMounted(() => {
   const t = new URLSearchParams(window.location.search).get('tab')
   if (t && validTabs.includes(t)) activeTab.value = t
 })
-const bpFilter  = ref('all')
-
-const bpPendingCount      = computed(() => props.pendingBreakdown?.bp?.count ?? 0)
-// Wave 6: count sessions where I am the client and owe deposit or balance
-const sessionPendingCount = computed(() => {
-  const fromBreakdown = props.pendingBreakdown?.session?.count ?? 0
-  if (fromBreakdown > 0) return fromBreakdown
-  return props.clientSessions.filter(s =>
-    ['unpaid', 'deposit_paid'].includes(s.payment_status) && s.status === 'scheduled'
-  ).length
-})
-const allBpItems          = computed(() => props.bpInvoices.length + props.activeContracts.length)
 
 // ── Tooltips ─────────────────────────────────────────────────────────────
 const pendingBreakdownTooltip = computed(() => {
@@ -1461,9 +1066,9 @@ const activeCs       = ref(null)
 
 // ── Modals ───────────────────────────────────────────────────────────────
 const modals = ref({
-  approveInvoice: false, rejectInvoice: false, viewReceipt: false,
-  cancelCsAgreement: false, cancelBpContract: false, autoPay: false,
-  viewContract: false, export: false,
+  viewReceipt: false,
+  cancelCsAgreement: false,
+  export: false,
   payArrangement: false, changePayModel: false, confirmCsPay: false, openDispute: false,
   // Wave 6 — session payment modals
   sessionPayDeposit:  false,
@@ -1538,33 +1143,6 @@ function doPayCs() {
     onFinish: () => { paying.value = null },
   })
 }
-
-function doApproveBpInvoice() {
-  if (!activeInvoice.value) return
-  paying.value = activeInvoice.value.id
-  router.post(route('provider.jobs.bp-invoice.pay', { invoice: activeInvoice.value.id }), {}, {
-    preserveScroll: true,
-    onSuccess: () => { modals.value.approveInvoice = false; toast.success('Payment sent — routed directly to the recipient via Stripe Connect.') },
-    onError: () => toast.error('Payment failed. Please check your default payment method.'),
-    onFinish: () => { paying.value = null },
-  })
-}
-
-// ── Dispute ──────────────────────────────────────────────────────────────
-const disputeTarget = ref(null)
-function openBpDispute(inv) {
-  disputeTarget.value = {
-    type: 'bp_invoice',
-    id: inv.id,
-    amount_cents: inv.total_cents,
-    label: `BP Invoice ${inv.invoice_number} · ${inv.bp_name}`,
-  }
-  modals.value.openDispute = true
-}
-
-// ── Invoice modal actions ────────────────────────────────────────────────
-function openApproveInvoice(inv) { activeInvoice.value = inv; modals.value.approveInvoice = true }
-function openRejectInvoice(inv)  { activeInvoice.value = inv; rejectForm.reason = 'Incorrect amount'; rejectForm.message = ''; modals.value.rejectInvoice = true }
 function openViewInvoice(inv)    { activeInvoice.value = inv; modals.value.viewReceipt = true }
 
 /**
@@ -1623,47 +1201,11 @@ function openTxReceipt(tx) {
 
 function handleReceiptApprove(inv) {
   modals.value.viewReceipt = false
-  if (inv.kind === 'bp_invoice') { activeInvoice.value = inv; modals.value.approveInvoice = true }
-  else if (inv.kind === 'cs_invoice') { askPayCs({ ...inv, cs_name: inv.cs_name }) }
-}
-
-// ── Form: Reject Invoice ─────────────────────────────────────────────────
-const rejectForm = useForm({ reason: 'Incorrect amount', message: '' })
-function doRejectInvoice() {
-  if (!activeInvoice.value) return
-  rejectForm.post(route('provider.finances.bp-invoice.reject', { invoice: activeInvoice.value.id }), {
-    preserveScroll: true,
-    onSuccess: () => { modals.value.rejectInvoice = false; rejectForm.reset(); toast.success('Invoice rejected — Business Partner notified.') },
-    onError:   () => toast.error('Please check the form.'),
-  })
-}
-
-// ── Form: Cancel BP Contract ─────────────────────────────────────────────
-const cancelContractForm = useForm({ reason: 'No longer needed', feedback: '' })
-function openCancelContract(con) { activeContract.value = con; cancelContractForm.reset(); modals.value.cancelBpContract = true }
-function openViewContract(con)   { activeContract.value = con; modals.value.viewContract = true }
-function doCancelBpContract() {
-  if (!activeContract.value) return
-  cancelContractForm.post(route('provider.finances.bp-contract.cancel', { contract: activeContract.value.id }), {
-    preserveScroll: true,
-    onSuccess: () => { modals.value.cancelBpContract = false; toast.info('Cancellation notice sent — contract cancelled.') },
-  })
-}
-
-// ── Form: Auto-pay ────────────────────────────────────────────────────────
-const autoPayForm = useForm({ enabled: false, day: '1st', method_id: '', notify: '3_days', limit: '' })
-function openAutoPay(con) {
-  activeContract.value = con
-  autoPayForm.enabled = !!con.autopay_enabled
-  autoPayForm.day = '1st'; autoPayForm.notify = '3_days'; autoPayForm.limit = ''
-  modals.value.autoPay = true
-}
-function doSaveAutoPay() {
-  if (!activeContract.value) return
-  autoPayForm.post(route('provider.finances.bp-contract.autopay', { contract: activeContract.value.id }), {
-    preserveScroll: true,
-    onSuccess: () => { modals.value.autoPay = false; toast.success(autoPayForm.enabled ? 'Auto-pay enabled.' : 'Auto-pay turned off.') },
-  })
+  if (inv.kind === 'bp_invoice') {
+    // BP invoice approval is handled by BpFinanceTable — switch to that tab
+    activeTab.value = 'bp'
+    toast.info('Select the invoice in the Business Partners tab to approve and pay.')
+  } else if (inv.kind === 'cs_invoice') { askPayCs({ ...inv, cs_name: inv.cs_name }) }
 }
 
 // ── Form: Cancel CS Agreement ────────────────────────────────────────────

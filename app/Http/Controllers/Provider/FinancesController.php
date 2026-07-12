@@ -124,6 +124,7 @@ class FinancesController extends Controller
                 'notes_short'      => $inv->notes ? mb_strimwidth($inv->notes, 0, 60, '…') : null,
                 'payable'          => in_array($status, [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value], true),
                 'active_dispute_id'=> $bpDisputeMap[$inv->id] ?? null,
+                'paid_at'          => $inv->paid_at?->toDateString(),
                 'kind'             => 'bp_invoice',
             ];
         })->values();
@@ -208,13 +209,18 @@ class FinancesController extends Controller
 
                 // Per-milestone funding status
                 $milestones = $con->milestones->sortBy('sort_order')->map(fn (\App\Models\BpMilestone $m) => [
-                    'id'            => $m->id,
-                    'title'         => $m->title,
-                    'amount_cents'  => (int) $m->amount_cents,
-                    'funded_cents'  => (int) ($m->funded_cents ?? 0),
-                    'status'        => $m->status instanceof \BackedEnum ? $m->status->value : (string) $m->status,
-                    'due_at'        => $m->due_at?->toDateString(),
-                    'auto_release_at' => $m->auto_release_at?->toDateString(),
+                    'id'               => $m->id,
+                    'title'            => $m->title,
+                    'amount_cents'     => (int) $m->amount_cents,
+                    'funded_cents'     => (int) ($m->funded_cents ?? 0),
+                    'status'           => $m->status instanceof \BackedEnum ? $m->status->value : (string) $m->status,
+                    'due_at'           => $m->due_at?->toDateString(),
+                    'auto_release_at'  => $m->auto_release_at?->toDateString(),
+                    // Fields needed for Finances milestone review UX
+                    'submitted_at'     => $m->submitted_at?->toDateString(),
+                    'revision_notes'   => $m->revision_notes,
+                    'revision_count'   => (int) ($m->revision_count ?? 0),
+                    'latest_submission'=> null, // MilestoneReviewModal reads this for submission detail
                 ])->values();
 
                 return [
