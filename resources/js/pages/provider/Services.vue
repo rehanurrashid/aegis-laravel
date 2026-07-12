@@ -414,36 +414,81 @@
         <div class="section-title">Pending Requests<span class="section-badge">{{ newRequests.length }}</span></div>
       </div>
 
-      <div class="requests-list">
-        <AegisEmptyState v-if="!newRequests.length" icon="inbox" title="No Pending Requests" subtitle="New service requests from providers will appear here." />
-        <div
-          v-for="r in newRequests"
-          :key="r.id"
-          class="card request-card new"
-          style="padding:16px 20px;display:flex;align-items:center;flex-wrap:wrap;gap:16px;"
-          @click="setActiveRequest(r)"
-        >
-          <div class="avatar avatar-md">{{ r.requester_avatar || initials(r.requester_name) }}</div>
-          <div class="req-info">
-            <component :is="r.requester_slug ? 'a' : 'div'" :href="r.requester_slug ? route('public.provider', { slug: r.requester_slug }) : undefined" class="req-name" :class="{ 'link-name': r.requester_slug }">{{ r.requester_name }}</component>
-            <div class="req-detail">{{ r.requester_detail }}</div>
-          </div>
-          <div class="req-service">
-            <div class="req-service-name">{{ r.service_title }}</div>
-            <div class="req-service-type">{{ r.request_type }}</div>
-          </div>
-          <div style="min-width:120px;color:var(--text-3);font-size:12px;font-weight:600">
-            <div style="font-weight:700;font-size:13px;color:var(--text);margin-bottom:2px">Requested date</div>
-            {{ r.requested_date_label }}
-          </div>
-          <div class="req-date">{{ r.time_label }}</div>
-          <div class="req-actions">
-            <button class="btn-icon" :data-tooltip="`Message ${r.requester_name}`" :disabled="msgLoading === r.requester_id" @click.stop="openConversation(r.requester_id)"><AegisIcon name="message" :size="14" /></button>
-            <button class="btn-icon" data-tooltip="Counter Propose" @click.stop="setActiveRequest(r); modals.counter = true"><AegisIcon name="refresh" :size="14" /></button>
-            <button class="btn-icon" data-tooltip="Dismiss" @click.stop="setActiveRequest(r); dismissForm.reason = ''; dismissForm.otherReason = ''; modals.dismiss = true"><AegisIcon name="x" :size="14" /></button>
-            <button class="btn btn-primary" @click.stop="setActiveRequest(r); modals.accept = true"><AegisIcon name="check" :size="13" /> Accept</button>
-          </div>
-        </div>
+      <AegisEmptyState v-if="!newRequests.length" icon="inbox" title="No Pending Requests" subtitle="New service requests from practitioners will appear here." />
+
+      <div v-else class="sic-table-wrap">
+        <table class="sic-table">
+          <thead>
+            <tr>
+              <th class="sic-th">Requester</th>
+              <th class="sic-th">Service</th>
+              <th class="sic-th">Date Requested</th>
+              <th class="sic-th"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="r in newRequests"
+              :key="r.id"
+              class="req-row"
+              @click="setActiveRequest(r)"
+            >
+              <!-- Requester -->
+              <td class="sic-td req-td--requester">
+                <div class="sic-party">
+                  <div class="sic-avatar">
+                    <span class="sic-avatar-initials">{{ r.requester_avatar || initials(r.requester_name) }}</span>
+                  </div>
+                  <div class="sic-party-info">
+                    <a
+                      v-if="r.requester_slug"
+                      :href="route('public.provider', { slug: r.requester_slug })"
+                      class="sic-party-name"
+                      @click.stop
+                    >{{ r.requester_name }}</a>
+                    <span v-else class="sic-party-name">{{ r.requester_name }}</span>
+                    <span class="sic-date-sub">{{ r.requester_detail }}</span>
+                  </div>
+                </div>
+              </td>
+              <!-- Service -->
+              <td class="sic-td req-td--service">
+                <div class="orq-service-title">{{ r.service_title }}</div>
+                <div class="sic-date-sub">{{ r.request_type }}</div>
+              </td>
+              <!-- Date -->
+              <td class="sic-td req-td--date">
+                <div style="font-size:13px;font-weight:600;color:var(--text)">{{ r.requested_date_label }}</div>
+                <div class="sic-date-sub">{{ r.time_label }}</div>
+              </td>
+              <!-- Actions -->
+              <td class="sic-td req-td--actions" @click.stop>
+                <div class="req-row-actions">
+                  <button
+                    class="btn-icon"
+                    :data-tooltip="`Message ${r.requester_name}`"
+                    :disabled="msgLoading === r.requester_id"
+                    @click="openConversation(r.requester_id)"
+                  ><AegisIcon name="message" :size="14" /></button>
+                  <button
+                    class="btn-icon"
+                    data-tooltip="Counter Propose"
+                    @click="setActiveRequest(r); modals.counter = true"
+                  ><AegisIcon name="refresh" :size="14" /></button>
+                  <button
+                    class="btn-icon"
+                    data-tooltip="Dismiss request"
+                    @click="setActiveRequest(r); dismissForm.reason = ''; dismissForm.otherReason = ''; modals.dismiss = true"
+                  ><AegisIcon name="x" :size="14" /></button>
+                  <button
+                    class="btn btn-primary"
+                    @click="setActiveRequest(r); modals.accept = true"
+                  ><AegisIcon name="check" :size="13" /> Accept</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -708,7 +753,7 @@
             </div>
           </div>
           <div class="card-body">
-            <div class="form-row" style="margin-bottom:16px">
+            <div class="form-row">
               <div class="form-group">
                 <label class="form-label">Services Headline</label>
                 <input v-model="profileForm.headline" class="form-input" type="text" placeholder="e.g. Board-Approved Clinical Supervisor | Trauma &amp; DBT Specialist">
@@ -720,7 +765,7 @@
             </div>
             <div class="form-group">
               <label class="form-label">Services Bio</label>
-              <textarea v-model="profileForm.bio" class="form-input"></textarea>
+              <textarea v-model="profileForm.bio" class="form-input" rows="8" style="min-height:160px"></textarea>
             </div>
             <div class="form-group">
               <label class="form-label">Specialties (shown as tags)</label>
@@ -1730,8 +1775,17 @@ const serviceTypeOptions = [
 .sic-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .sic-th { padding: 9px 12px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-4); background: var(--surface-2); border-bottom: 1px solid var(--border); }
 
+/* ── INCOMING PENDING REQUESTS TABLE ── */
+.req-row { cursor: pointer; transition: background var(--transition); background: var(--surface, #fff); border-left: 3px solid var(--gold-dark); }
+.req-row:hover { background: var(--surface-2); }
+.req-td--requester { width: 32%; }
+.req-td--service   { width: 28%; }
+.req-td--date      { width: 20%; }
+.req-td--actions   { width: 20%; text-align: right; }
+.req-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; flex-wrap: wrap; }
+
 /* ── SERVICE REQUESTS TABLE ── */
-.orq-row { cursor: pointer; transition: background var(--transition); }
+.orq-row { cursor: pointer; transition: background var(--transition); background: var(--surface, #fff); }
 .orq-row:hover { background: var(--surface-2); }
 .orq-row--new       { border-left: 3px solid var(--gold-dark); }
 .orq-row--accepted  { border-left: 3px solid var(--green); }

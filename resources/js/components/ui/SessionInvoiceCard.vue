@@ -337,7 +337,7 @@ function fmtCents(cents) {
 
 <style scoped>
 /* ── TABLE ROW ── */
-.sic-row { cursor: pointer; transition: background var(--transition); }
+.sic-row { cursor: pointer; transition: background var(--transition); background: var(--surface, #fff); }
 .sic-row:hover { background: var(--surface-2); }
 .sic-row--scheduled { border-left: 3px solid var(--blue, #3b82f6); }
 .sic-row--completed { border-left: 3px solid var(--green); }
