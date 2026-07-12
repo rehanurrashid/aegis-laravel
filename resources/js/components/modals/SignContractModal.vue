@@ -90,7 +90,7 @@
       <div class="sign-success-desc">
         {{ bothSigned
           ? 'Both parties have signed. The contract is now fully executed. The provider must fund escrow to activate.'
-          : 'Awaiting the other party's signature.' }}
+          : 'Awaiting the other party\u2019s signature.' }}
       </div>
     </div>
 
