@@ -35,10 +35,22 @@
           <option value="60">1 hour</option>
         </select>
       </div>
-      <div class="form-group">
-        <label class="form-label" for="siLink">Video Link (optional)</label>
-        <input id="siLink" v-model="videoLink" class="form-input" placeholder="Zoom, Google Meet, Teams..." />
-      </div>
+    </div>
+
+    <!-- Video link on its own row — only shown when type is video -->
+    <div v-if="form.interview_type === 'video'" class="form-group">
+      <label class="form-label" for="siLink">
+        <AegisIcon name="video" :size="13" style="margin-right:5px;vertical-align:-2px" />
+        Video Link
+        <span class="si-optional">optional</span>
+      </label>
+      <input
+        id="siLink"
+        v-model="videoLink"
+        class="form-input"
+        placeholder="Zoom, Google Meet, Teams, or any meeting URL…"
+      />
+      <div class="form-hint">Paste the join link — it will be included in the invite sent to the applicant.</div>
     </div>
     <div class="form-group">
       <label class="form-label" for="siNotes">Notes to Applicant</label>
@@ -135,4 +147,18 @@ function reset() {
 }
 .jp-chip:hover { border-color: var(--gold-dark); color: var(--gold-dark); }
 .jp-chip.active { background: var(--gold-dark); border-color: var(--gold-dark); color: var(--text-inverted); }
+
+.si-optional {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-4);
+  margin-left: 4px;
+}
+.form-hint {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--text-4);
+  margin-top: 4px;
+  line-height: 1.4;
+}
 </style>

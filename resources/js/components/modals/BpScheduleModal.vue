@@ -84,6 +84,22 @@
       <textarea class="form-textarea" rows="2" placeholder="What do you want to cover?" v-model="form.agenda"></textarea>
     </div>
 
+    <!-- Video link — own row, shown only for Video Call type -->
+    <div v-if="form.type === 'Video Call'" class="form-group">
+      <label class="form-label">
+        <AegisIcon name="video" :size="13" style="margin-right:5px;vertical-align:-2px" />
+        Video Link
+        <span class="form-label-opt">(optional)</span>
+      </label>
+      <input
+        type="url"
+        class="form-input"
+        v-model="form.video_link"
+        placeholder="Zoom, Google Meet, Teams, or any meeting URL…"
+      />
+      <div class="bsc-hint">Paste the join link — it will be included in the consultation invite.</div>
+    </div>
+
     <div v-if="form.errors.date" class="alert alert-danger">{{ form.errors.date }}</div>
 
     <template #footer>
@@ -121,12 +137,13 @@ const meetingTypes = [
 ]
 
 const form = useForm({
-  type:     'Video Call',
-  date:     '',
-  time:     '10:00 AM',
-  duration: '30 minutes',
-  tz:       'EST (New York)',
-  agenda:   '',
+  type:       'Video Call',
+  date:       '',
+  time:       '10:00 AM',
+  duration:   '30 minutes',
+  tz:         'EST (New York)',
+  agenda:     '',
+  video_link: '',
 })
 
 watch(() => props.modelValue, (val) => { if (val) form.reset() })
@@ -157,4 +174,11 @@ function submit() {
 }
 .bsc-type-label { font-size: 11px; font-weight: 600; margin-top: 2px; }
 :deep(.bpe-option) { border-width: 1px; }
+.bsc-hint {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--text-4);
+  margin-top: 4px;
+  line-height: 1.4;
+}
 </style>
