@@ -31,6 +31,7 @@ class BpMilestone extends Model
         'refunded_at', 'refunded_cents', 'refund_stripe_id',
         'auto_release_at', 'revision_count',
         'rejection_reason', 'revision_notes',
+        'reminder_sent_at',   // Wave 7: tracks when review reminder email was sent
     ];
 
     protected $casts = [
@@ -49,6 +50,7 @@ class BpMilestone extends Model
         'released_at'    => 'datetime',
         'refunded_at'    => 'datetime',
         'auto_release_at'=> 'datetime',
+        'reminder_sent_at'=> 'datetime',
     ];
 
     // ── Relationships ────────────────────────────────────────────────────────

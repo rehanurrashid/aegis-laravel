@@ -318,4 +318,21 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Support Services — Milestone Escrow Timing
+    |--------------------------------------------------------------------------
+    | milestone_auto_release_days:
+    |   How many days after BP submits a milestone before Aegis auto-releases
+    |   the escrow funds to the BP (if provider doesn't review).
+    |   Default: 7. Set in .env as MILESTONE_AUTO_RELEASE_DAYS.
+    |
+    | milestone_review_reminder_hours:
+    |   Hours before auto-release at which the provider receives a reminder
+    |   email. Default: 48 (2 days before). Set as MILESTONE_REVIEW_REMINDER_HOURS.
+    |--------------------------------------------------------------------------
+    */
+    'milestone_auto_release_days'      => (int) env('MILESTONE_AUTO_RELEASE_DAYS', 7),
+    'milestone_review_reminder_hours'  => (int) env('MILESTONE_REVIEW_REMINDER_HOURS', 48),
+
 ];

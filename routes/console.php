@@ -6,6 +6,8 @@ use App\Jobs\AnnualReviewReminderJob;
 use App\Jobs\DigestEmailJob;
 use App\Jobs\ExpireMutedThreadsJob;
 use App\Jobs\IncidentAutoCloseCheckJob;
+use App\Jobs\MilestoneAutoReleaseJob;
+use App\Jobs\MilestoneReviewReminderJob;
 use App\Jobs\StaleIncidentAlertJob;
 use App\Jobs\StewardResponsivenessCheckJob;
 use App\Jobs\StripeWebhookProcessorJob;
@@ -52,3 +54,20 @@ Schedule::job(new SubscriptionRenewalCheckJob)->dailyAt('08:00')->name('aegis.su
 // Hourly — auto-close incidents that hit "ready for closure" state past CS_INCIDENT_AUTOCLOSE_DAYS
 // window (default 7d) without explicit Provider or SS verification.
 Schedule::job(new IncidentAutoCloseCheckJob)->hourly()->name('aegis.incident_auto_close');
+
+// ── Wave 7: Milestone escrow auto-release + review reminder ──────────────────
+
+// Hourly — auto-release escrow to BP for submitted milestones where provider
+// has not reviewed within MILESTONE_AUTO_RELEASE_DAYS (default 7).
+// Protects BP from provider ghosting.
+Schedule::job(new MilestoneAutoReleaseJob)
+    ->hourly()
+    ->name('aegis.milestone_auto_release')
+    ->withoutOverlapping();
+
+// Daily 08:00 UTC — send "review reminder" email to provider when a submitted
+// milestone will auto-release within MILESTONE_REVIEW_REMINDER_HOURS (default 48h).
+// Sets reminder_sent_at to prevent duplicate emails.
+Schedule::job(new MilestoneReviewReminderJob)
+    ->dailyAt('08:00')
+    ->name('aegis.milestone_review_reminder');
