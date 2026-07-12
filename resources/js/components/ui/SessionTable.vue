@@ -41,7 +41,7 @@
       </div>
 
       <!-- Filter chips -->
-      <nav class="tabs-segmented" role="tablist">
+      <nav class="tabs-segmented" role="tablist" style="width:fit-content;max-width:100%">
         <button
           v-for="chip in filterChips"
           :key="chip.value"
