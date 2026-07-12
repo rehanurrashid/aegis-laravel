@@ -8,7 +8,9 @@ use App\Http\Controllers\Controller;
 use App\Models\BpMilestone;
 use App\Models\BpMilestoneSubmission;
 use App\Services\ActivityService;
+use App\Services\ContractService;
 use App\Enums\ActivitySeverity;
+use App\Enums\MilestoneStatus;
 use App\Events\Business\MilestoneSubmitted;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,16 +20,23 @@ use Inertia\Response;
 
 class MilestonesController extends Controller
 {
-    public function __construct(private ActivityService $activity) {}
+    public function __construct(
+        private ActivityService $activity,
+        private ContractService $contracts,
+    ) {}
 
     public function index(Request $request): Response
     {
-        $milestones = BpMilestone::with('contract:id,title,bp_id,practitioner_id')
+        $milestones = BpMilestone::with([
+            'contract:id,title,bp_id,practitioner_id,payment_type',
+            'submissions' => fn ($q) => $q->latest()->limit(1),
+        ])
             ->whereHas('contract', fn ($q) => $q->where('bp_id', $request->user()->id))
             ->orderByDesc('created_at')
             ->get()
             ->map(function (BpMilestone $m) {
                 $status = $m->status instanceof \BackedEnum ? $m->status->value : (string) $m->status;
+                $sub    = $m->submissions->first();
                 return [
                     'id'               => $m->id,
                     'title'            => $m->title,
@@ -44,9 +53,17 @@ class MilestonesController extends Controller
                     'submitted_at'     => $m->submitted_at?->toDateString(),
                     'approved_at'      => $m->approved_at?->toDateString(),
                     'paid_at'          => $m->paid_at?->toDateString(),
-                    'auto_release_at'  => $m->auto_release_at?->toISOString(),
                     'funded_cents'     => (int) ($m->funded_cents ?? 0),
                     'released_cents'   => (int) ($m->released_cents ?? 0),
+                    'auto_release_at'  => $m->auto_release_at?->toISOString(),
+                    // Latest submission for resubmit context
+                    'latest_submission' => $sub ? [
+                        'id'               => $sub->id,
+                        'submission_notes' => $sub->submission_notes,
+                        'hours_logged'     => $sub->hours_logged,
+                        'review_notes'     => $sub->review_notes,
+                        'created_at'       => $sub->created_at?->toDateString(),
+                    ] : null,
                 ];
             });
 
@@ -57,26 +74,34 @@ class MilestonesController extends Controller
 
     /**
      * BP submits milestone work for provider review.
-     * Writes a bp_milestone_submissions audit row.
+     *
+     * Writes a BpMilestoneSubmission audit row.
      * Fires MilestoneSubmitted event → email + activity notification to provider.
+     *
+     * Allowed from: pending, funded, in_progress, revision_requested
      */
     public function submit(Request $request, BpMilestone $milestone): RedirectResponse
     {
-        // Authorization: milestone must belong to a contract owned by this BP
+        // Authorization: must belong to a contract owned by this BP
         abort_unless($milestone->contract?->bp_id === $request->user()->id, 403);
 
         $status = $milestone->status instanceof \BackedEnum
             ? $milestone->status->value
             : (string) $milestone->status;
 
-        // Allow resubmit after revision_requested in addition to pending/in_progress
-        $submittable = ['pending', 'in_progress', 'funded', 'revision_requested'];
+        $submittable = [
+            MilestoneStatus::Pending->value,
+            MilestoneStatus::Funded->value,
+            MilestoneStatus::InProgress->value,
+            MilestoneStatus::RevisionRequested->value,
+        ];
+
         if (!in_array($status, $submittable, true)) {
             return back()->withErrors(['milestone' => 'This milestone cannot be submitted in its current state.']);
         }
 
         $validated = $request->validate([
-            'notes'        => 'nullable|string|max:2000',
+            'notes'        => 'required|string|min:10|max:2000',
             'hours_logged' => 'nullable|numeric|min:0|max:9999',
         ]);
 
@@ -89,16 +114,17 @@ class MilestonesController extends Controller
             'milestone_id'     => $milestone->id,
             'contract_id'      => $milestone->contract_id,
             'submitted_by'     => $bp->id,
-            'submission_notes' => $validated['notes'] ?? null,
+            'submission_notes' => $validated['notes'],
             'hours_logged'     => $validated['hours_logged'] ?? null,
-            'attachments'      => null, // Wave 4 adds file upload support
+            'attachments'      => null, // file uploads in Wave 4+ extension
         ]);
 
+        $autoReleaseDays = (int) config('aegis.milestone_auto_release_days', 7);
+
         $milestone->update([
-            'status'       => 'submitted',
-            'submitted_at' => now(),
-            // Reset auto-release countdown from submission time
-            'auto_release_at' => now()->addDays((int) config('aegis.milestone_auto_release_days', 7)),
+            'status'         => MilestoneStatus::Submitted->value,
+            'submitted_at'   => now(),
+            'auto_release_at'=> now()->addDays($autoReleaseDays),
         ]);
 
         // Actor log — BP's own history
@@ -109,7 +135,7 @@ class MilestonesController extends Controller
             ActivitySeverity::Info,
             'milestone_submitted',
             "Milestone submitted: {$milestone->title}",
-            'Awaiting provider review. Auto-releases in ' . config('aegis.milestone_auto_release_days', 7) . ' days if not reviewed.',
+            "Awaiting provider review. Auto-releases in {$autoReleaseDays} days if not reviewed.",
             'bp_milestone',
             $milestone->id,
             $contract->practitioner_id,
@@ -125,7 +151,7 @@ class MilestonesController extends Controller
             ActivitySeverity::Info,
             'milestone_submitted',
             "{$bp->display_name} submitted milestone: {$milestone->title}",
-            'Review and approve to release payment. Auto-releases in ' . config('aegis.milestone_auto_release_days', 7) . ' days.',
+            "Review and approve to release payment. Auto-releases in {$autoReleaseDays} days.",
             'bp_milestone',
             $milestone->id,
             $bp->id,
@@ -139,5 +165,4 @@ class MilestonesController extends Controller
     }
 
     // NOTE: store() intentionally removed — only Providers create milestones.
-    // Route bp.milestones.store is removed in routes/web.php (Wave 1).
 }

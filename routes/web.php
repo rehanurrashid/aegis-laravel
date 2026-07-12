@@ -302,7 +302,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::post('/support-services/contracts/{contract}/cancel', [ProviderJobPostingsController::class, 'cancelContract'])->name('jobs.contract.cancel');
         Route::post('/support-services/contracts/{contract}/end', [ProviderJobPostingsController::class, 'endContract'])->name('jobs.contract.end');
         Route::post('/support-services/contracts/{contract}/release-payment', [ProviderJobPostingsController::class, 'releasePayment'])->name('jobs.contract.release-payment');
-        // Wave 3 — Escrow + signing routes
+        // Wave 3 — Escrow + signing
         Route::post('/support-services/contracts/{contract}/sign', [ProviderJobPostingsController::class, 'signContract'])->name('jobs.contract.sign');
         Route::post('/support-services/contracts/{contract}/fund', [ProviderJobPostingsController::class, 'fundContract'])->name('jobs.contract.fund');
         Route::post('/support-services/contracts/{contract}/milestones', [ProviderJobPostingsController::class, 'storeMilestone'])->name('jobs.contract.milestones.store');

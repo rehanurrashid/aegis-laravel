@@ -4,28 +4,21 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use App\Enums\ActivitySeverity;
-use App\Enums\ContractStatus;
-use App\Enums\MilestoneStatus;
 use App\Events\Business\ContractCancelled;
-use App\Events\Business\ContractSigned;
 use App\Events\Business\MilestoneApproved;
-use App\Events\Business\MilestoneRevisionRequested;
 use App\Events\Business\MilestoneSubmitted;
+use App\Enums\ActivitySeverity;
+use App\Enums\MilestoneStatus;
+use App\Events\Business\ContractSigned;
 use App\Models\BpContract;
 use App\Models\BpMilestone;
-use App\Models\BpMilestoneSubmission;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class ContractService
 {
-    public function __construct(
-        private ActivityService $activity,
-        private EscrowService   $escrow,
-    ) {}
+    public function __construct(private ActivityService $activity) {}
 
     public function create(string $jobId, string $proposalId, string $practitionerId, string $bpId, int $totalCents): BpContract
     {
@@ -41,129 +34,99 @@ class ContractService
         ]);
     }
 
-    /**
-     * Real dual-signature. Contract state machine:
-     *   pending_signature → (both sign) → pending_funding → (provider funds) → active
-     */
     public function sign(BpContract $contract, User $signer, array $signature): BpContract
     {
-        $contractStatus = $contract->status instanceof ContractStatus
-            ? $contract->status->value
-            : (string) $contract->status;
-
-        if (!in_array($contractStatus, [
-            ContractStatus::PendingSignature->value,
-            ContractStatus::Draft->value,
-        ], true)) {
-            throw new \RuntimeException("Contract cannot be signed in status: {$contractStatus}");
-        }
-
         $isPractitioner = $contract->practitioner_id === $signer->id;
-        $isBp           = $contract->bp_id === $signer->id;
+        $isBp = $contract->bp_id === $signer->id;
 
-        if (!$isPractitioner && !$isBp) {
-            throw new \RuntimeException('You are not a party to this contract.');
+        $update = [];
+        if ($isPractitioner) {
+            $update['practitioner_signed_at'] = now();
+            $update['practitioner_signature_name'] = $signature['name'] ?? $signer->display_name;
+        } elseif ($isBp) {
+            $update['bp_signed_at'] = now();
+            $update['bp_signature_name'] = $signature['name'] ?? $signer->display_name;
         }
-        if ($isPractitioner && $contract->practitioner_signed_at) {
-            throw new \RuntimeException('You have already signed this contract.');
-        }
-        if ($isBp && $contract->bp_signed_at) {
-            throw new \RuntimeException('You have already signed this contract.');
-        }
-
-        $update = $isPractitioner
-            ? ['practitioner_signed_at' => now(), 'practitioner_signature_name' => $signature['name'] ?? $signer->display_name]
-            : ['bp_signed_at' => now(), 'bp_signature_name' => $signature['name'] ?? $signer->display_name];
-
         $contract->update($update);
-        $fresh         = $contract->fresh();
-        $fullyExecuted = $fresh->practitioner_signed_at && $fresh->bp_signed_at;
 
-        if ($fullyExecuted) {
-            $fresh->update([
-                'fully_executed_at' => now(),
-                'status'            => ContractStatus::PendingFunding->value,
-            ]);
-            $fresh = $fresh->fresh();
+        // Both signed → mark fully executed
+        $fresh = $contract->fresh();
+        if ($fresh->practitioner_signed_at && $fresh->bp_signed_at) {
+            $fresh->update(['fully_executed_at' => now()]);
             event(new ContractSigned($fresh));
         }
 
-        $otherId      = $isPractitioner ? $contract->bp_id : $contract->practitioner_id;
-        $otherPortal  = $isPractitioner ? 'business_partner' : 'provider';
-        $signerPortal = $isPractitioner ? 'provider' : 'business_partner';
+        $otherId     = $isPractitioner ? $contract->bp_id : $contract->practitioner_id;
+        $otherPortal = $isPractitioner ? 'business_partner' : 'provider';
+        $fullyExecuted = (bool) $fresh->fully_executed_at;
 
+        // Actor log — signer's own history ("I signed the contract")
         $this->activity->log(
-            $signer->id, $signerPortal, 'job_postings', ActivitySeverity::Info,
+            $signer->id,
+            $isPractitioner ? 'provider' : 'business_partner',
+            'job_postings', ActivitySeverity::Info,
             'contract_signed',
             'You signed the contract: ' . $contract->title,
-            $fullyExecuted ? 'Contract fully executed. Please fund escrow to begin work.' : "Awaiting the other party's signature.",
+            $fullyExecuted ? 'Contract is now fully executed.' : 'Awaiting the other party\'s signature.',
             'bp_contract', $contract->id, null,
             'log', $signer->id
         );
+
+        // Notification → other party ("Party X signed the contract")
         $this->activity->log(
             $otherId, $otherPortal, 'job_postings', ActivitySeverity::Info,
             'contract_signed',
             "{$signer->display_name} signed the contract",
-            $fullyExecuted ? 'Contract fully executed. Provider must fund escrow to activate.' : 'Awaiting your signature. Please review and sign.',
+            $fullyExecuted ? 'Contract is now fully executed.' : 'Awaiting your signature.',
             'bp_contract', $contract->id, $signer->id,
             'notification', $signer->id
         );
 
+        // Email the other party on every signature (first sign + fully executed)
+        // ContractSigned is only fired when both sign; use SendEmailJob directly for mid-sign
+        if (!$fullyExecuted) {
+            \App\Jobs\SendEmailJob::dispatch(
+                'emails.gaps.66-contract-signed',
+                ['contract_id' => $contract->id, 'user_id' => $otherId],
+                $otherId
+            )->onQueue('email');
+        }
+        // When fully executed, ContractSigned event already fires above and handles both parties
+
         return $fresh;
     }
 
-    /**
-     * Cancel contract. Escrow-aware: refunds all held milestone funds to provider.
-     * Allowed from pending_signature, pending_funding, and active states.
-     */
     public function cancel(BpContract $contract, User $actor, ?string $reason = null): BpContract
     {
-        $contractStatus = $contract->status instanceof ContractStatus
-            ? $contract->status->value
-            : (string) $contract->status;
-
-        if (!in_array($contractStatus, [
-            ContractStatus::PendingSignature->value,
-            ContractStatus::PendingFunding->value,
-            ContractStatus::Active->value,
-        ], true)) {
-            throw new \RuntimeException("Cannot cancel a contract with status: {$contractStatus}");
-        }
-
-        // Refund any escrow before updating status
-        $heldCents = $contract->escrowHeldCents();
-        if ($heldCents > 0) {
-            $this->escrow->cancelContractEscrow($contract, $actor, $reason ?? 'Contract cancelled');
-        }
-
         $contract->update([
-            'status'       => ContractStatus::Cancelled->value,
-            'cancelled_at' => now(),
+            'status'      => 'cancelled',
+            'cancelled_at'=> now(),
             'cancel_reason'=> $reason,
         ]);
 
-        $otherId     = $contract->practitioner_id === $actor->id ? $contract->bp_id : $contract->practitioner_id;
+        $otherId  = $contract->practitioner_id === $actor->id
+            ? $contract->bp_id
+            : $contract->practitioner_id;
         $otherUser   = User::find($otherId);
         $otherPortal = $otherUser?->role === 'business_partner' ? 'business_partner' : 'provider';
         $actorPortal = $actor->id === $contract->practitioner_id ? 'provider' : 'business_partner';
 
-        $refundNote  = $heldCents > 0
-            ? ' Escrow funds ($' . number_format($heldCents / 100, 2) . ') have been refunded.'
-            : '';
-
+        // Actor log — who cancelled ("I ended this contract")
         $this->activity->log(
             $actor->id, $actorPortal, 'job_postings', ActivitySeverity::Warning,
             'contract_cancelled',
             'You cancelled the contract: ' . $contract->title,
-            ($reason ?? 'No reason recorded.') . $refundNote,
+            $reason ?? 'No reason recorded.',
             'bp_contract', $contract->id, null,
             'log', $actor->id
         );
+
+        // Notification → other party ("Party X cancelled the contract")
         $this->activity->log(
             $otherId, $otherPortal, 'job_postings', ActivitySeverity::Warning,
             'contract_cancelled',
             "{$actor->display_name} cancelled the contract",
-            ($reason ?? 'No reason given.') . $refundNote,
+            $reason ?? 'No reason given.',
             'bp_contract', $contract->id, $actor->id,
             'notification', $actor->id
         );
@@ -172,7 +135,6 @@ class ContractService
 
         return $contract->fresh();
     }
-
 
     public function pause(BpContract $contract): BpContract
     {
@@ -225,101 +187,38 @@ class ContractService
         return $milestone->fresh();
     }
 
-    /**
-     * Provider approves milestone submission → release escrow to BP.
-     */
     public function approveMilestone(BpMilestone $milestone, User $approver): BpMilestone
     {
-        $status = $milestone->status instanceof MilestoneStatus
-            ? $milestone->status->value
-            : (string) $milestone->status;
-
-        if ($status !== MilestoneStatus::Submitted->value) {
-            throw new \RuntimeException("Only submitted milestones can be approved. Current: {$status}");
-        }
-
-        // Mark approved first so releaseMilestone guard passes
         $milestone->update([
             'status'      => MilestoneStatus::Approved->value,
             'approved_at' => now(),
         ]);
 
-        // Update the latest submission audit row
-        BpMilestoneSubmission::where('milestone_id', $milestone->id)
-            ->whereNull('review_action')
-            ->latest()
-            ->update([
-                'reviewed_by'   => $approver->id,
-                'reviewed_at'   => now(),
-                'review_action' => 'approved',
-            ]);
-
-        // Release escrow → transfer to BP Connect
-        $this->escrow->releaseMilestone($milestone->fresh(), $approver);
-
-        event(new MilestoneApproved($milestone->fresh()));
-
-        return $milestone->fresh();
-    }
-
-    /**
-     * Provider requests revision on a submitted milestone.
-     * Returns milestone to revision_requested state — BP can resubmit.
-     */
-    public function requestRevision(BpMilestone $milestone, User $provider, string $notes): BpMilestone
-    {
-        $status = $milestone->status instanceof MilestoneStatus
-            ? $milestone->status->value
-            : (string) $milestone->status;
-
-        if ($status !== MilestoneStatus::Submitted->value) {
-            throw new \RuntimeException("Revision can only be requested on submitted milestones.");
-        }
-
-        $revisionCount = ((int) $milestone->revision_count) + 1;
-
-        $milestone->update([
-            'status'         => MilestoneStatus::RevisionRequested->value,
-            'revision_count' => $revisionCount,
-            'revision_notes' => $notes,
-            'auto_release_at'=> null,   // stop auto-release countdown
-        ]);
-
-        // Update submission audit row
-        BpMilestoneSubmission::where('milestone_id', $milestone->id)
-            ->whereNull('review_action')
-            ->latest()
-            ->update([
-                'reviewed_by'   => $provider->id,
-                'reviewed_at'   => now(),
-                'review_action' => 'revision_requested',
-                'review_notes'  => $notes,
-            ]);
-
         $contract = $milestone->contract;
 
+        // Actor log — provider's own history ("I approved milestone X")
         $this->activity->log(
-            $provider->id, 'provider', 'job_postings', ActivitySeverity::Info,
-            'revision_requested',
-            "Revision requested: {$milestone->title}",
-            "Feedback sent to Business Partner. Revision #{$revisionCount}.",
-            'bp_milestone', $milestone->id, $contract->bp_id,
-            'log', $provider->id
-        );
-        $this->activity->log(
-            $contract->bp_id, 'business_partner', 'job_postings', ActivitySeverity::Warning,
-            'revision_requested',
-            "{$provider->display_name} requested a revision: {$milestone->title}",
-            $notes,
-            'bp_milestone', $milestone->id, $provider->id,
-            'notification', $provider->id
+            $approver->id, 'provider', 'job_postings', ActivitySeverity::Info,
+            'milestone_approved',
+            "Milestone approved: {$milestone->title}",
+            'Payout will be processed within 3 business days.',
+            'bp_milestone', $milestone->id, null,
+            'log', $approver->id
         );
 
-        event(new MilestoneRevisionRequested($milestone->fresh(), $provider, $notes));
+        // Notification → BP ("Milestone approved — payout coming")
+        $this->activity->log(
+            $contract->bp_id, 'business_partner', 'job_postings', ActivitySeverity::Info,
+            'milestone_approved',
+            "{$approver->display_name} approved milestone: {$milestone->title}",
+            'Payout will be processed shortly.',
+            'bp_milestone', $milestone->id, $approver->id,
+            'notification', $approver->id
+        );
 
+        event(new MilestoneApproved($milestone->fresh()));
         return $milestone->fresh();
     }
-
 
     public function getForPractitioner(string $practitionerId): Collection
     {
@@ -337,35 +236,42 @@ class ContractService
             ->map(function (BpContract $c) {
                 $status = $c->status instanceof \BackedEnum ? $c->status->value : (string) $c->status;
                 return [
-                    'id'                => $c->id,
-                    'title'             => $c->title,
-                    'client_name'       => $c->practitioner?->display_name ?? '—',
-                    'practitioner_id'   => $c->practitioner_id,
-                    'payment_type'      => $c->payment_type,      // one_time | milestone
-                    'amount_cents'      => (int) $c->total_value_cents,
-                    'status'            => $status,                // active | completed | cancelled
-                    'signed_at'               => $c->signed_at?->toDateString(),
-                    'completed_at'            => $c->completed_at?->toDateString(),
-                    'created_at'              => $c->created_at?->toDateString(),
+                    'id'                      => $c->id,
+                    'title'                   => $c->title,
+                    'client_name'             => $c->practitioner?->display_name ?? '—',
+                    'practitioner_id'         => $c->practitioner_id,
+                    'payment_type'            => $c->payment_type ?? 'one_time',
+                    'funding_mode'            => $c->funding_mode ?? 'per_milestone',
+                    'amount_cents'            => (int) $c->total_value_cents,
+                    'status'                  => $status,
                     'cancel_reason'           => $c->cancel_reason,
+                    'terms'                   => $c->terms,
                     // Escrow
                     'escrow_funded_cents'     => (int) ($c->escrow_funded_cents ?? 0),
                     'escrow_released_cents'   => (int) ($c->escrow_released_cents ?? 0),
                     'escrow_refunded_cents'   => (int) ($c->escrow_refunded_cents ?? 0),
-                    'funding_mode'            => $c->funding_mode ?? 'per_milestone',
-                    // Signature status (for sign CTA in BP portal)
-                    'bp_has_signed'           => (bool) $c->bp_signed_at,
+                    // Timestamps
+                    'signed_at'               => $c->signed_at?->toDateString(),
+                    'completed_at'            => $c->completed_at?->toDateString(),
+                    'created_at'              => $c->created_at?->toDateString(),
+                    // Signature status
                     'provider_has_signed'     => (bool) $c->practitioner_signed_at,
+                    'bp_has_signed'           => (bool) $c->bp_signed_at,
                     'fully_executed'          => (bool) $c->fully_executed_at,
-                    // Milestones (for detail modal)
-                    'milestones'              => $c->milestones->map(fn ($m) => [
-                        'id'           => $m->id,
-                        'title'        => $m->title,
-                        'amount_cents' => (int) $m->amount_cents,
-                        'status'       => $m->status instanceof \BackedEnum ? $m->status->value : (string) $m->status,
-                        'due_at'       => $m->due_at?->toDateString(),
-                        'funded_cents' => (int) ($m->funded_cents ?? 0),
-                        'released_cents' => (int) ($m->released_cents ?? 0),
+                    // Milestones (for detail modal + milestone page context)
+                    'milestones'              => $c->milestones->sortBy('sort_order')->map(fn ($m) => [
+                        'id'               => $m->id,
+                        'title'            => $m->title,
+                        'description'      => $m->description,
+                        'amount_cents'     => (int) $m->amount_cents,
+                        'status'           => $m->status instanceof \BackedEnum ? $m->status->value : (string) $m->status,
+                        'due_at'           => $m->due_at?->toDateString(),
+                        'funded_cents'     => (int) ($m->funded_cents ?? 0),
+                        'released_cents'   => (int) ($m->released_cents ?? 0),
+                        'revision_count'   => (int) ($m->revision_count ?? 0),
+                        'revision_notes'   => $m->revision_notes,
+                        'rejection_reason' => $m->rejection_reason,
+                        'auto_release_at'  => $m->auto_release_at?->toISOString(),
                     ])->values(),
                 ];
             });
