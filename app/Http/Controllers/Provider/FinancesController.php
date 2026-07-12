@@ -181,30 +181,71 @@ class FinancesController extends Controller
             ->concat($clientSessionsForLedger)
             ->values();
 
-        // ── 7. BP Contracts ───────────────────────────────────────────────────
+        // ── 7. BP Contracts (Wave 8: include pending states + escrow cols + milestones) ─
         $activeBpContracts = BpContract::where('practitioner_id', $user->id)
-            ->where('status', ContractStatus::Active->value)
-            ->with(['bp:id,display_name,slug,stripe_connected'])
+            ->whereIn('status', [
+                \App\Enums\ContractStatus::PendingSignature->value,
+                \App\Enums\ContractStatus::PendingFunding->value,
+                ContractStatus::Active->value,
+            ])
+            ->with([
+                'bp:id,display_name,slug,stripe_connected,stripe_account_id',
+                'milestones',
+            ])
             ->orderByDesc('created_at')
             ->get()
             ->map(function (BpContract $con) {
-                $lastPaid = BpInvoice::where('contract_id', $con->id)
+                $statusVal = $con->status instanceof ContractStatus ? $con->status->value : (string) $con->status;
+                $lastPaid  = BpInvoice::where('contract_id', $con->id)
                     ->where('status', InvoiceStatus::Paid->value)
                     ->orderByDesc('paid_at')->value('paid_at');
+
+                $escrowFunded   = (int) ($con->escrow_funded_cents ?? 0);
+                $escrowReleased = (int) ($con->escrow_released_cents ?? 0);
+                $escrowRefunded = (int) ($con->escrow_refunded_cents ?? 0);
+                $escrowHeld     = max(0, $escrowFunded - $escrowReleased - $escrowRefunded);
+                $unfundedCents  = max(0, (int) $con->total_value_cents - $escrowFunded);
+
+                // Per-milestone funding status
+                $milestones = $con->milestones->sortBy('sort_order')->map(fn (\App\Models\BpMilestone $m) => [
+                    'id'            => $m->id,
+                    'title'         => $m->title,
+                    'amount_cents'  => (int) $m->amount_cents,
+                    'funded_cents'  => (int) ($m->funded_cents ?? 0),
+                    'status'        => $m->status instanceof \BackedEnum ? $m->status->value : (string) $m->status,
+                    'due_at'        => $m->due_at?->toDateString(),
+                    'auto_release_at' => $m->auto_release_at?->toDateString(),
+                ])->values();
+
                 return [
-                    'id'                 => $con->id,
-                    'title'              => $con->title,
-                    'bp_name'            => $con->bp?->display_name ?? '—',
-                    'bp_slug'            => $con->bp?->slug,
-                    'bp_connected'       => (bool) ($con->bp?->stripe_connected ?? false),
-                    'total_cents'        => (int) $con->total_value_cents,
-                    'billing_type'       => $con->payment_type ?? 'one_time',
-                    'billing_type_label' => match($con->payment_type ?? 'one_time') { 'milestone' => 'Milestone-based', 'retainer' => 'Monthly retainer', default => 'One-time' },
-                    'term'               => ($con->started_at?->format('M Y') ?? '—') . ' – ' . ($con->completed_at?->format('M Y') ?? 'Ongoing'),
-                    'last_paid'          => $lastPaid ? Carbon::parse($lastPaid)->format('M j, Y') : null,
-                    'autopay_enabled'    => false,
-                    'status'             => $con->status instanceof ContractStatus ? $con->status->value : (string) $con->status,
-                    'kind'               => 'bp',
+                    'id'                   => $con->id,
+                    'title'                => $con->title,
+                    'bp_name'              => $con->bp?->display_name ?? '—',
+                    'bp_slug'              => $con->bp?->slug,
+                    'bp_connected'         => (bool) ($con->bp?->stripe_connected ?? false),
+                    'bp_stripe_account_id' => $con->bp?->stripe_account_id,
+                    'total_cents'          => (int) $con->total_value_cents,
+                    'billing_type'         => $con->payment_type ?? 'one_time',
+                    'billing_type_label'   => match($con->payment_type ?? 'one_time') {
+                        'milestone' => 'Milestone-based',
+                        'retainer'  => 'Monthly retainer',
+                        default     => 'One-time'
+                    },
+                    'term'                 => ($con->started_at?->format('M Y') ?? '—') . ' – ' . ($con->completed_at?->format('M Y') ?? 'Ongoing'),
+                    'last_paid'            => $lastPaid ? Carbon::parse($lastPaid)->format('M j, Y') : null,
+                    'autopay_enabled'      => false,
+                    'status'               => $statusVal,
+                    'kind'                 => 'bp',
+                    // Escrow fields (Wave 8)
+                    'escrow_funded_cents'  => $escrowFunded,
+                    'escrow_released_cents'=> $escrowReleased,
+                    'escrow_refunded_cents'=> $escrowRefunded,
+                    'escrow_held_cents'    => $escrowHeld,
+                    'unfunded_cents'       => $unfundedCents,
+                    'funding_mode'         => $con->funding_mode ?? 'per_milestone',
+                    'provider_has_signed'  => (bool) $con->practitioner_signed_at,
+                    'bp_has_signed'        => (bool) $con->bp_signed_at,
+                    'milestones'           => $milestones,
                 ];
             })->values();
 
@@ -324,14 +365,36 @@ class FinancesController extends Controller
             return ['label' => $b['label'], 'amount' => (int) round($b['cents'] / 100), 'color' => $b['color'], 'pct' => $pct];
         })->values();
 
-        // ── 11. Upcoming payments ─────────────────────────────────────────────
+        // ── 11. Upcoming payments (Wave 8: + unfunded milestone escrow) ────────
         $upcomingBp       = $bpInvoices->whereIn('status', [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value])->map(fn ($i) => array_merge($i, ['payment_type' => 'bp',  'recipient' => $i['bp_name']]));
         $upcomingCs       = $csInvoices->whereIn('status', [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value])->map(fn ($i) => array_merge($i, ['payment_type' => 'cs',  'recipient' => $i['cs_name']]));
         $upcomingSessions = $clientSessions
             ->filter(fn ($s) => in_array($s['payment_status'] ?? '', ['unpaid', 'deposit_paid'], true) && ($s['status'] ?? '') === 'scheduled')
             ->map(fn ($s) => array_merge($s, ['payment_type' => 'session', 'recipient' => $s['practitioner_name']]));
 
-        $upcomingPayments = $upcomingBp->concat($upcomingCs)->concat($upcomingSessions)
+        // Unfunded milestones on active/pending contracts → surface in upcoming
+        $upcomingEscrow = $activeBpContracts
+            ->filter(fn ($c) => in_array($c['status'], ['pending_funding', 'active'], true))
+            ->flatMap(function ($c) {
+                return collect($c['milestones'] ?? [])->filter(function ($m) {
+                    return in_array($m['status'], ['pending', 'pending_funding'], true)
+                        && (int) ($m['funded_cents'] ?? 0) === 0;
+                })->map(fn ($m) => [
+                    'id'             => $m['id'],
+                    'payment_type'   => 'escrow',
+                    'recipient'      => $c['bp_name'],
+                    'contract_title' => $c['title'],
+                    'invoice_number' => null,
+                    'total_cents'    => (int) $m['amount_cents'],
+                    'due_at'         => $m['due_at'],
+                    'is_urgent'      => $m['due_at'] && \Illuminate\Support\Carbon::parse($m['due_at'])->isPast(),
+                    'contract_id'    => $c['id'],
+                    'milestone_id'   => $m['id'],
+                    'milestone_title'=> $m['title'],
+                ]);
+            });
+
+        $upcomingPayments = $upcomingBp->concat($upcomingCs)->concat($upcomingSessions)->concat($upcomingEscrow)
             ->sortBy(fn ($i) => $i['due_at'] ?? $i['datetime_label'] ?? '9999-12-31')
             ->map(function ($i) {
                 $dueRaw = $i['due_at'] ?? null;
@@ -433,6 +496,12 @@ class FinancesController extends Controller
             'providerSessions'         => $providerSessions,       // sessions I run (I receive)
             'allInvoices'              => $allInvoices,
             'activeContracts'          => $activeBpContracts,
+            'escrowSummary'            => [
+                'total_held_cents'     => $activeBpContracts->sum('escrow_held_cents'),
+                'total_unfunded_cents' => $activeBpContracts->sum('unfunded_cents'),
+                'funded_count'         => $activeBpContracts->filter(fn ($c) => ($c['escrow_held_cents'] ?? 0) > 0)->count(),
+                'contracts_needing_funding' => $activeBpContracts->filter(fn ($c) => ($c['unfunded_cents'] ?? 0) > 0)->count(),
+            ],
             // ── Refund requests ───────────────────────────────────────────────
             'incomingRefundRequests'   => $incomingRefundRequests, // I am the provider
             'outgoingRefundRequests'   => $outgoingRefundRequests, // I am the client

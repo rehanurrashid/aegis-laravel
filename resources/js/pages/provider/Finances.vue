@@ -191,7 +191,7 @@
                 class="upcoming-row"
                 @click="openViewInvoice(inv)"
               >
-                <span class="upcoming-kind-badge" :class="'upcoming-kind-badge--' + inv.payment_type">
+                <span class="upcoming-kind-badge" :class="'upcoming-kind-badge--' + (inv.payment_type === 'escrow' ? 'escrow' : inv.payment_type)">
                   {{ paymentTypeLabel(inv.payment_type) }}
                 </span>
                 <div class="upcoming-info">
@@ -358,15 +358,47 @@
 
     <!-- ══════════════════════════════ TAB: BUSINESS PARTNERS ══════════════════════════════ -->
     <div v-show="activeTab === 'bp'">
+
+      <!-- Escrow summary bar (Wave 8) -->
+      <div v-if="escrowSummary.total_held_cents > 0 || escrowSummary.total_unfunded_cents > 0" class="escrow-summary-bar">
+        <div class="escrow-summary-item">
+          <AegisIcon name="shield-check" :size="14" />
+          <div>
+            <div class="escrow-summary-label">Held in escrow</div>
+            <div class="escrow-summary-value">{{ formatCents(escrowSummary.total_held_cents) }}</div>
+          </div>
+        </div>
+        <div class="escrow-summary-divider" />
+        <div class="escrow-summary-item" :class="{ 'is-warning': escrowSummary.total_unfunded_cents > 0 }">
+          <AegisIcon name="alert-circle" :size="14" />
+          <div>
+            <div class="escrow-summary-label">Unfunded milestones</div>
+            <div class="escrow-summary-value">{{ formatCents(escrowSummary.total_unfunded_cents) }}</div>
+          </div>
+        </div>
+        <div class="escrow-summary-divider" />
+        <div class="escrow-summary-item">
+          <AegisIcon name="info" :size="14" />
+          <div class="escrow-summary-label escrow-summary-desc">
+            Aegis holds funds in escrow until you approve milestone work.
+            Funds auto-release after the review window.
+          </div>
+        </div>
+      </div>
+
       <div class="tabs-pill" style="margin-bottom:20px;display:inline-flex;">
           <button type="button" class="tab-pill" :class="{ active: bpFilter === 'all' }" @click="bpFilter = 'all'">
             All <span v-if="allBpItems > 0" class="badge-pill">{{ allBpItems }}</span>
           </button>
           <button type="button" class="tab-pill" :class="{ active: bpFilter === 'pending' }" @click="bpFilter = 'pending'">
-            Pending <span v-if="bpInvoices.length > 0" class="badge-pill">{{ bpInvoices.length }}</span>
+            Invoices <span v-if="bpInvoices.length > 0" class="badge-pill">{{ bpInvoices.length }}</span>
           </button>
           <button type="button" class="tab-pill" :class="{ active: bpFilter === 'active' }" @click="bpFilter = 'active'">
-            Active <span v-if="activeContracts.length > 0" class="badge-pill">{{ activeContracts.length }}</span>
+            Contracts <span v-if="activeContracts.length > 0" class="badge-pill">{{ activeContracts.length }}</span>
+          </button>
+          <button type="button" class="tab-pill" :class="{ active: bpFilter === 'escrow' }" @click="bpFilter = 'escrow'">
+            Escrow
+            <span v-if="escrowSummary.contracts_needing_funding > 0" class="badge-pill badge-pill--warning">{{ escrowSummary.contracts_needing_funding }}</span>
           </button>
         </div>
 
@@ -438,12 +470,13 @@
         </div>
       </template>
 
-      <!-- Active contract cards -->
+      <!-- Active + pending contracts (Wave 8: all statuses + escrow) -->
       <template v-if="bpFilter === 'all' || bpFilter === 'active'">
-        <div v-for="con in activeContracts" :key="con.id" class="invoice-card active-contract">
+        <div v-for="con in activeContracts" :key="con.id" class="invoice-card active-contract"
+             :class="{ 'contract--pending-sig': con.status === 'pending_signature', 'contract--pending-fund': con.status === 'pending_funding' }">
           <div class="invoice-body">
             <div class="invoice-status">
-              <AegisBadge label="Active Contract" variant="green" />
+              <AegisBadge :label="contractStatusLabel(con.status)" :variant="contractStatusVariant(con.status)" />
               <span class="invoice-status-right">
                 <span class="connect-pill" :class="con.bp_connected ? 'is-connected' : 'is-not-connected'">
                   <span class="status-dot"></span>{{ con.bp_connected ? 'Stripe Connected' : 'Not Connected' }}
@@ -460,6 +493,43 @@
                 <div class="invoice-period">{{ con.billing_type_label }}</div>
               </div>
             </div>
+
+            <!-- Escrow progress bar (active milestone contracts) -->
+            <div v-if="con.status === 'active' && con.billing_type === 'milestone' && con.total_cents > 0" class="escrow-progress-wrap">
+              <div class="escrow-progress-labels">
+                <span class="escrow-label-held">
+                  <AegisIcon name="shield-check" :size="11" />
+                  {{ formatCents(con.escrow_held_cents ?? 0) }} held
+                </span>
+                <span>·</span>
+                <span class="escrow-label-released">{{ formatCents(con.escrow_released_cents ?? 0) }} released</span>
+                <span>·</span>
+                <span>{{ formatCents(con.unfunded_cents ?? 0) }} unfunded</span>
+              </div>
+              <div class="escrow-progress-bar">
+                <div class="escrow-bar-released" :style="{ width: escrowPct(con.escrow_released_cents ?? 0, con.total_cents) }" />
+                <div class="escrow-bar-held" :style="{ width: escrowPct(con.escrow_held_cents ?? 0, con.total_cents) }" />
+              </div>
+            </div>
+
+            <!-- Pending funding CTA -->
+            <div v-if="con.status === 'pending_funding' || (con.status === 'active' && (con.unfunded_cents ?? 0) > 0)" class="escrow-fund-prompt">
+              <AegisIcon name="alert-circle" :size="13" />
+              <span>
+                {{ formatCents(con.unfunded_cents ?? 0) }} in unfunded milestones.
+                <a :href="route('provider.jobs.index')" class="link-gold">Fund escrow in Support Services →</a>
+              </span>
+            </div>
+
+            <!-- Pending signature notice -->
+            <div v-if="con.status === 'pending_signature'" class="escrow-fund-prompt escrow-fund-prompt--sig">
+              <AegisIcon name="file-pen" :size="13" />
+              <span>
+                Awaiting signatures before funding.
+                <a :href="route('provider.jobs.index')" class="link-gold">Sign in Support Services →</a>
+              </span>
+            </div>
+
             <div class="invoice-meta">
               <div>
                 <div class="invoice-meta-label">Contract Term</div>
@@ -490,6 +560,43 @@
             </div>
           </div>
         </div>
+      </template>
+
+      <!-- Escrow tab: fund-now view for unfunded milestones -->
+      <template v-if="bpFilter === 'escrow'">
+        <AegisEmptyState
+          v-if="!activeContracts.some(c => (c.unfunded_cents ?? 0) > 0)",
+          icon="shield-check"
+          title="All milestones funded"
+          description="There are no unfunded milestones. Business Partners can begin work on all funded milestones."
+        />
+        <template v-for="con in activeContracts.filter(c => (c.unfunded_cents ?? 0) > 0)" :key="con.id">
+          <div class="escrow-fund-card">
+            <div class="escrow-fund-card-header">
+              <div>
+                <div class="escrow-fund-card-title">{{ con.title }}</div>
+                <div class="escrow-fund-card-meta">{{ con.bp_name }} · {{ formatCents(con.unfunded_cents) }} unfunded</div>
+              </div>
+              <AegisBadge :label="contractStatusLabel(con.status)" :variant="contractStatusVariant(con.status)" />
+            </div>
+            <div v-for="ms in (con.milestones ?? []).filter(m => ['pending','pending_funding'].includes(m.status) && !(m.funded_cents > 0))" :key="ms.id" class="escrow-fund-milestone">
+              <div class="escrow-fund-milestone-info">
+                <div class="escrow-fund-milestone-title">{{ ms.title }}</div>
+                <div class="escrow-fund-milestone-meta">
+                  {{ formatCents(ms.amount_cents) }}
+                  <span v-if="ms.due_at">· Due {{ ms.due_at }}</span>
+                </div>
+              </div>
+              <AegisBadge label="Unfunded" variant="neutral" />
+            </div>
+            <div class="escrow-fund-card-cta">
+              <a :href="route('provider.jobs.index')" class="btn btn-primary">
+                <AegisIcon name="dollar" :size="13" />
+                Fund milestones in Support Services
+              </a>
+            </div>
+          </div>
+        </template>
       </template>
     </div>
 
@@ -1262,6 +1369,7 @@ const props = defineProps({
   activeSessionsAsProvider:{ type: Number,  default: 0 },
   allInvoices:             { type: Array,   default: () => [] },
   activeContracts:         { type: Array,   default: () => [] },
+  escrowSummary:           { type: Object,  default: () => ({ total_held_cents: 0, total_unfunded_cents: 0, funded_count: 0, contracts_needing_funding: 0 }) },
   csStewards:              { type: Array,   default: () => [] },
   upcomingPayments:        { type: Array,   default: () => [] },
   recentTransactions:      { type: Array,   default: () => [] },
@@ -1678,6 +1786,16 @@ function goToPendingTab() {
   else                           activeTab.value = 'executor'
 }
 
+function contractStatusLabel(s) {
+  return { active: 'Active', pending_signature: 'Awaiting Signature', pending_funding: 'Awaiting Funding', completed: 'Completed', cancelled: 'Cancelled', disputed: 'Disputed' }[s] ?? s
+}
+function contractStatusVariant(s) {
+  return { active: 'green', pending_signature: 'gold', pending_funding: 'blue', completed: 'neutral', cancelled: 'neutral', disputed: 'red' }[s] ?? 'neutral'
+}
+function escrowPct(num, total) {
+  if (!total) return '0%'
+  return Math.min(100, Math.round(((num ?? 0) / total) * 100)) + '%'
+}
 function formatCents(cents) {
   return '$' + (Number(cents ?? 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
@@ -2025,4 +2143,38 @@ function paymentTypeLabel(t) {
   .page-sidebar-item.active::before { display: none; }
   .page-sidebar-icon  { display: none; }
 }
+
+/* ── Wave 8: Escrow UI ── */
+.escrow-summary-bar { display: flex; align-items: center; gap: 20px; padding: 12px 16px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 16px; }
+.escrow-summary-item { display: flex; align-items: flex-start; gap: 8px; flex: 1; }
+.escrow-summary-item.is-warning { color: var(--gold-dark); }
+.escrow-summary-label { font-size: 11px; color: var(--text-tertiary); }
+.escrow-summary-value { font-size: 14px; font-weight: 700; color: var(--text); }
+.escrow-summary-desc  { font-size: 11px; color: var(--text-tertiary); line-height: 1.4; }
+.escrow-summary-divider { width: 1px; background: var(--border); align-self: stretch; }
+.escrow-progress-wrap { margin: 10px 0; padding: 10px 14px; background: var(--surface-2); border-radius: var(--radius); }
+.escrow-progress-labels { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+.escrow-label-held     { color: var(--gold-dark); font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+.escrow-label-released { color: var(--green-dark); font-weight: 600; }
+.escrow-progress-bar   { height: 4px; background: var(--surface-3, var(--border)); border-radius: 2px; display: flex; overflow: hidden; }
+.escrow-bar-released   { background: var(--green-dark); transition: width 0.3s; }
+.escrow-bar-held       { background: var(--gold-dark); transition: width 0.3s; }
+.escrow-fund-prompt { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--text-secondary); padding: 8px 12px; background: rgba(202,158,72,0.06); border-radius: var(--radius); margin: 8px 0; }
+.escrow-fund-prompt--sig { background: var(--surface-2); }
+.contract--pending-fund { border-color: rgba(59, 130, 246, 0.4); }
+.contract--pending-sig  { border-color: var(--gold-dark); }
+.badge-pill--warning    { background: var(--gold-dark) !important; }
+
+/* Escrow tab fund cards */
+.escrow-fund-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 12px; }
+.escrow-fund-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+.escrow-fund-card-title  { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.escrow-fund-card-meta   { font-size: 12px; color: var(--text-secondary); }
+.escrow-fund-milestone   { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--border); }
+.escrow-fund-milestone-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.escrow-fund-milestone-meta  { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+.escrow-fund-card-cta { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+
+/* Upcoming escrow badge */
+.upcoming-kind-badge--escrow { background: rgba(202,158,72,0.12); color: var(--gold-dark); }
 </style>
