@@ -266,6 +266,90 @@ class JobPostingsController extends Controller
         }
     }
 
+    /**
+     * Provider signs a contract (dual-signature workflow).
+     * Accepts { signature_name? } — defaults to display_name.
+     * ContractService::sign() fires ContractSigned when both parties have signed.
+     */
+    public function signContract(Request $request, BpContract $contract): RedirectResponse
+    {
+        $this->authorize('cancel', $contract);
+
+        $data = $request->validate([
+            'signature_name' => 'nullable|string|max:120',
+        ]);
+
+        $statusVal = $contract->status instanceof \BackedEnum ? $contract->status->value : (string) $contract->status;
+        $signable  = ['draft', 'pending_signature', 'pending_funding'];
+        if (!in_array($statusVal, $signable, true)) {
+            return back()->withErrors(['contract' => "Contract cannot be signed in status: {$statusVal}."]);
+        }
+
+        if ($contract->practitioner_signed_at) {
+            return back()->withErrors(['contract' => 'You have already signed this contract.']);
+        }
+
+        try {
+            $fresh = $this->contracts->sign($contract, $request->user(), [
+                'name' => $data['signature_name'] ?? $request->user()->display_name,
+            ]);
+
+            $msg = $fresh->fully_executed_at
+                ? 'Contract fully executed. Both parties have signed. You can now fund escrow.'
+                : 'Your signature has been recorded. Awaiting the Business Partner\'s signature.';
+
+            return back()->with('success', $msg);
+        } catch (\Throwable $e) {
+            return back()->withErrors(['contract' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Provider funds entire contract upfront (full_upfront funding mode).
+     * Charges provider's saved PM via Stripe; funds held in Aegis escrow balance.
+     */
+    public function fundContract(Request $request, BpContract $contract): RedirectResponse
+    {
+        $this->authorize('cancel', $contract);
+
+        $statusVal = $contract->status instanceof \BackedEnum ? $contract->status->value : (string) $contract->status;
+        if (!in_array($statusVal, ['pending_funding', 'active'], true)) {
+            return back()->withErrors(['contract' => "Contract cannot be funded in status: {$statusVal}."]);
+        }
+
+        try {
+            $payout = $this->escrow->fundContract($contract, $request->user());
+            $amount = number_format($payout->amount_cents / 100, 2);
+            return back()->with('success', "Contract funded. \${$amount} held in Aegis escrow. Business Partner can now begin work.");
+        } catch (\Throwable $e) {
+            return back()->withErrors(['contract' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Provider funds a single milestone into escrow (per_milestone funding mode).
+     * Charges provider's saved PM; milestone status → funded; BP can begin work.
+     */
+    public function fundMilestone(Request $request, BpContract $contract, BpMilestone $milestone): RedirectResponse
+    {
+        $this->authorize('cancel', $contract);
+        abort_if($milestone->contract_id !== $contract->id, 404);
+
+        $statusVal = $milestone->status instanceof \BackedEnum ? $milestone->status->value : (string) $milestone->status;
+        $fundable  = ['pending', 'pending_funding'];
+        if (!in_array($statusVal, $fundable, true)) {
+            return back()->withErrors(['milestone' => "Milestone cannot be funded in status: {$statusVal}."]);
+        }
+
+        try {
+            $payout = $this->escrow->fundMilestone($milestone, $request->user());
+            $amount = number_format($payout->amount_cents / 100, 2);
+            return back()->with('success', "Milestone funded. \${$amount} held in escrow. Business Partner has been notified to begin work.");
+        } catch (\Throwable $e) {
+            return back()->withErrors(['milestone' => $e->getMessage()]);
+        }
+    }
+
     public function storeMilestone(Request $request, BpContract $contract): RedirectResponse
     {
         $this->authorize('cancel', $contract);
