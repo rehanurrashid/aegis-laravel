@@ -8,14 +8,19 @@
   <tr
     class="bpir-row"
     :class="`bpir-row--${sv(invoice.status)}`"
-    @click="open = true"
   >
     <!-- Col 1: Avatar + name + contract + invoice # -->
-    <td class="bpir-td bpir-td--party">
+    <td class="bpir-td bpir-td--party" @click="open = true">
       <div class="bpir-party">
         <div class="bpir-avatar">{{ initials(invoice.bp_name) }}</div>
         <div class="bpir-party-info">
-          <span class="bpir-party-name">{{ invoice.bp_name }}</span>
+          <a
+            v-if="invoice.bp_slug"
+            :href="`/public/bp/${invoice.bp_slug}`"
+            class="bpir-party-name bpir-party-name--link"
+            @click.stop
+          >{{ invoice.bp_name }}</a>
+          <span v-else class="bpir-party-name">{{ invoice.bp_name }}</span>
           <span class="bpir-service-name">{{ invoice.contract_title }}</span>
           <span class="bpir-date-sub">
             #{{ invoice.invoice_number }}
@@ -26,7 +31,7 @@
     </td>
 
     <!-- Col 2: Status badges -->
-    <td class="bpir-td bpir-td--status">
+    <td class="bpir-td bpir-td--status" @click="open = true">
       <div class="bpir-badges">
         <AegisBadge :label="statusLabel(invoice.status)" :variant="statusVariant(invoice.status)" />
         <AegisBadge v-if="invoice.active_dispute_id" label="Disputed" variant="red" />
@@ -34,7 +39,7 @@
     </td>
 
     <!-- Col 3: Chevron -->
-    <td class="bpir-td bpir-td--actions" @click.stop>
+    <td class="bpir-td bpir-td--actions" @click="open = true">
       <button
         type="button"
         class="btn-icon"
@@ -256,6 +261,8 @@ function statusVariant(s) {
 .bpir-avatar--lg { width: 40px; height: 40px; font-size: 13px; }
 .bpir-party-info { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .bpir-party-name  { font-size: 13px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bpir-party-name--link { color: var(--gold-dark); text-decoration: none; }
+.bpir-party-name--link:hover { text-decoration: underline; color: var(--gold); }
 .bpir-service-name { font-size: 11px; color: var(--text-4); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bpir-date-sub    { font-size: 11px; color: var(--text-4); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 

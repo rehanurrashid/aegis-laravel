@@ -27,10 +27,9 @@
   <tr
     class="sic-row"
     :class="[`sic-row--${session.status}`, `sic-row--pay-${session.payment_status ?? 'unpaid'}`]"
-    @click="open = true"
   >
     <!-- Col 1: Avatar + name + service + date -->
-    <td class="sic-td sic-td--party">
+    <td class="sic-td sic-td--party" @click="open = true">
       <div class="sic-party">
         <div class="sic-avatar">
           <img v-if="partyAvatarUrl" :src="partyAvatarUrl" :alt="partyName" class="sic-avatar-img" />
@@ -51,7 +50,7 @@
     </td>
 
     <!-- Col 2: Status badges -->
-    <td class="sic-td sic-td--status">
+    <td class="sic-td sic-td--status" @click="open = true">
       <div class="sic-badges">
         <AegisBadge :label="sessionStatusLabel" :variant="sessionStatusVariant" />
         <AegisBadge :label="session.payment_status_label ?? 'Deposit Due'" :variant="paymentVariant" />
@@ -60,7 +59,7 @@
     </td>
 
     <!-- Col 3: Chevron -->
-    <td class="sic-td sic-td--actions" @click.stop>
+    <td class="sic-td sic-td--actions" @click="open = true">
       <button
         type="button"
         class="btn-icon"
