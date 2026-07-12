@@ -11,6 +11,7 @@ use App\Models\NetworkConnection;
 use App\Models\NetworkRequest;
 use App\Models\ServiceRequest;
 use App\Models\VaultItem;
+use App\Services\ContractReviewService;
 use App\Services\ProfileService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,7 +20,10 @@ use Inertia\Response;
 
 class ProfileController extends Controller
 {
-    public function __construct(private ProfileService $profiles) {}
+    public function __construct(
+        private ProfileService $profiles,
+        private ContractReviewService $contractReviews,
+    ) {}
 
 
     /**
@@ -327,10 +331,11 @@ class ProfileController extends Controller
         $activeContracts    = \App\Models\BpContract::where('bp_id', $user->id)
             ->where('status', 'active')->count();
 
-        // ── Reviews from UserMeta ──────────────────────────────────────────────
-        $reviewsMeta = $user->meta()->where('meta_key', 'peer_reviews')->first();
-        $reviews     = $reviewsMeta ? (json_decode((string) $reviewsMeta->meta_value, true) ?? []) : [];
-        $avgRating   = count($reviews) ? round(collect($reviews)->avg('stars'), 1) : null;
+        // ── Reviews from bp_contract_reviews (Wave 10) ─────────────────────────
+        $reviews   = $this->contractReviews->getPublicReviews($user, 5);
+        $reviewStats = $this->contractReviews->getAggregateStats($user);
+        $avgRating   = $reviewStats['avg_rating'];
+        $reviewCount = $reviewStats['review_count'];
 
         // ── Past engagement requests this viewer sent to this BP ────────────────
         $engagementRequests = [];
@@ -371,13 +376,16 @@ class ProfileController extends Controller
                 'completed_contracts' => $completedContracts,
                 'active_contracts'    => $activeContracts,
                 'avg_rating'          => $avgRating,
-                'review_count'        => count($reviews),
+                'review_count'        => $reviewCount,
+                'communication'       => $reviewStats['communication'] ?? null,
+                'quality'             => $reviewStats['quality'] ?? null,
+                'timeliness'          => $reviewStats['timeliness'] ?? null,
                 'hourly_rate'         => $user->bp_hourly_rate_cents
                     ? '$' . number_format($user->bp_hourly_rate_cents / 100) . '/hr'
                     : null,
             ],
             // Reviews
-            'reviews'            => collect($reviews)->sortByDesc('created_at')->take(5)->values()->toArray(),
+            'reviews'            => $reviews,
             // Past engagement requests this viewer sent (persisted in DB, survives refresh)
             'engagementRequests' => $engagementRequests,
         ]);

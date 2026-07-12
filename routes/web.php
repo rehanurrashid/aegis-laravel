@@ -318,6 +318,9 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         // Wave 6: Contract PDF
         Route::get('/support-services/contracts/{contract}/pdf', [\App\Http\Controllers\Provider\ContractPdfController::class, 'show'])->name('jobs.contract.pdf');
         Route::post('/support-services/bp-invoices/{invoice}/pay', [ProviderJobPostingsController::class, 'payBPInvoice'])->name('jobs.bp-invoice.pay');
+        // Wave 10: Contract reviews
+        Route::post('/support-services/contracts/{contract}/review', [\App\Http\Controllers\ContractReviewController::class, 'store'])->name('jobs.contract.review');
+        Route::post('/support-services/contracts/{contract}/review/dismiss', [\App\Http\Controllers\ContractReviewController::class, 'dismiss'])->name('jobs.contract.review.dismiss');
 
         // Continuity Documents
         Route::get('/important-documents', [DocumentsController::class, 'index'])->name('documents.index');
@@ -652,6 +655,9 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:busine
         Route::post('/contracts/{contract}/cancel', [ContractsController::class, 'cancel'])->name('contracts.cancel');
         // Wave 6: Contract PDF
         Route::get('/contracts/{contract}/pdf', [\App\Http\Controllers\BusinessPartner\ContractPdfController::class, 'show'])->name('contracts.pdf');
+        // Wave 10: Contract reviews
+        Route::post('/contracts/{contract}/review', [\App\Http\Controllers\ContractReviewController::class, 'store'])->name('contracts.review');
+        Route::post('/contracts/{contract}/review/dismiss', [\App\Http\Controllers\ContractReviewController::class, 'dismiss'])->name('contracts.review.dismiss');
 
         // Milestones — BPs submit work only
         Route::get('/milestones', [MilestonesController::class, 'index'])->name('milestones.index');
