@@ -561,11 +561,9 @@
         <p class="sessions-section-desc" style="margin-bottom:12px">
           Payments you owe — 30% deposit due at booking, 70% balance after the session.
         </p>
-        <SessionTable
+        <BookedSessionTable
           ref="clientTableRef"
           :sessions="clientSessions"
-          viewpoint="client"
-          empty-icon="heart"
           empty-title="No clinical sessions booked"
           empty-subtitle="Browse other practitioners' services to book supervision, consultation, training, and more."
           @pay-deposit="activeClientSession = $event; modals.sessionPayDeposit = true"
@@ -578,7 +576,7 @@
               <AegisIcon name="search" :size="13" /> Explore Services
             </a>
           </template>
-        </SessionTable>
+        </BookedSessionTable>
       </div>
 
       <!-- ── SECTION B: Sessions I'm Providing ─────────────────────── -->
@@ -1239,6 +1237,7 @@ import SettingsSubscriptionInvoices from '@/components/settings/SettingsSubscrip
 // Wave 6 — session payment modals (local import required)
 import SessionInvoiceCard           from '@/components/ui/SessionInvoiceCard.vue'
 import SessionTable                 from '@/components/ui/SessionTable.vue'
+import BookedSessionTable           from '@/components/ui/BookedSessionTable.vue'
 import SessionInvoiceModal          from '@/components/modals/SessionInvoiceModal.vue'
 import PayDepositModal              from '@/components/modals/PayDepositModal.vue'
 import PayBalanceModal              from '@/components/modals/PayBalanceModal.vue'

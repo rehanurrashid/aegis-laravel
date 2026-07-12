@@ -454,46 +454,24 @@
         <div class="section-subtitle">Sessions you've requested from other practitioners. Pay deposit to confirm, then pay balance after the session.</div>
       </div>
 
-      <AegisEmptyState
-        v-if="!clientSessions.length"
-        icon="calendar"
-        title="No booked sessions"
-        subtitle="Browse the Explore tab to find supervision, consultation, and other practitioner services."
-        style="margin-bottom:24px"
+      <BookedSessionTable
+        :sessions="clientSessions"
+        :meta="clientSessionsMeta"
+        empty-title="No booked sessions"
+        empty-subtitle="Browse the Explore tab to find supervision, consultation, and other practitioner services."
+        style="margin-bottom:28px"
+        @pay-deposit="activeClientSession = $event; modals.payDeposit = true"
+        @pay-balance="activeClientSession = $event; modals.payBalance = true"
+        @request-refund="activeClientSession = $event; modals.requestRefund = true"
+        @escalate-refund="escalateRefund($event)"
+        @page-change="goToClientSessionsPage"
       >
-        <template #action>
+        <template #empty>
           <button class="btn btn-primary" @click="activeTab = 'explore'">
             <AegisIcon name="search" :size="13" /> Browse Services
           </button>
         </template>
-      </AegisEmptyState>
-
-      <!-- SessionInvoiceCard for each client session -->
-      <div v-for="ses in clientSessions" :key="ses.id" style="margin-bottom:0">
-        <SessionInvoiceCard
-          :session="ses"
-          viewpoint="client"
-          @pay-deposit="activeClientSession = ses; modals.payDeposit = true"
-          @pay-balance="activeClientSession = ses; modals.payBalance = true"
-          @view-invoice="activeClientSession = ses; modals.clientInvoice = true"
-          @request-refund="activeClientSession = ses; modals.requestRefund = true"
-          @escalate-refund="escalateRefund(ses)"
-          @cancel-session="activeClientSession = ses; modals.cancelClientSession = true"
-        />
-      </div>
-
-      <!-- Paginator for client sessions -->
-      <AegisPagination
-        v-if="clientSessionsMeta.last_page > 1"
-        :current-page="clientSessionsMeta.current_page ?? 1"
-        :total-pages="clientSessionsMeta.last_page ?? 1"
-        :total="clientSessionsMeta.total ?? clientSessions.length"
-        :from="clientSessions.length ? ((clientSessionsMeta.current_page - 1) * clientSessionsMeta.per_page) + 1 : 0"
-        :to="Math.min(clientSessionsMeta.current_page * clientSessionsMeta.per_page, clientSessionsMeta.total)"
-        :show-meta="true"
-        style="margin-top:8px;margin-bottom:28px"
-        @change="goToClientSessionsPage"
-      />
+      </BookedSessionTable>
 
       <!-- Section B: Outgoing service requests ───────────────────────────── -->
       <div class="section-header">
@@ -972,6 +950,7 @@ import AegisToggle from '@/components/ui/AegisToggle.vue'
 import AegisPagination from '@/components/ui/AegisPagination.vue'
 // Wave 4 components (local import required)
 import SessionInvoiceCard        from '@/components/ui/SessionInvoiceCard.vue'
+import BookedSessionTable        from '@/components/ui/BookedSessionTable.vue'
 import SessionTable              from '@/components/ui/SessionTable.vue'
 import ServiceExploreCard        from '@/components/ui/ServiceExploreCard.vue'
 import CounterOfferInline        from '@/components/ui/CounterOfferInline.vue'
