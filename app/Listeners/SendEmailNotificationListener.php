@@ -41,6 +41,7 @@ use App\Events\Business\MilestoneApproved;
 use App\Events\Business\EscrowFunded;
 use App\Events\Business\ContractFullyFunded;
 use App\Events\Business\ContractCompleted;
+use App\Events\Business\ContractReviewSubmitted;
 use App\Events\Business\MilestoneReadyForReview;
 use App\Events\Business\MilestoneRevisionRequested;
 use App\Events\Business\MilestoneReleased;
@@ -182,6 +183,7 @@ class SendEmailNotificationListener
             $event instanceof EscrowFunded                => $this->escrowFunded($event),
             $event instanceof ContractFullyFunded         => $this->contractFullyFunded($event),
             $event instanceof ContractCompleted           => $this->contractCompleted($event),
+            $event instanceof ContractReviewSubmitted     => $this->contractReviewSubmitted($event),
             $event instanceof MilestoneReadyForReview     => $this->milestoneReadyForReview($event),
             $event instanceof MilestoneRevisionRequested  => $this->milestoneRevisionRequested($event),
             $event instanceof MilestoneReleased           => $this->milestoneReleased($event),
@@ -1073,6 +1075,33 @@ class SendEmailNotificationListener
         }
 
         return $notifications;
+    }
+
+    private function contractReviewSubmitted(ContractReviewSubmitted $e): array
+    {
+        $review   = $e->review;
+        $reviewer = \App\Models\User::find($review->reviewer_id);
+        $reviewee = \App\Models\User::find($review->reviewee_id);
+
+        if (!$reviewee || !$reviewer || !$review->is_public || $review->rating < 1) return [];
+
+        $baseUrl = rtrim(config('app.url'), '/');
+
+        // Notify the reviewee that they received a review
+        return [[
+            'user_id'  => $review->reviewee_id,
+            'gate_key' => 'notify_payment',
+            'template' => 'emails.business.62-review-received',
+            'data'     => [
+                'recipient_name'  => $reviewee->display_name,
+                'reviewer_name'   => $reviewer->display_name,
+                'rating'          => $review->rating,
+                'review_text'     => $review->review_text,
+                'contract_url'    => $reviewee->role?->value === 'business_partner'
+                    ? "{$baseUrl}/business-partner/contracts"
+                    : "{$baseUrl}/provider/support-services",
+            ],
+        ]];
     }
 
     private function milestoneReadyForReview(MilestoneReadyForReview $e): array

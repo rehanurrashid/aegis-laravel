@@ -67,7 +67,7 @@
       </div>
 
       <!-- Written review -->
-      <div class="form-group">
+      <div class="form-group" style="margin-top:8px">
         <label class="form-label">Your review <span class="review-optional">(optional)</span></label>
         <textarea
           v-model="form.review_text"

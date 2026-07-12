@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\ActivityPortal;
 use App\Enums\ActivitySeverity;
+use App\Enums\UserRole;
 use App\Events\Business\ContractReviewSubmitted;
 use App\Models\BpContract;
 use App\Models\BpContractReview;
@@ -68,10 +70,17 @@ class ContractReviewService
         $this->recomputeAggregateRating($revieweeId);
 
         // Actor log
-        $reviewee = User::find($revieweeId);
+        $reviewee       = User::find($revieweeId);
+        $reviewerPortal = $reviewer->role instanceof UserRole
+            ? ActivityPortal::fromUserRole($reviewer->role)->value
+            : 'provider';
+        $revieweePortal = $reviewee?->role instanceof UserRole
+            ? ActivityPortal::fromUserRole($reviewee->role)->value
+            : 'provider';
+
         $this->activity->log(
             $reviewer->id,
-            $reviewer->role instanceof \BackedEnum ? $reviewer->role->value : (string) $reviewer->role,
+            $reviewerPortal,
             'job_postings',
             ActivitySeverity::Info,
             'contract_review_submitted',
@@ -87,7 +96,7 @@ class ContractReviewService
         // Notification → reviewee
         $this->activity->log(
             $revieweeId,
-            $reviewee?->role instanceof \BackedEnum ? $reviewee->role->value : (string) ($reviewee?->role ?? 'provider'),
+            $revieweePortal,
             'job_postings',
             ActivitySeverity::Info,
             'review_received',
