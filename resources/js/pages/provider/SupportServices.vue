@@ -245,9 +245,10 @@
       </div>
 
       <BpFinanceTable
-        :invoices="flatInvoices"
+        :invoices="bpInvoices"
         :contracts="props.activeContracts"
         :invoices-by-contract="props.invoicesByContract"
+        :escrow-summary="props.escrowSummary"
         :has-payment-method="hasPaymentMethod"
       />
     </div>
@@ -422,6 +423,9 @@ const props = defineProps({
   engagementRequests:    { type: Array,  default: () => [] },
   milestonesByContract:  { type: Object, default: () => ({}) },
   invoicesByContract:    { type: Object, default: () => ({}) },
+  bpInvoices:            { type: Array,  default: () => [] },
+  escrowSummary:         { type: Object, default: () => ({ total_held_cents: 0, total_unfunded_cents: 0, funded_count: 0, contracts_needing_funding: 0 }) },
+  has_valid_default_pm:  { type: Boolean, default: false },
   bpStats:         { type: Object, default: () => ({}) },
   stats: {
     type: Object,
@@ -456,12 +460,21 @@ const pipelineJobFilter = ref('')
 const activeHiredContracts = computed(() => props.activeContracts.filter(c => ['active', 'pending_signature', 'pending_funding'].includes(val(c.status))))
 const closedHiredContracts = computed(() => props.activeContracts.filter(c => !['active', 'pending_signature', 'pending_funding'].includes(val(c.status))))
 
-// BpFinanceTable: flat invoice list derived from invoicesByContract grouped map
-const flatInvoices = computed(() =>
-  Object.values(props.invoicesByContract ?? {}).flat()
+// BpFinanceTable: flat invoice list — prefer the controller-provided bpInvoices
+// (already enriched with bp_name/contract_title/active_dispute_id) and fall back
+// to a locally-flattened invoicesByContract for backward compatibility.
+const bpInvoices = computed(() =>
+  Array.isArray(props.bpInvoices) && props.bpInvoices.length
+    ? props.bpInvoices
+    : Object.values(props.invoicesByContract ?? {}).flat()
 )
-// BpFinanceTable: payment method flag from shared auth
-const hasPaymentMethod = computed(() => !!(page.props.auth?.user?.stripe_payment_method_id))
+// BpFinanceTable: payment method flag — prefer the server-verified
+// has_valid_default_pm prop (mirrors Finances), fall back to the local
+// auth user column so the button still works if the controller is out of sync.
+const page             = usePage()
+const hasPaymentMethod = computed(() =>
+  !!props.has_valid_default_pm || !!(page.props.auth?.user?.stripe_payment_method_id)
+)
 
 const showPostJob  = ref(false)
 const showTemplates = ref(false)
@@ -490,9 +503,9 @@ const showContract = ref(false)
 const activeContract = ref(null)
 
 // ── Review modal — auto-opens on mount when a completed contract has no review yet ──
+// (page = usePage() already declared above near hasPaymentMethod)
 const showReview       = ref(false)
 const reviewContract   = ref(null)
-const page             = usePage()
 
 // Only open after a contract just completed — reads flash set by releasePayment / reviewMilestone
 watch(

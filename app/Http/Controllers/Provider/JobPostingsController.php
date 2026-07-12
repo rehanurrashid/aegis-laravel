@@ -70,11 +70,27 @@ class JobPostingsController extends Controller
             })
             ->groupBy('job_id');
 
-        $contracts = BpContract::with('bp:id,display_name,bp_type,avatar_initials,avatar_path,slug')
+        // Widen contract scope to include pending_signature + pending_funding so
+        // the Hired tab (via BpFinanceTable) can surface contracts still needing
+        // sign/fund action — mirrors FinancesController::index() scope.
+        $contracts = BpContract::with('bp:id,display_name,bp_type,avatar_initials,avatar_path,slug,stripe_connected,stripe_account_id')
             ->where('practitioner_id', $user->id)
-            ->whereIn('status', ['active', 'completed'])
+            ->whereIn('status', [
+                'active', 'completed',
+                ContractStatus::PendingSignature->value,
+                ContractStatus::PendingFunding->value,
+            ])
             ->orderByDesc('started_at')
             ->get();
+
+        // Milestones grouped by contract — reused twice: (1) attached inline to
+        // each contract for BpFinanceTable / BpContractRow / ContractModal, and
+        // (2) returned as milestonesByContract for legacy consumers.
+        $milestonesByContract = BpMilestone::whereIn('contract_id', $contracts->pluck('id'))
+            ->orderBy('sort_order')
+            ->get()
+            ->groupBy('contract_id')
+            ->map(fn ($group) => $group->values());
 
         // For completed contracts: check if provider has already reviewed each one
         // For completed contracts: load the provider's own review (rating + snippet)
@@ -84,7 +100,7 @@ class JobPostingsController extends Controller
             ->get(['contract_id', 'rating', 'review_text', 'is_public'])
             ->keyBy('contract_id');
 
-        $contractsWithReviewFlag = $contracts->map(function ($c) use ($myReviews) {
+        $contractsWithReviewFlag = $contracts->map(function ($c) use ($myReviews, $milestonesByContract) {
             $review = $myReviews->get($c->id);
             $c->has_reviewed = !is_null($review);
             $c->my_review    = $review ? [
@@ -92,6 +108,11 @@ class JobPostingsController extends Controller
                 'review_text' => $review->review_text,
                 'is_public'   => $review->is_public,
             ] : null;
+            // Attach milestones + escrow computed fields — required by
+            // BpFinanceTable, BpContractRow, and ContractModal.
+            $c->setRelation('milestones', $milestonesByContract->get($c->id, collect()));
+            $c->escrow_held_cents = $c->escrowHeldCents();
+            $c->unfunded_cents    = max(0, (int) $c->total_value_cents - (int) ($c->escrow_funded_cents ?? 0));
             return $c;
         });
 
@@ -138,52 +159,110 @@ class JobPostingsController extends Controller
                 ] : null,
             ])->values()->toArray();
 
+        // Invoices scoped to contracts loaded above (widened scope: pending_* + active + completed).
+        // Eager-load BP + contract so we can enrich the shape with bp_name/slug/connected
+        // and contract_title — required by BpInvoiceRow / BpFinanceTable in the shared Hired tab.
+        $contractInvoiceCollection = BpInvoice::whereIn('contract_id', $contracts->pluck('id'))
+            ->with(['bp:id,display_name,slug,stripe_connected'])
+            ->orderByDesc('issued_at')
+            ->get();
+
+        $contractInvIds = $contractInvoiceCollection->pluck('id')->all();
+
+        // Active (unresolved) disputes on those invoices — powers "Disputed" filter chip
+        // and the red badge on BpInvoiceRow.
+        $bpInvDisputeMap = \App\Models\Dispute::whereIn('subject_id', $contractInvIds ?: ['__none__'])
+            ->where('subject_type', 'bp_invoice')
+            ->whereNull('resolved_at')
+            ->pluck('id', 'subject_id');
+
+        // Shared invoice shape used for both invoicesByContract (grouped, for ContractModal)
+        // and bpInvoices (flat, for BpFinanceTable Invoices sub-tab).
+        $shapeInvoice = function (BpInvoice $inv) use ($bpInvDisputeMap, $contracts) {
+            $status = $inv->status instanceof \App\Enums\InvoiceStatus ? $inv->status->value : (string) $inv->status;
+            return [
+                'id'               => $inv->id,
+                'contract_id'      => $inv->contract_id,
+                'invoice_number'   => $inv->invoice_number ?? substr($inv->id, 0, 10),
+                'bp_name'          => $inv->bp?->display_name ?? '—',
+                'bp_slug'          => $inv->bp?->slug,
+                'bp_connected'     => (bool) ($inv->bp?->stripe_connected ?? false),
+                'contract_title'   => $contracts->firstWhere('id', $inv->contract_id)?->title ?? '—',
+                'total_cents'      => (int) $inv->total_cents,
+                'status'           => $status,
+                'issued_at'        => $inv->issued_at?->toDateString(),
+                'issued_month'     => $inv->issued_at?->format('F Y'),
+                'due_at'           => $inv->due_at?->format('M j, Y'),
+                'paid_at'          => $inv->paid_at?->toDateString(),
+                'notes_short'      => $inv->notes ? mb_strimwidth($inv->notes, 0, 60, '…') : null,
+                'payable'          => in_array(
+                    $status,
+                    [\App\Enums\InvoiceStatus::Sent->value, \App\Enums\InvoiceStatus::Overdue->value],
+                    true
+                ),
+                'active_dispute_id'=> $bpInvDisputeMap[$inv->id] ?? null,
+                'kind'             => 'bp_invoice',
+            ];
+        };
+
+        $invoicesByContract = $contractInvoiceCollection
+            ->map($shapeInvoice)
+            ->groupBy('contract_id')
+            ->map(fn ($group) => $group->values());
+
+        $bpInvoices = $contractInvoiceCollection->map($shapeInvoice)->values();
+
+        // Escrow aggregates for BpFinanceTable strip. Uses the same computed
+        // escrow_held_cents / unfunded_cents already attached above.
+        $escrowSummary = [
+            'total_held_cents'          => (int) $contractsWithReviewFlag->sum('escrow_held_cents'),
+            'total_unfunded_cents'      => (int) $contractsWithReviewFlag->sum('unfunded_cents'),
+            'funded_count'              => $contractsWithReviewFlag->filter(fn ($c) => ($c->escrow_held_cents ?? 0) > 0)->count(),
+            'contracts_needing_funding' => $contractsWithReviewFlag->filter(fn ($c) => ($c->unfunded_cents ?? 0) > 0)->count(),
+        ];
+
+        // Payment-method flag — mirrors FinancesController's fallback path:
+        // trust users.stripe_payment_method_id (peer-payment PM column) first,
+        // fall back to practitioner_payment_methods default row. Avoids a live
+        // Stripe roundtrip on every Support Services load — Finances already
+        // performs the heavy check when the user opens the Payment Methods tab.
+        $hasValidDefaultPm = (bool) $user->stripe_payment_method_id;
+        if (!$hasValidDefaultPm) {
+            $hasValidDefaultPm = \Illuminate\Support\Facades\DB::table('practitioner_payment_methods')
+                ->where('practitioner_id', $user->id)
+                ->whereNull('deleted_at')
+                ->where('is_default', true)
+                ->exists();
+        }
+
         return Inertia::render('provider/SupportServices', [
-            'jobs'             => $jobs,
-            'proposalsByJob'   => $proposalsByJob,
-            'activeContracts'  => $contractsWithReviewFlag,
-            'engagementRequests' => $engagementRequests,
-            'milestonesByContract' => BpMilestone::whereIn('contract_id', $contracts->pluck('id'))
-                ->orderBy('sort_order')
-                ->get()
-                ->groupBy('contract_id')
-                ->map(fn ($group) => $group->values()),
-            'invoicesByContract' => BpInvoice::whereIn('contract_id', $contracts->pluck('id'))
-                ->orderByDesc('issued_at')
-                ->get()
-                ->map(fn (BpInvoice $inv) => [
-                    'id'             => $inv->id,
-                    'contract_id'    => $inv->contract_id,
-                    'invoice_number' => $inv->invoice_number ?? substr($inv->id, 0, 10),
-                    'total_cents'    => (int) $inv->total_cents,
-                    'status'         => $inv->status instanceof \App\Enums\InvoiceStatus ? $inv->status->value : (string) $inv->status,
-                    'issued_at'      => $inv->issued_at?->toDateString(),
-                    'issued_month'   => $inv->issued_at?->format('F Y'),
-                    'due_at'         => $inv->due_at?->format('M j, Y'),
-                    'paid_at'        => $inv->paid_at?->toDateString(),
-                    'notes_short'    => $inv->notes ? mb_strimwidth($inv->notes, 0, 60, '…') : null,
-                    'payable'        => in_array(
-                        $inv->status instanceof \App\Enums\InvoiceStatus ? $inv->status->value : (string) $inv->status,
-                        [\App\Enums\InvoiceStatus::Sent->value, \App\Enums\InvoiceStatus::Overdue->value],
-                        true
-                    ),
-                    'kind'           => 'bp_invoice',
-                ])
-                ->groupBy('contract_id')
-                ->map(fn ($group) => $group->values()),
-            'bpStats'          => $bpStats,
+            'jobs'                 => $jobs,
+            'proposalsByJob'       => $proposalsByJob,
+            'activeContracts'      => $contractsWithReviewFlag,
+            'engagementRequests'   => $engagementRequests,
+            'milestonesByContract' => $milestonesByContract,
+            'invoicesByContract'   => $invoicesByContract,
+            'bpInvoices'           => $bpInvoices,
+            'escrowSummary'        => $escrowSummary,
+            'has_valid_default_pm' => $hasValidDefaultPm,
+            'bpStats'              => $bpStats,
             'stats' => [
-                'open'              => $jobs->where('status', 'open')->count(),
-                'draft'             => $jobs->where('status', 'draft')->count(),
-                'paused'            => $jobs->where('status', 'paused')->count(),
-                'filled'            => $jobs->where('status', 'filled')->count(),
-                'closed'            => $jobs->whereIn('status', ['closed', 'cancelled'])->count(),
-                'total_jobs'        => $jobs->count(),
-                'total_proposals'   => $proposalsByJob->flatten()->count(),
-                'pending_proposals' => $proposalsByJob->flatten()->where('status', 'pending')->count(),
-                'hired'             => $contracts->where('status', 'active')->count(),
-                'total_spent_cents' => (int) $totalSpent,
-                'engagement_requests' => count($engagementRequests),
+                'open'                 => $jobs->where('status', 'open')->count(),
+                'draft'                => $jobs->where('status', 'draft')->count(),
+                'paused'               => $jobs->where('status', 'paused')->count(),
+                'filled'               => $jobs->where('status', 'filled')->count(),
+                'closed'               => $jobs->whereIn('status', ['closed', 'cancelled'])->count(),
+                'total_jobs'           => $jobs->count(),
+                'total_proposals'      => $proposalsByJob->flatten()->count(),
+                'pending_proposals'    => $proposalsByJob->flatten()->where('status', 'pending')->count(),
+                // hired count matches the widened scope shown in the Hired tab
+                'hired'                => $contracts->whereIn('status', [
+                    'active',
+                    ContractStatus::PendingSignature->value,
+                    ContractStatus::PendingFunding->value,
+                ])->count(),
+                'total_spent_cents'    => (int) $totalSpent,
+                'engagement_requests'  => count($engagementRequests),
             ],
         ]);
     }

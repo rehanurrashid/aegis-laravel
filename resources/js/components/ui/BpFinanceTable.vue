@@ -274,6 +274,7 @@
       :contract="activeContract"
       :milestones="activeContract?.milestones ?? []"
       :invoices="activeContract ? (props.invoicesByContract?.[activeContract.id] ?? []) : []"
+      @leave-review="openReviewForContract"
     />
 
     <!-- ── Reject Invoice ── -->
@@ -341,6 +342,14 @@
       </template>
     </AegisModal>
 
+    <!-- ── Review Contract (leave-review from ContractModal) ── -->
+    <ReviewContractModal
+      v-model="showReview"
+      :contract="reviewContract"
+      post-route="provider.jobs.contract.review"
+      dismiss-route="provider.jobs.contract.review.dismiss"
+    />
+
   </div>
 </template>
 
@@ -353,6 +362,7 @@ import BpInvoiceRow              from '@/components/ui/BpInvoiceRow.vue'
 import BpContractRow             from '@/components/ui/BpContractRow.vue'
 import ViewInvoiceModal          from '@/components/modals/ViewInvoiceModal.vue'
 import ContractModal             from '@/components/modals/ContractModal.vue'
+import ReviewContractModal       from '@/components/modals/ReviewContractModal.vue'
 
 const props = defineProps({
   invoices:             { type: Array,   default: () => [] },
@@ -384,6 +394,8 @@ const conPage   = ref(1)
 // ── Active record refs ─────────────────────────────────────────────────────────
 const activeInvoice    = ref(null)
 const activeContract   = ref(null)
+const reviewContract   = ref(null)
+const showReview       = ref(false)
 
 // ── Modal flags ────────────────────────────────────────────────────────────────
 const modals = ref({
@@ -546,10 +558,18 @@ function doRejectInvoice() {
 
 // ── Contract actions ──────────────────────────────────────────────────────────
 function openContract(con) {
-  // Contract is now the raw Eloquent model — same shape ContractModal expects
-  // No adapter needed: same fields as SupportServices passes
   activeContract.value = con
   modals.value.viewContract = true
+}
+
+function openReviewForContract(c) {
+  reviewContract.value = {
+    id:                c.id,
+    title:             c.title,
+    counterparty_name: c.bp?.display_name ?? c.bp_name ?? 'Business Partner',
+  }
+  modals.value.viewContract = false
+  showReview.value = true
 }
 
 function doCancelContract() {
