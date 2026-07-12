@@ -81,12 +81,15 @@
             v-for="act in pipelineActions"
             :key="act.key"
             class="ap-pipeline-btn"
-            :class="act.cls"
-            :disabled="busy"
+            :class="[act.cls, { 'is-current': isCurrentStage(act) }]"
+            :disabled="busy || isCurrentStage(act)"
             @click="$emit(act.emit, proposal)"
           >
-            <div class="ap-pipeline-btn-icon"><AegisIcon :name="act.icon" :size="14" /></div>
+            <div class="ap-pipeline-btn-icon">
+              <AegisIcon :name="act.icon" :size="15" />
+            </div>
             <div class="ap-pipeline-btn-label">{{ act.label }}</div>
+            <div v-if="isCurrentStage(act)" class="ap-pipeline-btn-current">Current</div>
           </button>
         </div>
       </template>
@@ -173,11 +176,15 @@ const stagePillClass = computed(() => {
 })
 
 const pipelineActions = [
-  { key: 'review',    emit: 'reviewed',  icon: 'eye',      label: 'Mark Reviewed',     cls: 'is-review' },
-  { key: 'shortlist', emit: 'shortlist', icon: 'star',     label: 'Shortlist',          cls: 'is-shortlist' },
-  { key: 'schedule',  emit: 'schedule',  icon: 'calendar', label: 'Schedule Interview', cls: 'is-schedule' },
-  { key: 'reject',    emit: 'reject',    icon: 'x',        label: 'Reject',             cls: 'is-reject' },
+  { key: 'review',    stage: 'reviewed',    emit: 'reviewed',  icon: 'eye',      label: 'Mark Reviewed',     cls: 'is-review' },
+  { key: 'shortlist', stage: 'shortlisted', emit: 'shortlist', icon: 'star',     label: 'Shortlist',          cls: 'is-shortlist' },
+  { key: 'schedule',  stage: 'interview',   emit: 'schedule',  icon: 'calendar', label: 'Schedule Interview', cls: 'is-schedule' },
+  { key: 'reject',    stage: 'rejected',    emit: 'reject',    icon: 'x',        label: 'Reject',             cls: 'is-reject' },
 ]
+
+function isCurrentStage(act) {
+  return props.proposal?.pipeline_stage === act.stage
+}
 
 watch(() => props.proposal, (p) => { notes.value = p?.internal_notes ?? '' }, { immediate: true })
 
@@ -339,20 +346,53 @@ function messageApplicant() {
   border: none;
   border-right: 1px solid var(--border);
   cursor: pointer;
-  transition: background var(--transition), color var(--transition);
+  transition: background var(--transition);
   font-family: var(--font-sans);
+  position: relative;
 }
 .ap-pipeline-btn:last-child { border-right: none; }
-.ap-pipeline-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Busy loading (not current-stage) */
+.ap-pipeline-btn:disabled:not(.is-current) { opacity: 0.45; cursor: not-allowed; }
+
+/* Hover — gold wash on all non-disabled, non-current */
+.ap-pipeline-btn:hover:not(:disabled):not(.is-current) { background: rgba(160,129,62,0.05); }
+
+/* Current stage — clearly greyed, no pointer */
+.ap-pipeline-btn.is-current {
+  background: var(--surface-2);
+  cursor: default;
+}
+.ap-pipeline-btn.is-current .ap-pipeline-btn-icon {
+  background: var(--surface-3);
+  color: var(--text-4);
+}
+.ap-pipeline-btn.is-current .ap-pipeline-btn-label {
+  color: var(--text-4);
+}
+
+/* Icon tile — gold for all (except reject and current) */
 .ap-pipeline-btn-icon {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
+  background: rgba(160,129,62,0.09);
+  color: var(--gold-dark);
   transition: background var(--transition), color var(--transition);
 }
+.ap-pipeline-btn:hover:not(:disabled):not(.is-current) .ap-pipeline-btn-icon {
+  background: rgba(160,129,62,0.16);
+}
+
+/* Reject — keeps red (only action with distinct danger color) */
+.ap-pipeline-btn.is-reject:not(.is-current) .ap-pipeline-btn-icon { background: var(--red-light); color: var(--red); }
+.ap-pipeline-btn.is-reject:hover:not(:disabled):not(.is-current) .ap-pipeline-btn-icon { background: var(--red-light); color: var(--red); }
+.ap-pipeline-btn.is-reject:hover:not(:disabled):not(.is-current) .ap-pipeline-btn-label { color: var(--red); }
+
+/* Label */
 .ap-pipeline-btn-label {
   font-size: 11px;
   font-weight: 600;
@@ -361,26 +401,21 @@ function messageApplicant() {
   line-height: 1.3;
   transition: color var(--transition);
 }
+.ap-pipeline-btn:hover:not(:disabled):not(.is-current):not(.is-reject) .ap-pipeline-btn-label { color: var(--gold-dark); }
 
-/* Review — orange */
-.ap-pipeline-btn.is-review .ap-pipeline-btn-icon { background: var(--orange-light); color: var(--orange-dark); }
-.ap-pipeline-btn.is-review:hover:not(:disabled) { background: var(--orange-light); }
-.ap-pipeline-btn.is-review:hover:not(:disabled) .ap-pipeline-btn-label { color: var(--orange-dark); }
-
-/* Shortlist — gold */
-.ap-pipeline-btn.is-shortlist .ap-pipeline-btn-icon { background: rgba(160,129,62,0.08); color: var(--gold-dark); }
-.ap-pipeline-btn.is-shortlist:hover:not(:disabled) { background: rgba(160,129,62,0.05); }
-.ap-pipeline-btn.is-shortlist:hover:not(:disabled) .ap-pipeline-btn-label { color: var(--gold-dark); }
-
-/* Schedule — blue */
-.ap-pipeline-btn.is-schedule .ap-pipeline-btn-icon { background: var(--blue-light); color: var(--blue-dark); }
-.ap-pipeline-btn.is-schedule:hover:not(:disabled) { background: var(--blue-light); }
-.ap-pipeline-btn.is-schedule:hover:not(:disabled) .ap-pipeline-btn-label { color: var(--blue-dark); }
-
-/* Reject — red */
-.ap-pipeline-btn.is-reject .ap-pipeline-btn-icon { background: var(--red-light); color: var(--red); }
-.ap-pipeline-btn.is-reject:hover:not(:disabled) { background: var(--red-light); }
-.ap-pipeline-btn.is-reject:hover:not(:disabled) .ap-pipeline-btn-label { color: var(--red); }
+/* "Current" micro-badge */
+.ap-pipeline-btn-current {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-4);
+  background: var(--border-dark);
+  border-radius: var(--radius-full);
+  padding: 1px 6px;
+  margin-top: 1px;
+}
 
 /* ── Private notes ────────────────────────────────────────────────── */
 .ap-notes-wrap {
