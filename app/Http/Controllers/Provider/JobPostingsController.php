@@ -322,6 +322,24 @@ class JobPostingsController extends Controller
         return back()->with('success', 'Milestone approved. You can now release payment.');
     }
 
+    public function requestMilestoneRevision(Request $request, BpContract $contract, BpMilestone $milestone): RedirectResponse
+    {
+        $this->authorize('cancel', $contract);
+        abort_if($milestone->contract_id !== $contract->id, 404);
+
+        $statusVal = $milestone->status instanceof \BackedEnum ? $milestone->status->value : (string) $milestone->status;
+        if ($statusVal !== 'submitted') {
+            return back()->withErrors(['milestone' => 'Revision can only be requested on submitted milestones.']);
+        }
+
+        $data = $request->validate([
+            'revision_notes' => 'required|string|min:10|max:2000',
+        ]);
+
+        $this->contracts->requestRevision($milestone, $request->user(), $data['revision_notes']);
+        return back()->with('success', 'Revision requested. The Business Partner has been notified.');
+    }
+
     public function payMilestone(Request $request, BpContract $contract, BpMilestone $milestone): RedirectResponse
     {
         $this->authorize('cancel', $contract);

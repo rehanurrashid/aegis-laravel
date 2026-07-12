@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Events\Business\ContractCancelled;
+use App\Events\Business\ContractCompleted;
 use App\Events\Business\MilestoneApproved;
+use App\Events\Business\MilestoneRevisionRequested;
 use App\Events\Business\MilestoneSubmitted;
 use App\Enums\ActivitySeverity;
 use App\Enums\MilestoneStatus;
@@ -151,7 +153,9 @@ class ContractService
     public function complete(BpContract $contract): BpContract
     {
         $contract->update(['status' => 'completed', 'completed_at' => now()]);
-        return $contract->fresh();
+        $fresh = $contract->fresh();
+        event(new ContractCompleted($fresh));
+        return $fresh;
     }
 
     public function submitMilestone(BpMilestone $milestone, User $submitter): BpMilestone
@@ -217,6 +221,56 @@ class ContractService
         );
 
         event(new MilestoneApproved($milestone->fresh()));
+        return $milestone->fresh();
+    }
+
+    public function requestRevision(BpMilestone $milestone, User $provider, string $revisionNotes): BpMilestone
+    {
+        $contract      = $milestone->contract;
+        $revisionCount = ((int) ($milestone->revision_count ?? 0)) + 1;
+
+        $milestone->update([
+            'status'         => MilestoneStatus::RevisionRequested->value,
+            'revision_count' => $revisionCount,
+            'revision_notes' => $revisionNotes,
+        ]);
+
+        // Update latest submission review_action
+        $submission = \App\Models\BpMilestoneSubmission::where('milestone_id', $milestone->id)
+            ->whereNull('review_action')
+            ->latest()
+            ->first();
+
+        if ($submission) {
+            $submission->update([
+                'reviewed_by'   => $provider->id,
+                'reviewed_at'   => now(),
+                'review_action' => 'revision',
+                'review_notes'  => $revisionNotes,
+            ]);
+        }
+
+        // Actor log — provider's history
+        $this->activity->log(
+            $provider->id, 'provider', 'job_postings', ActivitySeverity::Info,
+            'milestone_revision_requested',
+            "Revision requested: {$milestone->title}",
+            'Revision notes sent to the Business Partner.',
+            'bp_milestone', $milestone->id, $contract->bp_id,
+            'log', $provider->id
+        );
+
+        // Notification → BP
+        $this->activity->log(
+            $contract->bp_id, 'business_partner', 'job_postings', ActivitySeverity::Warning,
+            'milestone_revision_requested',
+            "{$provider->display_name} requested a revision on: {$milestone->title}",
+            'Review the feedback and resubmit your milestone.',
+            'bp_milestone', $milestone->id, $provider->id,
+            'notification', $provider->id
+        );
+
+        event(new MilestoneRevisionRequested($milestone->fresh(), $provider, $revisionNotes));
         return $milestone->fresh();
     }
 

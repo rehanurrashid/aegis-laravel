@@ -159,6 +159,9 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Business\EscrowFunded::class,               Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Business\EscrowFunded::class,               Listeners\ActivityFanoutListener::class);
         Event::listen(Events\Business\ContractFullyFunded::class,        Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\ContractFullyFunded::class,        Listeners\ActivityFanoutListener::class);
+        Event::listen(Events\Business\ContractCompleted::class,          Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\ContractCompleted::class,          Listeners\ActivityFanoutListener::class);
         Event::listen(Events\Business\MilestoneReadyForReview::class,    Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Business\MilestoneRevisionRequested::class, Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Business\MilestoneRevisionRequested::class, Listeners\ActivityFanoutListener::class);

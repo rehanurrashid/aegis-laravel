@@ -311,6 +311,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::post('/support-services/contracts/{contract}/milestones/{milestone}/fund', [ProviderJobPostingsController::class, 'fundMilestone'])->name('jobs.contract.milestones.fund');
         Route::post('/support-services/contracts/{contract}/milestones/{milestone}/review', [ProviderJobPostingsController::class, 'reviewMilestone'])->name('jobs.contract.milestones.review');
         Route::post('/support-services/contracts/{contract}/milestones/{milestone}/approve', [ProviderJobPostingsController::class, 'approveMilestone'])->name('jobs.contract.milestones.approve');
+        Route::post('/support-services/contracts/{contract}/milestones/{milestone}/request-revision', [ProviderJobPostingsController::class, 'requestMilestoneRevision'])->name('jobs.contract.milestones.revision');
         Route::post('/support-services/contracts/{contract}/milestones/{milestone}/pay', [ProviderJobPostingsController::class, 'payMilestone'])->name('jobs.contract.milestones.pay');
         // Wave 5: Self-service refund
         Route::post('/support-services/contracts/{contract}/milestones/{milestone}/refund', [ProviderJobPostingsController::class, 'refundMilestone'])->name('jobs.contract.milestones.refund');

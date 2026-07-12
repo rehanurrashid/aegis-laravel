@@ -38,6 +38,14 @@ use App\Events\Document\DocumentUpdated;
 use App\Events\Messages\MessageSent;
 use App\Events\Business\MilestoneSubmitted;
 use App\Events\Business\MilestoneApproved;
+use App\Events\Business\EscrowFunded;
+use App\Events\Business\ContractFullyFunded;
+use App\Events\Business\ContractCompleted;
+use App\Events\Business\MilestoneReadyForReview;
+use App\Events\Business\MilestoneRevisionRequested;
+use App\Events\Business\MilestoneReleased;
+use App\Events\Business\MilestoneRefunded;
+use App\Events\Business\MilestoneAutoReleased;
 use App\Events\Service\ServiceRequestResponded;
 use App\Events\Service\SessionCancelled;
 use App\Events\Service\SessionCompleted;
@@ -168,8 +176,17 @@ class SendEmailNotificationListener
             $event instanceof DocumentReleaseRequested => $this->documentReleaseRequested($event),
             $event instanceof DocumentUpdated         => $this->documentUpdated($event),
             $event instanceof MessageSent             => $this->messageSent($event),
-            $event instanceof MilestoneSubmitted      => $this->milestoneSubmitted($event),
-            $event instanceof MilestoneApproved       => $this->milestoneApproved($event),
+            $event instanceof MilestoneSubmitted          => $this->milestoneSubmitted($event),
+            $event instanceof MilestoneApproved           => $this->milestoneApproved($event),
+            // Wave 9 — escrow events
+            $event instanceof EscrowFunded                => $this->escrowFunded($event),
+            $event instanceof ContractFullyFunded         => $this->contractFullyFunded($event),
+            $event instanceof ContractCompleted           => $this->contractCompleted($event),
+            $event instanceof MilestoneReadyForReview     => $this->milestoneReadyForReview($event),
+            $event instanceof MilestoneRevisionRequested  => $this->milestoneRevisionRequested($event),
+            $event instanceof MilestoneReleased           => $this->milestoneReleased($event),
+            $event instanceof MilestoneRefunded           => $this->milestoneRefunded($event),
+            $event instanceof MilestoneAutoReleased       => $this->milestoneAutoReleased($event),
             $event instanceof ProposalSubmitted       => $this->proposalSubmittedBp($event),
             $event instanceof ProposalWithdrawn       => $this->proposalWithdrawnBp($event),
             $event instanceof ServiceRequestResponded => $this->serviceRequestResponded($event),
@@ -934,6 +951,329 @@ class SendEmailNotificationListener
                 'contract_url'     => rtrim(config('app.url'), '/') . '/business-partner/contracts/' . $contract->id,
             ],
         ]];
+    }
+
+    // ── Wave 9: Escrow event handlers ─────────────────────────────────────────
+
+    private function escrowFunded(EscrowFunded $e): array
+    {
+        $contract = $e->contract;
+        $bp       = $contract->bp ?? \App\Models\User::find($contract->bp_id);
+        if (!$bp) return [];
+
+        $baseUrl     = rtrim(config('app.url'), '/');
+        $contractUrl = "{$baseUrl}/business-partner/contracts";
+        $amount      = '$' . number_format($e->amountCents / 100, 2);
+
+        if ($e->milestone) {
+            // Per-milestone funding
+            return [[
+                'user_id'  => $contract->bp_id,
+                'gate_key' => 'notify_payment',
+                'template' => 'emails.business.53-milestone-funded',
+                'data'     => [
+                    'recipient_name'   => $bp->display_name,
+                    'provider_name'    => $contract->practitioner?->display_name ?? 'the provider',
+                    'milestone_title'  => $e->milestone->title,
+                    'amount'           => $amount,
+                    'due_at'           => $e->milestone->due_at?->format('F j, Y'),
+                    'contract_url'     => $contractUrl,
+                ],
+            ]];
+        }
+
+        // Full-contract funding
+        return [[
+            'user_id'  => $contract->bp_id,
+            'gate_key' => 'notify_payment',
+            'template' => 'emails.business.52-escrow-funded',
+            'data'     => [
+                'recipient_name'  => $bp->display_name,
+                'provider_name'   => $contract->practitioner?->display_name ?? 'the provider',
+                'contract_title'  => $contract->title ?? null,
+                'amount'          => $amount,
+                'contract_url'    => $contractUrl,
+            ],
+        ]];
+    }
+
+    private function contractFullyFunded(ContractFullyFunded $e): array
+    {
+        $contract = $e->contract;
+        $bp       = $contract->bp ?? \App\Models\User::find($contract->bp_id);
+        if (!$bp) return [];
+
+        $baseUrl     = rtrim(config('app.url'), '/');
+        $amount      = '$' . number_format($contract->total_value_cents / 100, 2);
+        $firstMs     = $contract->milestones()->orderBy('sort_order')->first();
+
+        return [[
+            'user_id'  => $contract->bp_id,
+            'gate_key' => 'notify_payment',
+            'template' => 'emails.business.52-escrow-funded',
+            'data'     => [
+                'recipient_name'    => $bp->display_name,
+                'provider_name'     => $contract->practitioner?->display_name ?? 'the provider',
+                'contract_title'    => $contract->title ?? null,
+                'amount'            => $amount,
+                'milestone_title'   => $firstMs?->title,
+                'due_at'            => $firstMs?->due_at?->format('F j, Y'),
+                'contract_url'      => "{$baseUrl}/business-partner/contracts",
+            ],
+        ]];
+    }
+
+    private function contractCompleted(ContractCompleted $e): array
+    {
+        $contract = $e->contract;
+        $bp       = $contract->bp ?? \App\Models\User::find($contract->bp_id);
+        $provider = $contract->practitioner ?? \App\Models\User::find($contract->practitioner_id);
+        $baseUrl  = rtrim(config('app.url'), '/');
+
+        $totalValue     = '$' . number_format((int) $contract->total_value_cents / 100, 2);
+        $milestoneCount = $contract->milestones()->count();
+        $completedAt    = $contract->completed_at?->toIso8601String() ?? now()->toIso8601String();
+
+        $notifications = [];
+
+        if ($provider) {
+            $notifications[] = [
+                'user_id'  => $contract->practitioner_id,
+                'gate_key' => 'notify_payment',
+                'template' => 'emails.business.61-contract-completed',
+                'data'     => [
+                    'recipient_name'  => $provider->display_name,
+                    'recipient_role'  => 'provider',
+                    'bp_name'         => $bp?->display_name ?? 'the Business Partner',
+                    'contract_title'  => $contract->title ?? null,
+                    'total_value'     => $totalValue,
+                    'milestone_count' => $milestoneCount,
+                    'completed_at'    => $completedAt,
+                    'review_url'      => "{$baseUrl}/provider/support-services",
+                ],
+            ];
+        }
+
+        if ($bp) {
+            $notifications[] = [
+                'user_id'  => $contract->bp_id,
+                'gate_key' => 'notify_payment',
+                'template' => 'emails.business.61-contract-completed',
+                'data'     => [
+                    'recipient_name'  => $bp->display_name,
+                    'recipient_role'  => 'bp',
+                    'provider_name'   => $provider?->display_name ?? 'the provider',
+                    'contract_title'  => $contract->title ?? null,
+                    'total_value'     => $totalValue,
+                    'milestone_count' => $milestoneCount,
+                    'completed_at'    => $completedAt,
+                    'review_url'      => "{$baseUrl}/business-partner/contracts",
+                ],
+            ];
+        }
+
+        return $notifications;
+    }
+
+    private function milestoneReadyForReview(MilestoneReadyForReview $e): array
+    {
+        $milestone = $e->milestone;
+        $contract  = $milestone->contract ?? \App\Models\BpContract::find($milestone->contract_id);
+        if (!$contract) return [];
+
+        $provider = $contract->practitioner ?? \App\Models\User::find($contract->practitioner_id);
+        if (!$provider) return [];
+
+        $baseUrl    = rtrim(config('app.url'), '/');
+        $amount     = '$' . number_format((int) $milestone->funded_cents / 100, 2);
+        $submission = $e->submission;
+
+        return [[
+            'user_id'  => $contract->practitioner_id,
+            'gate_key' => 'notify_payment',
+            'template' => 'emails.business.54-milestone-submitted',
+            'data'     => [
+                'recipient_name'   => $provider->display_name,
+                'bp_name'          => $contract->bp?->display_name ?? 'Business Partner',
+                'milestone_title'  => $milestone->title,
+                'amount'           => $amount,
+                'auto_release_at'  => $milestone->auto_release_at?->toIso8601String(),
+                'submission_notes' => $submission->submission_notes ?? null,
+                'contract_url'     => "{$baseUrl}/provider/support-services",
+            ],
+        ]];
+    }
+
+    private function milestoneRevisionRequested(MilestoneRevisionRequested $e): array
+    {
+        $milestone = $e->milestone;
+        $contract  = $milestone->contract ?? \App\Models\BpContract::find($milestone->contract_id);
+        if (!$contract) return [];
+
+        $bp      = $contract->bp ?? \App\Models\User::find($contract->bp_id);
+        if (!$bp) return [];
+
+        $baseUrl       = rtrim(config('app.url'), '/');
+        $maxRevisions  = (int) config('aegis.milestone_max_revisions', 3);
+        $revisionCount = (int) $milestone->revision_count;
+
+        return [[
+            'user_id'  => $contract->bp_id,
+            'gate_key' => 'notify_payment',
+            'template' => 'emails.business.56-milestone-revision-requested',
+            'data'     => [
+                'recipient_name'  => $bp->display_name,
+                'provider_name'   => $e->provider->display_name,
+                'milestone_title' => $milestone->title,
+                'revision_notes'  => $e->revisionNotes,
+                'revision_count'  => $revisionCount,
+                'max_revisions'   => $maxRevisions,
+                'contract_url'    => "{$baseUrl}/business-partner/milestones",
+            ],
+        ]];
+    }
+
+    private function milestoneReleased(MilestoneReleased $e): array
+    {
+        $milestone = $e->milestone;
+        $contract  = $milestone->contract ?? \App\Models\BpContract::find($milestone->contract_id);
+        if (!$contract) return [];
+
+        $bp          = $contract->bp ?? \App\Models\User::find($contract->bp_id);
+        $provider    = $contract->practitioner ?? \App\Models\User::find($contract->practitioner_id);
+        $baseUrl     = rtrim(config('app.url'), '/');
+        $amount      = '$' . number_format((int) $milestone->released_cents / 100, 2);
+        $approvedAt  = $milestone->approved_at?->toIso8601String() ?? now()->toIso8601String();
+
+        // Find the next pending milestone for context
+        $nextMs = $contract->milestones()
+            ->whereIn('status', ['pending_funding', 'funded', 'in_progress'])
+            ->orderBy('sort_order')
+            ->first();
+
+        $notifications = [];
+
+        // To BP
+        if ($bp) {
+            $notifications[] = [
+                'user_id'  => $contract->bp_id,
+                'gate_key' => 'notify_payment',
+                'template' => 'emails.business.55-milestone-approved',
+                'data'     => [
+                    'recipient_name'       => $bp->display_name,
+                    'provider_name'        => $provider?->display_name ?? 'the provider',
+                    'milestone_title'      => $milestone->title,
+                    'amount'               => $amount,
+                    'approved_at'          => $approvedAt,
+                    'next_milestone_title' => $nextMs?->title,
+                    'next_milestone_due'   => $nextMs?->due_at?->format('F j, Y'),
+                    'contract_url'         => "{$baseUrl}/business-partner/finances",
+                ],
+            ];
+        }
+
+        return $notifications;
+    }
+
+    private function milestoneRefunded(MilestoneRefunded $e): array
+    {
+        $milestone = $e->milestone;
+        $contract  = $milestone->contract ?? \App\Models\BpContract::find($milestone->contract_id);
+        if (!$contract) return [];
+
+        $bp       = $contract->bp ?? \App\Models\User::find($contract->bp_id);
+        $provider = $contract->practitioner ?? \App\Models\User::find($contract->practitioner_id);
+        $baseUrl  = rtrim(config('app.url'), '/');
+        $amount   = '$' . number_format($e->refundedCents / 100, 2);
+        $contractUrl = "{$baseUrl}/provider/support-services";
+
+        $notifications = [];
+
+        // To provider
+        if ($provider) {
+            $notifications[] = [
+                'user_id'  => $contract->practitioner_id,
+                'gate_key' => 'notify_payment',
+                'template' => 'emails.business.59-milestone-refunded',
+                'data'     => [
+                    'recipient_name'  => $provider->display_name,
+                    'recipient_role'  => 'provider',
+                    'milestone_title' => $milestone->title,
+                    'amount'          => $amount,
+                    'reason'          => $e->reason,
+                    'contract_url'    => $contractUrl,
+                ],
+            ];
+        }
+
+        // To BP
+        if ($bp) {
+            $notifications[] = [
+                'user_id'  => $contract->bp_id,
+                'gate_key' => 'notify_payment',
+                'template' => 'emails.business.59-milestone-refunded',
+                'data'     => [
+                    'recipient_name'  => $bp->display_name,
+                    'recipient_role'  => 'bp',
+                    'provider_name'   => $provider?->display_name ?? 'the provider',
+                    'milestone_title' => $milestone->title,
+                    'amount'          => $amount,
+                    'reason'          => $e->reason,
+                    'contract_url'    => "{$baseUrl}/business-partner/contracts",
+                ],
+            ];
+        }
+
+        return $notifications;
+    }
+
+    private function milestoneAutoReleased(MilestoneAutoReleased $e): array
+    {
+        $milestone = $e->milestone;
+        $contract  = $milestone->contract ?? \App\Models\BpContract::find($milestone->contract_id);
+        if (!$contract) return [];
+
+        $bp       = $contract->bp ?? \App\Models\User::find($contract->bp_id);
+        $provider = $contract->practitioner ?? \App\Models\User::find($contract->practitioner_id);
+        $baseUrl  = rtrim(config('app.url'), '/');
+        $amount   = '$' . number_format((int) $milestone->released_cents / 100, 2);
+
+        $notifications = [];
+
+        // To provider
+        if ($provider) {
+            $notifications[] = [
+                'user_id'  => $contract->practitioner_id,
+                'gate_key' => 'notify_payment',
+                'template' => 'emails.business.57-milestone-auto-released',
+                'data'     => [
+                    'recipient_name'  => $provider->display_name,
+                    'recipient_role'  => 'provider',
+                    'milestone_title' => $milestone->title,
+                    'bp_name'         => $bp?->display_name ?? 'the Business Partner',
+                    'amount'          => $amount,
+                    'contract_url'    => "{$baseUrl}/provider/support-services",
+                ],
+            ];
+        }
+
+        // To BP
+        if ($bp) {
+            $notifications[] = [
+                'user_id'  => $contract->bp_id,
+                'gate_key' => 'notify_payment',
+                'template' => 'emails.business.57-milestone-auto-released',
+                'data'     => [
+                    'recipient_name'  => $bp->display_name,
+                    'recipient_role'  => 'bp',
+                    'milestone_title' => $milestone->title,
+                    'amount'          => $amount,
+                    'contract_url'    => "{$baseUrl}/business-partner/finances",
+                ],
+            ];
+        }
+
+        return $notifications;
     }
 
     // ── Proposal submitted (BP confirmation) ─────────────────────────────────
