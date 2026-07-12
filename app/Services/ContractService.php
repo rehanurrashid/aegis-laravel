@@ -283,11 +283,18 @@ class ContractService
 
     public function getForBp(string $bpId): Collection
     {
-        return BpContract::where('bp_id', $bpId)
+        $contracts = BpContract::where('bp_id', $bpId)
             ->with(['practitioner:id,display_name,slug', 'milestones'])
             ->orderByDesc('created_at')
-            ->get()
-            ->map(function (BpContract $c) {
+            ->get();
+
+        // Pre-fetch review records for this BP to avoid N+1
+        $reviewedIds = \App\Models\BpContractReview::where('reviewer_id', $bpId)
+            ->whereIn('contract_id', $contracts->pluck('id'))
+            ->pluck('contract_id')
+            ->flip();
+
+        return $contracts->map(function (BpContract $c) use ($reviewedIds) {
                 $status = $c->status instanceof \BackedEnum ? $c->status->value : (string) $c->status;
                 return [
                     'id'                      => $c->id,
@@ -298,6 +305,7 @@ class ContractService
                     'funding_mode'            => $c->funding_mode ?? 'per_milestone',
                     'amount_cents'            => (int) $c->total_value_cents,
                     'status'                  => $status,
+                    'has_reviewed'            => $reviewedIds->has($c->id),
                     'cancel_reason'           => $c->cancel_reason,
                     'terms'                   => $c->terms,
                     // Escrow

@@ -430,11 +430,19 @@
       :milestones="activeContract ? (milestonesByContract?.[activeContract.id] ?? []) : []"
     />
     <EngagementRequestModal v-model="showRequestDetail" :request="activeEngagementRequest" />
+
+    <!-- Review auto-trigger — opens when a completed contract has no review yet -->
+    <ReviewContractModal
+      v-model="showReview"
+      :contract="reviewContract"
+      post-route="provider.jobs.contract.review"
+      dismiss-route="provider.jobs.contract.review.dismiss"
+    />
   </AppLayout>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import { syncFormEnhancements } from '@/plugins/FormEnhancerPlugin'
 import AppLayout from '@/layouts/AppLayout.vue'
@@ -450,6 +458,7 @@ import RejectModal from '@/components/modals/RejectModal.vue'
 import HireModal from '@/components/modals/HireModal.vue'
 import EngagementRequestModal from '@/components/modals/EngagementRequestModal.vue'
 import ContractModal from '@/components/modals/ContractModal.vue'
+import ReviewContractModal from '@/components/modals/ReviewContractModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useMessageButton } from '@/composables/useMessageButton'
@@ -519,6 +528,26 @@ const activeProposal = computed(() => {
 
 const showContract = ref(false)
 const activeContract = ref(null)
+
+// ── Review modal — auto-opens on mount when a completed contract has no review yet ──
+const showReview       = ref(false)
+const reviewContract   = ref(null)
+
+onMounted(() => {
+  // Find the first completed contract the provider hasn't reviewed yet
+  const pending = props.activeContracts.find(
+    c => c.status === 'completed' && !c.has_reviewed
+  )
+  if (pending) {
+    reviewContract.value = {
+      id:                pending.id,
+      title:             pending.title,
+      counterparty_name: pending.bp?.display_name ?? pending.bp_name ?? 'Business Partner',
+    }
+    // Small delay so the page renders first
+    setTimeout(() => { showReview.value = true }, 800)
+  }
+})
 
 // Unwrap backed enum values — Inertia may serialise them as {value:'x'} objects
 // instead of plain strings depending on Laravel/Inertia version. Always use val()

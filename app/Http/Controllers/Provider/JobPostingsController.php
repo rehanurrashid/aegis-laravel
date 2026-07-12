@@ -76,6 +76,17 @@ class JobPostingsController extends Controller
             ->orderByDesc('started_at')
             ->get();
 
+        // For completed contracts: check if provider has already reviewed each one
+        $reviewedContractIds = \App\Models\BpContractReview::where('reviewer_id', $user->id)
+            ->whereIn('contract_id', $contracts->pluck('id'))
+            ->pluck('contract_id')
+            ->flip();
+
+        $contractsWithReviewFlag = $contracts->map(function ($c) use ($reviewedContractIds) {
+            $c->has_reviewed = $reviewedContractIds->has($c->id);
+            return $c;
+        });
+
         $totalSpent = BpContract::where('practitioner_id', $user->id)->sum('total_value_cents');
 
         $bpIds = $proposalsByJob->flatten()->pluck('bp_id')->unique()->values();
@@ -122,7 +133,7 @@ class JobPostingsController extends Controller
         return Inertia::render('provider/SupportServices', [
             'jobs'             => $jobs,
             'proposalsByJob'   => $proposalsByJob,
-            'activeContracts'  => $contracts,
+            'activeContracts'  => $contractsWithReviewFlag,
             'engagementRequests' => $engagementRequests,
             'milestonesByContract' => BpMilestone::whereIn('contract_id', $contracts->pluck('id'))
                 ->orderBy('sort_order')

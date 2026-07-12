@@ -115,7 +115,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useForm } from '@inertiajs/vue3'
-import { useToastStore } from '@/stores/toast'
+import { useToast } from '@/composables/useToast'
 
 const props = defineProps({
   modelValue:   { type: Boolean, default: false },
@@ -125,7 +125,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
-const toast = useToastStore()
+const toast = useToast()
 
 const dimensions = [
   { key: 'communication', label: 'Communication' },

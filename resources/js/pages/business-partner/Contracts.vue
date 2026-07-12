@@ -168,12 +168,20 @@
       @update:model-value="activeContract = null"
     />
   </AppLayout>
+
+  <ReviewContractModal
+    v-model="showReview"
+    :contract="reviewContract"
+    post-route="bp.contracts.review"
+    dismiss-route="bp.contracts.review.dismiss"
+  />
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppLayout              from '@/layouts/AppLayout.vue'
 import BpContractDetailModal  from '@/components/modals/BpContractDetailModal.vue'
+import ReviewContractModal    from '@/components/modals/ReviewContractModal.vue'
 import { usePricingStore }    from '@/stores/pricing'
 
 const props   = defineProps({ contracts: { type: Array, default: () => [] } })
@@ -181,6 +189,24 @@ const pricing = usePricingStore()
 
 const tab            = ref('active')
 const activeContract = ref(null)
+
+// ── Review auto-trigger ────────────────────────────────────────────────────────
+const showReview     = ref(false)
+const reviewContract = ref(null)
+
+onMounted(() => {
+  const pending = props.contracts.find(
+    c => c.status === 'completed' && !c.has_reviewed
+  )
+  if (pending) {
+    reviewContract.value = {
+      id:                pending.id,
+      title:             pending.title,
+      counterparty_name: pending.client_name ?? 'the Practitioner',
+    }
+    setTimeout(() => { showReview.value = true }, 800)
+  }
+})
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const tabs = [
