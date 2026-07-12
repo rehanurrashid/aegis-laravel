@@ -112,11 +112,14 @@ class InvoiceService
     {
         return DB::transaction(function () use ($invoice, $amountCents, $stripeChargeId) {
             $payment = BpInvoicePayment::create([
-                'id'               => 'bip_' . Str::lower(Str::random(12)),
-                'invoice_id'       => $invoice->id,
-                'amount_cents'     => $amountCents,
-                'stripe_charge_id' => $stripeChargeId,
-                'paid_at'          => now(),
+                'id'                     => 'bip_' . Str::lower(Str::random(12)),
+                'invoice_id'             => $invoice->id,
+                'payer_id'               => $invoice->practitioner_id,
+                'amount_cents'           => $amountCents,
+                'stripe_payment_intent'  => $stripeChargeId,
+                'status'                 => 'succeeded',
+                'method'                 => 'stripe',
+                'paid_at'                => now(),
             ]);
 
             $totalPaid = BpInvoicePayment::where('invoice_id', $invoice->id)->sum('amount_cents');

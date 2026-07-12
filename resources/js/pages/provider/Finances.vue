@@ -1141,7 +1141,7 @@ function doPayCs() {
   router.post(route('provider.finances.cs-invoice.pay', { invoice: csTarget.value.id }), {}, {
     preserveScroll: true,
     onSuccess: () => { modals.value.confirmCsPay = false; csTarget.value = null; toast.success('CS invoice paid.') },
-    onError:  () => toast.error('Payment failed. Please check your default payment method.'),
+    onError: (errors) => toast.error(errors.invoice || errors.message || 'Payment failed. Please check your default payment method.'),
     onFinish: () => { paying.value = null },
   })
 }

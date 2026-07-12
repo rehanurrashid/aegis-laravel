@@ -522,7 +522,7 @@ function doApproveInvoice(inv) {
         modals.value.viewInvoice = false
         toast.success('Payment sent — routed directly to the recipient via Stripe Connect.')
       },
-      onError: () => toast.error('Payment failed. Please check your default payment method.'),
+      onError: (errors) => toast.error(errors.invoice || errors.message || 'Payment failed. Please check your default payment method.'),
     }
   )
 }
