@@ -785,4 +785,53 @@ function endAndRelease() {
 .contract-invoice-note { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-3); background: var(--badge-bg-gold); border-radius: var(--radius-sm); padding: 10px 14px; border-left: 3px solid var(--gold); margin-top: 16px; }
 .link-gold { color: var(--gold-dark); font-weight: 600; text-decoration: none; }
 .link-gold:hover { text-decoration: underline; }
+
+/* ── Milestone status chips ──────────────────────────────────────── */
+.milestone-funded-chip,
+.milestone-paid-chip,
+.milestone-auto-release-chip,
+.milestone-revision-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  border: 1px solid;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Funded — green tint */
+.milestone-funded-chip {
+  background: var(--green-light);
+  border-color: var(--green);
+  color: var(--green-dark);
+}
+
+/* Paid / Released — solid green */
+.milestone-paid-chip {
+  background: var(--green);
+  border-color: var(--green-dark);
+  color: #fff;
+}
+
+/* Auto-release countdown — amber warning */
+.milestone-auto-release-chip {
+  background: rgba(160,129,62,0.08);
+  border-color: var(--gold);
+  color: var(--gold-dark);
+  cursor: default;
+}
+
+/* Revision requested — orange */
+.milestone-revision-chip {
+  background: var(--orange-light);
+  border-color: var(--orange);
+  color: var(--orange-dark);
+  cursor: default;
+}
 </style>
