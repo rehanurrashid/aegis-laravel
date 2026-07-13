@@ -12,6 +12,7 @@ use App\Models\ServiceRequest;
 use App\Models\ServiceSession;
 use App\Models\SessionRefundRequest;
 use App\Services\ServiceService;
+use App\Services\ServiceSessionPdfService;
 use App\Services\SessionRefundService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -22,8 +23,9 @@ use Inertia\Response;
 class ServicesController extends Controller
 {
     public function __construct(
-        private ServiceService       $services,
-        private SessionRefundService $refunds,
+        private ServiceService           $services,
+        private SessionRefundService     $refunds,
+        private ServiceSessionPdfService $pdf,
     ) {}
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -309,8 +311,8 @@ class ServicesController extends Controller
 
     /**
      * GET /provider/services/sessions/{session}/invoice
-     * Returns a printable HTML invoice for the session.
-     * Both the client and the provider can download their own copy.
+     * Returns a printable HTML session invoice, rendered by the unified
+     * AegisPdfService. Both the client and the provider can download.
      */
     public function downloadInvoice(Request $request, ServiceSession $session)
     {
@@ -321,14 +323,11 @@ class ServicesController extends Controller
             abort(403);
         }
 
-        $session->load(['service', 'practitioner', 'client']);
-        $viewpoint = $session->client_id === $user->id ? 'client' : 'provider';
-
-        return response()->view('sessions.invoice', [
-            'session'     => $session,
-            'viewpoint'   => $viewpoint,
-            'user'        => $user,
-        ])->header('Content-Type', 'text/html');
+        return response($this->pdf->render($session), 200, [
+            'Content-Type'  => 'text/html; charset=UTF-8',
+            'Cache-Control' => 'no-store, no-cache',
+            'X-Robots-Tag'  => 'noindex',
+        ]);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

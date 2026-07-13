@@ -201,6 +201,147 @@ class AegisPdfService
 
     // ─────────────────────────────────────────────────────────────────────
 
+    /**
+     * Clinical session invoice — deposit + balance breakdown, refund line if any.
+     * Used by Clinical Services module. Renders identically for client & provider
+     * viewpoints; the only difference is which party is labelled "You" — that
+     * is a UI concern in SessionInvoiceModal, not something the PDF exposes.
+     */
+    public function serviceSession(\App\Models\ServiceSession $session): string
+    {
+        $session->load(['service', 'practitioner:id,display_name,email', 'client:id,display_name,email']);
+
+        $provider = $session->practitioner;
+        $client   = $session->client;
+        $service  = $session->service;
+
+        $paymentStatus = $this->enumVal($session->payment_status);
+        $sessionStatus = $this->enumVal($session->status);
+
+        // Overall doc status — uses payment lifecycle, since this is an invoice
+        $statusLabel = [
+            'unpaid'             => 'Deposit Due',
+            'deposit_paid'       => 'Balance Due',
+            'paid'               => 'Paid',
+            'refunded'           => 'Refunded',
+            'partially_refunded' => 'Partially Refunded',
+        ][$paymentStatus] ?? ucfirst($paymentStatus);
+
+        // Money
+        $agreedCents   = (int) ($session->agreed_amount_cents ?? $session->amount_cents ?? 0);
+        $depositCents  = (int) ($session->deposit_cents ?? 0);
+        $balanceCents  = (int) ($session->balance_cents ?? 0);
+        $refundedCents = (int) ($session->total_refunded_cents ?? 0);
+
+        // Fall back if deposit/balance columns are empty (legacy single-charge)
+        if ($depositCents === 0 && $balanceCents === 0 && $agreedCents > 0) {
+            $depositCents = (int) round($agreedCents * 0.30);
+            $balanceCents = $agreedCents - $depositCents;
+        }
+
+        $depositPaid = in_array($paymentStatus, ['deposit_paid', 'paid', 'refunded', 'partially_refunded'], true);
+        $balancePaid = in_array($paymentStatus, ['paid', 'refunded', 'partially_refunded'], true);
+
+        $invoiceNum = $session->invoice_number ?? ('SES-' . strtoupper(substr($session->id, 0, 8)));
+
+        // Session detail chips: date/time + duration + status
+        $tz            = $session->timezone ?? 'America/New_York';
+        $scheduledAt   = $session->scheduled_at?->setTimezone($tz)->format('F j, Y \a\t g:i A T') ?? '—';
+        $completedAt   = $session->completed_at?->format('F j, Y') ?? null;
+        $durationLabel = $service?->duration_min ? "{$service->duration_min} min" : '—';
+
+        $dateChips = $this->dateChips([
+            ['label' => 'Scheduled',  'value' => $scheduledAt,   'warn' => false],
+            ['label' => 'Duration',   'value' => $durationLabel, 'warn' => false],
+            ['label' => 'Completed',  'value' => $completedAt,   'warn' => false, 'green' => true],
+        ]);
+
+        // Line items — deposit + balance rows so both charges are itemized
+        $rows = '';
+
+        // Deposit row
+        $depositAmt = '$' . number_format($depositCents / 100, 2);
+        if ($depositPaid && $session->deposit_paid_at) {
+            $paidDate = $session->deposit_paid_at->format('M j, Y');
+            $rows .= $this->lineItemRow(
+                "Deposit (30%) &nbsp;<span style=\"color:var(--c-green);font-size:11px;\">paid {$paidDate}</span>",
+                '',
+                $depositAmt,
+            );
+        } else {
+            $rows .= $this->lineItemRow(
+                "Deposit (30%) &nbsp;<span style=\"color:var(--c-red);font-size:11px;\">unpaid</span>",
+                '',
+                $depositAmt,
+            );
+        }
+
+        // Balance row
+        $balanceAmt = '$' . number_format($balanceCents / 100, 2);
+        if ($balancePaid && $session->balance_paid_at) {
+            $paidDate = $session->balance_paid_at->format('M j, Y');
+            $rows .= $this->lineItemRow(
+                "Balance (70%) &nbsp;<span style=\"color:var(--c-green);font-size:11px;\">paid {$paidDate}</span>",
+                '',
+                $balanceAmt,
+            );
+        } else {
+            $rows .= $this->lineItemRow(
+                "Balance (70%) &nbsp;<span style=\"color:var(--c-text-light);font-size:11px;\">due after session</span>",
+                '',
+                $balanceAmt,
+            );
+        }
+
+        // Refund row (if any refund has occurred)
+        if ($refundedCents > 0) {
+            $refundAmt = '-$' . number_format($refundedCents / 100, 2);
+            $rows .= "<tr><td colspan=\"2\" style=\"color:var(--c-red)\">Refunded</td><td style=\"color:var(--c-red)\">{$refundAmt}</td></tr>";
+        }
+
+        // Net total row
+        $netCents = $agreedCents - $refundedCents;
+        $totalAmt = '$' . number_format($netCents / 100, 2);
+        $totalRow = "<tr class=\"items-total\"><td colspan=\"2\">Net Total</td><td>{$totalAmt}</td></tr>";
+
+        // Notes
+        $notesHtml = '';
+        if (!empty($session->session_summary) && $session->share_notes_with_client) {
+            $notesHtml = $this->notesBox('Session Notes', $this->e($session->session_summary));
+        }
+
+        $disclosure = $this->disclosureBox(
+            'Session payment is processed via Stripe Connect and routes directly to the Practitioner. '
+            . 'Aegis holds no funds. Deposit is charged at booking; balance is charged after the session.'
+        );
+
+        return $this->wrap(
+            title:      "Invoice #{$this->e($invoiceNum)}",
+            docType:    'Clinical Session Invoice · Aegis Practice Continuity',
+            pageTitle:  $this->e($service?->title ?? 'Clinical Session'),
+            status:     $paymentStatus,
+            statusLabel: $statusLabel,
+            totalCents: $netCents,
+            parties:    $this->partyGrid(
+                fromLabel: 'Client (Payer)',
+                fromName:  $client?->display_name ?? '—',
+                fromEmail: $client?->email ?? '',
+                toLabel:   'Practitioner (Recipient)',
+                toName:    $provider?->display_name ?? '—',
+                toEmail:   $provider?->email ?? '',
+            ),
+            dateChips:  $dateChips,
+            body:       "<div style=\"margin-bottom:6px;font-size:12px;color:var(--c-text-light)\">Invoice #{$this->e($invoiceNum)} &nbsp;·&nbsp; Session status: {$this->e(ucfirst(str_replace('_', ' ', $sessionStatus)))}</div>"
+                        . $this->itemsTable($rows . $totalRow)
+                        . $notesHtml
+                        . $disclosure,
+            signatures: '',
+            footer:     "Session ID: {$this->e($session->id)}",
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+
     public function contract(\App\Models\BpContract $contract, \App\Models\User $viewer): string
     {
         $contract->load([
