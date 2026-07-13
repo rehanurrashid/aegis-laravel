@@ -81,17 +81,71 @@ Additive to the global invariants in `AEGIS_VUE_RULES.md`.
 
 ## 3. Build workflow
 
+### The three-prompt system — mandatory for every page
+
+Every page in this module is built in exactly three sequential passes, each governed by its own canonical prompt file in the repo. **Read the prompt file before executing that pass — it is the single source of truth for that pass, not this spec.**
+
+| Pass | Prompt file | What it does |
+|---|---|---|
+| **P1 — Design** | `Documents/Next Prompts/FINAL CONVERSION/PROMPT_1_DESIGN.md` | Convert legacy PHP → Vue 3 + Inertia with 100% visual parity. Design + UI-target wiring only. No real backend data, no emails. |
+| **P2 — Backend** | `Documents/Next Prompts/FINAL CONVERSION/PROMPT_2_BACKEND.md` | Make every prop dynamic, every form real, every list bound to controller. Fill backend gaps. Seed all UI states. |
+| **P3 — Email/Notify/Log** | `Documents/Next Prompts/FINAL CONVERSION/PROMPT_3_EMAIL_NOTIFY_LOG.md` | For every write action: (1) trigger correct email, (2) write `notification` activity entry for other parties, (3) write `log` entry for actor. |
+
+**Execution rules:**
+- P1 must be fully complete and verified before P2 starts
+- P2 must be fully complete and verified before P3 starts
+- P1 input = legacy PHP file (uploaded) + existing Vue stub
+- P2 input = P1 output Vue file + controller + service + FormRequest + migration
+- P3 input = P2 output — wires onto the already-complete service layer
+- Each pass ends with `php -l` on all touched PHP files + `node --check` on all touched Vue files
+- Deliver one ZIP per pass OR one combined ZIP after P3 — per-page preference
+
 ### Chat topology
 
 ```
-Chat 1 (this one)  →  Spec produced. No code.
-Chat 2  →  ContinuityPlan.vue         (P1 + P2 + P3)  ← START HERE
-Chat 3  →  ContinuityStewards.vue     (P1 + P2 + P3)  + bundled fixes B & C
-Chat 4  →  SupportStewards.vue        (P1 + P2 + P3)
-Chat 5  →  ImportantDocuments.vue     (P1 + P2 + P3)
-Chat 6  →  Vault.vue                  (P1 + P2 + P3)  + bundled fix A
+Chat 1 (this one)  →  Spec produced. No code.                               ✅ DONE
+Chat 2  →  ContinuityPlan.vue         P1→P2→P3  + bundled fix D             ✅ DONE
+Chat 3  →  ContinuityStewards.vue     P1→P2→P3  + bundled fixes B & C       ← NEXT
+Chat 4  →  SupportStewards.vue        P1→P2→P3
+Chat 5  →  ImportantDocuments.vue     P1→P2→P3
+Chat 6  →  Vault.vue                  P1→P2→P3  + bundled fix A
 Chat 7  →  CONTINUITY_PRACTICE_MODULE.md consolidation MD
 ```
+
+### Standard sub-chat launch prompt
+
+Paste as the **first message** of each sub-chat (swap bracketed values):
+
+```
+Context: Continuity Practice Module.
+
+Read Documents/CONTINUITY_PRACTICE_MODULE_SPEC.md from the fresh clone — anchor doc.
+Read Documents/Next Prompts/FINAL CONVERSION/PROMPT_1_DESIGN.md before P1.
+Read Documents/Next Prompts/FINAL CONVERSION/PROMPT_2_BACKEND.md before P2.
+Read Documents/Next Prompts/FINAL CONVERSION/PROMPT_3_EMAIL_NOTIFY_LOG.md before P3.
+
+This chat builds [PAGE].vue only.
+Legacy PHP source: [PAGE].php (uploaded).
+Follow spec [CHAPTER] (§[N]). Bundled fixes: [FIX LIST or "none"].
+
+Fresh clone first:
+rm -rf aegis && git clone --depth=1 https://github.com/rehanurrashid/aegis-laravel.git aegis
+
+Execute P1 → P2 → P3 in sequence, reading the prompt file before each pass.
+Work autonomously unless a design decision needs my input.
+Deliver one ZIP mirroring exact repo folder structure after P3 completes.
+```
+
+### Per-chat reference
+
+| Chat | Page | Spec chapter | Prompt files | Legacy PHP to upload | Bundled fixes |
+|---|---|---|---|---|---|
+| 2 | `ContinuityPlan.vue` | §4 / Chapter A | P1, P2, P3 | `continuity-plan.php` | Fix D | ✅ DONE |
+| 3 | `ContinuityStewards.vue` | §5 / Chapter B | P1, P2, P3 | `ContinuityStewards.php` | Fix B, Fix C | ← NEXT |
+| 4 | `SupportStewards.vue` | §6 / Chapter C | P1, P2, P3 | `support-stewards.php` | none |
+| 5 | `ImportantDocuments.vue` | §7 / Chapter D | P1, P2, P3 | `important-documents.php` | none |
+| 6 | `Vault.vue` | §8 / Chapter E | P1, P2, P3 | `vault.php` | Fix A |
+| 7 | Consolidation MD | §9 / Chapter F | — | — | — |
 
 ### Bundled code-hygiene fixes
 
@@ -197,7 +251,7 @@ The modal's confirmation text (approximate):
 > [ ] I have read and agree to the above
 > [ Sign & activate plan ]
 
-### P1 design gates (must all pass)
+### P1 design gates — follow `PROMPT_1_DESIGN.md` in full, then verify all pass
 - 8-section checklist, ordered, complete/incomplete visual state, `href` to sub-page or accordion anchor
 - 4 stat chips (Last attested, CS count, SS count, `{completed}/7` sections)
 - Incident-type accordion — one row per type, opt-in toggle for the 4 opt-in types, click expands to config panel
@@ -206,7 +260,7 @@ The modal's confirmation text (approximate):
 - Activate button visible only if `canActivate` true
 - Zero `modal-id=`, zero `<svg>`, zero hex, zero Tailwind, zero `is-invalid`
 
-### P2 backend wiring
+### P2 backend wiring — follow `PROMPT_2_BACKEND.md` in full
 - All 4 new routes registered
 - New service methods added
 - `defineProps` matches controller exactly
@@ -214,7 +268,7 @@ The modal's confirmation text (approximate):
 - Task reorder uses drag-and-drop → POST array of IDs
 - Seed states: draft plan, plan with 3/8 sections, plan with 7/8, signed plan, expired plan, plan pending-CS-countersignature
 
-### P3 email + notify + log
+### P3 email + notify + log — follow `PROMPT_3_EMAIL_NOTIFY_LOG.md` in full
 - `PlanSigned` event → fanout to all stewards (`emails.plan.02-plan-signed`)
 - `VaultAttested` event → fanout to stewards
 - `PlanTaskAdded`, `IncidentConfigUpdated` events → activity log entry for actor + notification to affected stewards
@@ -291,7 +345,7 @@ Inertia::render('Provider/ContinuityStewards', [
 - `StewardService::cancelInvite(PlanSteward $steward)` — status → `archived`
 - Guard in `remove()`: throw `RuntimeException` if outstanding invoices exist
 
-### P1 design gates
+### P1 design gates — follow `PROMPT_1_DESIGN.md` in full, then verify all pass
 - Tier-limit chip at top ("2 of 2 CS designated" — reads from `tierLimits`)
 - Steward cards: avatar, name, role pill, status pill, fee card if `fee_cents > 0`, Stripe Connect readiness dot (green if connected, gold warning if not and `fee_cents > 0`)
 - "Add CS" button disabled when at tier limit — tooltip explains upgrade path
@@ -299,12 +353,12 @@ Inertia::render('Provider/ContinuityStewards', [
 - Remove action: `confirmAction` callback; if outstanding invoices → show error toast, don't call
 - Zero design violations per `AEGIS_VUE_RULES.md`
 
-### P2 backend wiring
+### P2 backend wiring — follow `PROMPT_2_BACKEND.md` in full
 - Full CRUD wired, `useForm()` on every modal
 - Vuelidate: `fee_cents` (integer, min 0), `payment_terms` (in enum), email (valid), name (min 2)
 - Seed states: 0 CS, 1 CS (at Access limit), 2 CS (at Practice limit), pending invite, CS with fee and Stripe Connect, CS with fee and NO Stripe Connect (warning state)
 
-### P3 email + notify + log
+### P3 email + notify + log — follow `PROMPT_3_EMAIL_NOTIFY_LOG.md` in full
 - `StewardDesignated` event → email invited CS (`emails.steward.10-cs-invited`)
 - `CsEngagementAgreementCreated` → email CS awaiting countersign (`emails.docs.20-engagement-pending`)
 - `CsFeeAmended` → email CS awaiting countersign
@@ -358,7 +412,7 @@ Add mirror methods to `StewardService`:
 - `suspend(PlanSteward $steward, string $reason)`
 - `reinstate(PlanSteward $steward)`
 
-### P1/P2/P3 gates
+### P1/P2/P3 gates — follow PROMPT_1_DESIGN.md → PROMPT_2_BACKEND.md → PROMPT_3_EMAIL_NOTIFY_LOG.md in sequence
 Same shape as ContinuityStewards, minus fee/engagement UI. Seed states: 0/1/max SS, invited SS, suspended SS.
 
 ---
@@ -419,7 +473,7 @@ When a CS is designated with `fee_cents > 0` in Chat 3, `StewardService` auto-cr
 
 Practitioner sees it in `ImportantDocuments.vue` under "Pending your signature" — signs it — status → `countersign_pending` — appears in CS portal for countersign — status → `fully_executed`.
 
-### P1/P2/P3 gates
+### P1/P2/P3 gates — follow PROMPT_1_DESIGN.md → PROMPT_2_BACKEND.md → PROMPT_3_EMAIL_NOTIFY_LOG.md in sequence
 
 - Tabs: Pending / Awaiting countersign / Fully executed / Archived
 - Table columns: title, doc_type badge, counterparty, status pill, signed date, actions
@@ -485,7 +539,7 @@ Inertia::render('Provider/Vault', [
 | `VaultItemPermissionsModal.vue` | Per-item: which CS gets access — checkbox list |
 | `AttestVaultModal.vue` | Confirmation + optional note |
 
-### P1 design gates
+### P1 design gates — follow `PROMPT_1_DESIGN.md` in full, then verify all pass
 
 - 4 zone cards, each with title/description/count/items list
 - Zone-specific empty states with "add item" CTA
@@ -494,14 +548,14 @@ Inertia::render('Provider/Vault', [
 - Attest button in hero actions (disabled if no items)
 - Zero design violations
 
-### P2 backend wiring
+### P2 backend wiring — follow `PROMPT_2_BACKEND.md` in full
 
 - Attest button → `POST /vault/attest` → shows attested_at timestamp
 - Upload → correct zone routing
 - Delete → `confirmAction` callback
 - Seed: `p_sarah` vault has items in all 4 zones + `vault_attested_at` set
 
-### P3 email + notify + log
+### P3 email + notify + log — follow `PROMPT_3_EMAIL_NOTIFY_LOG.md` in full
 
 - `VaultItemAdded` → activity log (silent to stewards; SS only sees vault when incident active)
 - `VaultAttested` → fanout to all stewards (existing event fires from `PlanService::attestVault`)
@@ -627,4 +681,15 @@ Module is DONE when:
 
 ---
 
-*Spec locked 2026-07-12 — validated against repo `8128ae6`. Any drift discovered during a sub-chat build must be fed back to Chat 1 for spec update before proceeding.*
+*Spec Rev 2 — 2026-07-12. Validated against repo `8128ae6`. Three-prompt system added (§3). Any drift discovered during a sub-chat build must be fed back to the main planning chat for spec update before proceeding.*
+
+---
+
+## Quick reference — three prompt file paths
+
+```
+Documents/Next Prompts/FINAL CONVERSION/PROMPT_1_DESIGN.md
+Documents/Next Prompts/FINAL CONVERSION/PROMPT_2_BACKEND.md
+Documents/Next Prompts/FINAL CONVERSION/PROMPT_3_EMAIL_NOTIFY_LOG.md
+Documents/CONTINUITY_PRACTICE_MODULE_SPEC.md   ← this file
+```

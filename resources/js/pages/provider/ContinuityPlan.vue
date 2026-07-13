@@ -366,59 +366,50 @@
     </template>
 
     <!-- ═══ MODALS ═══ -->
-    <SignPlanModal v-if="showSignModal"
+    <SignPlanModal v-model="showSignModal"
       :plan="plan" :stewards="stewards" :can-sign="canSign"
       :section-summary="planSections.slice(0, 7)" :auth="auth"
-      @close="showSignModal = false"
     />
 
-    <AttestPlanModal v-if="showAttestModal" @close="showAttestModal = false" />
+    <AttestPlanModal v-model="showAttestModal" />
 
-    <IncidentConfigModal v-if="showIncidentConfig && activeIncidentType"
+    <IncidentConfigModal v-model="showIncidentConfig"
       :incident-type="activeIncidentType"
-      :config="getConfig(activeIncidentType.value)"
+      :config="activeIncidentType ? getConfig(activeIncidentType.value) : null"
       :stewards="stewards"
       :tasks="tasks"
-      :plan-id="plan?.id"
-      @close="showIncidentConfig = false"
     />
 
     <!-- How it works -->
-    <AegisModal v-if="showHowItWorks" modal-id="howItWorksModal" size="md"
-      title="How the Critical Moments Grid Works" subtitle="Build your continuity plan in 4 steps per row.">
-      <template #body>
-        <div class="list-group">
-          <div v-for="(step, i) in howItWorksSteps" :key="i" class="list-group-item" style="align-items:flex-start;gap:14px">
-            <span style="width:26px;height:26px;border-radius:50%;background:var(--badge-bg-gold);color:var(--gold-dark);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">{{ i + 1 }}</span>
-            <div>
-              <strong style="font-size:13px">{{ step.title }}</strong>
-              <div style="font-size:12px;color:var(--text-3);margin-top:3px">{{ step.body }}</div>
-            </div>
+    <AegisModal v-model="showHowItWorks" size="md" title="How the Critical Moments Grid Works">
+      <div class="list-group">
+        <div v-for="(step, i) in howItWorksSteps" :key="i" class="list-group-item" style="align-items:flex-start;gap:14px">
+          <span style="width:26px;height:26px;border-radius:50%;background:var(--badge-bg-gold);color:var(--gold-dark);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">{{ i + 1 }}</span>
+          <div>
+            <strong style="font-size:13px">{{ step.title }}</strong>
+            <div style="font-size:12px;color:var(--text-3);margin-top:3px">{{ step.body }}</div>
           </div>
         </div>
-        <div class="alert alert-info" style="margin-top:14px">
-          <AegisIcon name="info" :size="16" />
-          <div>When you <strong>Finalize &amp; Sign</strong>, this plan becomes a legally signed document and every task list is pushed to your stewards' portals automatically.</div>
-        </div>
-      </template>
+      </div>
+      <div class="alert alert-info" style="margin-top:14px">
+        <AegisIcon name="info" :size="16" />
+        <div>When you <strong>Finalize &amp; Sign</strong>, this plan becomes a legally signed document and every task list is pushed to your stewards' portals automatically.</div>
+      </div>
       <template #footer>
         <button type="button" class="btn btn-primary" @click="showHowItWorks = false">Got it</button>
       </template>
     </AegisModal>
 
     <!-- Annual Review -->
-    <AegisModal v-if="showAnnualReview" modal-id="annualReviewModal" size="md"
-      title="Begin Annual Review" subtitle="Start a new draft version of your plan.">
-      <template #body>
-        <div class="alert alert-info">
-          <AegisIcon name="info" :size="16" />
-          <div>Annual review creates a new draft (v{{ (plan?.plan_version ?? 1) + 1 }}.0). Your active plan stays in force until you sign the new version.</div>
-        </div>
-        <div class="form-group" style="margin-top:14px;margin-bottom:0">
-          <label class="form-label">What changed since last review? (optional)</label>
-          <textarea v-model="reviewNotes" class="form-input" rows="3" placeholder="Note changes to your practice, team, or operations…" style="resize:vertical" />
-        </div>
-      </template>
+    <AegisModal v-model="showAnnualReview" size="md" title="Begin Annual Review">
+      <div class="alert alert-info" style="margin-bottom:14px">
+        <AegisIcon name="info" :size="16" />
+        <div>Annual review creates a new draft (v{{ (plan?.plan_version ?? 1) + 1 }}.0). Your active plan stays in force until you sign the new version.</div>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">What changed since last review? (optional)</label>
+        <textarea v-model="reviewNotes" class="form-input" rows="3" placeholder="Note changes to your practice, team, or operations…" style="resize:vertical" />
+      </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="showAnnualReview = false">Cancel</button>
         <button type="button" class="btn btn-primary btn-spin" :disabled="reviewSubmitting" @click="submitAnnualReview">
