@@ -60,7 +60,6 @@ class PlanService
         return PlanTask::create([
             'id'            => 'pt_' . Str::lower(Str::random(12)),
             'plan_id'       => $plan->id,
-            'incident_type' => $taskData['incident_type'],
             'assigned_to'   => $taskData['assigned_to'],
             'title'         => $taskData['title'],
             'description'   => $taskData['description'] ?? null,
@@ -301,15 +300,8 @@ class PlanService
             ->where('is_active', 1)
             ->count();
 
-        // Section 5 — Response Tasks
-        $activeConfigs = PlanIncidentConfig::where('plan_id', $plan->id)
-            ->where('is_active', 1)
-            ->pluck('incident_type');
-        $tasksComplete = $activeConfigs->isNotEmpty() && $activeConfigs->every(
-            fn ($type) => PlanTask::where('plan_id', $plan->id)
-                ->where('incident_type', $type)
-                ->exists()
-        );
+        // Section 5 — Response Tasks (tasks are plan-level, not per-incident)
+        $tasksComplete = PlanTask::where('plan_id', $plan->id)->exists();
 
         // Section 6 — Vault
         $vaultAttested = !is_null($plan->vault_attested_at);

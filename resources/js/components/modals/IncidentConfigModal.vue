@@ -183,17 +183,15 @@ const newCsTimeline = ref('')
 
 watch(() => [props.incidentType, props.tasks], () => {
   if (!props.incidentType) return
-  const typeVal = props.incidentType.value
   ssTasks.value = props.tasks
-    .filter(t => t.incident_type === typeVal && t.assigned_to === 'support_steward')
+    .filter(t => t.assigned_to === 'support_steward')
     .map(t => ({ ...t }))
   csTasks.value = props.tasks
-    .filter(t => t.incident_type === typeVal && t.assigned_to === 'continuity_steward')
+    .filter(t => t.assigned_to === 'continuity_steward')
     .map(t => ({ ...t }))
 }, { immediate: true })
 
 const form = useForm({
-  incident_type:      computed(() => props.incidentType?.value ?? ''),
   is_active:         !!(props.config?.is_active),
   docs_required:     props.config?.docs_required ?? [],
   authorized_ss_ids: props.config?.authorized_ss_ids ?? [],
@@ -215,7 +213,7 @@ function quickAddTask(role) {
   const timeline = role === 'ss' ? newSsTimeline.value       : newCsTimeline.value
   if (!title) return
   const list = role === 'ss' ? ssTasks : csTasks
-  list.value.push({ title, timeline, assigned_to: role === 'ss' ? 'support_steward' : 'continuity_steward', incident_type: props.incidentType?.value })
+  list.value.push({ title, timeline, assigned_to: role === 'ss' ? 'support_steward' : 'continuity_steward' })
   if (role === 'ss') { newSsTask.value = ''; newSsTimeline.value = '' }
   else               { newCsTask.value = ''; newCsTimeline.value = '' }
 }
@@ -241,8 +239,8 @@ async function submit() {
 
   // 2) Remove old tasks for this type, then add new ones (brute-force replace via individual POSTs)
   const allNew = [
-    ...ssTasks.value.map((t, i) => ({ ...t, assigned_to: 'support_steward',    incident_type: props.incidentType?.value, sort_order: i })),
-    ...csTasks.value.map((t, i) => ({ ...t, assigned_to: 'continuity_steward', incident_type: props.incidentType?.value, sort_order: i })),
+    ...ssTasks.value.map((t, i) => ({ ...t, assigned_to: 'support_steward',    sort_order: i })),
+    ...csTasks.value.map((t, i) => ({ ...t, assigned_to: 'continuity_steward', sort_order: i })),
   ]
   // Only post tasks that don't already have a server ID (new ones)
   const newTasks = allNew.filter(t => !t.id)
@@ -251,7 +249,6 @@ async function submit() {
       router.post(route('plan.tasks.store'), {
         title:         t.title,
         timeline:      t.timeline,
-        incident_type: t.incident_type,
         assigned_to:   t.assigned_to,
         sort_order:    t.sort_order,
         is_custom:     1,

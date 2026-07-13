@@ -42,7 +42,7 @@ class ContinuityPlanController extends Controller
         ]);
 
         $stewards = $plan
-            ? PlanSteward::with('user')
+            ? PlanSteward::with('steward')
                 ->where('plan_id', $plan->id)
                 ->whereIn('status', ['active', 'pending', 'invited'])
                 ->get()
@@ -55,8 +55,8 @@ class ContinuityPlanController extends Controller
                     'fee_cents'    => $s->fee_cents ?? 0,
                     'payment_terms'=> $s->payment_terms,
                     'auto_charge'  => $s->auto_charge ?? false,
-                    'display_name' => $s->user?->display_name ?? '—',
-                    'avatar_initials' => $this->initials($s->user?->display_name),
+                    'display_name' => $s->steward?->display_name ?? '—',
+                    'avatar_initials' => $this->initials($s->steward?->display_name),
                 ])
             : [];
 
@@ -66,7 +66,6 @@ class ContinuityPlanController extends Controller
                 ->get()
                 ->map(fn ($t) => [
                     'id'            => $t->id,
-                    'incident_type' => $t->incident_type?->value ?? $t->incident_type,
                     'assigned_to'   => $t->assigned_to?->value ?? $t->assigned_to,
                     'title'         => $t->title,
                     'timeline'      => $t->timeline,
@@ -224,7 +223,7 @@ class ContinuityPlanController extends Controller
         $this->activity->log(
             $user->id, 'provider', 'plan', ActivitySeverity::Info,
             'plan_task_added', 'Task added to plan',
-            "Added task \"{$task->title}\" for {$request->input('incident_type')}.",
+            "Added task \"{$task->title}\".",
             'plan_task', $task->id, null,
             'log', $user->id
         );

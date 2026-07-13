@@ -513,8 +513,8 @@ const teamSlots = computed(() => {
 // ── Incident helpers ───────────────────────────────────────────────────────────
 function isEnabled(v)   { return !!(props.incidentConfigs.find(c => c.incident_type === v)?.is_active) }
 function getConfig(v)   { return props.incidentConfigs.find(c => c.incident_type === v) ?? null }
-function ssTaskCount(v) { return props.tasks.filter(t => t.incident_type === v && t.assigned_to === 'support_steward').length }
-function csTaskCount(v) { return props.tasks.filter(t => t.incident_type === v && t.assigned_to === 'continuity_steward').length }
+function ssTaskCount(_v) { return props.tasks.filter(t => t.assigned_to === 'support_steward').length }
+function csTaskCount(_v) { return props.tasks.filter(t => t.assigned_to === 'continuity_steward').length }
 
 function openIncidentConfig(type) { activeIncidentType.value = type; showIncidentConfig.value = true }
 

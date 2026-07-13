@@ -16,7 +16,7 @@ class AddPlanTaskRequest extends FormRequest
         return [
             'title'         => 'required|string|max:200',
             'description'   => 'nullable|string|max:2000',
-            'incident_type' => 'required|string|max:50',
+            'incident_type' => 'nullable|string|max:50',
             'assigned_to'   => ['required', Rule::in(['continuity_steward', 'support_steward'])],
             'category'      => 'nullable|string|max:50',
             'timeline'      => 'nullable|string|max:100',
