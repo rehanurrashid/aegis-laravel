@@ -1,786 +1,1186 @@
 <template>
-  <AppLayout :user="user" portal="practitioner" activePage="support-stewards" pageTitle="Support Stewards">
-    <div class="ss-hero">
-      <div>
-        <div class="ss-eyebrow">PROVIDER PORTAL</div>
-        <h1 class="ss-title">Support Stewards</h1>
-        <p class="ss-sub">Designate trusted individuals to support communication, coordination, and key tasks during a critical moment; guided by your Continuity Plan.</p>
+  <AppLayout>
+    <!-- HERO BANNER -->
+    <AegisHeroBanner
+      eyebrow="PROVIDER PORTAL"
+      title="Support Stewards"
+      subtitle="Designate trusted individuals to support communication, coordination, and key tasks during a critical moment, guided by your Continuity Plan."
+    >
+      <template #actions>
+        <a :href="route('provider.activity', { module: 'steward' })" class="btn-hero-ghost" data-tooltip="Module activity">
+          <AegisIcon name="activity" :size="14" /> Activity
+        </a>
+        <button class="btn-hero-ghost" @click="openModal('dsrGuideModal')">
+          What is a Support Steward?
+        </button>
+        <button class="btn-hero-solid" @click="handleAddSS">
+          <AegisIcon name="plus" :size="14" /> Add Support Steward
+        </button>
+      </template>
+    </AegisHeroBanner>
+
+    <!-- STAT CHIPS (sibling of hero banner, never inside) -->
+    <div class="stat-chips-row">
+      <AegisStatChip
+        icon="users"
+        :value="activeCount"
+        label="Active Support Stewards"
+      />
+      <AegisStatChip
+        icon="check-circle"
+        :value="pendingCount"
+        label="Pending Invite"
+        style="cursor:pointer"
+        @click="activeTab = 'pending'"
+      />
+      <AegisStatChip
+        v-if="servingAsSSFor.length"
+        icon="shield"
+        :value="servingAsSSFor.length"
+        label="I'm a Support Steward For"
+        style="cursor:pointer"
+        @click="activeTab = 'iamdsr'"
+      />
+      <AegisStatChip
+        icon="calendar"
+        :value="nextReviewLabel"
+        label="Annual Attestation Due"
+      />
+    </div>
+
+    <!-- TIER ALERT -->
+    <div class="alert alert-info" style="margin-bottom:14px">
+      <div class="alert-icon"><AegisIcon name="info" :size="18" /></div>
+      <div class="alert-content" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span>
+          Your Continuity <strong>{{ tier === 'access' ? 'Access' : 'Practice' }}</strong> plan includes
+          up to <strong>{{ ssMax }} Support Steward{{ ssMax === 1 ? '' : 's' }}</strong>
+          &middot; <strong>{{ ssCount }} of {{ ssMax }}</strong> in use{{ atLimit ? ' (limit reached)' : '' }}.
+        </span>
+        <a
+          v-if="tier === 'access'"
+          href="#"
+          style="font-weight:700;color:var(--gold-dark);text-decoration:none"
+          @click.prevent="openModal('upgradeModal')"
+        >Upgrade for more &rarr;</a>
       </div>
-      <div class="ss-hero-actions">
-        <button class="btn btn-outline btn-sm ss-btn-icon" @click="showToast('Opening activity','info')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Activity</button>
-        <button class="btn btn-outline btn-sm ss-btn-icon" @click="showToast('What is a Support Steward?','info')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> What is a Support Steward?</button>
-        <button class="btn btn-primary btn-sm ss-btn-icon" @click="showToast('Opening Add Support Steward','info')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> + Add Support Steward</button>
-      </div>
     </div>
 
-    <div class="ss-plan-notice">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span>Your <strong>Continuity Practice</strong> plan includes up to <strong>10 Support Stewards</strong> · 5 of 10 in use.</span>
-    </div>
-
-    <div class="ss-stats">
-      <div class="ss-stat"><div class="ss-stat-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div><div class="ss-stat-val">2</div><div class="ss-stat-lbl">Active Support Stewards</div></div></div>
-      <div class="ss-stat"><div class="ss-stat-icon ss-stat-gold"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><div class="ss-stat-val">1</div><div class="ss-stat-lbl">Pending Invite</div></div></div>
-      <div class="ss-stat"><div class="ss-stat-icon ss-stat-blue"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg></div><div><div class="ss-stat-val">1</div><div class="ss-stat-lbl">I'm a Support Steward For</div></div></div>
-      <div class="ss-stat"><div class="ss-stat-icon ss-stat-green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div><div class="ss-stat-val">Feb 14</div><div class="ss-stat-lbl">Annual Attestation Due</div></div></div>
-    </div>
-
-    <div class="ss-tabs">
-      <button class="ss-tab" :class="{ active: tab==='mine' }" @click="tab='mine'">My Support Stewards <span class="ss-tab-count" :class="{ active: tab==='mine' }">3</span></button>
-      <button class="ss-tab" :class="{ active: tab==='pending' }" @click="tab='pending'">Pending <span class="ss-tab-count" :class="{ active: tab==='pending' }">0</span></button>
-      <button class="ss-tab" :class="{ active: tab==='permissions' }" @click="tab='permissions'">Permissions</button>
-      <button class="ss-tab" :class="{ active: tab==='for' }" @click="tab='for'">I'm a Support Steward For <span class="ss-tab-count" :class="{ active: tab==='for' }">1</span></button>
-      <button class="ss-tab" :class="{ active: tab==='guidance' }" @click="tab='guidance'">Planning &amp; Guidance</button>
-    </div>
-    <div class="ss-tab-sub">
-      <span class="ss-tab-desc">Staff authorized to act on your behalf within defined permission boundaries.</span>
-      <button class="ss-add-sm" @click="showToast('Opening Add Support Steward','info')">+ Add Support Steward</button>
-    </div>
-
-    <!-- MY SUPPORT STEWARDS -->
-    <div v-show="tab==='mine'">
-      <div v-for="s in stewards" :key="s.name" class="ss-card" :class="{ 'ss-suspended': s.status==='SUSPENDED' }">
-        <div class="ss-card-head">
-          <div class="ss-avatar" :style="{ background: s.color }">{{ s.initials }}</div>
-          <div class="ss-info">
-            <div class="ss-name-row">
-              <span class="ss-name">{{ s.name }}</span>
-              <span class="ss-badge-role">SUPPORT STEWARD</span>
-              <span class="ss-badge-status" :class="s.status==='ACTIVE' ? 'ss-active' : 'ss-susp'">● {{ s.status }}</span>
-            </div>
-            <div class="ss-org">{{ s.org }}</div>
-            <div class="ss-meta">
-              <span v-if="s.phone" class="ss-mi">{{ s.phone }}</span>
-              <span v-if="s.email" class="ss-mi">{{ s.email }}</span>
-              <span v-if="s.agreement" class="ss-mi">Agreement {{ s.agreement }}</span>
-              <span v-if="s.reviewDue" class="ss-mi">Review Due {{ s.reviewDue }}</span>
-            </div>
-          </div>
-        </div>
-        <div v-if="s.responsibilities" class="ss-resp-block">
-          <div class="ss-resp-lbl">AUTHORIZED RESPONSIBILITIES</div>
-          <div v-for="r in s.responsibilities" :key="r.text" class="ss-resp-row">
-            <span class="ss-resp-text">{{ r.text }}</span>
-            <span class="ss-chip" :class="r.cls">{{ r.level }}</span>
-          </div>
-        </div>
-        <div v-if="s.status==='SUSPENDED'" class="ss-susp-warn">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          <span><strong>Access suspended:</strong> On medical leave — all task delegation paused. Reinstate when ready to return.</span>
-        </div>
-        <div class="ss-actions">
-          <template v-if="s.status!=='SUSPENDED'">
-            <button class="ss-act" title="View Agreement" @click="openM('agreement',s.name)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></button>
-            <button class="ss-act" title="Edit" @click="openM('edit',s.name)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-            <button class="ss-act" title="Vault Access" @click="openM('vault',s.name)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
-            <button class="ss-act" data-tooltip="Message" @click="goMsg()"><AegisIcon name="message-square" :size="13" /></button>
-            <button class="ss-act" title="Permissions" @click="openM('perms',s.name)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></button>
-            <button class="ss-act" title="Copy" @click="showToast('Copied','info')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
-            <button class="ss-act" title="Refresh" @click="showToast('Refreshed','info')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
-          </template>
-          <button v-if="s.status==='SUSPENDED'" class="ss-reinstate" @click="openReinstate(s)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> Reinstate</button>
-          <button class="ss-act ss-danger" title="Remove" @click="openM('remove',s.name)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
-        </div>
-      </div>
-      <button class="ss-add-dashed" @click="showToast('Opening Add Support Steward','info')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Add Another Support Steward
+    <!-- TABS -->
+    <div class="tabs-segmented">
+      <button class="tab-pill" :class="{ active: activeTab === 'mydsr' }" @click="activeTab = 'mydsr'">
+        My Support Stewards
+        <span class="badge-pill">{{ rosterCount }}</span>
+      </button>
+      <button class="tab-pill" :class="{ active: activeTab === 'pending' }" @click="activeTab = 'pending'">
+        Pending
+        <span class="badge-pill">{{ pendingCount }}</span>
+      </button>
+      <button class="tab-pill" :class="{ active: activeTab === 'permissions' }" @click="activeTab = 'permissions'">
+        Permissions
+      </button>
+      <button
+        v-if="servingAsSSFor.length"
+        class="tab-pill"
+        :class="{ active: activeTab === 'iamdsr' }"
+        @click="activeTab = 'iamdsr'"
+      >
+        I'm a Support Steward For
+        <span class="badge-pill">{{ servingAsSSFor.length }}</span>
+      </button>
+      <button class="tab-pill" :class="{ active: activeTab === 'planning' }" @click="activeTab = 'planning'">
+        Planning &amp; Guidance
       </button>
     </div>
 
-    <!-- OTHER TABS -->
-    <div v-show="tab==='pending'">
-      <p class="ss-tab-desc" style="margin-bottom:14px;">Support Stewards who have been invited but have not yet accepted.</p>
-      <div v-for="p in pendingInvites" :key="p.name" class="ss-card">
-        <div class="ss-card-head">
-          <div class="ss-avatar" :style="{ background: p.color }">{{ p.initials }}</div>
-          <div class="ss-info" style="flex:1;">
-            <div class="ss-name-row">
-              <span class="ss-name">{{ p.name }}</span>
-              <span class="ss-badge-role">AWAITING RESPONSE</span>
-              <span v-if="p.role" class="ss-badge-role" style="background:rgba(160,129,62,.08);">{{ p.role }}</span>
-            </div>
-            <div class="ss-org">{{ p.org }}</div>
-            <div class="ss-meta">
-              <span v-if="p.email" class="ss-mi">{{ p.email }}</span>
-              <span class="ss-mi">Invited: {{ p.invited }}</span>
-              <span class="ss-mi">Expires: {{ p.expires }}</span>
-            </div>
-          </div>
-        </div>
-        <div class="ss-actions">
-          <button class="ss-act" title="Resend invitation" @click="openPend('resend', p)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
-          <button class="ss-act" title="Preview agreement" @click="openPend('preview', p)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-          <button class="ss-act" title="Edit before resending" @click="openPend('edit', p)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-          <button class="ss-act ss-danger" title="Cancel invitation" @click="openPend('cancel', p)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-        </div>
-      </div>
-      <!-- Declined -->
-      <div v-for="d in declinedInvites" :key="d.name" class="ss-card" style="border-left:3px solid var(--red);">
-        <div class="ss-card-head">
-          <div class="ss-avatar" :style="{ background: d.color }">{{ d.initials }}</div>
-          <div class="ss-info">
-            <div class="ss-name-row"><span class="ss-name">{{ d.name }}</span><span class="ss-badge-status ss-susp">DECLINED</span></div>
-            <div class="ss-org">{{ d.org }}</div>
-            <div class="ss-meta"><span class="ss-mi">Agreement: {{ d.agreement }}</span></div>
-            <div class="ss-mi" style="margin-top:4px;font-size:12px;color:var(--text-3);">{{ d.reason }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div v-show="tab==='permissions'">
-      <div class="ss-perm-overview-header">
-        <span class="ss-tab-desc">Manage what each Support Steward is authorized to do on your behalf.</span>
-        <button class="ss-add-sm" @click="showToast('Opening Edit Permissions','info')">Edit Permissions</button>
-      </div>
-      <div v-for="s in stewards" :key="s.name" class="ss-perm-card">
-        <div class="ss-perm-card-left">
-          <div class="ss-avatar" :style="{ background: s.color, width:'36px', height:'36px', fontSize:'12px' }">{{ s.initials }}</div>
-          <div>
-            <div class="ss-name-row"><span class="ss-name" style="font-size:13.5px;">{{ s.name }}</span><span class="ss-badge-status" :class="s.status==='ACTIVE'?'ss-active':'ss-susp'">{{ s.status }}</span></div>
-            <div class="ss-org">Support Steward</div>
-          </div>
-        </div>
-        <div v-if="s.responsibilities" class="ss-perm-chips">
-          <span v-for="r in s.responsibilities" :key="r.text" class="ss-chip" :class="r.cls" style="font-size:9px;padding:1px 7px;">{{ r.level }}</span>
-        </div>
-        <button class="ss-act" title="Edit permissions" @click="openEditPerms(s)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-      </div>
-    </div>
-
-    <div v-show="tab==='for'" class="ss-for-card" @click="showToast('Opening provider portal','info')">
-      <div class="ss-avatar" style="background:#4a7a6a;width:42px;height:42px;font-size:13px;">EC</div>
-      <div style="flex:1;min-width:0;"><div class="ss-name-row"><span class="ss-name">Dr. Emily Chen</span><span class="ss-badge-role">SUPPORT STEWARD</span><span class="ss-badge-status ss-active">● ACTIVE</span></div><div class="ss-org">Licensed Therapist · San Francisco, CA</div></div>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-    </div>
-
-    <div v-show="tab==='guidance'">
-      <p class="ss-guidance-intro">Guidance to help your Support Stewards feel prepared — before, during, and after a critical moment. These notes are informational and meant to be reviewed together.</p>
-
-      <div v-for="section in guidanceSections" :key="section.title" class="ss-accord">
-        <button class="ss-accord-head" @click="section.open = !section.open">
-          <div class="ss-accord-icon" v-html="section.icon"></div>
-          <span class="ss-accord-title">{{ section.title }}</span>
-          <svg class="ss-accord-arrow" :class="{ open: section.open }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+    <!-- ═══ TAB: MY SUPPORT STEWARDS ═══ -->
+    <div v-show="activeTab === 'mydsr'">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <p style="font-size:13px;color:var(--text-3);margin:0">Staff authorized to act on your behalf within defined permission boundaries.</p>
+        <button class="btn btn-primary" @click="handleAddSS">
+          <AegisIcon name="plus" :size="13" /> Add Support Steward
         </button>
-        <div v-show="section.open" class="ss-accord-body">
-          <div v-for="item in section.items" :key="item" class="ss-accord-item">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="flex-shrink:0;color:var(--gold-dark);margin-top:1px;"><polyline points="20 6 9 17 4 12"/></svg>
-            <span>{{ item }}</span>
-          </div>
-        </div>
       </div>
 
-      <div class="ss-guidance-footer">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span>This guidance is a starting point. Tailor it with your Continuity Steward so it fits your practice.</span>
+      <template v-if="stewards.length || suspended.length">
+        <!-- ACTIVE -->
+        <div v-for="s in stewards" :key="s.id" class="dsr-card active">
+          <div class="avatar avatar-lg avatar-gold">{{ initials(s) }}</div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+              <span class="dsr-name">{{ fullName(s) }}</span>
+              <AegisBadge variant="gold" icon="user">Support Steward</AegisBadge>
+              <AegisBadge variant="green"><span class="status-dot green" style="display:inline-block;margin-right:4px"></span>Active</AegisBadge>
+            </div>
+            <div class="dsr-sub">{{ subLine(s) }}</div>
+            <div class="dsr-meta">
+              <span v-if="s.steward?.phone"><AegisIcon name="phone" :size="12" /> {{ s.steward.phone }}</span>
+              <span v-if="s.steward?.email"><AegisIcon name="mail" :size="12" /> {{ s.steward.email }}</span>
+              <span v-if="s.signed_at"><AegisIcon name="file-text" :size="12" /> Agreement: {{ fmtDate(s.signed_at) }}</span>
+              <span v-if="s.review_due_at"><AegisIcon name="refresh-cw" :size="12" /> Review Due: {{ fmtDate(s.review_due_at) }}</span>
+            </div>
+            <div v-if="s.responsibilities?.length" class="perm-list">
+              <div class="perm-list-label">Authorized Responsibilities</div>
+              <div v-for="(r, i) in normResp(s.responsibilities)" :key="i" class="perm-item">
+                <span class="pi-icon"><AegisIcon name="check" :size="14" /></span>
+                <span>{{ r.text }}</span>
+                <span v-if="r.level" class="pi-level" :class="levelClass(r.level)">{{ r.level }}</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+              <button class="btn-icon" data-tooltip="View Agreement" @click="openAgreement(s)"><AegisIcon name="file-text" :size="14" /></button>
+              <button class="btn-icon" data-tooltip="Edit" @click="openEdit(s)"><AegisIcon name="pencil" :size="14" /></button>
+              <button class="btn-icon" data-tooltip="Edit Permissions" @click="openEditPerms(s)"><AegisIcon name="lock" :size="14" /></button>
+              <button class="btn-icon" data-tooltip="Activity Log" @click="openModal('dsrActivityModal')"><AegisIcon name="bar-chart" :size="14" /></button>
+              <button class="btn-icon" data-tooltip="Suspend Access" @click="openSuspend(s)"><AegisIcon name="pause" :size="14" /></button>
+              <button class="btn-icon" data-tooltip="Change Role" @click="openChangeRole(s)"><AegisIcon name="refresh-cw" :size="14" /></button>
+              <button class="btn-icon btn-icon-danger" data-tooltip="Remove Support Steward" @click="openRemove(s)"><AegisIcon name="trash" :size="14" /></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUSPENDED -->
+        <div v-for="s in suspended" :key="s.id" class="dsr-card suspended">
+          <div class="avatar avatar-lg avatar-dark">{{ initials(s) }}</div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+              <span class="dsr-name">{{ fullName(s) }}</span>
+              <AegisBadge variant="gold" icon="user">Support Steward</AegisBadge>
+              <AegisBadge variant="red"><AegisIcon name="pause" :size="11" /> Suspended</AegisBadge>
+            </div>
+            <div class="dsr-sub">{{ subLine(s) }}</div>
+            <div class="dsr-meta">
+              <span v-if="s.signed_at"><AegisIcon name="file-text" :size="12" /> Agreement: {{ fmtDate(s.signed_at) }}</span>
+            </div>
+            <div class="alert alert-danger" style="margin-top:12px">
+              <div class="alert-icon"><AegisIcon name="lock" :size="16" /></div>
+              <div class="alert-content"><strong>Access suspended:</strong> {{ s.declined_reason || 'Access suspended. All task delegation paused.' }}</div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+              <button class="btn btn-outline" @click="openReinstate(s)"><AegisIcon name="check" :size="14" /> Reinstate</button>
+              <button class="btn-icon" data-tooltip="View Agreement" @click="openAgreement(s)"><AegisIcon name="file-text" :size="14" /></button>
+              <button class="btn-icon btn-icon-danger" data-tooltip="Remove" @click="openRemove(s)"><AegisIcon name="trash" :size="14" /></button>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <AegisEmptyState v-else icon="users" title="No Support Stewards Yet" description="Add your first Support Steward to delegate day-to-day practice tasks.">
+        <template #actions>
+          <button class="btn btn-primary" @click="handleAddSS"><AegisIcon name="plus" :size="14" /> Add Support Steward</button>
+        </template>
+      </AegisEmptyState>
+
+      <!-- ADD CTA ZONE -->
+      <div class="upload-zone" style="margin-bottom:14px" @click="handleAddSS">
+        <div class="upload-zone-icon"><AegisIcon name="plus" :size="22" /></div>
+        <div class="upload-zone-title">Add Another Support Steward</div>
+        <div class="upload-zone-sub">Designate a trusted individual to support coordination during a critical moment</div>
+      </div>
+
+      <!-- NOTIFY ME -->
+      <div class="card" style="margin-top:24px">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Notify Me</div>
+            <div class="card-subtitle">Choose when Aegis should let you know about activity involving your Support Stewards.</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div v-for="pref in notifyPrefs" :key="pref" class="setting-row">
+            <div class="setting-info"><div class="setting-label">{{ pref }}</div></div>
+            <button type="button" class="toggle on" aria-pressed="true" @click="toggleSwitch"></button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- NOTIFY ME -->
-    <div v-show="tab==='mine'" class="ss-notify">
-      <div class="ss-notify-title">Notify Me</div>
-      <div class="ss-notify-sub">Choose when Aegis should let you know about activity involving your Support Stewards.</div>
-      <div v-for="n in notifyToggles" :key="n.label" class="ss-notify-row">
-        <span class="ss-notify-label">{{ n.label }}</span>
-        <label class="ss-tog"><input type="checkbox" v-model="n.on"><span class="ss-tog-track" :class="{ on: n.on }"><span class="ss-tog-thumb"></span></span></label>
+    <!-- ═══ TAB: PENDING ═══ -->
+    <div v-show="activeTab === 'pending'">
+      <p style="font-size:13px;color:var(--text-3);margin-bottom:16px">Support Steward invitations you have sent that are awaiting acceptance.</p>
+      <AegisEmptyState v-if="!pending.length && !invited.length && !declined.length && !archived.length" icon="mail" title="No Pending Invitations" description="Support Steward invitations you send will appear here until accepted." />
+
+      <!-- PENDING / INVITED -->
+      <div v-for="s in [...pending, ...invited]" :key="s.id" class="dsr-card pending" style="align-items:center">
+        <div class="avatar avatar-lg avatar-dark">{{ initials(s) }}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+            <span class="dsr-name">{{ fullName(s) }}</span>
+            <AegisBadge variant="gold" icon="check-circle">Awaiting Response</AegisBadge>
+            <AegisBadge variant="gold" icon="user">Support Steward</AegisBadge>
+          </div>
+          <div class="dsr-sub">{{ subLine(s) }}</div>
+          <div class="dsr-meta">
+            <span v-if="s.steward?.email"><AegisIcon name="mail" :size="12" /> {{ s.steward.email }}</span>
+            <span v-if="s.invited_at"><AegisIcon name="calendar" :size="12" /> Invited: {{ fmtDate(s.invited_at) }}</span>
+            <span v-if="s.expires_at"><AegisIcon name="check-circle" :size="12" /> Expires: {{ fmtDate(s.expires_at) }}</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+            <button class="btn-icon" data-tooltip="Resend Invitation" @click="openResend(s)"><AegisIcon name="send" :size="14" /></button>
+            <button class="btn-icon" data-tooltip="Preview Agreement" @click="openAgreement(s)"><AegisIcon name="file-text" :size="14" /></button>
+            <button class="btn btn-danger" @click="openCancelInvite(s)"><AegisIcon name="x" :size="13" /> Cancel Invitation</button>
+          </div>
+        </div>
+        <div v-if="s.invited_at" style="text-align:center;flex-shrink:0;padding-left:8px">
+          <div style="width:44px;height:44px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark);display:flex;align-items:center;justify-content:center"><AegisIcon name="activity" :size="24" /></div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:4px;font-size:11px;color:var(--text-3);margin-top:4px"><AegisIcon name="clock" :size="12" /> Sent {{ daysSince(s.invited_at) }}</div>
+        </div>
+      </div>
+
+      <!-- DECLINED -->
+      <div v-for="s in declined" :key="s.id" class="dsr-card declined" style="align-items:center">
+        <div class="avatar avatar-lg avatar-dark">{{ initials(s) }}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+            <span class="dsr-name">{{ fullName(s) }}</span>
+            <AegisBadge variant="red" icon="x">Declined</AegisBadge>
+          </div>
+          <div class="dsr-sub">{{ subLine(s) }}</div>
+          <div class="dsr-meta">
+            <span v-if="s.steward?.email"><AegisIcon name="mail" :size="12" /> {{ s.steward.email }}</span>
+            <span v-if="s.declined_at"><AegisIcon name="calendar" :size="12" /> Declined: {{ fmtDate(s.declined_at) }}</span>
+          </div>
+          <div v-if="s.declined_reason" style="margin-top:10px;padding:10px 12px;background:var(--surface);border-radius:var(--radius-sm);border-left:3px solid var(--red-dark)">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);font-weight:700;margin-bottom:3px">Declination note</div>
+            <div style="font-size:13px;color:var(--text-2);font-style:italic">&ldquo;{{ s.declined_reason }}&rdquo;</div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+            <button class="btn btn-primary" @click="handleAddSS"><AegisIcon name="plus" :size="13" /> Invite Someone Else</button>
+            <button class="btn-icon" data-tooltip="Archive this record" @click="confirmAction('Archive this declined invitation?', () => submitArchiveSteward(s), { title: 'Archive Record', btnLabel: 'Archive', type: 'danger' })"><AegisIcon name="trash" :size="14" /></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ARCHIVED -->
+      <div v-for="s in archived" :key="s.id" class="dsr-card archived" style="align-items:center">
+        <div class="avatar avatar-lg avatar-dark">{{ initials(s) }}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+            <span class="dsr-name">{{ fullName(s) }}</span>
+            <AegisBadge variant="gray" icon="archive">Archived</AegisBadge>
+          </div>
+          <div class="dsr-sub">{{ subLine(s) }}</div>
+          <div class="dsr-meta">
+            <span v-if="s.signed_at"><AegisIcon name="file-text" :size="12" /> Former agreement: {{ fmtDate(s.signed_at) }}</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button class="btn btn-outline" @click="openReinstate(s)"><AegisIcon name="refresh-cw" :size="14" /> Reinstate</button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- MODALS -->
-    <Teleport to="body">
-
-      <!-- AGREEMENT -->
-      <Transition name="ssm-fade">
-        <div v-if="m.type==='agreement'" class="ssm-backdrop" @click.self="m.type=null">
-          <div class="ssm ssm-lg">
-            <div class="ssm-head"><div class="ssm-title">Continuity Plan — {{ m.name }}</div><button class="ssm-x" @click="m.type=null">×</button></div>
-            <div class="ssm-body">
-              <div class="ssm-agr-status">✓ Agreement #SS-2026-001 · Active · Both parties signed · Last reviewed Feb 14, 2026</div>
-              <div class="ssm-agr-doc">
-                <div class="ssm-agr-h">AEGIS SUPPORT STEWARD AGREEMENT</div>
-                <p class="ssm-agr-m"><strong>Provider:</strong> Dr. Sarah Johnson, MD — Psychiatrist, San Francisco, CA</p>
-                <p class="ssm-agr-m"><strong>Support Steward:</strong> {{ m.name }}</p>
-                <p class="ssm-agr-m"><strong>Agreement Date:</strong> Feb 14, 2026 | <strong>Next Review:</strong> Feb 14, 2027</p>
-                <hr class="ssm-agr-hr">
-                <p class="ssm-agr-p"><strong>Section 1. Purpose.</strong> This agreement establishes the scope, authority, and responsibilities of the Support Steward to act on behalf of the Provider in accordance with the Provider's Continuity Plan.</p>
-                <p class="ssm-agr-p"><strong>Section 2. Authorized Responsibilities.</strong> The Support Steward is authorized to perform the tasks and access the resources outlined within the defined permission levels.</p>
-                <p class="ssm-agr-p"><strong>Section 3. Confidentiality.</strong> The Support Steward agrees to maintain strict confidentiality of all patient information and practice records.</p>
-                <div class="ssm-sigs">
-                  <div class="ssm-sig"><span class="ssm-sig-b">SIGNED</span> Dr. Sarah Johnson — Feb 14, 2026</div>
-                  <div class="ssm-sig"><span class="ssm-sig-b">COUNTERSIGNED</span> {{ m.name }} — Feb 14, 2026</div>
+    <!-- ═══ TAB: PERMISSIONS ═══ -->
+    <div v-show="activeTab === 'permissions'">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <p style="font-size:13px;color:var(--text-3);margin:0">What each active Support Steward is authorized to do on your behalf.</p>
+        <button class="btn btn-outline" @click="openEditPerms(stewards[0] ?? null)"><AegisIcon name="lock" :size="13" /> Edit Permissions</button>
+      </div>
+      <AegisEmptyState v-if="!stewards.length && !suspended.length" icon="lock" title="No Active Support Stewards" description="Add a Support Steward to configure their permissions." />
+      <div v-else class="card">
+        <div class="card-header">
+          <div class="card-title">Permission Overview</div>
+          <div class="card-subtitle">Authorized tasks per Support Steward</div>
+        </div>
+        <div class="card-body">
+          <div v-for="s in [...stewards, ...suspended]" :key="s.id" class="perm-row" :class="{ 'is-muted': s.status === 'archived' }">
+            <div class="perm-row-head">
+              <div class="avatar avatar-sm" :class="s.status === 'archived' ? 'avatar-dark' : 'avatar-gold'">{{ initials(s) }}</div>
+              <div class="perm-row-info">
+                <div class="perm-row-id-line">
+                  <span class="perm-row-name">{{ fullName(s) }}</span>
+                  <AegisBadge v-if="s.status === 'archived'" variant="red">Suspended</AegisBadge>
+                  <AegisBadge v-else variant="green">Active</AegisBadge>
                 </div>
+                <div class="perm-row-role">Support Steward</div>
               </div>
+              <button v-if="s.status === 'archived'" class="btn-icon" data-tooltip="Reinstate" @click="openReinstate(s)"><AegisIcon name="check" :size="14" /></button>
+              <button v-else class="btn-icon" data-tooltip="Edit permissions" @click="openEditPerms(s)"><AegisIcon name="pencil" :size="14" /></button>
             </div>
-            <div class="ssm-foot"><button class="btn btn-outline btn-sm" @click="m.type=null">Close</button><button class="ssm-gold-btn" @click="showToast('Downloading PDF','info');m.type=null">Download PDF</button></div>
-          </div>
-        </div>
-      </Transition>
-
-      <!-- EDIT -->
-      <Transition name="ssm-fade">
-        <div v-if="m.type==='edit'" class="ssm-backdrop" @click.self="m.type=null">
-          <div class="ssm">
-            <div class="ssm-head"><div class="ssm-title">Edit Support Steward — {{ m.name }}</div><button class="ssm-x" @click="m.type=null">×</button></div>
-            <div class="ssm-body">
-              <div class="ssm-field"><label class="ssm-lbl">Full Name</label><input class="ssm-inp" :value="m.name" /></div>
-              <div class="ssm-field"><label class="ssm-lbl">Role / Title</label><input class="ssm-inp" placeholder="e.g. Practice Administrator" /></div>
-              <div class="ssm-field"><label class="ssm-lbl">Organization</label><input class="ssm-inp" placeholder="e.g. Lotus Psychology Group" /></div>
-              <div class="ssm-field"><label class="ssm-lbl">Phone</label><input class="ssm-inp" type="tel" /></div>
-              <div class="ssm-field"><label class="ssm-lbl">Email</label><input class="ssm-inp" type="email" /></div>
-              <div class="ssm-field"><label class="ssm-lbl">Emergency Phone (24-hr contact)</label><input class="ssm-inp" placeholder="Alternate contact" /></div>
-              <div class="ssm-field"><label class="ssm-lbl">Notes</label><textarea class="ssm-ta" rows="3" placeholder="Any updates or context…"></textarea></div>
-            </div>
-            <div class="ssm-foot"><button class="btn btn-outline btn-sm" @click="m.type=null">Cancel</button><button class="ssm-gold-btn" @click="showToast('Changes saved','success');m.type=null">Save Changes</button></div>
-          </div>
-        </div>
-      </Transition>
-
-      <!-- VAULT -->
-      <Transition name="ssm-fade">
-        <div v-if="m.type==='vault'" class="ssm-backdrop" @click.self="m.type=null">
-          <div class="ssm">
-            <div class="ssm-head"><div class="ssm-title">Manage Document Vault Access — {{ m.name }}</div><button class="ssm-x" @click="m.type=null">×</button></div>
-            <div class="ssm-body">
-              <div class="ssm-notice">Control what documents this Support Steward can access and when.</div>
-              <div v-for="opt in vaultOpts" :key="opt.v" class="ssm-vault-opt" :class="{ sel: vaultLvl===opt.v }" @click="vaultLvl=opt.v">
-                <div class="ssm-radio"><span v-if="vaultLvl===opt.v" class="ssm-dot"></span></div>
-                <div><div class="ssm-vault-lbl">{{ opt.label }}</div><div class="ssm-vault-sub">{{ opt.sub }}</div></div>
-              </div>
-            </div>
-            <div class="ssm-foot"><button class="btn btn-outline btn-sm" @click="m.type=null">Cancel</button><button class="ssm-gold-btn" @click="showToast('Vault access updated','success');m.type=null">Save Access Level</button></div>
-          </div>
-        </div>
-      </Transition>
-
-      <!-- PERMISSIONS -->
-      <Transition name="ssm-fade">
-        <div v-if="m.type==='perms'" class="ssm-backdrop" @click.self="m.type=null">
-          <div class="ssm ssm-lg">
-            <div class="ssm-head"><div class="ssm-title">Permissions — {{ m.name }}</div><button class="ssm-x" @click="m.type=null">×</button></div>
-            <div class="ssm-body">
-              <div v-for="r in permRows" :key="r.text" class="ssm-perm-row">
-                <span class="ssm-perm-text">{{ r.text }}</span>
-                <div class="ssm-lvl-btns">
-                  <button v-for="lv in levels" :key="lv.v" class="ssm-lvl" :class="[lv.cls, { 'ssm-lvl-active': r.level===lv.v }]" @click="r.level=lv.v">{{ lv.label }}</button>
-                </div>
-              </div>
-            </div>
-            <div class="ssm-foot"><button class="btn btn-outline btn-sm" @click="m.type=null">Cancel</button><button class="ssm-gold-btn" @click="showToast('Permissions saved','success');m.type=null">Save Permissions</button></div>
-          </div>
-        </div>
-      </Transition>
-
-      <!-- REMOVE -->
-      <Transition name="ssm-fade">
-        <div v-if="m.type==='remove'" class="ssm-backdrop" @click.self="m.type=null">
-          <div class="ssm ssm-sm">
-            <div class="ssm-head"><div class="ssm-title">Remove Support Steward</div><button class="ssm-x" @click="m.type=null">×</button></div>
-            <div class="ssm-body">
-              <div class="ssm-warn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span>Removing <strong>{{ m.name }}</strong> revokes all access immediately.</span></div>
-              <div class="ssm-field"><label class="ssm-lbl">Reason for removal</label><select class="ssm-inp" v-model="removeReason"><option value="">— Select —</option><option>No longer needed</option><option>Left the organization</option><option>Trust concern</option><option>Other</option></select></div>
-              <div class="ssm-field"><label class="ssm-lbl">Type "REMOVE" to confirm</label><input class="ssm-inp" v-model="removeConfirm" placeholder="Type REMOVE to confirm" /></div>
-            </div>
-            <div class="ssm-foot"><button class="btn btn-outline btn-sm" @click="m.type=null">Cancel</button><button class="ssm-red-btn" :disabled="removeConfirm!=='REMOVE'" @click="showToast(m.name+' removed','info');m.type=null">Remove Support Steward</button></div>
-          </div>
-        </div>
-      </Transition>
-
-      <!-- EDIT PERMISSIONS MODAL -->
-      <Transition name="ssm-fade">
-        <div v-if="editPermsModal.open" class="ssm-backdrop" @click.self="editPermsModal.open=false">
-          <div class="ssm ssm-lg">
-            <div class="ssm-head"><div class="ssm-title">Edit Permissions — {{ editPermsModal.name }}</div><button class="ssm-x" @click="editPermsModal.open=false">×</button></div>
-            <div class="ssm-body">
-              <div class="ssm-perm-person"><div class="ss-avatar" :style="{ background: editPermsModal.color, width:'32px', height:'32px', fontSize:'11px' }">{{ editPermsModal.initials }}</div><div><div style="font-size:13px;font-weight:600;color:var(--text);">{{ editPermsModal.name }} — Support Steward</div><div style="font-size:11.5px;color:var(--text-4);">Changes take effect immediately and are logged for audit</div></div></div>
-              <div class="ssm-perm-warn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span>Expanding authorized responsibilities will require an agreement amendment and {{ editPermsModal.name?.split(' ')[0] }}'s re-signature.</span></div>
-              <div v-for="section in permSections" :key="section.label">
-                <div class="ssm-perm-section-lbl">{{ section.label }}</div>
-                <div v-for="item in section.items" :key="item.label" class="ssm-perm-toggle-row">
-                  <div><div class="ssm-perm-toggle-label">{{ item.label }}</div><div v-if="item.sub" class="ssm-perm-toggle-sub">{{ item.sub }}</div></div>
-                  <label class="ss-tog"><input type="checkbox" v-model="item.on"><span class="ss-tog-track" :class="{ on: item.on }"><span class="ss-tog-thumb"></span></span></label>
-                </div>
-              </div>
-            </div>
-            <div class="ssm-foot"><button class="btn btn-outline btn-sm" @click="editPermsModal.open=false">Cancel</button><button class="ssm-gold-btn" @click="showToast('Permissions saved','success');editPermsModal.open=false">Save Permissions</button></div>
-          </div>
-        </div>
-      </Transition>
-
-      <!-- PENDING: RESEND -->
-      <Transition name="ssm-fade">
-        <div v-if="pendModal.type==='resend'" class="ssm-backdrop" @click.self="pendModal.type=null">
-          <div class="ssm">
-            <div class="ssm-head"><div class="ssm-title">Resend Support Steward Invitation</div><button class="ssm-x" @click="pendModal.type=null">×</button></div>
-            <div class="ssm-body">
-              <div class="ssm-perm-person" v-if="pendModal.item"><div class="ss-avatar" :style="{ background: pendModal.item.color, width:'32px', height:'32px', fontSize:'11px' }">{{ pendModal.item.initials }}</div><div><div style="font-size:13px;font-weight:600;">{{ pendModal.item.name }}</div><div style="font-size:11.5px;color:var(--text-4);">Originally invited {{ pendModal.item.invited }} · Expires {{ pendModal.item.expires }}</div></div></div>
-              <div class="ssm-field"><label class="ssm-lbl">New Expiration</label><select class="ssm-inp"><option>30 days from today</option><option>14 days from today</option><option>60 days from today</option></select></div>
-              <div class="ssm-field"><label class="ssm-lbl">Follow-up Message (Optional)</label><textarea class="ssm-ta" rows="4" :placeholder="'Hi '+pendModal.item?.name?.split(' ')[0]+', just following up on the Support Steward invitation I sent earlier…'"></textarea></div>
-            </div>
-            <div class="ssm-foot"><button class="btn btn-outline btn-sm" @click="pendModal.type=null">Cancel</button><button class="ssm-gold-btn" @click="showToast('Invitation resent','success');pendModal.type=null">Resend Invitation</button></div>
-          </div>
-        </div>
-      </Transition>
-
-      <!-- PENDING: PREVIEW AGREEMENT -->
-      <Transition name="ssm-fade">
-        <div v-if="pendModal.type==='preview'" class="ssm-backdrop" @click.self="pendModal.type=null">
-          <div class="ssm ssm-lg">
-            <div class="ssm-head"><div class="ssm-title">Agreement Preview — {{ pendModal.item?.name }} (Pending)</div><button class="ssm-x" @click="pendModal.type=null">×</button></div>
-            <div class="ssm-body">
-              <div class="ssm-notice">This agreement is awaiting {{ pendModal.item?.name }}'s counter-signature. Sent {{ pendModal.item?.invited }}, 2025 — expires {{ pendModal.item?.expires }}, 2025.</div>
-              <div class="ssm-agr-doc">
-                <div class="ssm-agr-h">Aegis Support Steward AGREEMENT — PENDING SIGNATURE</div>
-                <p class="ssm-agr-m"><strong>Provider:</strong> Dr. Sarah Johnson, MD</p>
-                <p class="ssm-agr-m"><strong>Proposed Support Steward:</strong> {{ pendModal.item?.name }} — Support Steward</p>
-                <p class="ssm-agr-m"><strong>Sent:</strong> {{ pendModal.item?.invited }}, 2025 | <strong>Expires:</strong> {{ pendModal.item?.expires }}, 2025</p>
-                <hr class="ssm-agr-hr">
-                <p class="ssm-agr-p"><strong>Authorized Responsibilities:</strong> As designated across the five sections — Activation & Verification, Access & Resource Coordination, Oversight & Coordination, Financial Responsibilities, and Completion & Transition — guided by the Provider's Continuity Plan.</p>
-                <div class="ssm-sigs">
-                  <div class="ssm-sig"><span class="ssm-sig-b">SIGNED</span> Dr. Sarah Johnson — Signed Jan 15, 2025</div>
-                  <div class="ssm-sig" style="color:var(--text-4);">⏱ {{ pendModal.item?.name }} — Awaiting signature…</div>
-                </div>
-              </div>
-            </div>
-            <div class="ssm-foot"><button class="btn btn-outline btn-sm" @click="pendModal.type=null; openPend('resend', pendModal.item)">Resend</button><button class="ssm-gold-btn" @click="pendModal.type=null">Close</button></div>
-          </div>
-        </div>
-      </Transition>
-
-      <!-- PENDING: EDIT BEFORE RESEND -->
-      <Transition name="ssm-fade">
-        <div v-if="pendModal.type==='edit'" class="ssm-backdrop" @click.self="pendModal.type=null">
-          <div class="ssm">
-            <div class="ssm-head"><div class="ssm-title">Edit Invitation Before Resending — {{ pendModal.item?.name }}</div><button class="ssm-x" @click="pendModal.type=null">×</button></div>
-            <div class="ssm-body">
-              <div class="ssm-notice">You can update the Support Steward's role or permissions before resending. The updated agreement will be sent for {{ pendModal.item?.name?.split(' ')[0] }}'s signature.</div>
-              <div class="ssm-field"><label class="ssm-lbl">Support Steward Type</label><select class="ssm-inp"><option>Support Steward</option><option>Primary Support Steward</option><option>Backup Support Steward</option></select></div>
-              <div class="ssm-field"><label class="ssm-lbl">Access Duration</label><select class="ssm-inp"><option>6 months — with auto renewal</option><option>1 year</option><option>Indefinite</option></select></div>
-              <div class="ssm-field"><label class="ssm-lbl">Updated Personal Message</label><textarea class="ssm-ta" rows="4" :value="'Hi '+pendModal.item?.name?.split(' ')[0]+', I\'ve updated the Support Steward agreement with a few changes. Please review and sign at your earliest convenience!'"></textarea></div>
-            </div>
-            <div class="ssm-foot"><button class="btn btn-outline btn-sm" @click="pendModal.type=null">Cancel</button><button class="ssm-gold-btn" @click="showToast('Updated invitation sent','success');pendModal.type=null">Send Updated Invitation</button></div>
-          </div>
-        </div>
-      </Transition>
-
-      <!-- PENDING: CANCEL -->
-      <Transition name="ssm-fade">
-        <div v-if="pendModal.type==='cancel'" class="ssm-backdrop" @click.self="pendModal.type=null">
-          <div class="ssm ssm-sm">
-            <div class="ssm-head"><div class="ssm-title">Cancel Support Steward Invitation</div><button class="ssm-x" @click="pendModal.type=null">×</button></div>
-            <div class="ssm-body" style="align-items:center;text-align:center;padding:28px 22px;">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="color:var(--text-4);"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-              <div style="font-size:16px;font-weight:700;color:var(--text);margin:10px 0 6px;">Cancel invitation to {{ pendModal.item?.name }}?</div>
-              <p style="font-size:13px;color:var(--text-3);line-height:1.6;margin:0;">The invitation link will be deactivated immediately. {{ pendModal.item?.name?.split(' ')[0] }} will receive an email notification that the invitation was withdrawn.</p>
-            </div>
-            <div class="ssm-foot" style="justify-content:center;gap:12px;">
-              <button class="btn btn-outline btn-sm" @click="pendModal.type=null">Keep Invitation</button>
-              <button class="ssm-red-btn" @click="pendingInvites=pendingInvites.filter(p=>p.name!==pendModal.item?.name);pendModal.type=null;showToast('Invitation cancelled','info')">✕ Cancel Invitation</button>
+            <div class="perm-row-badges">
+              <AegisBadge v-if="s.status === 'archived' || !s.responsibilities?.length" variant="gray">All Access Paused</AegisBadge>
+              <template v-else>
+                <AegisBadge v-for="(r, i) in normResp(s.responsibilities)" :key="i" :variant="levelBadge(r)">
+                  {{ r.text }}<template v-if="r.level"> &mdash; {{ r.level }}</template>
+                </AegisBadge>
+              </template>
             </div>
           </div>
-        </div>
-      </Transition>
-
-      <!-- REINSTATE MODAL -->
-      <Transition name="ssm-fade">
-        <div v-if="reinstateModal.open" class="ssm-backdrop" @click.self="reinstateModal.open=false">
-          <div class="ssm">
-            <div class="ssm-head"><div class="ssm-title">Reinstate Support Steward Access</div><button class="ssm-x" @click="reinstateModal.open=false">×</button></div>
-            <div class="ssm-body">
-              <div class="ssm-perm-person" v-if="reinstateModal.steward"><div class="ss-avatar" :style="{ background: reinstateModal.steward.color, width:'32px', height:'32px', fontSize:'11px' }">{{ reinstateModal.steward.initials }}</div><div><div style="font-size:13px;font-weight:600;">{{ reinstateModal.steward.name }}</div><div style="font-size:11.5px;color:var(--text-4);">Support Steward · Suspended {{ reinstateModal.steward.agreement }}</div></div></div>
-              <div class="ssm-notice" style="background:var(--green-light);border-color:var(--soft-green);color:var(--green-dark);">Reinstating {{ reinstateModal.steward?.name?.split(' ')[0] }} will restore all previously authorized permissions and resume paused task delegations.</div>
-              <div class="ssm-field"><label class="ssm-lbl">Reinstatement Date</label><input class="ssm-inp" type="date" v-model="reinstateForm.date"></div>
-              <div class="ssm-field">
-                <label class="ssm-lbl">Review Permissions Before Reinstating?</label>
-                <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
-                  <label class="ssm-radio-row"><input type="radio" v-model="reinstateForm.reviewPerms" value="yes" style="accent-color:var(--gold-dark);"> <span style="font-size:13px;color:var(--text);">Yes — review and confirm permissions first</span></label>
-                  <label class="ssm-radio-row"><input type="radio" v-model="reinstateForm.reviewPerms" value="no" style="accent-color:var(--gold-dark);"> <span style="font-size:13px;color:var(--text);">No — restore all previous permissions</span></label>
-                </div>
-              </div>
-              <div class="ssm-field"><label class="ssm-lbl">Message to Support Steward (Optional)</label><textarea class="ssm-ta" v-model="reinstateForm.message" rows="3" placeholder="Welcome back message or any updated instructions…"></textarea></div>
-            </div>
-            <div class="ssm-foot"><button class="btn btn-outline btn-sm" @click="reinstateModal.open=false">Cancel</button><button class="ssm-gold-btn" @click="doReinstate">✓ Reinstate Access</button></div>
-          </div>
-        </div>
-      </Transition>
-
-      <!-- TOASTS -->
-      <div class="ss-toasts">
-        <div v-for="t in toasts" :key="t.id" class="ss-toast" :class="t.type">
-          <svg v-if="t.type==='success'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-          <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <span>{{ t.msg }}</span>
         </div>
       </div>
+    </div>
 
-    </Teleport>
+    <!-- ═══ TAB: I'M A SS FOR ═══ -->
+    <div v-show="activeTab === 'iamdsr'">
+      <div class="alert alert-info" style="margin-bottom:20px">
+        <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
+        <div class="alert-content">
+          <div class="alert-title">You are a Support Steward for {{ servingAsSSFor.length }} provider{{ servingAsSSFor.length !== 1 ? 's' : '' }}.</div>
+          <div>This is a summary of your active SS designations. For full SS work — daily check-ins, task list, and critical-incident reporting — open your Support Steward Portal.</div>
+          <div style="margin-top:10px"><a :href="route('ss.dashboard')" class="btn btn-outline"><AegisIcon name="shield" :size="13" /> Open SS Portal</a></div>
+        </div>
+      </div>
+      <div class="section-header" style="margin-bottom:10px">
+        <div class="section-title" style="display:flex;align-items:center;gap:8px"><AegisIcon name="users" :size="16" /> Providers I'm Supporting</div>
+      </div>
+      <AegisEmptyState v-if="!servingAsSSFor.length" icon="users" title="No active SS designations" description="You are not currently designated as a Support Steward for any provider." />
+      <div v-else class="list-group">
+        <div v-for="p in servingAsSSFor" :key="p.id" class="list-group-item">
+          <div class="avatar avatar-sm avatar-gold">{{ p.avatar_initials || '??' }}</div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font-size:13px;font-weight:700;color:var(--text)">{{ p.display_name }}{{ p.credentials ? ', ' + p.credentials : '' }}</span>
+              <AegisBadge variant="gold" icon="shield">{{ capitalize(p.role) }} SS</AegisBadge>
+              <AegisBadge variant="green"><span class="status-dot green"></span> Active</AegisBadge>
+            </div>
+            <div style="font-size:12px;color:var(--text-3);margin-top:2px">
+              {{ [p.organization, p.location].filter(Boolean).join(' · ') }}<template v-if="p.review_due_at"> &middot; Review due {{ fmtDate(p.review_due_at) }}</template>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TAB: PLANNING & GUIDANCE ═══ -->
+    <div v-show="activeTab === 'planning'">
+      <p style="font-size:13px;color:var(--text-3);margin:0 0 16px">Guidance to help your Support Stewards feel prepared — before, during, and after a critical moment.</p>
+      <div class="accordion-item open">
+        <div class="accordion-trigger" @click="$event.currentTarget.parentElement.classList.toggle('open')">
+          <span style="display:flex;align-items:center;gap:10px"><AegisIcon name="clipboard" :size="16" /> <strong>Onboarding &amp; Planning</strong></span>
+          <span class="accordion-caret"><AegisIcon name="chevron-down" :size="14" /></span>
+        </div>
+        <div class="accordion-content">
+          <div style="display:flex;flex-direction:column;gap:10px;padding-top:6px">
+            <div v-for="item in onboardingGuidance" :key="item" style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--text-2)">
+              <span style="color:var(--gold-dark);flex-shrink:0;margin-top:1px"><AegisIcon name="check" :size="14" /></span>
+              <div>{{ item }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="accordion-item">
+        <div class="accordion-trigger" @click="$event.currentTarget.parentElement.classList.toggle('open')">
+          <span style="display:flex;align-items:center;gap:10px"><AegisIcon name="shield" :size="16" /> <strong>Active Critical Moment Guidance</strong></span>
+          <span class="accordion-caret"><AegisIcon name="chevron-down" :size="14" /></span>
+        </div>
+        <div class="accordion-content">
+          <div style="display:flex;flex-direction:column;gap:10px;padding-top:6px">
+            <div v-for="item in activeMomentGuidance" :key="item" style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--text-2)">
+              <span style="color:var(--gold-dark);flex-shrink:0;margin-top:1px"><AegisIcon name="check" :size="14" /></span>
+              <div>{{ item }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="accordion-item">
+        <div class="accordion-trigger" @click="$event.currentTarget.parentElement.classList.toggle('open')">
+          <span style="display:flex;align-items:center;gap:10px"><AegisIcon name="alert-triangle" :size="16" /> <strong>When the Continuity Steward Is Unavailable</strong></span>
+          <span class="accordion-caret"><AegisIcon name="chevron-down" :size="14" /></span>
+        </div>
+        <div class="accordion-content">
+          <div style="display:flex;flex-direction:column;gap:10px;padding-top:6px">
+            <div v-for="item in csUnavailableGuidance" :key="item" style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--text-2)">
+              <span style="color:var(--gold-dark);flex-shrink:0;margin-top:1px"><AegisIcon name="check" :size="14" /></span>
+              <div>{{ item }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="alert alert-info" style="margin-top:16px">
+        <div class="alert-icon"><AegisIcon name="info" :size="16" /></div>
+        <div>This guidance is a starting point. Tailor it with your Continuity Steward so it fits your practice.</div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════ MODALS ═══════════════════ -->
+
+    <!-- ADD SS STEP 1 -->
+    <AegisModal :model-value="isOpen('addDsrStep1Modal').value" title="Find Person" size="lg" @update:model-value="v => !v && closeModal('addDsrStep1Modal')">
+      <div class="modal-steps">
+        <div class="modal-step active"><span class="modal-step-num">1</span>Find Person</div>
+        <div class="modal-step-divider"></div>
+        <div class="modal-step"><span class="modal-step-num">2</span>Role &amp; Permissions</div>
+        <div class="modal-step-divider"></div>
+        <div class="modal-step"><span class="modal-step-num">3</span>Review &amp; Send</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Search Aegis Users or Invite by Email</label>
+        <input v-model="searchQuery" class="form-input" type="text" placeholder="Search by name, email, or relationship…">
+      </div>
+      <div class="accordion-item" style="margin-top:6px">
+        <div class="accordion-trigger" @click="$event.currentTarget.parentElement.classList.toggle('open')">
+          <div style="display:flex;align-items:center;gap:8px"><AegisIcon name="mail" :size="14" /> <span>Invite someone who isn't on Aegis yet</span></div>
+          <span class="accordion-caret"><AegisIcon name="chevron-down" :size="14" /></span>
+        </div>
+        <div class="accordion-content">
+          <div class="row-2" style="margin-top:4px">
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <input v-model="inviteForm.display_name" class="form-input" type="text" placeholder="First Last">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email <span class="required">*</span></label>
+              <input v-model="inviteForm.email" class="form-input" :class="{ 'is-error': fieldError('email') }" type="email" placeholder="email@example.com" @blur="v$.inviteForm.email.$touch()">
+              <div v-if="fieldError('email')" class="form-error">{{ fieldError('email') }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="alert alert-info" style="margin-top:4px">
+        <div class="alert-icon"><AegisIcon name="info" :size="16" /></div>
+        <div><strong>Invitation-only:</strong> Support Stewards cannot self-sign-up — they must be invited by you.</div>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeModal('addDsrStep1Modal')">Cancel</button>
+        <button class="btn btn-primary" @click="closeModal('addDsrStep1Modal'); openModal('addDsrStep2Modal')">Next: Set Role &amp; Permissions &rarr;</button>
+      </template>
+    </AegisModal>
+
+    <!-- ADD SS STEP 2 -->
+    <AegisModal :model-value="isOpen('addDsrStep2Modal').value" title="Set Role &amp; Permissions" size="lg" @update:model-value="v => !v && closeModal('addDsrStep2Modal')">
+      <div class="modal-steps">
+        <div class="modal-step done"><span class="modal-step-num"><AegisIcon name="check" :size="10" /></span>Find Person</div>
+        <div class="modal-step-divider"></div>
+        <div class="modal-step active"><span class="modal-step-num">2</span>Role &amp; Permissions</div>
+        <div class="modal-step-divider"></div>
+        <div class="modal-step"><span class="modal-step-num">3</span>Review &amp; Send</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Support Steward Role <span class="required">*</span></label>
+        <div class="role-option" :class="{ selected: inviteForm.role === 'primary' }" @click="inviteForm.role = 'primary'">
+          <input type="radio" name="dsrRole" value="primary" :checked="inviteForm.role === 'primary'" style="accent-color:var(--gold-dark)">
+          <div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text)"><AegisIcon name="user" :size="14" /> Support Steward</div>
+            <div style="font-size:12px;color:var(--text-3);margin-top:3px">A trusted individual who supports communication, coordination, and key tasks during a critical moment, guided by your Continuity Plan.</div>
+          </div>
+        </div>
+        <div class="role-option" :class="{ selected: inviteForm.role === 'alternate' }" @click="inviteForm.role = 'alternate'">
+          <input type="radio" name="dsrRole" value="alternate" :checked="inviteForm.role === 'alternate'" style="accent-color:var(--gold-dark)">
+          <div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text)"><AegisIcon name="user" :size="14" /> Alternative Support Steward</div>
+            <div style="font-size:12px;color:var(--text-3);margin-top:3px">Steps in if your primary Support Steward is unavailable, so coordination continues without interruption.</div>
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--surface-2);border-radius:var(--radius);padding:16px;margin-top:4px">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:6px">Responsibilities</div>
+        <div style="font-size:12px;color:var(--text-3);margin-bottom:14px">Select the responsibilities this Support Steward is authorized to carry out.</div>
+        <div v-for="(items, section) in responsibilitySections" :key="section" style="margin-bottom:16px">
+          <div style="font-size:11px;font-weight:700;color:var(--text-2);margin:6px 0;text-transform:uppercase;letter-spacing:0.3px">{{ section }}</div>
+          <table class="perm-matrix">
+            <thead><tr><th>Responsibility</th><th style="text-align:center;width:78px">Support</th><th style="text-align:center;width:78px">Alternative</th></tr></thead>
+            <tbody>
+              <tr v-for="item in items" :key="item">
+                <td class="task-name">{{ item }}</td>
+                <td style="text-align:center"><button type="button" class="toggle on" aria-pressed="true" @click="toggleSwitch"></button></td>
+                <td style="text-align:center"><button type="button" class="toggle" aria-pressed="false" @click="toggleSwitch"></button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:16px">
+        <label class="form-label">Access Duration</label>
+        <select v-model="inviteForm.access_duration" class="form-select">
+          <option value="ongoing">Ongoing — until manually removed or expired</option>
+          <option value="6m">6 months — with auto-renewal option</option>
+          <option value="1y">1 year — renewable</option>
+        </select>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeModal('addDsrStep2Modal'); openModal('addDsrStep1Modal')">← Back</button>
+        <button class="btn btn-primary" @click="closeModal('addDsrStep2Modal'); openModal('addDsrStep3Modal')">Next: Review &amp; Send &rarr;</button>
+      </template>
+    </AegisModal>
+
+    <!-- ADD SS STEP 3 -->
+    <AegisModal :model-value="isOpen('addDsrStep3Modal').value" title="Review &amp; Send" size="lg" @update:model-value="v => !v && closeModal('addDsrStep3Modal')">
+      <div class="modal-steps">
+        <div class="modal-step done"><span class="modal-step-num"><AegisIcon name="check" :size="10" /></span>Find Person</div>
+        <div class="modal-step-divider"></div>
+        <div class="modal-step done"><span class="modal-step-num"><AegisIcon name="check" :size="10" /></span>Role &amp; Permissions</div>
+        <div class="modal-step-divider"></div>
+        <div class="modal-step active"><span class="modal-step-num">3</span>Review &amp; Send</div>
+      </div>
+      <div class="alert alert-success" style="margin-bottom:14px">
+        <div class="alert-icon"><AegisIcon name="check" :size="16" /></div>
+        <div>Review the agreement details below. Sign digitally and send for counter-signature.</div>
+      </div>
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;font-size:13px;line-height:1.8;color:var(--text-2);margin-bottom:16px">
+        <div style="font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--gold-dark);text-align:center;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--border)">Aegis SUPPORT STEWARD AGREEMENT</div>
+        <p><strong>Support Steward:</strong> {{ inviteForm.display_name || '—' }}</p>
+        <p><strong>Agreement Date:</strong> {{ todayLabel }} | <strong>Annual Attestation:</strong> Required</p>
+        <br>
+        <p><strong>Authorized Responsibilities:</strong> As designated across the five sections — Activation &amp; Verification, Access &amp; Resource Coordination, Oversight &amp; Coordination, Financial Responsibilities, and Completion &amp; Transition — guided by the Provider's Continuity Plan.</p>
+        <br>
+        <p><strong>Compliance:</strong> Support Steward agrees to comply with HIPAA, maintain confidentiality, and act only within authorized responsibilities. All actions are logged for audit purposes.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Your Digital Signature</label>
+        <div class="sig-block" :class="{ signed: agreementSigned }" @click="agreementSigned = true">
+          <AegisIcon name="edit-3" :size="24" />
+          <div style="margin-top:8px;font-weight:600">{{ agreementSigned ? 'Signed digitally' : 'Click to apply your digital signature' }}</div>
+          <div style="font-size:11px;margin-top:4px">By signing, you confirm all details are accurate and authorize the stated permissions</div>
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="form-group">
+          <label class="form-label">Invitation Expiration</label>
+          <select v-model="inviteForm.expires_days" class="form-select">
+            <option value="30">30 days</option>
+            <option value="14">14 days</option>
+            <option value="7">7 days</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">&nbsp;</label></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Personal Message (Optional)</label>
+        <textarea v-model="inviteForm.message" class="form-input" style="min-height:65px" placeholder="Hi, I'd like to formally designate you as my Support Steward on Aegis…"></textarea>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeModal('addDsrStep3Modal'); openModal('addDsrStep2Modal')">← Back</button>
+        <button class="btn btn-outline" @click="toast.info('Draft saved'); closeModal('addDsrStep3Modal')">Save Draft</button>
+        <button class="btn btn-primary" :class="{ 'btn-spin': inviteForm.processing }" :disabled="inviteForm.processing" @click="sendAgreement">
+          <AegisIcon name="check" :size="13" /> {{ inviteForm.processing ? 'Sending…' : 'Send Agreement →' }}
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- EDIT SS -->
+    <AegisModal :model-value="isOpen('editDsrModal').value" :title="activeSteward ? 'Edit Support Steward — ' + fullName(activeSteward) : 'Edit Support Steward'" size="md" @update:model-value="v => !v && closeModal('editDsrModal')">
+      <div class="alert alert-info" style="margin-bottom:14px">
+        <div class="alert-icon"><AegisIcon name="info" :size="16" /></div>
+        <div>If you update this Support Steward's details, they'll be notified so your shared records stay in sync.</div>
+      </div>
+      <div class="row-2">
+        <div class="form-group"><label class="form-label">Full Name</label><input v-model="editForm.display_name" class="form-input" type="text"></div>
+        <div class="form-group"><label class="form-label">Relationship</label><input v-model="editForm.relationship" class="form-input" type="text" placeholder="e.g., Office Manager, Colleague"></div>
+      </div>
+      <div class="row-2">
+        <div class="form-group"><label class="form-label">Phone</label><input v-model="editForm.phone" class="form-input" type="tel"></div>
+        <div class="form-group"><label class="form-label">Email</label><input v-model="editForm.email" class="form-input" type="email"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Notes</label><textarea v-model="editForm.notes" class="form-input" style="min-height:60px"></textarea></div>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeModal('editDsrModal')">Cancel</button>
+        <button class="btn btn-primary" @click="toast.success('Details updated.'); closeModal('editDsrModal')">Save Changes</button>
+      </template>
+    </AegisModal>
+
+    <!-- EDIT PERMISSIONS -->
+    <AegisModal :model-value="isOpen('editPermissionsModal').value" :title="activeSteward ? 'Edit Permissions — ' + fullName(activeSteward) : 'Edit Permissions'" size="lg" @update:model-value="v => !v && closeModal('editPermissionsModal')">
+      <div v-for="(items, section) in responsibilitySections" :key="section" style="margin-bottom:16px">
+        <div style="font-size:11px;font-weight:700;color:var(--text-2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.3px">{{ section }}</div>
+        <table class="perm-matrix">
+          <thead><tr><th>Responsibility</th><th style="text-align:center;width:78px">Enabled</th></tr></thead>
+          <tbody>
+            <tr v-for="item in items" :key="item">
+              <td class="task-name">{{ item }}</td>
+              <td style="text-align:center">
+                <button type="button" class="toggle" :class="{ on: enabledPerms.has(item) }" :aria-pressed="enabledPerms.has(item)" @click="togglePerm(item)"></button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeModal('editPermissionsModal')">Cancel</button>
+        <button class="btn btn-primary" :class="{ 'btn-spin': permForm.processing }" :disabled="permForm.processing" @click="savePermissions">
+          <AegisIcon name="check" :size="13" /> {{ permForm.processing ? 'Saving…' : 'Save Permissions' }}
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- VIEW AGREEMENT -->
+    <AegisModal :model-value="isOpen('viewDsrAgreementModal').value" :title="activeSteward ? 'Support Steward Agreement — ' + fullName(activeSteward) : 'Support Steward Agreement'" size="lg" @update:model-value="v => !v && closeModal('viewDsrAgreementModal')">
+      <div v-if="activeSteward?.signed_at" class="alert alert-success" style="margin-bottom:14px">
+        <div class="alert-icon"><AegisIcon name="check" :size="16" /></div>
+        <div>Active · Both parties signed · Last reviewed {{ fmtDate(activeSteward.signed_at) }}</div>
+      </div>
+      <div v-else class="alert alert-warning" style="margin-bottom:14px">
+        <div class="alert-icon"><AegisIcon name="clock" :size="16" /></div>
+        <div>Awaiting counter-signature from Support Steward.</div>
+      </div>
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;font-size:13px;line-height:1.8;color:var(--text-2)">
+        <div style="font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--gold-dark);text-align:center;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--border)">Aegis SUPPORT STEWARD AGREEMENT</div>
+        <p><strong>Support Steward:</strong> {{ activeSteward ? fullName(activeSteward) : '—' }}</p>
+        <p><strong>Agreement Date:</strong> {{ activeSteward ? fmtDate(activeSteward.signed_at ?? activeSteward.invited_at) : '—' }} | <strong>Annual Attestation:</strong> Required</p>
+        <br>
+        <p><strong>Section 1. Purpose.</strong> This agreement authorizes the Support Steward to support the Practitioner during a critical moment, carrying out the responsibilities designated by the Provider and guided by the Continuity Plan.</p>
+        <br>
+        <p><strong>Section 2. Authorized Responsibilities.</strong> As designated across the five sections — Activation &amp; Verification, Access &amp; Resource Coordination, Oversight &amp; Coordination, Financial Responsibilities, and Completion &amp; Transition.</p>
+        <br>
+        <p><strong>Section 3. Compliance.</strong> Support Steward agrees to comply with HIPAA, maintain full confidentiality, and not exceed authorized responsibilities. All actions are logged for audit.</p>
+        <br>
+        <p><strong>Section 4. Annual Attestation.</strong> The Provider re-confirms the Support Steward's responsibilities and contact information annually.</p>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="toast.success('Agreement downloaded')"><AegisIcon name="download" :size="14" /> Download PDF</button>
+        <button class="btn btn-outline" @click="openEditPerms(activeSteward); closeModal('viewDsrAgreementModal')"><AegisIcon name="lock" :size="14" /> Edit Permissions</button>
+        <button class="btn btn-primary" @click="closeModal('viewDsrAgreementModal')">Close</button>
+      </template>
+    </AegisModal>
+
+    <!-- SUSPEND -->
+    <AegisModal :model-value="isOpen('suspendDsrModal').value" title="Suspend Support Steward Access" size="md" @update:model-value="v => !v && closeModal('suspendDsrModal')">
+      <div class="alert alert-warning" style="margin-bottom:14px">
+        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="16" /></div>
+        <div>Suspending access will immediately block this Support Steward from performing any authorized tasks. The agreement remains in place — reinstate at any time.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason for Suspension <span class="required">*</span></label>
+        <select v-model="suspendForm.reason" class="form-select" :class="{ 'is-error': fieldError('reason') }" @blur="v$.suspendForm.reason.$touch()">
+          <option value="">— Select Reason —</option>
+          <option>Medical / personal leave</option>
+          <option>Temporary role change</option>
+          <option>Security review in progress</option>
+          <option>Practice changes — access not needed temporarily</option>
+          <option>Performance concern — under review</option>
+          <option>Other</option>
+        </select>
+        <div v-if="fieldError('reason')" class="form-error">{{ fieldError('reason') }}</div>
+      </div>
+      <div class="row-2">
+        <div class="form-group"><label class="form-label">Suspension Start Date</label><input v-model="suspendForm.start_date" class="form-input" type="date"></div>
+        <div class="form-group"><label class="form-label">Expected Return Date (Optional)</label><input v-model="suspendForm.end_date" class="form-input" type="date"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Message to Support Steward (Optional)</label><textarea v-model="suspendForm.message" class="form-input" style="min-height:60px" placeholder="Explain the suspension…"></textarea></div>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeModal('suspendDsrModal')">Cancel</button>
+        <button class="btn btn-danger" :class="{ 'btn-spin': suspendForm.processing }" :disabled="suspendForm.processing" @click="submitSuspend">
+          <AegisIcon name="pause" :size="14" /> {{ suspendForm.processing ? 'Suspending…' : 'Suspend Access' }}
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- REINSTATE -->
+    <AegisModal :model-value="isOpen('reinstateModal').value" title="Reinstate Support Steward Access" size="md" @update:model-value="v => !v && closeModal('reinstateModal')">
+      <div class="alert alert-success" style="margin-bottom:14px">
+        <div class="alert-icon"><AegisIcon name="check" :size="16" /></div>
+        <div>Reinstating will restore all previously authorized permissions and resume paused task delegations.</div>
+      </div>
+      <div class="form-group"><label class="form-label">Message to Support Steward (Optional)</label><textarea v-model="reinstateForm.message" class="form-input" style="min-height:60px" placeholder="Welcome back message or any updated instructions…"></textarea></div>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeModal('reinstateModal')">Cancel</button>
+        <button class="btn btn-primary" :class="{ 'btn-spin': reinstateForm.processing }" :disabled="reinstateForm.processing" @click="submitReinstate">
+          <AegisIcon name="check" :size="14" /> {{ reinstateForm.processing ? 'Reinstating…' : 'Reinstate Access' }}
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- REMOVE -->
+    <AegisModal :model-value="isOpen('removeDsrModal').value" title="Remove Support Steward" size="md" @update:model-value="v => !v && closeModal('removeDsrModal')">
+      <div class="alert alert-danger" style="margin-bottom:14px">
+        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="16" /></div>
+        <div><strong>Warning:</strong> Removing a Support Steward permanently voids the agreement and revokes all access. This cannot be undone.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason for Removal <span class="required">*</span></label>
+        <select v-model="removeForm.reason" class="form-select" :class="{ 'is-error': fieldError('removeReason') }" @blur="v$.removeForm.reason.$touch()">
+          <option value="">— Select Reason —</option>
+          <option>Staff member left the organization</option>
+          <option>Role no longer needed</option>
+          <option>Access violation or policy breach</option>
+          <option>Replacing with a different Support Steward</option>
+          <option>Practice restructuring</option>
+          <option>Support Steward requested removal</option>
+          <option>Other</option>
+        </select>
+        <div v-if="fieldError('removeReason')" class="form-error">{{ fieldError('removeReason') }}</div>
+      </div>
+      <div class="form-group"><label class="form-label">Additional Notes</label><textarea v-model="removeForm.notes" class="form-input" style="min-height:60px" placeholder="Optional context about this removal…"></textarea></div>
+      <div class="form-group">
+        <label class="form-label">Confirm by typing &ldquo;REMOVE&rdquo;</label>
+        <input v-model="removeConfirm" class="form-input" type="text" placeholder="Type REMOVE to confirm" style="border-color:var(--red-dark)">
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeModal('removeDsrModal')">Cancel</button>
+        <button class="btn btn-danger" :class="{ 'btn-spin': removeForm.processing }" :disabled="removeConfirm !== 'REMOVE' || removeForm.processing" @click="submitRemove">
+          {{ removeForm.processing ? 'Removing…' : 'Remove Support Steward' }}
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- RESEND INVITE -->
+    <AegisModal :model-value="isOpen('resendInviteModal').value" title="Resend Support Steward Invitation" size="md" @update:model-value="v => !v && closeModal('resendInviteModal')">
+      <div class="form-group">
+        <label class="form-label">New Expiration</label>
+        <select v-model="resendForm.expires_days" class="form-select">
+          <option value="30">30 days from today</option>
+          <option value="14">14 days from today</option>
+          <option value="7">7 days from today</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Follow-up Message (Optional)</label><textarea v-model="resendForm.message" class="form-input" style="min-height:70px" placeholder="Just following up on the Support Steward invitation…"></textarea></div>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeModal('resendInviteModal')">Cancel</button>
+        <button class="btn btn-primary" :class="{ 'btn-spin': resendForm.processing }" :disabled="resendForm.processing" @click="submitResend">
+          {{ resendForm.processing ? 'Sending…' : 'Resend Invitation' }}
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- CANCEL INVITE -->
+    <AegisModal :model-value="isOpen('cancelInviteModal').value" title="Cancel Invitation" size="sm" @update:model-value="v => !v && closeModal('cancelInviteModal')">
+      <p style="font-size:13px;color:var(--text-2)">This will cancel the pending invitation. The Support Steward will not be able to accept it.</p>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeModal('cancelInviteModal')">Keep Invitation</button>
+        <button class="btn btn-danger" @click="submitCancelInvite">Cancel Invitation</button>
+      </template>
+    </AegisModal>
+
+    <!-- CHANGE ROLE -->
+    <AegisModal :model-value="isOpen('changeDsrRoleModal').value" :title="activeSteward ? 'Change Role — ' + fullName(activeSteward) : 'Change Role'" size="md" @update:model-value="v => !v && closeModal('changeDsrRoleModal')">
+      <div class="alert alert-warning" style="margin-bottom:14px">
+        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="16" /></div>
+        <div>Changing the Support Steward role will <strong>void the current agreement</strong> and generate a new one for both parties to re-sign.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Current Role</label>
+        <div style="padding:9px 13px;background:var(--surface-2);border-radius:var(--radius);font-size:13px;color:var(--text-3)">
+          <AegisIcon name="user" :size="14" /> {{ activeSteward ? capitalize(roleVal(activeSteward.role)) : '—' }} Support Steward
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">New Role <span class="required">*</span></label>
+        <select v-model="roleForm.role" class="form-select">
+          <option value="">— Select New Role —</option>
+          <option value="primary">Support Steward</option>
+          <option value="alternate">Alternative Support Steward</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Reason for Role Change</label><textarea v-model="roleForm.reason" class="form-input" style="min-height:65px" placeholder="e.g., Staff member has moved to a different role…"></textarea></div>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeModal('changeDsrRoleModal')">Cancel</button>
+        <button class="btn btn-primary" :class="{ 'btn-spin': roleForm.processing }" :disabled="!roleForm.role || roleForm.processing" @click="submitChangeRole">
+          {{ roleForm.processing ? 'Updating…' : 'Update Role & Send New Agreement' }}
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- ACTIVITY LOG (read-only display from Inertia shared props) -->
+    <AegisModal :model-value="isOpen('dsrActivityModal').value" title="Support Steward Activity Log" size="lg" @update:model-value="v => !v && closeModal('dsrActivityModal')">
+      <p style="font-size:13px;color:var(--text-3)">Full activity log is available in the <a :href="route('provider.activity', { module: 'steward' })" style="color:var(--gold-dark)">Activity module</a>.</p>
+      <template #footer>
+        <button class="btn btn-primary" @click="closeModal('dsrActivityModal')">Close</button>
+      </template>
+    </AegisModal>
+
+    <!-- WHAT IS A SUPPORT STEWARD -->
+    <AegisModal :model-value="isOpen('dsrGuideModal').value" title="What is a Support Steward?" size="lg" @update:model-value="v => !v && closeModal('dsrGuideModal')">
+      <div style="font-size:13px;color:var(--text-2);line-height:1.7">
+        <p>A Support Steward is a trusted individual you designate to support communication, coordination, and key tasks during a critical moment — guided by your Continuity Plan.</p>
+        <p style="margin-top:12px">Unlike a Continuity Steward (who has the authority to make clinical and administrative decisions), a Support Steward operates within a defined scope of responsibilities that you set. They cannot act beyond what you've authorized.</p>
+        <p style="margin-top:12px"><strong>Common Support Steward responsibilities include:</strong></p>
+        <ul style="margin-top:8px;padding-left:20px;display:flex;flex-direction:column;gap:6px">
+          <li>Confirming your status and reporting a critical incident</li>
+          <li>Coordinating access to the Document Vault</li>
+          <li>Maintaining communication with clients and contacts</li>
+          <li>Tracking practice expenses and identifying outstanding invoices</li>
+          <li>Handing off remaining items once the transition ends</li>
+        </ul>
+      </div>
+      <template #footer>
+        <button class="btn btn-primary" @click="closeModal('dsrGuideModal')">Got it</button>
+      </template>
+    </AegisModal>
+
+    <!-- UPGRADE -->
+    <AegisModal :model-value="isOpen('upgradeModal').value" title="Upgrade Your Plan" size="md" @update:model-value="v => !v && closeModal('upgradeModal')">
+      <div style="font-size:13px;color:var(--text-2)">
+        <p>Your Continuity Access plan supports up to {{ ssMax }} Support Steward{{ ssMax === 1 ? '' : 's' }}.</p>
+        <p style="margin-top:12px">Upgrade to <strong>Continuity Practice</strong> to add more Support Stewards and unlock the full suite of practice continuity features.</p>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeModal('upgradeModal')">Maybe Later</button>
+        <a :href="route('provider.settings.billing.portal')" class="btn btn-primary">View Upgrade Options</a>
+      </template>
+    </AegisModal>
+
   </AppLayout>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
-import { router } from '@inertiajs/vue3';
-import AppLayout from '../../Components/AppLayout.vue';
+import { ref, computed } from 'vue'
+import { useForm, router } from '@inertiajs/vue3'
+import { useVuelidate } from '@vuelidate/core'
+import { required, email as emailRule, helpers } from '@vuelidate/validators'
+import AppLayout from '@/layouts/AppLayout.vue'
+import { useModal } from '@/composables/useModal'
+import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 
-defineProps({ user: { type: Object, default: () => ({}) } });
+// ── Props ────────────────────────────────────────────────
+const props = defineProps({
+  stewards:       { type: Array, default: () => [] },
+  suspended:      { type: Array, default: () => [] },
+  pending:        { type: Array, default: () => [] },
+  invited:        { type: Array, default: () => [] },
+  declined:       { type: Array, default: () => [] },
+  archived:       { type: Array, default: () => [] },
+  servingAsSSFor: { type: Array, default: () => [] },
+  tier:           { type: String, default: 'access' },
+  ssMax:          { type: Number, default: 2 },
+  ssCount:        { type: Number, default: 0 },
+})
 
-const tab = ref('mine');
+// ── Composables ──────────────────────────────────────────
+const { openModal, closeModal, isOpen } = useModal()
+const toast = useToast()
+const { confirmAction } = useConfirm()
 
-const toasts = ref([]);
-let tid = 0;
-function showToast(msg, type = 'info') {
-  const id = ++tid;
-  toasts.value.push({ id, msg, type });
-  setTimeout(() => { toasts.value = toasts.value.filter(t => t.id !== id); }, 3500);
+// ── Tab ──────────────────────────────────────────────────
+const activeTab = ref('mydsr')
+
+// ── Active record ─────────────────────────────────────────
+const activeStewardId = ref(null)
+const activeSteward = computed(() =>
+  [...props.stewards, ...props.suspended, ...props.pending, ...props.invited, ...props.declined, ...props.archived]
+    .find(s => s.id === activeStewardId.value) ?? null
+)
+
+// ── Computed ──────────────────────────────────────────────
+const activeCount  = computed(() => props.stewards.length)
+const pendingCount = computed(() => props.pending.length + props.invited.length)
+const rosterCount  = computed(() => props.stewards.length + props.suspended.length)
+const atLimit      = computed(() => props.ssCount >= props.ssMax)
+
+const nextReviewLabel = computed(() => {
+  const dates = props.stewards.filter(s => s.review_due_at).map(s => s.review_due_at).sort()
+  if (!dates.length) return '—'
+  return fmtDate(dates[0])
+})
+
+// ── Helpers ───────────────────────────────────────────────
+function fullName(s) {
+  const name = s?.steward?.display_name ?? s?.display_name ?? '—'
+  const cred = s?.steward?.credentials ?? s?.credentials ?? ''
+  return cred && !name.includes(cred) ? `${name}, ${cred}` : name
+}
+function initials(s) {
+  return s?.steward?.avatar_initials ?? s?.avatar_initials
+    ?? (s?.steward?.display_name ?? s?.display_name ?? '??').slice(0, 2).toUpperCase()
+}
+function subLine(s) {
+  return [s?.steward?.title, s?.steward?.organization, s?.steward?.location].filter(Boolean).join(' · ')
+}
+function fmtDate(v) {
+  if (!v) return ''
+  try { return new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
+  catch { return '' }
+}
+function daysSince(v) {
+  if (!v) return ''
+  const diff = Math.floor((Date.now() - new Date(v).getTime()) / 86400000)
+  return diff === 0 ? 'today' : `${diff} day${diff === 1 ? '' : 's'} ago`
+}
+function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : '' }
+function roleVal(r) { return typeof r === 'object' ? r?.value ?? '' : r ?? '' }
+function levelClass(level) {
+  const l = (level ?? '').toLowerCase()
+  if (l === 'none') return 'level-none'
+  if (['limited', 'read only', 'read-only'].includes(l)) return 'level-limited'
+  return 'level-full'
+}
+function levelBadge(r) {
+  const l = (typeof r === 'string' ? '' : r?.level ?? '').toLowerCase()
+  if (l === 'none') return 'gray'
+  if (['limited', 'read only', 'read-only'].includes(l)) return 'gold'
+  return 'green'
+}
+function normResp(r) {
+  if (!r) return []
+  return (Array.isArray(r) ? r : []).map(item =>
+    typeof item === 'string' ? { text: item } : item
+  )
+}
+function toggleSwitch(e) {
+  const btn = e.currentTarget
+  const on = btn.classList.toggle('on')
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false')
 }
 
-function goMsg() { router.visit(route('messages.index')); }
+const todayLabel = computed(() =>
+  new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+)
 
-const m = reactive({ type: null, name: null });
-const removeConfirm = ref('');
-const removeReason  = ref('');
-const vaultLvl      = ref('emergency');
+// ── Tier gate ─────────────────────────────────────────────
+function handleAddSS() {
+  if (!atLimit.value) {
+    openModal('addDsrStep1Modal')
+  } else if (props.tier === 'access') {
+    openModal('upgradeModal')
+  } else {
+    toast.info(`You've reached the maximum of ${props.ssMax} Support Stewards on the Continuity Practice plan. Contact support to discuss enterprise options.`)
+  }
+}
 
-function openM(type, name) { m.type = type; m.name = name; removeConfirm.value = ''; removeReason.value = ''; }
-
-// ── Pending invitations data ──
-const pendingInvites = ref([
-  { initials:'JT', name:'Jordan Taylor', color:'#6a4c8c', org:'Family Counsel · Denton, TX', email:'jordan.taylor@email.com', invited:'Jan 15, 2025', expires:'Feb 14, 2025', role:'Support Steward' },
-]);
-const declinedInvites = ref([
-  { initials:'BS', name:'Brian Santos', color:'#7a5c4a', org:'Mental Practice Director · Lotus Psychology Group · Berkeley, CA', agreement:'Sep 12, 2026', reason:'Declined invitation' },
-]);
-
-// Pending tab modals
-const pendModal = reactive({ type: null, item: null });
-function openPend(type, item) { pendModal.type = type; pendModal.item = item; }
-
-// Edit permissions modal
-const editPermsModal = reactive({ open: false, name: '', initials: '', color: '' });
+// ── Action openers ────────────────────────────────────────
+function openAgreement(s) { activeStewardId.value = s?.id; openModal('viewDsrAgreementModal') }
+function openEdit(s) {
+  activeStewardId.value = s?.id
+  editForm.display_name = fullName(s)
+  editForm.phone = s?.steward?.phone ?? ''
+  editForm.email = s?.steward?.email ?? ''
+  openModal('editDsrModal')
+}
 function openEditPerms(s) {
-  editPermsModal.open = true;
-  editPermsModal.name = s.name;
-  editPermsModal.initials = s.initials;
-  editPermsModal.color = s.color;
+  if (!s) return
+  activeStewardId.value = s.id
+  enabledPerms.value = new Set(normResp(s.responsibilities).map(r => r.text))
+  openModal('editPermissionsModal')
+}
+function openSuspend(s)     { activeStewardId.value = s.id; openModal('suspendDsrModal') }
+function openReinstate(s)   { activeStewardId.value = s.id; openModal('reinstateModal') }
+function openRemove(s)      { activeStewardId.value = s.id; removeConfirm.value = ''; openModal('removeDsrModal') }
+function openResend(s)      { activeStewardId.value = s.id; openModal('resendInviteModal') }
+function openCancelInvite(s){ activeStewardId.value = s.id; openModal('cancelInviteModal') }
+function openChangeRole(s)  { activeStewardId.value = s.id; roleForm.role = ''; openModal('changeDsrRoleModal') }
+
+// ── Static data ───────────────────────────────────────────
+const responsibilitySections = {
+  'Activation & Verification': [
+    "Confirm the practitioner's status when something seems wrong",
+    'Report a critical incident through the Critical Incident Log',
+    'Help verify documentation with the Continuity Steward',
+  ],
+  'Access & Resource Coordination': [
+    'Locate practice keys, devices, and access information',
+    'Coordinate Document Vault access requests',
+    'Connect the Continuity Steward with office staff and contacts',
+  ],
+  'Oversight & Coordination': [
+    'Keep a simple record of actions taken during a critical moment',
+    'Maintain the list of people who need to be notified',
+    'Coordinate communication between the parties involved',
+  ],
+  'Financial Responsibilities': [
+    'Identify outstanding invoices and payments',
+    'Coordinate with billing or accounting contacts',
+    'Track practice expenses during the transition',
+  ],
+  'Completion & Transition': [
+    'Confirm outstanding tasks are complete',
+    'Hand off remaining items to the Continuity Steward',
+    'Close out the Support Steward role when the transition ends',
+  ],
 }
 
-const permSections = reactive([
-  { label: 'ACTIVATION & VERIFICATION', items: [
-    { label: 'Verify a critical moment and report it on the Provider\'s behalf', sub: '', on: true },
-    { label: 'Notify the Continuity Steward and designated contacts', sub: '', on: true },
-  ]},
-  { label: 'ACCESS & RESOURCE COORDINATION', items: [
-    { label: 'Coordinate access to the Continuity Plan and supporting documents', sub: '', on: true },
-    { label: 'Vault read access (non-clinical files only)', sub: '', on: true },
-    { label: 'Continuity Support vault access', sub: 'Unlocks only when continuity support is activated', on: false },
-  ]},
-  { label: 'OVERSIGHT & COORDINATION', items: [
-    { label: 'Coordinate with the Continuity Steward during the response', sub: '', on: true },
-    { label: 'Track progress against the Continuity Plan', sub: '', on: true },
-  ]},
-  { label: 'FINANCIAL RESPONSIBILITIES', items: [
-    { label: 'Pay essential practice bills during the critical moment', sub: 'Within pre-authorized limits set in the Continuity Plan', on: false },
-    { label: 'Authorize refunds or credits to clients', sub: '', on: false },
-  ]},
-  { label: 'COMPLETION & TRANSITION', items: [
-    { label: 'Confirm the Continuity Plan was carried out', sub: '', on: true },
-    { label: 'Hand off remaining responsibilities back to the Provider or designated successor', sub: '', on: true },
-  ]},
-]);
+const notifyPrefs = [
+  'Annual Re-Attestation is complete',
+  'A Support Steward requests changes',
+  'A Support Steward updates their information',
+  'Roles or permissions change',
+  'Important Documents are accessed',
+  'A critical incident is reported',
+  'A Continuity Response is activated',
+]
 
-// Reinstate modal
-const reinstateModal = reactive({ open: false, steward: null });
-const reinstateForm = reactive({ date: '', reviewPerms: 'no', message: '' });
-function openReinstate(s) { reinstateModal.open = true; reinstateModal.steward = s; reinstateForm.date = ''; reinstateForm.message = ''; reinstateForm.reviewPerms = 'no'; }
-function doReinstate() {
-  if (reinstateModal.steward) reinstateModal.steward.status = 'ACTIVE';
-  reinstateModal.open = false;
-  showToast(reinstateModal.steward?.name + ' reinstated', 'success');
+const onboardingGuidance = [
+  'Review the Continuity Plan together so the role and expectations are clear.',
+  "Know how to reach the Continuity Steward and the practice's key contacts.",
+  'Confirm where access information lives in the Vault and how it unlocks during a verified critical moment.',
+  'Keep your own contact details current and re-attest once a year.',
+]
+const activeMomentGuidance = [
+  'Wait for verification — act only once the critical incident has been confirmed.',
+  'Follow the responsibilities outlined in the Continuity Plan, within your authorized permissions.',
+  'Coordinate with the Continuity Steward and keep a simple record of the actions you take.',
+  'Communicate updates to clients and contacts as the plan directs.',
+]
+const csUnavailableGuidance = [
+  "Try the Continuity Steward's listed contacts, then the Alternate Continuity Steward.",
+  'If neither can be reached, notify the Aegis team so the plan can be supported.',
+  'Do not act beyond your authorized permissions while you wait for direction.',
+  'Keep a record of your attempts to make contact.',
+]
+
+// ── Permissions state ─────────────────────────────────────
+const enabledPerms = ref(new Set())
+function togglePerm(item) {
+  const s = new Set(enabledPerms.value)
+  if (s.has(item)) s.delete(item); else s.add(item)
+  enabledPerms.value = s
 }
 
-// Guidance accordion sections
-const guidanceSections = reactive([
-  {
-    open: true,
-    title: 'Onboarding & Planning',
-    icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
-    items: [
-      'Review the Continuity Plan together so the role and expectations are clear.',
-      "Know how to reach the Continuity Steward and the practice's key contacts.",
-      'Confirm where access information lives in the Vault and how it unlocks during a verified critical moment.',
-      'Keep your own contact details current and re-attest once a year.',
-    ],
-  },
-  {
-    open: true,
-    title: 'Active Critical Moment Guidance',
-    icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
-    items: [
-      'Wait for verification — act only once the critical incident has been confirmed.',
-      'Follow the responsibilities outlined in the Continuity Plan, within your authorized permissions.',
-      'Coordinate with the Continuity Steward and keep a simple record of the actions you take.',
-      'Communicate updates to clients and contacts as the plan directs.',
-    ],
-  },
-  {
-    open: true,
-    title: 'When the Continuity Steward Is Unavailable or Non-Responsive',
-    icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
-    items: [
-      "Try the Continuity Steward's listed contacts, then the Alternate Continuity Steward.",
-      'If neither can be reached, notify the Aegis team so the plan can be supported.',
-      'Do not act beyond your authorized permissions while you wait for direction.',
-      'Keep a record of your attempts to make contact.',
-    ],
-  },
-]);
+// ── Forms (all at top-level of setup) ────────────────────
+const inviteForm = useForm({
+  user_id: null, email: '', display_name: '', role: 'primary',
+  access_duration: 'ongoing', expires_days: '30', message: '',
+})
+const editForm = useForm({
+  display_name: '', relationship: '', phone: '', email: '', notes: '',
+})
+const suspendForm   = useForm({ reason: '', start_date: '', end_date: '', message: '' })
+const reinstateForm = useForm({ message: '' })
+const removeForm    = useForm({ reason: '', notes: '' })
+const resendForm    = useForm({ expires_days: '30', message: '' })
+const roleForm      = useForm({ role: '', reason: '' })
+const permForm      = useForm({ responsibilities: [] })
 
-const vaultOpts = [
-  { v:'emergency', label:'Emergency Only (Recommended)', sub:'Vault unlocks automatically when continuity support is activated.' },
-  { v:'read-only', label:'Read Only Access',             sub:'Support Steward can view designated documents at any time.' },
-  { v:'none',      label:'No Access',                    sub:'Emergency credentials must be shared separately.' },
-];
+const removeConfirm  = ref('')
+const searchQuery    = ref('')
+const agreementSigned = ref(false)
 
-const levels = [
-  { v:'FULL',      label:'FULL',      cls:'lvl-full'    },
-  { v:'LIMITED',   label:'LIMITED',   cls:'lvl-limited' },
-  { v:'READ ONLY', label:'READ ONLY', cls:'lvl-read'    },
-  { v:'NONE',      label:'NONE',      cls:'lvl-none'    },
-];
+// ── Vuelidate ─────────────────────────────────────────────
+const rules = {
+  inviteForm: { email: { email: helpers.withMessage('A valid email is required.', emailRule) } },
+  suspendForm: { reason: { required: helpers.withMessage('Please select a reason.', required) } },
+  removeForm:  { reason: { required: helpers.withMessage('Please select a reason.', required) } },
+}
+const v$ = useVuelidate(rules, { inviteForm, suspendForm, removeForm })
 
-const permRows = reactive([
-  { text:'Appointment scheduling & calendar management',        level:'FULL'      },
-  { text:'Patient intake calls and initial communication',      level:'FULL'      },
-  { text:'Referral coordination and administrative follow-ups', level:'LIMITED'   },
-  { text:'Document Vault — administrative files only',          level:'READ ONLY' },
-  { text:'Billing and insurance verification',                  level:'NONE'      },
-]);
+function fieldError(key) {
+  const map = {
+    email:        v$.value.inviteForm?.email,
+    reason:       v$.value.suspendForm?.reason,
+    removeReason: v$.value.removeForm?.reason,
+  }
+  const node = map[key]
+  return node?.$dirty && node?.$errors?.[0]?.$message ? node.$errors[0].$message : null
+}
 
-const chip = (text, level, cls) => ({ text, level, cls });
+// ── Submit actions ────────────────────────────────────────
+async function sendAgreement() {
+  const ok = await v$.value.$validate()
+  if (!ok) return
+  inviteForm.post(route('provider.ss.invite'), {
+    preserveScroll: true,
+    onSuccess: () => { toast.success('Support Steward invited successfully.'); closeModal('addDsrStep3Modal'); inviteForm.reset(); agreementSigned.value = false },
+  })
+}
 
-const stewards = ref([
-  {
-    initials:'LJ', name:'Linda Johnson', color:'#a0813e', status:'ACTIVE',
-    org:'Practice Administrator · Lotus Psychology Group · San Francisco, CA',
-    phone:'(415) 555-0742', email:'linda.johnson@gmail.com',
-    agreement:'Feb 14, 2026', reviewDue:'Feb 14, 2027',
-    responsibilities:[
-      chip('Appointment scheduling & calendar management',        'FULL',      'ch-full'),
-      chip('Patient intake calls and initial communication',      'FULL',      'ch-full'),
-      chip('Referral coordination and administrative follow-ups', 'LIMITED',   'ch-limited'),
-      chip('Document Vault — administrative files only',          'READ ONLY', 'ch-read'),
-      chip('Billing and insurance verification',                  'NONE',      'ch-none'),
-    ],
-  },
-  {
-    initials:'JR', name:'James Rodriguez', color:'#7a5c4a', status:'ACTIVE',
-    org:'Spouse & Personal Representative · San Francisco, CA',
-    phone:'(415) 555-0176', email:'james.rodriguez@protonmail.com',
-    agreement:'Feb 15, 2026', reviewDue:'Feb 15, 2027',
-    responsibilities:[
-      chip('Insurance verification and prior authorizations',  'FULL',      'ch-full'),
-      chip('Claims submission and payment posting',            'FULL',      'ch-full'),
-      chip('Billing reports — read access only',               'READ ONLY', 'ch-read'),
-      chip('Appointment scheduling',                           'NONE',      'ch-none'),
-      chip('Document Vault access',                            'NONE',      'ch-none'),
-    ],
-  },
-  {
-    initials:'RP', name:'Rachel Pham', color:'#7a5c4a', status:'SUSPENDED',
-    org:'Office Manager · Lotus Psychology Group · San Francisco, CA',
-    agreement:'Sep 10, 2025', reviewDue: null,
-    phone: null, email: null, responsibilities: null,
-  },
-]);
+function submitArchiveSteward(s) {
+  router.post(route('provider.ss.archive', { steward: s.id }), {}, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Record archived.'),
+  })
+}
 
-const notifyToggles = reactive([
-  { label:'Annual Re-Attestation is complete',                on:true },
-  { label:'A Support Steward requests changes',               on:true },
-  { label:'A Support Steward updates their information',      on:true },
-  { label:'Roles or permissions change',                      on:true },
-  { label:'Important Documents are accessed',                 on:true },
-  { label:'A critical incident is reported',                  on:true },
-  { label:'A Continuity Response is activated',               on:true },
-]);
+async function submitSuspend() {
+  v$.value.suspendForm.$touch()
+  const ok = await v$.value.suspendForm.$validate()
+  if (!ok) return
+  suspendForm.post(route('provider.ss.suspend', { steward: activeStewardId.value }), {
+    preserveScroll: true,
+    onSuccess: () => { toast.warning('Support Steward access suspended.'); closeModal('suspendDsrModal'); suspendForm.reset() },
+  })
+}
+
+function submitReinstate() {
+  reinstateForm.post(route('provider.ss.reinstate', { steward: activeStewardId.value }), {
+    preserveScroll: true,
+    onSuccess: () => { toast.success('Support Steward reinstated.'); closeModal('reinstateModal'); reinstateForm.reset() },
+  })
+}
+
+async function submitRemove() {
+  v$.value.removeForm.$touch()
+  const ok = await v$.value.removeForm.$validate()
+  if (!ok) return
+  const reason = removeForm.reason + (removeForm.notes ? ' — ' + removeForm.notes : '')
+  router.delete(route('provider.ss.remove', { steward: activeStewardId.value }), {
+    data: { reason },
+    preserveScroll: true,
+    onSuccess: () => { toast.warning('Support Steward removed.'); closeModal('removeDsrModal'); removeForm.reset(); removeConfirm.value = '' },
+  })
+}
+
+function submitResend() {
+  resendForm.post(route('provider.ss.resend', { steward: activeStewardId.value }), {
+    preserveScroll: true,
+    onSuccess: () => { toast.success('Invitation resent.'); closeModal('resendInviteModal'); resendForm.reset() },
+  })
+}
+
+function submitCancelInvite() {
+  router.post(route('provider.ss.archive', { steward: activeStewardId.value }), {}, {
+    preserveScroll: true,
+    onSuccess: () => { toast.warning('Invitation cancelled.'); closeModal('cancelInviteModal') },
+  })
+}
+
+function submitChangeRole() {
+  roleForm.put(route('provider.ss.update-role', { steward: activeStewardId.value }), {
+    preserveScroll: true,
+    onSuccess: () => { toast.success('Role updated. New agreement sent for signature.'); closeModal('changeDsrRoleModal'); roleForm.reset() },
+  })
+}
+
+function savePermissions() {
+  permForm.responsibilities = Array.from(enabledPerms.value).map(text => ({ text, level: 'Full' }))
+  permForm.put(route('provider.ss.update-permissions', { steward: activeStewardId.value }), {
+    preserveScroll: true,
+    onSuccess: () => { toast.success('Permissions updated. Logged.'); closeModal('editPermissionsModal') },
+  })
+}
 </script>
 
 <style scoped>
-.ss-hero { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg,14px); padding:22px 26px; margin-bottom:12px; box-shadow:var(--shadow-xs); flex-wrap:wrap; }
-.ss-eyebrow { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--gold-dark); margin-bottom:5px; }
-.ss-title { font-family:var(--font-serif); font-size:26px; font-weight:700; color:var(--text); margin:0 0 6px; }
-.ss-sub { font-size:12.5px; color:var(--text-3); margin:0; line-height:1.5; max-width:560px; }
-.ss-hero-actions { display:flex; gap:8px; flex-shrink:0; align-items:center; flex-wrap:wrap; }
-.ss-btn-icon { display:inline-flex; align-items:center; gap:6px; }
+/* ── DSR CARD ── */
+.dsr-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:22px 22px 22px 26px; display:flex; align-items:flex-start; gap:18px; margin-bottom:14px; transition:box-shadow var(--transition),transform var(--transition); position:relative; overflow:hidden; }
+.dsr-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; }
+.dsr-card.active::before  { background:var(--gold-dark); }
+.dsr-card.pending::before { background:var(--border-dark); }
+.dsr-card.suspended::before { background:var(--red-dark); }
+.dsr-card.declined::before  { background:var(--red-dark); }
+.dsr-card.declined { background:var(--red-light); }
+.dsr-card.archived::before { background:var(--text-4); }
+.dsr-card.archived { opacity:0.85; }
+.dsr-card:hover { box-shadow:var(--shadow); transform:translateY(-1px); }
+.dsr-name { font-family:var(--font-serif); font-size:18px; font-weight:700; color:var(--text); }
+.dsr-sub  { font-size:12px; color:var(--text-3); margin-top:2px; }
+.dsr-meta { display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:12px; color:var(--text-3); }
+.dsr-meta span { display:flex; align-items:center; gap:4px; }
 
-.ss-plan-notice { display:flex; align-items:center; gap:9px; padding:10px 14px; background:var(--blue-light); border:1px solid var(--soft-blue); border-radius:8px; margin-bottom:12px; font-size:12.5px; color:var(--blue-dark); }
+/* ── PERM LIST ── */
+.perm-list { background:var(--surface-2); border-radius:var(--radius); padding:12px 16px; margin-top:14px; }
+.perm-list-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--text-4); margin-bottom:8px; }
+.perm-item { display:flex; align-items:center; gap:10px; padding:6px 0; font-size:13px; color:var(--text-2); border-bottom:1px solid var(--border); }
+.perm-item:last-child { border-bottom:none; }
+.pi-icon { display:flex; align-items:center; flex-shrink:0; }
+.pi-level { margin-left:auto; font-size:10px; font-weight:700; padding:2px 8px; border-radius:var(--radius-xs); text-transform:uppercase; }
+.level-full    { background:var(--green-light);   color:var(--green-dark); }
+.level-limited { background:var(--badge-bg-gold); color:var(--gold-dark); }
+.level-none    { background:var(--surface-3);     color:var(--text-3); }
 
-.ss-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:14px; }
-.ss-stat { display:flex; align-items:center; gap:14px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg,14px); padding:16px 18px; box-shadow:var(--shadow-xs); }
-.ss-stat-icon { width:36px; height:36px; border-radius:8px; background:var(--surface-3); color:var(--text-3); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.ss-stat-gold  { background:rgba(160,129,62,.1); color:var(--gold-dark); }
-.ss-stat-blue  { background:var(--blue-light); color:var(--blue-dark); }
-.ss-stat-green { background:var(--green-light); color:var(--green-dark); }
-.ss-stat-val { font-family:var(--font-serif); font-size:22px; font-weight:700; color:var(--text); line-height:1; }
-.ss-stat-lbl { font-size:11px; color:var(--text-4); margin-top:3px; }
+/* ── PERM OVERVIEW ── */
+.perm-row + .perm-row { padding-top:14px; margin-top:14px; border-top:1px solid var(--border); }
+.perm-row-head { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.perm-row-info { flex:1; min-width:0; }
+.perm-row-id-line { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.perm-row-name { font-size:13px; font-weight:700; color:var(--text); }
+.perm-row-role { font-size:11px; color:var(--text-3); margin-top:2px; }
+.perm-row-badges { display:flex; flex-wrap:wrap; gap:6px; }
+.perm-row.is-muted .perm-row-badges { opacity:0.55; }
 
-.ss-tabs { display:flex; align-items:center; gap:2px; border-bottom:1px solid var(--border); margin-bottom:0; }
-.ss-tab { display:inline-flex; align-items:center; gap:7px; padding:9px 14px; font-size:13px; font-weight:500; color:var(--text-3); background:transparent; border:none; border-bottom:2px solid transparent; cursor:pointer; transition:color .15s,border-color .15s; margin-bottom:-1px; white-space:nowrap; }
-.ss-tab:hover { color:var(--text); }
-.ss-tab.active { color:var(--text); font-weight:600; border-bottom-color:var(--gold-dark); }
-.ss-tab-count { font-size:11px; font-weight:700; background:var(--surface-3); color:var(--text-2); border-radius:99px; padding:1px 7px; }
-.ss-tab-count.active { background:var(--gold-dark); color:#fff; }
+/* ── PERM MATRIX ── */
+.perm-matrix { width:100%; border-collapse:collapse; font-size:12px; }
+.perm-matrix th { background:var(--surface-2); padding:9px 12px; text-align:left; font-weight:700; font-size:10px; text-transform:uppercase; letter-spacing:0.4px; color:var(--text-4); border-bottom:1px solid var(--border); }
+.perm-matrix td { padding:9px 12px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.perm-matrix tr:last-child td { border-bottom:none; }
+.perm-matrix tr:hover td { background:var(--surface-2); }
+.perm-matrix .task-name { font-size:13px; font-weight:600; color:var(--text); }
 
-.ss-tab-sub { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0 14px; border-bottom:1px solid var(--border); margin-bottom:14px; }
-.ss-tab-desc { font-size:13px; color:var(--text-3); }
-.ss-add-sm { display:inline-flex; align-items:center; gap:5px; padding:5px 12px; font-size:12px; font-weight:600; color:var(--gold-dark); background:rgba(160,129,62,.08); border:1px solid var(--fade-gold,rgba(160,129,62,.4)); border-radius:6px; cursor:pointer; transition:all .15s; }
-.ss-add-sm:hover { background:rgba(160,129,62,.15); }
+/* ── ROLE OPTION ── */
+.role-option { display:flex; align-items:flex-start; gap:12px; padding:14px; border:2px solid var(--border); border-radius:var(--radius); cursor:pointer; transition:border-color var(--transition),background var(--transition); margin-bottom:10px; background:var(--surface); }
+.role-option:hover { border-color:var(--soft-gold); background:var(--badge-bg-gold); }
+.role-option.selected { border-color:transparent; background:var(--badge-bg-gold); box-shadow:0 0 0 2px var(--gold-dark); }
 
-.ss-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg,14px); padding:20px 22px; margin-bottom:14px; box-shadow:var(--shadow-xs); }
-.ss-suspended { border-left:3px solid var(--red); }
-.ss-card-head { display:flex; align-items:flex-start; gap:14px; margin-bottom:16px; }
-.ss-avatar { display:flex; align-items:center; justify-content:center; border-radius:10px; color:#fff; font-weight:700; flex-shrink:0; width:48px; height:48px; font-size:15px; }
-.ss-info { min-width:0; flex:1; }
-.ss-name-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:3px; }
-.ss-name { font-size:14.5px; font-weight:700; color:var(--text); }
-.ss-badge-role { font-size:9.5px; font-weight:700; letter-spacing:.05em; padding:2px 8px; border-radius:99px; background:rgba(160,129,62,.1); color:var(--gold-dark); border:1px solid var(--fade-gold,rgba(160,129,62,.4)); }
-.ss-badge-status { font-size:10px; font-weight:700; border-radius:99px; padding:2px 8px; }
-.ss-active { color:var(--green-dark); background:var(--green-light); }
-.ss-susp   { color:var(--red); background:var(--red-light); }
-.ss-org  { font-size:12px; color:var(--text-4); margin-bottom:6px; }
-.ss-meta { display:flex; flex-wrap:wrap; gap:12px; }
-.ss-mi   { font-size:12px; color:var(--text-4); }
+/* ── SIG BLOCK ── */
+.sig-block { border:2px dashed var(--border); border-radius:var(--radius); padding:20px; text-align:center; color:var(--text-3); font-size:13px; cursor:pointer; transition:border-color var(--transition),background var(--transition),color var(--transition); margin-top:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; }
+.sig-block:hover { border-color:var(--gold-dark); color:var(--gold-dark); background:var(--badge-bg-gold); }
+.sig-block.signed { border-style:solid; border-color:var(--green-dark); background:var(--green-light); color:var(--green-dark); }
 
-.ss-resp-block { background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:14px 16px; margin-bottom:14px; }
-.ss-resp-lbl { font-size:9.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-4); margin-bottom:10px; }
-.ss-resp-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px solid var(--border); }
-.ss-resp-row:last-child { border-bottom:none; padding-bottom:0; }
-.ss-resp-text { font-size:12.5px; color:var(--text-2); flex:1; }
-.ss-chip { font-size:9.5px; font-weight:700; letter-spacing:.04em; border-radius:99px; padding:2px 9px; flex-shrink:0; }
-.ch-full    { background:var(--green-light); color:var(--green-dark); border:1px solid var(--soft-green,rgba(34,119,68,.3)); }
-.ch-limited { background:rgba(232,169,74,.12); color:var(--orange-dark); border:1px solid rgba(232,169,74,.4); }
-.ch-read    { background:var(--blue-light); color:var(--blue-dark); border:1px solid var(--soft-blue,rgba(30,95,170,.3)); }
-.ch-none    { background:var(--surface-3); color:var(--text-4); border:1px solid var(--border); }
-
-.ss-susp-warn { display:flex; align-items:flex-start; gap:9px; padding:10px 13px; background:var(--red-light); border:1px solid var(--soft-red,rgba(160,45,34,.35)); border-radius:8px; font-size:12.5px; color:var(--red); line-height:1.5; margin-bottom:14px; }
-
-.ss-actions { display:flex; gap:6px; padding-top:10px; border-top:1px solid var(--border); flex-wrap:wrap; }
-.ss-act { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text-3); cursor:pointer; transition:all .15s; }
-.ss-act:hover { border-color:var(--gold-dark); color:var(--gold-dark); }
-.ss-danger:hover { border-color:var(--red); color:var(--red); background:var(--red-light); }
-.ss-reinstate { display:inline-flex; align-items:center; gap:5px; padding:5px 12px; font-size:12.5px; font-weight:600; color:var(--green-dark); background:var(--green-light); border:1px solid var(--soft-green,rgba(34,119,68,.3)); border-radius:6px; cursor:pointer; transition:all .15s; }
-
-.ss-add-dashed { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; padding:22px; border:2px dashed var(--border); border-radius:var(--radius-lg,14px); background:transparent; color:var(--text-4); font-size:13.5px; font-weight:600; cursor:pointer; transition:all .18s; margin-bottom:14px; }
-.ss-add-dashed:hover { border-color:var(--gold-dark); color:var(--gold-dark); background:rgba(160,129,62,.04); }
-
-.ss-for-card { display:flex; align-items:center; gap:14px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg,14px); padding:16px 18px; cursor:pointer; transition:box-shadow .15s,border-color .15s; box-shadow:var(--shadow-xs); margin-bottom:8px; }
-.ss-for-card:hover { box-shadow:var(--shadow-sm); border-color:var(--gold-dark); }
-
-.ss-empty { display:flex; flex-direction:column; align-items:center; gap:12px; padding:50px 20px; color:var(--text-4); }
-.ss-empty p { font-size:14px; margin:0; color:var(--text-3); }
-
-.ss-notify { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg,14px); padding:20px 22px; margin-bottom:14px; box-shadow:var(--shadow-xs); margin-top:4px; }
-.ss-notify-title { font-size:15px; font-weight:700; color:var(--text); margin-bottom:4px; }
-.ss-notify-sub { font-size:12.5px; color:var(--text-4); margin-bottom:16px; }
-.ss-notify-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); }
-.ss-notify-row:last-child { border-bottom:none; }
-.ss-notify-label { font-size:13px; color:var(--text-2); }
-.ss-tog { position:relative; display:inline-block; width:40px; height:22px; flex-shrink:0; }
-.ss-tog input { opacity:0; width:0; height:0; }
-.ss-tog-track { position:absolute; inset:0; background:var(--border-dark); border-radius:99px; cursor:pointer; transition:background .2s; }
-.ss-tog-track.on { background:var(--gold-dark); }
-.ss-tog-thumb { position:absolute; width:18px; height:18px; left:2px; top:2px; background:#fff; border-radius:50%; transition:transform .2s; }
-.ss-tog-track.on .ss-tog-thumb { transform:translateX(18px); }
-
-/* Modals */
-.ssm-backdrop { position:fixed; inset:0; z-index:1000; background:rgba(30,28,26,.45); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; padding:20px; }
-.ssm { background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:0 24px 64px rgba(30,28,26,.2); width:100%; max-width:540px; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; }
-.ssm-sm { max-width:420px; }
-.ssm-lg { max-width:640px; }
-.ssm-head { display:flex; align-items:center; justify-content:space-between; padding:18px 22px 14px; border-bottom:1px solid var(--border); flex-shrink:0; }
-.ssm-title { font-family:var(--font-serif); font-size:17px; font-weight:700; color:var(--text); }
-.ssm-x { width:28px; height:28px; padding:0; font-size:18px; line-height:1; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text-3); cursor:pointer; }
-.ssm-x:hover { border-color:var(--text); color:var(--text); }
-.ssm-body { padding:18px 22px; overflow-y:auto; display:flex; flex-direction:column; gap:14px; flex:1; }
-.ssm-foot { display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:14px 22px; border-top:1px solid var(--border); background:var(--surface-2); flex-shrink:0; }
-.ssm-gold-btn { display:inline-flex; align-items:center; gap:6px; padding:7px 16px; font-size:12.5px; font-weight:600; background:var(--gold-dark); color:#fff; border:1px solid var(--gold-dark); border-radius:var(--radius-sm,8px); cursor:pointer; transition:background .15s; }
-.ssm-gold-btn:hover { background:var(--gold); border-color:var(--gold); }
-.ssm-red-btn { display:inline-flex; align-items:center; gap:6px; padding:7px 16px; font-size:12.5px; font-weight:600; background:var(--red); color:#fff; border:1px solid var(--red); border-radius:var(--radius-sm,8px); cursor:pointer; }
-.ssm-red-btn:disabled { opacity:.4; cursor:not-allowed; }
-
-.ssm-field { display:flex; flex-direction:column; gap:5px; }
-.ssm-lbl { font-size:11.5px; font-weight:600; color:var(--text-2); }
-.ssm-inp { padding:9px 12px; font-size:13.5px; color:var(--text); background:var(--surface); border:1.5px solid var(--border); border-radius:8px; outline:none; transition:border-color .15s; width:100%; box-sizing:border-box; }
-.ssm-inp:focus { border-color:var(--gold-dark); }
-.ssm-ta { padding:9px 12px; font-size:13px; color:var(--text); background:var(--surface); border:1.5px solid var(--border); border-radius:8px; outline:none; resize:vertical; min-height:70px; line-height:1.6; box-sizing:border-box; width:100%; transition:border-color .15s; }
-.ssm-ta:focus { border-color:var(--gold-dark); }
-.ssm-notice { display:flex; align-items:flex-start; gap:8px; padding:9px 12px; background:var(--blue-light); border:1px solid var(--soft-blue); border-radius:8px; font-size:12.5px; color:var(--blue-dark); line-height:1.5; }
-.ssm-warn { display:flex; align-items:flex-start; gap:9px; padding:10px 13px; background:var(--red-light); border:1px solid var(--soft-red,rgba(160,45,34,.35)); border-radius:8px; font-size:12.5px; color:var(--red); line-height:1.5; }
-
-.ssm-agr-status { display:flex; align-items:center; gap:7px; padding:8px 12px; background:var(--green-light); border:1px solid var(--soft-green,rgba(34,119,68,.3)); border-radius:8px; font-size:12.5px; color:var(--green-dark); }
-.ssm-agr-doc { border:1px solid var(--border); border-radius:8px; padding:18px 20px; }
-.ssm-agr-h { font-family:var(--font-serif); font-size:15px; font-weight:700; color:var(--text); text-align:center; margin-bottom:12px; }
-.ssm-agr-m { font-size:12.5px; color:var(--text-2); margin-bottom:4px; line-height:1.5; }
-.ssm-agr-hr { height:1px; background:var(--border); border:none; margin:12px 0; }
-.ssm-agr-p { font-size:12.5px; color:var(--text-2); line-height:1.65; margin-bottom:10px; }
-.ssm-sigs { display:flex; flex-direction:column; gap:6px; padding-top:12px; border-top:1px solid var(--border); }
-.ssm-sig { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-2); }
-.ssm-sig-b { font-size:9.5px; font-weight:700; padding:2px 7px; background:var(--green-light); color:var(--green-dark); border-radius:4px; }
-
-.ssm-vault-opt { display:flex; align-items:flex-start; gap:10px; padding:11px 13px; border:1.5px solid var(--border); border-radius:8px; cursor:pointer; transition:border-color .15s,background .15s; }
-.ssm-vault-opt.sel { border-color:var(--gold-dark); background:rgba(160,129,62,.06); }
-.ssm-radio { width:16px; height:16px; border-radius:50%; border:1.5px solid var(--border-dark); display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px; }
-.ssm-vault-opt.sel .ssm-radio { border-color:var(--gold-dark); }
-.ssm-dot { width:8px; height:8px; border-radius:50%; background:var(--gold-dark); }
-.ssm-vault-lbl { font-size:13px; font-weight:600; color:var(--text); margin-bottom:2px; }
-.ssm-vault-sub { font-size:11.5px; color:var(--text-4); }
-
-.ssm-perm-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
-.ssm-perm-row:last-child { border-bottom:none; }
-.ssm-perm-text { font-size:12.5px; color:var(--text-2); flex:1; }
-.ssm-lvl-btns { display:flex; gap:4px; flex-shrink:0; }
-.ssm-lvl { font-size:10px; font-weight:700; padding:3px 8px; border-radius:99px; border:1px solid var(--border); background:var(--surface-2); color:var(--text-4); cursor:pointer; transition:all .15s; }
-.lvl-full.ssm-lvl-active    { background:var(--green-light); color:var(--green-dark); border-color:var(--soft-green,rgba(34,119,68,.3)); }
-.lvl-limited.ssm-lvl-active { background:rgba(232,169,74,.12); color:var(--orange-dark); border-color:rgba(232,169,74,.4); }
-.lvl-read.ssm-lvl-active    { background:var(--blue-light); color:var(--blue-dark); border-color:var(--soft-blue,rgba(30,95,170,.3)); }
-.lvl-none.ssm-lvl-active    { background:var(--surface-3); color:var(--text-3); border-color:var(--border-dark); }
-
-.ssm-fade-enter-active, .ssm-fade-leave-active { transition:opacity .2s ease; }
-.ssm-fade-enter-active .ssm, .ssm-fade-leave-active .ssm { transition:transform .2s ease; }
-.ssm-fade-enter-from, .ssm-fade-leave-to { opacity:0; }
-.ssm-fade-enter-from .ssm { transform:translateY(-10px) scale(0.98); }
-
-.ss-toasts { position:fixed; bottom:22px; right:22px; z-index:4000; display:flex; flex-direction:column; gap:10px; }
-.ss-toast { display:flex; align-items:center; gap:9px; padding:11px 16px; border-radius:var(--radius); background:var(--text); color:var(--text-inverted); font-size:13px; font-weight:600; box-shadow:var(--shadow-lg); max-width:360px; }
-.ss-toast.success { background:var(--green-dark); }
-
-@media(max-width:860px) { .ss-stats { grid-template-columns:repeat(2,1fr); } .ss-tabs { overflow-x:auto; } }
-
-/* ── Permissions tab ── */
-.ss-perm-overview-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
-.ss-perm-card { display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg,14px); padding:14px 18px; margin-bottom:8px; box-shadow:var(--shadow-xs); }
-.ss-perm-card-left { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
-.ss-perm-chips { display:flex; flex-wrap:wrap; gap:4px; margin-right:10px; }
-
-/* ── Guidance accordion ── */
-.ss-guidance-intro { font-size:12.5px; color:var(--text-3); margin-bottom:14px; line-height:1.55; }
-.ss-accord { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg,14px); margin-bottom:10px; box-shadow:var(--shadow-xs); overflow:hidden; }
-.ss-accord-head { display:flex; align-items:center; gap:10px; width:100%; padding:14px 18px; background:transparent; border:none; cursor:pointer; text-align:left; transition:background .12s; }
-.ss-accord-head:hover { background:var(--surface-2); }
-.ss-accord-icon { color:var(--text-4); display:flex; align-items:center; flex-shrink:0; }
-.ss-accord-title { flex:1; font-family:var(--font-sans); font-size:13.5px; font-weight:600; color:var(--text); }
-.ss-accord-arrow { flex-shrink:0; color:var(--text-4); transition:transform .2s ease; }
-.ss-accord-arrow.open { transform:rotate(180deg); }
-.ss-accord-body { padding:0 18px 16px 42px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:10px; padding-top:14px; }
-.ss-accord-item { display:flex; align-items:flex-start; gap:9px; font-family:var(--font-sans); font-size:13px; color:var(--text-2); line-height:1.55; }
-.ss-guidance-footer { display:flex; align-items:center; gap:9px; padding:11px 14px; background:var(--blue-light); border:1px solid var(--soft-blue); border-radius:8px; margin-top:6px; font-size:12.5px; color:var(--blue-dark); }
-
-/* ── Edit permissions modal ── */
-.ssm-perm-person { display:flex; align-items:center; gap:10px; padding:10px 13px; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; }
-.ssm-perm-warn { display:flex; align-items:flex-start; gap:8px; padding:9px 12px; background:rgba(232,169,74,.08); border:1px solid rgba(232,169,74,.4); border-radius:8px; font-size:12.5px; color:var(--orange-dark); line-height:1.5; }
-.ssm-perm-section-lbl { font-size:9.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-4); margin:14px 0 8px; }
-.ssm-perm-toggle-row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:10px 12px; border:1px solid var(--border); border-radius:7px; margin-bottom:4px; }
-.ssm-perm-toggle-label { font-size:13px; font-weight:500; color:var(--text); margin-bottom:2px; }
-.ssm-perm-toggle-sub { font-size:11.5px; color:var(--text-4); }
-.ssm-radio-row { display:flex; align-items:center; gap:8px; cursor:pointer; padding:6px 0; }
+/* ── MODAL STEPS ── */
+.modal-steps { display:flex; align-items:center; margin-bottom:20px; }
+.modal-step { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:var(--text-3); white-space:nowrap; }
+.modal-step.active { color:var(--gold-dark); }
+.modal-step.done   { color:var(--green-dark); }
+.modal-step-num { width:22px; height:22px; border-radius:var(--radius-full); background:var(--surface-3); color:var(--text-3); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0; }
+.modal-step.active .modal-step-num { background:var(--gold-dark); color:var(--text-inverted); }
+.modal-step.done .modal-step-num   { background:var(--green-dark); color:var(--text-inverted); }
+.modal-step-divider { flex:1; height:1px; background:var(--border); margin:0 8px; }
 </style>

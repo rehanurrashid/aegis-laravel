@@ -306,19 +306,22 @@ class StewardService
         $practitioner = User::find($plan->practitioner_id);
         $tier = $practitioner->tier ?? 'access';
 
+        $limits = config('aegis.tier_limits.' . $tier, config('aegis.tier_limits.access'));
+
         $current = PlanSteward::where('plan_id', $plan->id)
             ->where('steward_type', $stewardType)
             ->whereIn('status', ['active', 'pending'])
             ->count();
 
         if ($stewardType === 'continuity_steward') {
-            $max = $tier === 'practice' ? 2 : 1;
+            $max = (int) ($limits['max_continuity_stewards'] ?? 2);
             if ($current >= $max) {
                 throw new RuntimeException("Tier '{$tier}' allows max {$max} Continuity Steward(s).");
             }
         } elseif ($stewardType === 'support_steward') {
-            if ($tier === 'access' && $current >= 2) {
-                throw new RuntimeException("Access tier allows max 2 Support Stewards.");
+            $max = (int) ($limits['max_support_stewards'] ?? 2);
+            if ($current >= $max) {
+                throw new RuntimeException("Tier '{$tier}' allows max {$max} Support Steward(s).");
             }
         }
     }

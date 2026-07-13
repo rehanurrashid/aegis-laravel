@@ -212,6 +212,12 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::get('/support-stewards', [ContinuityStewardController::class, 'ssIndex'])->name('ss.index');
         Route::post('/support-stewards/invite', [ContinuityStewardController::class, 'ssInvite'])->name('ss.invite');
         Route::delete('/support-stewards/{steward}', [ContinuityStewardController::class, 'ssRemove'])->name('ss.remove');
+        Route::post('/support-stewards/{steward}/suspend', [ContinuityStewardController::class, 'ssSuspend'])->name('ss.suspend');
+        Route::post('/support-stewards/{steward}/reinstate', [ContinuityStewardController::class, 'ssReinstate'])->name('ss.reinstate');
+        Route::post('/support-stewards/{steward}/resend', [ContinuityStewardController::class, 'ssResend'])->name('ss.resend');
+        Route::put('/support-stewards/{steward}/role', [ContinuityStewardController::class, 'ssUpdateRole'])->name('ss.update-role');
+        Route::put('/support-stewards/{steward}/permissions', [ContinuityStewardController::class, 'ssUpdatePermissions'])->name('ss.update-permissions');
+        Route::post('/support-stewards/{steward}/archive', [ContinuityStewardController::class, 'ssArchive'])->name('ss.archive');
 
         // Vault
         Route::get('/vault', [VaultController::class, 'index'])->name('vault.index');

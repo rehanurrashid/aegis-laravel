@@ -301,8 +301,8 @@ return [
     */
     'tier_limits' => [
         'access' => [
-            'max_continuity_stewards' => (int) env('TIER_ACCESS_MAX_CS', 1),
-            'max_support_stewards'    => (int) env('TIER_ACCESS_MAX_SS', 1),
+            'max_continuity_stewards' => (int) env('TIER_ACCESS_MAX_CS', 2),
+            'max_support_stewards'    => (int) env('TIER_ACCESS_MAX_SS', 2),
             'referrals'               => false,
             'services_mode'           => false,
             'network_search'          => 'limited',
