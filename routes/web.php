@@ -197,6 +197,10 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::post('/continuity-plan/attest', [ContinuityPlanController::class, 'attest'])->name('plan.attest');
         Route::post('/continuity-plan/annual-review/start', [ContinuityPlanController::class, 'reviewStart'])->name('plan.review.start');
         Route::post('/continuity-plan/annual-review/complete', [ContinuityPlanController::class, 'reviewComplete'])->name('plan.review.complete');
+        Route::post('/continuity-plan/incident-config', [ContinuityPlanController::class, 'configureIncident'])->name('plan.incident-config');
+        Route::post('/continuity-plan/tasks', [ContinuityPlanController::class, 'addTask'])->name('plan.tasks.store');
+        Route::delete('/continuity-plan/tasks/{task}', [ContinuityPlanController::class, 'removeTask'])->name('plan.tasks.destroy');
+        Route::post('/continuity-plan/tasks/reorder', [ContinuityPlanController::class, 'reorderTasks'])->name('plan.tasks.reorder');
 
         // Continuity Stewards
         Route::get('/continuity-stewards', [ContinuityStewardController::class, 'csIndex'])->name('stewards.index');

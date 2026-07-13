@@ -1,644 +1,643 @@
+<!--
+  pages/provider/ContinuityPlan.vue
+  Master Continuity Plan HUB — 8-section checklist, incident grid,
+  sign ceremony (Option B), vault attest, annual review.
+  P1 + P2 complete. P3 fires from service layer.
+-->
 <template>
-  <AppLayout :user="user" portal="practitioner" activePage="continuity-plan" pageTitle="Continuity Plan">
+  <AppLayout :user="auth?.user" portal="practitioner" activePage="continuity-plan" pageTitle="Continuity Plan">
 
-    <!-- HERO BANNER -->
-    <div class="cp-hero">
-      <div class="cp-hero-left">
-        <div class="cp-eyebrow">CONTINUITY PLANNING</div>
-        <h1 class="cp-title">My Continuity Plan</h1>
-        <p class="cp-sub">Define what happens to your practice in 7 critical moments — and assign every task to a Steward who's certified to handle it.</p>
-        <div class="cp-hero-meta">
-          <span class="cp-meta-item">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-            Signed Jun 15, 2024
-          </span>
-          <span class="cp-meta-item">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            6 of 7 incident types enabled
-          </span>
-          <span class="cp-meta-item">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Annual review due Jun 15, 2026
-          </span>
-        </div>
-      </div>
-      <div class="cp-hero-actions">
-        <button class="btn btn-outline btn-sm cp-btn-icon" @click="showToast('Opening activity log','info')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-          Activity
+    <!-- HERO -->
+    <AegisHeroBanner eyebrow="Continuity Planning" :title="'My Continuity Plan'"
+      :subtitle="plan ? `Version ${plan.plan_version ?? 1} · ${planStatusLabel}` : 'Build your plan below'" quiet>
+      <template #actions>
+        <a :href="route('activity') + '?module=plan'" class="btn-hero-ghost is-on-light">
+          <AegisIcon name="activity" :size="14" /> Activity
+        </a>
+        <button v-if="plan && plan.signed_at" type="button" class="btn-hero-ghost is-on-light" @click="showAnnualReview = true">
+          <AegisIcon name="refresh-cw" :size="14" /> Begin Annual Review
         </button>
-        <button class="btn btn-outline btn-sm cp-btn-icon" @click="showToast('Beginning annual review','info')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>
-          Begin Annual Review
+        <button v-if="plan && !plan.vault_attested_at" type="button" class="btn-hero-ghost is-on-light" @click="showAttestModal = true">
+          <AegisIcon name="check-circle" :size="14" /> Attest Vault
         </button>
-        <button class="btn btn-primary btn-sm cp-btn-icon" @click="showToast('Viewing signed plan','info')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          View Signed Plan
+        <button v-if="plan && !plan.signed_at" type="button"
+          class="btn-hero-solid is-on-light"
+          :disabled="!canSign"
+          :data-tooltip="!canSign ? signBlockedReason : undefined"
+          @click="showSignModal = true">
+          <AegisIcon name="edit" :size="14" /> Finalize &amp; Sign
         </button>
-      </div>
+      </template>
+    </AegisHeroBanner>
+
+    <!-- STAT CHIPS -->
+    <div class="stat-chips-row">
+      <AegisStatChip
+        icon="shield"
+        :value="`${completedSections}/7`"
+        label="Sections complete"
+        :bg-color="completedSections === 7 ? 'var(--icon-bg-green)' : 'var(--icon-bg-gold)'"
+        :icon-color="completedSections === 7 ? 'var(--green-dark)' : 'var(--gold-dark)'"
+      />
+      <AegisStatChip icon="users" :value="csCount" label="Continuity Stewards" />
+      <AegisStatChip icon="user-check" :value="ssCount" label="Support Stewards" />
+      <AegisStatChip
+        icon="calendar"
+        :value="plan && plan.vault_attested_at ? formatDate(plan.vault_attested_at) : 'Not attested'"
+        label="Last vault attestation"
+        :bg-color="plan && plan.vault_attested_at ? 'var(--icon-bg-green)' : undefined"
+        :icon-color="plan && plan.vault_attested_at ? 'var(--green-dark)' : undefined"
+      />
     </div>
 
-    <!-- STATUS BADGES -->
-    <div class="cp-badges-row">
-      <span class="cp-badge cp-badge-gold">✓ Plan Signed</span>
-      <span class="cp-badge cp-badge-gold">✓ SS Certified</span>
-      <span class="cp-badge cp-badge-gold">✓ CS Certified</span>
-      <span class="cp-badge-active">● ACTIVE</span>
-    </div>
+    <!-- NO PLAN -->
+    <AegisEmptyState v-if="!plan"
+      icon="file-text"
+      title="No continuity plan yet"
+      description="Create a draft plan to get started. Build step by step in Aegis, upload an existing document, or start from a template.">
+      <template #actions>
+        <button type="button" class="btn btn-primary" @click="createDraft">
+          <AegisIcon name="plus" :size="14" /> Create Draft Plan
+        </button>
+      </template>
+    </AegisEmptyState>
 
-    <!-- START OPTIONS -->
-    <div class="cp-start-grid">
-      <div class="cp-start-card cp-start-card-active" @click="showToast('Opening plan builder','info')">
-        <div class="cp-start-check">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-        <div class="cp-start-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        </div>
-        <div class="cp-start-title">Build in Aegis</div>
-        <div class="cp-start-sub">Fill in the 7-incident grid step by step</div>
-      </div>
-      <div class="cp-start-card" @click="showToast('Opening upload','info')">
-        <div class="cp-start-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        </div>
-        <div class="cp-start-title">Upload Existing Plan</div>
-        <div class="cp-start-sub">Import a PDF or Word document</div>
-      </div>
-      <div class="cp-start-card" @click="showToast('Opening template library','info')">
-        <div class="cp-start-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        </div>
-        <div class="cp-start-title">Start from Template</div>
-        <div class="cp-start-sub">Aegis Document Library — 12 templates</div>
-      </div>
-    </div>
+    <template v-else>
 
-    <!-- CONTINUITY TEAM -->
-    <div class="cp-section">
-      <div class="cp-section-header">
+      <!-- SIGNED BANNER -->
+      <div v-if="plan.signed_at" class="alert alert-success" style="margin-bottom:16px">
+        <AegisIcon name="check-circle" :size="16" />
         <div>
-          <div class="cp-section-title">Your Continuity Team</div>
-          <div class="cp-section-sub">The people authorized to act on this plan when it activates.</div>
-        </div>
-        <div class="cp-section-actions">
-          <button class="btn btn-outline btn-sm" @click="showToast('Managing CS','info')">Manage CS</button>
-          <button class="btn btn-outline btn-sm" @click="showToast('Managing SS','info')">Manage SS</button>
+          <strong>Plan Signed &amp; Active</strong>
+          <span style="margin-left:8px;font-weight:400;opacity:.85">
+            v{{ plan.plan_version }}.0 · Signed {{ formatDate(plan.signed_at) }}
+            <span v-if="plan.signature_name"> by {{ plan.signature_name }}</span>
+          </span>
         </div>
       </div>
-      <div class="cp-team-grid">
-        <div v-for="member in teamMembers" :key="member.name" class="cp-team-card">
-          <div class="cp-team-role-label">{{ member.roleLabel }}</div>
-          <div class="cp-team-top">
-            <div class="cp-team-avatar" :style="{ background: member.avatarColor }">{{ member.initials }}</div>
-            <div>
-              <div class="cp-team-name">{{ member.name }}</div>
-              <div class="cp-team-status" :class="member.certified ? 'cp-team-certified' : 'cp-team-pending'">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" v-if="member.certified"><polyline points="20 6 9 17 4 12"/></svg>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" v-else><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                {{ member.certified ? 'Certified' : 'Pending' }}
+
+      <!-- ANNUAL REVIEW DUE BANNER -->
+      <div v-if="plan.status === 'annual_review_due'" class="alert alert-warning" style="margin-bottom:16px">
+        <AegisIcon name="alert-triangle" :size="16" />
+        <div>
+          <strong>Annual review due{{ plan.annual_review_date ? ' ' + formatDate(plan.annual_review_date) : '' }}.</strong>
+          Your plan remains active but should be reviewed and re-signed.
+        </div>
+      </div>
+
+      <!-- PATH TILES -->
+      <div class="path-row">
+        <button type="button" class="path-tile" :class="{ 'is-selected': activePane === 'build' }" @click="activePane = 'build'">
+          <span class="path-tile-icon"><AegisIcon name="edit" :size="18" /></span>
+          <span class="path-tile-text">
+            <div class="path-tile-title">Build in Aegis</div>
+            <div class="path-tile-sub">Configure the 7-incident grid step by step</div>
+          </span>
+          <span v-if="activePane === 'build'" class="path-tile-check"><AegisIcon name="check" :size="12" /></span>
+        </button>
+        <button type="button" class="path-tile" :class="{ 'is-selected': activePane === 'sections' }" @click="activePane = 'sections'">
+          <span class="path-tile-icon"><AegisIcon name="list" :size="18" /></span>
+          <span class="path-tile-text">
+            <div class="path-tile-title">Section Checklist</div>
+            <div class="path-tile-sub">{{ completedSections }}/7 sections complete</div>
+          </span>
+          <span v-if="activePane === 'sections'" class="path-tile-check"><AegisIcon name="check" :size="12" /></span>
+        </button>
+        <button type="button" class="path-tile" :class="{ 'is-selected': activePane === 'template' }" @click="activePane = 'template'">
+          <span class="path-tile-icon"><AegisIcon name="file-text" :size="18" /></span>
+          <span class="path-tile-text">
+            <div class="path-tile-title">Start from Template</div>
+            <div class="path-tile-sub">{{ templates.length }} Aegis templates</div>
+          </span>
+          <span v-if="activePane === 'template'" class="path-tile-check"><AegisIcon name="check" :size="12" /></span>
+        </button>
+      </div>
+
+      <!-- ═══ BUILD PANE ═══ -->
+      <div v-show="activePane === 'build'">
+
+        <!-- Team row -->
+        <div class="section-head">
+          <div>
+            <h2 class="section-title">Your Continuity Team</h2>
+            <div class="section-sub">The people authorized to act on this plan when it activates.</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <a :href="route('stewards.index')" class="btn btn-outline">Manage CS</a>
+            <a :href="route('ss.index')" class="btn btn-outline">Manage SS</a>
+          </div>
+        </div>
+
+        <div class="team-row">
+          <template v-for="slot in teamSlots" :key="slot.label">
+            <div v-if="slot.steward" class="team-chip">
+              <span class="avatar avatar-sm" :style="`background:${slot.isCs ? 'var(--gold-dark)' : 'var(--text-3)'};color:#fff;font-family:var(--font-serif);font-weight:600`">
+                {{ slot.steward.avatar_initials }}
+              </span>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-4);margin-bottom:2px">{{ slot.label }}</div>
+                <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ slot.steward.display_name }}</div>
+                <AegisBadge :label="slot.steward.status" :variant="slot.steward.status === 'active' ? 'green' : 'gold'" style="margin-top:4px" />
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- CRITICAL MOMENTS -->
-    <div class="cp-section">
-      <div class="cp-section-header">
-        <div>
-          <div class="cp-section-title">Critical Moments</div>
-          <div class="cp-section-sub">7 incident types. Toggle each on, assign documents, stewards, and tasks.</div>
-        </div>
-        <button class="cp-how-btn" @click="showToast('Opening how it works guide','info')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          How this works
-        </button>
-      </div>
-
-      <div class="cp-incidents-table">
-        <div class="cp-incidents-head">
-          <span class="cp-th cp-th-type">INCIDENT TYPE</span>
-          <span class="cp-th cp-th-enabled">ENABLED</span>
-          <span class="cp-th cp-th-docs">DOCS REQUIRED</span>
-          <span class="cp-th cp-th-stewards">AUTHORIZED STEWARDS</span>
-          <span class="cp-th cp-th-tasks">TASKS</span>
-          <span class="cp-th"></span>
-        </div>
-        <div v-for="inc in incidents" :key="inc.title" class="cp-incident-row" :class="{ 'cp-row-disabled': !inc.enabled }">
-          <div class="cp-td-type">
-            <div class="cp-inc-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" v-html="inc.icon"></svg></div>
-            <div>
-              <div class="cp-inc-title">{{ inc.title }}</div>
-              <div class="cp-inc-label">{{ inc.alwaysOn ? 'ALWAYS ON' : 'OPT-IN' }} · <span :class="inc.enabled ? 'cp-enabled' : 'cp-disabled'">{{ inc.enabled ? 'ENABLED' : 'DISABLED' }}</span></div>
-            </div>
-          </div>
-          <div class="cp-td-toggle">
-            <label class="cp-toggle" :class="{ disabled: inc.alwaysOn }">
-              <input type="checkbox" v-model="inc.enabled" :disabled="inc.alwaysOn">
-              <span class="cp-toggle-track" :class="{ on: inc.enabled }"><span class="cp-toggle-thumb"></span></span>
-            </label>
-          </div>
-          <div class="cp-td-docs">
-            <span v-for="doc in inc.docs" :key="doc" class="cp-doc-chip">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-              {{ doc }}
-            </span>
-            <span v-if="!inc.docs.length" class="cp-doc-none">None required</span>
-          </div>
-          <div class="cp-td-stewards">
-            <div v-if="inc.enabled" class="cp-steward-chips">
-              <span v-for="s in inc.stewards" :key="s.initials" class="cp-steward-chip" :style="{ background: s.color }" :title="s.name">{{ s.initials }}</span>
-            </div>
-            <span v-else class="cp-doc-none">—</span>
-          </div>
-          <div class="cp-td-tasks">
-            <span v-if="inc.enabled" class="cp-tasks-text">{{ inc.tasks }}</span>
-            <span v-else class="cp-doc-none">—</span>
-          </div>
-          <div class="cp-td-edit">
-            <button v-if="inc.enabled" class="cp-edit-btn" @click="openIncidentModal(inc)">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- SIGNED PLAN FOOTER -->
-    <div class="cp-signed-footer">
-      <div class="cp-signed-header">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-        <span class="cp-signed-label">Plan Signed &amp; Active</span>
-        <span class="cp-signed-version">v2.0 · Jun 15, 2024 at 2:00 PM UTC</span>
-      </div>
-      <div class="cp-signed-grid">
-        <div class="cp-signed-cell">
-          <div class="cp-signed-cell-label">SIGNED BY</div>
-          <div class="cp-signed-cell-val">Dr. Sarah Johnson</div>
-          <div class="cp-signed-cell-sub">PhD, LMFT</div>
-        </div>
-        <div class="cp-signed-cell">
-          <div class="cp-signed-cell-label">TITLE</div>
-          <div class="cp-signed-cell-val">Licensed Marriage &amp; Family Therapist</div>
-          <div class="cp-signed-cell-sub">Lotus Psychology Group</div>
-        </div>
-        <div class="cp-signed-cell">
-          <div class="cp-signed-cell-label">DATE</div>
-          <div class="cp-signed-cell-val">Jun 15, 2024</div>
-          <div class="cp-signed-cell-sub">2:00 PM UTC</div>
-        </div>
-        <div class="cp-signed-cell">
-          <div class="cp-signed-cell-label">VERSION</div>
-          <div class="cp-signed-cell-val">v2.0</div>
-          <div class="cp-signed-cell-sub">Annual review Jun 2026</div>
-        </div>
-      </div>
-      <div class="cp-signed-actions">
-        <button class="btn btn-outline btn-sm cp-btn-icon" @click="showToast('Downloading PDF','info')">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          Download Signed PDF
-        </button>
-        <button class="btn btn-primary btn-sm cp-btn-icon" @click="showToast('Viewing signed PDF','info')">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          View Signed PDF
-        </button>
-      </div>
-    </div>
-
-    <!-- Toast -->
-    <Teleport to="body">
-
-      <!-- CONFIGURE INCIDENT MODAL -->
-      <Transition name="cp-modal-fade">
-        <div v-if="incidentModal.open" class="cp-modal-backdrop" @click.self="incidentModal.open=false">
-          <div class="cp-modal">
-            <!-- Header -->
-            <div class="cp-modal-header">
+            <div v-else class="team-chip team-chip-empty">
               <div>
-                <div class="cp-modal-title">Configure: {{ incidentModal.inc?.title }}</div>
-                <div class="cp-modal-sub">Set documentation, authorized stewards, and task lists for this incident.</div>
+                <div style="font-size:12px;font-weight:600;color:var(--text-3)">No {{ slot.label }}</div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--red-dark);margin-top:2px">{{ slot.required ? 'Required' : 'Recommended' }}</div>
               </div>
-              <button class="cp-modal-close" @click="incidentModal.open=false">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <a :href="slot.isCs ? route('stewards.index') : route('ss.index')" class="btn btn-primary">Add</a>
+            </div>
+          </template>
+        </div>
+
+        <!-- Incident grid -->
+        <div class="section-head">
+          <div>
+            <h2 class="section-title" id="incident-grid">Critical Moments</h2>
+            <div class="section-sub">7 incident types. Toggle each on, assign documents, stewards, and tasks.</div>
+          </div>
+          <button type="button" class="btn btn-ghost" @click="showHowItWorks = true">
+            <AegisIcon name="info" :size="13" /> How this works
+          </button>
+        </div>
+
+        <AegisCard style="overflow:hidden;padding:0">
+          <!-- Grid header -->
+          <div class="grid-head">
+            <div class="grid-head-cell">Incident Type</div>
+            <div class="grid-head-cell" style="text-align:center">Enabled</div>
+            <div class="grid-head-cell">Docs Required</div>
+            <div class="grid-head-cell">Authorized Stewards</div>
+            <div class="grid-head-cell">Tasks</div>
+            <div></div>
+          </div>
+
+          <!-- Grid rows -->
+          <div v-for="type in incidentTypes" :key="type.value"
+            class="grid-row"
+            :class="isEnabled(type.value) ? 'is-enabled' : 'is-disabled'">
+
+            <div v-if="isEnabled(type.value)" class="enabled-bar"></div>
+
+            <!-- Type -->
+            <div class="grid-type">
+              <span class="grid-type-icon">
+                <AegisIcon :name="incidentIcon(type.value)" :size="17" />
+              </span>
+              <div>
+                <div class="grid-type-name">{{ type.label }}</div>
+                <div style="display:flex;align-items:center;gap:5px">
+                  <span v-if="!type.is_optin" class="micro-badge is-always">Always on</span>
+                  <span v-else class="micro-badge is-optin">Opt-in</span>
+                  <span class="micro-badge" :class="isEnabled(type.value) ? 'is-on' : 'is-off'">
+                    {{ isEnabled(type.value) ? 'Enabled' : 'Disabled' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Toggle -->
+            <div style="display:flex;justify-content:center">
+              <AegisToggle
+                :model-value="isEnabled(type.value)"
+                :disabled="!type.is_optin && isEnabled(type.value)"
+                @update:model-value="(val) => handleToggle(type, val)"
+              />
+            </div>
+
+            <!-- Docs -->
+            <div :class="{ 'grid-cell-dim': !isEnabled(type.value) }">
+              <span v-if="!isEnabled(type.value)" class="grid-empty-cell">—</span>
+              <div v-else-if="getConfig(type.value)?.docs_required?.length" style="display:flex;flex-wrap:wrap;gap:5px">
+                <span v-for="doc in getConfig(type.value).docs_required" :key="doc" class="doc-chip">
+                  <AegisIcon name="check" :size="10" />{{ docLabel(doc) }}
+                </span>
+              </div>
+              <span v-else class="grid-empty-cell">None required</span>
+            </div>
+
+            <!-- Stewards -->
+            <div :class="{ 'grid-cell-dim': !isEnabled(type.value) }">
+              <span v-if="!isEnabled(type.value)" class="grid-empty-cell">—</span>
+              <div v-else style="display:flex;flex-wrap:wrap;gap:5px">
+                <span v-for="sid in (getConfig(type.value)?.authorized_ss_ids ?? [])" :key="'ss-'+sid" class="steward-mini">
+                  <span class="steward-mini-av steward-mini-av-ss">{{ getStewardInitials(sid) }}</span>
+                  {{ getStewardFirstName(sid) }}
+                </span>
+                <span v-for="cid in (getConfig(type.value)?.authorized_cs_ids ?? [])" :key="'cs-'+cid" class="steward-mini">
+                  <span class="steward-mini-av steward-mini-av-cs">{{ getStewardInitials(cid) }}</span>
+                  {{ getStewardFirstName(cid) }}
+                </span>
+                <span v-if="!getConfig(type.value)?.authorized_ss_ids?.length && !getConfig(type.value)?.authorized_cs_ids?.length" class="grid-empty-cell">No stewards assigned</span>
+              </div>
+            </div>
+
+            <!-- Tasks -->
+            <div :class="{ 'grid-cell-dim': !isEnabled(type.value) }">
+              <span v-if="!isEnabled(type.value)" class="grid-empty-cell">—</span>
+              <span v-else style="display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:var(--text-2)">
+                <AegisIcon name="clipboard-check" :size="11" style="color:var(--gold-dark);flex-shrink:0" />
+                {{ ssTaskCount(type.value) }} SS · {{ csTaskCount(type.value) }} CS
+              </span>
+            </div>
+
+            <!-- Edit -->
+            <button v-if="isEnabled(type.value)" type="button" class="btn-icon" :data-tooltip="`Configure ${type.label}`"
+              @click="openIncidentConfig(type)">
+              <AegisIcon name="edit" :size="13" />
+            </button>
+            <span v-else></span>
+          </div>
+        </AegisCard>
+
+        <!-- Sign block -->
+        <div class="sig-card" :class="{ 'is-signed': plan.signed_at }">
+          <div v-if="plan.signed_at" class="alert alert-success" style="border-radius:0;border-left:none;border-right:none;border-top:none;margin:0">
+            <AegisIcon name="check-circle" :size="16" />
+            <div><strong>Plan Signed &amp; Active</strong>
+              <span style="margin-left:8px;font-weight:400;opacity:.85">v{{ plan.plan_version }}.0 · {{ formatDate(plan.signed_at) }}</span>
+            </div>
+          </div>
+          <div v-if="plan.signed_at" class="signed-meta">
+            <div class="signed-meta-item">
+              <div class="signed-meta-label">Signed by</div>
+              <div class="signed-meta-value">{{ plan.signature_name ?? '—' }}</div>
+            </div>
+            <div class="signed-meta-item">
+              <div class="signed-meta-label">Title</div>
+              <div class="signed-meta-value">{{ plan.signature_title ?? '—' }}</div>
+            </div>
+            <div class="signed-meta-item">
+              <div class="signed-meta-label">Date</div>
+              <div class="signed-meta-value">{{ formatDate(plan.signed_at) }}</div>
+            </div>
+            <div class="signed-meta-item">
+              <div class="signed-meta-label">Version</div>
+              <div class="signed-meta-value">v{{ plan.plan_version }}.0
+                <small v-if="plan.annual_review_date" style="display:block;font-size:11px;font-weight:500;color:var(--text-3);margin-top:2px">Review {{ formatDate(plan.annual_review_date) }}</small>
+              </div>
+            </div>
+          </div>
+          <div v-else style="padding:22px 24px 20px">
+            <div class="alert alert-warning" style="margin-bottom:16px">
+              <AegisIcon name="alert-triangle" :size="16" />
+              <div>By signing, you confirm this plan is accurate and authorize your stewards to act as described when a critical incident occurs.</div>
+            </div>
+            <div v-if="!canSign && signBlockedReason" class="alert alert-info" style="margin-bottom:12px">
+              <AegisIcon name="info" :size="16" />
+              <div>{{ signBlockedReason }}</div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px">
+              <button type="button" class="btn btn-outline" @click="showAttestModal = true">
+                <AegisIcon name="check-circle" :size="13" /> Attest Vault
+              </button>
+              <button type="button" class="btn btn-primary" :disabled="!canSign"
+                :data-tooltip="!canSign ? signBlockedReason : undefined"
+                @click="showSignModal = true">
+                <AegisIcon name="edit" :size="13" /> Finalize &amp; Sign
               </button>
             </div>
+          </div>
+        </div>
 
-            <div class="cp-modal-body">
+      </div><!-- /build pane -->
 
-              <!-- INCIDENT SETTINGS -->
-              <div class="cp-modal-section-label">INCIDENT SETTINGS</div>
-              <div class="cp-enable-row">
-                <div>
-                  <div class="cp-enable-label">Enable this incident type</div>
-                  <div class="cp-enable-sub">Authorizes your stewards to act under this specific scenario.</div>
+      <!-- ═══ SECTIONS PANE ═══ -->
+      <div v-show="activePane === 'sections'">
+        <AegisCard>
+          <div style="padding:20px 24px">
+            <h2 style="font-family:var(--font-serif);font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px">Plan Readiness Checklist</h2>
+            <p style="font-size:13px;color:var(--text-3);margin-bottom:20px">Complete all required sections before signing.</p>
+            <div class="list-group" style="margin-bottom:0">
+              <div v-for="(sec, idx) in planSections" :key="sec.key" class="list-group-item" style="gap:14px;padding:14px 16px">
+                <span :style="`width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:700;background:${sec.complete ? 'var(--green-dark)' : 'var(--surface-3)'};color:${sec.complete ? '#fff' : 'var(--text-4)'}`">
+                  <AegisIcon v-if="sec.complete" name="check" :size="13" />
+                  <span v-else>{{ idx + 1 }}</span>
+                </span>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:2px">{{ sec.title }}</div>
+                  <div v-if="sec.warning" style="font-size:12px;color:var(--orange-dark);font-weight:500">{{ sec.warning }}</div>
                 </div>
-                <label class="cp-toggle">
-                  <input type="checkbox" v-model="incidentModal.enabled">
-                  <span class="cp-toggle-track" :class="{ on: incidentModal.enabled }"><span class="cp-toggle-thumb"></span></span>
-                </label>
-              </div>
-
-              <!-- DOCUMENTATION REQUIRED -->
-              <div class="cp-modal-section-label" style="margin-top:14px;">DOCUMENTATION REQUIRED</div>
-              <div class="cp-doc-checklist">
-                <label v-for="doc in availableDocs" :key="doc" class="cp-doc-chk-row">
-                  <input type="checkbox" :checked="incidentModal.docs.includes(doc)" @change="toggleDoc(doc)">
-                  <span class="cp-doc-chk-lbl">{{ doc }}</span>
-                </label>
-              </div>
-
-              <!-- AUTHORIZED STEWARDS -->
-              <div class="cp-modal-section-label" style="margin-top:14px;">AUTHORIZED STEWARDS</div>
-              <div class="cp-auth-stewards-grid">
-                <!-- Support Stewards column -->
-                <div class="cp-auth-col">
-                  <div class="cp-auth-col-header">SUPPORT STEWARDS</div>
-                  <div v-for="m in ssMembers" :key="m.name" class="cp-auth-row">
-                    <input type="checkbox" :checked="incidentModal.authorizedSS.includes(m.name)" @change="toggleAuth(incidentModal.authorizedSS, m.name)">
-                    <span class="cp-auth-name">{{ m.name }}</span>
-                    <span class="cp-auth-role-lbl">{{ m.roleLabel === 'PRIMARY SS' ? 'Primary' : m.roleLabel === 'ALTERNATE SS' ? 'Alternate' : m.roleLabel }}</span>
-                  </div>
-                  <div v-for="extra in extraSSMembers" :key="extra.name" class="cp-auth-row">
-                    <input type="checkbox">
-                    <span class="cp-auth-name">{{ extra.name }}</span>
-                    <span class="cp-auth-role-lbl">{{ extra.role }}</span>
-                  </div>
-                </div>
-                <!-- Continuity Stewards column -->
-                <div class="cp-auth-col">
-                  <div class="cp-auth-col-header">CONTINUITY STEWARDS</div>
-                  <div v-for="m in csMembers" :key="m.name" class="cp-auth-row">
-                    <input type="checkbox" :checked="incidentModal.authorizedCS.includes(m.name)" @change="toggleAuth(incidentModal.authorizedCS, m.name)">
-                    <span class="cp-auth-name">{{ m.name }}</span>
-                    <span class="cp-auth-role-lbl">{{ m.roleLabel === 'PRIMARY CS' ? 'Primary' : m.roleLabel === 'ALTERNATE CS' ? 'Alternate' : m.roleLabel }}</span>
-                  </div>
-                  <div v-for="extra in extraCSMembers" :key="extra.name" class="cp-auth-row">
-                    <input type="checkbox">
-                    <span class="cp-auth-name">{{ extra.name }}</span>
-                    <span class="cp-auth-role-lbl">{{ extra.role }}</span>
-                  </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <AegisBadge v-if="sec.key !== 'sign'"
+                    :label="sec.complete ? 'Complete' : (sec.blocks_signing ? 'Required' : 'Recommended')"
+                    :variant="sec.complete ? 'green' : (sec.blocks_signing ? 'gold' : 'neutral')"
+                  />
+                  <a v-if="sec.href && sec.key !== 'sign'" :href="sec.href" class="btn-icon" data-tooltip="Go to section">
+                    <AegisIcon name="arrow-right" :size="13" />
+                  </a>
+                  <button v-if="sec.key === 'sign'" type="button" class="btn btn-primary"
+                    :disabled="!canSign" :data-tooltip="!canSign ? signBlockedReason : undefined"
+                    @click="showSignModal = true">
+                    <AegisIcon name="edit" :size="13" /> Sign Plan
+                  </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </AegisCard>
+      </div>
 
-              <!-- SUPPORT STEWARD TASKS -->
-              <div class="cp-tasks-header" style="margin-top:16px;">
-                <div class="cp-modal-section-label" style="margin:0;">SUPPORT STEWARD TASKS <span class="cp-task-count">{{ incidentModal.ssTasks.length }}</span></div>
-                <button class="cp-copy-btn" @click="showToast('Copied from SS list','success')">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                  Copy from SS list
-                </button>
-              </div>
-              <div class="cp-task-rows">
-                <div v-for="(task, i) in incidentModal.ssTasks" :key="'ss'+i" class="cp-task-item">
-                  <input type="checkbox" v-model="task.done">
-                  <span class="cp-task-lbl" :class="{ done: task.done }">{{ task.label }}</span>
-                  <span class="cp-task-due">{{ task.date }}</span>
-                  <button class="cp-task-del" @click="incidentModal.ssTasks.splice(i,1)">×</button>
-                </div>
-              </div>
-              <div class="cp-task-add-bar">
-                <input class="cp-task-new-input" v-model="incidentModal.newSSTask" placeholder="Type a new SS task and press Add..." @keyup.enter="addSSTask">
-                <select class="cp-task-when-sel" v-model="incidentModal.ssTaskDue">
-                  <option>Within 24 hrs</option>
-                  <option>Within 48 hrs</option>
-                  <option>Within 72 hrs</option>
-                  <option>Day 1</option>
-                  <option>Day 2</option>
-                  <option>Within 1 week</option>
-                </select>
-                <button class="cp-task-add-btn" @click="addSSTask">Add</button>
-              </div>
-              <div class="cp-aegis-suggest" @click="showToast('Loading Aegis SS suggestions','info')">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Aegis suggested SS tasks (3)
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="margin-left:auto"><polyline points="20 6 9 17 4 12"/></svg>
-              </div>
-
-              <!-- CONTINUITY STEWARD TASKS -->
-              <div class="cp-tasks-header" style="margin-top:16px;">
-                <div class="cp-modal-section-label" style="margin:0;">CONTINUITY STEWARD TASKS <span class="cp-task-count">{{ incidentModal.csTasks.length }}</span></div>
-              </div>
-              <div class="cp-task-rows">
-                <div v-for="(task, i) in incidentModal.csTasks" :key="'cs'+i" class="cp-task-item">
-                  <input type="checkbox" v-model="task.done">
-                  <span class="cp-task-lbl" :class="{ done: task.done }">{{ task.label }}</span>
-                  <span class="cp-task-due">{{ task.date }}</span>
-                  <button class="cp-task-del" @click="incidentModal.csTasks.splice(i,1)">×</button>
-                </div>
-              </div>
-              <div class="cp-task-add-bar">
-                <input class="cp-task-new-input" v-model="incidentModal.newCSTask" placeholder="Type a new CS task and press Add..." @keyup.enter="addCSTask">
-                <select class="cp-task-when-sel" v-model="incidentModal.csTaskDue">
-                  <option>Within 2 hrs</option>
-                  <option>Within 4 hrs</option>
-                  <option>Within 24 hrs</option>
-                  <option>Within 48 hrs</option>
-                  <option>Day 1</option>
-                  <option>Day 1-14</option>
-                </select>
-                <button class="cp-task-add-btn" @click="addCSTask">Add</button>
-              </div>
-              <div class="cp-aegis-suggest" @click="showToast('Loading Aegis CS suggestions','info')">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Aegis suggested CS tasks (3)
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="margin-left:auto"><polyline points="20 6 9 17 4 12"/></svg>
-              </div>
-
-            </div><!-- end modal body -->
-
-            <!-- Footer -->
-            <div class="cp-modal-footer">
-              <button class="btn btn-outline btn-sm" @click="incidentModal.open=false">Cancel</button>
-              <button class="cp-save-btn" @click="saveIncident">Save Changes</button>
+      <!-- ═══ TEMPLATE PANE ═══ -->
+      <div v-show="activePane === 'template'">
+        <div class="section-head" style="margin-bottom:16px">
+          <div>
+            <h2 class="section-title">Aegis Document Library</h2>
+            <div class="section-sub">{{ templates.length }} templates · vetted by continuity attorneys and the Aegis clinical advisory board.</div>
+          </div>
+        </div>
+        <div class="tpl-grid">
+          <div v-for="(tpl, idx) in templates" :key="idx" class="tpl-card" @click="activePane = 'build'">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+              <span style="width:42px;height:42px;border-radius:var(--radius-sm);background:var(--badge-bg-gold);color:var(--gold-dark);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">
+                <AegisIcon name="shield" :size="20" />
+              </span>
+              <AegisBadge v-if="tpl.tag" :label="tpl.tag" variant="gold" />
+            </div>
+            <div style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--text)">{{ tpl.title }}</div>
+            <p style="font-size:12px;color:var(--text-3);line-height:1.5;flex:1;margin:0">{{ tpl.desc }}</p>
+            <div style="display:flex;justify-content:flex-end;padding-top:8px;border-top:1px dashed var(--border)">
+              <button type="button" class="btn btn-primary" @click.stop="activePane = 'build'">Use Template →</button>
             </div>
           </div>
         </div>
-      </Transition>
-
-      <div class="dh-toast-stack">
-        <div v-for="t in toasts" :key="t.id" class="dh-toast" :class="t.type">
-          <svg v-if="t.type==='success'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-          <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <span>{{ t.msg }}</span>
-        </div>
       </div>
-    </Teleport>
+
+    </template>
+
+    <!-- ═══ MODALS ═══ -->
+    <SignPlanModal v-if="showSignModal"
+      :plan="plan" :stewards="stewards" :can-sign="canSign"
+      :section-summary="planSections.slice(0, 7)" :auth="auth"
+      @close="showSignModal = false"
+    />
+
+    <AttestPlanModal v-if="showAttestModal" @close="showAttestModal = false" />
+
+    <IncidentConfigModal v-if="showIncidentConfig && activeIncidentType"
+      :incident-type="activeIncidentType"
+      :config="getConfig(activeIncidentType.value)"
+      :stewards="stewards"
+      :tasks="tasks"
+      :plan-id="plan?.id"
+      @close="showIncidentConfig = false"
+    />
+
+    <!-- How it works -->
+    <AegisModal v-if="showHowItWorks" modal-id="howItWorksModal" size="md"
+      title="How the Critical Moments Grid Works" subtitle="Build your continuity plan in 4 steps per row.">
+      <template #body>
+        <div class="list-group">
+          <div v-for="(step, i) in howItWorksSteps" :key="i" class="list-group-item" style="align-items:flex-start;gap:14px">
+            <span style="width:26px;height:26px;border-radius:50%;background:var(--badge-bg-gold);color:var(--gold-dark);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">{{ i + 1 }}</span>
+            <div>
+              <strong style="font-size:13px">{{ step.title }}</strong>
+              <div style="font-size:12px;color:var(--text-3);margin-top:3px">{{ step.body }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="alert alert-info" style="margin-top:14px">
+          <AegisIcon name="info" :size="16" />
+          <div>When you <strong>Finalize &amp; Sign</strong>, this plan becomes a legally signed document and every task list is pushed to your stewards' portals automatically.</div>
+        </div>
+      </template>
+      <template #footer>
+        <button type="button" class="btn btn-primary" @click="showHowItWorks = false">Got it</button>
+      </template>
+    </AegisModal>
+
+    <!-- Annual Review -->
+    <AegisModal v-if="showAnnualReview" modal-id="annualReviewModal" size="md"
+      title="Begin Annual Review" subtitle="Start a new draft version of your plan.">
+      <template #body>
+        <div class="alert alert-info">
+          <AegisIcon name="info" :size="16" />
+          <div>Annual review creates a new draft (v{{ (plan?.plan_version ?? 1) + 1 }}.0). Your active plan stays in force until you sign the new version.</div>
+        </div>
+        <div class="form-group" style="margin-top:14px;margin-bottom:0">
+          <label class="form-label">What changed since last review? (optional)</label>
+          <textarea v-model="reviewNotes" class="form-input" rows="3" placeholder="Note changes to your practice, team, or operations…" style="resize:vertical" />
+        </div>
+      </template>
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="showAnnualReview = false">Cancel</button>
+        <button type="button" class="btn btn-primary btn-spin" :disabled="reviewSubmitting" @click="submitAnnualReview">
+          <AegisIcon v-if="reviewSubmitting" name="refresh-cw" :size="14" class="spin" />
+          <AegisIcon v-else name="refresh-cw" :size="14" />
+          {{ reviewSubmitting ? 'Starting review…' : 'Begin Review' }}
+        </button>
+      </template>
+    </AegisModal>
+
   </AppLayout>
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import AppLayout from '../../Components/AppLayout.vue';
+import { ref, computed } from 'vue'
+import { useForm, router } from '@inertiajs/vue3'
+import AppLayout          from '@/layouts/AppLayout.vue'
+import SignPlanModal       from '@/components/modals/SignPlanModal.vue'
+import AttestPlanModal    from '@/components/modals/AttestPlanModal.vue'
+import IncidentConfigModal from '@/components/modals/IncidentConfigModal.vue'
+import AegisToggle        from '@/components/ui/AegisToggle.vue'
 
-defineProps({ user: Object });
+const props = defineProps({
+  plan:            { type: Object,  default: null },
+  planSections:    { type: Array,   default: () => [] },
+  tasks:           { type: Array,   default: () => [] },
+  incidentConfigs: { type: Array,   default: () => [] },
+  stewards:        { type: Array,   default: () => [] },
+  documents:       { type: Array,   default: () => [] },
+  incidentTypes:   { type: Array,   default: () => [] },
+  canSign:         { type: Boolean, default: false },
+  canActivate:     { type: Boolean, default: false },
+  tierLimits:      { type: Object,  default: () => ({}) },
+  auth:            { type: Object,  default: null },
+})
 
-const toasts = ref([]);
-let tid = 0;
-function showToast(msg, type = 'info') {
-  const id = ++tid;
-  toasts.value.push({ id, msg, type });
-  setTimeout(() => { toasts.value = toasts.value.filter(t => t.id !== id); }, 3500);
+// ── State ──────────────────────────────────────────────────────────────────────
+const activePane         = ref('build')
+const showSignModal      = ref(false)
+const showAttestModal    = ref(false)
+const showIncidentConfig = ref(false)
+const showHowItWorks     = ref(false)
+const showAnnualReview   = ref(false)
+const activeIncidentType = ref(null)
+const reviewNotes        = ref('')
+const reviewSubmitting   = ref(false)
+
+// ── Create draft ───────────────────────────────────────────────────────────────
+const createDraftForm = useForm({})
+function createDraft() { createDraftForm.post(route('plan.store')) }
+
+// ── Annual review ──────────────────────────────────────────────────────────────
+function submitAnnualReview() {
+  reviewSubmitting.value = true
+  router.post(route('plan.review.start'), {}, {
+    onSuccess: () => { reviewSubmitting.value = false; showAnnualReview.value = false },
+    onError:   () => { reviewSubmitting.value = false },
+  })
 }
 
-const teamMembers = [
-  { initials:'MC', name:'Marcus Chen',     avatarColor:'#a0813e', certified:true,  roleLabel:'PRIMARY CS'   },
-  { initials:'TC', name:'Dr. Thomas Chen', avatarColor:'#6a4c8c', certified:false, roleLabel:'ALTERNATE CS' },
-  { initials:'LJ', name:'Linda Johnson',   avatarColor:'#4a7a6a', certified:true,  roleLabel:'PRIMARY SS'   },
-  { initials:'BS', name:'Brian Santos',    avatarColor:'#7a5c4a', certified:false, roleLabel:'ALTERNATE SS' },
-];
+// ── Computed ───────────────────────────────────────────────────────────────────
+const planStatusLabel = computed(() => {
+  const map = { draft: 'Draft', active: 'Active', annual_review_due: 'Annual Review Due', expired: 'Expired', pending_review: 'Pending Review' }
+  return map[props.plan?.status] ?? props.plan?.status ?? ''
+})
 
-// ── Incident modal ──
-const availableDocs = ['Death Certificate', "Doctor's Note", 'Police Report', 'Legal Documentation', 'Other'];
+const completedSections = computed(() =>
+  props.planSections.filter((s, i) => i < 7 && s.complete).length
+)
 
-const ssMembers = teamMembers.filter(m => m.roleLabel.includes('SS'));
-const csMembers = teamMembers.filter(m => m.roleLabel.includes('CS'));
-const extraSSMembers = [
-  { name:'Rachel Pham',   role:'Alternate' },
-  { name:'Jordan Taylor', role:'Alternate' },
-  { name:'Brian Santos',  role:'Alternate' },
-];
-const extraCSMembers = [
-  { name:'Dr. Laura Reyes',      role:'Secondary' },
-  { name:'Dr. Amelia Rodriguez', role:'Secondary' },
-];
+const csCount = computed(() => props.stewards.filter(s => s.steward_type === 'continuity_steward' && s.status === 'active').length)
+const ssCount = computed(() => props.stewards.filter(s => s.steward_type === 'support_steward'    && s.status === 'active').length)
 
-const incidentModal = ref({
-  open:false, inc:null, enabled:true,
-  authorizedCS:[], authorizedSS:[],
-  docs:[],
-  ssTasks:[], csTasks:[],
-  newSSTask:'', newCSTask:'',
-  ssTaskDue:'Within 24 hrs', csTaskDue:'Within 2 hrs',
-});
+const signBlockedReason = computed(() => {
+  if (!props.plan) return 'Create a plan first.'
+  const incomplete = (props.planSections ?? []).filter(s => s.blocks_signing && !s.complete)
+  if (!incomplete.length) return null
+  return `Complete required sections first: ${incomplete.map(s => s.title).join(', ')}.`
+})
 
-function openIncidentModal(inc) {
-  incidentModal.value = {
-    open:true, inc,
-    enabled: inc.enabled,
-    authorizedCS: teamMembers.filter(m => m.roleLabel.includes('CS')).map(m => m.name),
-    authorizedSS: teamMembers.filter(m => m.roleLabel.includes('SS')).map(m => m.name),
-    docs: [...inc.docs],
-    ssTasks: [
-      { label:'File missing person report with law enforcement', date:'Within 24 hrs', done:false },
-      { label:'Provide police report to Continuity Steward',      date:'Within 48 hrs', done:false },
-    ],
-    csTasks: [
-      { label:'Verify incident with documented police report',                         date:'Within 4 hrs', done:false },
-      { label:'Implement holding pattern for active clients (72-hour update cycle)',   date:'Day 1-14',     done:false },
-    ],
-    newSSTask:'', newCSTask:'',
-    ssTaskDue:'Within 24 hrs', csTaskDue:'Within 2 hrs',
-  };
+const teamSlots = computed(() => {
+  const cs = props.stewards.filter(s => s.steward_type === 'continuity_steward')
+  const ss = props.stewards.filter(s => s.steward_type === 'support_steward')
+  return [
+    { label: 'Primary CS',   isCs: true,  required: true,  steward: cs.find(s => s.role === 'primary')   ?? null },
+    { label: 'Alternate CS', isCs: true,  required: false, steward: cs.find(s => s.role === 'alternate') ?? null },
+    { label: 'Primary SS',   isCs: false, required: false, steward: ss.find(s => s.role === 'primary')   ?? null },
+    { label: 'Alternate SS', isCs: false, required: false, steward: ss.find(s => s.role === 'alternate') ?? null },
+  ]
+})
+
+// ── Incident helpers ───────────────────────────────────────────────────────────
+function isEnabled(v)   { return !!(props.incidentConfigs.find(c => c.incident_type === v)?.is_active) }
+function getConfig(v)   { return props.incidentConfigs.find(c => c.incident_type === v) ?? null }
+function ssTaskCount(v) { return props.tasks.filter(t => t.incident_type === v && t.assigned_to === 'support_steward').length }
+function csTaskCount(v) { return props.tasks.filter(t => t.incident_type === v && t.assigned_to === 'continuity_steward').length }
+
+function openIncidentConfig(type) { activeIncidentType.value = type; showIncidentConfig.value = true }
+
+function handleToggle(type, val) {
+  router.post(route('plan.incident-config'), {
+    incident_type:      type.value,
+    is_active:          val,
+    is_optin:           type.is_optin,
+    docs_required:      getConfig(type.value)?.docs_required ?? [],
+    authorized_ss_ids:  getConfig(type.value)?.authorized_ss_ids ?? [],
+    authorized_cs_ids:  getConfig(type.value)?.authorized_cs_ids ?? [],
+  }, { preserveScroll: true })
 }
 
-function toggleAuth(arr, name) {
-  const i = arr.indexOf(name);
-  if (i === -1) arr.push(name); else arr.splice(i, 1);
-}
-function toggleDoc(doc) {
-  const docs = incidentModal.value.docs;
-  const i = docs.indexOf(doc);
-  if (i === -1) docs.push(doc); else docs.splice(i, 1);
-}
-function addCSTask() {
-  const val = incidentModal.value.newCSTask.trim();
-  if (val) { incidentModal.value.csTasks.push({ label:val, date:incidentModal.value.csTaskDue, done:false }); incidentModal.value.newCSTask = ''; }
-}
-function addSSTask() {
-  const val = incidentModal.value.newSSTask.trim();
-  if (val) { incidentModal.value.ssTasks.push({ label:val, date:incidentModal.value.ssTaskDue, done:false }); incidentModal.value.newSSTask = ''; }
-}
-function saveIncident() {
-  if (incidentModal.value.inc) {
-    incidentModal.value.inc.enabled = incidentModal.value.enabled;
-    incidentModal.value.inc.docs = [...incidentModal.value.docs];
-  }
-  incidentModal.value.open = false;
-  showToast('Incident configuration saved', 'success');
+// ── Steward helpers ────────────────────────────────────────────────────────────
+function getStewardById(id)       { return props.stewards.find(s => s.steward_id === id) ?? null }
+function getStewardInitials(id)   { return getStewardById(id)?.avatar_initials ?? '??' }
+function getStewardFirstName(id)  { const n = getStewardById(id)?.display_name ?? ''; return n.replace(/^Dr\.\s+/i, '').split(' ')[0] ?? n }
+
+// ── Doc label ──────────────────────────────────────────────────────────────────
+function docLabel(v) {
+  return { death_certificate: 'Death Certificate', medical_documentation: 'Medical Documentation', police_report: 'Police Report', legal_documentation: 'Legal Documentation', other: 'Other' }[v] ?? v
 }
 
-const ss = [
-  { initials:'LI', name:'Linda',  color:'#a0813e' },
-  { initials:'JA', name:'James',  color:'#6a4c8c' },
-  { initials:'MA', name:'Marcus', color:'#4a7a6a' },
-  { initials:'PR', name:'Priya',  color:'#7a5c4a' },
-];
-const ssLJ = [{ initials:'LI', name:'Linda', color:'#a0813e' }];
-const ssJM = [{ initials:'JA', name:'James', color:'#6a4c8c' }, { initials:'MA', name:'Marcus', color:'#4a7a6a' }];
+// ── Incident icon ──────────────────────────────────────────────────────────────
+function incidentIcon(v) {
+  return { death: 'x-circle', incapacitation: 'clock', extended_absence: 'calendar', missing: 'search', detainment: 'lock', natural_disaster: 'cloud-rain', geopolitical: 'globe' }[v] ?? 'alert-circle'
+}
 
-const incidents = ref([
-  { title:'Death',                              alwaysOn:true,  enabled:true,  icon:'<circle cx="12" cy="12" r="10"/>',                             docs:['Death Certificate'],              stewards:ss,                tasks:'4 SS · 6 CS tasks' },
-  { title:'Short-Term Incapacitation',          alwaysOn:true,  enabled:true,  icon:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',                        docs:["Doctor's Note"],                  stewards:ss.slice(0,3),     tasks:'3 SS · 4 CS tasks' },
-  { title:'Long-Term Incapacitation',           alwaysOn:true,  enabled:true,  icon:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',                        docs:["Doctor's Note","Legal Documentation"], stewards:ss,             tasks:'3 SS · 4 CS tasks' },
-  { title:'Missing Person',                     alwaysOn:false, enabled:true,  icon:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>', docs:['Police Report'], stewards:ssJM,         tasks:'2 SS · 2 CS tasks' },
-  { title:'Detainment',                         alwaysOn:false, enabled:false, icon:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',docs:[],                stewards:[],            tasks:'' },
-  { title:'Natural Disaster',                   alwaysOn:false, enabled:true,  icon:'<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"/>',docs:[],               stewards:ss,            tasks:'2 SS · 2 CS tasks' },
-  { title:'Geopolitical or Conflict-Related Events', alwaysOn:false, enabled:false, icon:'<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>',docs:[],  stewards:[],            tasks:'' },
-]);
+function formatDate(iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+// ── Static data ────────────────────────────────────────────────────────────────
+const howItWorksSteps = [
+  { title: 'Toggle the incident on', body: 'The 3 always-on types (Death, Incapacitation, Extended Absence) are pre-enabled. The 4 opt-in types require your explicit consent.' },
+  { title: 'Set required documentation', body: 'Choose which documents your stewards must provide before the vault unlocks and the protocol activates.' },
+  { title: 'Authorize your stewards', body: 'Specify which CS and SS are permitted to trigger or verify each incident type.' },
+  { title: 'Define task lists', body: 'Build a step-by-step task list for SS and CS per incident. These populate your stewards\' portals when you sign.' },
+]
+
+const templates = [
+  { title: 'Solo Practitioner — Standard', tag: 'Most Popular', desc: 'For a single-clinician practice with one CS and one SS. Covers the 3 always-on incidents plus Natural Disaster.' },
+  { title: 'Group Practice', tag: '', desc: 'Multi-clinician practice with shared CS pool. Includes cross-coverage clauses and shared client notification.' },
+  { title: 'Telehealth-Only', tag: 'Access Tier', desc: 'Optimized for telehealth practices — emphasizes platform handover, video session continuity, and EHR access.' },
+  { title: 'Disaster-Prone Region', tag: 'MAAT Add-on', desc: 'For practices in hurricane, wildfire, or earthquake zones. Adds Natural Disaster + Geopolitical with extended timelines.' },
+  { title: 'High-Acuity Psychiatry', tag: '', desc: 'For prescribers managing controlled substances. Includes DEA notification, prescription transfer, and pharmacy outreach.' },
+  { title: 'Child & Family Practice', tag: '', desc: 'Specialized for working with minors — adds custody-aware notification and pediatric record handling.' },
+  { title: 'Trauma-Specialty Practice', tag: '', desc: 'Trauma-aware client notification, longer transition windows, and pre-vetted shadow-network referrals.' },
+  { title: 'Couples & Family Therapy', tag: '', desc: 'Handles dual-client referrals and joint-session continuity. Includes consent-to-contact partner clauses.' },
+  { title: 'High-Profile Client Practice', tag: 'MAAT Add-on', desc: 'Enhanced confidentiality controls — anonymized notification, attorney-mediated record transfer.' },
+  { title: 'Multi-State Telehealth', tag: '', desc: 'For PSYPACT and IMLC providers. Adds per-state notification and license-jurisdiction transitions.' },
+  { title: 'Supervisor / Trainer', tag: '', desc: 'For supervisors managing supervisees and trainees. Handles supervision continuity and evaluation handover.' },
+  { title: 'Blank Template', tag: '', desc: 'Start from a completely empty 7-incident grid.' },
+]
 </script>
 
 <style scoped>
-/* Hero */
-.cp-hero { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg,14px); padding:22px 26px; margin-bottom:10px; box-shadow:var(--shadow-xs); flex-wrap:wrap; }
-.cp-eyebrow { font-family:var(--font-sans); font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--gold-dark); margin-bottom:5px; }
-.cp-title { font-family:var(--font-serif); font-size:26px; font-weight:700; color:var(--text); margin:0 0 6px; }
-.cp-sub { font-family:var(--font-sans); font-size:12.5px; color:var(--text-3); margin:0 0 10px; line-height:1.5; max-width:580px; }
-.cp-hero-meta { display:flex; flex-wrap:wrap; gap:14px; }
-.cp-meta-item { display:inline-flex; align-items:center; gap:5px; font-family:var(--font-sans); font-size:12px; color:var(--text-4); }
-.cp-hero-actions { display:flex; gap:8px; flex-shrink:0; align-items:center; flex-wrap:wrap; }
-.cp-btn-icon { display:inline-flex; align-items:center; gap:6px; }
+.section-title { font-family: var(--font-serif); font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: -.005em; }
+.section-sub   { margin-top: 2px; font-size: 12px; color: var(--text-3); }
+.section-head  { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; margin-bottom: 12px; margin-top: 24px; }
 
-/* Badges row */
-.cp-badges-row { display:flex; align-items:center; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
-.cp-badge { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; padding:4px 11px; border-radius:99px; background:rgba(160,129,62,.1); color:var(--gold-dark); border:1px solid var(--fade-gold); }
-.cp-badge-active { margin-left:auto; font-size:11.5px; font-weight:700; padding:4px 12px; border-radius:99px; background:rgba(76,175,125,.12); color:var(--green-dark); border:1px solid var(--soft-green); }
+/* Path tiles */
+.path-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 24px; margin-top: 16px; }
+.path-tile { position: relative; display: flex; align-items: flex-start; gap: 14px; padding: 18px 20px; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer; text-align: left; width: 100%; font-family: inherit; color: inherit; transition: border-color .15s, background .15s, box-shadow .15s; }
+.path-tile:hover { border-color: var(--border-dark); box-shadow: var(--shadow-sm); }
+.path-tile.is-selected { background: var(--badge-bg-gold); border-color: var(--gold-dark); }
+.path-tile-icon { width: 36px; height: 36px; border-radius: var(--radius-sm); background: var(--badge-bg-gold); color: var(--gold-dark); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.path-tile.is-selected .path-tile-icon { background: var(--gold-dark); color: #fff; }
+.path-tile-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.path-tile-sub   { font-size: 12px; color: var(--text-3); line-height: 1.45; }
+.path-tile-check { position: absolute; top: 12px; right: 12px; width: 20px; height: 20px; border-radius: 50%; background: var(--gold-dark); color: #fff; display: inline-flex; align-items: center; justify-content: center; }
 
-/* Start options */
-.cp-start-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px; }
-.cp-start-card { background:var(--surface); border:1.5px solid var(--border); border-radius:10px; padding:16px; cursor:pointer; transition:box-shadow .15s,border-color .15s; position:relative; }
-.cp-start-card:hover { box-shadow:var(--shadow-sm); border-color:var(--gold-dark); }
-.cp-start-card-active { border-color:var(--gold-dark); background:rgba(160,129,62,.04); }
-.cp-start-check { position:absolute; top:12px; right:12px; width:20px; height:20px; border-radius:50%; background:var(--gold-dark); color:#fff; display:flex; align-items:center; justify-content:center; }
-.cp-start-icon { color:var(--gold-dark); margin-bottom:8px; }
-.cp-start-title { font-family:var(--font-sans); font-size:13.5px; font-weight:700; color:var(--text); margin-bottom:3px; }
-.cp-start-sub   { font-size:12px; color:var(--text-4); }
+/* Team row */
+.team-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 28px; }
+.team-chip { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.team-chip-empty { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: transparent; border: 1px dashed var(--border-dark); border-radius: var(--radius); }
 
-/* Section */
-.cp-section { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg,14px); padding:20px 22px; margin-bottom:14px; box-shadow:var(--shadow-xs); }
-.cp-section-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
-.cp-section-title { font-family:var(--font-sans); font-size:15px; font-weight:700; color:var(--text); margin-bottom:3px; }
-.cp-section-sub   { font-size:12px; color:var(--text-4); }
-.cp-section-actions { display:flex; gap:8px; flex-shrink:0; }
-.cp-how-btn { display:inline-flex; align-items:center; gap:5px; font-family:var(--font-sans); font-size:12px; color:var(--text-4); background:transparent; border:none; cursor:pointer; }
-.cp-how-btn:hover { color:var(--gold-dark); }
+/* Grid */
+.grid-head { display: grid; grid-template-columns: 240px 80px minmax(150px,1.2fr) minmax(150px,1.3fr) 120px 44px; align-items: center; background: var(--surface-3); border-bottom: 1px solid var(--border); padding: 12px 18px; }
+.grid-head-cell { font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--text-3); }
+.grid-row { display: grid; grid-template-columns: 240px 80px minmax(150px,1.2fr) minmax(150px,1.3fr) 120px 44px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--border); position: relative; min-height: 76px; transition: background .15s; }
+.grid-row:last-of-type { border-bottom: none; }
+.grid-row.is-disabled { background: var(--surface-2); }
+.grid-row.is-disabled .grid-type-name { opacity: .55; }
+.grid-type { display: flex; align-items: center; gap: 12px; }
+.grid-type-icon { width: 32px; height: 32px; border-radius: var(--radius-sm); background: var(--icon-bg-gold); color: var(--gold-dark); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.grid-type-name { font-family: var(--font-serif); font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.2; margin-bottom: 4px; }
+.enabled-bar { position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; background: var(--gold-dark); border-radius: 0 2px 2px 0; }
+.grid-empty-cell { font-size: 11px; color: var(--text-4); font-style: italic; }
+.grid-cell-dim { opacity: .5; }
 
-/* Team grid */
-.cp-team-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
-.cp-team-card { background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:14px; }
-.cp-team-role-label { font-size:9.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-4); margin-bottom:8px; }
-.cp-team-top { display:flex; align-items:center; gap:10px; }
-.cp-team-avatar { width:34px; height:34px; border-radius:50%; color:#fff; font-family:var(--font-sans); font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.cp-team-name { font-size:13px; font-weight:700; color:var(--text); margin-bottom:3px; }
-.cp-team-certified { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:var(--green-dark); }
-.cp-team-pending   { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:600; color:var(--orange-dark); }
+/* Micro-badges */
+.micro-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; padding: 2px 6px; border-radius: var(--radius-xs); line-height: 1.3; }
+.micro-badge.is-on     { background: var(--badge-bg-gold); color: var(--gold-dark); }
+.micro-badge.is-off    { background: var(--surface-3); color: var(--text-4); }
+.micro-badge.is-optin  { background: var(--surface-3); color: var(--text-3); }
+.micro-badge.is-always { background: var(--green-light); color: var(--green-dark); }
 
-/* Incidents table */
-.cp-incidents-table { border:1px solid var(--border); border-radius:10px; overflow:hidden; }
-.cp-incidents-head { display:grid; grid-template-columns:2fr .6fr 1.4fr 1.5fr 1fr .4fr; gap:0; padding:9px 14px; background:var(--surface-2); border-bottom:1px solid var(--border); }
-.cp-th { font-size:9.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-4); }
-.cp-incident-row { display:grid; grid-template-columns:2fr .6fr 1.4fr 1.5fr 1fr .4fr; gap:0; padding:12px 14px; border-bottom:1px solid var(--border); align-items:center; transition:background .12s; }
-.cp-incident-row:last-child { border-bottom:none; }
-.cp-incident-row:hover { background:var(--surface-2); }
-.cp-row-disabled { opacity:.6; }
-.cp-td-type { display:flex; align-items:center; gap:10px; }
-.cp-inc-icon { width:28px; height:28px; border-radius:6px; background:var(--surface-3); color:var(--text-4); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.cp-inc-title { font-size:13px; font-weight:600; color:var(--text); }
-.cp-inc-label { font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--text-4); margin-top:2px; }
-.cp-enabled  { color:var(--green-dark); }
-.cp-disabled { color:var(--red); }
+/* Doc chip */
+.doc-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: var(--radius-full); background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); }
 
-/* Toggle */
-.cp-toggle { position:relative; display:inline-block; width:36px; height:20px; }
-.cp-toggle input { opacity:0; width:0; height:0; }
-.cp-toggle-track { position:absolute; inset:0; background:var(--border-dark); border-radius:99px; cursor:pointer; transition:background .2s; }
-.cp-toggle-track.on { background:var(--gold-dark); }
-.cp-toggle.disabled .cp-toggle-track { cursor:not-allowed; opacity:.7; }
-.cp-toggle-thumb { position:absolute; width:16px; height:16px; left:2px; top:2px; background:#fff; border-radius:50%; transition:transform .2s; }
-.cp-toggle-track.on .cp-toggle-thumb { transform:translateX(16px); }
+/* Steward mini */
+.steward-mini { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-full); padding: 2px 9px 2px 4px; }
+.steward-mini-av { width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; font-family: var(--font-serif); }
+.steward-mini-av-cs { background: var(--gold-dark); }
+.steward-mini-av-ss { background: var(--text-3); }
 
-.cp-doc-chip { display:inline-flex; align-items:center; gap:4px; font-size:11.5px; color:var(--text-3); background:var(--surface-2); border:1px solid var(--border); border-radius:99px; padding:2px 8px; margin-right:4px; }
-.cp-doc-none { font-size:12px; color:var(--text-4); }
-.cp-steward-chips { display:flex; gap:3px; flex-wrap:wrap; }
-.cp-steward-chip { width:24px; height:24px; border-radius:50%; color:#fff; font-family:var(--font-sans); font-size:9px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.cp-tasks-text { font-size:12px; color:var(--text-3); }
-.cp-edit-btn { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text-3); cursor:pointer; transition:all .15s; }
-.cp-edit-btn:hover { border-color:var(--gold-dark); color:var(--gold-dark); }
+/* Signed card */
+.sig-card { margin-top: 22px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
+.sig-card.is-signed { border-color: var(--green-dark); }
+.signed-meta { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; padding: 20px 24px; }
+.signed-meta-item { border-left: 2px solid var(--border); padding-left: 12px; }
+.signed-meta-label { font-size: 10px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: var(--text-3); margin-bottom: 4px; }
+.signed-meta-value { font-family: var(--font-serif); font-size: 16px; font-weight: 600; color: var(--text); }
 
-/* Signed footer */
-.cp-signed-footer { background:rgba(76,175,125,.05); border:1.5px solid var(--soft-green); border-radius:var(--radius-lg,14px); padding:18px 22px; margin-bottom:14px; }
-.cp-signed-header { display:flex; align-items:center; gap:8px; margin-bottom:16px; }
-.cp-signed-label { font-family:var(--font-sans); font-size:13px; font-weight:700; color:var(--green-dark); }
-.cp-signed-version { font-size:12px; color:var(--text-4); margin-left:4px; }
-.cp-signed-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:16px; }
-.cp-signed-cell-label { font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-4); margin-bottom:4px; }
-.cp-signed-cell-val { font-size:13.5px; font-weight:600; color:var(--text); margin-bottom:2px; }
-.cp-signed-cell-sub { font-size:11.5px; color:var(--text-4); }
-.cp-signed-actions { display:flex; justify-content:flex-end; gap:8px; padding-top:14px; border-top:1px solid var(--soft-green); }
+/* Template grid */
+.tpl-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+.tpl-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 18px 14px; display: flex; flex-direction: column; gap: 12px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.tpl-card:hover { border-color: var(--gold-dark); box-shadow: var(--shadow-sm); }
 
-@media(max-width:1100px) { .cp-team-grid { grid-template-columns:repeat(2,1fr); } }
-@media(max-width:860px)  { .cp-start-grid { grid-template-columns:1fr; } .cp-signed-grid { grid-template-columns:repeat(2,1fr); } }
-
-/* ── Configure Incident Modal ───────────────────────────────── */
-.cp-modal-backdrop { position:fixed; inset:0; z-index:1000; background:rgba(30,28,26,.45); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; padding:20px; }
-.cp-modal { background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:0 24px 64px rgba(30,28,26,.2); width:100%; max-width:640px; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; }
-.cp-modal-header { display:flex; align-items:flex-start; justify-content:space-between; padding:18px 22px 14px; border-bottom:1px solid var(--border); flex-shrink:0; }
-.cp-modal-title { font-family:var(--font-serif); font-size:17px; font-weight:700; color:var(--text); margin-bottom:3px; }
-.cp-modal-sub   { font-family:var(--font-sans); font-size:12px; color:var(--text-4); }
-.cp-modal-close { width:28px; height:28px; padding:0; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text-3); cursor:pointer; flex-shrink:0; transition:all .15s; }
-.cp-modal-close:hover { border-color:var(--text); color:var(--text); }
-.cp-modal-body { padding:16px 20px; overflow-y:auto; display:flex; flex-direction:column; gap:14px; flex:1; }
-.cp-modal-footer { display:flex; align-items:center; justify-content:flex-end; gap:8px; padding:12px 20px; border-top:1px solid var(--border); background:var(--surface-2); flex-shrink:0; }
-.cp-save-btn { display:inline-flex; align-items:center; gap:6px; padding:7px 16px; font-family:var(--font-sans); font-size:12.5px; font-weight:600; background:var(--gold-dark); color:#fff; border:1px solid var(--gold-dark); border-radius:var(--radius-sm,8px); cursor:pointer; transition:background .15s; }
-.cp-save-btn:hover { background:var(--gold); border-color:var(--gold); }
-
-/* Section labels */
-.cp-modal-section-label { font-family:var(--font-sans); font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-4); margin-bottom:8px; }
-.cp-task-count { font-size:11px; font-weight:600; color:var(--text-4); margin-left:4px; }
-
-/* Enable row */
-.cp-enable-row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:10px 14px; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; }
-.cp-enable-label { font-family:var(--font-sans); font-size:13px; font-weight:600; color:var(--text); margin-bottom:2px; }
-.cp-enable-sub   { font-size:12px; color:var(--text-4); }
-
-/* Docs checklist */
-.cp-doc-checklist { display:flex; flex-direction:column; gap:4px; }
-.cp-doc-chk-row { display:flex; align-items:center; gap:8px; padding:5px 2px; cursor:pointer; }
-.cp-doc-chk-row input { cursor:pointer; accent-color:var(--gold-dark); width:14px; height:14px; flex-shrink:0; }
-.cp-doc-chk-lbl { font-family:var(--font-sans); font-size:13px; color:var(--text-2); }
-
-/* Two-column stewards grid */
-.cp-auth-stewards-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.cp-auth-col { display:flex; flex-direction:column; gap:4px; }
-.cp-auth-col-header { font-size:9.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-4); margin-bottom:6px; }
-.cp-auth-row { display:flex; align-items:center; gap:7px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; cursor:pointer; transition:background .12s; }
-.cp-auth-row:hover { background:var(--surface-2); }
-.cp-auth-row input { cursor:pointer; accent-color:var(--gold-dark); width:14px; height:14px; flex-shrink:0; }
-.cp-auth-name { font-family:var(--font-sans); font-size:12.5px; font-weight:500; color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.cp-auth-role-lbl { font-size:10.5px; color:var(--text-4); flex-shrink:0; }
-
-/* Tasks section header */
-.cp-tasks-header { display:flex; align-items:center; justify-content:space-between; }
-.cp-copy-btn { font-family:var(--font-sans); font-size:11px; font-weight:600; color:var(--gold-dark); background:transparent; border:1.5px solid var(--fade-gold); border-radius:6px; padding:3px 9px; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:5px; }
-.cp-copy-btn:hover { background:rgba(160,129,62,.08); }
-
-/* Task rows */
-.cp-task-rows { display:flex; flex-direction:column; gap:4px; margin-bottom:8px; }
-.cp-task-item { display:flex; align-items:center; gap:8px; padding:7px 10px; background:var(--surface-2); border:1px solid var(--border); border-radius:7px; }
-.cp-task-item input { cursor:pointer; accent-color:var(--gold-dark); flex-shrink:0; }
-.cp-task-lbl  { flex:1; font-size:12.5px; color:var(--text-2); min-width:0; }
-.cp-task-lbl.done { text-decoration:line-through; color:var(--text-4); }
-.cp-task-due  { font-size:11px; color:var(--text-4); white-space:nowrap; flex-shrink:0; }
-.cp-task-del  { background:none; border:none; cursor:pointer; color:var(--text-4); font-size:15px; line-height:1; padding:0 2px; flex-shrink:0; transition:color .12s; }
-.cp-task-del:hover { color:var(--red); }
-
-/* Add task bar */
-.cp-task-add-bar { display:flex; align-items:center; gap:6px; }
-.cp-task-new-input { flex:1; padding:7px 10px; font-family:var(--font-sans); font-size:12.5px; color:var(--text); background:var(--surface); border:1.5px solid var(--border); border-radius:6px; outline:none; transition:border-color .15s; }
-.cp-task-new-input:focus { border-color:var(--gold-dark); }
-.cp-task-new-input::placeholder { color:var(--text-4); }
-.cp-task-when-sel { padding:6px 8px; font-family:var(--font-sans); font-size:11.5px; color:var(--text); background:var(--surface); border:1.5px solid var(--border); border-radius:6px; outline:none; cursor:pointer; appearance:none; -webkit-appearance:none; flex-shrink:0; }
-.cp-task-add-btn { padding:6px 13px; font-family:var(--font-sans); font-size:12px; font-weight:600; color:var(--gold-dark); background:rgba(160,129,62,.08); border:1.5px solid var(--fade-gold); border-radius:6px; cursor:pointer; transition:all .15s; white-space:nowrap; }
-.cp-task-add-btn:hover { background:var(--gold-dark); color:#fff; }
-
-/* Aegis suggestions row */
-.cp-aegis-suggest { display:flex; align-items:center; gap:6px; padding:8px 12px; background:var(--surface-2); border:1px solid var(--border); border-radius:7px; font-family:var(--font-sans); font-size:12.5px; font-weight:600; color:var(--gold-dark); cursor:pointer; transition:background .12s; margin-top:4px; }
-.cp-aegis-suggest:hover { background:rgba(160,129,62,.08); }
-
-/* Modal fade transition */
-.cp-modal-fade-enter-active, .cp-modal-fade-leave-active { transition:opacity .2s ease; }
-.cp-modal-fade-enter-active .cp-modal, .cp-modal-fade-leave-active .cp-modal { transition:transform .2s ease; }
-.cp-modal-fade-enter-from, .cp-modal-fade-leave-to { opacity:0; }
-.cp-modal-fade-enter-from .cp-modal { transform:translateY(-10px) scale(0.98); }
+/* Spin */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin .7s linear infinite; }
 </style>

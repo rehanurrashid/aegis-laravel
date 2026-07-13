@@ -91,7 +91,7 @@ class PlanService
             ['plan_id' => $plan->id, 'incident_type' => $incidentType],
             [
                 'id'                    => 'pic_' . Str::lower(Str::random(12)),
-                'enabled'               => $config['enabled'] ?? 0,
+                'is_active'             => $config['is_active'] ?? $config['enabled'] ?? 0,
                 'is_optin'              => $config['is_optin'] ?? 0,
                 'docs_required'         => $config['docs_required'] ?? null,
                 'docs_required_other'   => $config['docs_required_other'] ?? null,
@@ -108,12 +108,12 @@ class PlanService
     public function sign(ContinuityPlan $plan, array $signature, string $ip): ContinuityPlan
     {
         // Required: at least 1 enabled incident config, at least 1 CS
-        $hasConfig = PlanIncidentConfig::where('plan_id', $plan->id)->where('enabled', 1)->exists();
+        $hasConfig = PlanIncidentConfig::where('plan_id', $plan->id)->where('is_active', 1)->exists();
         if (!$hasConfig) {
             throw new RuntimeException('At least one incident type must be enabled before signing.');
         }
         $hasCs = \App\Models\PlanSteward::where('plan_id', $plan->id)
-            ->where('steward_type', 'continuity_steward')
+            ->where('steward_category', 'continuity_steward')
             ->where('status', 'active')
             ->exists();
         if (!$hasCs) {
@@ -228,7 +228,7 @@ class PlanService
             ->get();
 
         foreach ($stewards as $steward) {
-            $portal = $steward->steward_type === 'support_steward' ? 'support_steward' : 'continuity_steward';
+            $portal = $steward->steward_category === 'support_steward' ? 'support_steward' : 'continuity_steward';
             $this->activity->log(
                 $steward->steward_id, $portal, 'plan', ActivitySeverity::Info,
                 'plan_ready_for_review',
@@ -237,7 +237,7 @@ class PlanService
                 'continuity_plan', $plan->id, $plan->practitioner_id
             );
 
-            if ($steward->steward_type === 'support_steward') {
+            if ($steward->steward_category === 'support_steward') {
                 event(new PlanReadyForSs($plan, $steward));
             } else {
                 event(new PlanReadyForCs($plan, $steward));
@@ -256,7 +256,7 @@ class PlanService
             ->get();
 
         foreach ($stewards as $steward) {
-            $portal = $steward->steward_type === 'support_steward' ? 'support_steward' : 'continuity_steward';
+            $portal = $steward->steward_category === 'support_steward' ? 'support_steward' : 'continuity_steward';
             $this->activity->log(
                 $steward->steward_id, $portal, 'plan', ActivitySeverity::Info,
                 'plan_version_updated',
@@ -268,6 +268,108 @@ class PlanService
 
         event(new PlanVersionUpdated($plan->fresh(), $changeSummary));
         return $plan->fresh();
+    }
+
+    /**
+     * Compute the 8-section checklist shape defined in the spec §1.
+     * Returns array of {key, title, complete, blocks_signing, href, warning}.
+     */
+    public function computeSections(ContinuityPlan $plan): array
+    {
+        $practitioner = User::find($plan->practitioner_id);
+
+        // Section 1 — Practice Info
+        $practiceInfoComplete = !empty($practitioner->display_name)
+            && !empty($practitioner->license_number)
+            && !empty($practitioner->state)
+            && !empty($practitioner->contact_phone);
+
+        // Section 2 — Continuity Stewards
+        $csCount = PlanSteward::where('plan_id', $plan->id)
+            ->where('steward_category', 'continuity_steward')
+            ->whereIn('status', ['active'])
+            ->count();
+
+        // Section 3 — Support Stewards
+        $ssCount = PlanSteward::where('plan_id', $plan->id)
+            ->where('steward_category', 'support_steward')
+            ->whereIn('status', ['active'])
+            ->count();
+
+        // Section 4 — Incident Types
+        $activeIncidentCount = PlanIncidentConfig::where('plan_id', $plan->id)
+            ->where('is_active', 1)
+            ->count();
+
+        // Section 5 — Response Tasks
+        $activeConfigs = PlanIncidentConfig::where('plan_id', $plan->id)
+            ->where('is_active', 1)
+            ->pluck('incident_type');
+        $tasksComplete = $activeConfigs->isNotEmpty() && $activeConfigs->every(
+            fn ($type) => PlanTask::where('plan_id', $plan->id)
+                ->where('incident_type', $type)
+                ->exists()
+        );
+
+        // Section 6 — Vault
+        $vaultAttested = !is_null($plan->vault_attested_at);
+
+        // Section 7 — Documents (conditional)
+        $hasFeeCs = PlanSteward::where('plan_id', $plan->id)
+            ->where('steward_category', 'continuity_steward')
+            ->where('status', 'active')
+            ->where('fee_cents', '>', 0)
+            ->exists();
+        $docsComplete = !$hasFeeCs
+            || \App\Models\ContinuityDocument::where('plan_id', $plan->id)
+                ->where('doc_type', 'cs_engagement_agreement')
+                ->where('status', 'fully_executed')
+                ->exists();
+
+        // Section 8 — Sign (terminal)
+        $signed = !is_null($plan->signed_at);
+
+        return [
+            ['key' => 'practice_info',       'title' => 'Practice Info',          'complete' => $practiceInfoComplete, 'blocks_signing' => true,  'href' => route('profile.index'), 'warning' => null],
+            ['key' => 'continuity_stewards',  'title' => 'Continuity Stewards',    'complete' => $csCount >= 1,         'blocks_signing' => true,  'href' => route('stewards.index'),         'warning' => null],
+            ['key' => 'support_stewards',     'title' => 'Support Stewards',       'complete' => $ssCount >= 1,         'blocks_signing' => false, 'href' => route('ss.index'),               'warning' => 'Recommended but not required'],
+            ['key' => 'incident_types',       'title' => 'Incident Types',         'complete' => $activeIncidentCount >= 1, 'blocks_signing' => true, 'href' => route('plan.index') . '#incident-grid', 'warning' => null],
+            ['key' => 'response_tasks',       'title' => 'Response Tasks',         'complete' => $tasksComplete,        'blocks_signing' => true,  'href' => route('plan.index') . '#incident-grid', 'warning' => null],
+            ['key' => 'vault',                'title' => 'Vault',                  'complete' => $vaultAttested,        'blocks_signing' => true,  'href' => route('vault.index'),            'warning' => null],
+            ['key' => 'documents',            'title' => 'Documents',              'complete' => $docsComplete,         'blocks_signing' => $hasFeeCs, 'href' => route('documents.index'),    'warning' => $hasFeeCs && !$docsComplete ? 'CS engagement agreement required' : null],
+            ['key' => 'sign',                 'title' => 'Sign Plan',              'complete' => $signed,               'blocks_signing' => false, 'href' => null,                            'warning' => null],
+        ];
+    }
+
+    public function canSign(ContinuityPlan $plan): bool
+    {
+        $sections = $this->computeSections($plan);
+        // Sections 0-indexed: 0=practice_info, 1=cs, 2=ss(skip), 3=incident, 4=tasks, 5=vault, 6=docs
+        $blockingKeys = ['practice_info', 'continuity_stewards', 'incident_types', 'response_tasks', 'vault'];
+        $keyedSections = collect($sections)->keyBy('key');
+
+        foreach ($blockingKeys as $k) {
+            if (!($keyedSections[$k]['complete'] ?? false)) {
+                return false;
+            }
+        }
+
+        // Conditional: docs blocks if CS has fee
+        $docs = $keyedSections['documents'] ?? null;
+        if ($docs && $docs['blocks_signing'] && !$docs['complete']) {
+            return false;
+        }
+
+        return is_null($plan->signed_at) || $plan->status?->value === 'annual_review_due';
+    }
+
+    public function canActivate(ContinuityPlan $plan, User $user): bool
+    {
+        if ($plan->practitioner_id !== $user->id) return false;
+        if ($plan->status?->value !== 'active') return false;
+        return !\App\Models\CriticalIncident::where('plan_id', $plan->id)
+            ->whereIn('status', ['active', 'pending'])
+            ->exists();
     }
 
     public function getForPractitioner(string $practitionerId): ?ContinuityPlan
