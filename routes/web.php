@@ -341,7 +341,11 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         // Continuity Documents
         Route::get('/important-documents', [DocumentsController::class, 'index'])->name('documents.index');
         Route::post('/important-documents/request', [DocumentsController::class, 'request'])->name('documents.request');
+        Route::post('/important-documents/upload', [DocumentsController::class, 'upload'])->name('documents.upload');
         Route::post('/important-documents/{document}/sign', [DocumentsController::class, 'sign'])->name('documents.sign');
+        Route::post('/important-documents/{document}/remind', [DocumentsController::class, 'remind'])->name('documents.remind');
+        Route::post('/important-documents/{document}/archive', [DocumentsController::class, 'archive'])->name('documents.archive');
+        Route::delete('/important-documents/{document}', [DocumentsController::class, 'archive'])->name('documents.destroy');
 
         // Critical Incident Activation
         Route::post('/activate', [ProviderIncidentController::class, 'activate'])->name('incident.activate');
