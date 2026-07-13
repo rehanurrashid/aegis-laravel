@@ -232,14 +232,6 @@
           <AegisIcon name="file-text" :size="13" /> Notes
         </button>
         <button
-          v-if="showInvoice"
-          type="button"
-          class="btn btn-outline"
-          @click="$emit('open-invoice'); open = false"
-        >
-          <AegisIcon name="dollar-sign" :size="13" /> Invoice
-        </button>
-        <button
           v-if="showCancel && session.status === 'scheduled'"
           type="button"
           class="btn btn-danger"
@@ -248,6 +240,16 @@
           <AegisIcon name="x" :size="13" /> Cancel Session
         </button>
       </template>
+
+      <!-- Invoice — available to BOTH client and provider whenever showInvoice is true -->
+      <button
+        v-if="showInvoice"
+        type="button"
+        class="btn btn-outline"
+        @click="$emit('open-invoice'); open = false"
+      >
+        <AegisIcon name="receipt" :size="13" /> Invoice
+      </button>
     </template>
   </AegisModal>
 </template>
