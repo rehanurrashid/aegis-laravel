@@ -40,7 +40,7 @@ class StewardService
             'id'              => 'ps_' . Str::lower(Str::random(12)),
             'plan_id'         => $plan->id,
             'steward_id'      => $steward->id,
-            'steward_type'    => $stewardType,
+            'steward_category'    => $stewardType,
             'role'            => $role,
             'status'          => 'pending',
             'invited_at'      => now(),
@@ -100,7 +100,7 @@ class StewardService
                 'id'         => 'ps_' . Str::lower(Str::random(12)),
                 'plan_id'    => $plan->id,
                 'steward_id' => $stub->id,
-                'steward_type' => $stewardType,
+                'steward_category' => $stewardType,
                 'role'       => $role,
                 'status'     => 'pending',
                 'invited_at' => now(),
@@ -228,7 +228,7 @@ class StewardService
         // Notification to the removed steward
         $this->activity->log(
             $steward->steward_id,
-            $steward->steward_type === 'continuity_steward' ? 'continuity_steward' : 'support_steward',
+            $steward->steward_category === 'continuity_steward' ? 'continuity_steward' : 'support_steward',
             'steward',
             ActivitySeverity::Warning,
             'steward_removed',
@@ -346,12 +346,12 @@ class StewardService
     private function enforceTierLimits(ContinuityPlan $plan, string $stewardType): void
     {
         $practitioner = User::find($plan->practitioner_id);
-        $tier = $practitioner->tier ?? 'access';
+        $tier = is_object($practitioner->tier) ? $practitioner->tier->value : ($practitioner->tier ?? 'access');
 
         $limits = config('aegis.tier_limits.' . $tier, config('aegis.tier_limits.access'));
 
         $current = PlanSteward::where('plan_id', $plan->id)
-            ->where('steward_type', $stewardType)
+            ->where('steward_category', $stewardType)
             ->whereIn('status', ['active', 'pending'])
             ->count();
 
@@ -447,7 +447,7 @@ class StewardService
 
         if ($steward->steward_id) {
             // Registered user invite
-            $portalLabel = $steward->steward_type === 'continuity_steward' ? 'continuity_steward' : 'support_steward';
+            $portalLabel = $steward->steward_category === 'continuity_steward' ? 'continuity_steward' : 'support_steward';
             $this->activity->log(
                 $steward->steward_id,
                 $portalLabel,

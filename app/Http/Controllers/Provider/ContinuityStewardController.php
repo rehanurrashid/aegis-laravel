@@ -32,12 +32,12 @@ class ContinuityStewardController extends Controller
     {
         $user = $request->user();
         $plan = $this->plans->getForPractitioner($user->id);
-        $tier = $user->tier ?? 'access';
+        $tier = is_object($user->tier) ? $user->tier->value : ($user->tier ?? 'access');
         $tierLimits = config('aegis.tier_limits.' . $tier, config('aegis.tier_limits.access'));
 
         $stewards = $plan
             ? \App\Models\PlanSteward::where('plan_id', $plan->id)
-                ->where('steward_type', 'continuity_steward')
+                ->where('steward_category', 'continuity_steward')
                 ->whereIn('status', ['active', 'pending', 'invited'])
                 ->with('user:id,display_name,credentials,email,phone,title,organization,location,avatar_initials,slug,stripe_account_id')
                 ->get()
@@ -67,7 +67,7 @@ class ContinuityStewardController extends Controller
 
         $pendingInvitations = $plan
             ? \App\Models\PlanSteward::where('plan_id', $plan->id)
-                ->where('steward_type', 'continuity_steward')
+                ->where('steward_category', 'continuity_steward')
                 ->whereIn('status', ['invited', 'pending'])
                 ->get()
                 ->map(fn ($s) => [
@@ -84,7 +84,7 @@ class ContinuityStewardController extends Controller
 
         // CS the practitioner is serving under (cross-role)
         $servingAsCSFor = \App\Models\PlanSteward::where('steward_id', $user->id)
-            ->where('steward_type', 'continuity_steward')
+            ->where('steward_category', 'continuity_steward')
             ->whereIn('status', ['active', 'pending'])
             ->with('plan.practitioner:id,display_name,credentials,organization,location,avatar_initials,slug')
             ->get()
@@ -205,7 +205,7 @@ class ContinuityStewardController extends Controller
     {
         $user = $request->user();
         $plan = $this->plans->getForPractitioner($user->id);
-        $tier = $user->tier ?? 'access';
+        $tier = is_object($user->tier) ? $user->tier->value : ($user->tier ?? 'access');
 
         $tierLimits = config('aegis.tier_limits.' . $tier, config('aegis.tier_limits.access'));
         $ssMax = (int) ($tierLimits['max_support_stewards'] ?? 2);
