@@ -207,6 +207,9 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::post('/continuity-stewards/invite', [ContinuityStewardController::class, 'csInvite'])->name('stewards.invite');
         Route::delete('/continuity-stewards/{steward}', [ContinuityStewardController::class, 'csRemove'])->name('stewards.remove');
         Route::post('/continuity-stewards/{steward}/authorize', [ContinuityStewardController::class, 'csAuthorize'])->name('stewards.authorize');
+        Route::post('/continuity-stewards/{steward}/update-fee', [ContinuityStewardController::class, 'csUpdateFee'])->name('stewards.update-fee');
+        Route::post('/continuity-stewards/{steward}/resend-invite', [ContinuityStewardController::class, 'csResendInvite'])->name('stewards.resend-invite');
+        Route::delete('/continuity-stewards/{steward}/cancel-invite', [ContinuityStewardController::class, 'csCancelInvite'])->name('stewards.cancel-invite');
 
         // Support Stewards
         Route::get('/support-stewards', [ContinuityStewardController::class, 'ssIndex'])->name('ss.index');

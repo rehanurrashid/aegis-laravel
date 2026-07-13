@@ -7,6 +7,8 @@ namespace App\Http\Controllers\Provider;
 use App\Enums\ActivitySeverity;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Steward\DesignateStewardRequest;
+use App\Models\CsInvoice;
+use App\Models\PlanIncidentConfig;
 use App\Models\PlanSteward;
 use App\Models\User;
 use App\Services\ActivityService;
@@ -28,21 +30,93 @@ class ContinuityStewardController extends Controller
     // ── CS ─────────────────────────────────────────────────────────────────────
     public function csIndex(Request $request): Response
     {
-        $plan = $this->plans->getForPractitioner($request->user()->id);
-        $tierLimits = $request->user()->tier === 'practice' ? ['max_cs' => 2] : ['max_cs' => 1, 'max_ss' => 2];
+        $user = $request->user();
+        $plan = $this->plans->getForPractitioner($user->id);
+        $tier = $user->tier ?? 'access';
+        $tierLimits = config('aegis.tier_limits.' . $tier, config('aegis.tier_limits.access'));
+
+        $stewards = $plan
+            ? \App\Models\PlanSteward::where('plan_id', $plan->id)
+                ->where('steward_type', 'continuity_steward')
+                ->whereIn('status', ['active', 'pending', 'invited'])
+                ->with('user:id,display_name,credentials,email,phone,title,organization,location,avatar_initials,slug,stripe_account_id')
+                ->get()
+                ->map(fn ($s) => [
+                    'id'                       => $s->id,
+                    'role'                     => is_object($s->role) ? $s->role->value : $s->role,
+                    'status'                   => is_object($s->status) ? $s->status->value : $s->status,
+                    'fee_cents'                => (int) ($s->fee_cents ?? 0),
+                    'payment_terms'            => $s->payment_terms ?? 'per_incident',
+                    'auto_charge'              => (bool) ($s->auto_charge ?? false),
+                    'engagement_document_id'   => $s->engagement_document_id,
+                    'signed_at'                => $s->signed_at?->toDateString(),
+                    'invited_at'               => $s->invited_at?->toDateString(),
+                    'expires_at'               => $s->expires_at?->toDateString(),
+                    'stripe_connected'         => (bool) ($s->user?->stripe_account_id),
+                    'has_outstanding_invoices' => \App\Models\CsInvoice::where('cs_id', $s->steward_id)
+                        ->where('practitioner_id', $user->id)
+                        ->whereIn('status', ['sent', 'overdue', 'disputed'])
+                        ->exists(),
+                    'user' => $s->user ? $s->user->toArray() : null,
+                    'steward_id' => $s->steward_id,
+                    'email'      => $s->email,
+                    'display_name' => $s->display_name,
+                ])
+                ->values()
+            : [];
+
+        $pendingInvitations = $plan
+            ? \App\Models\PlanSteward::where('plan_id', $plan->id)
+                ->where('steward_type', 'continuity_steward')
+                ->whereIn('status', ['invited', 'pending'])
+                ->get()
+                ->map(fn ($s) => [
+                    'id'         => $s->id,
+                    'status'     => is_object($s->status) ? $s->status->value : $s->status,
+                    'email'      => $s->email,
+                    'display_name' => $s->display_name,
+                    'role'       => is_object($s->role) ? $s->role->value : $s->role,
+                    'invited_at' => $s->invited_at?->toDateString(),
+                    'expires_at' => $s->expires_at?->toDateString(),
+                ])
+                ->values()
+            : [];
+
+        // CS the practitioner is serving under (cross-role)
+        $servingAsCSFor = \App\Models\PlanSteward::where('steward_id', $user->id)
+            ->where('steward_type', 'continuity_steward')
+            ->whereIn('status', ['active', 'pending'])
+            ->with('plan.practitioner:id,display_name,credentials,organization,location,avatar_initials,slug')
+            ->get()
+            ->map(fn ($s) => [
+                'id'           => $s->id,
+                'role'         => is_object($s->role) ? $s->role->value : $s->role,
+                'status'       => is_object($s->status) ? $s->status->value : $s->status,
+                'fee_cents'    => (int) ($s->fee_cents ?? 0),
+                'display_name' => $s->plan?->practitioner?->display_name ?? '—',
+                'organization' => $s->plan?->practitioner?->organization ?? '',
+                'location'     => $s->plan?->practitioner?->location ?? '',
+                'avatar_initials' => $s->plan?->practitioner?->avatar_initials ?? '??',
+                'slug'         => $s->plan?->practitioner?->slug ?? '',
+            ]);
+
+        $incidentConfigs = $plan
+            ? \App\Models\PlanIncidentConfig::where('plan_id', $plan->id)->get()->map(fn ($c) => [
+                'incident_type'     => $c->incident_type,
+                'is_active'         => (bool) $c->is_active,
+                'authorized_cs_ids' => is_string($c->authorized_cs_ids) ? json_decode($c->authorized_cs_ids, true) : ($c->authorized_cs_ids ?? []),
+            ])->values()
+            : [];
 
         return Inertia::render('Provider/ContinuityStewards', [
-            'stewards' => $plan
-                ? PlanSteward::where('plan_id', $plan->id)
-                    ->where('steward_type', 'continuity_steward')
-                    ->whereIn('status', ['active', 'pending'])->get()
-                : [],
-            'pendingInvitations' => $plan
-                ? PlanSteward::where('plan_id', $plan->id)
-                    ->where('steward_type', 'continuity_steward')
-                    ->where('status', 'pending')->get()
-                : [],
-            'tierLimits' => $tierLimits,
+            'stewards'           => $stewards,
+            'pendingInvitations' => $pendingInvitations,
+            'servingAsCSFor'     => $servingAsCSFor,
+            'tierLimits'         => $tierLimits,
+            'tier'               => $tier,
+            'csMax'              => (int) ($tierLimits['max_continuity_stewards'] ?? 2),
+            'csCount'            => count($stewards),
+            'incidentConfigs'    => $incidentConfigs,
         ]);
     }
 
@@ -67,8 +141,48 @@ class ContinuityStewardController extends Controller
         abort_if(!$plan || $steward->plan_id !== $plan->id, 404);
         $this->authorize('update', $plan);
 
-        $this->stewards->remove($steward, $request->user(), $request->input('reason'));
+        try {
+            $this->stewards->remove($steward, $request->user(), $request->input('reason'));
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['remove' => $e->getMessage()]);
+        }
+
         return back()->with('success', 'Steward removed.');
+    }
+
+    public function csUpdateFee(Request $request, PlanSteward $steward): RedirectResponse
+    {
+        $plan = $this->plans->getForPractitioner($request->user()->id);
+        abort_if(!$plan || $steward->plan_id !== $plan->id, 404);
+        $this->authorize('update', $plan);
+
+        $data = $request->validate([
+            'fee_cents'     => 'required|integer|min:0',
+            'payment_terms' => 'required|in:per_incident,monthly,flat_rate',
+        ]);
+
+        $this->stewards->updateFee($steward, (int) $data['fee_cents'], $data['payment_terms'], $request->user());
+        return back()->with('success', 'Fee amendment created. Awaiting CS countersignature.');
+    }
+
+    public function csResendInvite(Request $request, PlanSteward $steward): RedirectResponse
+    {
+        $plan = $this->plans->getForPractitioner($request->user()->id);
+        abort_if(!$plan || $steward->plan_id !== $plan->id, 404);
+        $this->authorize('update', $plan);
+
+        $this->stewards->resendInvite($steward, $request->user());
+        return back()->with('success', 'Invitation resent.');
+    }
+
+    public function csCancelInvite(Request $request, PlanSteward $steward): RedirectResponse
+    {
+        $plan = $this->plans->getForPractitioner($request->user()->id);
+        abort_if(!$plan || $steward->plan_id !== $plan->id, 404);
+        $this->authorize('update', $plan);
+
+        $this->stewards->cancelInvite($steward, $request->user());
+        return back()->with('success', 'Invitation cancelled.');
     }
 
     public function csAuthorize(Request $request, PlanSteward $steward): RedirectResponse

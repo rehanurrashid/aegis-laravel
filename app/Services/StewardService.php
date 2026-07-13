@@ -13,7 +13,9 @@ use App\Events\Steward\StewardDeclined;
 use App\Events\Steward\StewardDesignated;
 use App\Events\Steward\StewardRemoved;
 use App\Jobs\SendEmailJob;
+use App\Models\ContinuityDocument;
 use App\Models\ContinuityPlan;
+use App\Models\CsInvoice;
 use App\Models\PlanSteward;
 use App\Models\PlanTask;
 use App\Models\User;
@@ -63,6 +65,8 @@ class StewardService
             'Please review the invitation and accept or decline.',
             'plan_steward',
             $row->id,
+            $practitioner->id,
+            'notification',
             $practitioner->id
         );
 
@@ -139,6 +143,8 @@ class StewardService
             'They have been added to your active roster.',
             'plan_steward',
             $steward->id,
+            $stewardUser->id,
+            'notification',
             $stewardUser->id
         );
 
@@ -168,6 +174,8 @@ class StewardService
             $reason ? "Reason: {$reason}" : 'No reason given.',
             'plan_steward',
             $steward->id,
+            $stewardUser->id,
+            'notification',
             $stewardUser->id
         );
 
@@ -191,6 +199,8 @@ class StewardService
             $reason ? "Reason: {$reason}" : 'No reason given.',
             'plan_steward',
             $steward->id,
+            $stewardUser->id,
+            'notification',
             $stewardUser->id
         );
 
@@ -199,10 +209,23 @@ class StewardService
 
     public function remove(PlanSteward $steward, User $actor, ?string $reason = null): PlanSteward
     {
+        // Guard: block removal when outstanding invoices exist
+        $outstanding = CsInvoice::where('cs_id', $steward->steward_id)
+            ->where('practitioner_id', $actor->id)
+            ->whereIn('status', ['sent', 'overdue', 'disputed'])
+            ->exists();
+
+        if ($outstanding) {
+            throw new RuntimeException(
+                'Cannot remove this Continuity Steward while outstanding invoices exist. Resolve all sent, overdue, or disputed invoices first.'
+            );
+        }
+
         $steward->update(['status' => 'archived']);
 
         event(new StewardRemoved($steward, $actor));
 
+        // Notification to the removed steward
         $this->activity->log(
             $steward->steward_id,
             $steward->steward_type === 'continuity_steward' ? 'continuity_steward' : 'support_steward',
@@ -213,6 +236,24 @@ class StewardService
             $reason ? "Reason: {$reason}" : 'The practitioner removed you from their plan roster.',
             'plan_steward',
             $steward->id,
+            $actor->id,
+            'notification',
+            $actor->id
+        );
+
+        // Actor log for the provider
+        $this->activity->log(
+            $actor->id,
+            'provider',
+            'steward',
+            ActivitySeverity::Warning,
+            'steward_removed',
+            'Continuity Steward removed',
+            $reason ? "Reason: {$reason}" : 'Steward removed from plan roster.',
+            'plan_steward',
+            $steward->id,
+            $steward->steward_id,
+            'log',
             $actor->id
         );
 
@@ -250,7 +291,8 @@ class StewardService
             'steward_role_change_requested',
             "{$steward->steward?->display_name} requested role change to {$requestedRole}",
             $requestNote ?? 'Review and approve the role change request.',
-            'plan_steward', $steward->id, $steward->steward_id
+            'plan_steward', $steward->id, $steward->steward_id,
+            'notification', $steward->steward_id
         );
 
         event(new StewardRoleChangeRequested($steward, $requestedRole, $requestNote));
@@ -329,5 +371,132 @@ class StewardService
     private function humanRole(string $type): string
     {
         return $type === 'continuity_steward' ? 'Continuity Steward' : 'Support Steward';
+    }
+
+    /**
+     * Update a CS fee. Creates a ContinuityDocument amendment; does NOT mutate fee_cents
+     * until the CS countersigns that document.
+     */
+    public function updateFee(PlanSteward $steward, int $newFeeCents, string $paymentTerms, User $actor): ContinuityDocument
+    {
+        $oldFeeCents = (int) ($steward->fee_cents ?? 0);
+        $newFeeFormatted = number_format($newFeeCents / 100, 2);
+
+        $doc = ContinuityDocument::create([
+            'id'             => 'doc_' . Str::lower(Str::random(12)),
+            'plan_id'        => $steward->plan_id,
+            'uploaded_by'    => $actor->id,
+            'doc_type'       => 'fee_amendment',
+            'title'          => 'CS Fee Amendment',
+            'status'         => 'pending_sign',
+            'content'        => json_encode([
+                'steward_id'       => $steward->steward_id,
+                'old_fee_cents'    => $oldFeeCents,
+                'new_fee_cents'    => $newFeeCents,
+                'payment_terms'    => $paymentTerms,
+                'proposed_at'      => now()->toIso8601String(),
+            ]),
+            'version'        => 1,
+            'file_name'      => "cs-fee-amendment-{$steward->id}.pdf",
+        ]);
+
+        // Notify the CS — fee change requires countersignature
+        $this->activity->log(
+            $steward->steward_id,
+            'continuity_steward',
+            'steward',
+            ActivitySeverity::Warning,
+            'cs_fee_amended',
+            'Your Continuity Steward fee has been amended',
+            "New fee: \${$newFeeFormatted}. Please review and countersign the amendment document.",
+            'continuity_document',
+            $doc->id,
+            $actor->id,
+            'notification',
+            $actor->id
+        );
+
+        // Actor log
+        $this->activity->log(
+            $actor->id,
+            'provider',
+            'steward',
+            ActivitySeverity::Info,
+            'cs_fee_amended',
+            'CS fee amendment created',
+            "Amendment for \${$newFeeFormatted} sent to CS for countersignature.",
+            'continuity_document',
+            $doc->id,
+            $steward->steward_id,
+            'log',
+            $actor->id
+        );
+
+        return $doc;
+    }
+
+    /**
+     * Resend a pending invitation email and reset invited_at / expires_at.
+     */
+    public function resendInvite(PlanSteward $steward, User $actor): PlanSteward
+    {
+        $steward->update([
+            'invited_at' => now(),
+            'expires_at' => now()->addDays(30),
+        ]);
+
+        if ($steward->steward_id) {
+            // Registered user invite
+            $portalLabel = $steward->steward_type === 'continuity_steward' ? 'continuity_steward' : 'support_steward';
+            $this->activity->log(
+                $steward->steward_id,
+                $portalLabel,
+                'steward',
+                ActivitySeverity::Info,
+                'steward_invite_resent',
+                'Steward invitation re-sent',
+                'Your invitation to serve as a steward has been resent.',
+                'plan_steward',
+                $steward->id,
+                $actor->id,
+                'notification',
+                $actor->id
+            );
+        } else {
+            // External email invite — resend email
+            SendEmailJob::dispatch(
+                'emails.steward.07-steward-invitation',
+                ['plan_id' => $steward->plan_id, 'steward_id' => $steward->id],
+                null,
+                $steward->email
+            );
+        }
+
+        return $steward->fresh();
+    }
+
+    /**
+     * Cancel a pending invitation (status → archived).
+     */
+    public function cancelInvite(PlanSteward $steward, User $actor): PlanSteward
+    {
+        $steward->update(['status' => 'archived']);
+
+        $this->activity->log(
+            $actor->id,
+            'provider',
+            'steward',
+            ActivitySeverity::Info,
+            'steward_invite_cancelled',
+            'Steward invitation cancelled',
+            'The pending steward invitation was cancelled.',
+            'plan_steward',
+            $steward->id,
+            $steward->steward_id,
+            'log',
+            $actor->id
+        );
+
+        return $steward->fresh();
     }
 }
