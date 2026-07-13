@@ -65,6 +65,10 @@
         <AegisIcon name="briefcase" :size="13" />
         Requests <span v-if="engagements.length" class="tab-count">{{ engagements.length }}</span>
       </button>
+      <button class="tab-primary" :class="{ active: tab === 'help' }" role="tab" :aria-selected="tab === 'help'" @click="tab = 'help'">
+        <AegisIcon name="help-circle" :size="13" />
+        How It Works
+      </button>
     </div>
 
     <!-- ============================================================
@@ -340,6 +344,266 @@
         </div>
       </template>
     </div>
+
+    <!-- ============================================================
+         PANE 6: HOW IT WORKS
+    ============================================================ -->
+    <div v-show="tab === 'help'" class="help-pane">
+
+      <!-- Intro banner -->
+      <div class="help-intro">
+        <div class="help-intro-icon"><AegisIcon name="shield" :size="28" /></div>
+        <div>
+          <div class="help-intro-title">Support Services — How Requests Work</div>
+          <div class="help-intro-sub">Support Services connects you with vetted Business Partners for billing, compliance, IT, marketing, legal, and operations. Funds are held securely in escrow — you only pay when work is approved.</div>
+        </div>
+      </div>
+
+      <!-- Step-by-step flow -->
+      <div class="help-section-label">End-to-End Workflow</div>
+
+      <div class="help-steps">
+
+        <div class="help-step">
+          <div class="help-step-num">1</div>
+          <div class="help-step-body">
+            <div class="help-step-title">Post a Support Request</div>
+            <div class="help-step-desc">Go to <strong>My Postings</strong> and click <em>Request Support</em>. Give the request a title, choose a category (Billing, IT, Marketing, etc.), set your budget, and pick a payment type.</div>
+            <div class="help-callout help-callout-gold">
+              <AegisIcon name="info" :size="13" style="flex-shrink:0;margin-top:2px" />
+              <div><strong>Payment type matters.</strong> <em>One-time</em> means a single fixed payment at completion. <em>Milestone</em> breaks the project into funded checkpoints — safer for longer engagements.</div>
+            </div>
+            <div class="help-tags">
+              <span class="help-tag"><AegisIcon name="briefcase" :size="11" /> My Postings tab</span>
+              <span class="help-tag"><AegisIcon name="plus" :size="11" /> Request Support button</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="help-step-connector"><AegisIcon name="arrow-down" :size="14" /></div>
+
+        <div class="help-step">
+          <div class="help-step-num">2</div>
+          <div class="help-step-body">
+            <div class="help-step-title">Publish &amp; Receive Applications</div>
+            <div class="help-step-desc">Draft postings are invisible. Hit <em>Publish</em> to make your request live. Business Partners across Aegis can browse open requests and submit proposals with their bid, cover letter, and portfolio.</div>
+            <div class="help-callout help-callout-blue">
+              <AegisIcon name="bell" :size="13" style="flex-shrink:0;margin-top:2px" />
+              <div>You'll receive an in-portal notification and email each time a new proposal arrives. The <em>Applications</em> tab shows a running count of unreviewed proposals.</div>
+            </div>
+            <div class="help-tags">
+              <span class="help-tag"><AegisIcon name="download" :size="11" /> Applications tab</span>
+              <span class="help-tag"><AegisIcon name="grid" :size="11" /> Hiring Pipeline tab</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="help-step-connector"><AegisIcon name="arrow-down" :size="14" /></div>
+
+        <div class="help-step">
+          <div class="help-step-num">3</div>
+          <div class="help-step-body">
+            <div class="help-step-title">Review &amp; Move Applicants Through the Pipeline</div>
+            <div class="help-step-desc">Use the <strong>Hiring Pipeline</strong> kanban to track each applicant. Stages move from New → Reviewing → Shortlisted → Interview → Hired. Private notes are only visible to you — never to the Business Partner.</div>
+            <div class="help-grid-2">
+              <div class="help-mini-card">
+                <div class="help-mini-icon" style="background:var(--icon-bg-blue);color:var(--blue-dark)"><AegisIcon name="eye" :size="14" /></div>
+                <div><strong>Mark Reviewed</strong><br>Opens the applicant's profile and moves them to Reviewing.</div>
+              </div>
+              <div class="help-mini-card">
+                <div class="help-mini-icon" style="background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="star" :size="14" /></div>
+                <div><strong>Shortlist</strong><br>Flags top candidates so they're easy to compare side-by-side.</div>
+              </div>
+              <div class="help-mini-card">
+                <div class="help-mini-icon" style="background:var(--icon-bg-green);color:var(--green-dark)"><AegisIcon name="calendar" :size="14" /></div>
+                <div><strong>Schedule Interview</strong><br>Coordinate a meeting date — logged against the proposal.</div>
+              </div>
+              <div class="help-mini-card">
+                <div class="help-mini-icon" style="background:var(--icon-bg-red);color:var(--red-dark)"><AegisIcon name="x" :size="14" /></div>
+                <div><strong>Decline</strong><br>Removes the applicant. They receive a polite decline notification.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="help-step-connector"><AegisIcon name="arrow-down" :size="14" /></div>
+
+        <div class="help-step">
+          <div class="help-step-num">4</div>
+          <div class="help-step-body">
+            <div class="help-step-title">Hire &amp; Sign the Contract</div>
+            <div class="help-step-desc">When you're ready, click <em>Hire</em> on any applicant. Aegis automatically declines all other proposals on that posting and creates a contract in <em>Pending Signature</em> status.</div>
+            <div class="help-callout help-callout-green">
+              <AegisIcon name="check-circle" :size="13" style="flex-shrink:0;margin-top:2px" />
+              <div>Both parties must sign digitally before any funds are charged. The contract terms are locked at signature — neither party can alter them afterwards.</div>
+            </div>
+            <div class="help-tags">
+              <span class="help-tag"><AegisIcon name="check" :size="11" /> Hired tab</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="help-step-connector"><AegisIcon name="arrow-down" :size="14" /></div>
+
+        <div class="help-step">
+          <div class="help-step-num">5</div>
+          <div class="help-step-body">
+            <div class="help-step-title">Fund Escrow — Your Payment Is Held Securely</div>
+            <div class="help-step-desc">Once both parties sign, you fund the escrow. Your card is charged immediately, but the Business Partner does not receive any money yet — funds sit in Aegis-held escrow until you approve the work.</div>
+
+            <div class="help-escrow-diagram">
+              <div class="help-escrow-node help-escrow-node-provider">
+                <AegisIcon name="credit-card" :size="16" />
+                <span>Your Card</span>
+              </div>
+              <div class="help-escrow-arrow">
+                <div class="help-escrow-arrow-line"></div>
+                <AegisIcon name="chevron-right" :size="14" />
+              </div>
+              <div class="help-escrow-node help-escrow-node-aegis">
+                <AegisIcon name="shield" :size="16" />
+                <span>Aegis Escrow</span>
+                <span class="help-escrow-sub">Funds held securely</span>
+              </div>
+              <div class="help-escrow-arrow">
+                <div class="help-escrow-arrow-line"></div>
+                <AegisIcon name="chevron-right" :size="14" />
+              </div>
+              <div class="help-escrow-node help-escrow-node-bp">
+                <AegisIcon name="user" :size="16" />
+                <span>Business Partner</span>
+                <span class="help-escrow-sub">Paid on approval</span>
+              </div>
+            </div>
+
+            <div class="help-grid-2" style="margin-top:16px">
+              <div class="help-mini-card">
+                <div class="help-mini-icon" style="background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="layers" :size="14" /></div>
+                <div><strong>Per Milestone</strong><br>Fund each milestone individually just before work begins. Lower upfront risk.</div>
+              </div>
+              <div class="help-mini-card">
+                <div class="help-mini-icon" style="background:var(--icon-bg-green);color:var(--green-dark)"><AegisIcon name="dollar-sign" :size="14" /></div>
+                <div><strong>Full Upfront</strong><br>Charge the entire contract value at once. Gives the Business Partner maximum confidence to start.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="help-step-connector"><AegisIcon name="arrow-down" :size="14" /></div>
+
+        <div class="help-step">
+          <div class="help-step-num">6</div>
+          <div class="help-step-body">
+            <div class="help-step-title">Review Milestone Submissions</div>
+            <div class="help-step-desc">When the Business Partner submits work, you'll receive a notification with a <em>Review</em> button in the Hired tab. You have three options:</div>
+            <div class="help-review-options">
+              <div class="help-review-row help-review-approve">
+                <AegisIcon name="check-circle" :size="15" style="flex-shrink:0" />
+                <div>
+                  <div class="help-review-label">Approve &amp; Release Payment</div>
+                  <div class="help-review-detail">Triggers an immediate Stripe transfer from escrow to the Business Partner's account. The milestone is marked complete.</div>
+                </div>
+              </div>
+              <div class="help-review-row help-review-revision">
+                <AegisIcon name="refresh-cw" :size="15" style="flex-shrink:0" />
+                <div>
+                  <div class="help-review-label">Request Revision</div>
+                  <div class="help-review-detail">Send the milestone back with written feedback. The Business Partner can revise and resubmit. Escrow remains held — no charge until you approve.</div>
+                </div>
+              </div>
+              <div class="help-review-row help-review-dispute">
+                <AegisIcon name="alert-triangle" :size="15" style="flex-shrink:0" />
+                <div>
+                  <div class="help-review-label">Reject &amp; Open Dispute</div>
+                  <div class="help-review-detail">If the work cannot be resolved through revision, open a dispute. Escrow is frozen and Aegis mediates. The admin team can release, refund, or split the held funds.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="help-step-connector"><AegisIcon name="arrow-down" :size="14" /></div>
+
+        <div class="help-step">
+          <div class="help-step-num">7</div>
+          <div class="help-step-body">
+            <div class="help-step-title">Auto-Release &amp; Timers</div>
+            <div class="help-step-desc">If you don't review a submission within <strong>7 days</strong>, Aegis automatically releases the escrow funds to the Business Partner. You'll receive a reminder at the 48-hour mark.</div>
+            <div class="help-callout help-callout-orange">
+              <AegisIcon name="clock" :size="13" style="flex-shrink:0;margin-top:2px" />
+              <div><strong>Why auto-release?</strong> It protects Business Partners from indefinite payment holds after completing legitimate work. Review submissions promptly to maintain full control over release decisions.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="help-step-connector"><AegisIcon name="arrow-down" :size="14" /></div>
+
+        <div class="help-step">
+          <div class="help-step-num">8</div>
+          <div class="help-step-body">
+            <div class="help-step-title">Contract Completion &amp; Ratings</div>
+            <div class="help-step-desc">Once all milestones are released, the contract is marked <em>Completed</em>. You'll be prompted to leave a rating for the Business Partner — and they can rate you. Ratings are visible on public profiles and help the community identify top partners.</div>
+            <div class="help-tags">
+              <span class="help-tag help-tag-green"><AegisIcon name="star" :size="11" /> 1–5 star rating</span>
+              <span class="help-tag help-tag-green"><AegisIcon name="check" :size="11" /> Communication, Quality, Timeliness</span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /help-steps -->
+
+      <!-- Requests tab explainer -->
+      <div class="help-section-label" style="margin-top:40px">About the Requests Tab</div>
+      <div class="help-card">
+        <div class="help-card-icon"><AegisIcon name="briefcase" :size="20" /></div>
+        <div>
+          <div class="help-card-title">Engagement Requests You've Sent</div>
+          <div class="help-card-desc">The <strong>Requests</strong> tab tracks outbound hire, quote, and consultation requests you send directly from a Business Partner's public profile. These are informal enquiries — they don't create a contract until both parties agree and sign.</div>
+          <div class="help-grid-3" style="margin-top:14px">
+            <div class="help-type-chip help-type-hire">
+              <AegisIcon name="briefcase" :size="12" />
+              <div>
+                <div class="help-type-name">Engagement Request</div>
+                <div class="help-type-detail">Propose a direct working arrangement outside of a public posting.</div>
+              </div>
+            </div>
+            <div class="help-type-chip help-type-quote">
+              <AegisIcon name="clipboard" :size="12" />
+              <div>
+                <div class="help-type-name">Quote Request</div>
+                <div class="help-type-detail">Ask a partner for a formal price estimate before committing.</div>
+              </div>
+            </div>
+            <div class="help-type-chip help-type-consult">
+              <AegisIcon name="calendar" :size="12" />
+              <div>
+                <div class="help-type-name">Consultation Request</div>
+                <div class="help-type-detail">Schedule a discovery call to assess fit before any contract.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Safety callout -->
+      <div class="help-safety-banner">
+        <div class="help-safety-icon"><AegisIcon name="shield" :size="24" /></div>
+        <div>
+          <div class="help-safety-title">Your Money is Protected at Every Stage</div>
+          <div class="help-safety-body">Aegis never holds funds indefinitely. You can self-refund any funded milestone that hasn't been submitted yet. Once work is submitted, disputes trigger admin mediation — ensuring fair resolution for both parties without either side being left without recourse.</div>
+        </div>
+      </div>
+
+      <!-- CTA -->
+      <div style="text-align:center;margin-top:32px;padding-bottom:8px">
+        <button class="btn btn-primary" @click="tab = 'my-postings'; showPostJob = true">
+          <AegisIcon name="plus" :size="13" />
+          Post Your First Support Request
+        </button>
+        <div style="font-family:var(--font-sans);font-size:12px;color:var(--text-4);margin-top:8px">Takes about 2 minutes. No charge until you hire.</div>
+      </div>
+
+    </div><!-- /help-pane -->
 
     <PostJobModal v-model="showPostJob" :prefill="postJobPrefill" @update:model-value="(v) => { if (!v) postJobPrefill = null }" />
     <ImportJobTemplatesModal v-model="showTemplates" @use="onUseTemplate" />
@@ -1105,5 +1369,354 @@ function onUseTemplate(t) {
   .jp-my-row > *:nth-child(3),
   .jp-my-row > *:nth-child(4) { display: none; }
   .jp-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Help / How It Works pane ────────────────────────────────────── */
+.help-pane {
+  max-width: 780px;
+}
+
+.help-intro {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 22px 24px;
+  margin-bottom: 32px;
+  box-shadow: var(--shadow-sm);
+}
+.help-intro-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius);
+  background: var(--icon-bg-gold);
+  color: var(--gold-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.help-intro-title {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.help-intro-sub {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-3);
+  line-height: 1.55;
+}
+
+.help-section-label {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-4);
+  margin-bottom: 16px;
+}
+
+/* Steps */
+.help-steps {
+  display: flex;
+  flex-direction: column;
+}
+.help-step {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+.help-step-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--gold-dark);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.help-step-body {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
+}
+.help-step-title {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.help-step-desc {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-3);
+  line-height: 1.55;
+  margin-bottom: 12px;
+}
+
+.help-step-connector {
+  display: flex;
+  justify-content: flex-start;
+  padding-left: 9px;
+  color: var(--border-dark);
+  margin: 6px 0;
+}
+
+/* Callouts */
+.help-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+.help-callout-gold  { background: rgba(160,129,62,0.09); border-left: 3px solid var(--gold-dark); color: var(--text-2); }
+.help-callout-blue  { background: var(--icon-bg-blue);   border-left: 3px solid var(--blue-dark); color: var(--text-2); }
+.help-callout-green { background: var(--icon-bg-green);  border-left: 3px solid var(--green-dark); color: var(--text-2); }
+.help-callout-orange { background: rgba(220,140,30,0.09); border-left: 3px solid var(--orange); color: var(--text-2); }
+
+/* Tags */
+.help-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.help-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+.help-tag-green { border-color: var(--green); color: var(--green-dark); background: var(--icon-bg-green); }
+
+/* 2-col mini cards */
+.help-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.help-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+.help-mini-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.5;
+}
+.help-mini-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Escrow diagram */
+.help-escrow-diagram {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  margin-bottom: 4px;
+}
+.help-escrow-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+  flex: 1;
+  text-align: center;
+}
+.help-escrow-node-provider { color: var(--text-2); }
+.help-escrow-node-aegis    { color: var(--gold-dark); }
+.help-escrow-node-bp       { color: var(--green-dark); }
+.help-escrow-sub {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-4);
+}
+.help-escrow-arrow {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+  color: var(--border-dark);
+}
+.help-escrow-arrow-line {
+  width: 32px;
+  height: 2px;
+  background: var(--border-dark);
+}
+
+/* Review options */
+.help-review-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+.help-review-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+}
+.help-review-approve { background: var(--icon-bg-green); color: var(--green-dark); }
+.help-review-revision { background: var(--icon-bg-blue); color: var(--blue-dark); }
+.help-review-dispute { background: rgba(210,60,60,0.07); color: var(--red-dark); }
+.help-review-label {
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+.help-review-detail {
+  font-size: 12px;
+  opacity: 0.85;
+  line-height: 1.45;
+}
+
+/* Requests tab card */
+.help-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  margin-bottom: 28px;
+  box-shadow: var(--shadow-sm);
+}
+.help-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius);
+  background: var(--icon-bg-gold);
+  color: var(--gold-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.help-card-title {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.help-card-desc {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-3);
+  line-height: 1.55;
+}
+
+/* Type chips */
+.help-type-chip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  border: 1px solid;
+  font-family: var(--font-sans);
+}
+.help-type-hire    { background: rgba(160,129,62,0.07); border-color: var(--gold); color: var(--gold-dark); }
+.help-type-quote   { background: var(--icon-bg-blue); border-color: var(--blue-dark); color: var(--blue-dark); }
+.help-type-consult { background: var(--icon-bg-green); border-color: var(--green); color: var(--green-dark); }
+.help-type-name { font-size: 12px; font-weight: 700; margin-bottom: 3px; }
+.help-type-detail { font-size: 11px; opacity: 0.8; line-height: 1.4; }
+
+/* Safety banner */
+.help-safety-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: linear-gradient(135deg, rgba(160,129,62,0.06) 0%, rgba(160,129,62,0.02) 100%);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-lg);
+  padding: 22px 24px;
+  margin-bottom: 28px;
+}
+.help-safety-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius);
+  background: rgba(160,129,62,0.12);
+  color: var(--gold-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.help-safety-title {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gold-dark);
+  margin-bottom: 6px;
+}
+.help-safety-body {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-3);
+  line-height: 1.55;
+}
+
+@media (max-width: 680px) {
+  .help-escrow-diagram { flex-direction: column; }
+  .help-grid-2 { grid-template-columns: 1fr; }
+  .help-grid-3 { grid-template-columns: 1fr; }
 }
 </style>

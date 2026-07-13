@@ -181,7 +181,10 @@ function submit() {
 - New migration/seeder for missing columns or data.
 - New controller method → thin: validate → call service → `back()->with('success',…)` or `Inertia::render`.
 
-### 3E — Seed all UI states
+### 3E — Unified Invoice Rule
+Every printable document (invoice, contract, receipt) MUST be rendered through `App\Services\AegisPdfService`. Add a public method to it, create a thin adapter service that delegates to it, and stream the result as `text/html`. Never use Blade views, never build HTML in controllers, never use dompdf. Controllers return `response($this->pdf->render($model), 200, ["Content-Type" => "text/html; charset=UTF-8", "Cache-Control" => "no-store, no-cache"])`. Vue always opens PDF links in a new tab using `pdf_url` from the controller shape — never construct the URL client-side. Stripe subscription invoice PDFs are the only exception — those use Stripe's own hosted URL from `$inv->invoice_pdf`.
+
+### 3F — Seed all UI states
 Extend/create the domain seeder so the page renders every state:
 - Empty (new user, no rows)
 - Partial (a few rows)
