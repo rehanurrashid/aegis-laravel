@@ -76,6 +76,8 @@ use App\Events\Steward\StewardAccepted;
 use App\Events\Steward\StewardDeclined;
 use App\Events\Steward\StewardDesignated;
 use App\Events\Steward\StewardRemoved;
+use App\Events\Steward\SsSuspended;
+use App\Events\Steward\SsReinstated;
 use App\Events\Support\FeedbackReceived;
 use App\Events\Support\TicketCreated;
 use App\Events\Support\TicketReplied;
@@ -130,6 +132,8 @@ class SendEmailNotificationListener
             $event instanceof StewardAccepted         => $this->stewardAccepted($event),
             $event instanceof StewardDeclined         => $this->stewardDeclined($event),
             $event instanceof StewardRemoved          => $this->stewardRemoved($event),
+            $event instanceof SsSuspended              => $this->ssSuspended($event),
+            $event instanceof SsReinstated             => $this->ssReinstated($event),
             $event instanceof IncidentClosed          => $this->incidentClosed($event),
             $event instanceof ProposalAccepted        => $this->proposalAccepted($event),
             $event instanceof ProposalDeclined        => $this->proposalDeclined($event),
@@ -327,6 +331,38 @@ class SendEmailNotificationListener
         return [['user_id' => $e->steward->steward_id, 'gate_key' => 'notify_steward',
                  'template' => 'emails.steward.11-steward-removed',
                  'data' => ['plan_steward_id' => $e->steward->id]]];
+    }
+
+    private function ssSuspended(SsSuspended $e): array
+    {
+        if (!$e->steward->steward_id) {
+            return [];
+        }
+        $practitionerName = $e->practitioner->display_name ?? 'The practitioner';
+        $ssUser = \App\Models\User::find($e->steward->steward_id);
+        return [['user_id' => $e->steward->steward_id, 'gate_key' => 'notify_steward',
+                 'template' => 'emails.steward.26-ss-suspended',
+                 'data' => [
+                     'ss_name'           => $ssUser?->display_name ?? 'there',
+                     'practitioner_name' => $practitionerName,
+                     'reason'            => $e->reason,
+                 ]]];
+    }
+
+    private function ssReinstated(SsReinstated $e): array
+    {
+        if (!$e->steward->steward_id) {
+            return [];
+        }
+        $practitionerName = $e->practitioner->display_name ?? 'The practitioner';
+        $ssUser = \App\Models\User::find($e->steward->steward_id);
+        return [['user_id' => $e->steward->steward_id, 'gate_key' => 'notify_steward',
+                 'template' => 'emails.steward.27-ss-reinstated',
+                 'data' => [
+                     'ss_name'           => $ssUser?->display_name ?? 'there',
+                     'practitioner_name' => $practitionerName,
+                     'portal_url'        => rtrim(config('app.url'), '/') . '/support-steward/dashboard',
+                 ]]];
     }
 
     private function incidentClosed(IncidentClosed $e): array

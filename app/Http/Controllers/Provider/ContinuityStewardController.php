@@ -14,6 +14,8 @@ use App\Models\User;
 use App\Services\ActivityService;
 use App\Services\PlanService;
 use App\Services\StewardService;
+use App\Events\Steward\SsSuspended;
+use App\Events\Steward\SsReinstated;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -325,6 +327,8 @@ class ContinuityStewardController extends Controller
             'notification', $actor->id
         );
 
+        event(new SsSuspended($steward, $actor, $data['reason']));
+
         return back()->with('success', 'Support Steward access suspended.');
     }
 
@@ -355,6 +359,8 @@ class ContinuityStewardController extends Controller
             $actor->id,
             'notification', $actor->id
         );
+
+        event(new SsReinstated($steward, $actor));
 
         return back()->with('success', 'Support Steward reinstated.');
     }

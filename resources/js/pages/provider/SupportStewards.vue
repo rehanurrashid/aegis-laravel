@@ -5,15 +5,16 @@
       eyebrow="PROVIDER PORTAL"
       title="Support Stewards"
       subtitle="Designate trusted individuals to support communication, coordination, and key tasks during a critical moment, guided by your Continuity Plan."
+      quiet
     >
       <template #actions>
-        <a :href="route('provider.activity', { module: 'steward' })" class="btn-hero-ghost" data-tooltip="Module activity">
+        <a :href="route('provider.activity', { module: 'steward' })" class="btn-hero-ghost is-on-light" data-tooltip="Module activity">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
-        <button class="btn-hero-ghost" @click="openModal('dsrGuideModal')">
+        <button class="btn-hero-ghost is-on-light" @click="openModal('dsrGuideModal')">
           What is a Support Steward?
         </button>
-        <button class="btn-hero-solid" @click="handleAddSS">
+        <button class="btn-hero-solid is-on-light" @click="handleAddSS">
           <AegisIcon name="plus" :size="14" /> Add Support Steward
         </button>
       </template>
