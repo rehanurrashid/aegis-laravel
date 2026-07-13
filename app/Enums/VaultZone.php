@@ -1,23 +1,21 @@
 <?php
-
 declare(strict_types=1);
-
 namespace App\Enums;
 
 enum VaultZone: string
 {
-    case Credentials  = 'credentials';
-    case Roster       = 'roster';
-    case Documents    = 'documents';
-    case Instructions = 'instructions';
+    case Standard    = 'standard';
+    case Emergency   = 'emergency';
+    case Credentials = 'credentials';
+    case Roster      = 'roster';
 
     public function label(): string
     {
         return match ($this) {
-            self::Credentials  => 'Secure Credentials',
-            self::Roster       => 'Client Roster',
-            self::Documents    => 'Documents',
-            self::Instructions => 'Instructions',
+            self::Standard    => 'All Documents',
+            self::Emergency   => 'Sensitive Information',
+            self::Credentials => 'System Access Credentials',
+            self::Roster      => 'Client Roster',
         };
     }
 

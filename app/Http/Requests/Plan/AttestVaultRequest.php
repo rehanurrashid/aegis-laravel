@@ -13,7 +13,8 @@ class AttestVaultRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'note' => 'nullable|string|max:500',
+            'note'  => 'nullable|string|max:500',
+            'clear' => 'nullable|boolean',
         ];
     }
 }

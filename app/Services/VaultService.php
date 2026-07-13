@@ -24,35 +24,70 @@ class VaultService
         private IncidentService $incidents
     ) {}
 
-    public function upload(User $practitioner, UploadedFile $file, string $zone, array $meta = []): VaultItem
+    public function upload(User $practitioner, ?UploadedFile $file, string $zone, array $meta = []): VaultItem
     {
         $allowed = ['standard', 'emergency', 'credentials', 'roster'];
         if (!in_array($zone, $allowed, true)) {
             throw new RuntimeException("Invalid vault zone: {$zone}");
         }
 
-        $disk = config('filesystems.default') === 's3' ? 's3' : 'local';
-        $path = "vault/{$practitioner->id}/" . Str::lower(Str::random(16)) . '.' . $file->getClientOriginalExtension();
-        Storage::disk($disk)->put($path, file_get_contents($file->getRealPath()));
+        $path     = null;
+        $fileName = null;
+        $fileSize = null;
+        $mimeType = null;
 
+        if ($file !== null) {
+            $disk     = config('filesystems.default') === 's3' ? 's3' : 'local';
+            $path     = "vault/{$practitioner->id}/" . Str::lower(Str::random(16)) . '.' . $file->getClientOriginalExtension();
+            Storage::disk($disk)->put($path, file_get_contents($file->getRealPath()));
+            $fileName = $file->getClientOriginalName();
+            $fileSize = $file->getSize();
+            $mimeType = $file->getMimeType();
+        }
+
+        // Encrypt credential password before storage
+        $credPassword = null;
+        if (!empty($meta['credential_password'])) {
+            $credPassword = encrypt($meta['credential_password']);
+        }
+
+        $zoneLabel = $zone;
+        $title     = $meta['title'] ?? ($fileName ?? 'Untitled');
         $item = VaultItem::create([
-            'id'              => 'vi_' . Str::lower(Str::random(12)),
-            'practitioner_id' => $practitioner->id,
-            'zone'            => $zone,
-            'title'           => $meta['title'] ?? $file->getClientOriginalName(),
-            'description'     => $meta['description'] ?? null,
-            'file_name'       => $file->getClientOriginalName(),
-            'file_size'       => $file->getSize(),
-            'mime_type'       => $file->getMimeType(),
-            's3_key'          => $path,
-            'created_at'      => now(),
+            'id'                      => 'vi_' . Str::lower(Str::random(12)),
+            'practitioner_id'         => $practitioner->id,
+            'zone'                    => $zone,
+            'category'                => $meta['category'] ?? null,
+            'title'                   => $title,
+            'sub_label'               => $meta['sub_label'] ?? null,
+            'description'             => $meta['description'] ?? null,
+            'status'                  => $zone === 'credentials' ? 'vault_only' : ($zone === 'roster' ? ($meta['client_priority'] ? 'priority' : 'active') : 'active'),
+            'file_name'               => $fileName,
+            'file_size'               => $fileSize,
+            'mime_type'               => $mimeType,
+            's3_key'                  => $path,
+            'file_ref'                => $path,
+            'issued_at'               => $meta['issued_at'] ?? null,
+            'expires_at'              => $meta['expires_at'] ?? null,
+            // Credential fields
+            'credential_username'     => $meta['credential_username'] ?? null,
+            'credential_password_enc' => $credPassword,
+            'credential_url'          => $meta['credential_url'] ?? null,
+            // Roster fields
+            'client_name'             => $meta['client_name'] ?? null,
+            'client_location'         => $meta['client_location'] ?? null,
+            'client_phone'            => $meta['client_phone'] ?? null,
+            'client_service'          => $meta['client_service'] ?? null,
+            'client_priority'         => $meta['client_priority'] ? 1 : 0,
+            'client_notes'            => $meta['client_notes'] ?? null,
+            'created_at'              => now(),
         ]);
 
         $this->activity->log(
             $practitioner->id, 'provider',
             'vault', ActivitySeverity::Info,
             'vault_item_uploaded', 'Vault item uploaded',
-            "You uploaded \"{$item->title}\" to the {$zone} vault zone.",
+            "You uploaded \"{$title}\" to the {$zoneLabel} vault zone.",
             VaultItem::class, $item->id, null, 'log', $practitioner->id,
         );
 
