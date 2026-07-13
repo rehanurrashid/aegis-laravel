@@ -144,9 +144,12 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Stripe\PaymentFailed::class,              Listeners\SendEmailNotificationListener::class);
 
         // Document events
-        Event::listen(Events\Document\DocumentRequested::class,        Listeners\SendEmailNotificationListener::class);
-        Event::listen(Events\Document\DocumentReleaseRequested::class, Listeners\SendEmailNotificationListener::class);
-        Event::listen(Events\Document\DocumentUpdated::class,          Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Document\DocumentRequested::class,           Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Document\DocumentReleaseRequested::class,    Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Document\DocumentUpdated::class,             Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Document\DocumentSigned::class,              Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Document\DocumentArchived::class,            Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Document\DocumentAmendmentRequested::class,  Listeners\SendEmailNotificationListener::class);
 
         // Messaging
         Event::listen(Events\Messages\MessageSent::class,       Listeners\SendEmailNotificationListener::class);

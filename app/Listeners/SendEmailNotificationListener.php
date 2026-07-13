@@ -35,6 +35,9 @@ use App\Events\Stripe\PaymentFailed;
 use App\Events\Document\DocumentRequested;
 use App\Events\Document\DocumentReleaseRequested;
 use App\Events\Document\DocumentUpdated;
+use App\Events\Document\DocumentSigned;
+use App\Events\Document\DocumentArchived;
+use App\Events\Document\DocumentAmendmentRequested;
 use App\Events\Messages\MessageSent;
 use App\Events\Business\MilestoneSubmitted;
 use App\Events\Business\MilestoneApproved;
@@ -212,6 +215,9 @@ class SendEmailNotificationListener
             $event instanceof \App\Events\Dispute\DisputeOpened           => $this->disputeOpened($event),
             $event instanceof \App\Events\Dispute\DisputeReplied          => $this->disputeReplied($event),
             $event instanceof \App\Events\Dispute\DisputeResolved         => $this->disputeResolved($event),
+            $event instanceof DocumentSigned                              => $this->documentSigned($event),
+            $event instanceof DocumentArchived                            => $this->documentArchived($event),
+            $event instanceof DocumentAmendmentRequested                  => $this->documentAmendmentRequested($event),
             default                                   => [],
         };
     }
@@ -1823,4 +1829,117 @@ class SendEmailNotificationListener
         }
         return $mails;
     }
+
+    // ── Document signed (provider signs → notify CS; CS countersigns → notify provider) ──
+
+    private function documentSigned(DocumentSigned $e): array
+    {
+        $doc    = $e->document;
+        $signer = $e->signer;
+        $base   = rtrim(config('app.url'), '/');
+
+        if ($e->isCountersignature) {
+            // CS countersigned — notify provider: agreement fully executed
+            return [[
+                'user_id'  => $doc->practitioner_id,
+                'gate_key' => 'notify_plan',
+                'template' => 'emails.document.74-document-countersigned',
+                'data'     => [
+                    'document_id'       => $doc->id,
+                    'document_title'    => $doc->title,
+                    'cs_name'           => $signer->display_name,
+                    'docs_url'          => $base . '/provider/important-documents',
+                ],
+            ]];
+        }
+
+        // Provider signed — notify CS party B: your countersignature is needed
+        $recipientId = $doc->party_b_id ?? $doc->holder_steward_id;
+        if (!$recipientId) {
+            return [];
+        }
+        return [[
+            'user_id'  => $recipientId,
+            'gate_key' => 'notify_plan',
+            'template' => 'emails.document.73-document-signed-provider',
+            'data'     => [
+                'document_id'       => $doc->id,
+                'document_title'    => $doc->title,
+                'practitioner_name' => $signer->display_name,
+                'docs_url'          => $base . '/continuity-steward/important-documents',
+            ],
+        ]];
+    }
+
+    // ── Document archived / terminated ────────────────────────────────────────
+
+    private function documentArchived(DocumentArchived $e): array
+    {
+        $doc  = $e->document;
+        $base = rtrim(config('app.url'), '/');
+        $rows = [];
+
+        // Actor confirmation
+        $rows[] = [
+            'user_id'  => $e->actor->id,
+            'gate_key' => 'notify_plan',
+            'template' => 'emails.document.75-document-archived',
+            'data'     => [
+                'document_id'    => $doc->id,
+                'document_title' => $doc->title,
+                'reason'         => $e->reason,
+                'is_actor'       => true,
+                'docs_url'       => $base . '/provider/important-documents',
+            ],
+        ];
+
+        // Counterparty notification
+        $recipientId = $doc->party_b_id ?? $doc->holder_steward_id;
+        if ($recipientId && $recipientId !== $e->actor->id) {
+            $rows[] = [
+                'user_id'  => $recipientId,
+                'gate_key' => 'notify_plan',
+                'template' => 'emails.document.75-document-archived',
+                'data'     => [
+                    'document_id'       => $doc->id,
+                    'document_title'    => $doc->title,
+                    'practitioner_name' => $e->actor->display_name,
+                    'reason'            => $e->reason,
+                    'is_actor'          => false,
+                    'docs_url'          => $base . '/continuity-steward/important-documents',
+                ],
+            ];
+        }
+
+        return $rows;
+    }
+
+    // ── Amendment requested ────────────────────────────────────────────────────
+
+    private function documentAmendmentRequested(DocumentAmendmentRequested $e): array
+    {
+        $amendment  = $e->amendment;
+        $requester  = $e->requester;
+        $base       = rtrim(config('app.url'), '/');
+
+        $recipientId = $amendment->party_b_id ?? $amendment->holder_steward_id;
+        if (!$recipientId) {
+            return [];
+        }
+
+        return [[
+            'user_id'  => $recipientId,
+            'gate_key' => 'notify_plan',
+            'template' => 'emails.document.76-amendment-requested',
+            'data'     => [
+                'document_id'       => $amendment->id,
+                'document_title'    => $amendment->title,
+                'practitioner_name' => $requester->display_name,
+                'amendment_type'    => $amendment->doc_type ?? 'Amendment',
+                'proposed_change'   => $amendment->body ?? null,
+                'docs_url'          => $base . '/continuity-steward/important-documents',
+            ],
+        ]];
+    }
+
 }

@@ -156,7 +156,7 @@ class DocumentsController extends Controller
     public function archive(Request $request, ContinuityDocument $document): RedirectResponse
     {
         $this->authorize('archive', $document);
-        $this->documents->archive($document);
+        $this->documents->archive($document, $request->user(), $request->input('reason', 'archived'));
         return back()->with('success', 'Document archived.');
     }
 
