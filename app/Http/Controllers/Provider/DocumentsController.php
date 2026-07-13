@@ -52,8 +52,8 @@ class DocumentsController extends Controller
                 $doc->created_at?->format('M j, Y'),
                 $doc->holderSteward?->display_name,
             ])),
-            'badge_label'  => $this->badgeLabel($doc->status),
-            'badge_variant'=> $this->badgeVariant($doc->status),
+            'badge_label'  => $this->badgeLabel($doc->status instanceof \App\Enums\DocumentStatus ? $doc->status->value : (string) $doc->status),
+            'badge_variant'=> $this->badgeVariant($doc->status instanceof \App\Enums\DocumentStatus ? $doc->status->value : (string) $doc->status),
         ])->values();
 
         // Stats
@@ -61,10 +61,11 @@ class DocumentsController extends Controller
             fn ($d) => $d->expires_at && Carbon::parse($d->expires_at)->isBetween($now, $now->copy()->addDays(30))
         )->count();
 
+        $statusVal = fn ($d) => $d->status instanceof \App\Enums\DocumentStatus ? $d->status->value : (string) $d->status;
         $docStats = [
             'total'    => $continuityDocs->count(),
-            'active'   => $continuityDocs->whereIn('status', ['active', 'fully_executed'])->count(),
-            'pending'  => $continuityDocs->whereIn('status', ['pending_sign', 'countersign_pending', 'countersign'])->count(),
+            'active'   => $continuityDocs->filter(fn ($d) => in_array($statusVal($d), ['active', 'fully_executed']))->count(),
+            'pending'  => $continuityDocs->filter(fn ($d) => in_array($statusVal($d), ['pending_sign', 'countersign_pending', 'countersign']))->count(),
             'expiring' => $expiringCount,
         ];
 
@@ -197,7 +198,9 @@ class DocumentsController extends Controller
 
     private function shapeDoc(ContinuityDocument $doc, User $user, Carbon $now): array
     {
-        $status       = $doc->status;
+        $status       = $doc->status instanceof \App\Enums\DocumentStatus
+            ? $doc->status->value
+            : (string) $doc->status;
         $expiresAt    = $doc->expires_at ? Carbon::parse($doc->expires_at) : null;
         $isExpiring   = $expiresAt && $expiresAt->isBetween($now, $now->copy()->addDays(30));
         $isExpired    = $expiresAt && $expiresAt->isPast();
