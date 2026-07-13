@@ -96,7 +96,7 @@ class VaultSeeder extends Seeder
                 'category'        => 'Licenses & Credentials',
                 'title'           => 'Texas LPC License — #78234',
                 'sub_label'       => 'Licensed Professional Counselor',
-                'status'          => 'expiring',
+                'status'          => 'active',
                 'description'     => 'Renewal deadline: December 31, 2025. CE credits required: 24hrs.',
                 'file_ref'        => 'vault/p_sarah/lpc_license_tx.pdf',
                 'issued_at'       => '2023-01-01',
