@@ -132,6 +132,15 @@ class PlanService
         $practitioner = User::find($plan->practitioner_id);
         event(new PlanSigned($plan->fresh(), $practitioner));
 
+        // Actor log (pos 11 = entryType, pos 12 = actorId)
+        $this->activity->log(
+            $practitioner->id, 'provider', 'plan', ActivitySeverity::Info,
+            'plan_signed', 'Continuity Plan signed',
+            'You signed and activated your Continuity Plan.',
+            'continuity_plan', $plan->id, null,
+            'log', $practitioner->id
+        );
+
         $recipients = $this->activity->getPlanStewardRecipients($plan->id);
         $this->activity->fanOut($recipients, [
             'module'       => 'plan',
@@ -156,6 +165,15 @@ class PlanService
 
         $practitioner = User::find($plan->practitioner_id);
         event(new VaultAttested($plan->fresh(), $practitioner));
+
+        // Actor log
+        $this->activity->log(
+            $practitioner->id, 'provider', 'vault', ActivitySeverity::Info,
+            'vault_attested', 'Vault attested',
+            'You confirmed the vault contents are accurate.',
+            'continuity_plan', $plan->id, null,
+            'log', $practitioner->id
+        );
 
         $recipients = $this->activity->getPlanStewardRecipients($plan->id);
         $this->activity->fanOut($recipients, [

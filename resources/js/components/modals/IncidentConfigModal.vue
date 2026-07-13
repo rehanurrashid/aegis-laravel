@@ -3,7 +3,7 @@
   Usage: <IncidentConfigModal v-model="showIncidentConfig" :incident-type="..." ... />
 -->
 <template>
-  <AegisModal v-model="modelValue" size="xl" :title="`Configure: ${incidentType?.label ?? ''}`" @close="$emit('update:modelValue', false)">
+  <AegisModal :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)" size="xl" :title="`Configure: ${incidentType?.label ?? ''}`">
 
     <!-- Enable toggle -->
     <div class="m-section" style="margin-bottom:16px">
@@ -77,7 +77,7 @@
       </div>
       <div class="task-list" style="margin-top:8px">
         <div v-for="(t, i) in ssTasks" :key="i" class="task-item">
-          <AegisIcon name="grip-vertical" :size="13" style="color:var(--text-4);flex-shrink:0;cursor:grab" />
+          <AegisIcon name="menu" :size="13" style="color:var(--text-4);flex-shrink:0;cursor:grab" />
           <span style="flex:1;font-size:13px;color:var(--text);font-weight:500">{{ t.title }}</span>
           <span v-if="t.timeline" style="font-size:11px;color:var(--text-3);font-weight:600;padding:3px 8px;background:var(--surface-2);border-radius:var(--radius-xs);white-space:nowrap">{{ t.timeline }}</span>
           <button type="button" class="btn-icon" data-tooltip="Remove" @click="ssTasks.splice(i,1)">
@@ -103,7 +103,7 @@
       </div>
       <div class="task-list" style="margin-top:8px">
         <div v-for="(t, i) in csTasks" :key="i" class="task-item">
-          <AegisIcon name="grip-vertical" :size="13" style="color:var(--text-4);flex-shrink:0;cursor:grab" />
+          <AegisIcon name="menu" :size="13" style="color:var(--text-4);flex-shrink:0;cursor:grab" />
           <span style="flex:1;font-size:13px;color:var(--text);font-weight:500">{{ t.title }}</span>
           <span v-if="t.timeline" style="font-size:11px;color:var(--text-3);font-weight:600;padding:3px 8px;background:var(--surface-2);border-radius:var(--radius-xs);white-space:nowrap">{{ t.timeline }}</span>
           <button type="button" class="btn-icon" data-tooltip="Remove" @click="csTasks.splice(i,1)">

@@ -96,7 +96,7 @@
           <span v-if="activePane === 'build'" class="path-tile-check"><AegisIcon name="check" :size="12" /></span>
         </button>
         <button type="button" class="path-tile" :class="{ 'is-selected': activePane === 'sections' }" @click="activePane = 'sections'">
-          <span class="path-tile-icon"><AegisIcon name="list" :size="18" /></span>
+          <span class="path-tile-icon"><AegisIcon name="clipboard-list" :size="18" /></span>
           <span class="path-tile-text">
             <div class="path-tile-title">Section Checklist</div>
             <div class="path-tile-sub">{{ completedSections }}/7 sections complete</div>
@@ -235,7 +235,7 @@
             <!-- Tasks -->
             <div :class="{ 'grid-cell-dim': !isEnabled(type.value) }">
               <span v-if="!isEnabled(type.value)" class="grid-empty-cell">—</span>
-              <span v-else style="display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:var(--text-2)">
+              <span v-else style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--text-2)">
                 <AegisIcon name="clipboard-check" :size="11" style="color:var(--gold-dark);flex-shrink:0" />
                 {{ ssTaskCount(type.value) }} SS · {{ csTaskCount(type.value) }} CS
               </span>
@@ -571,7 +571,7 @@ const templates = [
 
 /* Path tiles */
 .path-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 24px; margin-top: 16px; }
-.path-tile { position: relative; display: flex; align-items: flex-start; gap: 14px; padding: 18px 20px; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer; text-align: left; width: 100%; font-family: inherit; color: inherit; transition: border-color .15s, background .15s, box-shadow .15s; }
+.path-tile { position: relative; display: flex; align-items: flex-start; gap: 14px; padding: 18px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; text-align: left; width: 100%; font-family: inherit; color: inherit; transition: border-color .15s, background .15s, box-shadow .15s; }
 .path-tile:hover { border-color: var(--border-dark); box-shadow: var(--shadow-sm); }
 .path-tile.is-selected { background: var(--badge-bg-gold); border-color: var(--gold-dark); }
 .path-tile-icon { width: 36px; height: 36px; border-radius: var(--radius-sm); background: var(--badge-bg-gold); color: var(--gold-dark); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }

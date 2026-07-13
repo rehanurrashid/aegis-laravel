@@ -3,7 +3,7 @@
   Usage: <SignPlanModal v-model="showSignModal" :plan="plan" ... />
 -->
 <template>
-  <AegisModal v-model="modelValue" size="lg" title="Sign Your Continuity Plan" @close="$emit('update:modelValue', false)">
+  <AegisModal :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)" size="lg" title="Sign Your Continuity Plan" @close="closeModal">
     <!-- Plan readiness summary -->
     <div class="m-section" style="margin-bottom:16px">
       <div class="m-section-title">Plan Readiness</div>
@@ -51,9 +51,9 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div class="form-group" style="margin-bottom:0">
           <label class="form-label">Title <span class="form-required">*</span></label>
-          <input v-model="form.title" class="form-input" :class="v$.title.$error ? 'is-error' : ''"
+          <input v-model="form.title" class="form-input" :class="{ 'is-error': fieldError('title') }"
             type="text" placeholder="Your professional title" @blur="v$.title.$touch()" />
-          <div v-if="v$.title.$error" class="form-error">{{ v$.title.$errors[0]?.$message }}</div>
+          <div v-if="fieldError('title')" class="form-error">{{ fieldError('title') }}</div>
         </div>
         <div class="form-group" style="margin-bottom:0">
           <label class="form-label">Date</label>
@@ -70,10 +70,10 @@
       </div>
       <AegisToggle v-model="form.confirmed" />
     </div>
-    <div v-if="v$.confirmed.$error" class="form-error" style="margin-top:4px">You must confirm before signing.</div>
+    <div v-if="fieldError('confirmed')" class="form-error" style="margin-top:4px">{{ fieldError('confirmed') }}</div>
 
     <template #footer>
-      <button type="button" class="btn btn-outline" @click="$emit('update:modelValue', false)">Cancel</button>
+      <button type="button" class="btn btn-outline" @click="closeModal">Cancel</button>
       <button type="button" class="btn btn-primary btn-spin"
         :disabled="submitting || !form.confirmed || !canSign"
         :data-tooltip="!canSign ? 'Complete all required sections first' : undefined"
@@ -104,6 +104,12 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
+function closeModal() {
+  form.reset()
+  v$.value.$reset()
+  emit('update:modelValue', false)
+}
+
 const today = new Date().toISOString().split('T')[0]
 
 const paidStewards = computed(() =>
@@ -112,12 +118,18 @@ const paidStewards = computed(() =>
 
 const form = useForm({ title: '', confirmed: false })
 
-const rules = {
+const rules = computed(() => ({
   title:     { required: helpers.withMessage('Professional title is required.', required) },
   confirmed: { accepted: helpers.withMessage('You must confirm before signing.', v => v === true) },
-}
+}))
 const v$ = useVuelidate(rules, form)
 const submitting = ref(false)
+
+function fieldError(field) {
+  if (v$.value[field]?.$error) return v$.value[field].$errors[0]?.$message
+  if (form.errors[field]) return form.errors[field]
+  return null
+}
 
 function formatMoney(cents) {
   return '$' + ((cents ?? 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })

@@ -3,7 +3,7 @@
   Usage: <AttestPlanModal v-model="showAttestModal" />
 -->
 <template>
-  <AegisModal v-model="modelValue" size="md" title="Attest Vault Contents" @close="$emit('update:modelValue', false)">
+  <AegisModal :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)" size="md" title="Attest Vault Contents">
     <div class="alert alert-info" style="margin-bottom:14px">
       <AegisIcon name="info" :size="16" />
       <div>Attestation confirms to your Continuity Stewards that the Vault contains accurate, up-to-date information. This is required before your plan can be signed.</div>

@@ -138,14 +138,6 @@ class ContinuityPlanController extends Controller
             'title' => $request->input('title'),
         ], $request->ip());
 
-        $this->activity->log(
-            $user->id, 'provider', 'plan', ActivitySeverity::Info,
-            'plan_signed', 'Continuity Plan signed',
-            'You signed and activated your Continuity Plan.',
-            'continuity_plan', $plan->id, null,
-            'log', $user->id
-        );
-
         return back()->with('success', 'Plan signed and activated.');
     }
 
@@ -157,14 +149,6 @@ class ContinuityPlanController extends Controller
         $this->authorize('attestVault', $plan);
 
         $this->plans->attestVault($plan, $request->input('note'));
-
-        $this->activity->log(
-            $user->id, 'provider', 'vault', ActivitySeverity::Info,
-            'vault_attested', 'Vault attested',
-            'You confirmed the vault contents are accurate.',
-            'continuity_plan', $plan->id, null,
-            'log', $user->id
-        );
 
         return back()->with('success', 'Vault attested.');
     }
