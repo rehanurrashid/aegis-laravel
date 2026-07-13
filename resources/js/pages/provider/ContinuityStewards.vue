@@ -91,11 +91,11 @@ function avatarColor(name) {
 }
 
 function stewardName(s) {
-  return s.user?.display_name ?? s.display_name ?? s.email ?? '—'
+  return s.steward?.display_name ?? s.display_name ?? s.email ?? '—'
 }
 
 function stewardOrg(s) {
-  return s.user?.organization ?? '—'
+  return s.steward?.organization ?? '—'
 }
 
 function authIncidentLabels(steward) {
@@ -425,8 +425,8 @@ function openAuthSummary(steward) {
             </div>
             <div style="font-size:12px;color:var(--text-4);margin-bottom:6px;">{{ stewardOrg(s) }}</div>
             <div style="display:flex;flex-wrap:wrap;gap:12px;">
-              <span v-if="s.user?.email" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-4);">
-                <AegisIcon name="mail" :size="11" />{{ s.user.email }}
+              <span v-if="s.steward?.email" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-4);">
+                <AegisIcon name="mail" :size="11" />{{ s.steward.email }}
               </span>
               <span v-if="s.signed_at" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-4);">
                 <AegisIcon name="signature" :size="11" />Signed {{ s.signed_at }}

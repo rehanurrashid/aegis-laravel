@@ -39,7 +39,7 @@ class ContinuityStewardController extends Controller
             ? \App\Models\PlanSteward::where('plan_id', $plan->id)
                 ->where('steward_category', 'continuity_steward')
                 ->whereIn('status', ['active', 'pending', 'invited'])
-                ->with('user:id,display_name,credentials,email,phone,title,organization,location,avatar_initials,slug,stripe_account_id')
+                ->with('steward:id,display_name,credentials,email,phone,title,organization,location,avatar_initials,slug,stripe_account_id')
                 ->get()
                 ->map(fn ($s) => [
                     'id'                       => $s->id,
@@ -52,12 +52,12 @@ class ContinuityStewardController extends Controller
                     'signed_at'                => $s->signed_at?->toDateString(),
                     'invited_at'               => $s->invited_at?->toDateString(),
                     'expires_at'               => $s->expires_at?->toDateString(),
-                    'stripe_connected'         => (bool) ($s->user?->stripe_account_id),
+                    'stripe_connected'         => (bool) ($s->steward?->stripe_account_id),
                     'has_outstanding_invoices' => \App\Models\CsInvoice::where('cs_id', $s->steward_id)
                         ->where('practitioner_id', $user->id)
                         ->whereIn('status', ['sent', 'overdue', 'disputed'])
                         ->exists(),
-                    'user' => $s->user ? $s->user->toArray() : null,
+                    'steward' => $s->steward ? $s->steward->toArray() : null,
                     'steward_id' => $s->steward_id,
                     'email'      => $s->email,
                     'display_name' => $s->display_name,
