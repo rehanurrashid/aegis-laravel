@@ -50,7 +50,7 @@
               </label>
             </div>
             <p v-else style="font-size:12px;color:var(--text-4);margin:0">
-              No SS assigned. <a :href="route('ss.index')" style="color:var(--gold-dark)">Add one →</a>
+              No SS assigned. <a :href="route('provider.ss.index')" style="color:var(--gold-dark)">Add one →</a>
             </p>
           </div>
           <div>
@@ -66,7 +66,7 @@
               </label>
             </div>
             <p v-else style="font-size:12px;color:var(--text-4);margin:0">
-              No CS assigned. <a :href="route('stewards.index')" style="color:var(--gold-dark)">Add one →</a>
+              No CS assigned. <a :href="route('provider.stewards.index')" style="color:var(--gold-dark)">Add one →</a>
             </p>
           </div>
         </div>
@@ -228,7 +228,7 @@ async function submit() {
 
   // 1) Save incident config (is_active, docs, authorizations)
   await new Promise((resolve) => {
-    router.post(route('plan.incident-config'), {
+    router.post(route('provider.plan.incident-config'), {
       incident_type:      props.incidentType?.value,
       is_active:          form.is_active,
       docs_required:      form.docs_required,
@@ -246,7 +246,7 @@ async function submit() {
   const newTasks = allNew.filter(t => !t.id)
   for (const t of newTasks) {
     await new Promise((resolve) => {
-      router.post(route('plan.tasks.store'), {
+      router.post(route('provider.plan.tasks.store'), {
         title:         t.title,
         timeline:      t.timeline,
         assigned_to:   t.assigned_to,

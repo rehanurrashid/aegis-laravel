@@ -116,7 +116,7 @@ class ContinuityPlanController extends Controller
             'incidentTypes'   => $incidentTypes,
             'canSign'         => $canSign,
             'canActivate'     => $canActivate,
-            'tierLimits'      => config('aegis.tier_limits.' . ($user->tier ?? 'access'), []),
+            'tierLimits'      => config('aegis.tier_limits.' . ($user->tier?->value ?? 'access'), []),
         ]);
     }
 

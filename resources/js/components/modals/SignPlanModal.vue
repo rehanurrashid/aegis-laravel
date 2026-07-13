@@ -150,7 +150,7 @@ async function submit() {
   const valid = await v$.value.$validate()
   if (!valid) return
   submitting.value = true
-  form.post(route('plan.sign'), {
+  form.post(route('provider.plan.sign'), {
     onSuccess: () => { submitting.value = false; emit('close') },
     onError:   () => { submitting.value = false },
   })

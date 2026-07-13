@@ -11,7 +11,7 @@
     <AegisHeroBanner eyebrow="Continuity Planning" :title="'My Continuity Plan'"
       :subtitle="plan ? `Version ${plan.plan_version ?? 1} · ${planStatusLabel}` : 'Build your plan below'" quiet>
       <template #actions>
-        <a :href="route('activity') + '?module=plan'" class="btn-hero-ghost is-on-light">
+        <a :href="route('provider.activity') + '?module=plan'" class="btn-hero-ghost is-on-light">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
         <button v-if="plan && plan.signed_at" type="button" class="btn-hero-ghost is-on-light" @click="showAnnualReview = true">
@@ -123,8 +123,8 @@
             <div class="section-sub">The people authorized to act on this plan when it activates.</div>
           </div>
           <div style="display:flex;gap:8px">
-            <a :href="route('stewards.index')" class="btn btn-outline">Manage CS</a>
-            <a :href="route('ss.index')" class="btn btn-outline">Manage SS</a>
+            <a :href="route('provider.stewards.index')" class="btn btn-outline">Manage CS</a>
+            <a :href="route('provider.ss.index')" class="btn btn-outline">Manage SS</a>
           </div>
         </div>
 
@@ -145,7 +145,7 @@
                 <div style="font-size:12px;font-weight:600;color:var(--text-3)">No {{ slot.label }}</div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--red-dark);margin-top:2px">{{ slot.required ? 'Required' : 'Recommended' }}</div>
               </div>
-              <a :href="slot.isCs ? route('stewards.index') : route('ss.index')" class="btn btn-primary">Add</a>
+              <a :href="slot.isCs ? route('provider.stewards.index') : route('provider.ss.index')" class="btn btn-primary">Add</a>
             </div>
           </template>
         </div>
@@ -468,12 +468,12 @@ const reviewSubmitting   = ref(false)
 
 // ── Create draft ───────────────────────────────────────────────────────────────
 const createDraftForm = useForm({})
-function createDraft() { createDraftForm.post(route('plan.store')) }
+function createDraft() { createDraftForm.post(route('provider.plan.store')) }
 
 // ── Annual review ──────────────────────────────────────────────────────────────
 function submitAnnualReview() {
   reviewSubmitting.value = true
-  router.post(route('plan.review.start'), {}, {
+  router.post(route('provider.plan.review.start'), {}, {
     onSuccess: () => { reviewSubmitting.value = false; showAnnualReview.value = false },
     onError:   () => { reviewSubmitting.value = false },
   })
@@ -519,7 +519,7 @@ function csTaskCount(_v) { return props.tasks.filter(t => t.assigned_to === 'con
 function openIncidentConfig(type) { activeIncidentType.value = type; showIncidentConfig.value = true }
 
 function handleToggle(type, val) {
-  router.post(route('plan.incident-config'), {
+  router.post(route('provider.plan.incident-config'), {
     incident_type:      type.value,
     is_active:          val,
     is_optin:           type.is_optin,

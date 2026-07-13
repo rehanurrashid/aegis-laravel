@@ -42,7 +42,7 @@ const submitting = ref(false)
 
 function submit() {
   submitting.value = true
-  form.post(route('plan.attest'), {
+  form.post(route('provider.plan.attest'), {
     onSuccess: () => { submitting.value = false; emit('close') },
     onError:   () => { submitting.value = false },
   })

@@ -277,11 +277,10 @@ class PlanService
     {
         $practitioner = User::find($plan->practitioner_id);
 
-        // Section 1 — Practice Info
+        // Section 1 — Practice Info (columns: display_name, phone, title, organization)
         $practiceInfoComplete = !empty($practitioner->display_name)
-            && !empty($practitioner->license_number)
-            && !empty($practitioner->state)
-            && !empty($practitioner->contact_phone);
+            && !empty($practitioner->phone)
+            && !empty($practitioner->title);
 
         // Section 2 — Continuity Stewards
         $csCount = PlanSteward::where('plan_id', $plan->id)
@@ -322,14 +321,14 @@ class PlanService
         $signed = !is_null($plan->signed_at);
 
         return [
-            ['key' => 'practice_info',       'title' => 'Practice Info',          'complete' => $practiceInfoComplete, 'blocks_signing' => true,  'href' => route('profile.index'), 'warning' => null],
-            ['key' => 'continuity_stewards',  'title' => 'Continuity Stewards',    'complete' => $csCount >= 1,         'blocks_signing' => true,  'href' => route('stewards.index'),         'warning' => null],
-            ['key' => 'support_stewards',     'title' => 'Support Stewards',       'complete' => $ssCount >= 1,         'blocks_signing' => false, 'href' => route('ss.index'),               'warning' => 'Recommended but not required'],
-            ['key' => 'incident_types',       'title' => 'Incident Types',         'complete' => $activeIncidentCount >= 1, 'blocks_signing' => true, 'href' => route('plan.index') . '#incident-grid', 'warning' => null],
-            ['key' => 'response_tasks',       'title' => 'Response Tasks',         'complete' => $tasksComplete,        'blocks_signing' => true,  'href' => route('plan.index') . '#incident-grid', 'warning' => null],
-            ['key' => 'vault',                'title' => 'Vault',                  'complete' => $vaultAttested,        'blocks_signing' => true,  'href' => route('vault.index'),            'warning' => null],
-            ['key' => 'documents',            'title' => 'Documents',              'complete' => $docsComplete,         'blocks_signing' => $hasFeeCs, 'href' => route('documents.index'),    'warning' => $hasFeeCs && !$docsComplete ? 'CS engagement agreement required' : null],
-            ['key' => 'sign',                 'title' => 'Sign Plan',              'complete' => $signed,               'blocks_signing' => false, 'href' => null,                            'warning' => null],
+            ['key' => 'practice_info',       'title' => 'Practice Info',          'complete' => $practiceInfoComplete, 'blocks_signing' => true,  'href' => '/provider/profile',              'warning' => null],
+            ['key' => 'continuity_stewards',  'title' => 'Continuity Stewards',    'complete' => $csCount >= 1,         'blocks_signing' => true,  'href' => '/provider/continuity-stewards',  'warning' => null],
+            ['key' => 'support_stewards',     'title' => 'Support Stewards',       'complete' => $ssCount >= 1,         'blocks_signing' => false, 'href' => '/provider/support-stewards',     'warning' => 'Recommended but not required'],
+            ['key' => 'incident_types',       'title' => 'Incident Types',         'complete' => $activeIncidentCount >= 1, 'blocks_signing' => true, 'href' => '/provider/continuity-plan#incident-grid', 'warning' => null],
+            ['key' => 'response_tasks',       'title' => 'Response Tasks',         'complete' => $tasksComplete,        'blocks_signing' => true,  'href' => '/provider/continuity-plan#incident-grid', 'warning' => null],
+            ['key' => 'vault',                'title' => 'Vault',                  'complete' => $vaultAttested,        'blocks_signing' => true,  'href' => '/provider/vault',                'warning' => null],
+            ['key' => 'documents',            'title' => 'Documents',              'complete' => $docsComplete,         'blocks_signing' => $hasFeeCs, 'href' => '/provider/important-documents', 'warning' => $hasFeeCs && !$docsComplete ? 'CS engagement agreement required' : null],
+            ['key' => 'sign',                 'title' => 'Sign Plan',              'complete' => $signed,               'blocks_signing' => false, 'href' => null,                             'warning' => null],
         ];
     }
 
