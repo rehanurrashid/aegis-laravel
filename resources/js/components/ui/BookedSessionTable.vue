@@ -94,10 +94,12 @@
               :key="ses.id"
               :session="ses"
               viewpoint="client"
+              :show-invoice="showInvoice"
               @pay-deposit="$emit('pay-deposit', ses)"
               @pay-balance="$emit('pay-balance', ses)"
               @request-refund="$emit('request-refund', ses)"
               @escalate-refund="$emit('escalate-refund', ses)"
+              @open-invoice="$emit('open-invoice', ses)"
             />
           </tbody>
         </table>
@@ -143,10 +145,11 @@ const props = defineProps({
   emptyTitle:    { type: String, default: 'No booked sessions' },
   emptySubtitle: { type: String, default: '' },
   showSearch:    { type: Boolean, default: true },
+  showInvoice:   { type: Boolean, default: false },  // show "Invoice" button in detail modal
   pageSize:      { type: Number,  default: 8 },
 })
 
-defineEmits(['pay-deposit', 'pay-balance', 'request-refund', 'escalate-refund', 'page-change'])
+defineEmits(['pay-deposit', 'pay-balance', 'request-refund', 'escalate-refund', 'open-invoice', 'page-change'])
 
 // Server-side mode when meta is provided
 const isServerSide = computed(() => !!props.meta)

@@ -439,12 +439,14 @@
         <BookedSessionTable
           ref="clientTableRef"
           :sessions="clientSessions"
+          :show-invoice="true"
           empty-title="No clinical sessions booked"
           empty-subtitle="Browse other practitioners' services to book supervision, consultation, training, and more."
           @pay-deposit="activeClientSession = $event; modals.sessionPayDeposit = true"
           @pay-balance="activeClientSession = $event; modals.sessionPayBalance = true"
           @request-refund="activeClientSession = $event; modals.sessionRequestRefund = true"
           @escalate-refund="escalateSessionRefund($event)"
+          @open-invoice="activeClientSession = $event; modals.sessionClientInvoice = true"
         >
           <template #empty>
             <a :href="route('provider.services.index') + '?tab=explore'" class="btn btn-primary">
@@ -463,10 +465,12 @@
           ref="providerTableRef"
           :sessions="providerSessions"
           viewpoint="provider"
+          :show-invoice="true"
           empty-icon="briefcase"
           empty-title="No provider sessions yet"
           empty-subtitle="When another practitioner books your service and pays their deposit, sessions appear here."
           @review-refund="activeRefundRequest = incomingRefundRequests.find(r => r.session_id === $event.id); modals.sessionReviewRefund = true"
+          @open-invoice="activeProviderSession = $event; modals.sessionProviderInvoice = true"
           @cancel-session="openSessionDispute($event)"
         />
       </div>

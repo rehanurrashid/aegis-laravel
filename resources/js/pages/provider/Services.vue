@@ -803,12 +803,14 @@
       <BookedSessionTable
         :sessions="clientSessions"
         :meta="clientSessionsMeta"
+        :show-invoice="true"
         empty-title="No booked sessions"
         empty-subtitle="Browse services from other practitioners to book supervision, consultation, training and more."
         @pay-deposit="activeClientSession = $event; modals.payDeposit = true"
         @pay-balance="activeClientSession = $event; modals.payBalance = true"
         @request-refund="activeClientSession = $event; modals.requestRefund = true"
         @escalate-refund="escalateRefund($event)"
+        @open-invoice="activeClientSession = $event; modals.clientInvoice = true"
         @page-change="goToClientSessionsPage"
       >
         <template #empty>
