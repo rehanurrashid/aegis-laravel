@@ -83,7 +83,7 @@
         v-if="kind !== 'subscription' && invoice?.id"
         :href="kind === 'bp_invoice'
           ? `/provider/support-services/bp-invoices/${invoice.id}/pdf`
-          : `/provider/finances/invoices/${invoice.id}/pdf`"
+          : `/provider/finances/cs-invoices/${invoice.id}/pdf`"
         target="_blank"
         rel="noopener"
         class="btn btn-ghost"

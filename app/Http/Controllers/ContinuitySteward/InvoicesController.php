@@ -50,6 +50,7 @@ class InvoicesController extends Controller
                     'issued_at'      => $inv->issued_at?->format('M j, Y'),
                     'due_at'         => $inv->due_at?->format('M j, Y'),
                     'paid_at'        => $inv->paid_at?->format('M j, Y'),
+                    'pdf_url'        => route('cs.invoices.pdf', $inv->id),
                 ];
             });
 

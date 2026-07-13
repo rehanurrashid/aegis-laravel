@@ -319,6 +319,8 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::get('/support-services/contracts/{contract}/pdf', [\App\Http\Controllers\Provider\ContractPdfController::class, 'show'])->name('jobs.contract.pdf');
         Route::post('/support-services/bp-invoices/{invoice}/pay', [ProviderJobPostingsController::class, 'payBPInvoice'])->name('jobs.bp-invoice.pay');
         Route::get('/support-services/bp-invoices/{invoice}/pdf', [\App\Http\Controllers\Provider\BpInvoicePdfController::class, 'show'])->name('jobs.bp-invoice.pdf');
+        // CS invoice PDF viewed from provider side (fixes dead link in ViewInvoiceModal for non-BP invoices)
+        Route::get('/finances/cs-invoices/{invoice}/pdf', [\App\Http\Controllers\Provider\CsInvoicePdfController::class, 'show'])->name('finances.cs-invoice.pdf');
         // Wave 10: Contract reviews
         Route::post('/support-services/contracts/{contract}/review', [\App\Http\Controllers\ContractReviewController::class, 'store'])->name('jobs.contract.review');
         Route::post('/support-services/contracts/{contract}/review/dismiss', [\App\Http\Controllers\ContractReviewController::class, 'dismiss'])->name('jobs.contract.review.dismiss');
@@ -512,6 +514,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:contin
         Route::post('/invoices',                   [CsInvoicesController::class, 'store'])->name('invoices.store');
         Route::post('/invoices/{invoice}/send',    [CsInvoicesController::class, 'send'])->name('invoices.send');
         Route::post('/invoices/{invoice}/void',    [CsInvoicesController::class, 'void'])->name('invoices.void');
+        Route::get('/invoices/{invoice}/pdf',      [\App\Http\Controllers\ContinuitySteward\InvoicePdfController::class, 'show'])->name('invoices.pdf');
 
         // Profile
         Route::get('/profile', [CsProfileController::class, 'index'])->name('profile.index');

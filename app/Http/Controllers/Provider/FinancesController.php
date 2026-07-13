@@ -93,6 +93,7 @@ class FinancesController extends Controller
                 'due_at'           => $inv->due_at?->format('M j, Y'),
                 'payable'          => in_array($status, [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value], true),
                 'active_dispute_id'=> $csDisputeMap[$inv->id] ?? null,
+                'pdf_url'          => route('provider.finances.cs-invoice.pdf', $inv->id),
                 'kind'             => 'cs_invoice',
             ];
         })->values();
