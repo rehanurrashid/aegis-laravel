@@ -1706,31 +1706,38 @@
         <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
         <div class="alert-content">
           <div class="alert-title">Find a Continuity Steward</div>
-          <div>Browse licensed clinicians who have registered as Continuity Stewards on Aegis. Once you designate one, they receive an invitation to formally accept and countersign your plan.</div>
+          <div>Browse licensed clinicians registered as Business CS on Aegis. Designate one and they receive a formal invitation to accept and countersign your plan.</div>
         </div>
       </div>
 
       <div class="sbp-layout">
 
-        <!-- ── FILTER SIDEBAR ── -->
+        <!-- ── CS FILTER SIDEBAR — mirrors sbpFilterSidebar exactly ── -->
         <aside class="filter-sidebar" id="csSidebar">
           <div class="filter-sidebar-header">
             <div class="filter-sidebar-title"><AegisIcon name="filter" :size="14" /> Filters</div>
-            <button type="button" class="filter-clear-btn" @click="csSpecialty='';csState='';csAvailOnly=false;csRateMax=0">Clear All</button>
+            <button type="button" class="filter-clear-btn" @click="csClearAll">Clear All</button>
           </div>
 
           <!-- Availability toggle -->
           <div class="filter-group nw-sbp-clinical-toggle">
             <label class="nw-sbp-clinical-label">
-              <span class="nw-sbp-clinical-text"><AegisIcon name="check-circle" :size="14" /> Accepting new CS roles</span>
-              <button type="button" class="toggle" :class="{ on: csAvailOnly }" @click="csAvailOnly = !csAvailOnly"></button>
+              <span class="nw-sbp-clinical-text">
+                <AegisIcon name="check-circle" :size="14" />
+                Accepting new CS roles
+                <span class="sbp-info-tip" data-tooltip="Show only Continuity Stewards currently accepting new agreements."><AegisIcon name="info" :size="12" /></span>
+              </span>
+              <button type="button" class="toggle" :class="{ on: csAvailOnly }" @click="csAvailOnly = !csAvailOnly" aria-label="Show available only"></button>
             </label>
           </div>
 
-          <!-- Specialty -->
-          <div class="filter-group" :class="{ open: true }">
-            <div class="filter-group-header">
-              <span class="filter-group-label"><AegisIcon name="star" :size="16" /> Specialty</span>
+          <!-- 1. Specialty -->
+          <div class="filter-group" :class="{ open: csGroups.specialty }">
+            <div class="filter-group-header" @click="csGroups.specialty = !csGroups.specialty">
+              <span class="filter-group-label">
+                <AegisIcon name="star" :size="16" /> Specialty
+                <span v-if="csSpecialty" class="filter-group-count visible">1</span>
+              </span>
               <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
             </div>
             <div class="filter-group-body">
@@ -1743,57 +1750,98 @@
             </div>
           </div>
 
-          <!-- License State -->
-          <div class="filter-group" :class="{ open: true }">
-            <div class="filter-group-header">
-              <span class="filter-group-label"><AegisIcon name="map-pin" :size="16" /> License State</span>
+          <!-- 2. License State -->
+          <div class="filter-group" :class="{ open: csGroups.state }">
+            <div class="filter-group-header" @click="csGroups.state = !csGroups.state">
+              <span class="filter-group-label">
+                <AegisIcon name="map-pin" :size="16" /> License State
+                <span v-if="csState" class="filter-group-count visible">1</span>
+              </span>
               <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
             </div>
             <div class="filter-group-body">
-              <select v-model="csState" class="form-control form-select" style="width:100%">
-                <option value="">All States</option>
-                <option v-for="st in (csFilters?.states ?? [])" :key="st" :value="st">{{ st }}</option>
-              </select>
+              <input class="filter-inner-search" type="text" placeholder="Search states..." v-model="csStateSearch" />
+              <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">
+                <span
+                  v-for="st in filteredCsStates" :key="st"
+                  class="ftag"
+                  :class="{ selected: csState === st }"
+                  @click="csState = csState === st ? '' : st"
+                >{{ st }}</span>
+              </div>
             </div>
           </div>
 
-          <!-- Rate Range -->
-          <div class="filter-group" :class="{ open: true }">
-            <div class="filter-group-header">
-              <span class="filter-group-label"><AegisIcon name="dollar" :size="16" /> Max Rate / Incident</span>
+          <!-- 3. Rate Range -->
+          <div class="filter-group" :class="{ open: csGroups.rate }">
+            <div class="filter-group-header" @click="csGroups.rate = !csGroups.rate">
+              <span class="filter-group-label">
+                <AegisIcon name="dollar" :size="16" /> Rate / Incident
+                <span v-if="csRateMax > 0" class="filter-group-count visible">1</span>
+              </span>
               <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
             </div>
             <div class="filter-group-body">
+              <div class="filter-subcat">Quick range</div>
               <span class="ftag" :class="{ selected: csRateMax===0 }"   @click="csRateMax=0">Any</span>
               <span class="ftag" :class="{ selected: csRateMax===100 }" @click="csRateMax=100">Under $100</span>
               <span class="ftag" :class="{ selected: csRateMax===200 }" @click="csRateMax=200">Under $200</span>
               <span class="ftag" :class="{ selected: csRateMax===300 }" @click="csRateMax=300">Under $300</span>
               <span class="ftag" :class="{ selected: csRateMax===500 }" @click="csRateMax=500">Under $500</span>
+              <div class="filter-subcat">Custom max ($/incident)</div>
+              <div class="sbp-range-row">
+                <input v-model.number="csRateCustom" class="filter-inner-search" type="number" placeholder="e.g. 250" min="0" @change="csRateMax = csRateCustom || 0" />
+              </div>
             </div>
           </div>
 
-          <!-- Sort -->
-          <div class="filter-group" :class="{ open: true }">
-            <div class="filter-group-header">
-              <span class="filter-group-label"><AegisIcon name="trending-up" :size="16" /> Sort By</span>
+          <!-- 4. Sort -->
+          <div class="filter-group" :class="{ open: csGroups.sort }">
+            <div class="filter-group-header" @click="csGroups.sort = !csGroups.sort">
+              <span class="filter-group-label">
+                <AegisIcon name="trending-up" :size="16" /> Sort By
+              </span>
               <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
             </div>
             <div class="filter-group-body">
-              <span v-for="opt in ['Best Match','Rate ↑','Rate ↓','Newest']" :key="opt"
-                class="ftag" :class="{ selected: csSort === opt }" @click="csSort = opt">{{ opt }}</span>
+              <label v-for="opt in csSortOptions" :key="opt.val" class="sbp-radio-row" @click="csSort = opt.val">
+                <div class="sbp-radio" :class="{ active: csSort === opt.val }"></div>
+                <div>
+                  <div class="sbp-radio-label">{{ opt.label }}</div>
+                  <div v-if="opt.sub" class="sbp-radio-sub">{{ opt.sub }}</div>
+                </div>
+              </label>
             </div>
           </div>
 
           <div class="filter-sidebar-apply">
-            <button type="button" class="btn btn-primary" @click="toast.success('Filters applied')">Apply Filters</button>
+            <button type="button" class="btn btn-primary" @click="toast.success('Showing ' + filteredCS.length + ' Continuity Steward' + (filteredCS.length === 1 ? '' : 's'))">Apply Filters</button>
           </div>
         </aside>
 
         <!-- ── RESULTS PANEL ── -->
         <div class="results-panel">
+
+          <!-- Topbar — count + sort select -->
           <div class="results-topbar">
-            <span class="results-count"><strong>{{ filteredCS.length }}</strong> of {{ csStewards.length }} Continuity Stewards</span>
-            <div class="pn-search-wrap" style="flex:1;max-width:320px">
+            <div class="results-count">
+              <strong>{{ filteredCS.length }}</strong>
+              {{ filteredCS.length !== (csStewards?.length ?? 0) ? `of ${csStewards?.length ?? 0} ` : '' }}Continuity Steward{{ filteredCS.length === 1 ? '' : 's' }}
+            </div>
+            <div class="results-sort">
+              <span class="nw-sort-label">Sort:</span>
+              <select v-model="csSort" class="form-select nw-sort-select" style="min-width:160px">
+                <option value="best">Best Match</option>
+                <option value="rate_asc">Rate: Low to High</option>
+                <option value="rate_desc">Rate: High to Low</option>
+                <option value="newest">Newest</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Search toolbar — full width row below topbar -->
+          <div class="pn-toolbar" style="margin-bottom:14px;">
+            <div class="pn-search-wrap">
               <span class="search-icon"><AegisIcon name="search-lg" :size="14" /></span>
               <input v-model="csSearch" class="form-input" type="text" placeholder="Search by name, specialty, bio..." />
             </div>
@@ -1803,41 +1851,39 @@
             <div
               v-for="cs in filteredCS"
               :key="cs.id"
-              class="spc-card"
+              class="sbp-card spc-card"
               @click="viewProfile(cs.slug, 'cs')"
             >
-              <!-- Availability badge -->
               <div class="spc-top-pills">
                 <span
                   class="spc-status-icon"
                   :class="cs.cs_availability ? 'ok' : 'off'"
                   :data-tooltip="cs.cs_availability ? 'Accepting new CS roles' : 'Not currently available'"
                 >
-                  <AegisIcon :name="cs.cs_availability ? 'check-circle' : 'clock'" :size="12" />
+                  <AegisIcon :name="cs.cs_availability ? 'user-check' : 'clock'" :size="12" />
                 </span>
               </div>
 
               <div class="spc-body">
-                <div class="spc-avatar spc-avatar-lg">{{ cs.avatar_initials }}</div>
+                <div class="spc-avatar">{{ cs.avatar_initials }}</div>
                 <div class="spc-name">{{ cs.display_name }}<span v-if="cs.credentials" style="font-size:11px;color:var(--text-3);font-weight:400;">, {{ cs.credentials }}</span></div>
                 <div class="spc-role" v-if="cs.license_state">Licensed in {{ cs.license_state }}</div>
                 <div class="spc-loc" v-if="cs.location">{{ cs.location }}</div>
                 <div class="spc-tags" v-if="cs.specialties?.length">
                   <span v-for="tag in (cs.specialties ?? []).slice(0,3)" :key="tag" class="spc-tag">{{ tag }}</span>
-                  <span v-if="(cs.specialties ?? []).length > 3" class="spc-tag spc-tag-more">+{{ cs.specialties.length - 3 }}</span>
+                  <span v-if="(cs.specialties ?? []).length > 3" class="spc-tag spc-tag-more">+{{ (cs.specialties ?? []).length - 3 }}</span>
                 </div>
               </div>
 
-              <!-- Rate badge -->
-              <div class="spc-stats">
-                <span class="badge badge-gold" style="font-size:11px;"><AegisIcon name="dollar" :size="10" /> {{ formatCsRate(cs) }}</span>
-              </div>
+              <div v-if="cs.rate_min_cents || cs.rate_max_cents" class="spc-stats">{{ formatCsRate(cs) }}</div>
 
               <div class="spc-actions" @click.stop>
                 <button
                   type="button"
                   class="btn btn-primary"
-                  style="flex:1;justify-content:center;font-size:12px;"
+                  style="flex:1;justify-content:center;font-size:12px;display:inline-flex;align-items:center;gap:5px;"
+                  :disabled="!cs.cs_availability"
+                  :data-tooltip="!cs.cs_availability ? 'Not currently accepting new CS roles' : null"
                   @click="openDesignate(cs)"
                 >
                   <AegisIcon name="shield" :size="13" /> Designate as My CS
@@ -1852,7 +1898,11 @@
             icon="shield"
             title="No Continuity Stewards match your search"
             description="Try adjusting your filters or clearing the search."
-          />
+          >
+            <template #actions>
+              <button type="button" class="btn btn-outline" @click="csClearAll">Clear All Filters</button>
+            </template>
+          </AegisEmptyState>
         </div>
       </div>
     </div><!-- /cs stewards -->
@@ -3094,18 +3144,49 @@ function openReferralForShadow(s) {
 }
 
 // ── CS Steward directory ────────────────────────────────────────────────────
+// ── CS Steward directory ────────────────────────────────────────────────────
 const csSearch       = ref('')
 const csSpecialty    = ref('')
 const csState        = ref('')
+const csStateSearch  = ref('')
 const csAvailOnly    = ref(false)
-const csRateMax      = ref(0)         // 0 = any
-const csSort         = ref('Best Match')
+const csRateMax      = ref(0)
+const csRateCustom   = ref(0)
+const csSort         = ref('best')
 const designateTarget = ref(null)
-// Local bool for the designate CS modal (useModal isOpen pattern incompatible with v-model)
 const showDesignateModal = ref(false)
 
+const csGroups = reactive({ specialty: true, state: false, rate: false, sort: false })
+
+const csSortOptions = [
+  { val: 'best',      label: 'Best Match',        sub: 'Default ordering' },
+  { val: 'rate_asc',  label: 'Rate: Low to High', sub: 'Lowest per-incident rate first' },
+  { val: 'rate_desc', label: 'Rate: High to Low', sub: 'Highest per-incident rate first' },
+  { val: 'newest',    label: 'Newest',             sub: 'Recently joined Aegis' },
+]
+
+const filteredCsStates = computed(() => {
+  const q = csStateSearch.value.toLowerCase().trim()
+  const states = props.csFilters?.states ?? []
+  if (!q) return states
+  return states.filter(s => s.toLowerCase().includes(q))
+})
+
+function csClearAll() {
+  csSearch.value      = ''
+  csSpecialty.value   = ''
+  csState.value       = ''
+  csStateSearch.value = ''
+  csAvailOnly.value   = false
+  csRateMax.value     = 0
+  csRateCustom.value  = 0
+  csSort.value        = 'best'
+  Object.keys(csGroups).forEach(k => { csGroups[k] = k === 'specialty' })
+  toast.info('All CS filters cleared')
+}
+
 const filteredCS = computed(() => {
-  let list = props.csStewards ?? []
+  let list = [...(props.csStewards ?? [])]
   const q = csSearch.value.toLowerCase().trim()
   if (q) list = list.filter(cs =>
     (cs.display_name ?? '').toLowerCase().includes(q) ||
@@ -3119,10 +3200,10 @@ const filteredCS = computed(() => {
   if (csAvailOnly.value)
     list = list.filter(cs => cs.cs_availability)
   if (csRateMax.value > 0)
-    list = list.filter(cs => cs.rate_max_cents === 0 || cs.rate_max_cents / 100 <= csRateMax.value)
-  if (csSort.value === 'Rate ↑')
+    list = list.filter(cs => !cs.rate_max_cents || cs.rate_max_cents / 100 <= csRateMax.value)
+  if (csSort.value === 'rate_asc')
     list = [...list].sort((a, b) => (a.rate_min_cents ?? 0) - (b.rate_min_cents ?? 0))
-  else if (csSort.value === 'Rate ↓')
+  else if (csSort.value === 'rate_desc')
     list = [...list].sort((a, b) => (b.rate_min_cents ?? 0) - (a.rate_min_cents ?? 0))
   return list
 })
@@ -3628,7 +3709,8 @@ function resetConfig() {
 
 /* 2. Sidebar header row — becomes the page-sidebar "label" style header */
 :deep(#filterSidebar .filter-sidebar-header),
-:deep(#sbpFilterSidebar .filter-sidebar-header) {
+:deep(#sbpFilterSidebar .filter-sidebar-header),
+:deep(#csSidebar .filter-sidebar-header) {
   padding: 12px 14px 10px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
@@ -3639,7 +3721,8 @@ function resetConfig() {
 }
 
 :deep(#filterSidebar .filter-sidebar-title),
-:deep(#sbpFilterSidebar .filter-sidebar-title) {
+:deep(#sbpFilterSidebar .filter-sidebar-title) {,
+:deep(#csSidebar .filter-sidebar-title) { {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -3652,19 +3735,22 @@ function resetConfig() {
 
 /* 3. Each filter-group becomes a page-sidebar-group — bottom divider, no margin */
 :deep(#filterSidebar .filter-group),
-:deep(#sbpFilterSidebar .filter-group) {
+:deep(#sbpFilterSidebar .filter-group) {,
+:deep(#csSidebar .filter-group) { {
   margin: 0;
   padding: 0;
   border-bottom: 1px solid var(--border);
 }
 :deep(#filterSidebar .filter-group:last-of-type),
-:deep(#sbpFilterSidebar .filter-group:last-of-type) {
+:deep(#sbpFilterSidebar .filter-group:last-of-type) {,
+:deep(#csSidebar .filter-group:last-of-type) { {
   border-bottom: none;
 }
 
 /* Clinical-service toggle group — same divider treatment */
 :deep(#filterSidebar .nw-sbp-clinical-toggle),
-:deep(#sbpFilterSidebar .nw-sbp-clinical-toggle) {
+:deep(#sbpFilterSidebar .nw-sbp-clinical-toggle) {,
+:deep(#csSidebar .nw-sbp-clinical-toggle) { {
   margin: 0;
   border-radius: 0;
   border-bottom: 1px solid var(--border);
@@ -3674,7 +3760,8 @@ function resetConfig() {
 
 /* 4. Group header rows — match page-sidebar-item style */
 :deep(#filterSidebar .filter-group-header),
-:deep(#sbpFilterSidebar .filter-group-header) {
+:deep(#sbpFilterSidebar .filter-group-header) {,
+:deep(#csSidebar .filter-group-header) { {
   padding: 9px 14px;
   border-radius: 0;
   border-left: none;
@@ -3686,18 +3773,21 @@ function resetConfig() {
   transition: background var(--transition), color var(--transition);
 }
 :deep(#filterSidebar .filter-group-header:hover),
-:deep(#sbpFilterSidebar .filter-group-header:hover) {
+:deep(#sbpFilterSidebar .filter-group-header:hover) {,
+:deep(#csSidebar .filter-group-header:hover) { {
   background: var(--surface-2);
   color: var(--text);
 }
 :deep(#filterSidebar .filter-group.open > .filter-group-header),
-:deep(#sbpFilterSidebar .filter-group.open > .filter-group-header) {
+:deep(#sbpFilterSidebar .filter-group.open > .filter-group-header) {,
+:deep(#csSidebar .filter-group.open > .filter-group-header) { {
   background: var(--badge-bg-gold);
   color: var(--gold-dark);
   font-weight: 700;
 }
 :deep(#filterSidebar .filter-group.open > .filter-group-header)::before,
-:deep(#sbpFilterSidebar .filter-group.open > .filter-group-header)::before {
+:deep(#sbpFilterSidebar .filter-group.open > .filter-group-header)::before {,
+:deep(#csSidebar .filter-group.open > .filter-group-header)::before { {
   content: '';
   position: absolute;
   left: 0;
@@ -3712,13 +3802,15 @@ function resetConfig() {
 :deep(#filterSidebar .filter-group.open .filter-group-label svg),
 :deep(#filterSidebar .filter-group.open .filter-group-label .aegis-icon),
 :deep(#sbpFilterSidebar .filter-group.open .filter-group-label svg),
-:deep(#sbpFilterSidebar .filter-group.open .filter-group-label .aegis-icon) {
+:deep(#sbpFilterSidebar .filter-group.open .filter-group-label .aegis-icon) {,
+:deep(#csSidebar .filter-group.open .filter-group-label .aegis-icon) { {
   color: var(--gold-dark);
 }
 
 /* 5. Filter body — left-indent to align with page-sidebar-item text */
 :deep(#filterSidebar .filter-group-body),
-:deep(#sbpFilterSidebar .filter-group-body) {
+:deep(#sbpFilterSidebar .filter-group-body) {,
+:deep(#csSidebar .filter-group-body) { {
   padding: 8px 14px 14px 14px;
   border-left: 3px solid var(--badge-bg-gold);
   background: var(--surface);
@@ -3726,7 +3818,8 @@ function resetConfig() {
 
 /* 6. Active filter pills row — sits just below the sticky header */
 :deep(#filterSidebar .active-filters-row),
-:deep(#sbpFilterSidebar .active-filters-row) {
+:deep(#sbpFilterSidebar .active-filters-row) {,
+:deep(#csSidebar .active-filters-row) { {
   padding: 8px 14px 6px;
   border-bottom: 1px solid var(--border);
   background: var(--surface-2);
