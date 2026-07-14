@@ -42,7 +42,7 @@ class ContinuityStewardController extends Controller
         $stewards = $plan
             ? \App\Models\PlanSteward::where('plan_id', $plan->id)
                 ->where('steward_category', 'continuity_steward')
-                ->whereIn('status', ['active', 'pending', 'invited'])
+                ->where('status', 'active')
                 ->with('steward:id,display_name,credentials,email,phone,title,organization,location,avatar_initials,slug,stripe_account_id')
                 ->get()
                 ->map(fn ($s) => [
@@ -74,15 +74,21 @@ class ContinuityStewardController extends Controller
             ? \App\Models\PlanSteward::where('plan_id', $plan->id)
                 ->where('steward_category', 'continuity_steward')
                 ->whereIn('status', ['invited', 'pending'])
+                ->with('steward:id,display_name,email,avatar_initials,credentials,location')
                 ->get()
                 ->map(fn ($s) => [
-                    'id'         => $s->id,
-                    'status'     => is_object($s->status) ? $s->status->value : $s->status,
-                    'email'      => $s->email,
-                    'display_name' => $s->display_name,
-                    'role'       => is_object($s->role) ? $s->role->value : $s->role,
-                    'invited_at' => $s->invited_at?->toDateString(),
-                    'expires_at' => $s->expires_at?->toDateString(),
+                    'id'           => $s->id,
+                    'status'       => is_object($s->status) ? $s->status->value : $s->status,
+                    // Resolve name/email from steward relation if not on the plan_steward row
+                    'email'        => $s->email ?? $s->steward?->email ?? '',
+                    'display_name' => $s->display_name ?? $s->steward?->display_name ?? '—',
+                    'avatar_initials' => $s->steward?->avatar_initials ?? strtoupper(substr($s->display_name ?? $s->steward?->display_name ?? '?', 0, 2)),
+                    'credentials'  => $s->steward?->credentials ?? '',
+                    'location'     => $s->steward?->location ?? '',
+                    'role'         => is_object($s->role) ? $s->role->value : $s->role,
+                    'invited_at'   => $s->invited_at?->toDateString(),
+                    'expires_at'   => $s->expires_at?->toDateString(),
+                    'steward_id'   => $s->steward_id,
                 ])
                 ->values()
             : [];

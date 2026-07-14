@@ -37,18 +37,17 @@ class StewardService
         $this->enforceTierLimits($plan, $stewardType);
 
         $row = PlanSteward::create([
-            'id'              => 'ps_' . Str::lower(Str::random(12)),
-            'plan_id'         => $plan->id,
-            'steward_id'      => $steward->id,
-            'steward_category'    => $stewardType,
-            'role'            => $role,
-            'status'          => 'pending',
-            'invited_at'      => now(),
-            'expires_at'      => now()->addDays(14),
-            'responsibilities'=> isset($extra['responsibilities']) ? json_encode($extra['responsibilities']) : null,
-            'steward_category'=> $extra['steward_category'] ?? null,
-            'payment_model'   => $extra['payment_model'] ?? null,
-            'agreed_fee'      => $extra['agreed_fee'] ?? null,
+            'id'               => 'ps_' . Str::lower(Str::random(12)),
+            'plan_id'          => $plan->id,
+            'steward_id'       => $steward->id,
+            'steward_category' => $stewardType,
+            'role'             => $role,
+            'status'           => 'pending',
+            'invited_at'       => now(),
+            'expires_at'       => now()->addDays(14),
+            'responsibilities' => isset($extra['responsibilities']) ? json_encode($extra['responsibilities']) : null,
+            'payment_model'    => $extra['payment_model'] ?? null,
+            'fee_cents'        => $extra['fee_cents'] ?? null,
         ]);
 
         $practitioner = User::find($plan->practitioner_id);
