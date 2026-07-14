@@ -160,7 +160,7 @@ const props = defineProps({
   tasks:        { type: Array,   default: () => [] },
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'update-config'])
 
 const docOptions = [
   { value: 'death_certificate',     label: 'Death Certificate' },
@@ -223,6 +223,8 @@ watch(() => props.config?.is_active, (val) => {
 function handleActiveToggle(val) {
   isActive.value = val
   if (!props.incidentType) return
+  // Optimistically notify parent so grid syncs immediately
+  emit('update-config', { incident_type: props.incidentType.value, is_active: val })
   router.post(route('provider.plan.incident-config'), {
     incident_type:     props.incidentType.value,
     is_active:         val,
@@ -322,13 +324,21 @@ function submit() {
   const newTasks = [...allNewSs, ...allNewCs]
 
   // Step 1: save config
+  // Optimistically notify parent so grid reflects change immediately
+  emit('update-config', {
+    incident_type:     props.incidentType?.value,
+    is_active:         isActive.value,
+    docs_required:     selectedDocs.value,
+    authorized_ss_ids: authSsIds.value,
+    authorized_cs_ids: authCsIds.value,
+  })
   router.post(route('provider.plan.incident-config'), {
     incident_type:     props.incidentType?.value,
     is_active:         isActive.value,
     docs_required:     selectedDocs.value,
     authorized_ss_ids: authSsIds.value,
     authorized_cs_ids: authCsIds.value,
-  }, { preserveScroll: true, onFinish: () => {
+  }, { preserveState: true, preserveScroll: true, onFinish: () => {
     if (!newTasks.length) {
       submitting.value = false
       emit('update:modelValue', false)
@@ -343,7 +353,7 @@ function submit() {
         assigned_to: t.assigned_to,
         sort_order:  t.sort_order,
         is_custom:   1,
-      }, { preserveScroll: true, onFinish: () => {
+      }, { preserveState: true, preserveScroll: true, onFinish: () => {
         remaining--
         if (remaining === 0) {
           submitting.value = false

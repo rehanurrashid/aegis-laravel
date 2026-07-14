@@ -284,6 +284,7 @@
       :config="activeIncidentType ? getConfig(activeIncidentType.value) : null"
       :stewards="stewards"
       :tasks="tasks"
+      @update-config="patchLocalConfig($event.incident_type, $event)"
     />
 
 
@@ -354,7 +355,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, reactive, watch } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import AppLayout          from '@/layouts/AppLayout.vue'
 import SignPlanModal       from '@/components/modals/SignPlanModal.vue'
@@ -431,14 +432,30 @@ const teamSlots = computed(() => {
 })
 
 // ── Incident helpers ───────────────────────────────────────────────────────────
-function isEnabled(v)   { return !!(props.incidentConfigs.find(c => c.incident_type === v)?.is_active) }
-function getConfig(v)   { return props.incidentConfigs.find(c => c.incident_type === v) ?? null }
+// Local reactive copy — optimistically updated so grid & modal stay in sync
+// without waiting for a server round-trip.
+const localConfigs = ref([])
+watch(() => props.incidentConfigs, (v) => { localConfigs.value = v.map(c => ({ ...c })) }, { immediate: true, deep: true })
+
+function isEnabled(v)    { return !!(localConfigs.value.find(c => c.incident_type === v)?.is_active) }
+function getConfig(v)    { return localConfigs.value.find(c => c.incident_type === v) ?? null }
 function ssTaskCount(_v) { return props.tasks.filter(t => t.assigned_to === 'support_steward').length }
 function csTaskCount(_v) { return props.tasks.filter(t => t.assigned_to === 'continuity_steward').length }
 
 function openIncidentConfig(type) { activeIncidentType.value = type; showIncidentConfig.value = true }
 
+function patchLocalConfig(incidentType, patch) {
+  const idx = localConfigs.value.findIndex(c => c.incident_type === incidentType)
+  if (idx !== -1) {
+    localConfigs.value[idx] = { ...localConfigs.value[idx], ...patch }
+  } else {
+    localConfigs.value.push({ incident_type: incidentType, is_active: false, docs_required: [], authorized_ss_ids: [], authorized_cs_ids: [], ...patch })
+  }
+}
+
 function handleToggle(type, val) {
+  // Optimistic update — grid reflects change immediately
+  patchLocalConfig(type.value, { is_active: val })
   router.post(route('provider.plan.incident-config'), {
     incident_type:      type.value,
     is_active:          val,

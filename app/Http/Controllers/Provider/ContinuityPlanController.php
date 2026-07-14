@@ -62,31 +62,6 @@ class ContinuityPlanController extends Controller
                 ])
             : [];
 
-        $tasks = $plan
-            ? PlanTask::where('plan_id', $plan->id)
-                ->orderBy('sort_order')
-                ->get()
-                ->map(fn ($t) => [
-                    'id'            => $t->id,
-                    'assigned_to'   => $t->assigned_to?->value ?? $t->assigned_to,
-                    'title'         => $t->title,
-                    'timeline'      => $t->timeline,
-                    'sort_order'    => $t->sort_order,
-                ])
-            : [];
-
-        $incidentConfigs = $plan
-            ? PlanIncidentConfig::where('plan_id', $plan->id)
-                ->get()
-                ->map(fn ($c) => [
-                    'id'               => $c->id,
-                    'incident_type'    => $c->incident_type?->value ?? $c->incident_type,
-                    'is_active'        => (bool) $c->is_active,
-                    'docs_required'    => $c->docs_required ?? [],
-                    'authorized_ss_ids'=> $c->authorized_ss_ids ?? [],
-                    'authorized_cs_ids'=> $c->authorized_cs_ids ?? [],
-                ])
-            : [];
 
         $documents = $plan
             ? ContinuityDocument::where('plan_id', $plan->id)
@@ -111,8 +86,30 @@ class ContinuityPlanController extends Controller
                 'expires_at'           => $plan->expires_at?->toISOString(),
             ] : null,
             'planSections'    => $planSections,
-            'tasks'           => $tasks,
-            'incidentConfigs' => $incidentConfigs,
+            'tasks'           => Inertia::lazy(fn () => $plan
+                ? PlanTask::where('plan_id', $plan->id)
+                    ->orderBy('sort_order')
+                    ->get()
+                    ->map(fn ($t) => [
+                        'id'          => $t->id,
+                        'assigned_to' => $t->assigned_to?->value ?? $t->assigned_to,
+                        'title'       => $t->title,
+                        'timeline'    => $t->timeline,
+                        'sort_order'  => $t->sort_order,
+                    ])
+                : []),
+            'incidentConfigs' => Inertia::lazy(fn () => $plan
+                ? PlanIncidentConfig::where('plan_id', $plan->id)
+                    ->get()
+                    ->map(fn ($c) => [
+                        'id'                => $c->id,
+                        'incident_type'     => $c->incident_type?->value ?? $c->incident_type,
+                        'is_active'         => (bool) $c->is_active,
+                        'docs_required'     => $c->docs_required ?? [],
+                        'authorized_ss_ids' => $c->authorized_ss_ids ?? [],
+                        'authorized_cs_ids' => $c->authorized_cs_ids ?? [],
+                    ])
+                : []),
             'stewards'        => $stewards,
             'documents'       => $documents,
             'incidentTypes'   => $incidentTypes,
