@@ -392,7 +392,7 @@ function toggleNotify(key) {
         <AegisIcon name="mail" :size="13" />
         Pending <span class="badge-pill">{{ pendingInvitations.length }}</span>
       </button>
-      <button v-if="servingAsCSFor.length" class="tab-pill" :class="{ active: activeTab === 'iamexec' }" @click="activeTab = 'iamexec'">
+      <button v-if="servingAsCSFor.length" class="tab-pill" :class="{ active: activeTab === 'for' }" @click="activeTab = 'for'">
         <AegisIcon name="check-circle" :size="13" />
         I'm Continuity Steward For <span class="badge-pill">{{ servingAsCSFor.length }}</span>
       </button>
@@ -565,7 +565,7 @@ function toggleNotify(key) {
     </div>
 
     <!-- ═══════════════════ TAB: I'M CS FOR ═══════════════════ -->
-    <div v-show="activeTab === 'iamexec'">
+    <div v-show="activeTab === 'for'">
       <div class="alert alert-info" style="margin-bottom:20px;">
         <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
         <div class="alert-content">
@@ -582,7 +582,7 @@ function toggleNotify(key) {
           v-if="!servingAsCSFor.length"
           icon="users"
           title="Not serving as CS yet"
-          description="You are not serving as CS for any providers yet."
+          description="You are not currently serving as CS for any providers."
         />
         <div v-for="prov in servingAsCSFor" :key="prov.id" class="list-group-item">
           <div style="width:38px;height:38px;border-radius:var(--radius-sm);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">

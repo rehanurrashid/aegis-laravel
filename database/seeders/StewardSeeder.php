@@ -205,6 +205,24 @@ class StewardSeeder extends Seeder
                 'updated_at'       => $now->copy()->subMonths(13),
             ],
 
+            // p_maria plan — alternate CS p_sarah (so p_sarah sees "I'm CS For" tab)
+            [
+                'id'               => 'ps_maria_sarah',
+                'plan_id'          => 'plan_maria',
+                'steward_id'       => 'p_sarah',
+                'role'             => 'alternate',
+                'steward_category' => 'continuity_steward',
+                'status'           => 'active',
+                'vault_access'     => 'scoped',
+                'permissions'      => json_encode(['view_plan', 'manage_incident', 'access_vault']),
+                'responsibilities' => json_encode(['Serve as backup CS when primary is unavailable']),
+                'signed_at'        => $now->copy()->subMonths(3),
+                'review_due_at'    => $now->copy()->addMonths(9),
+                'invited_at'       => $now->copy()->subMonths(4),
+                'created_at'       => $now->copy()->subMonths(4),
+                'updated_at'       => $now->copy()->subMonths(3),
+            ],
+
             // ── p_david plan — no primary CS yet, pending request to cs_marcus
             [
                 'id'               => 'ps_david_marcus',
