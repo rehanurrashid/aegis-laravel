@@ -233,11 +233,13 @@ class ProfileController extends Controller
         }
 
         // SS profiles are relationship-gated: only owner or linked Provider
+        // Exception: if invited_by_id is null, the SS has no linked provider and the profile is open to all
         $invitedById            = $user->invited_by_id ?? null;
         $viewerIsLinkedProvider = $rawViewer && $invitedById && $rawViewer->id === $invitedById;
         $isOwner                = $rawViewer && $rawViewer->id === $user->id;
+        $isPublicSs             = is_null($invitedById); // no linked provider → treat as public
 
-        if (! $isOwner && ! $viewerIsLinkedProvider) {
+        if (! $isOwner && ! $viewerIsLinkedProvider && ! $isPublicSs) {
             // Redirect with alert instead of hard 404
             if ($rawViewer) {
                 // Logged-in user with no access → send to their dashboard
