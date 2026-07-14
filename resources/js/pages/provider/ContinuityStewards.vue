@@ -581,21 +581,26 @@ function toggleNotify(key) {
         <AegisEmptyState
           v-if="!servingAsCSFor.length"
           icon="users"
-          title="No active CS agreements"
-          description="You are not currently listed as a Continuity Steward for any provider."
+          title="Not serving as CS yet"
+          description="You are not serving as CS for any providers yet."
         />
         <div v-for="prov in servingAsCSFor" :key="prov.id" class="list-group-item">
           <div style="width:38px;height:38px;border-radius:var(--radius-sm);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            {{ initials(prov.display_name ?? '') }}
+            {{ prov.avatar_initials || initials(prov.display_name ?? '') }}
           </div>
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <span style="font-size:13px;font-weight:700;color:var(--text);">{{ prov.display_name }}</span>
-              <span class="badge badge-gold"><AegisIcon name="shield" :size="10" /> {{ prov.steward_role ? (prov.steward_role.charAt(0).toUpperCase() + prov.steward_role.slice(1)) : 'Primary' }} CS</span>
-              <span class="badge badge-green"><span class="status-dot green"></span> Active</span>
+              <span v-if="prov.role === 'primary'" class="badge badge-gold"><AegisIcon name="shield" :size="10" /> Primary CS</span>
+              <span v-else-if="prov.role === 'alternate'" class="badge badge-blue"><AegisIcon name="shield" :size="10" /> Alternate CS</span>
+              <span v-else class="badge badge-neutral"><AegisIcon name="shield" :size="10" /> Support CS</span>
+              <span v-if="prov.status === 'active'" class="badge badge-green"><span class="status-dot green"></span> Active</span>
+              <span v-else-if="prov.status === 'pending'" class="badge badge-yellow"><span class="status-dot yellow"></span> Pending</span>
+              <span v-else class="badge badge-neutral"><span class="status-dot"></span> {{ prov.status }}</span>
             </div>
-            <div style="font-size:12px;color:var(--text-3);margin-top:2px;">{{ [prov.organization, prov.location].filter(Boolean).join(', ') }}{{ prov.annual_review_date ? ' · Review due ' + fmtDate(prov.annual_review_date) : '' }}</div>
+            <div style="font-size:12px;color:var(--text-3);margin-top:2px;">{{ [prov.organization, prov.location].filter(Boolean).join(', ') }}</div>
           </div>
+          <a v-if="prov.slug" :href="'/provider/' + prov.slug" class="btn-icon" data-tooltip="View Provider Profile"><AegisIcon name="external-link" :size="14" /></a>
           <a :href="route('cs.dashboard')" class="btn-icon" data-tooltip="Manage in CS Portal"><AegisIcon name="arrow-right" :size="14" /></a>
         </div>
       </div>
