@@ -22,9 +22,8 @@
         </button>
         <button v-if="plan && !plan.signed_at" type="button"
           class="btn-hero-solid is-on-light"
-          :disabled="!canSign"
           :data-tooltip="!canSign ? signBlockedReason : undefined"
-          @click="showSignModal = true">
+          @click="canSign ? (showSignModal = true) : (showSectionsModal = true)">
           <AegisIcon name="edit" :size="14" /> Finalize &amp; Sign
         </button>
       </template>
@@ -101,17 +100,13 @@
             <AegisIcon name="alert-triangle" :size="16" />
             <div>By signing, you confirm this plan is accurate and authorize your stewards to act as described when a critical incident occurs.</div>
           </div>
-          <div v-if="!canSign && signBlockedReason" class="alert alert-info sign-cta-gap">
-            <AegisIcon name="info" :size="16" />
-            <div>{{ signBlockedReason }}</div>
-          </div>
           <div class="sign-cta-actions">
             <button type="button" class="btn btn-outline" @click="showAttestModal = true">
               <AegisIcon name="check-circle" :size="13" /> Attest Vault
             </button>
-            <button type="button" class="btn btn-primary" :disabled="!canSign"
+            <button type="button" class="btn btn-primary"
               :data-tooltip="!canSign ? signBlockedReason : undefined"
-              @click="showSignModal = true">
+              @click="canSign ? (showSignModal = true) : (showSectionsModal = true)">
               <AegisIcon name="edit" :size="13" /> Finalize &amp; Sign
             </button>
           </div>
@@ -286,33 +281,33 @@
 
     <!-- Plan Readiness Modal -->
     <AegisModal v-model="showSectionsModal" size="md" title="Plan Readiness">
-      <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
         <div v-for="sec in planSections.slice(0,7)" :key="sec.key"
-          style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm)">
-          <!-- Status icon -->
-          <span :style="`width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;background:${sec.complete ? 'var(--green-dark)' : 'var(--icon-bg-gold)'};color:${sec.complete ? '#fff' : 'var(--gold-dark)'}`">
+          :style="`display:flex;align-items:center;gap:12px;padding:10px 14px;background:${!sec.complete && sec.blocks_signing ? 'var(--icon-bg-gold)' : 'var(--surface)'};border:1px solid ${!sec.complete && sec.blocks_signing ? 'var(--gold-dark)' : 'var(--border)'};border-radius:var(--radius-sm);`">
+          <!-- Status circle -->
+          <span :style="`width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;background:${sec.complete ? 'var(--green-dark)' : (sec.blocks_signing ? 'var(--gold-dark)' : 'var(--surface-3)')};color:${sec.complete ? '#fff' : (sec.blocks_signing ? '#fff' : 'var(--text-4)')}`">
             <AegisIcon v-if="sec.complete" name="check" :size="11" />
-            <span v-else style="font-size:10px;font-weight:700;font-family:var(--font-serif)">!</span>
+            <span v-else style="font-size:10px;font-weight:700;font-family:var(--font-serif)">{{ planSections.indexOf(sec) + 1 }}</span>
           </span>
           <!-- Title -->
-          <span style="flex:1;font-size:13px;font-weight:600;color:var(--text)">{{ sec.title }}</span>
+          <span :style="`flex:1;font-size:13px;font-weight:600;color:${!sec.complete && sec.blocks_signing ? 'var(--gold-dark)' : 'var(--text)'}`">{{ sec.title }}</span>
           <!-- Status badge -->
           <AegisBadge v-if="sec.complete" label="Complete" variant="green" />
-          <AegisBadge v-else-if="sec.blocks_signing" label="Required" variant="red" />
-          <AegisBadge v-else label="Recommended" variant="gold" />
-          <!-- Warning note -->
-          <span v-if="sec.warning && !sec.complete" style="font-size:11px;color:var(--text-3);font-style:italic;max-width:120px;text-align:right;line-height:1.3">{{ sec.warning }}</span>
+          <AegisBadge v-else-if="sec.blocks_signing" label="Required" variant="gold" />
+          <AegisBadge v-else label="Recommended" variant="default" />
           <!-- Arrow link -->
-          <a v-if="sec.href" :href="sec.href" style="color:var(--text-4);flex-shrink:0" data-tooltip="Go to section" @click="showSectionsModal = false">
+          <a v-if="sec.href && !sec.complete" :href="sec.href" style="color:var(--text-4);flex-shrink:0" data-tooltip="Go to section" @click="showSectionsModal = false">
             <AegisIcon name="arrow-right" :size="14" />
           </a>
+          <span v-else-if="sec.complete" style="width:14px;flex-shrink:0"></span>
         </div>
       </div>
+      <p v-if="!canSign" style="font-size:12px;color:var(--text-3);margin:0;text-align:center">
+        Once all required sections are complete, you can sign your plan.
+      </p>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="showSectionsModal = false">Close</button>
-        <button type="button" class="btn btn-primary"
-          :disabled="!canSign"
-          :data-tooltip="!canSign ? signBlockedReason : undefined"
+        <button v-if="canSign" type="button" class="btn btn-primary"
           @click="showSectionsModal = false; showSignModal = true">
           <AegisIcon name="edit" :size="13" /> Finalize &amp; Sign
         </button>
