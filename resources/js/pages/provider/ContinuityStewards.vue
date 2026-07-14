@@ -856,30 +856,19 @@ function saveNotifyPrefs() {
       <div class="alert alert-info" style="margin-top:16px;"><div class="alert-icon"><AegisIcon name="info" :size="14" /></div><div class="alert-content">Select which critical incidents authorize this Continuity Steward to act. Providers may indicate whether verification is required before a Continuity Response is initiated for each one.</div></div>
       <div class="modal-section-label" style="margin-top:14px;">Always-Active Incidents</div>
       <div class="list-group" style="margin-bottom:16px;">
-        <div v-for="inc in alwaysActiveIncidents" :key="inc.key" class="list-group-item" style="gap:10px;">
-          <label class="form-check" style="flex:1;margin:0;">
-            <input type="checkbox" checked disabled />
-            <span class="form-check-label">{{ inc.label }}</span>
-          </label>
-          <label class="form-check" style="margin:0;gap:6px;font-size:12px;color:var(--text-3);">
-            <input type="checkbox" v-model="addForm.incidentVerify[inc.key]" style="accent-color:var(--gold-dark);" />
-            Require verification
-          </label>
-          <button type="button" class="toggle" :class="{ on: addForm.incidentActive[inc.key] !== false }" :aria-pressed="addForm.incidentActive[inc.key] !== false" @click="addForm.incidentActive[inc.key] = !(addForm.incidentActive[inc.key] !== false)"></button>
+        <div v-for="inc in alwaysActiveIncidents" :key="inc.key" class="list-group-item" style="gap:14px;">
+          <span style="flex:1;font-size:13px;font-weight:600;color:var(--text);">{{ inc.label }}</span>
+          <span style="font-size:12px;color:var(--text-3);white-space:nowrap;">Require verification</span>
+          <button type="button" class="toggle" :class="{ on: addForm.incidentVerify[inc.key] }" :aria-pressed="String(!!addForm.incidentVerify[inc.key])" @click="addForm.incidentVerify[inc.key] = !addForm.incidentVerify[inc.key]"></button>
         </div>
       </div>
       <div class="modal-section-label">Opt-In Incidents</div>
       <div class="list-group">
-        <div v-for="inc in optInIncidents" :key="inc.key" class="list-group-item" style="gap:10px;">
-          <label class="form-check" style="flex:1;margin:0;">
-            <input type="checkbox" v-model="addForm.incidentActive[inc.key]" style="accent-color:var(--gold-dark);" />
-            <span class="form-check-label">{{ inc.label }}</span>
-          </label>
-          <label class="form-check" style="margin:0;gap:6px;font-size:12px;color:var(--text-3);">
-            <input type="checkbox" v-model="addForm.incidentVerify[inc.key]" style="accent-color:var(--gold-dark);" />
-            Require verification
-          </label>
-          <button type="button" class="toggle" :class="{ on: addForm.incidentActive[inc.key] }" :aria-pressed="String(!!addForm.incidentActive[inc.key])" @click="addForm.incidentActive[inc.key] = !addForm.incidentActive[inc.key]"></button>
+        <div v-for="inc in optInIncidents" :key="inc.key" class="list-group-item" style="gap:14px;">
+          <span style="flex:1;font-size:13px;color:var(--text);" :style="addForm.incidentActive[inc.key] ? 'font-weight:600;' : 'color:var(--text-3);'">{{ inc.label }}</span>
+          <span style="font-size:12px;color:var(--text-3);white-space:nowrap;">Require verification</span>
+          <button type="button" class="toggle" :class="{ on: addForm.incidentVerify[inc.key] }" :aria-pressed="String(!!addForm.incidentVerify[inc.key])" :disabled="!addForm.incidentActive[inc.key]" @click="addForm.incidentVerify[inc.key] = !addForm.incidentVerify[inc.key]" style="flex-shrink:0;"></button>
+          <button type="button" class="toggle" :class="{ on: addForm.incidentActive[inc.key] }" :aria-pressed="String(!!addForm.incidentActive[inc.key])" @click="addForm.incidentActive[inc.key] = !addForm.incidentActive[inc.key]; if (!addForm.incidentActive[inc.key]) addForm.incidentVerify[inc.key] = false" style="flex-shrink:0;"></button>
         </div>
       </div>
       <template #footer>
