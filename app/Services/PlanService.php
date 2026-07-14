@@ -192,8 +192,49 @@ class PlanService
 
     public function beginAnnualReview(ContinuityPlan $plan): ContinuityPlan
     {
-        $plan->update(['status' => 'annual_review_due']);
-        return $plan->fresh();
+        return DB::transaction(function () use ($plan) {
+            // Mark the current active plan as annual_review_due
+            $plan->update(['status' => 'annual_review_due']);
+
+            $newVersion = ($plan->plan_version ?? 1) + 1;
+            $newPlanId  = 'cp_' . Str::lower(Str::random(12));
+
+            // Create new draft at next version
+            $newPlan = ContinuityPlan::create([
+                'id'              => $newPlanId,
+                'practitioner_id' => $plan->practitioner_id,
+                'status'          => 'draft',
+                'plan_version'    => $newVersion,
+                'created_at'      => now(),
+                'updated_at'      => now(),
+            ]);
+
+            // Copy plan stewards to new plan (preserve all relationships)
+            PlanSteward::where('plan_id', $plan->id)->get()->each(function ($s) use ($newPlanId) {
+                $s->replicate(['id'])->fill([
+                    'id'      => 'ps_' . Str::lower(Str::random(12)),
+                    'plan_id' => $newPlanId,
+                ])->save();
+            });
+
+            // Copy incident configs to new plan
+            PlanIncidentConfig::where('plan_id', $plan->id)->get()->each(function ($c) use ($newPlanId) {
+                $c->replicate(['id'])->fill([
+                    'id'      => 'pic_' . Str::lower(Str::random(12)),
+                    'plan_id' => $newPlanId,
+                ])->save();
+            });
+
+            // Copy tasks to new plan
+            PlanTask::where('plan_id', $plan->id)->get()->each(function ($t) use ($newPlanId) {
+                $t->replicate(['id'])->fill([
+                    'id'      => 'pt_' . Str::lower(Str::random(12)),
+                    'plan_id' => $newPlanId,
+                ])->save();
+            });
+
+            return $newPlan;
+        });
     }
 
     /**

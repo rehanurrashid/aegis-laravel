@@ -159,17 +159,18 @@ class ContinuityPlanController extends Controller
         abort_if(!$plan, 404);
         $this->authorize('annualReview', $plan);
 
-        $this->plans->beginAnnualReview($plan);
+        $newDraft = $this->plans->beginAnnualReview($plan);
 
         $this->activity->log(
             $user->id, 'provider', 'plan', ActivitySeverity::Info,
             'annual_review_started', 'Annual review started',
             'You started the annual review for your Continuity Plan.',
-            'continuity_plan', $plan->id, null,
+            'continuity_plan', $newDraft->id, null,
             'log', $user->id
         );
 
-        return back()->with('success', 'Annual review started.');
+        return redirect()->route('provider.plan.index')
+            ->with('success', 'Annual review started. Version ' . $newDraft->plan_version . ' draft created.');
     }
 
     public function reviewComplete(AnnualReviewRequest $request): RedirectResponse
