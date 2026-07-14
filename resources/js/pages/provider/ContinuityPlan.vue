@@ -236,11 +236,12 @@
             </div>
 
             <!-- Edit -->
-            <button v-if="isEnabled(type.value)" type="button" class="btn-icon" :data-tooltip="`Configure ${type.label}`"
-              @click="openIncidentConfig(type)">
-              <AegisIcon name="edit" :size="13" />
-            </button>
-            <span v-else></span>
+            <div style="display:flex;justify-content:flex-end;padding-right:4px">
+              <button v-if="isEnabled(type.value)" type="button" class="btn-icon" :data-tooltip="`Configure ${type.label}`"
+                @click="openIncidentConfig(type)">
+                <AegisIcon name="edit" :size="13" />
+              </button>
+            </div>
           </div>
         </AegisCard>
 
@@ -484,9 +485,9 @@ function formatDate(iso) {
 .team-chip-empty { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: transparent; border: 1px dashed var(--border-dark); border-radius: var(--radius); }
 
 /* Grid */
-.grid-head { display: grid; grid-template-columns: 240px 80px minmax(150px,1.2fr) minmax(150px,1.3fr) 120px 44px; align-items: center; background: var(--surface-3); border-bottom: 1px solid var(--border); padding: 12px 18px; }
+.grid-head { display: grid; grid-template-columns: 240px 80px minmax(150px,1.2fr) minmax(150px,1.3fr) 160px 56px; align-items: center; background: var(--surface-3); border-bottom: 1px solid var(--border); padding: 12px 18px; }
 .grid-head-cell { font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--text-3); }
-.grid-row { display: grid; grid-template-columns: 240px 80px minmax(150px,1.2fr) minmax(150px,1.3fr) 120px 44px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--border); position: relative; min-height: 76px; transition: background .15s; }
+.grid-row { display: grid; grid-template-columns: 240px 80px minmax(150px,1.2fr) minmax(150px,1.3fr) 160px 56px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--border); position: relative; min-height: 76px; transition: background .15s; }
 .grid-row:last-of-type { border-bottom: none; }
 .grid-row.is-disabled { background: var(--surface-2); }
 .grid-row.is-disabled .grid-type-name { opacity: .55; }

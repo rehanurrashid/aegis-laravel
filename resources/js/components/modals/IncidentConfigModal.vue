@@ -20,9 +20,9 @@
     </div>
 
     <!-- Tabs -->
-    <div class="config-tabs" style="margin-bottom:16px">
+    <div class="tabs-primary" style="margin-bottom:16px">
       <button v-for="tab in tabs" :key="tab.key" type="button"
-        class="config-tab" :class="{ active: activeTab === tab.key }"
+        class="tab-primary" :class="{ active: activeTab === tab.key }"
         @click="activeTab = tab.key">
         <AegisIcon :name="tab.icon" :size="13" />
         {{ tab.label }}
@@ -45,11 +45,13 @@
       </div>
       <div style="display:flex;gap:8px;padding-top:4px;align-items:center">
         <input v-model="newSsTask" class="form-input" type="text" placeholder="Add Support Steward task…" style="flex:1;min-width:0" @keydown.enter.prevent="addTask('ss')" />
-        <select v-model="newSsTimeline" class="form-select" style="width:20%;flex-shrink:0;min-width:110px">
-          <option value="">Timeline…</option>
-          <option v-for="tl in timelineOptions" :key="tl" :value="tl">{{ tl }}</option>
-        </select>
-        <button type="button" class="btn btn-outline" @click="addTask('ss')">Add</button>
+        <div style="width:130px;flex-shrink:0">
+          <select v-model="newSsTimeline" class="form-select" style="width:100%">
+            <option value="">Timeline…</option>
+            <option v-for="tl in timelineOptions" :key="tl" :value="tl">{{ tl }}</option>
+          </select>
+        </div>
+        <button type="button" class="btn btn-outline" style="flex-shrink:0" @click="addTask('ss')">Add</button>
       </div>
     </div>
 
@@ -68,11 +70,13 @@
       </div>
       <div style="display:flex;gap:8px;padding-top:4px;align-items:center">
         <input v-model="newCsTask" class="form-input" type="text" placeholder="Add Continuity Steward task…" style="flex:1;min-width:0" @keydown.enter.prevent="addTask('cs')" />
-        <select v-model="newCsTimeline" class="form-select" style="width:20%;flex-shrink:0;min-width:110px">
-          <option value="">Timeline…</option>
-          <option v-for="tl in timelineOptions" :key="tl" :value="tl">{{ tl }}</option>
-        </select>
-        <button type="button" class="btn btn-outline" @click="addTask('cs')">Add</button>
+        <div style="width:130px;flex-shrink:0">
+          <select v-model="newCsTimeline" class="form-select" style="width:100%">
+            <option value="">Timeline…</option>
+            <option v-for="tl in timelineOptions" :key="tl" :value="tl">{{ tl }}</option>
+          </select>
+        </div>
+        <button type="button" class="btn btn-outline" style="flex-shrink:0" @click="addTask('cs')">Add</button>
       </div>
     </div>
 
@@ -332,10 +336,7 @@ function submit() {
 </script>
 
 <style scoped>
-.config-tabs { display:flex;gap:4px;border-bottom:2px solid var(--border);padding-bottom:0; }
-.config-tab { display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-3);padding:8px 14px;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;border-radius:var(--radius-sm) var(--radius-sm) 0 0;transition:color .15s,border-color .15s; }
-.config-tab:hover { color:var(--text); }
-.config-tab.active { color:var(--gold-dark);border-bottom-color:var(--gold-dark);background:var(--icon-bg-gold); }
+
 .m-section-title { display:flex;align-items:center;gap:8px;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);padding-bottom:6px;border-bottom:1px solid var(--border); }
 .count-badge { background:var(--badge-bg-gold);color:var(--gold-dark);padding:2px 7px;font-size:10px;border-radius:var(--radius-full);font-weight:700; }
 .task-list { display:flex;flex-direction:column;gap:6px; }
