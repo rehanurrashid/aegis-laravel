@@ -36,41 +36,42 @@ class StewardSeeder extends Seeder
                 'updated_at'       => $now->copy()->subMonths(6),
             ],
 
-            // p_sarah plan — alternate CS priya
+            // p_sarah plan — alternate CS priya (archived — so sarah has 1 of 2, Add CS is open)
             [
                 'id'               => 'ps_sarah_priya',
                 'plan_id'          => 'plan_sarah',
                 'steward_id'       => 'cs_priya',
                 'role'             => 'alternate',
                 'steward_category' => 'continuity_steward',
-                'status'           => 'active',
-                'vault_access'     => 'scoped',
-                'permissions'      => json_encode(['view_plan', 'manage_incident', 'access_vault']),
-                'responsibilities' => json_encode([
-                    'Serve as backup CS when primary is unavailable',
-                    'Maintain awareness of plan status',
-                ]),
+                'status'           => 'archived',
+                'vault_access'     => 'none',
+                'permissions'      => json_encode([]),
+                'responsibilities' => json_encode([]),
                 'signed_at'        => $now->copy()->subMonths(5),
-                'review_due_at'    => $now->copy()->addMonths(7),
+                'review_due_at'    => null,
                 'invited_at'       => $now->copy()->subMonths(6),
+                'declined_at'      => $now->copy()->subDays(30),
+                'declined_reason'  => 'Steward removed from plan.',
                 'created_at'       => $now->copy()->subMonths(6),
-                'updated_at'       => $now->copy()->subMonths(5),
+                'updated_at'       => $now->copy()->subDays(30),
             ],
 
-            // p_sarah plan — invited CS (not yet accepted)
+            // p_sarah plan — cs_alternate (archived invitation)
             [
                 'id'               => 'ps_sarah_alternate',
                 'plan_id'          => 'plan_sarah',
                 'steward_id'       => 'cs_alternate',
                 'role'             => 'alternate',
                 'steward_category' => 'continuity_steward',
-                'status'           => 'invited',
+                'status'           => 'archived',
                 'vault_access'     => 'none',
-                'permissions'      => json_encode(['view_plan']),
+                'permissions'      => json_encode([]),
                 'responsibilities' => null,
                 'signed_at'        => null,
-                'invited_at'       => $now->copy()->subDays(10),
-                'created_at'       => $now->copy()->subDays(10),
+                'invited_at'       => $now->copy()->subDays(20),
+                'declined_at'      => $now->copy()->subDays(10),
+                'declined_reason'  => 'Invitation withdrawn.',
+                'created_at'       => $now->copy()->subDays(20),
                 'updated_at'       => $now->copy()->subDays(10),
             ],
 
