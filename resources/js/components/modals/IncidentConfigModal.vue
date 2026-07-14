@@ -1,14 +1,13 @@
 <!--
   modals/IncidentConfigModal.vue — configure one incident type.
-  Usage: <IncidentConfigModal v-model="showIncidentConfig" :incident-type="..." ... />
+  Tabs: SS Tasks · CS Tasks · Documentation · Authorized Stewards
 -->
 <template>
   <AegisModal :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)" size="xl" :title="`Configure: ${incidentType?.label ?? ''}`">
 
     <!-- Enable toggle -->
     <div class="m-section" style="margin-bottom:16px">
-      <div class="m-section-title">Incident Settings</div>
-      <div class="setting-row" style="margin-top:10px">
+      <div class="setting-row" style="margin-top:0">
         <div class="setting-info">
           <div class="setting-label">Enable this incident type</div>
           <div class="setting-desc">
@@ -20,29 +19,89 @@
       </div>
     </div>
 
-    <!-- Docs required -->
-    <div class="m-section" style="margin-bottom:16px">
-      <div class="m-section-title">Documentation Required</div>
-      <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
-        <label v-for="doc in docOptions" :key="doc.value" class="form-check">
+    <!-- Tabs -->
+    <div class="config-tabs" style="margin-bottom:16px">
+      <button v-for="tab in tabs" :key="tab.key" type="button"
+        class="config-tab" :class="{ active: activeTab === tab.key }"
+        @click="activeTab = tab.key">
+        <AegisIcon :name="tab.icon" :size="13" />
+        {{ tab.label }}
+        <span v-if="tab.count !== undefined" class="count-badge" style="margin-left:4px">{{ tab.count }}</span>
+      </button>
+    </div>
+
+    <!-- Tab: SS Tasks -->
+    <div v-show="activeTab === 'ss'">
+      <div ref="ssTaskListEl" class="task-list" style="margin-bottom:8px">
+        <div v-for="(t, i) in ssTasks" :key="t._key ?? i" class="task-item draggable-item">
+          <AegisIcon name="menu" :size="13" style="color:var(--text-4);flex-shrink:0;cursor:grab" class="drag-handle" />
+          <span style="flex:1;font-size:13px;color:var(--text);font-weight:500">{{ t.title }}</span>
+          <span v-if="t.timeline" style="font-size:11px;color:var(--text-3);font-weight:600;padding:3px 8px;background:var(--surface-2);border-radius:var(--radius-xs);white-space:nowrap">{{ t.timeline }}</span>
+          <button type="button" class="btn-icon" data-tooltip="Remove" @click="ssTasks.splice(i,1)">
+            <AegisIcon name="trash" :size="13" />
+          </button>
+        </div>
+        <div v-if="!ssTasks.length" style="font-size:12px;color:var(--text-4);padding:8px 0;font-style:italic">No SS tasks yet. Add one below.</div>
+      </div>
+      <div style="display:flex;gap:8px;padding-top:4px;align-items:center">
+        <input v-model="newSsTask" class="form-input" type="text" placeholder="Add Support Steward task…" style="flex:1;min-width:0" @keydown.enter.prevent="addTask('ss')" />
+        <select v-model="newSsTimeline" class="form-select" style="width:20%;flex-shrink:0;min-width:110px">
+          <option value="">Timeline…</option>
+          <option v-for="tl in timelineOptions" :key="tl" :value="tl">{{ tl }}</option>
+        </select>
+        <button type="button" class="btn btn-outline" @click="addTask('ss')">Add</button>
+      </div>
+    </div>
+
+    <!-- Tab: CS Tasks -->
+    <div v-show="activeTab === 'cs'">
+      <div ref="csTaskListEl" class="task-list" style="margin-bottom:8px">
+        <div v-for="(t, i) in csTasks" :key="t._key ?? i" class="task-item draggable-item">
+          <AegisIcon name="menu" :size="13" style="color:var(--text-4);flex-shrink:0;cursor:grab" class="drag-handle" />
+          <span style="flex:1;font-size:13px;color:var(--text);font-weight:500">{{ t.title }}</span>
+          <span v-if="t.timeline" style="font-size:11px;color:var(--text-3);font-weight:600;padding:3px 8px;background:var(--surface-2);border-radius:var(--radius-xs);white-space:nowrap">{{ t.timeline }}</span>
+          <button type="button" class="btn-icon" data-tooltip="Remove" @click="csTasks.splice(i,1)">
+            <AegisIcon name="trash" :size="13" />
+          </button>
+        </div>
+        <div v-if="!csTasks.length" style="font-size:12px;color:var(--text-4);padding:8px 0;font-style:italic">No CS tasks yet. Add one below.</div>
+      </div>
+      <div style="display:flex;gap:8px;padding-top:4px;align-items:center">
+        <input v-model="newCsTask" class="form-input" type="text" placeholder="Add Continuity Steward task…" style="flex:1;min-width:0" @keydown.enter.prevent="addTask('cs')" />
+        <select v-model="newCsTimeline" class="form-select" style="width:20%;flex-shrink:0;min-width:110px">
+          <option value="">Timeline…</option>
+          <option v-for="tl in timelineOptions" :key="tl" :value="tl">{{ tl }}</option>
+        </select>
+        <button type="button" class="btn btn-outline" @click="addTask('cs')">Add</button>
+      </div>
+    </div>
+
+    <!-- Tab: Documentation -->
+    <div v-show="activeTab === 'docs'">
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+        <label v-for="doc in docOptions" :key="doc.value" class="form-check" style="padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm)">
           <input type="checkbox" :value="doc.value" v-model="selectedDocs" />
-          <span class="form-check-label">{{ doc.label }}</span>
+          <span class="form-check-label">
+            <span style="font-weight:600;font-size:13px">{{ doc.label }}</span>
+          </span>
         </label>
       </div>
     </div>
 
-    <!-- Authorization matrix -->
-    <div class="m-section" style="margin-bottom:16px">
-      <div class="m-section-title">Authorized Stewards</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:10px">
+    <!-- Tab: Authorized Stewards -->
+    <div v-show="activeTab === 'stewards'">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:4px">
         <div>
-          <div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Support Stewards</div>
-          <div v-if="ssList.length" style="display:flex;flex-direction:column;gap:5px">
-            <label v-for="s in ssList" :key="s.steward_id" class="form-check">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">Support Stewards</div>
+          <div v-if="ssList.length" style="display:flex;flex-direction:column;gap:6px">
+            <label v-for="s in ssList" :key="s.steward_id" class="form-check" style="padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm)">
               <input type="checkbox" :value="s.steward_id" v-model="authSsIds" />
-              <span class="form-check-label" style="display:flex;align-items:center;gap:8px">
-                <span style="width:18px;height:18px;border-radius:50%;background:var(--text-3);color:#fff;font-size:9px;font-weight:700;font-family:var(--font-serif);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">{{ s.avatar_initials }}</span>
-                {{ s.display_name }}
+              <span class="form-check-label" style="display:flex;align-items:center;gap:8px;flex:1">
+                <span style="width:20px;height:20px;border-radius:50%;background:var(--text-3);color:#fff;font-size:6px;font-weight:700;font-family:var(--font-serif);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;padding:0">
+                  <img v-if="s.avatar_url" :src="s.avatar_url" style="width:100%;height:100%;object-fit:cover" />
+                  <span v-else>{{ s.avatar_initials }}</span>
+                </span>
+                <span style="font-weight:600;font-size:13px;color:var(--text)">{{ s.display_name }}</span>
                 <span style="margin-left:auto;font-size:10px;color:var(--text-4);font-weight:600;text-transform:capitalize">{{ s.role }}</span>
               </span>
             </label>
@@ -52,13 +111,16 @@
           </p>
         </div>
         <div>
-          <div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Continuity Stewards</div>
-          <div v-if="csList.length" style="display:flex;flex-direction:column;gap:5px">
-            <label v-for="s in csList" :key="s.steward_id" class="form-check">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-3);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">Continuity Stewards</div>
+          <div v-if="csList.length" style="display:flex;flex-direction:column;gap:6px">
+            <label v-for="s in csList" :key="s.steward_id" class="form-check" style="padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm)">
               <input type="checkbox" :value="s.steward_id" v-model="authCsIds" />
-              <span class="form-check-label" style="display:flex;align-items:center;gap:8px">
-                <span style="width:18px;height:18px;border-radius:50%;background:var(--gold-dark);color:#fff;font-size:9px;font-weight:700;font-family:var(--font-serif);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">{{ s.avatar_initials }}</span>
-                {{ s.display_name }}
+              <span class="form-check-label" style="display:flex;align-items:center;gap:8px;flex:1">
+                <span style="width:20px;height:20px;border-radius:50%;background:var(--gold-dark);color:#fff;font-size:6px;font-weight:700;font-family:var(--font-serif);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;padding:0">
+                  <img v-if="s.avatar_url" :src="s.avatar_url" style="width:100%;height:100%;object-fit:cover" />
+                  <span v-else>{{ s.avatar_initials }}</span>
+                </span>
+                <span style="font-weight:600;font-size:13px;color:var(--text)">{{ s.display_name }}</span>
                 <span style="margin-left:auto;font-size:10px;color:var(--text-4);font-weight:600;text-transform:capitalize">{{ s.role }}</span>
               </span>
             </label>
@@ -70,61 +132,9 @@
       </div>
     </div>
 
-    <!-- SS Tasks -->
-    <div class="m-section" style="margin-bottom:16px">
-      <div class="m-section-title">
-        Support Steward Tasks <span class="count-badge">{{ ssTasks.length }}</span>
-      </div>
-      <div class="task-list" style="margin-top:8px">
-        <div v-for="(t, i) in ssTasks" :key="i" class="task-item">
-          <AegisIcon name="menu" :size="13" style="color:var(--text-4);flex-shrink:0;cursor:grab" />
-          <span style="flex:1;font-size:13px;color:var(--text);font-weight:500">{{ t.title }}</span>
-          <span v-if="t.timeline" style="font-size:11px;color:var(--text-3);font-weight:600;padding:3px 8px;background:var(--surface-2);border-radius:var(--radius-xs);white-space:nowrap">{{ t.timeline }}</span>
-          <button type="button" class="btn-icon" data-tooltip="Remove" @click="ssTasks.splice(i,1)">
-            <AegisIcon name="trash" :size="13" />
-          </button>
-        </div>
-        <div v-if="!ssTasks.length" style="font-size:12px;color:var(--text-4);padding:8px 0;font-style:italic">No SS tasks yet.</div>
-      </div>
-      <div style="display:flex;gap:8px;padding-top:8px;align-items:center">
-        <input v-model="newSsTask" class="form-input" type="text" placeholder="Add SS task…" style="flex:1;min-width:0" @keydown.enter.prevent="addTask('ss')" />
-        <select v-model="newSsTimeline" class="form-select" style="width:140px;flex-shrink:0">
-          <option value="">Timeline…</option>
-          <option v-for="tl in timelineOptions" :key="tl" :value="tl">{{ tl }}</option>
-        </select>
-        <button type="button" class="btn btn-outline" @click="addTask('ss')">Add</button>
-      </div>
-    </div>
-
-    <!-- CS Tasks -->
-    <div class="m-section">
-      <div class="m-section-title">
-        Continuity Steward Tasks <span class="count-badge">{{ csTasks.length }}</span>
-      </div>
-      <div class="task-list" style="margin-top:8px">
-        <div v-for="(t, i) in csTasks" :key="i" class="task-item">
-          <AegisIcon name="menu" :size="13" style="color:var(--text-4);flex-shrink:0;cursor:grab" />
-          <span style="flex:1;font-size:13px;color:var(--text);font-weight:500">{{ t.title }}</span>
-          <span v-if="t.timeline" style="font-size:11px;color:var(--text-3);font-weight:600;padding:3px 8px;background:var(--surface-2);border-radius:var(--radius-xs);white-space:nowrap">{{ t.timeline }}</span>
-          <button type="button" class="btn-icon" data-tooltip="Remove" @click="csTasks.splice(i,1)">
-            <AegisIcon name="trash" :size="13" />
-          </button>
-        </div>
-        <div v-if="!csTasks.length" style="font-size:12px;color:var(--text-4);padding:8px 0;font-style:italic">No CS tasks yet.</div>
-      </div>
-      <div style="display:flex;gap:8px;padding-top:8px;align-items:center">
-        <input v-model="newCsTask" class="form-input" type="text" placeholder="Add CS task…" style="flex:1;min-width:0" @keydown.enter.prevent="addTask('cs')" />
-        <select v-model="newCsTimeline" class="form-select" style="width:140px;flex-shrink:0">
-          <option value="">Timeline…</option>
-          <option v-for="tl in timelineOptions" :key="tl" :value="tl">{{ tl }}</option>
-        </select>
-        <button type="button" class="btn btn-outline" @click="addTask('cs')">Add</button>
-      </div>
-    </div>
-
     <template #footer>
       <button type="button" class="btn btn-outline" @click="$emit('update:modelValue', false)">Cancel</button>
-      <button type="button" class="btn btn-primary btn-spin" :disabled="submitting" @click="submit">
+      <button type="button" class="btn btn-primary" :class="{ 'btn-spin': submitting }" :disabled="submitting" @click="submit">
         <AegisIcon v-if="submitting" name="refresh-cw" :size="14" class="spin" />
         <AegisIcon v-else name="check" :size="14" />
         {{ submitting ? 'Saving…' : 'Save Configuration' }}
@@ -134,7 +144,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AegisToggle from '@/components/ui/AegisToggle.vue'
 
@@ -165,78 +175,175 @@ const timelineOptions = [
 const ssList = computed(() => props.stewards.filter(s => s.steward_type === 'support_steward'))
 const csList = computed(() => props.stewards.filter(s => s.steward_type === 'continuity_steward'))
 
+const activeTab = ref('ss')
+const tabs = computed(() => [
+  { key: 'ss',      label: 'SS Tasks',      icon: 'user-check', count: ssTasks.value.length },
+  { key: 'cs',      label: 'CS Tasks',      icon: 'shield',     count: csTasks.value.length },
+  { key: 'docs',    label: 'Documentation', icon: 'file-text',  count: selectedDocs.value.length },
+  { key: 'stewards',label: 'Auth Stewards', icon: 'users',      count: authSsIds.value.length + authCsIds.value.length },
+])
+
 // Local editable state — synced from props when incidentType changes
-const isActive    = ref(false)
+const isActive     = ref(false)
 const selectedDocs = ref([])
-const authSsIds   = ref([])
-const authCsIds   = ref([])
-const ssTasks     = ref([])
-const csTasks     = ref([])
+const authSsIds    = ref([])
+const authCsIds    = ref([])
+const ssTasks      = ref([])
+const csTasks      = ref([])
 
 const newSsTask = ref(''); const newSsTimeline = ref('')
 const newCsTask = ref(''); const newCsTimeline = ref('')
 
+let _keyCounter = 0
+function withKey(t) { return { ...t, _key: t.id ?? ('new_' + ++_keyCounter) } }
+
 watch(() => [props.incidentType, props.config, props.tasks, props.modelValue], () => {
   if (!props.modelValue) return
+  activeTab.value    = 'ss'
   isActive.value     = !!(props.config?.is_active)
   selectedDocs.value = props.config?.docs_required ?? []
   authSsIds.value    = props.config?.authorized_ss_ids ?? []
   authCsIds.value    = props.config?.authorized_cs_ids ?? []
-  ssTasks.value = props.tasks.filter(t => t.assigned_to === 'support_steward').map(t => ({ ...t }))
-  csTasks.value = props.tasks.filter(t => t.assigned_to === 'continuity_steward').map(t => ({ ...t }))
+  ssTasks.value = props.tasks.filter(t => t.assigned_to === 'support_steward').map(withKey)
+  csTasks.value = props.tasks.filter(t => t.assigned_to === 'continuity_steward').map(withKey)
+  nextTick(() => { initDrag('ss'); initDrag('cs') })
 }, { immediate: true })
+
+// ── Drag & Drop (vanilla, no extra deps) ─────────────────────────────
+const ssTaskListEl = ref(null)
+const csTaskListEl = ref(null)
+let dragCleanups = []
+
+function initDrag(role) {
+  const el = role === 'ss' ? ssTaskListEl.value : csTaskListEl.value
+  if (!el) return
+  const list = role === 'ss' ? ssTasks : csTasks
+
+  let dragging = null, startY = 0, startIdx = 0, placeholder = null
+
+  function getItems() { return [...el.querySelectorAll('.draggable-item')] }
+
+  function onMousedown(e) {
+    const handle = e.target.closest('.drag-handle')
+    if (!handle) return
+    const item = handle.closest('.draggable-item')
+    if (!item) return
+    e.preventDefault()
+    dragging = item
+    startY = e.clientY
+    startIdx = getItems().indexOf(item)
+    item.style.opacity = '0.5'
+    placeholder = document.createElement('div')
+    placeholder.style.cssText = `height:${item.offsetHeight}px;border:2px dashed var(--gold-dark);border-radius:var(--radius-sm);margin-bottom:6px;background:var(--icon-bg-gold);`
+    item.parentNode.insertBefore(placeholder, item.nextSibling)
+    document.addEventListener('mousemove', onMousemove)
+    document.addEventListener('mouseup', onMouseup)
+  }
+
+  function onMousemove(e) {
+    if (!dragging) return
+    const items = getItems().filter(i => i !== dragging)
+    for (const target of items) {
+      const rect = target.getBoundingClientRect()
+      const mid  = rect.top + rect.height / 2
+      if (e.clientY < mid) { el.insertBefore(placeholder, target); break }
+      else if (target === items[items.length - 1]) { el.appendChild(placeholder) }
+    }
+  }
+
+  function onMouseup() {
+    if (!dragging) return
+    const items = getItems()
+    const newIdx = [...el.children].filter(c => c !== dragging).indexOf(placeholder)
+    dragging.style.opacity = ''
+    placeholder.remove()
+    placeholder = null
+    const arr = list.value.splice(startIdx, 1)[0]
+    const insertAt = Math.max(0, Math.min(newIdx, list.value.length))
+    list.value.splice(insertAt, 0, arr)
+    dragging = null
+    document.removeEventListener('mousemove', onMousemove)
+    document.removeEventListener('mouseup', onMouseup)
+  }
+
+  el.addEventListener('mousedown', onMousedown)
+  dragCleanups.push(() => el.removeEventListener('mousedown', onMousedown))
+}
+
+watch(activeTab, (tab) => {
+  nextTick(() => {
+    if (tab === 'ss') initDrag('ss')
+    if (tab === 'cs') initDrag('cs')
+  })
+})
+
+onUnmounted(() => { dragCleanups.forEach(fn => fn()); dragCleanups = [] })
 
 function addTask(role) {
   const title    = role === 'ss' ? newSsTask.value.trim()    : newCsTask.value.trim()
   const timeline = role === 'ss' ? newSsTimeline.value       : newCsTimeline.value
   if (!title) return
-  if (role === 'ss') { ssTasks.value.push({ title, timeline }); newSsTask.value = ''; newSsTimeline.value = '' }
-  else               { csTasks.value.push({ title, timeline }); newCsTask.value = ''; newCsTimeline.value = '' }
+  if (role === 'ss') { ssTasks.value.push(withKey({ title, timeline })); newSsTask.value = ''; newSsTimeline.value = '' }
+  else               { csTasks.value.push(withKey({ title, timeline })); newCsTask.value = ''; newCsTimeline.value = '' }
+  nextTick(() => { role === 'ss' ? initDrag('ss') : initDrag('cs') })
 }
 
 const submitting = ref(false)
 
-async function submit() {
+function submit() {
   submitting.value = true
 
-  // 1. Save incident config
-  await new Promise(resolve => {
-    router.post(route('provider.plan.incident-config'), {
-      incident_type:     props.incidentType?.value,
-      is_active:         isActive.value,
-      docs_required:     selectedDocs.value,
-      authorized_ss_ids: authSsIds.value,
-      authorized_cs_ids: authCsIds.value,
-    }, { preserveScroll: true, onFinish: resolve })
-  })
+  const allNewSs = ssTasks.value.filter(t => !t.id).map((t, i) => ({ title: t.title, timeline: t.timeline, assigned_to: 'support_steward',    sort_order: i }))
+  const allNewCs = csTasks.value.filter(t => !t.id).map((t, i) => ({ title: t.title, timeline: t.timeline, assigned_to: 'continuity_steward', sort_order: i }))
+  const newTasks = [...allNewSs, ...allNewCs]
 
-  // 2. Post new tasks (ones without an id)
-  const newTasks = [
-    ...ssTasks.value.filter(t => !t.id).map((t, i) => ({ ...t, assigned_to: 'support_steward',    sort_order: i })),
-    ...csTasks.value.filter(t => !t.id).map((t, i) => ({ ...t, assigned_to: 'continuity_steward', sort_order: i })),
-  ]
-  for (const t of newTasks) {
-    await new Promise(resolve => {
+  // Step 1: save config
+  router.post(route('provider.plan.incident-config'), {
+    incident_type:     props.incidentType?.value,
+    is_active:         isActive.value,
+    docs_required:     selectedDocs.value,
+    authorized_ss_ids: authSsIds.value,
+    authorized_cs_ids: authCsIds.value,
+  }, { preserveScroll: true, onFinish: () => {
+    if (!newTasks.length) {
+      submitting.value = false
+      emit('update:modelValue', false)
+      return
+    }
+    // Step 2: post new tasks sequentially
+    let remaining = newTasks.length
+    newTasks.forEach(t => {
       router.post(route('provider.plan.tasks.store'), {
         title:       t.title,
         timeline:    t.timeline,
         assigned_to: t.assigned_to,
         sort_order:  t.sort_order,
         is_custom:   1,
-      }, { preserveScroll: true, onFinish: resolve })
+      }, { preserveScroll: true, onFinish: () => {
+        remaining--
+        if (remaining === 0) {
+          submitting.value = false
+          emit('update:modelValue', false)
+        }
+      }})
     })
-  }
-
-  submitting.value = false
-  emit('update:modelValue', false)
+  }})
 }
 </script>
 
 <style scoped>
+.config-tabs { display:flex;gap:4px;border-bottom:2px solid var(--border);padding-bottom:0; }
+.config-tab { display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-3);padding:8px 14px;border:none;background:transparent;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;border-radius:var(--radius-sm) var(--radius-sm) 0 0;transition:color .15s,border-color .15s; }
+.config-tab:hover { color:var(--text); }
+.config-tab.active { color:var(--gold-dark);border-bottom-color:var(--gold-dark);background:var(--icon-bg-gold); }
 .m-section-title { display:flex;align-items:center;gap:8px;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);padding-bottom:6px;border-bottom:1px solid var(--border); }
 .count-badge { background:var(--badge-bg-gold);color:var(--gold-dark);padding:2px 7px;font-size:10px;border-radius:var(--radius-full);font-weight:700; }
 .task-list { display:flex;flex-direction:column;gap:6px; }
 .task-item { display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm); }
+.setting-row { display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0; }
+.setting-info { flex:1; }
+.setting-label { font-size:13px;font-weight:600;color:var(--text); }
+.setting-desc { font-size:12px;color:var(--text-3);margin-top:2px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { animation: spin .7s linear infinite; }
 </style>

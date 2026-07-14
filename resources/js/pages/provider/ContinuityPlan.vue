@@ -45,8 +45,8 @@
         icon="calendar"
         :value="plan && plan.vault_attested_at ? formatDate(plan.vault_attested_at) : 'Not attested'"
         label="Last vault attestation"
-        :bg-color="plan && plan.vault_attested_at ? 'var(--icon-bg-green)' : undefined"
-        :icon-color="plan && plan.vault_attested_at ? 'var(--green-dark)' : undefined"
+        bg-color="var(--icon-bg-gold)"
+        icon-color="var(--gold-dark)"
       />
     </div>
 
@@ -67,13 +67,16 @@
       <!-- SIGNED BANNER -->
       <div v-if="plan.signed_at" class="alert alert-success" style="margin-bottom:16px">
         <AegisIcon name="check-circle" :size="16" />
-        <div>
+        <div style="flex:1">
           <strong>Plan Signed &amp; Active</strong>
           <span style="margin-left:8px;font-weight:400;opacity:.85">
             v{{ plan.plan_version }}.0 · Signed {{ formatDate(plan.signed_at) }}
             <span v-if="plan.signature_name"> by {{ plan.signature_name }}</span>
           </span>
         </div>
+        <button type="button" class="btn btn-outline" style="flex-shrink:0;font-size:12px;padding:4px 12px;height:auto" @click="showSignedDetails = true">
+          <AegisIcon name="info" :size="12" /> Details
+        </button>
       </div>
 
       <!-- ANNUAL REVIEW DUE BANNER -->
@@ -104,12 +107,17 @@
         <div class="team-row">
           <template v-for="slot in teamSlots" :key="slot.label">
             <div v-if="slot.steward" class="team-chip">
-              <span class="avatar avatar-sm" :style="`background:${slot.isCs ? 'var(--gold-dark)' : 'var(--text-3)'};color:#fff;font-family:var(--font-serif);font-weight:600`">
-                {{ slot.steward.avatar_initials }}
+              <span class="avatar avatar-sm" :style="`background:${slot.isCs ? 'var(--gold-dark)' : 'var(--text-3)'};color:#fff;font-family:var(--font-serif);font-weight:600;overflow:hidden;padding:0`">
+                <img v-if="slot.steward.avatar_url" :src="slot.steward.avatar_url" style="width:100%;height:100%;object-fit:cover" />
+                <span v-else>{{ slot.steward.avatar_initials }}</span>
               </span>
               <div style="flex:1;min-width:0">
                 <div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-4);margin-bottom:2px">{{ slot.label }}</div>
-                <div style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ slot.steward.display_name }}</div>
+                <a v-if="slot.steward.slug"
+                  :href="slot.isCs ? route('public.cs', { slug: slot.steward.slug }) : route('public.ss', { slug: slot.steward.slug })"
+                  style="font-size:13px;font-weight:700;color:var(--gold-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;text-decoration:none"
+                  data-tooltip="View public profile">{{ slot.steward.display_name }}</a>
+                <div v-else style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ slot.steward.display_name }}</div>
                 <AegisBadge :label="slot.steward.status" :variant="slot.steward.status === 'active' ? 'green' : 'gold'" style="margin-top:4px" />
               </div>
             </div>
@@ -190,14 +198,24 @@
             <div :class="{ 'grid-cell-dim': !isEnabled(type.value) }">
               <span v-if="!isEnabled(type.value)" class="grid-empty-cell">—</span>
               <div v-else style="display:flex;flex-wrap:wrap;gap:5px">
-                <span v-for="sid in (getConfig(type.value)?.authorized_ss_ids ?? [])" :key="'ss-'+sid" class="steward-mini">
-                  <span class="steward-mini-av steward-mini-av-ss">{{ getStewardInitials(sid) }}</span>
+                <a v-for="sid in (getConfig(type.value)?.authorized_ss_ids ?? [])" :key="'ss-'+sid"
+                  :href="getStewardSlug(sid) ? route('public.ss', { slug: getStewardSlug(sid) }) : '#'"
+                  class="steward-mini" style="text-decoration:none">
+                  <span class="steward-mini-av steward-mini-av-ss" style="overflow:hidden;padding:0">
+                    <img v-if="getStewardPhoto(sid)" :src="getStewardPhoto(sid)" style="width:100%;height:100%;object-fit:cover" />
+                    <span v-else>{{ getStewardInitials(sid) }}</span>
+                  </span>
                   {{ getStewardFirstName(sid) }}
-                </span>
-                <span v-for="cid in (getConfig(type.value)?.authorized_cs_ids ?? [])" :key="'cs-'+cid" class="steward-mini">
-                  <span class="steward-mini-av steward-mini-av-cs">{{ getStewardInitials(cid) }}</span>
+                </a>
+                <a v-for="cid in (getConfig(type.value)?.authorized_cs_ids ?? [])" :key="'cs-'+cid"
+                  :href="getStewardSlug(cid) ? route('public.cs', { slug: getStewardSlug(cid) }) : '#'"
+                  class="steward-mini" style="text-decoration:none">
+                  <span class="steward-mini-av steward-mini-av-cs" style="overflow:hidden;padding:0">
+                    <img v-if="getStewardPhoto(cid)" :src="getStewardPhoto(cid)" style="width:100%;height:100%;object-fit:cover" />
+                    <span v-else>{{ getStewardInitials(cid) }}</span>
+                  </span>
                   {{ getStewardFirstName(cid) }}
-                </span>
+                </a>
                 <span v-if="!getConfig(type.value)?.authorized_ss_ids?.length && !getConfig(type.value)?.authorized_cs_ids?.length" class="grid-empty-cell">No stewards assigned</span>
               </div>
             </div>
@@ -205,10 +223,16 @@
             <!-- Tasks -->
             <div :class="{ 'grid-cell-dim': !isEnabled(type.value) }">
               <span v-if="!isEnabled(type.value)" class="grid-empty-cell">—</span>
-              <span v-else style="display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--text-2)">
-                <AegisIcon name="clipboard-check" :size="11" style="color:var(--gold-dark);flex-shrink:0" />
-                {{ ssTaskCount(type.value) }} SS · {{ csTaskCount(type.value) }} CS
-              </span>
+              <div v-else style="display:flex;flex-direction:column;gap:4px">
+                <span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-xs);padding:3px 8px;color:var(--text-2);white-space:nowrap">
+                  <AegisIcon name="user-check" :size="10" style="color:var(--text-3);flex-shrink:0" />
+                  <span style="font-weight:700;color:var(--text)">{{ ssTaskCount(type.value) }}</span> SS tasks
+                </span>
+                <span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;background:var(--badge-bg-gold);border:1px solid var(--gold-light, var(--border));border-radius:var(--radius-xs);padding:3px 8px;color:var(--gold-dark);white-space:nowrap">
+                  <AegisIcon name="shield" :size="10" style="flex-shrink:0" />
+                  <span style="font-weight:700">{{ csTaskCount(type.value) }}</span> CS tasks
+                </span>
+              </div>
             </div>
 
             <!-- Edit -->
@@ -220,53 +244,25 @@
           </div>
         </AegisCard>
 
-        <!-- Sign block -->
-        <div class="sig-card" :class="{ 'is-signed': plan.signed_at }">
-          <div v-if="plan.signed_at" class="alert alert-success" style="border-radius:0;border-left:none;border-right:none;border-top:none;margin:0">
-            <AegisIcon name="check-circle" :size="16" />
-            <div><strong>Plan Signed &amp; Active</strong>
-              <span style="margin-left:8px;font-weight:400;opacity:.85">v{{ plan.plan_version }}.0 · {{ formatDate(plan.signed_at) }}</span>
-            </div>
+        <!-- Sign CTA (unsigned only) -->
+        <div v-if="plan && !plan.signed_at" style="margin-top:22px;padding:22px 24px 20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)">
+          <div class="alert alert-warning" style="margin-bottom:16px">
+            <AegisIcon name="alert-triangle" :size="16" />
+            <div>By signing, you confirm this plan is accurate and authorize your stewards to act as described when a critical incident occurs.</div>
           </div>
-          <div v-if="plan.signed_at" class="signed-meta">
-            <div class="signed-meta-item">
-              <div class="signed-meta-label">Signed by</div>
-              <div class="signed-meta-value">{{ plan.signature_name ?? '—' }}</div>
-            </div>
-            <div class="signed-meta-item">
-              <div class="signed-meta-label">Title</div>
-              <div class="signed-meta-value">{{ plan.signature_title ?? '—' }}</div>
-            </div>
-            <div class="signed-meta-item">
-              <div class="signed-meta-label">Date</div>
-              <div class="signed-meta-value">{{ formatDate(plan.signed_at) }}</div>
-            </div>
-            <div class="signed-meta-item">
-              <div class="signed-meta-label">Version</div>
-              <div class="signed-meta-value">v{{ plan.plan_version }}.0
-                <small v-if="plan.annual_review_date" style="display:block;font-size:11px;font-weight:500;color:var(--text-3);margin-top:2px">Review {{ formatDate(plan.annual_review_date) }}</small>
-              </div>
-            </div>
+          <div v-if="!canSign && signBlockedReason" class="alert alert-info" style="margin-bottom:12px">
+            <AegisIcon name="info" :size="16" />
+            <div>{{ signBlockedReason }}</div>
           </div>
-          <div v-else style="padding:22px 24px 20px">
-            <div class="alert alert-warning" style="margin-bottom:16px">
-              <AegisIcon name="alert-triangle" :size="16" />
-              <div>By signing, you confirm this plan is accurate and authorize your stewards to act as described when a critical incident occurs.</div>
-            </div>
-            <div v-if="!canSign && signBlockedReason" class="alert alert-info" style="margin-bottom:12px">
-              <AegisIcon name="info" :size="16" />
-              <div>{{ signBlockedReason }}</div>
-            </div>
-            <div style="display:flex;justify-content:flex-end;gap:10px">
-              <button type="button" class="btn btn-outline" @click="showAttestModal = true">
-                <AegisIcon name="check-circle" :size="13" /> Attest Vault
-              </button>
-              <button type="button" class="btn btn-primary" :disabled="!canSign"
-                :data-tooltip="!canSign ? signBlockedReason : undefined"
-                @click="showSignModal = true">
-                <AegisIcon name="edit" :size="13" /> Finalize &amp; Sign
-              </button>
-            </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px">
+            <button type="button" class="btn btn-outline" @click="showAttestModal = true">
+              <AegisIcon name="check-circle" :size="13" /> Attest Vault
+            </button>
+            <button type="button" class="btn btn-primary" :disabled="!canSign"
+              :data-tooltip="!canSign ? signBlockedReason : undefined"
+              @click="showSignModal = true">
+              <AegisIcon name="edit" :size="13" /> Finalize &amp; Sign
+            </button>
           </div>
         </div>
 
@@ -290,6 +286,49 @@
     />
 
 
+    <!-- Plan Signed Details Modal -->
+    <AegisModal v-if="plan && plan.signed_at" v-model="showSignedDetails" size="md" title="Plan Signature Details">
+      <div class="alert alert-success" style="margin-bottom:20px">
+        <AegisIcon name="check-circle" :size="16" />
+        <div>
+          <strong>Plan Signed &amp; Active</strong>
+          <span style="margin-left:8px;font-weight:400;opacity:.85">v{{ plan.plan_version }}.0</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+        <div style="border-left:3px solid var(--gold-dark);padding-left:14px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-3);margin-bottom:5px">Signed By</div>
+          <div style="font-family:var(--font-serif);font-size:17px;font-weight:600;color:var(--text)">{{ plan.signature_name ?? '—' }}</div>
+        </div>
+        <div style="border-left:3px solid var(--gold-dark);padding-left:14px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-3);margin-bottom:5px">Title / Role</div>
+          <div style="font-family:var(--font-serif);font-size:17px;font-weight:600;color:var(--text)">{{ plan.signature_title ?? '—' }}</div>
+        </div>
+        <div style="border-left:3px solid var(--border);padding-left:14px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-3);margin-bottom:5px">Date Signed</div>
+          <div style="font-size:15px;font-weight:600;color:var(--text)">{{ formatDate(plan.signed_at) }}</div>
+        </div>
+        <div style="border-left:3px solid var(--border);padding-left:14px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-3);margin-bottom:5px">Plan Version</div>
+          <div style="font-size:15px;font-weight:600;color:var(--text)">v{{ plan.plan_version }}.0</div>
+        </div>
+      </div>
+      <div v-if="plan.annual_review_date" class="alert alert-info">
+        <AegisIcon name="calendar" :size="15" />
+        <div>Next annual review due <strong>{{ formatDate(plan.annual_review_date) }}</strong>. You will be reminded when it approaches.</div>
+      </div>
+      <div v-if="plan.signature_agreed" style="margin-top:16px;padding:14px 16px;background:var(--surface-2);border-radius:var(--radius-sm);border:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Signatory Agreement</div>
+        <div style="font-size:12px;color:var(--text-2);line-height:1.6">I confirm this plan is accurate and authorize my designated stewards to act as described when a critical incident occurs. This plan supersedes all prior versions.</div>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="showSignedDetails = false">Close</button>
+        <button v-if="plan.status === 'active'" type="button" class="btn btn-outline" @click="showSignedDetails = false; showAnnualReview = true">
+          <AegisIcon name="refresh-cw" :size="13" /> Begin Annual Review
+        </button>
+      </template>
+    </AegisModal>
+
     <!-- Annual Review -->
     <AegisModal v-model="showAnnualReview" size="md" title="Begin Annual Review">
       <div class="alert alert-info" style="margin-bottom:14px">
@@ -302,7 +341,7 @@
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="showAnnualReview = false">Cancel</button>
-        <button type="button" class="btn btn-primary btn-spin" :disabled="reviewSubmitting" @click="submitAnnualReview">
+        <button type="button" class="btn btn-primary" :class="{ 'btn-spin': reviewSubmitting }" :disabled="reviewSubmitting" @click="submitAnnualReview">
           <AegisIcon v-if="reviewSubmitting" name="refresh-cw" :size="14" class="spin" />
           <AegisIcon v-else name="refresh-cw" :size="14" />
           {{ reviewSubmitting ? 'Starting review…' : 'Begin Review' }}
@@ -341,6 +380,7 @@ const showSignModal      = ref(false)
 const showAttestModal    = ref(false)
 const showIncidentConfig = ref(false)
 const showAnnualReview   = ref(false)
+const showSignedDetails  = ref(false)
 const activeIncidentType = ref(null)
 const reviewNotes        = ref('')
 const reviewSubmitting   = ref(false)
@@ -412,6 +452,8 @@ function handleToggle(type, val) {
 function getStewardById(id)       { return props.stewards.find(s => s.steward_id === id) ?? null }
 function getStewardInitials(id)   { return getStewardById(id)?.avatar_initials ?? '??' }
 function getStewardFirstName(id)  { const n = getStewardById(id)?.display_name ?? ''; return n.replace(/^Dr\.\s+/i, '').split(' ')[0] ?? n }
+function getStewardSlug(id)       { return getStewardById(id)?.slug ?? null }
+function getStewardPhoto(id)      { return getStewardById(id)?.avatar_url ?? null }
 
 // ── Doc label ──────────────────────────────────────────────────────────────────
 function docLabel(v) {
@@ -467,7 +509,7 @@ function formatDate(iso) {
 
 /* Steward mini */
 .steward-mini { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-full); padding: 2px 9px 2px 4px; }
-.steward-mini-av { width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; font-family: var(--font-serif); }
+.steward-mini-av { width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 6px; font-weight: 700; color: #fff; font-family: var(--font-serif); }
 .steward-mini-av-cs { background: var(--gold-dark); }
 .steward-mini-av-ss { background: var(--text-3); }
 

@@ -89,6 +89,7 @@ class ActivityController extends Controller
         $categories = [
             ['key' => '',             'label' => 'All',           'icon' => 'inbox'],
             ['key' => 'incident',     'label' => 'Incidents',     'icon' => 'alert-triangle'],
+            ['key' => 'plan',         'label' => 'Continuity Plan','icon' => 'shield'],
             ['key' => 'message',      'label' => 'Messages',      'icon' => 'message-square'],
             ['key' => 'support',      'label' => 'Support',       'icon' => 'life-buoy'],
             ['key' => 'task',         'label' => 'Tasks',         'icon' => 'check-circle'],
@@ -129,6 +130,8 @@ class ActivityController extends Controller
             } elseif ($cat['key'] === 'services') {
                 // Services uses module filter not event_type
                 $cat['count'] = (int) (clone $baseQuery)->where('module', 'services')->count();
+            } elseif ($cat['key'] === 'plan') {
+                $cat['count'] = (int) (clone $baseQuery)->where('module', 'plan')->count();
             } else {
                 $cat['count'] = (int) ($catCountsRaw[$cat['key']] ?? 0);
             }

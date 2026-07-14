@@ -55,8 +55,10 @@ class ContinuityPlanController extends Controller
                     'fee_cents'    => $s->fee_cents ?? 0,
                     'payment_terms'=> $s->payment_terms,
                     'auto_charge'  => $s->auto_charge ?? false,
-                    'display_name' => $s->steward?->display_name ?? '—',
+                    'display_name'    => $s->steward?->display_name ?? '—',
                     'avatar_initials' => $this->initials($s->steward?->display_name),
+                    'avatar_url'      => $s->steward?->avatar_url ?? null,
+                    'slug'            => $s->steward?->slug ?? null,
                 ])
             : [];
 
