@@ -8,6 +8,7 @@ import AegisToggle from '@/components/ui/AegisToggle.vue'
 import DesignateCsModal from '@/components/modals/DesignateCsModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
+import { useMessageButton } from '@/composables/useMessageButton'
 
 const props = defineProps({
   stewards:           { type: Array,  default: () => [] },
@@ -24,6 +25,7 @@ const props = defineProps({
 
 const toast = useToast()
 const { confirmAction } = useConfirm()
+const { openConversation, loading: msgLoading } = useMessageButton()
 
 // ── Tab state ──────────────────────────────────────────────────────────────────
 const activeTab = ref('myexec')
@@ -61,8 +63,181 @@ function closeModal(key) {
   modals.value[key] = false
 }
 function closeAllAdd() {
-  ['addStep1','addStep2','addStep3','addStep4','addStep5'].forEach(k => { modals.value[k] = false })
+  modals.value.designateCs = false
 }
+
+// ── Steward action openers ─────────────────────────────────────────────────────
+function openEditModal(s) {
+  activeId.value = s.id
+  modals.value.editCS = true
+}
+function openChangeRole(s) {
+  activeId.value = s.id
+  changeRoleForm.role   = s.role ?? 'primary'
+  changeRoleForm.reason = ''
+  modals.value.changeRole = true
+}
+function openVaultModal(s) {
+  activeId.value = s.id
+  vaultForm.vault_access_level = 'emergency'
+  modals.value.grantVault = true
+}
+function openRemoveModal(s) {
+  activeId.value = s.id
+  removeForm.reason  = ''
+  removeForm.confirm = ''
+  modals.value.remove = true
+}
+function openResend(inv) {
+  activePendingId.value   = inv.id
+  resendForm.expires_days = 30
+  resendForm.message      = ''
+  modals.value.resend = true
+}
+function openCancelInvite(inv) {
+  activePendingId.value = inv.id
+  modals.value.cancelInvite = true
+}
+
+// ── Edit CS form ─────────────────────────────────────────────────────────────
+const editForm = useForm({
+  display_name:   '',
+  email:          '',
+  phone:          '',
+  organization:   '',
+  title:          '',
+  emergency_phone:'',
+  notes:          '',
+})
+const busyEdit = ref(false)
+
+watch(() => modals.value.editCS, (open) => {
+  if (open && activeSteward.value) {
+    const s = activeSteward.value
+    editForm.display_name    = s.steward?.display_name ?? s.display_name ?? ''
+    editForm.email           = s.steward?.email ?? s.email ?? ''
+    editForm.phone           = s.steward?.phone ?? ''
+    editForm.organization    = s.steward?.organization ?? ''
+    editForm.title           = s.steward?.title ?? ''
+    editForm.emergency_phone = ''
+    editForm.notes           = ''
+  }
+})
+
+function submitEdit() {
+  if (!activeSteward.value) return
+  busyEdit.value = true
+  editForm.put(route('provider.stewards.invite', { steward: activeSteward.value.steward_id ?? activeSteward.value.id }), {
+    preserveScroll: true,
+    onSuccess: () => { modals.value.editCS = false; toast.success('Steward details updated.') },
+    onError:   () => toast.error('Could not update steward details.'),
+    onFinish:  () => { busyEdit.value = false },
+  })
+}
+
+// ── Change Role form ──────────────────────────────────────────────────────────
+const changeRoleForm = useForm({ role: 'primary', reason: '' })
+const busyChangeRole = ref(false)
+
+function submitChangeRole() {
+  if (!activeSteward.value) return
+  busyChangeRole.value = true
+  router.post(route('provider.ss.update-role', { steward: activeSteward.value.id }), {
+    role:   changeRoleForm.role,
+    reason: changeRoleForm.reason,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => { modals.value.changeRole = false; toast.success('Role updated.'); router.reload({ only: ['stewards'] }) },
+    onError:   () => toast.error('Could not update role.'),
+    onFinish:  () => { busyChangeRole.value = false },
+  })
+}
+
+// ── Vault Access form ─────────────────────────────────────────────────────────
+const vaultForm = useForm({ vault_access_level: 'emergency' })
+const busyVault = ref(false)
+
+function submitVault() {
+  if (!activeSteward.value) return
+  busyVault.value = true
+  router.post(route('provider.stewards.authorize', { steward: activeSteward.value.id }), {
+    vault_access: vaultForm.vault_access_level,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => { modals.value.grantVault = false; toast.success('Vault access updated.') },
+    onError:   () => toast.error('Could not update vault access.'),
+    onFinish:  () => { busyVault.value = false },
+  })
+}
+
+// ── Annual Review form ────────────────────────────────────────────────────────
+const reviewForm = useForm({ notes: '', confirmed: true })
+const busyReview = ref(false)
+
+function submitReview() {
+  busyReview.value = true
+  reviewForm.post(route('provider.stewards.invite'), {
+    preserveScroll: true,
+    onSuccess: () => { modals.value.annualReview = false; toast.success('Annual review completed.') },
+    onError:   () => toast.error('Could not complete review.'),
+    onFinish:  () => { busyReview.value = false },
+  })
+}
+
+// ── Remove form ───────────────────────────────────────────────────────────────
+const removeForm = useForm({ reason: '', confirm: '', notes: '' })
+const busyRemove = ref(false)
+
+function submitRemove() {
+  if (!activeSteward.value || removeForm.confirm !== 'REMOVE') return
+  busyRemove.value = true
+  router.delete(route('provider.stewards.remove', { steward: activeSteward.value.id }), {
+    data: { reason: removeForm.reason, notes: removeForm.notes },
+    preserveScroll: true,
+    onSuccess: () => {
+      modals.value.remove = false
+      toast.success('Continuity Steward removed.')
+      router.reload({ only: ['stewards', 'pendingInvitations', 'csCount'] })
+    },
+    onError:   () => toast.error('Could not remove steward.'),
+    onFinish:  () => { busyRemove.value = false },
+  })
+}
+
+// ── Resend Invitation form ────────────────────────────────────────────────────
+const resendForm = useForm({ expires_days: 30, message: '' })
+const busyResend = ref(false)
+
+function submitResend() {
+  if (!activePending.value) return
+  busyResend.value = true
+  resendForm.post(route('provider.stewards.resend-invite', { steward: activePending.value.id }), {
+    preserveScroll: true,
+    onSuccess: () => { modals.value.resend = false; toast.success('Invitation resent.') },
+    onError:   () => toast.error('Could not resend invitation.'),
+    onFinish:  () => { busyResend.value = false },
+  })
+}
+
+// ── Cancel Invitation form ────────────────────────────────────────────────────
+const busyCancel = ref(false)
+
+function submitCancelInvite() {
+  if (!activePending.value) return
+  busyCancel.value = true
+  router.delete(route('provider.stewards.cancel-invite', { steward: activePending.value.id }), {
+    preserveScroll: true,
+    onSuccess: () => {
+      modals.value.cancelInvite = false
+      toast.success('Invitation cancelled.')
+      router.reload({ only: ['pendingInvitations', 'csCount'] })
+    },
+    onError:   () => toast.error('Could not cancel invitation.'),
+    onFinish:  () => { busyCancel.value = false },
+  })
+}
+
+
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function formatMoney(cents) {
@@ -288,7 +463,7 @@ function saveNotifyPrefs() {
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
             <button type="button" class="btn-icon" data-tooltip="View Agreement" @click="openModal('viewAgreement', s)"><AegisIcon name="file-text" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Edit Details"   @click="openEditModal(s)"><AegisIcon name="pencil" :size="14" /></button>
-            <a :href="route('provider.messages')" class="btn-icon" data-tooltip="Message"><AegisIcon name="message-square" :size="14" /></a>
+            <button type="button" class="btn-icon" data-tooltip="Message this CS" :disabled="msgLoading === s.steward_id" @click="openConversation(s.steward_id)"><AegisIcon name="message-square" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Annual Review"  @click="modals.annualReview = true"><AegisIcon name="calendar" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Change Role"    @click="openChangeRole(s)"><AegisIcon name="refresh-cw" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Vault Access"   @click="openVaultModal(s)"><AegisIcon name="lock" :size="14" /></button>
