@@ -2111,29 +2111,13 @@
       :network="referralNetwork"
       :preselected-recipient="referralPreselectRecipient"
     />
-    <!-- Designate CS Modal -->
-    <AegisModal v-model="showDesignateModal" title="Designate as My Continuity Steward" size="md">
-      <div v-if="designateTarget" class="list-group-item" style="background:var(--surface-2);border-radius:var(--radius);margin-bottom:16px;gap:14px;">
-        <div class="spc-avatar" style="width:44px;height:44px;font-size:15px;flex-shrink:0;">{{ designateTarget.avatar_initials }}</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:14px;font-weight:700;">{{ designateTarget.display_name }}<span v-if="designateTarget.credentials" style="font-size:12px;color:var(--text-3);font-weight:400;">, {{ designateTarget.credentials }}</span></div>
-          <div style="font-size:12px;color:var(--text-3);">{{ designateTarget.license_state }}<span v-if="designateTarget.location"> · {{ designateTarget.location }}</span></div>
-          <div v-if="designateTarget.specialties?.length" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">
-            <span v-for="tag in designateTarget.specialties.slice(0,3)" :key="tag" class="badge badge-neutral" style="font-size:10px;">{{ tag }}</span>
-          </div>
-        </div>
-      </div>
-      <div class="alert alert-info">
-        <div class="alert-icon"><AegisIcon name="shield" :size="14" /></div>
-        <div class="alert-content">Designating this person will send them a formal CS invitation. They must accept before becoming your active Continuity Steward. This does not skip the agreement process.</div>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="showDesignateModal = false">Cancel</button>
-        <button type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;" @click="confirmDesignate">
-          <AegisIcon name="shield" :size="14" /> Send CS Invitation
-        </button>
-      </template>
-    </AegisModal>
+    <!-- Designate CS Modal — centralized DesignateCsModal -->
+    <DesignateCsModal
+      v-model="showDesignateModal"
+      :preselected-user="designateTarget"
+      context="network"
+      @success="router.reload({ only: ['csStewards'] })"
+    />
 
     </div><!-- /nw-page-root -->
 
@@ -2153,6 +2137,7 @@ import PostJobModal           from '@/components/modals/PostJobModal.vue'
 import BpEngageModal          from '@/components/modals/BpEngageModal.vue'
 import BpQuoteModal           from '@/components/modals/BpQuoteModal.vue'
 import BpScheduleModal        from '@/components/modals/BpScheduleModal.vue'
+import DesignateCsModal       from '@/components/modals/DesignateCsModal.vue'
 import { useModal }         from '@/composables/useModal'
 import { useToast }         from '@/composables/useToast'
 import { useConfirm }       from '@/composables/useConfirm'
@@ -3219,22 +3204,6 @@ function formatCsRate(cs) {
 function openDesignate(cs) {
   designateTarget.value = cs
   showDesignateModal.value = true
-}
-
-function confirmDesignate() {
-  if (!designateTarget.value) return
-  router.post(route('provider.stewards.invite'), {
-    user_id: designateTarget.value.id,
-    role:    'primary',
-  }, {
-    preserveScroll: true,
-    onSuccess: () => {
-      toast.success(designateTarget.value.display_name + ' designated as your Continuity Steward.')
-      showDesignateModal.value = false
-      router.visit(route('provider.stewards.index'))
-    },
-    onError: (e) => toast.error(Object.values(e)[0] ?? 'Could not designate CS.'),
-  })
 }
 
 

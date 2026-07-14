@@ -137,15 +137,36 @@ class ContinuityStewardController extends Controller
         $this->authorize('update', $plan);
 
         $data = $request->validated();
+        $role = $data['role'] ?? 'primary';
+
         try {
-            if (!empty($data['user_id'])) {
-                $this->stewards->designate($plan, User::findOrFail($data['user_id']), 'continuity_steward', $data['role'] ?? 'primary');
+            // Path A: preselected_user_id — known Aegis CS Business user, designate directly
+            if (!empty($data['preselected_user_id'])) {
+                $csUser = User::findOrFail($data['preselected_user_id']);
+                $this->stewards->designate($plan, $csUser, 'continuity_steward', $role, [
+                    'fee_cents'     => $data['fee_cents']     ?? 0,
+                    'payment_model' => $data['payment_terms'] ?? 'per_incident',
+                ]);
+            // Path B: existing user by user_id
+            } elseif (!empty($data['user_id'])) {
+                $this->stewards->designate($plan, User::findOrFail($data['user_id']), 'continuity_steward', $role, [
+                    'fee_cents'     => $data['fee_cents']     ?? 0,
+                    'payment_model' => $data['payment_terms'] ?? 'per_incident',
+                ]);
+            // Path C: external email invite
             } else {
-                $this->stewards->inviteExternal($plan, $data['email'], $data['display_name'] ?? 'Continuity Steward', 'continuity_steward', $data['role'] ?? 'primary');
+                $this->stewards->inviteExternal(
+                    $plan,
+                    $data['email'],
+                    $data['display_name'] ?? 'Continuity Steward',
+                    'continuity_steward',
+                    $role
+                );
             }
         } catch (\RuntimeException $e) {
             return back()->withErrors(['email' => $e->getMessage()]);
         }
+
         return back()->with('success', 'Continuity Steward invited.');
     }
 
