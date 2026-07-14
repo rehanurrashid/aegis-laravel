@@ -10,7 +10,7 @@
     </div>
     <div class="form-group" style="margin-bottom:0">
       <label class="form-label">Optional note</label>
-      <textarea v-model="form.note" class="form-input" rows="3"
+      <textarea v-model="note" class="form-input" rows="3"
         placeholder="e.g. Updated credential list and roster as of today…" style="resize:vertical" />
     </div>
 
@@ -27,21 +27,31 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useForm } from '@inertiajs/vue3'
+import { router } from '@inertiajs/vue3'
 
 const props = defineProps({ modelValue: { type: Boolean, required: true } })
-const emit = defineEmits(['update:modelValue'])
+const emit  = defineEmits(['update:modelValue'])
 
-const form = useForm({ note: '' })
+const note       = ref('')
 const submitting = ref(false)
 
 function submit() {
   submitting.value = true
-  form.post(route('provider.plan.attest'), {
-    onSuccess: () => { emit('update:modelValue', false) },
-    onError:   () => { submitting.value = false },
-    onFinish:  () => { submitting.value = false },
-  })
+  router.post(
+    route('provider.plan.attest'),
+    { note: note.value },
+    {
+      preserveScroll: false,
+      preserveState:  false,
+      onSuccess: () => {
+        submitting.value = false
+        note.value = ''
+        emit('update:modelValue', false)
+      },
+      onError:  () => { submitting.value = false },
+      onFinish: () => { submitting.value = false },
+    }
+  )
 }
 </script>
 
