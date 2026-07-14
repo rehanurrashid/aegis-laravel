@@ -421,16 +421,20 @@ async function submitDesignate() {
     payload.relationship = form.relationship
   }
 
-  form.transform(() => payload).post(route('provider.stewards.invite'), {
+  router.post(route('provider.stewards.invite'), payload, {
     preserveScroll: true,
     onSuccess: () => {
       const name = props.preselectedUser?.display_name ?? form.display_name
       toast.success((name || 'Continuity Steward') + (props.preselectedUser ? ' designated as your CS.' : ' invitation sent.'))
       emit('success')
       innerOpen.value = false
+      busy.value = false
     },
-    onError: (e) => toast.error(Object.values(e)[0] ?? 'Could not complete. Please try again.'),
-    onFinish: () => { busy.value = false },
+    onError: (errors) => {
+      const msg = errors && typeof errors === 'object' ? (Object.values(errors)[0] ?? '') : ''
+      toast.error(msg || 'Could not complete. Please try again.')
+      busy.value = false
+    },
   })
 }
 

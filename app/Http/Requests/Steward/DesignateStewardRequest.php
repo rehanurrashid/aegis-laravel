@@ -17,7 +17,7 @@ class DesignateStewardRequest extends FormRequest
             'user_id'              => 'required_without_all:email,preselected_user_id|nullable|exists:users,id',
             'email'                => 'required_without_all:user_id,preselected_user_id|nullable|email',
             'display_name'         => 'required_without_all:user_id,preselected_user_id|nullable|string|max:100',
-            'role'                 => ['nullable', Rule::in(['primary', 'alternate', 'secondary'])],
+            'role'                 => ['nullable', Rule::in(['primary', 'alternate', 'support'])],
             'steward_category'     => 'nullable|string|max:50',
             'fee_cents'            => 'nullable|integer|min:0',
             'payment_terms'        => ['nullable', Rule::in(['per_incident', 'monthly', 'annual', 'reciprocal'])],

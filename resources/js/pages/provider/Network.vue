@@ -2116,7 +2116,7 @@
       v-model="showDesignateModal"
       :preselected-user="designateTarget"
       context="network"
-      @success="router.reload({ only: ['csStewards'] })"
+      @success="onCsDesignated"
     />
 
     </div><!-- /nw-page-root -->
@@ -3204,6 +3204,12 @@ function formatCsRate(cs) {
 function openDesignate(cs) {
   designateTarget.value = cs
   showDesignateModal.value = true
+}
+
+function onCsDesignated() {
+  showDesignateModal.value = false
+  // Navigate to ContinuityStewards page so user sees the new pending invitation
+  router.visit(route('provider.stewards.index'), { preserveScroll: false })
 }
 
 
