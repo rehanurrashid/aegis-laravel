@@ -3721,8 +3721,8 @@ function resetConfig() {
 }
 
 :deep(#filterSidebar .filter-sidebar-title),
-:deep(#sbpFilterSidebar .filter-sidebar-title) {,
-:deep(#csSidebar .filter-sidebar-title) { {
+:deep(#sbpFilterSidebar .filter-sidebar-title),
+:deep(#csSidebar .filter-sidebar-title) {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -3735,22 +3735,22 @@ function resetConfig() {
 
 /* 3. Each filter-group becomes a page-sidebar-group — bottom divider, no margin */
 :deep(#filterSidebar .filter-group),
-:deep(#sbpFilterSidebar .filter-group) {,
-:deep(#csSidebar .filter-group) { {
+:deep(#sbpFilterSidebar .filter-group),
+:deep(#csSidebar .filter-group) {
   margin: 0;
   padding: 0;
   border-bottom: 1px solid var(--border);
 }
 :deep(#filterSidebar .filter-group:last-of-type),
-:deep(#sbpFilterSidebar .filter-group:last-of-type) {,
-:deep(#csSidebar .filter-group:last-of-type) { {
+:deep(#sbpFilterSidebar .filter-group:last-of-type),
+:deep(#csSidebar .filter-group:last-of-type) {
   border-bottom: none;
 }
 
 /* Clinical-service toggle group — same divider treatment */
 :deep(#filterSidebar .nw-sbp-clinical-toggle),
-:deep(#sbpFilterSidebar .nw-sbp-clinical-toggle) {,
-:deep(#csSidebar .nw-sbp-clinical-toggle) { {
+:deep(#sbpFilterSidebar .nw-sbp-clinical-toggle),
+:deep(#csSidebar .nw-sbp-clinical-toggle) {
   margin: 0;
   border-radius: 0;
   border-bottom: 1px solid var(--border);
@@ -3760,8 +3760,8 @@ function resetConfig() {
 
 /* 4. Group header rows — match page-sidebar-item style */
 :deep(#filterSidebar .filter-group-header),
-:deep(#sbpFilterSidebar .filter-group-header) {,
-:deep(#csSidebar .filter-group-header) { {
+:deep(#sbpFilterSidebar .filter-group-header),
+:deep(#csSidebar .filter-group-header) {
   padding: 9px 14px;
   border-radius: 0;
   border-left: none;
@@ -3773,21 +3773,21 @@ function resetConfig() {
   transition: background var(--transition), color var(--transition);
 }
 :deep(#filterSidebar .filter-group-header:hover),
-:deep(#sbpFilterSidebar .filter-group-header:hover) {,
-:deep(#csSidebar .filter-group-header:hover) { {
+:deep(#sbpFilterSidebar .filter-group-header:hover),
+:deep(#csSidebar .filter-group-header:hover) {
   background: var(--surface-2);
   color: var(--text);
 }
 :deep(#filterSidebar .filter-group.open > .filter-group-header),
-:deep(#sbpFilterSidebar .filter-group.open > .filter-group-header) {,
-:deep(#csSidebar .filter-group.open > .filter-group-header) { {
+:deep(#sbpFilterSidebar .filter-group.open > .filter-group-header),
+:deep(#csSidebar .filter-group.open > .filter-group-header) {
   background: var(--badge-bg-gold);
   color: var(--gold-dark);
   font-weight: 700;
 }
 :deep(#filterSidebar .filter-group.open > .filter-group-header)::before,
-:deep(#sbpFilterSidebar .filter-group.open > .filter-group-header)::before {,
-:deep(#csSidebar .filter-group.open > .filter-group-header)::before { {
+:deep(#sbpFilterSidebar .filter-group.open > .filter-group-header)::before,
+:deep(#csSidebar .filter-group.open > .filter-group-header)::before {
   content: '';
   position: absolute;
   left: 0;
@@ -3802,15 +3802,15 @@ function resetConfig() {
 :deep(#filterSidebar .filter-group.open .filter-group-label svg),
 :deep(#filterSidebar .filter-group.open .filter-group-label .aegis-icon),
 :deep(#sbpFilterSidebar .filter-group.open .filter-group-label svg),
-:deep(#sbpFilterSidebar .filter-group.open .filter-group-label .aegis-icon) {,
-:deep(#csSidebar .filter-group.open .filter-group-label .aegis-icon) { {
+:deep(#sbpFilterSidebar .filter-group.open .filter-group-label .aegis-icon),
+:deep(#csSidebar .filter-group.open .filter-group-label .aegis-icon) {
   color: var(--gold-dark);
 }
 
 /* 5. Filter body — left-indent to align with page-sidebar-item text */
 :deep(#filterSidebar .filter-group-body),
-:deep(#sbpFilterSidebar .filter-group-body) {,
-:deep(#csSidebar .filter-group-body) { {
+:deep(#sbpFilterSidebar .filter-group-body),
+:deep(#csSidebar .filter-group-body) {
   padding: 8px 14px 14px 14px;
   border-left: 3px solid var(--badge-bg-gold);
   background: var(--surface);
@@ -3818,8 +3818,8 @@ function resetConfig() {
 
 /* 6. Active filter pills row — sits just below the sticky header */
 :deep(#filterSidebar .active-filters-row),
-:deep(#sbpFilterSidebar .active-filters-row) {,
-:deep(#csSidebar .active-filters-row) { {
+:deep(#sbpFilterSidebar .active-filters-row),
+:deep(#csSidebar .active-filters-row) {
   padding: 8px 14px 6px;
   border-bottom: 1px solid var(--border);
   background: var(--surface-2);
