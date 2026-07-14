@@ -140,7 +140,9 @@ const addRules = computed(() => ({
 const v$add = useVuelidate(addRules, addForm)
 
 function fieldError(v$obj, field) {
-  const f = v$obj.value[field]
+  // v$obj may be a ref (from script) or already-unwrapped (from template)
+  const obj = v$obj?.value ?? v$obj
+  const f = obj?.[field]
   if (!f || !f.$dirty) return null
   return f.$errors[0]?.$message ?? null
 }
@@ -601,7 +603,7 @@ function saveNotifyPrefs() {
           title="Not serving as CS yet"
           description="You are not currently serving as CS for any providers."
         />
-        <div v-for="prov in servingAsCSFor" :key="prov.id" class="list-group-item">
+        <div v-for="prov in servingAsCSFor" :key="prov.id" class="list-group-item" style="background:var(--surface-white,#fff);">
           <div style="width:38px;height:38px;border-radius:var(--radius-sm);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
             {{ prov.avatar_initials || initials(prov.display_name ?? '') }}
           </div>

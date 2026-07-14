@@ -13,6 +13,7 @@ use App\Models\PlanSteward;
 use App\Models\User;
 use App\Services\ActivityService;
 use App\Services\PlanService;
+use App\Services\ProfileService;
 use App\Services\StewardService;
 use App\Events\Steward\SsSuspended;
 use App\Events\Steward\SsReinstated;
@@ -27,6 +28,7 @@ class ContinuityStewardController extends Controller
         private StewardService $stewards,
         private PlanService $plans,
         private ActivityService $activity,
+        private ProfileService $profiles,
     ) {}
 
     // ── CS ─────────────────────────────────────────────────────────────────────
@@ -124,7 +126,7 @@ class ContinuityStewardController extends Controller
             'csCount'            => collect($stewards)->where('status', 'active')->count(),
             'incidentConfigs'    => $incidentConfigs,
             'annualReviewDue'    => $plan?->annual_review_date?->toDateString(),
-            'notifyPrefs'        => [],
+            'notifyPrefs'        => $this->profiles->getMeta($user, 'notify_cs_activity', []),
         ]);
     }
 

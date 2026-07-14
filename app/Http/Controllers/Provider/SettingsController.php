@@ -220,6 +220,23 @@ class SettingsController extends Controller
         return back()->with('success', 'Network settings saved.');
     }
 
+    public function updateNotifications(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'cs_notify'                               => 'nullable|array',
+            'cs_notify.re_attestation_complete'       => 'nullable|boolean',
+            'cs_notify.steward_requests_changes'      => 'nullable|boolean',
+            'cs_notify.steward_updates_info'          => 'nullable|boolean',
+            'cs_notify.roles_permissions_change'      => 'nullable|boolean',
+            'cs_notify.documents_accessed'            => 'nullable|boolean',
+            'cs_notify.steward_added_removed'         => 'nullable|boolean',
+            'cs_notify.critical_incident_reported'    => 'nullable|boolean',
+            'cs_notify.continuity_response'           => 'nullable|boolean',
+        ]);
+        $this->profiles->saveMeta($request->user(), 'notify_cs_activity', $data['cs_notify'] ?? [], 'json');
+        return back()->with('success', 'Notification preferences saved.');
+    }
+
     public function updateServicesSettings(Request $request): RedirectResponse
     {
         $data = $request->validate([
