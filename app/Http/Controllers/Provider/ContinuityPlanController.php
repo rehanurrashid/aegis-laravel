@@ -122,7 +122,7 @@ class ContinuityPlanController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $this->plans->createDraft($request->user());
-        return back()->with('success', 'Draft plan created.');
+        return redirect()->route('provider.plan.index')->with('success', 'Draft plan created.');
     }
 
     public function sign(SignPlanRequest $request): RedirectResponse
@@ -137,7 +137,7 @@ class ContinuityPlanController extends Controller
             'title' => $request->input('title'),
         ], $request->ip());
 
-        return back()->with('success', 'Plan signed and activated.');
+        return redirect()->route('provider.plan.index')->with('success', 'Plan signed and activated.');
     }
 
     public function attest(AttestVaultRequest $request): RedirectResponse
@@ -149,7 +149,8 @@ class ContinuityPlanController extends Controller
 
         $this->plans->attestVault($plan, $request->input('note'));
 
-        return back()->with('success', 'Vault attested.');
+        return redirect()->route('provider.plan.index')
+            ->with('success', 'Vault attested.');
     }
 
     public function reviewStart(Request $request): RedirectResponse
@@ -190,7 +191,7 @@ class ContinuityPlanController extends Controller
             'log', $user->id
         );
 
-        return back()->with('success', 'Annual review completed.');
+        return redirect()->route('provider.plan.index')->with('success', 'Annual review completed.');
     }
 
     // ── NEW: Task management ─────────────────────────────────────────────────
@@ -212,7 +213,7 @@ class ContinuityPlanController extends Controller
             'log', $user->id
         );
 
-        return back()->with('success', 'Task added.');
+        return redirect()->route('provider.plan.index')->with('success', 'Task added.');
     }
 
     public function removeTask(Request $request, PlanTask $task): RedirectResponse
@@ -233,7 +234,7 @@ class ContinuityPlanController extends Controller
             'log', $user->id
         );
 
-        return back()->with('success', 'Task removed.');
+        return redirect()->route('provider.plan.index')->with('success', 'Task removed.');
     }
 
     public function reorderTasks(Request $request): RedirectResponse
@@ -246,7 +247,7 @@ class ContinuityPlanController extends Controller
         $ids = $request->validate(['ids' => 'required|array', 'ids.*' => 'string'])['ids'];
         $this->plans->reorderTasks($plan, $ids);
 
-        return back()->with('success', 'Tasks reordered.');
+        return redirect()->route('provider.plan.index')->with('success', 'Tasks reordered.');
     }
 
     public function configureIncident(Request $request): RedirectResponse
@@ -277,7 +278,7 @@ class ContinuityPlanController extends Controller
             'log', $user->id
         );
 
-        return back()->with('success', 'Incident configuration saved.');
+        return redirect()->route('provider.plan.index')->with('success', 'Incident configuration saved.');
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
