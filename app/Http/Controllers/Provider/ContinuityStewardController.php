@@ -137,10 +137,14 @@ class ContinuityStewardController extends Controller
         $this->authorize('update', $plan);
 
         $data = $request->validated();
-        if (!empty($data['user_id'])) {
-            $this->stewards->designate($plan, User::findOrFail($data['user_id']), 'continuity_steward', $data['role'] ?? 'primary');
-        } else {
-            $this->stewards->inviteExternal($plan, $data['email'], $data['display_name'] ?? 'Continuity Steward', 'continuity_steward', $data['role'] ?? 'primary');
+        try {
+            if (!empty($data['user_id'])) {
+                $this->stewards->designate($plan, User::findOrFail($data['user_id']), 'continuity_steward', $data['role'] ?? 'primary');
+            } else {
+                $this->stewards->inviteExternal($plan, $data['email'], $data['display_name'] ?? 'Continuity Steward', 'continuity_steward', $data['role'] ?? 'primary');
+            }
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['email' => $e->getMessage()]);
         }
         return back()->with('success', 'Continuity Steward invited.');
     }
@@ -282,10 +286,14 @@ class ContinuityStewardController extends Controller
         $this->authorize('update', $plan);
 
         $data = $request->validated();
-        if (!empty($data['user_id'])) {
-            $this->stewards->designate($plan, User::findOrFail($data['user_id']), 'support_steward', $data['role'] ?? 'primary');
-        } else {
-            $this->stewards->inviteExternal($plan, $data['email'], $data['display_name'] ?? 'Support Steward', 'support_steward', $data['role'] ?? 'primary');
+        try {
+            if (!empty($data['user_id'])) {
+                $this->stewards->designate($plan, User::findOrFail($data['user_id']), 'support_steward', $data['role'] ?? 'primary');
+            } else {
+                $this->stewards->inviteExternal($plan, $data['email'], $data['display_name'] ?? 'Support Steward', 'support_steward', $data['role'] ?? 'primary');
+            }
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['email' => $e->getMessage()]);
         }
         return back()->with('success', 'Support Steward invited.');
     }

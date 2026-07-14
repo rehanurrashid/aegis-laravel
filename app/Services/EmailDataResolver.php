@@ -197,26 +197,54 @@ class EmailDataResolver
 
     private function enrichSteward(string $tpl, array $d, string $base): array
     {
-        if (! empty($d['plan_steward_id'])) {
-            $ps = PlanSteward::with(['steward', 'plan'])->find($d['plan_steward_id']);
+        // Support both plan_steward_id (canonical) and legacy plan_id+steward_id
+        $psId = $d['plan_steward_id'] ?? null;
+        if (!$psId && !empty($d['plan_id']) && !empty($d['steward_id'])) {
+            $found = PlanSteward::where('plan_id', $d['plan_id'])
+                ->where('steward_id', $d['steward_id'])
+                ->latest()
+                ->first();
+            $psId = $found?->id;
+        }
+
+        if ($psId) {
+            $ps = PlanSteward::with(['steward', 'plan'])->find($psId);
             if ($ps) {
                 $practitioner = User::find($ps->plan?->practitioner_id);
-                $d += [
-                    'cs_name'           => $ps->steward?->display_name ?? '',
-                    'practitioner_name' => $practitioner?->display_name ?? '',
+                $stewardUser  = $ps->steward;
+
+                // Determine invite URL — existing verified users go to their portal, stubs go to onboarding
+                $isVerified  = (bool) ($stewardUser?->verified ?? false);
+                $portalPath  = $ps->steward_category === 'support_steward' ? 'support-steward' : 'continuity-steward';
+                $inviteUrl   = $isVerified
+                    ? $base . '/continuity-steward/dashboard'
+                    : $base . '/onboarding?role=cs&invited=true&token=' . ($ps->id ?? '');
+
+                $expiresAt = $ps->expires_at;
+                $expiresDays = $expiresAt
+                    ? max(1, (int) now()->diffInDays($expiresAt, false))
+                    : ($d['expires_days'] ?? 14);
+
+                $d += array_filter([
+                    'cs_name'           => $stewardUser?->display_name ?? '',
+                    'practitioner_name' => $practitioner?->display_name ?? 'A healthcare practitioner',
+                    'invite_url'        => $inviteUrl,
+                    'portal_url'        => $base . '/continuity-steward/dashboard',
+                    'review_url'        => $base . '/continuity-steward/dashboard',
                     'plan_url'          => $base . '/provider/plan',
-                    'review_url'        => $base . '/provider/stewards',
+                    'expires_days'      => $expiresDays,
                     'requested_at'      => now()->toFormattedDateString(),
                     'activated_at'      => now()->toFormattedDateString(),
-                ];
+                ], static fn ($v) => $v !== null && $v !== '');
+
                 if (str_contains($tpl, '25-alternate')) {
                     $former = PlanSteward::where('plan_id', $ps->plan_id)
                         ->where('steward_id', '!=', $ps->steward_id)
-                        ->where('steward_type', 'continuity_steward')
+                        ->where('steward_category', 'continuity_steward')
                         ->with('steward')
                         ->first();
                     $d += [
-                        'alternate_cs_name' => $ps->steward?->display_name ?? '',
+                        'alternate_cs_name' => $stewardUser?->display_name ?? '',
                         'former_cs_name'    => $former?->steward?->display_name ?? '',
                     ];
                 }

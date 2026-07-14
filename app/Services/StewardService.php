@@ -70,9 +70,15 @@ class StewardService
             $practitioner->id
         );
 
-        SendEmailJob::dispatch(
-            'emails.steward.07-steward-invitation',
-            ['plan_id' => $plan->id, 'steward_id' => $row->id],
+        SendEmailJob::dispatchSync(
+            $stewardType === 'support_steward'
+                ? 'emails.steward.20-ss-invite-internal'
+                : 'emails.steward.18-cs-invite-internal',
+            [
+                'plan_steward_id'   => $row->id,
+                'practitioner_name' => $practitioner?->display_name ?? 'A healthcare practitioner',
+                'expires_days'      => 14,
+            ],
             $steward->id
         );
 
@@ -84,17 +90,30 @@ class StewardService
         $this->enforceTierLimits($plan, $stewardType);
 
         return DB::transaction(function () use ($plan, $email, $displayName, $stewardType, $role) {
-            $userId = 'u_' . Str::lower(Str::random(12));
-            $stub = User::create([
-                'id'           => $userId,
-                'role'         => $stewardType,
-                'display_name' => $displayName,
-                'email'        => $email,
-                'slug'         => Str::slug($displayName) . '-' . Str::lower(Str::random(4)),
-                'invited_by_id'=> $plan->practitioner_id,
-                'verified'     => 0,
-                'created_at'   => now(),
-            ]);
+            // Reuse existing user if email already registered — never double-insert
+            $stub = User::where('email', $email)->first();
+            if (!$stub) {
+                $stub = User::create([
+                    'id'           => 'u_' . Str::lower(Str::random(12)),
+                    'role'         => $stewardType,
+                    'display_name' => $displayName,
+                    'email'        => $email,
+                    'slug'         => Str::slug($displayName) . '-' . Str::lower(Str::random(4)),
+                    'invited_by_id'=> $plan->practitioner_id,
+                    'verified'     => 0,
+                    'created_at'   => now(),
+                ]);
+            }
+
+            // If already on this plan (any non-archived status), reuse or reactivate
+            $existing = PlanSteward::where('plan_id', $plan->id)
+                ->where('steward_id', $stub->id)
+                ->where('steward_category', $stewardType)
+                ->whereNotIn('status', ['archived', 'declined'])
+                ->first();
+            if ($existing) {
+                throw new \RuntimeException('This person already has an active or pending agreement on your plan.');
+            }
 
             $row = PlanSteward::create([
                 'id'         => 'ps_' . Str::lower(Str::random(12)),
@@ -107,11 +126,19 @@ class StewardService
                 'expires_at' => now()->addDays(14),
             ]);
 
-            SendEmailJob::dispatch(
-                $stewardType === 'support_steward'
-                    ? 'emails.steward.19-ss-invite-external'
-                    : 'emails.steward.06-external-invitation',
-                ['plan_id' => $plan->id, 'steward_id' => $row->id, 'invited' => true],
+            $practitioner = User::find($plan->practitioner_id);
+            $isExistingUser = (bool) User::where('email', $email)->where('verified', 1)->exists();
+            $template = $isExistingUser
+                ? ($stewardType === 'support_steward' ? 'emails.steward.20-ss-invite-internal' : 'emails.steward.18-cs-invite-internal')
+                : ($stewardType === 'support_steward' ? 'emails.steward.19-ss-invite-external' : 'emails.steward.17-cs-invite-external');
+
+            SendEmailJob::dispatchSync(
+                $template,
+                [
+                    'plan_steward_id'    => $row->id,
+                    'practitioner_name'  => $practitioner?->display_name ?? 'A healthcare practitioner',
+                    'expires_days'       => 14,
+                ],
                 $stub->id
             );
 
@@ -446,7 +473,12 @@ class StewardService
         ]);
 
         if ($steward->steward_id) {
-            // Registered user invite
+            $stewardUser = User::find($steward->steward_id);
+            $isVerified  = (bool) ($stewardUser?->verified ?? false);
+            $template    = $isVerified
+                ? ($steward->steward_category === 'support_steward' ? 'emails.steward.20-ss-invite-internal' : 'emails.steward.18-cs-invite-internal')
+                : ($steward->steward_category === 'support_steward' ? 'emails.steward.19-ss-invite-external' : 'emails.steward.17-cs-invite-external');
+
             $portalLabel = $steward->steward_category === 'continuity_steward' ? 'continuity_steward' : 'support_steward';
             $this->activity->log(
                 $steward->steward_id,
@@ -462,13 +494,22 @@ class StewardService
                 'notification',
                 $actor->id
             );
+
+            SendEmailJob::dispatchSync(
+                $template,
+                ['plan_steward_id' => $steward->id, 'expires_days' => 30],
+                $steward->steward_id
+            );
         } else {
-            // External email invite — resend email
-            SendEmailJob::dispatch(
-                'emails.steward.07-steward-invitation',
-                ['plan_id' => $steward->plan_id, 'steward_id' => $steward->id],
-                null,
-                $steward->email
+            // External stub user — resend to stored email
+            $template = $steward->steward_category === 'support_steward'
+                ? 'emails.steward.19-ss-invite-external'
+                : 'emails.steward.17-cs-invite-external';
+
+            SendEmailJob::dispatchSync(
+                $template,
+                ['plan_steward_id' => $steward->id, 'expires_days' => 30],
+                $steward->steward_id
             );
         }
 
