@@ -6471,7 +6471,7 @@ html.theme-slate body {
 
   /* ══ PATIENTS.PHP MODAL DESIGN SYSTEM ══ */
   /* Modal Steps */
-  .modal-steps { display:flex !important; align-items:center !important; margin-bottom:22px; padding:0 4px; border-bottom: none !important; flex-wrap:nowrap !important; overflow:hidden; }
+  .modal-steps { display:flex !important; align-items:center !important; margin-bottom:22px; padding:0 4px; border-bottom: none !important; flex-wrap:nowrap !important; overflow:hidden; justify-content: center; }
   .modal-step  { display:flex !important; flex-direction:row !important; align-items:center !important; gap:6px; flex-shrink:0; position:relative; }
   .modal-step-divider { flex:1 1 8px !important; min-width:6px !important; margin:0 4px !important; }
   .modal-step-num { width:22px; height:22px; border-radius:50%; border:2px solid var(--border); background:white; display:flex !important; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--text-3); z-index:1; flex-shrink:0; }
