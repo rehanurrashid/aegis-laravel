@@ -36,7 +36,7 @@
         <div class="alert-title">{{ docStats.pending }} Agreement{{ docStats.pending !== 1 ? 's' : '' }} Require Your Action</div>
         <div>Review agreements below that are pending your signature or need renewal.</div>
         <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-primary" @click="activeTab = 'pending_sign'">
+          <button class="btn btn-primary" @click="activeTab = 'expiring'">
             <AegisIcon name="signature" :size="13" /> View Pending
           </button>
         </div>
@@ -74,12 +74,14 @@
       </select>
       <select class="form-select form-select-sm" v-model="typeFilter" style="max-width:220px">
         <option value="">All Types</option>
-        <option value="CSA">CS Engagement Agreement</option>
-        <option value="FA">Fee Amendment</option>
+        <option value="MSA">MSA</option>
+        <option value="NDA">NDA</option>
+        <option value="SOW">SOW</option>
+        <option value="MOU">MOU</option>
+        <option value="SLA">SLA</option>
         <option value="BAA">BAA</option>
-        <option value="OTHER">Other</option>
       </select>
-      <button class="btn btn-outline btn-sm" style="margin-left:auto" @click="openModal('exportModal')">
+      <button class="btn btn-outline" style="margin-left:auto" @click="openModal('exportModal')">
         <AegisIcon name="download" :size="13" /> Export
       </button>
     </div>
@@ -92,11 +94,11 @@
           <div class="doc-section-sub">Your signed succession agreement and the 7-incident-type configuration grid</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <a :href="route('provider.plan.index')" class="btn btn-outline btn-sm">Open Plan Builder</a>
-          <button class="btn btn-outline btn-sm" @click="openModal('addDocumentModal')">
+          <a :href="route('provider.plan.index')" class="btn btn-outline">Open Plan Builder</a>
+          <button class="btn btn-outline" @click="openModal('addDocumentModal')">
             <AegisIcon name="upload" :size="13" /> Add Document
           </button>
-          <button class="btn btn-primary btn-sm" @click="openWizard">
+          <button class="btn btn-primary" @click="openWizard">
             <AegisIcon name="plus" :size="13" /> Create New Agreement
           </button>
         </div>
@@ -147,30 +149,34 @@
               <AegisBadge :label="doc.badge_label" :variant="doc.badge_variant" />
               <div class="ag-actions">
                 <template v-if="doc.primary_action === 'sign'">
-                  <button class="btn btn-primary btn-sm" :disabled="signBusy" @click="openSignModal(doc)">
-                    <AegisIcon v-if="signBusy" name="refresh-cw" :size="13" class="btn-spin" />
-                    <AegisIcon v-else name="signature" :size="13" />
-                    {{ signBusy ? 'Signing...' : 'Sign' }}
+                  <button class="btn btn-primary" :disabled="signBusy" @click="openSignModal(doc)">
+                    <AegisIcon name="signature" :size="13" /> {{ signBusy ? 'Signing...' : 'Sign' }}
                   </button>
                   <button class="btn-icon" data-tooltip="View" @click="openViewModal(doc)"><AegisIcon name="eye" :size="14" /></button>
+                  <button class="btn-icon" data-tooltip="More" @click="openActionsModal(doc)"><AegisIcon name="more-horizontal" :size="14" /></button>
                 </template>
                 <template v-else-if="doc.primary_action === 'renew'">
+                  <button class="btn btn-primary" @click="openRenewModal(doc)">
+                    <AegisIcon name="refresh-cw" :size="13" /> Renew
+                  </button>
                   <button class="btn-icon" data-tooltip="View" @click="openViewModal(doc)"><AegisIcon name="eye" :size="14" /></button>
+                  <button class="btn-icon" data-tooltip="More" @click="openActionsModal(doc)"><AegisIcon name="more-horizontal" :size="14" /></button>
                 </template>
                 <template v-else-if="doc.primary_action === 'edit'">
-                  <button class="btn btn-outline btn-sm" @click="toast.info('Opening draft editor...')">
+                  <button class="btn btn-outline" @click="openSendForSigModal(doc)">
                     <AegisIcon name="pencil" :size="13" /> Edit
                   </button>
                   <button class="btn-icon" data-tooltip="Send for signature" @click="openSendForSigModal(doc)"><AegisIcon name="send" :size="14" /></button>
                   <button
                     class="btn-icon btn-icon-danger"
                     data-tooltip="Delete draft"
-                    @click="confirmAction('Delete this draft? This action cannot be undone.', () => deleteDraft(doc), { title: 'Delete Draft', btnLabel: 'Delete', type: 'danger' })"
+                    @click="confirmAction({ title:'Delete Draft', message:'Delete this draft? This action cannot be undone.', confirmLabel:'Delete', destructive:true }, () => deleteDraft(doc))"
                   ><AegisIcon name="trash" :size="14" /></button>
                 </template>
                 <template v-else>
                   <button class="btn-icon" data-tooltip="View" @click="openViewModal(doc)"><AegisIcon name="eye" :size="14" /></button>
                   <button class="btn-icon" data-tooltip="Download PDF" @click="toast.info('Downloading PDF...')"><AegisIcon name="download" :size="14" /></button>
+                  <button class="btn-icon" data-tooltip="More" @click="openActionsModal(doc)"><AegisIcon name="more-horizontal" :size="14" /></button>
                 </template>
               </div>
             </div>
@@ -186,7 +192,7 @@
           <div class="doc-section-title">Supporting Documents</div>
           <div class="doc-section-sub">Amendments and other supporting documents shared between Practitioners, Continuity Stewards, and Support Stewards</div>
         </div>
-        <button class="btn btn-outline btn-sm" @click="openModal('addDocumentModal')">
+        <button class="btn btn-outline" @click="openModal('addDocumentModal')">
           <AegisIcon name="upload" :size="13" /> Add Document
         </button>
       </div>
@@ -215,23 +221,23 @@
       </div>
     </div>
 
-    <!-- MODAL 1: NEW AGREEMENT WIZARD -->
+    <!-- ═══ MODAL 1: NEW AGREEMENT WIZARD ═══ -->
     <AegisModal
       :model-value="isOpen('newAgreementModal').value"
       title="Create New Agreement"
       size="xl"
       @update:model-value="v => !v && closeWizard()"
     >
-      <template #subtitle>
-        <div>Step {{ wizStep }} of 5 - {{ stepSubs[wizStep - 1] }}</div>
-        <div class="workflow-stepper" style="margin:14px 0 0">
+      <div style="margin:-8px -24px 20px;padding:14px 24px 16px;border-bottom:1px solid var(--border);background:var(--surface-2)">
+        <div style="font-size:12px;color:var(--text-3);font-weight:600;margin-bottom:12px">Step {{ wizStep }} of 5 — {{ stepSubs[wizStep - 1] }}</div>
+        <div class="workflow-stepper">
           <div
             v-for="(s, i) in stepLabels"
             :key="s.short"
             class="wf-step"
             :class="{ done: i < wizStep - 1, current: i === wizStep - 1, future: i > wizStep - 1 }"
-            style="cursor:pointer"
-            @click="i < wizStep - 1 ? wizStep = i + 1 : null"
+            :style="i < wizStep - 1 ? 'cursor:pointer' : ''"
+            @click="i < wizStep - 1 ? (wizStep = i + 1) : null"
           >
             <div class="wf-node">
               <AegisIcon v-if="i < wizStep - 1" name="check" :size="14" />
@@ -240,7 +246,7 @@
             <div class="wf-label">{{ s.line1 }}<br>{{ s.line2 }}</div>
           </div>
         </div>
-      </template>
+      </div>
 
       <!-- Step 1 -->
       <div v-show="wizStep === 1">
@@ -261,10 +267,14 @@
             <label class="form-label">Document Type <span class="required">*</span></label>
             <select class="form-select" v-model="wiz.docType" :class="{ 'is-error': fieldError('wiz_docType') }" @blur="v$.wiz_docType.$touch()">
               <option value="">Select Document Type</option>
-              <option value="CSA">CS Engagement Agreement</option>
-              <option value="FA">Fee Amendment</option>
-              <option value="BAA">BAA</option>
-              <option value="OTHER">Other</option>
+              <option value="MSA">MSA - Master Service Agreement</option>
+              <option value="NDA">NDA - Non-Disclosure Agreement</option>
+              <option value="SOW">SOW - Statement of Work</option>
+              <option value="MOU">MOU - Memorandum of Understanding</option>
+              <option value="SLA">SLA - Service Level Agreement</option>
+              <option value="REF">Referral Agreement</option>
+              <option value="ICA">Independent Contractor Agreement</option>
+              <option value="BAA">BAA - Business Associate Agreement (HIPAA)</option>
             </select>
             <div v-if="fieldError('wiz_docType')" class="form-error">{{ fieldError('wiz_docType') }}</div>
           </div>
@@ -296,7 +306,7 @@
             </div>
             <div class="party-search-result selected" style="cursor:default">
               <div class="party-avatar-sm">{{ providerInitials }}</div>
-              <div class="party-info-sm"><div class="party-name-sm">{{ providerName }}</div><div class="party-meta-sm">Primary Care · Active</div></div>
+              <div class="party-info-sm"><div class="party-name-sm">{{ providerName }}</div><div class="party-meta-sm">Primary Care - Active</div></div>
             </div>
           </div>
           <div>
@@ -317,13 +327,9 @@
             </div>
           </div>
         </div>
-        <div v-if="wiz.partyB" class="alert alert-warning" style="margin-bottom:14px">
-          <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
-          <div class="alert-content"><strong>Note:</strong> An active agreement of this type already exists with this party.</div>
-        </div>
         <hr class="divider">
         <div class="modal-section-label">Terms &amp; Duration</div>
-        <div class="form-row is-3col">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
           <div class="form-group">
             <label class="form-label">Effective Date <span class="required">*</span></label>
             <input type="date" class="form-input" v-model="wiz.effectiveDate" />
@@ -348,7 +354,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Dispute Resolution</label>
-            <select class="form-select" v-model="wiz.dispute">
+            <select class="form-select" v-model="wiz.disputeRes">
               <option>Aegis Platform Mediation first, then Arbitration</option>
               <option>Binding Arbitration (AAA Rules)</option>
             </select>
@@ -485,7 +491,9 @@
 
       <template #footer>
         <button class="btn btn-outline" @click="closeWizard">Cancel</button>
-
+        <button v-if="wizStep >= 3" class="btn btn-outline" @click="openModal('draftSaveModal')">
+          <AegisIcon name="save" :size="13" /> Save Draft
+        </button>
         <div style="display:inline-flex;align-items:center;gap:6px;margin-left:auto;font-size:11px;color:var(--text-4);font-weight:600">
           <AegisIcon name="shield" :size="12" /> Encrypted &amp; audit-logged
         </div>
@@ -497,14 +505,13 @@
           :disabled="!sig.c1 || !sig.c2 || !sig.c3 || sendBusy"
           @click="sendForSignature"
         >
-          <AegisIcon v-if="sendBusy" name="refresh-cw" :size="13" class="btn-spin" />
-          <AegisIcon v-else name="send" :size="13" />
+          <AegisIcon name="send" :size="13" />
           {{ sendBusy ? 'Sending...' : 'Send for Signature' }}
         </button>
       </template>
     </AegisModal>
 
-    <!-- MODAL 2: SIGNATURE -->
+    <!-- ═══ MODAL 2: SIGNATURE ═══ -->
     <AegisModal
       :model-value="isOpen('signatureModal').value"
       title="Sign Agreement"
@@ -547,7 +554,7 @@
                 </template>
                 <template v-else>
                   <span class="sig-name-display">{{ providerName }}</span>
-                  <span style="font-size:11px"><AegisIcon name="check" :size="11" /> Verified signature on file</span>
+                  <span style="font-size:11px"><AegisIcon name="check" :size="11" /> Applied - click to change</span>
                 </template>
               </div>
             </div>
@@ -573,17 +580,16 @@
           :disabled="!signCheck1 || !isSigned || signBusy"
           @click="finalizeSignature"
         >
-          <AegisIcon v-if="signBusy" name="refresh-cw" :size="13" class="btn-spin" />
-          <AegisIcon v-else name="signature" :size="13" />
+          <AegisIcon name="signature" :size="13" />
           {{ signBusy ? 'Signing...' : 'Apply Signature &amp; Execute' }}
         </button>
       </template>
     </AegisModal>
 
-    <!-- MODAL 3: VIEW AGREEMENT -->
+    <!-- ═══ MODAL 3: VIEW AGREEMENT ═══ -->
     <AegisModal
       :model-value="isOpen('viewAgreementModal').value"
-      :title="activeDoc ? (activeDoc.reference + ' ' + activeDoc.title) : 'View Agreement'"
+      :title="activeDoc ? (activeDoc.reference + ' - ' + activeDoc.title) : 'View Agreement'"
       size="xl"
       @update:model-value="v => !v && closeModal('viewAgreementModal')"
     >
@@ -593,6 +599,12 @@
             <div class="info-card-title">Agreement Details</div>
             <div class="info-card-row"><span class="info-card-key">Reference</span><span class="info-card-val">{{ activeDoc.reference }}</span></div>
             <div class="info-card-row"><span class="info-card-key">Type</span><span class="info-card-val">{{ activeDoc.doc_type_label }}</span></div>
+            <div class="info-card-row"><span class="info-card-key">Version</span><span class="info-card-val">{{ activeDoc.version || 'v1.0' }}</span></div>
+          </div>
+          <div class="info-card" style="flex:1;min-width:180px">
+            <div class="info-card-title">Term &amp; Status</div>
+            <div class="info-card-row"><span class="info-card-key">Effective</span><span class="info-card-val">{{ activeDoc.effective_date || '-' }}</span></div>
+            <div class="info-card-row"><span class="info-card-key">Expires</span><span class="info-card-val">{{ activeDoc.expiry_date || '-' }}</span></div>
             <div class="info-card-row"><span class="info-card-key">Status</span><span class="info-card-val" style="color:var(--green-dark)">Active</span></div>
           </div>
           <div class="info-card" style="flex:1;min-width:180px">
@@ -638,11 +650,123 @@
       <template #footer>
         <button class="btn btn-outline" @click="closeModal('viewAgreementModal')">Close</button>
         <button class="btn btn-outline" @click="openAmendModal"><AegisIcon name="pencil" :size="13" /> Request Amendment</button>
-
+        <button class="btn btn-outline" style="color:var(--red);margin-left:auto" @click="closeModal('viewAgreementModal'); openModal('terminateModal')">
+          <AegisIcon name="x-circle" :size="13" /> Terminate
+        </button>
       </template>
     </AegisModal>
 
-    <!-- MODAL 7: SEND FOR SIGNATURE -->
+    <!-- ═══ MODAL 4: RENEWAL ═══ -->
+    <AegisModal
+      :model-value="isOpen('renewalModal').value"
+      title="Renew Agreement"
+      size="lg"
+      @update:model-value="v => !v && closeModal('renewalModal')"
+    >
+      <div v-if="activeDoc">
+        <div class="alert alert-warning" style="margin-bottom:14px">
+          <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
+          <div class="alert-content">
+            This agreement expires on <strong>{{ activeDoc.expiry_date || 'a future date' }}</strong>. If not renewed, counterparty access may be suspended on expiry.
+          </div>
+        </div>
+        <div class="modal-section-label" style="margin-bottom:8px">Renewal Options</div>
+        <div style="margin-bottom:20px">
+          <div class="party-search-result ren-opt" :class="{ selected: renewForm.type === 'same' }" @click="renewForm.type = 'same'">
+            <div class="party-avatar-sm"><AegisIcon name="refresh-cw" :size="16" /></div>
+            <div class="party-info-sm"><div class="party-name-sm">Renew with Same Terms</div><div class="party-meta-sm">Extend 12 months with identical clauses. Both parties re-sign.</div></div>
+            <AegisBadge label="Recommended" variant="green" />
+          </div>
+          <div class="party-search-result ren-opt" :class="{ selected: renewForm.type === 'amended' }" @click="renewForm.type = 'amended'">
+            <div class="party-avatar-sm"><AegisIcon name="pencil" :size="16" /></div>
+            <div class="party-info-sm"><div class="party-name-sm">Renew with Amendments</div><div class="party-meta-sm">Modify specific clauses before renewal.</div></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">New Effective Date</label>
+            <input type="date" class="form-input" v-model="renewForm.effectiveDate" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">New Expiry Date</label>
+            <input type="date" class="form-input" v-model="renewForm.expiryDate" />
+          </div>
+        </div>
+        <div class="alert alert-success">
+          <div class="alert-icon"><AegisIcon name="check" :size="18" /></div>
+          <div class="alert-content">After renewal, the counterparty will receive an email and must re-sign within 5 business days.</div>
+        </div>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeModal('renewalModal')">Cancel</button>
+        <button class="btn btn-primary" style="margin-left:auto" :disabled="renewBusy" @click="submitRenew">
+          <AegisIcon name="refresh-cw" :size="13" /> {{ renewBusy ? 'Initiating...' : 'Initiate Renewal' }}
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- ═══ MODAL 5: AGREEMENT ACTIONS ═══ -->
+    <AegisModal
+      :model-value="isOpen('agreementActionsModal').value"
+      title="Agreement Actions"
+      size="sm"
+      @update:model-value="v => !v && closeModal('agreementActionsModal')"
+    >
+      <div v-if="activeDoc" style="font-size:12px;color:var(--text-3);margin-bottom:10px">{{ activeDoc.reference }} - {{ activeDoc.doc_type_label }}</div>
+      <div>
+        <div v-for="item in actionItems" :key="item.action" class="list-item" @click="handleAction(item.action)">
+          <div class="list-item-icon" :style="item.iconStyle || ''"><AegisIcon :name="item.icon" :size="16" /></div>
+          <div class="list-item-content">
+            <div class="list-item-title" :style="item.danger ? 'color:var(--red)' : ''">{{ item.label }}</div>
+            <div class="list-item-desc">{{ item.sub }}</div>
+          </div>
+          <AegisIcon name="chevron-right" :size="12" />
+        </div>
+      </div>
+    </AegisModal>
+
+    <!-- ═══ MODAL 6: TERMINATE ═══ -->
+    <AegisModal
+      :model-value="isOpen('terminateModal').value"
+      title="Terminate Agreement"
+      size="sm"
+      @update:model-value="v => !v && closeTerminate()"
+    >
+      <div class="alert alert-danger" style="margin-bottom:14px">
+        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
+        <div class="alert-content">Terminating this agreement will immediately revoke counterparty access and delegated authority.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="termReason">Reason for Termination <span class="required">*</span></label>
+        <select id="termReason" class="form-select" v-model="terminateForm.reason" :class="{ 'is-error': fieldError('term_reason') }" @blur="v$.term_reason.$touch()">
+          <option value="">- Select Reason -</option>
+          <option>Mutual Consent</option>
+          <option>Performance Issues</option>
+          <option>HIPAA / Compliance Violation</option>
+          <option>Fraud or Misconduct</option>
+          <option>End of Service Need</option>
+        </select>
+        <div v-if="fieldError('term_reason')" class="form-error">{{ fieldError('term_reason') }}</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Effective Termination Date</label>
+        <input type="date" class="form-input" v-model="terminateForm.date" />
+        <div class="form-hint">Standard 30-day notice required unless terminating for cause.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="termConfirm">Type "TERMINATE" to confirm <span class="required">*</span></label>
+        <input id="termConfirm" type="text" class="form-input" v-model="terminateForm.confirm" :class="{ 'is-error': fieldError('term_confirm') }" @blur="v$.term_confirm.$touch()" placeholder="TERMINATE" />
+        <div v-if="fieldError('term_confirm')" class="form-error">{{ fieldError('term_confirm') }}</div>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeTerminate">Cancel</button>
+        <button class="btn btn-danger" style="margin-left:auto" :disabled="terminateForm.confirm !== 'TERMINATE' || terminateBusy" @click="submitTerminate">
+          <AegisIcon name="x-circle" :size="13" /> {{ terminateBusy ? 'Terminating...' : 'Confirm Termination' }}
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- ═══ MODAL 7: SEND FOR SIGNATURE ═══ -->
     <AegisModal
       :model-value="isOpen('sendForSignatureModal').value"
       title="Send for Signature"
@@ -674,20 +798,19 @@
       <template #footer>
         <button class="btn btn-outline" @click="closeModal('sendForSignatureModal')">Cancel</button>
         <button class="btn btn-primary" style="margin-left:auto" :disabled="sendSigBusy" @click="submitSendForSig">
-          <AegisIcon v-if="sendSigBusy" name="refresh-cw" :size="13" class="btn-spin" />
-          <AegisIcon v-else name="send" :size="13" />
-          {{ sendSigBusy ? 'Sending...' : 'Send for Signature' }}
+          <AegisIcon name="send" :size="13" /> {{ sendSigBusy ? 'Sending...' : 'Send for Signature' }}
         </button>
       </template>
     </AegisModal>
 
-    <!-- MODAL 8: TEMPLATES -->
+    <!-- ═══ MODAL 8: TEMPLATES LIBRARY ═══ -->
     <AegisModal
       :model-value="isOpen('templateModal').value"
       title="Sample Templates"
       size="lg"
       @update:model-value="v => !v && closeModal('templateModal')"
     >
+      <p style="font-size:13px;color:var(--text-3);margin-bottom:14px">Access sample templates as starting points you can review and adapt to your preferences, practice needs, and professional or legal considerations.</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div v-for="t in libraryTemplates" :key="t.title" class="party-search-result" @click="closeModal('templateModal'); openWizard()">
           <div class="party-avatar-sm"><AegisIcon :name="t.icon" :size="16" /></div>
@@ -703,7 +826,7 @@
       </template>
     </AegisModal>
 
-    <!-- MODAL 9: EXPORT -->
+    <!-- ═══ MODAL 9: EXPORT ═══ -->
     <AegisModal
       :model-value="isOpen('exportModal').value"
       title="Export Important Documents"
@@ -725,19 +848,18 @@
           <option>Agreements only</option>
           <option>Supporting documents only</option>
           <option>Active agreements only</option>
+          <option>Current filter view</option>
         </select>
       </div>
       <template #footer>
         <button class="btn btn-outline" @click="closeModal('exportModal')">Cancel</button>
         <button class="btn btn-primary" style="margin-left:auto" :disabled="exportBusy" @click="submitExport">
-          <AegisIcon v-if="exportBusy" name="refresh-cw" :size="13" class="btn-spin" />
-          <AegisIcon v-else name="download" :size="13" />
-          {{ exportBusy ? 'Exporting...' : 'Export' }}
+          <AegisIcon name="download" :size="13" /> {{ exportBusy ? 'Exporting...' : 'Export' }}
         </button>
       </template>
     </AegisModal>
 
-    <!-- MODAL 10: ADD DOCUMENT -->
+    <!-- ═══ MODAL 10: ADD DOCUMENT ═══ -->
     <AegisModal
       :model-value="isOpen('addDocumentModal').value"
       title="Add Document"
@@ -787,14 +909,12 @@
       <template #footer>
         <button class="btn btn-outline" @click="closeAddDoc">Cancel</button>
         <button class="btn btn-primary" style="margin-left:auto" :disabled="addDocBusy" @click="submitAddDoc">
-          <AegisIcon v-if="addDocBusy" name="refresh-cw" :size="13" class="btn-spin" />
-          <AegisIcon v-else name="upload" :size="13" />
-          {{ addDocBusy ? 'Uploading...' : 'Add Document' }}
+          <AegisIcon name="upload" :size="13" /> {{ addDocBusy ? 'Uploading...' : 'Add Document' }}
         </button>
       </template>
     </AegisModal>
 
-    <!-- MODAL 11: AMENDMENT REQUEST -->
+    <!-- ═══ MODAL 11: AMENDMENT REQUEST ═══ -->
     <AegisModal
       :model-value="isOpen('amendmentModal').value"
       :title="activeDoc ? ('Request Amendment - ' + activeDoc.reference) : 'Request Amendment'"
@@ -808,12 +928,13 @@
       <div class="form-group">
         <label class="form-label" for="amendType">Amendment Type <span class="required">*</span></label>
         <select id="amendType" class="form-select" v-model="amendForm.type" :class="{ 'is-error': fieldError('amend_type') }" @blur="v$.amend_type.$touch()">
-          <option value="">Select Type</option>
+          <option value="">- Select Type -</option>
           <option>Compensation Adjustment</option>
           <option>Scope of Services Change</option>
           <option>Term Extension</option>
           <option>PHI Access Level Change</option>
           <option>Termination Clause Update</option>
+          <option>Communication Protocol Update</option>
           <option>Add New Clause</option>
           <option>Remove Clause</option>
           <option>Other</option>
@@ -846,18 +967,17 @@
       <div class="form-group">
         <label class="form-label">Supporting Documents <span style="color:var(--text-4)">(optional)</span></label>
         <AegisDropzone accept=".pdf,.doc,.docx,.txt" :max-size="10" @files="amendFiles = $event" @rejected="toast.error('File rejected.')" />
+        <div class="form-hint">Attach any prior correspondence, redlined drafts, or supporting evidence.</div>
       </div>
       <template #footer>
         <button class="btn btn-outline" @click="closeAmend">Cancel</button>
         <button class="btn btn-primary" style="margin-left:auto" :disabled="amendBusy" @click="submitAmend">
-          <AegisIcon v-if="amendBusy" name="refresh-cw" :size="13" class="btn-spin" />
-          <AegisIcon v-else name="send" :size="13" />
-          {{ amendBusy ? 'Sending...' : 'Send Amendment Request' }}
+          <AegisIcon name="send" :size="13" /> {{ amendBusy ? 'Sending...' : 'Send Amendment Request' }}
         </button>
       </template>
     </AegisModal>
 
-    <!-- MODAL 12: BAA PREVIEW -->
+    <!-- ═══ MODAL 12: BAA PREVIEW ═══ -->
     <AegisModal
       :model-value="isOpen('baaModal').value"
       title="Business Associate Agreement (BAA)"
@@ -872,13 +992,13 @@
         <div class="legal-doc-title">BUSINESS ASSOCIATE AGREEMENT</div>
         <div class="legal-doc-sub">Pursuant to HIPAA/HITECH - Incorporated into parent agreement</div>
         <h4>1. Definitions</h4>
-        <p>"Business Associate" means the party receiving PHI access. "Covered Entity" means the Provider. "PHI" means Protected Health Information as defined under 45 CFR § 160.103.</p>
+        <p>"Business Associate" means the party receiving PHI access. "Covered Entity" means the Provider. "PHI" means Protected Health Information as defined under 45 CFR 160.103.</p>
         <h4>2. Obligations of Business Associate</h4>
-        <p>Business Associate shall not use or disclose PHI other than as permitted by this agreement or as required by law. Business Associate shall implement appropriate safeguards and comply with Subpart C of 45 CFR Part 164. Any unauthorized use or disclosure shall be reported within 5 business days of discovery.</p>
+        <p>Business Associate shall not use or disclose PHI other than as permitted. Business Associate shall implement appropriate safeguards and comply with Subpart C of 45 CFR Part 164. Unauthorized use or disclosure shall be reported within 5 business days of discovery.</p>
         <h4>3. Permitted Uses and Disclosures</h4>
-        <p>Business Associate may use PHI only for purposes specified in the parent agreement Scope of Services.</p>
+        <p>Business Associate may use PHI only for purposes specified in the parent agreement Scope of Services. Disclosure to subcontractors requires a written BAA mirroring these obligations.</p>
         <h4>4. Breach Notification</h4>
-        <p>Business Associate shall notify Covered Entity of any Breach of Unsecured PHI without unreasonable delay and no later than 60 calendar days after discovery, per 45 CFR § 164.410.</p>
+        <p>Business Associate shall notify Covered Entity of any Breach of Unsecured PHI without unreasonable delay and no later than 60 calendar days after discovery, per 45 CFR 164.410.</p>
         <h4>5. Term and Termination</h4>
         <p>This Agreement terminates concurrently with the parent agreement. Upon termination, Business Associate shall return or destroy all PHI and certify in writing within 10 business days.</p>
       </div>
@@ -890,7 +1010,53 @@
       </template>
     </AegisModal>
 
-    <!-- MODAL 13: ACCESS REVOCATION -->
+    <!-- ═══ MODAL 13: NDA ATTACH CONFIGURATOR ═══ -->
+    <AegisModal
+      :model-value="isOpen('ndaAttachModal').value"
+      title="Configure NDA Addendum"
+      size="md"
+      @update:model-value="v => !v && closeModal('ndaAttachModal')"
+    >
+      <p style="font-size:13px;color:var(--text-3);margin-bottom:14px">A Non-Disclosure Agreement will be attached to your main agreement.</p>
+      <div class="form-group">
+        <label class="form-label">Information to keep confidential</label>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <label v-for="item in ndaItems" :key="item.label" style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+            <input type="checkbox" v-model="item.checked" style="accent-color:var(--gold-dark)"> {{ item.label }}
+          </label>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">NDA Duration</label>
+          <select class="form-select" v-model="ndaForm.duration">
+            <option>Duration of parent agreement</option>
+            <option>2 years post-termination</option>
+            <option>5 years post-termination</option>
+            <option>Perpetual</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">NDA Type</label>
+          <select class="form-select" v-model="ndaForm.type">
+            <option>One-way (other party only)</option>
+            <option>Mutual (both parties)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Permitted Exceptions</label>
+        <textarea class="form-textarea" rows="2" v-model="ndaForm.exceptions" placeholder="e.g. Disclosure required by law or court order, with prior written notice to the disclosing party..."></textarea>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeModal('ndaAttachModal')">Cancel</button>
+        <button class="btn btn-primary" style="margin-left:auto" @click="closeModal('ndaAttachModal'); toast.success('NDA attached to agreement.')">
+          <AegisIcon name="lock" :size="14" /> Attach NDA to Agreement
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- ═══ MODAL 14: ACCESS REVOCATION ═══ -->
     <AegisModal
       :model-value="isOpen('accessRevocationModal').value"
       title="Revoke Access"
@@ -901,10 +1067,17 @@
         <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
         <div class="alert-content"><strong>Immediate &amp; irreversible.</strong> The counterparty will lose all Aegis access, PHI access, and delegated permissions within 5 minutes.</div>
       </div>
+      <div class="info-card" style="margin-bottom:14px">
+        <div class="info-card-title">Access Being Revoked</div>
+        <div class="info-card-row"><span class="info-card-key">Platform Access</span><span class="info-card-val" style="color:var(--red)">Terminated</span></div>
+        <div class="info-card-row"><span class="info-card-key">PHI Access</span><span class="info-card-val" style="color:var(--red)">Terminated</span></div>
+        <div class="info-card-row"><span class="info-card-key">Delegated Authority</span><span class="info-card-val" style="color:var(--red)">Terminated</span></div>
+        <div class="info-card-row"><span class="info-card-key">Active Agreement</span><span class="info-card-val" style="color:var(--orange)">Suspended (not terminated)</span></div>
+      </div>
       <div class="form-group">
         <label class="form-label" for="revokeReason">Reason <span class="required">*</span></label>
         <select id="revokeReason" class="form-select" v-model="revokeForm.reason" :class="{ 'is-error': fieldError('revoke_reason') }" @blur="v$.revoke_reason.$touch()">
-          <option value="">Select Reason</option>
+          <option value="">- Select Reason -</option>
           <option>Suspected PHI Breach</option>
           <option>Fraudulent Activity</option>
           <option>Agreement Termination</option>
@@ -922,11 +1095,62 @@
       <template #footer>
         <button class="btn btn-outline" @click="closeRevoke">Cancel</button>
         <button class="btn btn-danger" style="margin-left:auto" :disabled="revokeForm.confirm !== 'REVOKE' || revokeBusy" @click="submitRevoke">
-          <AegisIcon v-if="revokeBusy" name="refresh-cw" :size="13" class="btn-spin" />
-          <AegisIcon v-else name="lock" :size="13" />
-          {{ revokeBusy ? 'Revoking...' : 'Confirm Revocation' }}
+          <AegisIcon name="lock" :size="13" /> {{ revokeBusy ? 'Revoking...' : 'Confirm Revocation' }}
         </button>
       </template>
+    </AegisModal>
+
+    <!-- ═══ MODAL 15: DRAFT SAVE ═══ -->
+    <AegisModal
+      :model-value="isOpen('draftSaveModal').value"
+      title="Save as Draft"
+      size="sm"
+      @update:model-value="v => !v && closeModal('draftSaveModal')"
+    >
+      <p style="font-size:13px;color:var(--text-3);margin-bottom:14px">Your progress will be saved - return anytime to continue.</p>
+      <div class="form-group">
+        <label class="form-label">Draft Name</label>
+        <input type="text" class="form-input" v-model="draftForm.name" :placeholder="wiz.docType ? (wiz.docType + ' - Draft') : 'Draft Agreement'" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes <span style="color:var(--text-4)">(optional)</span></label>
+        <textarea class="form-textarea" rows="2" v-model="draftForm.notes" placeholder="Reminders about what still needs to be done..."></textarea>
+      </div>
+      <div class="alert alert-info" style="margin-bottom:0">
+        <div class="alert-icon"><AegisIcon name="info" :size="18" /></div>
+        <div class="alert-content">Drafts are private. The other party will not be notified until you send for signature.</div>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeModal('draftSaveModal')">Cancel</button>
+        <button class="btn btn-primary" style="margin-left:auto" :disabled="draftBusy" @click="submitSaveDraft">
+          <AegisIcon name="save" :size="14" /> {{ draftBusy ? 'Saving...' : 'Save Draft' }}
+        </button>
+      </template>
+    </AegisModal>
+
+    <!-- ═══ MODAL 16: SIGN SUCCESS ═══ -->
+    <AegisModal
+      :model-value="isOpen('signSuccessModal').value"
+      title=""
+      size="sm"
+      @update:model-value="v => !v && closeModal('signSuccessModal')"
+    >
+      <div style="text-align:center;padding:24px 8px 8px">
+        <div style="width:72px;height:72px;border-radius:var(--radius-full);background:var(--green-light);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:var(--green-dark)">
+          <AegisIcon name="check" :size="32" />
+        </div>
+        <div style="font-family:var(--font-serif);font-size:22px;font-weight:700;color:var(--text);margin-bottom:6px">Agreement Fully Executed!</div>
+        <div style="font-size:13px;color:var(--text-3);margin-bottom:20px">The agreement has been signed by both parties. A certified copy has been delivered to all signatories.</div>
+        <div v-if="activeDoc" class="info-card" style="text-align:left;margin-bottom:20px">
+          <div class="info-card-row"><span class="info-card-key">Reference</span><span class="info-card-val">{{ activeDoc.reference }}</span></div>
+          <div class="info-card-row"><span class="info-card-key">Provider</span><span class="info-card-val" style="color:var(--green)"><AegisIcon name="check" :size="10" /> {{ providerName }}</span></div>
+          <div v-if="activeDoc.counterparty" class="info-card-row"><span class="info-card-key">Continuity Steward</span><span class="info-card-val" style="color:var(--green)"><AegisIcon name="check" :size="10" /> {{ activeDoc.counterparty.name }}</span></div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <button class="btn btn-outline" @click="toast.info('Downloading PDF...')"><AegisIcon name="download" :size="13" /> Download PDF</button>
+          <button class="btn btn-primary" @click="closeModal('signSuccessModal')">Done</button>
+        </div>
+      </div>
     </AegisModal>
 
   </AppLayout>
@@ -943,33 +1167,28 @@ import { useConfirm }  from '@/composables/useConfirm'
 import { useVuelidate } from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
 
-// Props
 const props = defineProps({
-  documents:     { type: Array,  default: () => [] },
-  supportingDocs:{ type: Array,  default: () => [] },
-  docStats:      { type: Object, default: () => ({ total: 0, active: 0, pending: 0, expiring: 0 }) },
-  stewards:      { type: Array,  default: () => [] },
+  documents:      { type: Array,  default: () => [] },
+  supportingDocs: { type: Array,  default: () => [] },
+  docStats:       { type: Object, default: () => ({ total: 0, active: 0, pending: 0, expiring: 0 }) },
+  stewards:       { type: Array,  default: () => [] },
 })
 
-// Composables
 const { openModal, closeModal, isOpen } = useModal()
 const toast = useToast()
 const { confirmAction } = useConfirm()
 const page = usePage()
 
-// Auth
 const providerName     = computed(() => page.props.auth?.user?.display_name || 'Provider')
 const providerInitials = computed(() => page.props.auth?.user?.avatar_initials || 'P')
 
-// UI state
-const activeTab    = ref('pending_sign')
+const activeTab    = ref('all')
 const searchQ      = ref('')
 const statusFilter = ref('')
 const typeFilter   = ref('')
 const activeDocId  = ref(null)
 const activeDoc    = computed(() => props.documents.find(d => d.id === activeDocId.value) ?? null)
 
-// Busy refs
 const signBusy      = ref(false)
 const sendBusy      = ref(false)
 const renewBusy     = ref(false)
@@ -981,23 +1200,23 @@ const amendBusy     = ref(false)
 const revokeBusy    = ref(false)
 const draftBusy     = ref(false)
 
-// Signature
 const isSigned   = ref(false)
 const signCheck1 = ref(false)
 const signCheck2 = ref(false)
 
-// Tabs
 const tabs = computed(() => [
-  { id: 'pending_sign',       label: 'Pending My Signature', count: props.documents.filter(d => d.status === 'pending_sign').length },
-  { id: 'countersign_pending',label: 'Awaiting Others',      count: props.documents.filter(d => d.status === 'countersign_pending').length },
-  { id: 'fully_executed',     label: 'Fully Executed',       count: props.documents.filter(d => d.status === 'fully_executed' || d.status === 'active').length },
+  { id: 'all',      label: 'All Documents',  count: props.documents.length },
+  { id: 'pe',       label: 'Provider & CS',  count: props.documents.filter(d => d.tab_key === 'pe').length },
+  { id: 'pd',       label: 'Provider & SS',  count: props.documents.filter(d => d.tab_key === 'pd').length },
+  { id: 'de',       label: 'SS & CS',        count: props.documents.filter(d => d.tab_key === 'de').length },
+  { id: 'tri',      label: 'Tri-Party',      count: props.documents.filter(d => d.tab_key === 'tri').length },
+  { id: 'expiring', label: 'Expiring Soon',  count: props.docStats.expiring },
 ])
 
 const filteredDocs = computed(() => props.documents.filter(d => {
   const tab = activeTab.value
-  if (tab === 'pending_sign' && d.status !== 'pending_sign') return false
-  if (tab === 'countersign_pending' && d.status !== 'countersign_pending') return false
-  if (tab === 'fully_executed' && d.status !== 'fully_executed' && d.status !== 'active') return false
+  if (tab !== 'all' && tab !== 'expiring' && d.tab_key !== tab) return false
+  if (tab === 'expiring' && d.status !== 'expiring') return false
   if (statusFilter.value && d.status !== statusFilter.value) return false
   if (typeFilter.value  && d.doc_type !== typeFilter.value)  return false
   if (searchQ.value) {
@@ -1012,7 +1231,6 @@ function docCardClass(doc) {
   return m[doc.status] || 'is-active'
 }
 
-// Open helpers
 function openViewModal(doc)       { activeDocId.value = doc.id; openModal('viewAgreementModal') }
 function openActionsModal(doc)    { activeDocId.value = doc.id; openModal('agreementActionsModal') }
 function openSignModal(doc)       { activeDocId.value = doc.id; isSigned.value = false; signCheck1.value = false; signCheck2.value = false; openModal('signatureModal') }
@@ -1020,18 +1238,27 @@ function openRenewModal(doc)      { activeDocId.value = doc.id; openModal('renew
 function openSendForSigModal(doc) { activeDocId.value = doc.id; openModal('sendForSignatureModal') }
 function openAmendModal()         { closeModal('viewAgreementModal'); openModal('amendmentModal') }
 
-// Wizard
-const wizStep = ref(1)
-const stepLabels     = [ { short:'type',    line1:'Agreement', line2:'Type'      }, { short:'parties', line1:'Parties &', line2:'Details'   }, { short:'clauses', line1:'Clauses &', line2:'Terms'     }, { short:'review',  line1:'Review &',  line2:'Confirm'   }, { short:'sig',     line1:'Send for',  line2:'Signature' } ]
-const stepSubs       = [ 'Select agreement type & category', 'Select parties and define the term', 'Configure all clauses and terms', 'Review the complete draft', 'Configure signing options and send' ]
-const stepNextLabels = [ 'Continue: Parties & Details', 'Continue: Clauses & Terms', 'Continue: Review & Confirm', 'Continue: Send for Signature' ]
+const wizStep        = ref(1)
+const stepLabels     = [
+  { short:'type',    line1:'Agreement', line2:'Type'      },
+  { short:'parties', line1:'Parties &', line2:'Details'   },
+  { short:'clauses', line1:'Clauses &', line2:'Terms'     },
+  { short:'review',  line1:'Review &',  line2:'Confirm'   },
+  { short:'sig',     line1:'Send for',  line2:'Signature' },
+]
+const stepSubs       = ['Select agreement type & category','Select parties and define the term','Configure all clauses and terms','Review the complete draft','Configure signing options and send']
+const stepNextLabels = ['Continue: Parties & Details','Continue: Clauses & Terms','Continue: Review & Confirm','Continue: Send for Signature']
 
-const wiz = reactive({ category:'', docType:'', reference:'', partyBSearch:'', partyB:null, effectiveDate:'', expirationDate:'', autoRenew:'No - Manual renewal required', jurisdiction:'State of California, USA', dispute:'Aegis Platform Mediation first, then Arbitration' })
+const wiz = reactive({
+  category:'', docType:'', reference:'', partyBSearch:'', partyB:null,
+  effectiveDate:'', expirationDate:'', autoRenew:'No - Manual renewal required',
+  jurisdiction:'State of California, USA', disputeRes:'Aegis Platform Mediation first, then Arbitration',
+})
 const sig = reactive({ myAction:'Sign first, then send to other party', notifyMethod:'Email + Aegis In-App Notification', deadline:'', reminder:'Every 2 days after sending', message:'', c1:true, c2:true, c3:false, c4:false })
 
-function openWizard() { wizStep.value=1; wiz.category=''; wiz.docType=''; wiz.reference=''; wiz.partyB=null; openModal('newAgreementModal') }
+function openWizard()  { wizStep.value=1; wiz.category=''; wiz.docType=''; wiz.reference=''; wiz.partyB=null; openModal('newAgreementModal') }
 function closeWizard() { closeModal('newAgreementModal') }
-function wizardNext() {
+function wizardNext()  {
   if (wizStep.value === 1) {
     if (!wiz.category) { toast.warning('Please select an agreement category.'); return }
     if (!wiz.docType)  { toast.warning('Please select a document type.'); return }
@@ -1046,16 +1273,16 @@ const filteredPartyB     = computed(() => {
   return q ? stewardOptions.value.filter(p => p.name.toLowerCase().includes(q) || p.meta.toLowerCase().includes(q)) : stewardOptions.value
 })
 const stewardOptions = computed(() => props.stewards.length ? props.stewards : [
-  { id:1, initials:'MC', name:'Marcus Chen',     meta:'Primary Continuity Steward - Active' },
-  { id:2, initials:'PR', name:'Dr. Priya Raman', meta:'Secondary Continuity Steward - Active' },
-  { id:3, initials:'LJ', name:'Linda Johnson',   meta:'Admin Support Steward - Active' },
+  { id:1, initials:'MC', name:'Marcus Chen',     meta:'Primary Continuity Steward - EX-0042 - Active' },
+  { id:2, initials:'PR', name:'Dr. Priya Raman', meta:'Secondary Continuity Steward - EX-0051 - Active' },
+  { id:3, initials:'LJ', name:'Linda Johnson',   meta:'Admin Support Steward - SS-0011 - Active' },
 ])
 
 const agrCategories = [
   { value:'pe',  icon:'shield',                title:'Provider & Continuity Steward', sub:'MSA, SOW, NDA between you and a Continuity Steward' },
   { value:'pd',  icon:'phone',                 title:'Provider & Support Steward',    sub:'SLA, NDA between you and a Support Steward' },
-  { value:'de',  icon:'arrow-right-arrow-left',title:'Team Agreements (Facilitated)', sub:'MOU between SS and CS - you are facilitator' },
-  { value:'tri', icon:'users',                 title:'Tri-Party (All Three Roles)',   sub:'Single MSA or MOU binding Provider, CS and SS' },
+  { value:'de',  icon:'arrow-right-arrow-left',title:'Team Agreements (Facilitated)', sub:'MOU between Support Steward and Continuity Steward - you are facilitator' },
+  { value:'tri', icon:'users',                 title:'Tri-Party (All Three Roles)',   sub:'Single MSA or MOU binding Provider, Continuity Steward and Support Steward' },
 ]
 
 const clauses = reactive([
@@ -1067,36 +1294,34 @@ const clauses = reactive([
 ])
 
 const libraryTemplates = [
-  { icon:'shield',                title:'Provider & Continuity Steward MSA', sub:'Standard Master Service Agreement - 8 clauses - HIPAA-ready', tag:'Aegis' },
-  { icon:'phone',                 title:'Provider & Support Steward SLA',    sub:'Service Level Agreement with KPIs and response time SLAs',    tag:'Aegis' },
-  { icon:'lock',                  title:'Mutual NDA',                         sub:'Non-Disclosure - HIPAA BAA - 2yr or 5yr post-termination',    tag:'Aegis' },
-  { icon:'arrow-right-arrow-left',title:'SS & CS MOU',                        sub:'Coordination Protocol - Escalation paths - Provider-overseen', tag:'Aegis' },
-  { icon:'users',                 title:'Tri-Party MSA',                      sub:'Provider + CS + SS - Roles, scope, dispute resolution',       tag:'Aegis' },
-  { icon:'pencil',                title:'Statement of Work (SOW)',             sub:'Project-specific scope for delegated activities',             tag:'Custom'},
+  { icon:'shield',                title:'Provider & CS MSA',   sub:'Standard MSA - 8 clauses - HIPAA-ready',          tag:'Aegis' },
+  { icon:'phone',                 title:'Provider & SS SLA',   sub:'SLA with KPIs and response time commitments',     tag:'Aegis' },
+  { icon:'lock',                  title:'Mutual NDA',           sub:'Non-Disclosure - HIPAA BAA - 5yr post-term',      tag:'Aegis' },
+  { icon:'arrow-right-arrow-left',title:'SS & CS MOU',          sub:'Coordination Protocol - Provider-overseen',       tag:'Aegis' },
+  { icon:'users',                 title:'Tri-Party MSA',        sub:'Provider + CS + SS - Roles, scope, disputes',     tag:'Aegis' },
+  { icon:'pencil',                title:'Statement of Work',    sub:'Project-specific scope for delegated activities', tag:'Custom'},
 ]
 
 const actionItems = [
-  { label:'View Full Agreement',  sub:'Read, print, or download PDF',          action:'view',      icon:'eye',            iconStyle:'',                                                         danger:false },
-  { label:'Request Amendment',    sub:'Propose changes for mutual approval',    action:'amendment', icon:'pencil',         iconStyle:'',                                                         danger:false },
-  { label:'Renew Agreement',      sub:'Extend or update before expiry',         action:'renew',     icon:'refresh',        iconStyle:'',                                                         danger:false },
-  { label:'Attach BAA',           sub:'Add Business Associate Agreement',       action:'baa',       icon:'shield',         iconStyle:'',                                                         danger:false },
-  { label:'Download PDF',         sub:'Save signed copy to your device',        action:'download',  icon:'download',       iconStyle:'',                                                         danger:false },
-  { label:'Raise a Dispute',      sub:'Flag a clause or compliance issue',      action:'dispute',   icon:'alert-triangle', iconStyle:'background:var(--orange-light);color:var(--orange-dark)', danger:true  },
-  { label:'Revoke Access',        sub:'Remove party access immediately',        action:'revoke',    icon:'bell',           iconStyle:'background:var(--orange-light);color:var(--orange-dark)', danger:true  },
-  { label:'Terminate Agreement',  sub:'Revoke and archive this agreement',      action:'terminate', icon:'x-circle',       iconStyle:'background:var(--red-light);color:var(--red-dark)',       danger:true  },
+  { label:'View Full Agreement',  sub:'Read, print, or download PDF',        action:'view',      icon:'eye',            iconStyle:'',                                                          danger:false },
+  { label:'Request Amendment',    sub:'Propose changes for mutual approval',  action:'amendment', icon:'pencil',         iconStyle:'',                                                          danger:false },
+  { label:'Renew Agreement',      sub:'Extend or update before expiry',       action:'renew',     icon:'refresh-cw',     iconStyle:'',                                                          danger:false },
+  { label:'Attach BAA',           sub:'Add Business Associate Agreement',     action:'baa',       icon:'shield',         iconStyle:'',                                                          danger:false },
+  { label:'Configure NDA',        sub:'Attach or update NDA addendum',        action:'nda',       icon:'lock',           iconStyle:'',                                                          danger:false },
+  { label:'Download PDF',         sub:'Save signed copy to your device',      action:'download',  icon:'download',       iconStyle:'',                                                          danger:false },
+  { label:'Revoke Access',        sub:'Remove party access immediately',      action:'revoke',    icon:'bell',           iconStyle:'background:var(--orange-light);color:var(--orange-dark)',  danger:true  },
+  { label:'Terminate Agreement',  sub:'Revoke and archive this agreement',    action:'terminate', icon:'x-circle',       iconStyle:'background:var(--red-light);color:var(--red-dark)',        danger:true  },
 ]
 
 function handleAction(action) {
   closeModal('agreementActionsModal')
   setTimeout(() => {
     if (action === 'download') { toast.info('Downloading PDF...'); return }
-    const map = { view:'viewAgreementModal', amendment:'amendmentModal', renew:'renewalModal', baa:'baaModal', revoke:'accessRevocationModal', terminate:'terminateModal' }
+    const map = { view:'viewAgreementModal', amendment:'amendmentModal', renew:'renewalModal', baa:'baaModal', nda:'ndaAttachModal', revoke:'accessRevocationModal', terminate:'terminateModal' }
     if (map[action]) openModal(map[action])
-    if (action === 'dispute') toast.warning('Dispute reporting is handled in Finances.')
   }, 50)
 }
 
-// Form objects
 const renewForm     = reactive({ type:'same', effectiveDate:'', expiryDate:'' })
 const terminateForm = reactive({ reason:'', date:'', confirm:'' })
 const sendSigForm   = reactive({ deadline:'', message:'' })
@@ -1105,10 +1330,17 @@ const exportForm    = reactive({ format:'PDF - Individual signed PDFs (ZIP)', sc
 const amendForm     = reactive({ type:'', currentLang:'', proposed:'', reason:'', effectiveDate:'' })
 const revokeForm    = reactive({ reason:'', confirm:'' })
 const draftForm     = reactive({ name:'', notes:'' })
-const addDocFiles   = ref([])
-const amendFiles    = ref([])
+const ndaForm       = reactive({ duration:'5 years post-termination', type:'Mutual (both parties)', exceptions:'' })
+const ndaItems      = reactive([
+  { label:'Client Records & PHI',               checked:true  },
+  { label:'Financial & Billing Data',           checked:true  },
+  { label:'Referral Protocols & Care Pathways', checked:true  },
+  { label:'Business Strategy & Trade Secrets',  checked:false },
+  { label:'Staff & Vendor Information',         checked:false },
+])
+const addDocFiles = ref([])
+const amendFiles  = ref([])
 
-// Vuelidate
 const rules = computed(() => ({
   wiz_docType:    { required: helpers.withMessage('Document type is required.', required) },
   term_reason:    { required: helpers.withMessage('Please select a reason.', required) },
@@ -1137,29 +1369,30 @@ function fieldError(field) {
   return null
 }
 
-// Close helpers
 function closeTerminate() { closeModal('terminateModal'); terminateForm.reason=''; terminateForm.confirm=''; v$.value.$reset() }
 function closeAmend()     { closeModal('amendmentModal'); amendForm.type=''; amendForm.proposed=''; amendFiles.value=[]; v$.value.$reset() }
 function closeRevoke()    { closeModal('accessRevocationModal'); revokeForm.reason=''; revokeForm.confirm=''; v$.value.$reset() }
 function closeAddDoc()    { closeModal('addDocumentModal'); addDocForm.name=''; addDocFiles.value=[]; v$.value.$reset() }
 
-// Signature
-function applySignature()    { isSigned.value = true; toast.info('Signature applied.') }
+function applySignature()    { isSigned.value = true }
 function finalizeSignature() {
   if (!isSigned.value) { toast.warning('Please click the signature area to apply your signature first.'); return }
   signBusy.value = true
   router.post(route('provider.documents.sign', { document: activeDocId.value }), {}, {
     preserveScroll: true,
-    onSuccess: () => { toast.success('Agreement fully executed!'); closeModal('signatureModal'); isSigned.value = false },
+    onSuccess: () => { closeModal('signatureModal'); isSigned.value = false; openModal('signSuccessModal') },
     onError:   () => toast.error('Could not save signature.'),
     onFinish:  () => { signBusy.value = false },
   })
 }
 
-// Submit handlers
 function sendForSignature() {
   sendBusy.value = true
-  router.post(route('provider.documents.request'), { category:wiz.category, doc_type:wiz.docType, reference:wiz.reference, party_b_id:wiz.partyB, effective_date:wiz.effectiveDate, expiry_date:wiz.expirationDate, my_action:sig.myAction, notify_method:sig.notifyMethod, deadline:sig.deadline, message:sig.message }, {
+  router.post(route('provider.documents.request'), {
+    category:wiz.category, doc_type:wiz.docType, reference:wiz.reference,
+    party_b_id:wiz.partyB, effective_date:wiz.effectiveDate, expiry_date:wiz.expirationDate,
+    my_action:sig.myAction, notify_method:sig.notifyMethod, deadline:sig.deadline, message:sig.message,
+  }, {
     preserveScroll: true,
     onSuccess: () => { toast.success('Sent successfully - counterparts notified.'); closeWizard() },
     onError:   () => toast.error('Could not send agreement.'),
@@ -1264,7 +1497,6 @@ function deleteDraft(doc) {
 .doc-section-title { font-family:var(--font-serif); font-size:16px; font-weight:700; color:var(--text); }
 .doc-section-sub   { font-size:12px; color:var(--text-3); margin-top:2px; }
 .doc-file-icon     { width:34px; height:34px; border-radius:var(--radius-sm); background:var(--icon-bg-gold); color:var(--gold-dark); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-
 .clause-section       { border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:10px; background:var(--surface); }
 .clause-header        { display:flex; align-items:center; justify-content:space-between; padding:11px 14px; background:var(--surface-2); cursor:pointer; transition:background var(--transition); }
 .clause-header:hover  { background:var(--surface-3); }
@@ -1277,7 +1509,6 @@ function deleteDraft(doc) {
 .clause-tag.required   { background:var(--red-light);   color:var(--red-dark); }
 .clause-tag.negotiable { background:var(--blue-light);  color:var(--blue-dark); }
 .clause-tag.standard   { background:var(--green-light); color:var(--green-dark); }
-
 .workflow-stepper { display:flex; align-items:flex-start; gap:0; overflow-x:auto; scrollbar-width:none; padding:4px 0; }
 .workflow-stepper::-webkit-scrollbar { display:none; }
 .wf-step { display:flex; flex-direction:column; align-items:center; flex:1; min-width:96px; position:relative; }
@@ -1288,7 +1519,6 @@ function deleteDraft(doc) {
 .wf-step.future .wf-node { background:var(--surface-2); }
 .wf-label { font-size:11px; font-weight:700; color:var(--text-4); margin-top:8px; text-align:center; line-height:1.3; }
 .wf-step.done .wf-label,.wf-step.current .wf-label { color:var(--gold-dark); }
-
 .party-grid       { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
 .party-col        { border:1px solid var(--border); border-radius:var(--radius-lg); padding:14px; position:relative; overflow:hidden; background:var(--surface); }
 .party-col::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
@@ -1299,7 +1529,6 @@ function deleteDraft(doc) {
 .party-name  { font-size:14px; font-weight:700; color:var(--text); }
 .party-sig   { margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); }
 .sig-name-display { font-family:var(--font-serif); font-size:18px; font-style:italic; color:var(--text); letter-spacing:0.4px; margin:4px 0; }
-
 .party-search-result { border:1px solid var(--border); border-radius:var(--radius-sm); padding:11px 14px; margin-bottom:6px; cursor:pointer; transition:background var(--transition),border-color var(--transition); display:flex; align-items:center; gap:12px; background:var(--surface); font-size:13px; }
 .party-search-result:hover    { background:var(--surface-2); border-color:var(--gold-dark); }
 .party-search-result.selected { background:var(--badge-bg-gold); border-color:var(--gold-dark); }
@@ -1309,13 +1538,11 @@ function deleteDraft(doc) {
 .party-info-sm   { flex:1; min-width:0; }
 .party-name-sm   { font-size:13px; font-weight:700; color:var(--text); }
 .party-meta-sm   { font-size:12px; color:var(--text-3); }
-
 .legal-doc       { border:1px solid var(--border); border-radius:var(--radius); background:var(--surface-2); padding:20px 22px; font-size:13px; color:var(--text-2); line-height:1.7; max-height:320px; overflow-y:auto; }
 .legal-doc-title { font-family:var(--font-serif); font-size:17px; font-weight:700; color:var(--text); text-align:center; margin-bottom:4px; }
 .legal-doc-sub   { text-align:center; font-size:11px; color:var(--text-4); margin-bottom:18px; font-weight:600; }
 .legal-doc h4    { font-family:var(--font-serif); font-size:14px; font-weight:700; color:var(--text); margin:14px 0 6px; }
 .legal-doc p     { margin-bottom:10px; }
-
 .info-card           { border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; font-size:13px; background:var(--surface); }
 .info-card-title     { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--text-4); margin-bottom:8px; }
 .info-card-row       { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--surface-3); font-size:12px; }
@@ -1323,23 +1550,19 @@ function deleteDraft(doc) {
 .info-card-key { color:var(--text-3); font-weight:600; }
 .info-card-val { font-weight:700; color:var(--text); display:inline-flex; align-items:center; gap:4px; }
 .review-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
-
 .sign-area        { border:2px dashed var(--border); border-radius:var(--radius); min-height:100px; padding:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; transition:border-color var(--transition),background var(--transition); color:var(--text-4); font-size:13px; gap:6px; }
 .sign-area:hover  { border-color:var(--soft-gold); background:var(--badge-bg-gold); }
 .sign-area.signed { border-style:solid; border-color:var(--green-dark); background:var(--green-light); color:var(--green-dark); }
-
 .review-item            { display:flex; align-items:flex-start; gap:12px; padding:11px 0; border-bottom:1px solid var(--border); }
 .review-item:last-child { border-bottom:none; }
 .review-check-icon      { flex-shrink:0; margin-top:1px; }
 .review-label           { font-size:13px; font-weight:700; color:var(--text); }
-
 .list-item       { border:1px solid var(--border); border-radius:var(--radius-sm); padding:11px 14px; margin-bottom:6px; cursor:pointer; transition:background var(--transition),border-color var(--transition); display:flex; align-items:center; gap:12px; background:var(--surface); font-size:13px; }
 .list-item:hover { background:var(--surface-2); border-color:var(--gold-dark); }
 .list-item-icon    { width:32px; height:32px; border-radius:var(--radius-sm); background:var(--icon-bg-gold); color:var(--gold-dark); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .list-item-content { flex:1; min-width:0; }
 .list-item-title   { font-size:13px; font-weight:700; color:var(--text); }
 .list-item-desc    { font-size:12px; color:var(--text-3); margin-top:1px; }
-
 .agr-cat-grid   { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:4px; }
 .agr-cat-card   { display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border:1px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; transition:border-color var(--transition),background var(--transition); }
 .agr-cat-card:hover    { border-color:var(--gold-dark); }
@@ -1347,10 +1570,8 @@ function deleteDraft(doc) {
 .agr-cat-avatar { width:36px; height:36px; border-radius:var(--radius-full); background:var(--gold-dark); color:var(--text-inverted); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .agr-cat-title  { font-size:13px; font-weight:700; color:var(--text); margin-bottom:2px; }
 .agr-cat-sub    { font-size:11px; color:var(--text-4); line-height:1.4; }
-
 .sig-check-row   { display:flex; align-items:center; gap:10px; cursor:pointer; border-bottom:1px solid var(--border); }
 .sig-check-label { font-size:13px; color:var(--text-2); }
-
 @media (max-width:900px) {
   .party-grid, .review-grid-3, .agr-cat-grid { grid-template-columns:1fr; }
 }

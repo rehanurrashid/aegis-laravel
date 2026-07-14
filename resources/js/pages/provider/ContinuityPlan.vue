@@ -101,7 +101,7 @@
             <div>By signing, you confirm this plan is accurate and authorize your stewards to act as described when a critical incident occurs.</div>
           </div>
           <div class="sign-cta-actions">
-            <button type="button" class="btn btn-outline" @click="showAttestModal = true">
+            <button v-if="!plan.vault_attested_at" type="button" class="btn btn-outline" @click="showAttestModal = true">
               <AegisIcon name="check-circle" :size="13" /> Attest Vault
             </button>
             <button type="button" class="btn btn-primary"

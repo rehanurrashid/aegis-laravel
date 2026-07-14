@@ -14,14 +14,24 @@
         <button type="button" class="btn-hero-ghost is-on-light" @click="modals.permissions = true">
           <AegisIcon name="users" :size="14" /> Permissions
         </button>
-        <button
-          type="button"
-          class="btn-hero-ghost is-on-light"
-          :data-tooltip="attestedAt ? 'Vault attested — click to update or clear' : 'Attest your Vault contains the essential supplemental info for your Continuity Plan'"
+        <span
+          v-if="attestedAt"
+          style="display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:var(--radius);background:var(--green-light);border:1.5px solid var(--fade-green);color:var(--green-dark);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;"
+          :data-tooltip="'Vault attested ' + fmtDate(attestedAt) + ' — click to update'"
           @click="modals.attest = true"
         >
-          <AegisIcon :name="attestedAt ? 'shield-check' : 'shield'" :size="14" />
-          {{ attestedAt ? 'Vault Attested' : 'Attest Vault' }}
+          <AegisIcon name="check-circle" :size="14" />
+          Vault Attested
+        </span>
+        <button
+          v-else
+          type="button"
+          class="btn-hero-ghost is-on-light"
+          data-tooltip="Attest your Vault contains the essential supplemental info for your Continuity Plan"
+          @click="modals.attest = true"
+        >
+          <AegisIcon name="shield" :size="14" />
+          Attest Vault
         </button>
         <button type="button" class="btn-hero-solid is-on-light" @click="openUploadModal()">
           <AegisIcon name="upload" :size="14" /> Upload Document
