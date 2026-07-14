@@ -23,9 +23,9 @@
     </div>
 
     <!-- ── MODE A: Step indicator ── -->
-    <div v-if="!preselectedUser" class="modal-steps">
+    <div class="modal-steps">
       <div v-for="(s, i) in steps" :key="s.key" style="display:contents;">
-        <div class="modal-step" :class="{ done: step > i + 1, active: step === i + 1 }">
+        <div class="modal-step" :class="{ done: step > i + 1 || (preselectedUser && i === 0), active: step === i + 1 && !(preselectedUser && i === 0) }">
           <div class="modal-step-num">
             <AegisIcon v-if="step > i + 1" name="check" :size="12" />
             <span v-else>{{ i + 1 }}</span>
@@ -78,8 +78,8 @@
       </div>
     </div>
 
-    <!-- ══ STEP 2 / MODE B single step: Role + Fee ══ -->
-    <div v-if="(preselectedUser && true) || (!preselectedUser && step === 2)" :style="preselectedUser ? '' : 'margin-top:16px;'">
+    <!-- ══ STEP 2: Role + Fee ══ -->
+    <div v-if="step === 2" style="margin-top:16px;">
       <div class="form-group">
         <label class="form-label">Continuity Steward Role <span style="color:var(--red-dark);">*</span></label>
         <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">
@@ -142,7 +142,7 @@
     </div>
 
     <!-- ══ STEP 3: Approved Critical Incidents ══ -->
-    <div v-if="!preselectedUser && step === 3" style="margin-top:16px;">
+    <div v-if="step === 3" style="margin-top:16px;">
       <div class="alert alert-info"><div class="alert-icon"><AegisIcon name="info" :size="14" /></div><div class="alert-content">Select which critical incidents authorize this Continuity Steward to act on your behalf.</div></div>
       <div class="modal-section-label" style="margin-top:14px;">Always-Active Incidents</div>
       <div class="list-group" style="margin-bottom:16px;">
@@ -168,7 +168,7 @@
     </div>
 
     <!-- ══ STEP 4: Responsibilities ══ -->
-    <div v-if="!preselectedUser && step === 4" style="margin-top:16px;">
+    <div v-if="step === 4" style="margin-top:16px;">
       <div class="alert alert-info"><div class="alert-icon"><AegisIcon name="info" :size="14" /></div><div class="alert-content">Select all responsibilities this Continuity Steward is authorized and expected to carry out.</div></div>
       <div v-for="section in responsibilityGroups" :key="section.title" style="margin-top:18px;">
         <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text);">{{ section.title }}</div>
@@ -186,7 +186,7 @@
     </div>
 
     <!-- ══ STEP 5: Review & Send ══ -->
-    <div v-if="!preselectedUser && step === 5" style="margin-top:16px;">
+    <div v-if="step === 5" style="margin-top:16px;">
       <div class="alert alert-success"><AegisIcon name="check" :size="14" /><div>Review the summary below, apply your digital signature, then send.</div></div>
       <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;font-size:13px;line-height:1.75;color:var(--text-2);margin:14px 0;">
         <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:14px;border-bottom:2px solid var(--border);padding-bottom:10px;">Aegis Continuity Plan</div>
@@ -228,32 +228,21 @@
 
     <!-- ── FOOTER ── -->
     <template #footer>
-      <!-- Mode B footer -->
-      <template v-if="preselectedUser">
-        <button type="button" class="btn btn-outline" @click="handleClose">Cancel</button>
-        <button type="button" class="btn btn-primary" :disabled="busy || !form.role" style="display:inline-flex;align-items:center;gap:6px;" @click="submitDesignate">
+      <!-- Unified footer — same for both modes, step controls navigation -->
+      <button type="button" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;" @click="stepBack">
+        <AegisIcon v-if="step > (preselectedUser ? 2 : 1)" name="chevron-left" :size="14" />
+        {{ step === (preselectedUser ? 2 : 1) ? 'Cancel' : 'Back' }}
+      </button>
+      <button v-if="step < 5" type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;" @click="stepNext">
+        {{ stepNextLabel }} <AegisIcon name="chevron-right" :size="14" />
+      </button>
+      <span v-else :data-tooltip="!signed ? 'Apply your digital signature first' : null" style="display:inline-flex;">
+        <button type="button" class="btn btn-primary" :disabled="busy || !signed" style="display:inline-flex;align-items:center;gap:6px;" @click="submitDesignate">
           <AegisIcon v-if="busy" name="refresh-cw" :size="14" class="btn-spin" />
-          <AegisIcon v-else name="shield" :size="14" />
-          {{ busy ? 'Designating…' : 'Designate & Send Agreement' }}
+          <AegisIcon v-else name="send" :size="14" />
+          {{ busy ? 'Sending…' : (preselectedUser ? 'Designate & Send Agreement' : 'Send Agreement for Signature') }}
         </button>
-      </template>
-
-      <!-- Mode A step footer -->
-      <template v-else>
-        <button type="button" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;" @click="stepBack">
-          <AegisIcon v-if="step > 1" name="chevron-left" :size="14" /> {{ step === 1 ? 'Cancel' : 'Back' }}
-        </button>
-        <button v-if="step < 5" type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;" @click="stepNext">
-          {{ stepNextLabel }} <AegisIcon name="chevron-right" :size="14" />
-        </button>
-        <span v-else :data-tooltip="!signed ? 'Apply your digital signature first' : null" style="display:inline-flex;">
-          <button type="button" class="btn btn-primary" :disabled="busy || !signed" style="display:inline-flex;align-items:center;gap:6px;" @click="submitDesignate">
-            <AegisIcon v-if="busy" name="refresh-cw" :size="14" class="btn-spin" />
-            <AegisIcon v-else name="send" :size="14" />
-            {{ busy ? 'Sending…' : 'Send Agreement for Signature' }}
-          </button>
-        </span>
-      </template>
+      </span>
     </template>
   </AegisModal>
 </template>
@@ -300,15 +289,15 @@ const stepNextLabel = computed(() => {
 })
 
 const modalTitle = computed(() => {
-  if (props.preselectedUser) return 'Designate as My Continuity Steward'
+  const prefix = props.preselectedUser ? 'Designate Continuity Steward' : 'Add Continuity Steward'
   const titles = {
-    1: 'Add Continuity Steward — Find Person',
-    2: 'Add Continuity Steward — Role Step-up',
-    3: 'Add Continuity Steward — Approved Critical Incidents',
-    4: 'Add Continuity Steward — Responsibilities',
-    5: 'Add Continuity Steward — Review & Send',
+    1: prefix + ' — Find Person',
+    2: prefix + ' — Role Step-up',
+    3: prefix + ' — Approved Critical Incidents',
+    4: prefix + ' — Responsibilities',
+    5: prefix + ' — Review & Send',
   }
-  return titles[step.value] ?? 'Add Continuity Steward'
+  return titles[step.value] ?? prefix
 })
 
 // ── Form (top-level useForm — never inside a function) ─────────────────────
@@ -359,13 +348,13 @@ function fieldError(field) {
 // ── Reset on open/close ───────────────────────────────────────────────────────
 watch(() => props.modelValue, (open) => {
   if (!open) return
-  step.value   = 1
+  // Mode B (preselectedUser): skip Find Person step, start at Role Step-up
+  step.value   = props.preselectedUser ? 2 : 1
   signed.value = false
   busy.value   = false
   feeInput.value = 0
   form.reset()
   v$.value.$reset()
-  // Pre-fill from preselectedUser
   if (props.preselectedUser) {
     form.user_id      = props.preselectedUser.id
     form.display_name = props.preselectedUser.display_name ?? ''
@@ -397,8 +386,9 @@ async function stepNext() {
 }
 
 function stepBack() {
-  if (step.value === 1) { handleClose(); return }
-  step.value = Math.max(step.value - 1, 1)
+  const firstStep = props.preselectedUser ? 2 : 1
+  if (step.value <= firstStep) { handleClose(); return }
+  step.value = Math.max(step.value - 1, firstStep)
 }
 
 function handleClose() {
