@@ -24,7 +24,7 @@
         @keydown.esc="onEsc"
         tabindex="-1"
         ref="overlayRef"
-        style="z-index:10000"
+        :style="`z-index:${zIndex}`"
       >
         <div
           class="modal"
@@ -73,6 +73,7 @@ const props = defineProps({
   closeable:      { type: Boolean, default: true },
   closeOnOverlay: { type: Boolean, default: true },
   closeOnEsc:     { type: Boolean, default: true },
+  zIndex:         { type: Number,  default: 10000 },
 })
 
 const emit = defineEmits(['update:modelValue', 'close'])

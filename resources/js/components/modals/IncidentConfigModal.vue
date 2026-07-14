@@ -37,7 +37,8 @@
           <AegisIcon name="menu" :size="13" style="color:var(--text-4);flex-shrink:0;cursor:grab" class="drag-handle" />
           <span style="flex:1;font-size:13px;color:var(--text);font-weight:500">{{ t.title }}</span>
           <span v-if="t.timeline" style="font-size:11px;color:var(--text-3);font-weight:600;padding:3px 8px;background:var(--surface-2);border-radius:var(--radius-xs);white-space:nowrap">{{ t.timeline }}</span>
-          <button type="button" class="btn-icon" data-tooltip="Remove" @click="ssTasks.splice(i,1)">
+          <button type="button" class="btn-icon" data-tooltip="Remove"
+            @click="confirmAction('Remove this task from the plan?', () => ssTasks.splice(i,1), { title: 'Remove Task', btnLabel: 'Remove', type: 'danger' })">
             <AegisIcon name="trash" :size="13" />
           </button>
         </div>
@@ -62,7 +63,8 @@
           <AegisIcon name="menu" :size="13" style="color:var(--text-4);flex-shrink:0;cursor:grab" class="drag-handle" />
           <span style="flex:1;font-size:13px;color:var(--text);font-weight:500">{{ t.title }}</span>
           <span v-if="t.timeline" style="font-size:11px;color:var(--text-3);font-weight:600;padding:3px 8px;background:var(--surface-2);border-radius:var(--radius-xs);white-space:nowrap">{{ t.timeline }}</span>
-          <button type="button" class="btn-icon" data-tooltip="Remove" @click="csTasks.splice(i,1)">
+          <button type="button" class="btn-icon" data-tooltip="Remove"
+            @click="confirmAction('Remove this task from the plan?', () => csTasks.splice(i,1), { title: 'Remove Task', btnLabel: 'Remove', type: 'danger' })">
             <AegisIcon name="trash" :size="13" />
           </button>
         </div>
@@ -151,6 +153,7 @@
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AegisToggle from '@/components/ui/AegisToggle.vue'
+import { useConfirm } from '@/composables/useConfirm'
 
 const props = defineProps({
   modelValue:   { type: Boolean, required: true },
@@ -161,6 +164,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue', 'update-config'])
+const { confirmAction } = useConfirm()
 
 const docOptions = [
   { value: 'death_certificate',     label: 'Death Certificate' },

@@ -20,6 +20,7 @@
     :model-value="modelValue"
     :title="title"
     size="sm"
+    :z-index="10001"
     @update:model-value="$emit('update:modelValue', $event)"
   >
     <p class="confirm-body">{{ message }}</p>
