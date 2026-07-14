@@ -4,6 +4,7 @@ import { useForm, router } from '@inertiajs/vue3'
 import { useVuelidate } from '@vuelidate/core'
 import { required, email, minLength, minValue, helpers, integer } from '@vuelidate/validators'
 import AppLayout from '@/layouts/AppLayout.vue'
+import AegisToggle from '@/components/ui/AegisToggle.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 
@@ -318,12 +319,25 @@ function submitReview() {
 }
 
 // ── Notify prefs ───────────────────────────────────────────────────────────────
-const notifyToggles = ref({ ...props.notifyPrefs })
+const notifyToggles = ref({
+  re_attestation_complete:   props.notifyPrefs?.re_attestation_complete   ?? true,
+  steward_requests_changes:  props.notifyPrefs?.steward_requests_changes  ?? true,
+  steward_updates_info:      props.notifyPrefs?.steward_updates_info      ?? true,
+  roles_permissions_change:  props.notifyPrefs?.roles_permissions_change  ?? true,
+  documents_accessed:        props.notifyPrefs?.documents_accessed        ?? true,
+  steward_added_removed:     props.notifyPrefs?.steward_added_removed     ?? true,
+  critical_incident_reported:props.notifyPrefs?.critical_incident_reported?? true,
+  continuity_response:       props.notifyPrefs?.continuity_response       ?? true,
+})
+const notifySaving = ref(false)
 
-function toggleNotify(key) {
-  notifyToggles.value[key] = !notifyToggles.value[key]
-  router.post(route('provider.stewards.invite'), { key, value: notifyToggles.value[key] }, {
+function saveNotifyPrefs() {
+  notifySaving.value = true
+  router.put(route('provider.settings.notifications'), { cs_notify: notifyToggles.value }, {
     preserveScroll: true,
+    onSuccess: () => toast.success('Notification preferences saved.'),
+    onError:   () => toast.error('Could not save preferences.'),
+    onFinish:  () => { notifySaving.value = false },
   })
 }
 </script>
@@ -395,6 +409,10 @@ function toggleNotify(key) {
       <button v-if="servingAsCSFor.length" class="tab-pill" :class="{ active: activeTab === 'for' }" @click="activeTab = 'for'">
         <AegisIcon name="check-circle" :size="13" />
         I'm Continuity Steward For <span class="badge-pill">{{ servingAsCSFor.length }}</span>
+      </button>
+      <button class="tab-pill" :class="{ active: activeTab === 'notifications' }" @click="activeTab = 'notifications'">
+        <AegisIcon name="bell" :size="13" />
+        Notifications
       </button>
     </div>
 
@@ -486,36 +504,6 @@ function toggleNotify(key) {
         <div class="upload-zone-sub">Recommended for solo practitioners. An Alternate steps in if your Primary is unavailable, keeping your coverage uninterrupted.</div>
       </div>
 
-      <!-- NOTIFY ME CARD -->
-      <div class="card" style="margin-top:24px;">
-        <div class="card-header">
-          <div>
-            <div class="card-title">Notify Me</div>
-            <div class="card-subtitle">Choose when Aegis should let you know about activity involving your Continuity Stewards.</div>
-          </div>
-        </div>
-        <div class="card-body">
-          <div v-for="item in [
-            { key: 're_attestation_complete',  label: 'Annual Re-Attestation is complete' },
-            { key: 'steward_requests_changes',  label: 'A Continuity Steward requests changes' },
-            { key: 'steward_updates_info',      label: 'A Continuity Steward updates their information' },
-            { key: 'roles_permissions_change',  label: 'Roles or permissions change' },
-            { key: 'documents_accessed',        label: 'Important Documents are accessed' },
-            { key: 'steward_added_removed',     label: 'A Continuity Steward is added, removed, or updated' },
-            { key: 'critical_incident_reported',label: 'A critical incident is reported' },
-            { key: 'continuity_response',       label: 'A Continuity Response is activated' },
-          ]" :key="item.key" class="setting-row">
-            <div class="setting-info"><div class="setting-label">{{ item.label }}</div></div>
-            <button
-              type="button"
-              class="toggle"
-              :class="{ on: notifyToggles[item.key] !== false }"
-              :aria-pressed="notifyToggles[item.key] !== false"
-              @click="toggleNotify(item.key)"
-            ></button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- ═══════════════════ TAB: PENDING ═══════════════════ -->
@@ -637,6 +625,86 @@ function toggleNotify(key) {
       </div>
     </div>
 
+
+    <!-- ═══════════════════ TAB: NOTIFICATIONS ═══════════════════ -->
+    <div v-show="activeTab === 'notifications'">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark);"><AegisIcon name="bell" :size="16" /></div>
+            <div>
+              <div class="card-title">CS Activity Notifications</div>
+              <div class="card-subtitle">Choose when Aegis should alert you about activity involving your Continuity Stewards.</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Annual Re-Attestation is complete</div>
+              <div class="toggle-desc">Get notified when your Continuity Steward completes their annual re-attestation</div>
+            </div>
+            <AegisToggle v-model="notifyToggles.re_attestation_complete" />
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">CS requests changes</div>
+              <div class="toggle-desc">Alert when a Continuity Steward submits a change request to your plan</div>
+            </div>
+            <AegisToggle v-model="notifyToggles.steward_requests_changes" />
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">CS updates their information</div>
+              <div class="toggle-desc">Alert when a Continuity Steward updates their contact details or credentials</div>
+            </div>
+            <AegisToggle v-model="notifyToggles.steward_updates_info" />
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Roles or permissions change</div>
+              <div class="toggle-desc">Alert when a steward role or vault permission is modified</div>
+            </div>
+            <AegisToggle v-model="notifyToggles.roles_permissions_change" />
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Important Documents are accessed</div>
+              <div class="toggle-desc">Alert when a steward views or downloads a document from your vault</div>
+            </div>
+            <AegisToggle v-model="notifyToggles.documents_accessed" />
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">CS added, removed, or updated</div>
+              <div class="toggle-desc">Alert when any Continuity Steward is added, removed, or has their agreement updated</div>
+            </div>
+            <AegisToggle v-model="notifyToggles.steward_added_removed" />
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Critical incident reported</div>
+              <div class="toggle-desc">Alert when a Support Steward reports a critical incident affecting your practice</div>
+            </div>
+            <AegisToggle v-model="notifyToggles.critical_incident_reported" />
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Continuity Response activated</div>
+              <div class="toggle-desc">Alert when your Continuity Response plan is formally activated</div>
+            </div>
+            <AegisToggle v-model="notifyToggles.continuity_response" />
+          </div>
+          <div class="btn-group" style="justify-content:flex-end;margin-top:20px;">
+            <button type="button" class="btn btn-primary" :disabled="notifySaving" style="display:inline-flex;align-items:center;gap:6px;" @click="saveNotifyPrefs">
+              <AegisIcon v-if="notifySaving" name="refresh-cw" :size="13" class="btn-spin" />
+              <AegisIcon v-else name="check" :size="13" />
+              {{ notifySaving ? 'Saving…' : 'Save Preferences' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- ════════════════════════════════════════════════ MODALS ═══ -->
 

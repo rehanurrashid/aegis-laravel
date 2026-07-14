@@ -267,9 +267,7 @@
             <div class="card-body">
               <div class="section-label">CS Permissions</div>
               <div v-for="row in csToggles" :key="row.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ row.label }}</div><div class="toggle-desc">{{ row.desc }}</div></div><button type="button" class="toggle" :class="{ on: csPrefs[row.key] }" @click="csPrefs[row.key] = !csPrefs[row.key]" :aria-pressed="csPrefs[row.key]"></button></div>
-              <div class="section-label" style="margin-top:20px">Steward Notifications</div>
-              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Annual CS Check-In Reminder</div><div class="toggle-desc">Remind me to verify CS availability and re-attest my Continuity Plan every 12 months</div></div><button type="button" class="toggle" :class="{ on: csPrefs.annualReminder }" @click="csPrefs.annualReminder = !csPrefs.annualReminder" :aria-pressed="csPrefs.annualReminder"></button></div>
-              <div class="toggle-row"><div class="toggle-info"><div class="toggle-label">Notify CS on Plan Changes</div><div class="toggle-desc">Automatically notify your Continuity Steward when you update or amend your Continuity Plan</div></div><button type="button" class="toggle" :class="{ on: csPrefs.notifyOnChange }" @click="csPrefs.notifyOnChange = !csPrefs.notifyOnChange" :aria-pressed="csPrefs.notifyOnChange"></button></div>
+              <div class="alert alert-info" style="margin-top:20px;margin-bottom:0;"><div class="alert-icon"><AegisIcon name="bell" :size="14" /></div><div class="alert-content" style="font-size:12px;">CS activity notification preferences have moved to the <a :href="route('provider.stewards.index')" style="color:var(--gold-dark);font-weight:700;">Continuity Stewards → Notifications tab →</a></div></div>
               <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
                 <button type="button" class="btn btn-primary btn-sm" :disabled="csSettingsSaving" @click="saveCsSettings">
                   <AegisIcon name="check" :size="13" /> Save
