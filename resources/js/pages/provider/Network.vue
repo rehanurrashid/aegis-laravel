@@ -1890,39 +1890,43 @@
 
               <div v-if="cs.rate_min_cents || cs.rate_max_cents" class="spc-stats">{{ formatCsRate(cs) }}</div>
 
-              <div class="spc-actions" @click.stop>
+              <div class="spc-actions" @click.stop style="flex-direction:column;gap:6px;align-items:stretch;">
                 <!-- Active agreement -->
-                <span v-if="cs.designation_status === 'active'"
-                  class="badge badge-green"
-                  style="flex:1;justify-content:center;font-size:12px;display:inline-flex;align-items:center;gap:5px;padding:8px 12px;border-radius:var(--radius);"
-                >
-                  <AegisIcon name="check-circle" :size="13" /> Active CS Agreement
-                </span>
+                <div v-if="cs.designation_status === 'active'" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                  <span class="badge badge-green" style="font-size:11px;gap:4px;display:inline-flex;align-items:center;">
+                    <AegisIcon name="check-circle" :size="11" /> Active CS Agreement
+                  </span>
+                  <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(cs.slug, 'cs')">
+                    <AegisIcon name="eye" :size="14" />
+                  </button>
+                </div>
 
                 <!-- Pending invitation -->
-                <span v-else-if="cs.designation_status === 'pending' || cs.designation_status === 'invited'"
-                  class="badge badge-yellow"
-                  style="flex:1;justify-content:center;font-size:12px;display:inline-flex;align-items:center;gap:5px;padding:8px 12px;border-radius:var(--radius);"
-                >
-                  <AegisIcon name="clock" :size="13" /> Invitation Sent
-                </span>
+                <div v-else-if="cs.designation_status === 'pending' || cs.designation_status === 'invited'" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                  <span class="badge badge-yellow" style="font-size:11px;gap:4px;display:inline-flex;align-items:center;">
+                    <AegisIcon name="clock" :size="11" /> Invitation Sent
+                  </span>
+                  <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(cs.slug, 'cs')">
+                    <AegisIcon name="eye" :size="14" />
+                  </button>
+                </div>
 
                 <!-- Available to designate -->
-                <button
-                  v-else
-                  type="button"
-                  class="btn btn-primary"
-                  style="flex:1;justify-content:center;font-size:12px;display:inline-flex;align-items:center;gap:5px;"
-                  :disabled="!cs.cs_availability"
-                  :data-tooltip="!cs.cs_availability ? 'Not currently accepting new CS roles' : 'Send a formal CS designation invitation'"
-                  @click="openDesignate(cs)"
-                >
-                  <AegisIcon name="shield" :size="13" /> Designate as My CS
-                </button>
-
-                <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(cs.slug, 'cs')">
-                  <AegisIcon name="eye" :size="14" />
-                </button>
+                <template v-else>
+                  <button
+                    type="button"
+                    class="btn btn-primary"
+                    style="width:100%;justify-content:center;font-size:12px;display:inline-flex;align-items:center;gap:5px;"
+                    :disabled="!cs.cs_availability"
+                    :data-tooltip="!cs.cs_availability ? 'Not currently accepting new CS roles' : null"
+                    @click="openDesignate(cs)"
+                  >
+                    <AegisIcon name="shield" :size="13" /> Designate as My CS
+                  </button>
+                  <button type="button" class="btn btn-outline" style="width:100%;justify-content:center;font-size:12px;display:inline-flex;align-items:center;gap:5px;" @click.stop="viewProfile(cs.slug, 'cs')">
+                    <AegisIcon name="eye" :size="13" /> View Profile
+                  </button>
+                </template>
               </div>
             </div>
           </div>
