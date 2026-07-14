@@ -1892,24 +1892,24 @@
 
               <div class="spc-actions" @click.stop style="flex-direction:column;gap:6px;align-items:stretch;">
                 <!-- Active agreement -->
-                <div v-if="cs.designation_status === 'active'" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                  <span class="badge badge-green" style="font-size:11px;gap:4px;display:inline-flex;align-items:center;">
+                <template v-if="cs.designation_status === 'active'">
+                  <span class="badge badge-green" style="font-size:11px;gap:4px;display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;">
                     <AegisIcon name="check-circle" :size="11" /> Active CS Agreement
                   </span>
-                  <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(cs.slug, 'cs')">
-                    <AegisIcon name="eye" :size="14" />
+                  <button type="button" class="btn btn-outline" style="width:100%;justify-content:center;font-size:12px;display:inline-flex;align-items:center;gap:5px;" @click.stop="viewProfile(cs.slug, 'cs')">
+                    <AegisIcon name="eye" :size="13" /> View Profile
                   </button>
-                </div>
+                </template>
 
                 <!-- Pending invitation -->
-                <div v-else-if="cs.designation_status === 'pending' || cs.designation_status === 'invited'" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                  <span class="badge badge-yellow" style="font-size:11px;gap:4px;display:inline-flex;align-items:center;">
-                    <AegisIcon name="clock" :size="11" /> Invitation Sent
+                <template v-else-if="cs.designation_status === 'pending' || cs.designation_status === 'invited'">
+                  <span class="badge badge-yellow" style="font-size:11px;gap:4px;display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;">
+                    <AegisIcon name="clock" :size="11" /> Invitation Sent — Awaiting Response
                   </span>
-                  <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(cs.slug, 'cs')">
-                    <AegisIcon name="eye" :size="14" />
+                  <button type="button" class="btn btn-outline" style="width:100%;justify-content:center;font-size:12px;display:inline-flex;align-items:center;gap:5px;" @click.stop="viewProfile(cs.slug, 'cs')">
+                    <AegisIcon name="eye" :size="13" /> View Profile
                   </button>
-                </div>
+                </template>
 
                 <!-- Available to designate -->
                 <template v-else>
