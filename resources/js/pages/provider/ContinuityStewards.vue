@@ -120,6 +120,18 @@ function handleAddCS() {
 }
 
 // ── Wizard: Add CS ─────────────────────────────────────────────────────────────
+const alwaysActiveIncidents = [
+  { key: 'death',                    label: 'Death' },
+  { key: 'short_term_incapacitation',label: 'Short-Term Incapacitation' },
+  { key: 'long_term_incapacitation', label: 'Long-Term Incapacitation' },
+]
+const optInIncidents = [
+  { key: 'missing_person',           label: 'Missing Person' },
+  { key: 'detainment',               label: 'Detainment' },
+  { key: 'natural_disaster',         label: 'Natural Disaster' },
+  { key: 'geopolitical',             label: 'Geopolitical or Conflict-Related Events' },
+]
+
 const addForm = useForm({
   user_id:       null,
   email:         '',
@@ -130,6 +142,14 @@ const addForm = useForm({
   relationship:  '',
   message:       '',
   expires_days:  30,
+  incidentActive: {
+    death: true, short_term_incapacitation: true, long_term_incapacitation: true,
+    missing_person: false, detainment: false, natural_disaster: false, geopolitical: false,
+  },
+  incidentVerify: {
+    death: false, short_term_incapacitation: false, long_term_incapacitation: false,
+    missing_person: true, detainment: true, natural_disaster: true, geopolitical: true,
+  },
 })
 
 const addRules = computed(() => ({
@@ -735,7 +755,7 @@ function saveNotifyPrefs() {
       </div>
       <div class="form-group">
         <label class="form-label">Relationship to You</label>
-        <select v-model="addForm.relationship" class="form-control">
+        <select v-model="addForm.relationship" class="form-control form-select">
           <option value="">— Select Relationship —</option>
           <option>Designated Continuity Steward</option>
           <option>Office Manager / Practice Administrator</option>
@@ -781,15 +801,13 @@ function saveNotifyPrefs() {
             @click="addForm.role = opt.value"
           >
             <input type="radio" :value="opt.value" v-model="addForm.role" style="width:16px;height:16px;flex-shrink:0;accent-color:var(--gold-dark);" />
-            <div style="width:32px;height:32px;border-radius:var(--radius-sm);background:var(--badge-bg-gold);color:var(--gold-dark);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">
-              <AegisIcon name="shield" :size="14" />
-            </div>
             <div style="flex:1;">
               <div style="font-size:13px;font-weight:700;color:var(--text);">{{ opt.title }}</div>
               <div style="font-size:12px;color:var(--text-3);margin-top:4px;">{{ opt.desc }}</div>
             </div>
           </label>
         </div>
+        <div v-if="v$add.role?.$error" class="form-error" style="margin-top:6px;">{{ fieldError(v$add, 'role') }}</div>
       </div>
       <div class="form-group" style="margin-top:16px;">
         <label class="form-label">Compensation / Agreement Terms (Optional)</label>
@@ -817,18 +835,30 @@ function saveNotifyPrefs() {
       <div class="alert alert-info" style="margin-top:16px;"><div class="alert-icon"><AegisIcon name="info" :size="14" /></div><div class="alert-content">Select which critical incidents authorize this Continuity Steward to act. Providers may indicate whether verification is required before a Continuity Response is initiated for each one.</div></div>
       <div class="modal-section-label" style="margin-top:14px;">Always-Active Incidents</div>
       <div class="list-group" style="margin-bottom:16px;">
-        <div v-for="inc in ['Death','Short-Term Incapacitation','Long-Term Incapacitation']" :key="inc" class="list-group-item" style="gap:10px;">
-          <label class="form-check" style="flex:1;margin:0;"><input type="checkbox" checked disabled /><span class="form-check-label">{{ inc }}</span></label>
-          <span style="font-size:12px;color:var(--text-3);">Verification required</span>
-          <button type="button" class="toggle on" aria-pressed="true"></button>
+        <div v-for="inc in alwaysActiveIncidents" :key="inc.key" class="list-group-item" style="gap:10px;">
+          <label class="form-check" style="flex:1;margin:0;">
+            <input type="checkbox" checked disabled />
+            <span class="form-check-label">{{ inc.label }}</span>
+          </label>
+          <label class="form-check" style="margin:0;gap:6px;font-size:12px;color:var(--text-3);">
+            <input type="checkbox" v-model="addForm.incidentVerify[inc.key]" style="accent-color:var(--gold-dark);" />
+            Require verification
+          </label>
+          <button type="button" class="toggle" :class="{ on: addForm.incidentActive[inc.key] !== false }" :aria-pressed="addForm.incidentActive[inc.key] !== false" @click="addForm.incidentActive[inc.key] = !(addForm.incidentActive[inc.key] !== false)"></button>
         </div>
       </div>
       <div class="modal-section-label">Opt-In Incidents</div>
       <div class="list-group">
-        <div v-for="inc in ['Missing Person','Detainment','Natural Disaster','Geopolitical or Conflict-Related Events']" :key="inc" class="list-group-item" style="gap:10px;">
-          <label class="form-check" style="flex:1;margin:0;"><input type="checkbox" /><span class="form-check-label">{{ inc }}</span></label>
-          <span style="font-size:12px;color:var(--text-3);">Verification required</span>
-          <button type="button" class="toggle on" aria-pressed="true"></button>
+        <div v-for="inc in optInIncidents" :key="inc.key" class="list-group-item" style="gap:10px;">
+          <label class="form-check" style="flex:1;margin:0;">
+            <input type="checkbox" v-model="addForm.incidentActive[inc.key]" style="accent-color:var(--gold-dark);" />
+            <span class="form-check-label">{{ inc.label }}</span>
+          </label>
+          <label class="form-check" style="margin:0;gap:6px;font-size:12px;color:var(--text-3);">
+            <input type="checkbox" v-model="addForm.incidentVerify[inc.key]" style="accent-color:var(--gold-dark);" />
+            Require verification
+          </label>
+          <button type="button" class="toggle" :class="{ on: addForm.incidentActive[inc.key] }" :aria-pressed="String(!!addForm.incidentActive[inc.key])" @click="addForm.incidentActive[inc.key] = !addForm.incidentActive[inc.key]"></button>
         </div>
       </div>
       <template #footer>
@@ -891,7 +921,7 @@ function saveNotifyPrefs() {
       <div class="alert alert-success" style="margin-top:16px;"><AegisIcon name="check" :size="14" /><div>Review the agreement summary below, apply your digital signature, and send for counter-signature.</div></div>
       <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;font-size:13px;line-height:1.75;color:var(--text-2);margin:14px 0;">
         <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:14px;border-bottom:2px solid var(--border);padding-bottom:10px;">Aegis Continuity Plan</div>
-        <p><strong>Continuity Steward:</strong> {{ addForm.display_name || '—' }}</p>
+        <p><strong>Continuity Steward:</strong> {{ addForm.display_name || '(not entered yet)' }}</p>
         <p><strong>Role:</strong> {{ csRoleLabel(addForm.role) }}</p>
         <p><strong>Agreement Date:</strong> Today</p>
       </div>
@@ -902,7 +932,7 @@ function saveNotifyPrefs() {
       </div>
       <div class="form-group">
         <label class="form-label">Expiration of Invitation</label>
-        <select v-model="addForm.expires_days" class="form-control">
+        <select v-model="addForm.expires_days" class="form-control form-select">
           <option :value="30">30 days</option>
           <option :value="14">14 days</option>
           <option :value="7">7 days</option>
@@ -949,7 +979,7 @@ function saveNotifyPrefs() {
       <div class="alert alert-warning"><div class="alert-icon"><AegisIcon name="alert-triangle" :size="14" /></div><div class="alert-content">Changing the role will update the agreement and send an amendment to both parties for acknowledgment.</div></div>
       <div class="form-group" style="margin-top:14px;">
         <label class="form-label">New Role</label>
-        <select v-model="changeRoleForm.role" class="form-control">
+        <select v-model="changeRoleForm.role" class="form-control form-select">
           <option value="primary">Primary Continuity Steward</option>
           <option value="secondary">Support Continuity Steward</option>
           <option value="alternate">Alternate Continuity Steward</option>
@@ -1122,7 +1152,7 @@ function saveNotifyPrefs() {
       <div class="alert alert-warning"><div class="alert-icon"><AegisIcon name="alert-triangle" :size="14" /></div><div class="alert-content">Annual reviews are required for your continuity plan to remain compliant.</div></div>
       <div class="form-group" style="margin-top:14px;">
         <label class="form-label">Remind me in</label>
-        <select class="form-control"><option>3 days</option><option>1 week</option><option>2 weeks</option></select>
+        <select class="form-control form-select"><option>3 days</option><option>1 week</option><option>2 weeks</option></select>
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.snoozeReview=false">Cancel</button>
