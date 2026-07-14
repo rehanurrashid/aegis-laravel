@@ -108,12 +108,16 @@ class ActivityController extends Controller
         $baseTotal = min((clone $baseQuery)->count(), 500);
 
         // Entry-type totals for tab pill badges.
-        // When an event_type (category) filter is active, scope counts to that filter
-        // so the "My Activity" and "Notifications" badges reflect the filtered set.
-        // When no event_type filter, use the full base query totals.
-        $entryTypeBase = !empty($filters['event_type'])
-            ? (clone $baseQuery)->where('event_type', $filters['event_type'])
-            : clone $baseQuery;
+        // Scope to ALL active filters except entry_type itself, so the
+        // "My Activity" / "Notifications" badges reflect the current view.
+        $entryTypeBase = clone $baseQuery;
+        if (!empty($filters['module']))     $entryTypeBase->where('module', $filters['module']);
+        if (!empty($filters['severity']))   $entryTypeBase->where('severity', $filters['severity']);
+        if (!empty($filters['event_type']) && $filters['event_type'] !== 'services') {
+            $entryTypeBase->where('event_type', $filters['event_type']);
+        }
+        if (!empty($filters['portal']))     $entryTypeBase->where('portal', $filters['portal']);
+        if (!empty($filters['unread']))     $entryTypeBase->whereNull('read_at');
 
         $entryTypeCounts = $entryTypeBase
             ->selectRaw('entry_type, COUNT(*) as c')
