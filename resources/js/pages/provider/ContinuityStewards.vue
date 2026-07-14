@@ -50,7 +50,6 @@ const modals = ref({
   cancelInvite:   false,
   snoozeReview:   false,
   upgrade:        false,
-  authMatrix:     false,
 })
 
 function openModal(key, steward = null) {
@@ -171,6 +170,28 @@ function fieldClass(v$obj, field) {
 }
 
 const busyAdd = ref(false)
+const signed  = ref(false)
+
+// Reset signature when wizard re-opens
+watch(() => modals.value.addStep1, (v) => { if (v) signed.value = false })
+
+async function advanceStep1() {
+  // Touch email + display_name so errors show immediately
+  v$add.value.email.$touch()
+  v$add.value.display_name.$touch()
+  const emailOk = addForm.user_id
+    ? true
+    : (!v$add.value.email.$error && addForm.email.trim() !== '')
+  const nameOk = addForm.user_id
+    ? true
+    : (!v$add.value.display_name.$error && addForm.display_name.trim() !== '')
+  if (!emailOk || !nameOk) {
+    toast.error('Please fill in all required fields before continuing.')
+    return
+  }
+  modals.value.addStep1 = false
+  modals.value.addStep2 = true
+}
 
 async function submitAdd() {
   const ok = await v$add.value.$validate()
@@ -513,7 +534,7 @@ function saveNotifyPrefs() {
             <button type="button" class="btn-icon" data-tooltip="Annual Review"  @click="modals.annualReview = true"><AegisIcon name="calendar" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Change Role"    @click="openChangeRole(s)"><AegisIcon name="refresh-cw" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Vault Access"   @click="openVaultModal(s)"><AegisIcon name="lock" :size="14" /></button>
-            <button type="button" class="btn-icon" data-tooltip="Manage Authorizations" @click="openModal('authMatrix', s)"><AegisIcon name="shield-check" :size="14" /></button>
+
             <button type="button" class="btn-icon" data-tooltip="Remove" @click="openRemoveModal(s)"><AegisIcon name="trash" :size="14" /></button>
           </div>
         </div>
@@ -769,7 +790,7 @@ function saveNotifyPrefs() {
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="closeAllAdd">Cancel</button>
-        <button type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;" @click="modals.addStep1=false;modals.addStep2=true">
+        <button type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;" @click="advanceStep1">
           Next: Role Step-up <AegisIcon name="chevron-right" :size="14" />
         </button>
       </template>
@@ -921,13 +942,25 @@ function saveNotifyPrefs() {
       <div class="alert alert-success" style="margin-top:16px;"><AegisIcon name="check" :size="14" /><div>Review the agreement summary below, apply your digital signature, and send for counter-signature.</div></div>
       <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;font-size:13px;line-height:1.75;color:var(--text-2);margin:14px 0;">
         <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:14px;border-bottom:2px solid var(--border);padding-bottom:10px;">Aegis Continuity Plan</div>
-        <p><strong>Continuity Steward:</strong> {{ addForm.display_name || '(not entered yet)' }}</p>
+        <p><strong>Continuity Steward:</strong> <span :style="!addForm.display_name ? 'color:var(--text-4);font-style:italic;' : ''">{{ addForm.display_name || 'Not entered' }}</span></p>
+        <p><strong>Email:</strong> <span :style="!addForm.email ? 'color:var(--text-4);font-style:italic;' : ''">{{ addForm.email || 'Not entered' }}</span></p>
         <p><strong>Role:</strong> {{ csRoleLabel(addForm.role) }}</p>
-        <p><strong>Agreement Date:</strong> Today</p>
+        <p v-if="addForm.relationship"><strong>Relationship:</strong> {{ addForm.relationship }}</p>
+        <p><strong>Agreement Date:</strong> {{ new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) }}</p>
       </div>
-      <div class="upload-zone" style="cursor:pointer;margin-bottom:14px;">
-        <div class="upload-zone-icon"><AegisIcon name="pencil" :size="20" /></div>
-        <div class="upload-zone-title">Click to apply your digital signature</div>
+      <div
+        class="upload-zone"
+        style="cursor:pointer;margin-bottom:14px;"
+        :style="signed ? 'border-color:var(--green);background:var(--green-light,#f0fdf4);' : ''"
+        @click="signed = !signed"
+      >
+        <div class="upload-zone-icon">
+          <AegisIcon v-if="signed" name="check-circle" :size="20" style="color:var(--green);" />
+          <AegisIcon v-else name="pencil" :size="20" />
+        </div>
+        <div class="upload-zone-title" :style="signed ? 'color:var(--green);' : ''">
+          {{ signed ? 'Signature applied — click to remove' : 'Click to apply your digital signature' }}
+        </div>
         <div class="upload-zone-sub">By signing, you confirm all details above are accurate</div>
       </div>
       <div class="form-group">
@@ -944,12 +977,13 @@ function saveNotifyPrefs() {
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;" @click="modals.addStep5=false;modals.addStep4=true"><AegisIcon name="chevron-left" :size="14" /> Back</button>
-        <button type="button" class="btn btn-outline" @click="closeAllAdd">Save Draft</button>
-        <button type="button" class="btn btn-primary" :disabled="busyAdd" style="display:inline-flex;align-items:center;gap:6px;" @click="submitAdd">
-          <AegisIcon v-if="busyAdd" name="refresh-cw" :size="14" class="btn-spin" />
-          <AegisIcon v-else name="send" :size="14" />
-          {{ busyAdd ? 'Sending…' : 'Send Agreement for Signature' }}
-        </button>
+        <span :data-tooltip="!signed ? 'Apply your digital signature first' : null" style="display:inline-flex;">
+          <button type="button" class="btn btn-primary" :disabled="busyAdd || !signed" style="display:inline-flex;align-items:center;gap:6px;" @click="submitAdd">
+            <AegisIcon v-if="busyAdd" name="refresh-cw" :size="14" class="btn-spin" />
+            <AegisIcon v-else name="send" :size="14" />
+            {{ busyAdd ? 'Sending…' : 'Send Agreement for Signature' }}
+          </button>
+        </span>
       </template>
     </AegisModal>
 
@@ -1080,7 +1114,7 @@ function saveNotifyPrefs() {
       </div>
       <div class="form-group">
         <label class="form-label">Reason for Removal <span style="color:var(--red-dark);">*</span></label>
-        <select v-model="removeForm.reason" class="form-control" :class="fieldClass(v$remove,'reason')" @blur="v$remove.reason.$touch()">
+        <select v-model="removeForm.reason" class="form-control form-select" :class="fieldClass(v$remove,'reason')" @blur="v$remove.reason.$touch()">
           <option value="">— Select Reason —</option>
           <option>Continuity Steward is no longer available or willing</option>
           <option>Continuity Steward has relocated or left the organization</option>
@@ -1114,7 +1148,7 @@ function saveNotifyPrefs() {
       </div>
       <div class="form-group">
         <label class="form-label">New Expiration Date</label>
-        <select class="form-control"><option>30 days from today</option><option>14 days from today</option><option>7 days from today</option></select>
+        <select class="form-control form-select"><option>30 days from today</option><option>14 days from today</option><option>7 days from today</option></select>
       </div>
       <div class="form-group">
         <label class="form-label">Optional Follow-up Message</label>
