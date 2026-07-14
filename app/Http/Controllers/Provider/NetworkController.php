@@ -356,11 +356,22 @@ class NetworkController extends Controller
 
         // ── CS Steward directory ──────────────────────────────────────────────
         // Practitioners can browse CS Business users and designate them.
+        // Load existing plan_steward relationships for this practitioner so cards show status.
+        $plan = \App\Models\ContinuityPlan::where('practitioner_id', $user->id)->first();
+        $existingDesignations = collect();
+        if ($plan) {
+            $existingDesignations = \App\Models\PlanSteward::where('plan_id', $plan->id)
+                ->where('steward_category', 'continuity_steward')
+                ->whereNotIn('status', ['archived', 'declined'])
+                ->get()
+                ->keyBy('steward_id');
+        }
+
         $csStewards = User::where('role', 'continuity_steward')
             ->where('cs_account_type', 'business')
             ->where('verified', 1)
             ->get()
-            ->map(function (User $cs) {
+            ->map(function (User $cs) use ($existingDesignations) {
                 // Load meta for CS-specific fields
                 $meta = $cs->meta->pluck('meta_value', 'meta_key')->all();
                 $specialty = [];
@@ -372,19 +383,25 @@ class NetworkController extends Controller
                 }
                 $rateMin = (int) ($meta['rate_min_cents'] ?? $meta['rate_per_session'] ?? 0) * 100;
                 $rateMax = (int) ($meta['rate_max_cents'] ?? $rateMin);
+
+                // Designation status for this practitioner: none | pending | invited | active
+                $ps = $existingDesignations->get($cs->id);
+                $designationStatus = $ps ? ($ps->status instanceof \BackedEnum ? $ps->status->value : (string) $ps->status) : 'none';
+
                 return [
-                    'id'              => $cs->id,
-                    'display_name'    => $cs->display_name,
-                    'slug'            => $cs->slug ?? '',
-                    'avatar_initials' => $cs->avatar_initials ?? strtoupper(substr($cs->display_name, 0, 2)),
-                    'credentials'     => $cs->credentials ?? '',
-                    'license_state'   => $meta['primary_state'] ?? $cs->location ?? '',
-                    'specialties'     => $specialty,
-                    'bio'             => $meta['bio'] ?? $cs->bio ?? '',
-                    'rate_min_cents'  => $rateMin,
-                    'rate_max_cents'  => $rateMax,
-                    'cs_availability' => (bool) ($meta['cs_availability'] ?? true),
-                    'location'        => $cs->location ?? '',
+                    'id'                 => $cs->id,
+                    'display_name'       => $cs->display_name,
+                    'slug'               => $cs->slug ?? '',
+                    'avatar_initials'    => $cs->avatar_initials ?? strtoupper(substr($cs->display_name, 0, 2)),
+                    'credentials'        => $cs->credentials ?? '',
+                    'license_state'      => $meta['primary_state'] ?? $cs->location ?? '',
+                    'specialties'        => $specialty,
+                    'bio'                => $meta['bio'] ?? $cs->bio ?? '',
+                    'rate_min_cents'     => $rateMin,
+                    'rate_max_cents'     => $rateMax,
+                    'cs_availability'    => (bool) ($meta['cs_availability'] ?? true),
+                    'location'           => $cs->location ?? '',
+                    'designation_status' => $designationStatus, // none | pending | invited | active
                 ];
             })->values();
 

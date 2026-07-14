@@ -1855,7 +1855,20 @@
               @click="viewProfile(cs.slug, 'cs')"
             >
               <div class="spc-top-pills">
-                <span
+                <!-- Designation status pill — takes priority over availability -->
+                <span v-if="cs.designation_status === 'active'"
+                  class="spc-status-icon ok"
+                  data-tooltip="You have an active agreement with this CS"
+                >
+                  <AegisIcon name="check-circle" :size="12" />
+                </span>
+                <span v-else-if="cs.designation_status === 'pending' || cs.designation_status === 'invited'"
+                  class="spc-status-icon pend"
+                  data-tooltip="Invitation sent — awaiting their response"
+                >
+                  <AegisIcon name="clock" :size="12" />
+                </span>
+                <span v-else
                   class="spc-status-icon"
                   :class="cs.cs_availability ? 'ok' : 'off'"
                   :data-tooltip="cs.cs_availability ? 'Accepting new CS roles' : 'Not currently available'"
@@ -1878,17 +1891,38 @@
               <div v-if="cs.rate_min_cents || cs.rate_max_cents" class="spc-stats">{{ formatCsRate(cs) }}</div>
 
               <div class="spc-actions" @click.stop>
+                <!-- Active agreement -->
+                <span v-if="cs.designation_status === 'active'"
+                  class="badge badge-green"
+                  style="flex:1;justify-content:center;font-size:12px;display:inline-flex;align-items:center;gap:5px;padding:8px 12px;border-radius:var(--radius);"
+                >
+                  <AegisIcon name="check-circle" :size="13" /> Active CS Agreement
+                </span>
+
+                <!-- Pending invitation -->
+                <span v-else-if="cs.designation_status === 'pending' || cs.designation_status === 'invited'"
+                  class="badge badge-yellow"
+                  style="flex:1;justify-content:center;font-size:12px;display:inline-flex;align-items:center;gap:5px;padding:8px 12px;border-radius:var(--radius);"
+                >
+                  <AegisIcon name="clock" :size="13" /> Invitation Sent
+                </span>
+
+                <!-- Available to designate -->
                 <button
+                  v-else
                   type="button"
                   class="btn btn-primary"
                   style="flex:1;justify-content:center;font-size:12px;display:inline-flex;align-items:center;gap:5px;"
                   :disabled="!cs.cs_availability"
-                  :data-tooltip="!cs.cs_availability ? 'Not currently accepting new CS roles' : null"
+                  :data-tooltip="!cs.cs_availability ? 'Not currently accepting new CS roles' : 'Send a formal CS designation invitation'"
                   @click="openDesignate(cs)"
                 >
                   <AegisIcon name="shield" :size="13" /> Designate as My CS
                 </button>
-                <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(cs.slug, 'cs')"><AegisIcon name="eye" :size="14" /></button>
+
+                <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(cs.slug, 'cs')">
+                  <AegisIcon name="eye" :size="14" />
+                </button>
               </div>
             </div>
           </div>
@@ -3208,8 +3242,10 @@ function openDesignate(cs) {
 
 function onCsDesignated() {
   showDesignateModal.value = false
-  // Navigate to ContinuityStewards page so user sees the new pending invitation
-  router.visit(route('provider.stewards.index'), { preserveScroll: false })
+  // Reload csStewards so card status updates in-place, then visit stewards page
+  router.reload({ only: ['csStewards'], preserveScroll: true, onSuccess: () => {
+    router.visit(route('provider.stewards.index'))
+  }})
 }
 
 
