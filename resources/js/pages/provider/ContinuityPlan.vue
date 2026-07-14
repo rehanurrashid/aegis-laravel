@@ -446,7 +446,7 @@ function handleToggle(type, val) {
     docs_required:      getConfig(type.value)?.docs_required ?? [],
     authorized_ss_ids:  getConfig(type.value)?.authorized_ss_ids ?? [],
     authorized_cs_ids:  getConfig(type.value)?.authorized_cs_ids ?? [],
-  }, { preserveScroll: true })
+  }, { preserveState: true, preserveScroll: true })
 }
 
 // ── Steward helpers ────────────────────────────────────────────────────────────

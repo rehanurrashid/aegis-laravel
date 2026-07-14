@@ -15,7 +15,7 @@
             <span v-else>Always-on incident type.</span>
           </div>
         </div>
-        <AegisToggle v-model="isActive" />
+        <AegisToggle :model-value="isActive" @update:model-value="handleActiveToggle" />
       </div>
     </div>
 
@@ -201,7 +201,8 @@ const newCsTask = ref(''); const newCsTimeline = ref('')
 let _keyCounter = 0
 function withKey(t) { return { ...t, _key: t.id ?? ('new_' + ++_keyCounter) } }
 
-watch(() => [props.incidentType, props.config, props.tasks, props.modelValue], () => {
+// Seed all local state when modal opens or incidentType changes
+watch(() => [props.incidentType?.value, props.modelValue], () => {
   if (!props.modelValue) return
   activeTab.value    = 'ss'
   isActive.value     = !!(props.config?.is_active)
@@ -212,6 +213,25 @@ watch(() => [props.incidentType, props.config, props.tasks, props.modelValue], (
   csTasks.value = props.tasks.filter(t => t.assigned_to === 'continuity_steward').map(withKey)
   nextTick(() => { initDrag('ss'); initDrag('cs') })
 }, { immediate: true })
+
+// Keep isActive in sync when parent prop refreshes (e.g. grid toggle while modal is open)
+watch(() => props.config?.is_active, (val) => {
+  if (props.modelValue) isActive.value = !!(val)
+})
+
+// Immediately POST when enable toggle is flipped inside the modal
+function handleActiveToggle(val) {
+  isActive.value = val
+  if (!props.incidentType) return
+  router.post(route('provider.plan.incident-config'), {
+    incident_type:     props.incidentType.value,
+    is_active:         val,
+    is_optin:          props.incidentType.is_optin,
+    docs_required:     selectedDocs.value,
+    authorized_ss_ids: authSsIds.value,
+    authorized_cs_ids: authCsIds.value,
+  }, { preserveState: true, preserveScroll: true })
+}
 
 // ── Drag & Drop (vanilla, no extra deps) ─────────────────────────────
 const ssTaskListEl = ref(null)
