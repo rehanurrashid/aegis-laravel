@@ -354,6 +354,43 @@ class NetworkController extends Controller
                 ];
             })->values();
 
+        // ── CS Steward directory ──────────────────────────────────────────────
+        // Practitioners can browse CS Business users and designate them.
+        $csStewards = User::where('role', 'continuity_steward')
+            ->where('cs_account_type', 'business')
+            ->where('verified', 1)
+            ->get()
+            ->map(function (User $cs) {
+                // Load meta for CS-specific fields
+                $meta = $cs->meta->pluck('meta_value', 'meta_key')->all();
+                $specialty = [];
+                if ($cs->specialty) {
+                    $dec = json_decode($cs->specialty, true);
+                    $specialty = is_array($dec)
+                        ? $dec
+                        : array_values(array_filter(array_map('trim', explode(',', $cs->specialty))));
+                }
+                $rateMin = (int) ($meta['rate_min_cents'] ?? $meta['rate_per_session'] ?? 0) * 100;
+                $rateMax = (int) ($meta['rate_max_cents'] ?? $rateMin);
+                return [
+                    'id'              => $cs->id,
+                    'display_name'    => $cs->display_name,
+                    'slug'            => $cs->slug ?? '',
+                    'avatar_initials' => $cs->avatar_initials ?? strtoupper(substr($cs->display_name, 0, 2)),
+                    'credentials'     => $cs->credentials ?? '',
+                    'license_state'   => $meta['primary_state'] ?? $cs->location ?? '',
+                    'specialties'     => $specialty,
+                    'bio'             => $meta['bio'] ?? $cs->bio ?? '',
+                    'rate_min_cents'  => $rateMin,
+                    'rate_max_cents'  => $rateMax,
+                    'cs_availability' => (bool) ($meta['cs_availability'] ?? true),
+                    'location'        => $cs->location ?? '',
+                ];
+            })->values();
+
+        $csSpecialties = ['Trauma','Couples','EMDR','Grief','Anxiety','ADHD','Addiction','Family Systems','Other'];
+        $csStates      = ['AL','AK','AZ','AR','CA','CO','CT','DC','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
+
         return Inertia::render('provider/Network', [
             'clinicalConnections'          => $clinical,
             'bpConnections'                => $business,
@@ -380,6 +417,8 @@ class NetworkController extends Controller
                 'active_shadows'   => $shadows->count(),
             ],
             'networkConfig'                => $this->loadNetworkConfig($user),
+            'csStewards'                   => $csStewards,
+            'csFilters'                    => ['specialties' => $csSpecialties, 'states' => $csStates],
         ]);
     }
 

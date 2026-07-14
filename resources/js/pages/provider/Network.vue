@@ -86,6 +86,9 @@
         <button type="button" class="tab-primary" :class="{ active: scope === 'tools' }" @click="scope = 'tools'">
           <AegisIcon name="cpu" :size="15" /> Referrals &amp; Tools
         </button>
+        <button type="button" class="tab-primary" :class="{ active: scope === 'cs' }" @click="scope = 'cs'">
+          <AegisIcon name="shield" :size="15" /> Continuity Stewards
+        </button>
       </div>
 
       <!-- Sub-tabs: Integrative Care Network -->
@@ -1696,6 +1699,164 @@
       </div>
     </div><!-- /config -->
 
+    <!-- ══════════ CONTINUITY STEWARDS ══════════ -->
+    <div v-show="scope === 'cs'">
+
+      <div class="alert alert-info" style="margin-bottom:20px;">
+        <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
+        <div class="alert-content">
+          <div class="alert-title">Find a Continuity Steward</div>
+          <div>Browse licensed clinicians who have registered as Continuity Stewards on Aegis. Once you designate one, they receive an invitation to formally accept and countersign your plan.</div>
+        </div>
+      </div>
+
+      <div class="sbp-layout">
+
+        <!-- ── FILTER SIDEBAR ── -->
+        <aside class="filter-sidebar" id="csSidebar">
+          <div class="filter-sidebar-header">
+            <div class="filter-sidebar-title"><AegisIcon name="filter" :size="14" /> Filters</div>
+            <button type="button" class="filter-clear-btn" @click="csSpecialty='';csState='';csAvailOnly=false;csRateMax=0">Clear All</button>
+          </div>
+
+          <!-- Availability toggle -->
+          <div class="filter-group nw-sbp-clinical-toggle">
+            <label class="nw-sbp-clinical-label">
+              <span class="nw-sbp-clinical-text"><AegisIcon name="check-circle" :size="14" /> Accepting new CS roles</span>
+              <button type="button" class="toggle" :class="{ on: csAvailOnly }" @click="csAvailOnly = !csAvailOnly"></button>
+            </label>
+          </div>
+
+          <!-- Specialty -->
+          <div class="filter-group" :class="{ open: true }">
+            <div class="filter-group-header">
+              <span class="filter-group-label"><AegisIcon name="star" :size="16" /> Specialty</span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <span
+                v-for="s in (csFilters?.specialties ?? [])" :key="s"
+                class="ftag"
+                :class="{ selected: csSpecialty === s }"
+                @click="csSpecialty = csSpecialty === s ? '' : s"
+              >{{ s }}</span>
+            </div>
+          </div>
+
+          <!-- License State -->
+          <div class="filter-group" :class="{ open: true }">
+            <div class="filter-group-header">
+              <span class="filter-group-label"><AegisIcon name="map-pin" :size="16" /> License State</span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <select v-model="csState" class="form-control form-select" style="width:100%">
+                <option value="">All States</option>
+                <option v-for="st in (csFilters?.states ?? [])" :key="st" :value="st">{{ st }}</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Rate Range -->
+          <div class="filter-group" :class="{ open: true }">
+            <div class="filter-group-header">
+              <span class="filter-group-label"><AegisIcon name="dollar" :size="16" /> Max Rate / Incident</span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <span class="ftag" :class="{ selected: csRateMax===0 }"   @click="csRateMax=0">Any</span>
+              <span class="ftag" :class="{ selected: csRateMax===100 }" @click="csRateMax=100">Under $100</span>
+              <span class="ftag" :class="{ selected: csRateMax===200 }" @click="csRateMax=200">Under $200</span>
+              <span class="ftag" :class="{ selected: csRateMax===300 }" @click="csRateMax=300">Under $300</span>
+              <span class="ftag" :class="{ selected: csRateMax===500 }" @click="csRateMax=500">Under $500</span>
+            </div>
+          </div>
+
+          <!-- Sort -->
+          <div class="filter-group" :class="{ open: true }">
+            <div class="filter-group-header">
+              <span class="filter-group-label"><AegisIcon name="trending-up" :size="16" /> Sort By</span>
+              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
+            </div>
+            <div class="filter-group-body">
+              <span v-for="opt in ['Best Match','Rate ↑','Rate ↓','Newest']" :key="opt"
+                class="ftag" :class="{ selected: csSort === opt }" @click="csSort = opt">{{ opt }}</span>
+            </div>
+          </div>
+
+          <div class="filter-sidebar-apply">
+            <button type="button" class="btn btn-primary" @click="toast.success('Filters applied')">Apply Filters</button>
+          </div>
+        </aside>
+
+        <!-- ── RESULTS PANEL ── -->
+        <div class="results-panel">
+          <div class="results-topbar">
+            <span class="results-count"><strong>{{ filteredCS.length }}</strong> of {{ csStewards.length }} Continuity Stewards</span>
+            <div class="pn-search-wrap" style="flex:1;max-width:320px">
+              <span class="search-icon"><AegisIcon name="search-lg" :size="14" /></span>
+              <input v-model="csSearch" class="form-input" type="text" placeholder="Search by name, specialty, bio..." />
+            </div>
+          </div>
+
+          <div class="search-results-grid">
+            <div
+              v-for="cs in filteredCS"
+              :key="cs.id"
+              class="spc-card"
+              @click="viewProfile(cs.slug, 'cs')"
+            >
+              <!-- Availability badge -->
+              <div class="spc-top-pills">
+                <span
+                  class="spc-status-icon"
+                  :class="cs.cs_availability ? 'ok' : 'off'"
+                  :data-tooltip="cs.cs_availability ? 'Accepting new CS roles' : 'Not currently available'"
+                >
+                  <AegisIcon :name="cs.cs_availability ? 'check-circle' : 'clock'" :size="12" />
+                </span>
+              </div>
+
+              <div class="spc-body">
+                <div class="spc-avatar spc-avatar-lg">{{ cs.avatar_initials }}</div>
+                <div class="spc-name">{{ cs.display_name }}<span v-if="cs.credentials" style="font-size:11px;color:var(--text-3);font-weight:400;">, {{ cs.credentials }}</span></div>
+                <div class="spc-role" v-if="cs.license_state">Licensed in {{ cs.license_state }}</div>
+                <div class="spc-loc" v-if="cs.location">{{ cs.location }}</div>
+                <div class="spc-tags" v-if="cs.specialties?.length">
+                  <span v-for="tag in (cs.specialties ?? []).slice(0,3)" :key="tag" class="spc-tag">{{ tag }}</span>
+                  <span v-if="(cs.specialties ?? []).length > 3" class="spc-tag spc-tag-more">+{{ cs.specialties.length - 3 }}</span>
+                </div>
+              </div>
+
+              <!-- Rate badge -->
+              <div class="spc-stats">
+                <span class="badge badge-gold" style="font-size:11px;"><AegisIcon name="dollar" :size="10" /> {{ formatCsRate(cs) }}</span>
+              </div>
+
+              <div class="spc-actions" @click.stop>
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  style="flex:1;justify-content:center;font-size:12px;"
+                  @click="openDesignate(cs)"
+                >
+                  <AegisIcon name="shield" :size="13" /> Designate as My CS
+                </button>
+                <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(cs.slug, 'cs')"><AegisIcon name="eye" :size="14" /></button>
+              </div>
+            </div>
+          </div>
+
+          <AegisEmptyState
+            v-if="!filteredCS.length"
+            icon="shield"
+            title="No Continuity Stewards match your search"
+            description="Try adjusting your filters or clearing the search."
+          />
+        </div>
+      </div>
+    </div><!-- /cs stewards -->
+
     <!-- ══════════ MODALS ══════════ -->
 
     <!-- Review Pending Requests -->
@@ -1900,6 +2061,30 @@
       :network="referralNetwork"
       :preselected-recipient="referralPreselectRecipient"
     />
+    <!-- Designate CS Modal -->
+    <AegisModal v-model="showDesignateModal" title="Designate as My Continuity Steward" size="md">
+      <div v-if="designateTarget" class="list-group-item" style="background:var(--surface-2);border-radius:var(--radius);margin-bottom:16px;gap:14px;">
+        <div class="spc-avatar" style="width:44px;height:44px;font-size:15px;flex-shrink:0;">{{ designateTarget.avatar_initials }}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:14px;font-weight:700;">{{ designateTarget.display_name }}<span v-if="designateTarget.credentials" style="font-size:12px;color:var(--text-3);font-weight:400;">, {{ designateTarget.credentials }}</span></div>
+          <div style="font-size:12px;color:var(--text-3);">{{ designateTarget.license_state }}<span v-if="designateTarget.location"> · {{ designateTarget.location }}</span></div>
+          <div v-if="designateTarget.specialties?.length" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">
+            <span v-for="tag in designateTarget.specialties.slice(0,3)" :key="tag" class="badge badge-neutral" style="font-size:10px;">{{ tag }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="alert alert-info">
+        <div class="alert-icon"><AegisIcon name="shield" :size="14" /></div>
+        <div class="alert-content">Designating this person will send them a formal CS invitation. They must accept before becoming your active Continuity Steward. This does not skip the agreement process.</div>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="showDesignateModal = false">Cancel</button>
+        <button type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;" @click="confirmDesignate">
+          <AegisIcon name="shield" :size="14" /> Send CS Invitation
+        </button>
+      </template>
+    </AegisModal>
+
     </div><!-- /nw-page-root -->
 
   </AppLayout>
@@ -1939,6 +2124,8 @@ const props = defineProps({
   roster:                       { type: Array,  default: () => [] },
   stats:                        { type: Object, default: () => ({}) },
   networkConfig:                { type: Object, default: () => ({}) },
+  csStewards:                   { type: Array,  default: () => [] },
+  csFilters:                    { type: Object, default: () => ({ specialties: [], states: [] }) },
 })
 
 // ── Composables ────────────────────────────────────────────────────────────
@@ -2906,7 +3093,70 @@ function openReferralForShadow(s) {
   openModal('referralModal')
 }
 
-// ── Configuration tab (Section 3.3) ───────────────────────────────────────
+// ── CS Steward directory ────────────────────────────────────────────────────
+const csSearch       = ref('')
+const csSpecialty    = ref('')
+const csState        = ref('')
+const csAvailOnly    = ref(false)
+const csRateMax      = ref(0)         // 0 = any
+const csSort         = ref('Best Match')
+const designateTarget = ref(null)
+// Local bool for the designate CS modal (useModal isOpen pattern incompatible with v-model)
+const showDesignateModal = ref(false)
+
+const filteredCS = computed(() => {
+  let list = props.csStewards ?? []
+  const q = csSearch.value.toLowerCase().trim()
+  if (q) list = list.filter(cs =>
+    (cs.display_name ?? '').toLowerCase().includes(q) ||
+    (cs.bio          ?? '').toLowerCase().includes(q) ||
+    (cs.specialties  ?? []).some(s => s.toLowerCase().includes(q))
+  )
+  if (csSpecialty.value)
+    list = list.filter(cs => (cs.specialties ?? []).some(s => s.toLowerCase().includes(csSpecialty.value.toLowerCase())))
+  if (csState.value)
+    list = list.filter(cs => (cs.license_state ?? '').toLowerCase() === csState.value.toLowerCase())
+  if (csAvailOnly.value)
+    list = list.filter(cs => cs.cs_availability)
+  if (csRateMax.value > 0)
+    list = list.filter(cs => cs.rate_max_cents === 0 || cs.rate_max_cents / 100 <= csRateMax.value)
+  if (csSort.value === 'Rate ↑')
+    list = [...list].sort((a, b) => (a.rate_min_cents ?? 0) - (b.rate_min_cents ?? 0))
+  else if (csSort.value === 'Rate ↓')
+    list = [...list].sort((a, b) => (b.rate_min_cents ?? 0) - (a.rate_min_cents ?? 0))
+  return list
+})
+
+function formatCsRate(cs) {
+  if (!cs.rate_min_cents && !cs.rate_max_cents) return 'Rate TBD'
+  const min = cs.rate_min_cents ? '$' + Math.round(cs.rate_min_cents / 100) : ''
+  const max = cs.rate_max_cents ? '$' + Math.round(cs.rate_max_cents / 100) : ''
+  if (min && max && min !== max) return `${min}–${max}/incident`
+  return (min || max) + '/incident'
+}
+
+function openDesignate(cs) {
+  designateTarget.value = cs
+  showDesignateModal.value = true
+}
+
+function confirmDesignate() {
+  if (!designateTarget.value) return
+  router.post(route('provider.stewards.invite'), {
+    user_id: designateTarget.value.id,
+    role:    'primary',
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success(designateTarget.value.display_name + ' designated as your Continuity Steward.')
+      showDesignateModal.value = false
+      router.visit(route('provider.stewards.index'))
+    },
+    onError: (e) => toast.error(Object.values(e)[0] ?? 'Could not designate CS.'),
+  })
+}
+
+
 const activeConfigPanel = ref('cfg-team')
 
 const configNav = [
@@ -3369,7 +3619,8 @@ function resetConfig() {
 
 /* 1. Outer container — match .page-sidebar chrome exactly */
 :deep(#filterSidebar),
-:deep(#sbpFilterSidebar) {
+:deep(#sbpFilterSidebar),
+:deep(#csSidebar) {
   top: 81px;
   padding: 0;        /* remove the 14px 10px 0 default; groups own their spacing */
   border-radius: var(--radius-lg);
