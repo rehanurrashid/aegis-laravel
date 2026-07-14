@@ -92,6 +92,28 @@
       <!-- ═══ BUILD PANE ═══ -->
       <div>
 
+        <!-- Sign CTA (unsigned only) -->
+        <div v-if="plan && !plan.signed_at" class="sign-cta">
+          <div class="alert alert-warning">
+            <AegisIcon name="alert-triangle" :size="16" />
+            <div>By signing, you confirm this plan is accurate and authorize your stewards to act as described when a critical incident occurs.</div>
+          </div>
+          <div v-if="!canSign && signBlockedReason" class="alert alert-info sign-cta-gap">
+            <AegisIcon name="info" :size="16" />
+            <div>{{ signBlockedReason }}</div>
+          </div>
+          <div class="sign-cta-actions">
+            <button type="button" class="btn btn-outline" @click="showAttestModal = true">
+              <AegisIcon name="check-circle" :size="13" /> Attest Vault
+            </button>
+            <button type="button" class="btn btn-primary" :disabled="!canSign"
+              :data-tooltip="!canSign ? signBlockedReason : undefined"
+              @click="showSignModal = true">
+              <AegisIcon name="edit" :size="13" /> Finalize &amp; Sign
+            </button>
+          </div>
+        </div>
+
         <!-- Team row -->
         <div class="section-head">
           <div>
@@ -246,28 +268,6 @@
             </div>
           </div>
         </AegisCard>
-
-        <!-- Sign CTA (unsigned only) -->
-        <div v-if="plan && !plan.signed_at" style="margin-top:22px;padding:22px 24px 20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)">
-          <div class="alert alert-warning" style="margin-bottom:16px">
-            <AegisIcon name="alert-triangle" :size="16" />
-            <div>By signing, you confirm this plan is accurate and authorize your stewards to act as described when a critical incident occurs.</div>
-          </div>
-          <div v-if="!canSign && signBlockedReason" class="alert alert-info" style="margin-bottom:12px">
-            <AegisIcon name="info" :size="16" />
-            <div>{{ signBlockedReason }}</div>
-          </div>
-          <div style="display:flex;justify-content:flex-end;gap:10px">
-            <button type="button" class="btn btn-outline" @click="showAttestModal = true">
-              <AegisIcon name="check-circle" :size="13" /> Attest Vault
-            </button>
-            <button type="button" class="btn btn-primary" :disabled="!canSign"
-              :data-tooltip="!canSign ? signBlockedReason : undefined"
-              @click="showSignModal = true">
-              <AegisIcon name="edit" :size="13" /> Finalize &amp; Sign
-            </button>
-          </div>
-        </div>
 
       </div><!-- /build pane -->
 
@@ -543,6 +543,12 @@ function formatDate(iso) {
 .signed-meta-label { font-size: 10px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: var(--text-3); margin-bottom: 4px; }
 .signed-meta-value { font-family: var(--font-serif); font-size: 16px; font-weight: 600; color: var(--text); }
 
+
+/* Sign CTA */
+.sign-cta { margin-bottom: 22px; padding: 22px 24px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.sign-cta .alert { margin-bottom: 16px; }
+.sign-cta-gap { margin-bottom: 12px; }
+.sign-cta-actions { display: flex; justify-content: flex-end; gap: 10px; }
 
 /* Spin */
 @keyframes spin { to { transform: rotate(360deg); } }
