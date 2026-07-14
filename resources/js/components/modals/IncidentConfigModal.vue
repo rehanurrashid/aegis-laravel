@@ -15,7 +15,9 @@
             <span v-else>Always-on incident type.</span>
           </div>
         </div>
-        <AegisToggle :model-value="isActive" @update:model-value="handleActiveToggle" />
+        <span :data-tooltip="!incidentType?.is_optin ? 'This incident type is always required and cannot be disabled' : undefined">
+          <AegisToggle :model-value="isActive" :disabled="!incidentType?.is_optin" @update:model-value="handleActiveToggle" />
+        </span>
       </div>
     </div>
 

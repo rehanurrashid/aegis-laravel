@@ -176,10 +176,13 @@
 
             <!-- Toggle -->
             <div style="display:flex;justify-content:center">
-              <AegisToggle
-                :model-value="isEnabled(type.value)"
-                @update:model-value="(val) => handleToggle(type, val)"
-              />
+              <span :data-tooltip="!type.is_optin ? 'This incident type is always required and cannot be disabled' : undefined">
+                <AegisToggle
+                  :model-value="isEnabled(type.value)"
+                  :disabled="!type.is_optin && isEnabled(type.value)"
+                  @update:model-value="(val) => handleToggle(type, val)"
+                />
+              </span>
             </div>
 
             <!-- Docs -->

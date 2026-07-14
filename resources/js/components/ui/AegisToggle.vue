@@ -49,6 +49,8 @@ defineEmits(['update:modelValue'])
   padding: 10px 0;
 }
 .aegis-toggle-row.toggle--disabled { opacity: 0.55; pointer-events: none; }
+/* When disabled but ON — render gold so it reads as "locked ON" not "off" */
+.aegis-toggle-row.toggle--disabled .toggle-input:checked + .toggle-slider { background: var(--gold-dark); opacity: 1; }
 .toggle-label-title { display: block; }
 .toggle-label-desc { display: block; margin-top: 2px; }
 </style>
