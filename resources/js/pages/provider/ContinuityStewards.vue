@@ -858,16 +858,20 @@ function saveNotifyPrefs() {
       <div class="list-group" style="margin-bottom:16px;">
         <div v-for="inc in alwaysActiveIncidents" :key="inc.key" class="list-group-item" style="gap:14px;">
           <span style="flex:1;font-size:13px;font-weight:600;color:var(--text);">{{ inc.label }}</span>
-          <span style="font-size:12px;color:var(--text-3);white-space:nowrap;">Require verification</span>
-          <button type="button" class="toggle" :class="{ on: addForm.incidentVerify[inc.key] }" :aria-pressed="String(!!addForm.incidentVerify[inc.key])" @click="addForm.incidentVerify[inc.key] = !addForm.incidentVerify[inc.key]"></button>
+          <span style="font-size:12px;color:var(--text-4);white-space:nowrap;">Always active</span>
+          <button type="button" class="toggle on" disabled aria-pressed="true" style="opacity:0.45;cursor:not-allowed;"></button>
         </div>
       </div>
       <div class="modal-section-label">Opt-In Incidents</div>
       <div class="list-group">
         <div v-for="inc in optInIncidents" :key="inc.key" class="list-group-item" style="gap:14px;">
-          <span style="flex:1;font-size:13px;color:var(--text);" :style="addForm.incidentActive[inc.key] ? 'font-weight:600;' : 'color:var(--text-3);'">{{ inc.label }}</span>
-          <span style="font-size:12px;color:var(--text-3);white-space:nowrap;">Require verification</span>
-          <button type="button" class="toggle" :class="{ on: addForm.incidentVerify[inc.key] }" :aria-pressed="String(!!addForm.incidentVerify[inc.key])" :disabled="!addForm.incidentActive[inc.key]" @click="addForm.incidentVerify[inc.key] = !addForm.incidentVerify[inc.key]" style="flex-shrink:0;"></button>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;" :style="addForm.incidentActive[inc.key] ? 'font-weight:600;color:var(--text);' : 'color:var(--text-3);'">{{ inc.label }}</div>
+            <div v-if="addForm.incidentActive[inc.key]" style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+              <input type="checkbox" :id="'verify_' + inc.key" v-model="addForm.incidentVerify[inc.key]" style="accent-color:var(--gold-dark);width:14px;height:14px;" />
+              <label :for="'verify_' + inc.key" style="font-size:12px;color:var(--text-3);cursor:pointer;margin:0;">Require verification</label>
+            </div>
+          </div>
           <button type="button" class="toggle" :class="{ on: addForm.incidentActive[inc.key] }" :aria-pressed="String(!!addForm.incidentActive[inc.key])" @click="addForm.incidentActive[inc.key] = !addForm.incidentActive[inc.key]; if (!addForm.incidentActive[inc.key]) addForm.incidentVerify[inc.key] = false" style="flex-shrink:0;"></button>
         </div>
       </div>
@@ -943,8 +947,8 @@ function saveNotifyPrefs() {
         :style="signed ? 'border-color:var(--green);background:var(--green-light,#f0fdf4);' : ''"
         @click="signed = !signed"
       >
-        <div class="upload-zone-icon">
-          <AegisIcon v-if="signed" name="check-circle" :size="20" style="color:var(--green);" />
+        <div class="upload-zone-icon" :style="signed ? 'background:var(--green);border-radius:var(--radius-full);padding:6px;' : ''">
+          <AegisIcon v-if="signed" name="check-circle" :size="20" style="color:#fff;" />
           <AegisIcon v-else name="pencil" :size="20" />
         </div>
         <div class="upload-zone-title" :style="signed ? 'color:var(--green);' : ''">
