@@ -105,9 +105,9 @@ class ContinuityPlanController extends Controller
                         'id'                => $c->id,
                         'incident_type'     => $c->incident_type?->value ?? $c->incident_type,
                         'is_active'         => (bool) $c->is_active,
-                        'docs_required'     => $c->docs_required ?? [],
-                        'authorized_ss_ids' => $c->authorized_ss_ids ?? [],
-                        'authorized_cs_ids' => $c->authorized_cs_ids ?? [],
+                        'docs_required'     => $this->safeArray($c->docs_required),
+                        'authorized_ss_ids' => $this->safeArray($c->authorized_ss_ids),
+                        'authorized_cs_ids' => $this->safeArray($c->authorized_cs_ids),
                     ])
                 : [],
             'stewards'        => $stewards,
@@ -280,6 +280,23 @@ class ContinuityPlanController extends Controller
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /**
+     * Safely decode a value that may be an array (Eloquent cast),
+     * a JSON string (legacy double-encode bug), or null.
+     */
+    private function safeArray(mixed $val): array
+    {
+        if (is_array($val)) return $val;
+        if (is_string($val) && $val !== '') {
+            $decoded = json_decode($val, true);
+            if (is_array($decoded)) return $decoded;
+            // Double-encoded: decode again
+            $decoded2 = json_decode($decoded ?? '', true);
+            if (is_array($decoded2)) return $decoded2;
+        }
+        return [];
+    }
 
     private function initials(?string $name): string
     {

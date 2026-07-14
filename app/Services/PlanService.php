@@ -94,8 +94,8 @@ class PlanService
                 'is_optin'              => $config['is_optin'] ?? 0,
                 'docs_required'         => $config['docs_required'] ?? null,
                 'docs_required_other'   => $config['docs_required_other'] ?? null,
-                'authorized_ss_ids'     => isset($config['authorized_ss_ids']) ? json_encode($config['authorized_ss_ids']) : null,
-                'authorized_cs_ids'     => isset($config['authorized_cs_ids']) ? json_encode($config['authorized_cs_ids']) : null,
+                'authorized_ss_ids'     => $config['authorized_ss_ids'] ?? null,
+                'authorized_cs_ids'     => $config['authorized_cs_ids'] ?? null,
             ]
         );
     }

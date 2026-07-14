@@ -202,22 +202,32 @@ let _keyCounter = 0
 function withKey(t) { return { ...t, _key: t.id ?? ('new_' + ++_keyCounter) } }
 
 // Seed all local state when modal opens or incidentType changes
-watch(() => [props.incidentType?.value, props.modelValue], () => {
-  if (!props.modelValue) return
+watch([() => props.incidentType?.value, () => props.modelValue], ([_type, open], [_prevType, prevOpen]) => {
+  // Re-seed on open (false→true) OR when switching incident types while open
+  if (!open) return
   activeTab.value    = 'ss'
   isActive.value     = !!(props.config?.is_active)
-  selectedDocs.value = props.config?.docs_required ?? []
-  authSsIds.value    = props.config?.authorized_ss_ids ?? []
-  authCsIds.value    = props.config?.authorized_cs_ids ?? []
+  selectedDocs.value = (props.config?.docs_required ?? []).slice()
+  authSsIds.value    = (props.config?.authorized_ss_ids ?? []).slice()
+  authCsIds.value    = (props.config?.authorized_cs_ids ?? []).slice()
   ssTasks.value = props.tasks.filter(t => t.assigned_to === 'support_steward').map(withKey)
   csTasks.value = props.tasks.filter(t => t.assigned_to === 'continuity_steward').map(withKey)
   nextTick(() => { initDrag('ss'); initDrag('cs') })
 }, { immediate: true })
 
-// Keep isActive in sync when parent prop refreshes (e.g. grid toggle while modal is open)
+// Keep isActive in sync when parent prop refreshes while modal is open
 watch(() => props.config?.is_active, (val) => {
   if (props.modelValue) isActive.value = !!(val)
 })
+
+// Keep docs/stewards in sync with parent prop while modal is open (e.g. after server round-trip)
+watch(() => props.config, (cfg) => {
+  if (!props.modelValue || !cfg) return
+  isActive.value     = !!(cfg.is_active)
+  selectedDocs.value = (cfg.docs_required ?? []).slice()
+  authSsIds.value    = (cfg.authorized_ss_ids ?? []).slice()
+  authCsIds.value    = (cfg.authorized_cs_ids ?? []).slice()
+}, { deep: true })
 
 // Immediately POST when enable toggle is flipped inside the modal
 function handleActiveToggle(val) {
