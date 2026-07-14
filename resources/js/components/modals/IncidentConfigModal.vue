@@ -205,10 +205,7 @@ const newCsTask = ref(''); const newCsTimeline = ref('')
 let _keyCounter = 0
 function withKey(t) { return { ...t, _key: t.id ?? ('new_' + ++_keyCounter) } }
 
-// Seed all local state when modal opens or incidentType changes
-watch([() => props.incidentType?.value, () => props.modelValue], ([_type, open], [_prevType, prevOpen]) => {
-  // Re-seed on open (false→true) OR when switching incident types while open
-  if (!open) return
+function seedFromProps() {
   activeTab.value    = 'ss'
   isActive.value     = !!(props.config?.is_active)
   selectedDocs.value = (props.config?.docs_required ?? []).slice()
@@ -217,24 +214,22 @@ watch([() => props.incidentType?.value, () => props.modelValue], ([_type, open],
   ssTasks.value = props.tasks.filter(t => t.assigned_to === 'support_steward').map(withKey)
   csTasks.value = props.tasks.filter(t => t.assigned_to === 'continuity_steward').map(withKey)
   nextTick(() => { initDrag('ss'); initDrag('cs') })
-}, { immediate: true })
+}
 
-// Keep isActive in sync when parent prop refreshes while modal is open
+// Re-seed whenever modal opens (modelValue false→true) or switches incident type
+watch(() => props.modelValue, (open) => { if (open) seedFromProps() }, { immediate: true })
+watch(() => props.incidentType?.value, () => { if (props.modelValue) seedFromProps() })
+
+// Keep isActive in sync if parent localConfigs changes while modal is open
+// (e.g. grid toggle fired while modal was already open)
 watch(() => props.config?.is_active, (val) => {
   if (props.modelValue) isActive.value = !!(val)
 })
 
-// Keep docs/stewards in sync with parent prop while modal is open (e.g. after server round-trip)
-watch(() => props.config, (cfg) => {
-  if (!props.modelValue || !cfg) return
-  isActive.value     = !!(cfg.is_active)
-  selectedDocs.value = (cfg.docs_required ?? []).slice()
-  authSsIds.value    = (cfg.authorized_ss_ids ?? []).slice()
-  authCsIds.value    = (cfg.authorized_cs_ids ?? []).slice()
-}, { deep: true })
-
 // Immediately POST when enable toggle is flipped inside the modal
 function handleActiveToggle(val) {
+  // Guard: always-on types cannot be disabled
+  if (!props.incidentType?.is_optin && !val) return
   isActive.value = val
   if (!props.incidentType) return
   // Optimistically notify parent so grid syncs immediately

@@ -178,7 +178,6 @@
             <div style="display:flex;justify-content:center">
               <AegisToggle
                 :model-value="isEnabled(type.value)"
-                :disabled="!type.is_optin && isEnabled(type.value)"
                 @update:model-value="(val) => handleToggle(type, val)"
               />
             </div>
@@ -454,6 +453,8 @@ function patchLocalConfig(incidentType, patch) {
 }
 
 function handleToggle(type, val) {
+  // Guard: always-on types cannot be disabled
+  if (!type.is_optin && !val) return
   // Optimistic update — grid reflects change immediately
   patchLocalConfig(type.value, { is_active: val })
   router.post(route('provider.plan.incident-config'), {
