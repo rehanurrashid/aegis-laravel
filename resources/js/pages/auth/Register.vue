@@ -397,18 +397,29 @@
 
             <!-- Invitation code — Invited CS only -->
             <div v-if="form.role === 'continuity_steward' && form.cs_path === 'invited'" class="form-group">
-              <label class="form-label" for="invitation_code">Invitation Code</label>
-              <input
-                id="invitation_code"
-                v-model="form.invitation_code"
-                type="text"
-                class="form-input"
-                :class="{ 'is-error': fieldError('invitation_code') }"
-                placeholder="Enter the code from your practitioner's invitation email"
-                @blur="v$.invitation_code.$touch()"
-              />
+              <label class="form-label" for="invitation_code">Invitation Code <span style="color:var(--red-dark);">*</span></label>
+              <div style="position:relative;">
+                <input
+                  id="invitation_code"
+                  v-model="form.invitation_code"
+                  type="text"
+                  class="form-input"
+                  :class="{ 'is-error': fieldError('invitation_code') }"
+                  placeholder="e.g. ps_abc123def456"
+                  autocomplete="off"
+                  :style="form.invitation_code ? 'padding-right:36px;border-color:var(--green);' : ''"
+                  @blur="v$.invitation_code.$touch()"
+                />
+                <span v-if="form.invitation_code" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--green);font-size:16px;pointer-events:none;">✓</span>
+              </div>
+              <div v-if="form.invitation_code" style="font-size:11px;color:var(--green);margin-top:4px;">
+                ✓ Invitation code applied from your email link
+              </div>
               <div v-if="fieldError('invitation_code')" class="form-error">{{ fieldError('invitation_code') }}</div>
-              <div class="form-hint">Don't have a code? Ask your practitioner to invite you from their Support Stewards or Continuity Stewards page.</div>
+              <div class="form-hint" style="margin-top:6px;">
+                Your code was sent by your practitioner via email. If you don't have one,
+                ask your practitioner to invite you from their <strong>Continuity Stewards</strong> page.
+              </div>
             </div>
 
             <label class="auth-remember">
@@ -442,7 +453,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { Head, useForm, router } from '@inertiajs/vue3'
 import { useVuelidate } from '@vuelidate/core'
 import { required, email, minLength, maxLength, sameAs, requiredIf, helpers } from '@vuelidate/validators'
@@ -459,6 +470,24 @@ const emailOptIn   = ref(false)
 const year         = new Date().getFullYear()
 
 const reqs = reactive({ length: false, uppercase: false, number: false, special: false })
+
+// ── Prefill from invite URL: /register?role=cs&path=invited&code=ps_xxx ──────
+onMounted(() => {
+  const params = new URLSearchParams(window.location.search)
+  const role   = params.get('role')
+  const path   = params.get('path')
+  const code   = params.get('code')
+
+  if (role === 'cs' || role === 'continuity_steward') {
+    form.role    = 'continuity_steward'
+    form.cs_path = path === 'invited' ? 'invited' : 'invited'
+    if (code) {
+      form.invitation_code = code
+      // Skip straight to Step 4 (account creation) — steps: 0=role,1=details,2=use-cases,3=account
+      currentStep.value = 3
+    }
+  }
+})
 
 const form = useForm({
   display_name:          '',

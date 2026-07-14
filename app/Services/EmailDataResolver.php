@@ -213,12 +213,11 @@ class EmailDataResolver
                 $practitioner = User::find($ps->plan?->practitioner_id);
                 $stewardUser  = $ps->steward;
 
-                // Determine invite URL — existing verified users go to their portal, stubs go to onboarding
+                // Determine invite URL — existing verified users go to their portal, new users go to register prefilled
                 $isVerified  = (bool) ($stewardUser?->verified ?? false);
-                $portalPath  = $ps->steward_category === 'support_steward' ? 'support-steward' : 'continuity-steward';
                 $inviteUrl   = $isVerified
                     ? $base . '/continuity-steward/dashboard'
-                    : $base . '/onboarding?role=cs&invited=true&token=' . ($ps->id ?? '');
+                    : $base . '/register?role=cs&path=invited&code=' . urlencode($ps->id);
 
                 $expiresAt = $ps->expires_at;
                 $expiresDays = $expiresAt
@@ -229,6 +228,7 @@ class EmailDataResolver
                     'cs_name'           => $stewardUser?->display_name ?? '',
                     'practitioner_name' => $practitioner?->display_name ?? 'A healthcare practitioner',
                     'invite_url'        => $inviteUrl,
+                    'invitation_code'   => $ps->id,
                     'portal_url'        => $base . '/continuity-steward/dashboard',
                     'review_url'        => $base . '/continuity-steward/dashboard',
                     'plan_url'          => $base . '/provider/plan',

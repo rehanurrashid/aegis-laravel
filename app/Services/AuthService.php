@@ -13,6 +13,7 @@ use App\Events\Auth\UserLoggedIn;
 use App\Events\Auth\UserRegistered;
 use App\Events\Admin\UserLocked;
 use App\Models\PasswordResetToken;
+use App\Models\PlanSteward;
 use App\Models\User;
 use App\Models\UserKnownDevice;
 use App\Models\UserMeta;
@@ -100,6 +101,30 @@ class AuthService
 
         // Fire event AFTER transaction commits so listeners can safely query
         event(new UserRegistered($user));
+
+        // ── Link invited CS to their plan_steward record ──────────────────────
+        $invitationCode = $data['invitation_code'] ?? null;
+        if ($invitationCode && ($data['cs_path'] ?? null) === 'invited') {
+            $ps = PlanSteward::where('id', $invitationCode)
+                ->whereIn('status', ['invited', 'pending'])
+                ->first();
+            if ($ps) {
+                // Replace the stub user (if any) with the real newly-registered user
+                $oldStubId = $ps->steward_id;
+                $ps->update([
+                    'steward_id' => $user->id,
+                    'status'     => 'invited', // stays invited until they explicitly accept
+                ]);
+                // Clean up orphaned stub user if it was an unverified placeholder
+                if ($oldStubId && $oldStubId !== $user->id) {
+                    $stub = User::find($oldStubId);
+                    if ($stub && !$stub->verified && $stub->email !== $user->email) {
+                        // Only delete if it was a temporary stub with no other data
+                        $stub->delete();
+                    }
+                }
+            }
+        }
 
         // Return a fresh DB-hydrated instance so all enum casts resolve correctly
         return $user->fresh();

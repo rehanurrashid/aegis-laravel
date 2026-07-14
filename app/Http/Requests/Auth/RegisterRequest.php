@@ -44,12 +44,18 @@ class RegisterRequest extends FormRequest
             ],
 
             // ── Invitation code (invited CS only) ─────────────────────────────
-            'invitation_code' => [
+            'invitation_code' => array_filter([
                 Rule::requiredIf($role === 'continuity_steward' && $csPath === 'invited'),
                 'nullable',
                 'string',
                 'max:64',
-            ],
+                // Validate code exists and is still valid
+                ($role === 'continuity_steward' && $csPath === 'invited')
+                    ? \Illuminate\Validation\Rule::exists('plan_stewards', 'id')
+                        ->whereIn('status', ['invited', 'pending'])
+                        ->where('expires_at', '>=', now())
+                    : null,
+            ]),
 
             // ── Practitioner tier selection (shown at plan step post-verify) ───
             // Also accepted at registration for demo/fast-path flows.
@@ -72,6 +78,7 @@ class RegisterRequest extends FormRequest
             'bp_type.required'        => 'Please select your business type (Freelancer or Agency).',
             'cs_path.required'        => 'Please select your Continuity Steward pathway.',
             'invitation_code.required'=> 'An invitation code is required for invited Continuity Stewards.',
+            'invitation_code.exists'  => 'This invitation code is invalid or has expired. Please ask your practitioner to resend your invitation.',
         ];
     }
 }
