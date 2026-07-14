@@ -62,14 +62,9 @@ class ContinuityPlanPolicy
             && in_array($status, [PlanStatus::Draft, PlanStatus::PendingReview], true);
     }
 
-    public function attest(User $user, ContinuityPlan $plan): bool
+    public function attestVault(User $user, ContinuityPlan $plan): bool
     {
-        $status = $plan->status instanceof PlanStatus
-            ? $plan->status
-            : PlanStatus::tryFrom((string) $plan->status);
-
-        return $user->id === $plan->practitioner_id
-            && $status === PlanStatus::Active;
+        return $user->id === $plan->practitioner_id;
     }
 
     public function delete(User $user, ContinuityPlan $plan): bool
