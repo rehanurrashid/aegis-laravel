@@ -32,13 +32,15 @@
 
     <!-- STAT CHIPS -->
     <div class="stat-chips-row">
-      <AegisStatChip
-        icon="shield"
-        :value="`${completedSections}/7`"
-        label="Sections complete"
-        :bg-color="completedSections === 7 ? 'var(--icon-bg-green)' : 'var(--icon-bg-gold)'"
-        :icon-color="completedSections === 7 ? 'var(--green-dark)' : 'var(--gold-dark)'"
-      />
+      <button type="button" class="stat-chip-btn" data-tooltip="View plan readiness" @click="showSectionsModal = true">
+        <AegisStatChip
+          icon="shield"
+          :value="`${completedSections}/7`"
+          label="Sections complete"
+          :bg-color="completedSections === 7 ? 'var(--icon-bg-green)' : 'var(--icon-bg-gold)'"
+          :icon-color="completedSections === 7 ? 'var(--green-dark)' : 'var(--gold-dark)'"
+        />
+      </button>
       <AegisStatChip icon="users" :value="csCount" label="Continuity Stewards" />
       <AegisStatChip icon="user-check" :value="ssCount" label="Support Stewards" />
       <AegisStatChip
@@ -281,6 +283,41 @@
 
     <AttestPlanModal v-model="showAttestModal" />
 
+    <!-- Plan Readiness Modal -->
+    <AegisModal v-model="showSectionsModal" size="md" title="Plan Readiness">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div v-for="sec in planSections.slice(0,7)" :key="sec.key"
+          style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm)">
+          <!-- Status icon -->
+          <span :style="`width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;background:${sec.complete ? 'var(--green-dark)' : 'var(--icon-bg-gold)'};color:${sec.complete ? '#fff' : 'var(--gold-dark)'}`">
+            <AegisIcon v-if="sec.complete" name="check" :size="11" />
+            <span v-else style="font-size:10px;font-weight:700;font-family:var(--font-serif)">!</span>
+          </span>
+          <!-- Title -->
+          <span style="flex:1;font-size:13px;font-weight:600;color:var(--text)">{{ sec.title }}</span>
+          <!-- Status badge -->
+          <AegisBadge v-if="sec.complete" label="Complete" variant="green" />
+          <AegisBadge v-else-if="sec.blocks_signing" label="Required" variant="red" />
+          <AegisBadge v-else label="Recommended" variant="gold" />
+          <!-- Warning note -->
+          <span v-if="sec.warning && !sec.complete" style="font-size:11px;color:var(--text-3);font-style:italic;max-width:120px;text-align:right;line-height:1.3">{{ sec.warning }}</span>
+          <!-- Arrow link -->
+          <a v-if="sec.href" :href="sec.href" style="color:var(--text-4);flex-shrink:0" data-tooltip="Go to section" @click="showSectionsModal = false">
+            <AegisIcon name="arrow-right" :size="14" />
+          </a>
+        </div>
+      </div>
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="showSectionsModal = false">Close</button>
+        <button type="button" class="btn btn-primary"
+          :disabled="!canSign"
+          :data-tooltip="!canSign ? signBlockedReason : undefined"
+          @click="showSectionsModal = false; showSignModal = true">
+          <AegisIcon name="edit" :size="13" /> Finalize &amp; Sign
+        </button>
+      </template>
+    </AegisModal>
+
     <IncidentConfigModal v-model="showIncidentConfig"
       :incident-type="activeIncidentType"
       :config="activeIncidentType ? getConfig(activeIncidentType.value) : null"
@@ -381,6 +418,7 @@ const props = defineProps({
 
 // ── State ──────────────────────────────────────────────────────────────────────
 const showSignModal      = ref(false)
+const showSectionsModal  = ref(false)
 const showAttestModal    = ref(false)
 const showIncidentConfig = ref(false)
 const showAnnualReview   = ref(false)
@@ -549,6 +587,10 @@ function formatDate(iso) {
 .sign-cta .alert { margin-bottom: 16px; }
 .sign-cta-gap { margin-bottom: 12px; }
 .sign-cta-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+/* Clickable stat chip */
+.stat-chip-btn { background: none; border: none; padding: 0; cursor: pointer; display: block; }
+.stat-chip-btn:hover { opacity: 0.85; }
 
 /* Spin */
 @keyframes spin { to { transform: rotate(360deg); } }
