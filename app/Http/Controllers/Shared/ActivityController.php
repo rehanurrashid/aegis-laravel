@@ -35,7 +35,10 @@ class ActivityController extends Controller
         $filteredQuery = ActivityEvent::where('user_id', $user->id)
             ->with('actor:id,display_name,role')
             ->orderByDesc('created_at');
-        if (!empty($filters['module']))     $filteredQuery->where('module', $filters['module']);
+        if (!empty($filters['module'])) {
+            $moduleVal = $filters['module'] === 'continuity_stewards' ? 'steward' : $filters['module'];
+            $filteredQuery->where('module', $moduleVal);
+        }
         if (!empty($filters['severity']))   $filteredQuery->where('severity', $filters['severity']);
         // 'services' is a module-based filter, not an event_type filter
         if (!empty($filters['event_type']) && $filters['event_type'] !== 'services') {
@@ -90,6 +93,7 @@ class ActivityController extends Controller
             ['key' => '',             'label' => 'All',           'icon' => 'inbox'],
             ['key' => 'incident',     'label' => 'Incidents',     'icon' => 'alert-triangle'],
             ['key' => 'plan',         'label' => 'Continuity Plan','icon' => 'shield'],
+            ['key' => 'continuity_stewards', 'label' => 'Continuity Stewards', 'icon' => 'users'],
             ['key' => 'message',      'label' => 'Messages',      'icon' => 'message-square'],
             ['key' => 'support',      'label' => 'Support',       'icon' => 'life-buoy'],
             ['key' => 'task',         'label' => 'Tasks',         'icon' => 'check-circle'],
@@ -136,6 +140,8 @@ class ActivityController extends Controller
                 $cat['count'] = (int) (clone $baseQuery)->where('module', 'services')->count();
             } elseif ($cat['key'] === 'plan') {
                 $cat['count'] = (int) (clone $baseQuery)->where('module', 'plan')->count();
+            } elseif ($cat['key'] === 'continuity_stewards') {
+                $cat['count'] = (int) (clone $baseQuery)->where('module', 'steward')->count();
             } else {
                 $cat['count'] = (int) ($catCountsRaw[$cat['key']] ?? 0);
             }

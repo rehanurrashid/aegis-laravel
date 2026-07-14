@@ -352,7 +352,7 @@ class StewardService
 
         $current = PlanSteward::where('plan_id', $plan->id)
             ->where('steward_category', $stewardType)
-            ->whereIn('status', ['active', 'pending'])
+            ->where('status', 'active')
             ->count();
 
         if ($stewardType === 'continuity_steward') {

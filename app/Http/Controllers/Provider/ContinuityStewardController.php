@@ -60,9 +60,10 @@ class ContinuityStewardController extends Controller
                         ->whereIn('status', ['sent', 'overdue', 'disputed'])
                         ->exists(),
                     'steward' => $s->steward ? $s->steward->toArray() : null,
-                    'steward_id' => $s->steward_id,
-                    'email'      => $s->email,
+                    'steward_id'   => $s->steward_id,
+                    'email'        => $s->email,
                     'display_name' => $s->display_name,
+                    'review_overdue' => $s->review_due_at && $s->review_due_at->isPast(),
                 ])
                 ->values()
             : [];
@@ -117,8 +118,10 @@ class ContinuityStewardController extends Controller
             'tierLimits'         => $tierLimits,
             'tier'               => $tier,
             'csMax'              => (int) ($tierLimits['max_continuity_stewards'] ?? 2),
-            'csCount'            => count($stewards),
+            'csCount'            => collect($stewards)->where('status', 'active')->count(),
             'incidentConfigs'    => $incidentConfigs,
+            'annualReviewDue'    => $plan?->annual_review_date?->toDateString(),
+            'notifyPrefs'        => [],
         ]);
     }
 

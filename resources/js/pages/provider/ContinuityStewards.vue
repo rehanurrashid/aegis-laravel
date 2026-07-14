@@ -48,7 +48,6 @@ const modals = ref({
   resend:         false,
   cancelInvite:   false,
   snoozeReview:   false,
-  activate:       false,
   upgrade:        false,
   authMatrix:     false,
 })
@@ -302,23 +301,7 @@ function submitCancelInvite() {
   })
 }
 
-// ── Activate continuity support ────────────────────────────────────────────────
-const activateForm = useForm({ incident_type: '', activated_by: '', context: '', confirm: '' })
-const busyActivate = ref(false)
 
-function submitActivate() {
-  if (activateForm.confirm !== 'ACTIVATE CONTINUITY SUPPORT') {
-    toast.error('Type the exact phrase to confirm.')
-    return
-  }
-  busyActivate.value = true
-  activateForm.post(route('provider.incident.activate'), {
-    preserveScroll: true,
-    onSuccess: () => { modals.value.activate = false; toast.success('Continuity support activated. Stewards notified.') },
-    onError: () => toast.error('Failed to activate.'),
-    onFinish: () => { busyActivate.value = false },
-  })
-}
 
 // ── Annual review ──────────────────────────────────────────────────────────────
 const reviewForm = useForm({ notes: '' })
@@ -356,12 +339,9 @@ function toggleNotify(key) {
       quiet
     >
       <template #actions>
-        <a :href="route('provider.activity')" class="btn-hero-ghost is-on-light" style="display:inline-flex;align-items:center;gap:6px;">
+        <a :href="route('provider.activity') + '?module=continuity_stewards'" class="btn-hero-ghost is-on-light" style="display:inline-flex;align-items:center;gap:6px;">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
-        <button type="button" class="btn-hero-solid" style="background:var(--red-dark);border-color:var(--red-dark);color:#fff;display:inline-flex;align-items:center;gap:6px;" @click="modals.activate = true">
-          <AegisIcon name="alert-triangle" :size="14" /> Activate Continuity Support
-        </button>
         <button type="button" class="btn-hero-solid is-on-light" style="display:inline-flex;align-items:center;gap:6px;" @click="handleAddCS">
           <AegisIcon name="plus" :size="14" /> Add Continuity Steward
         </button>
@@ -1044,45 +1024,6 @@ function toggleNotify(key) {
       </template>
     </AegisModal>
 
-    <!-- ACTIVATE CONTINUITY SUPPORT MODAL -->
-    <AegisModal v-model="modals.activate" title="Activate Continuity Support" size="lg" @close="modals.activate=false;activateForm.reset()">
-      <div style="background:var(--red-dark);color:#fff;margin:-1px -1px 0;border-radius:var(--radius) var(--radius) 0 0;padding:16px 22px;">
-        <div style="font-family:var(--font-serif);font-size:18px;font-weight:700;">Activate Continuity Support</div>
-      </div>
-      <div class="alert alert-danger" style="margin-top:16px;">
-        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="14" /></div>
-        <div class="alert-content"><strong>This action initiates the full continuity support process.</strong> All designated Continuity Stewards will be notified, vault access will unlock per your Continuity Plan, and the process will begin. This cannot easily be undone.</div>
-      </div>
-      <div class="form-group" style="margin-top:14px;">
-        <label class="form-label">Incident Type <span style="color:var(--red-dark);">*</span></label>
-        <select v-model="activateForm.incident_type" class="form-control">
-          <option value="">— Select Incident Type —</option>
-          <option>Death</option>
-          <option>Missing Person</option>
-          <option>Short-Term Incapacitation</option>
-          <option>Long-Term Incapacitation</option>
-          <option>Natural Disaster</option>
-          <option>Detainment</option>
-          <option>Geopolitical or Conflict-Related Events</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Additional Context</label>
-        <textarea v-model="activateForm.context" class="form-control" placeholder="Describe the situation to help your Continuity Stewards understand what happened and what to do first…"></textarea>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Confirm by typing "ACTIVATE CONTINUITY SUPPORT"</label>
-        <input v-model="activateForm.confirm" type="text" class="form-control" placeholder="Type exact phrase to confirm" style="border-color:var(--red);" />
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.activate=false">Cancel — Not a Critical Incident</button>
-        <button type="button" class="btn btn-danger" :disabled="busyActivate || activateForm.confirm !== 'ACTIVATE CONTINUITY SUPPORT'" style="display:inline-flex;align-items:center;gap:6px;" @click="submitActivate">
-          <AegisIcon v-if="busyActivate" name="refresh-cw" :size="13" class="btn-spin" />
-          <AegisIcon v-else name="alert-triangle" :size="13" />
-          {{ busyActivate ? 'Activating…' : 'Activate Continuity Support' }}
-        </button>
-      </template>
-    </AegisModal>
 
     <!-- UPGRADE MODAL -->
     <AegisModal v-model="modals.upgrade" title="Upgrade to Add More CS" size="md" @close="modals.upgrade=false">
