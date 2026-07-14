@@ -38,7 +38,7 @@ class VaultController extends Controller
                     'id'            => $ps->steward_id,
                     'display_name'  => $ps->steward?->display_name ?? 'Unknown',
                     'avatar_initials'=> $ps->steward?->avatar_initials ?? '??',
-                    'role_label'    => ucfirst($ps->role ?? 'primary') . ' ' . ($ps->steward_category === 'continuity_steward' ? 'Continuity Steward' : 'Support Steward'),
+                    'role_label'    => ucfirst(is_object($ps->role) ? $ps->role->value : ($ps->role ?? 'primary')) . ' ' . ($ps->steward_category === 'continuity_steward' ? 'Continuity Steward' : 'Support Steward'),
                     'vault_access'  => $ps->vault_access ?? 'none',
                 ])
                 ->values()

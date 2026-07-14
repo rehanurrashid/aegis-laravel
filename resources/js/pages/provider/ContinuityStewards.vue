@@ -351,6 +351,18 @@ function openAuthSummary(steward) {
       </div>
     </div>
 
+
+    <!-- SERVING AS CS BANNER -->
+    <div v-if="servingAsCSFor.length" class="info-banner info-banner--blue" style="margin-bottom:12px;">
+      <div style="display:flex;align-items:flex-start;gap:9px;">
+        <AegisIcon name="shield-check" :size="15" style="flex-shrink:0;margin-top:2px;color:var(--blue-dark);" />
+        <span>
+          You are also serving as CS for <strong>{{ servingAsCSFor.length }}</strong> provider{{ servingAsCSFor.length !== 1 ? 's' : '' }}.
+          <a :href="route('cs.dashboard')" style="color:var(--gold-dark);font-weight:600;margin-left:4px;">Open CS Portal →</a>
+        </span>
+      </div>
+    </div>
+
     <!-- TABS -->
     <div class="tabs-segmented" style="margin-bottom:14px;">
       <button
@@ -371,16 +383,7 @@ function openAuthSummary(steward) {
         Pending
         <AegisBadge v-if="pendingInvitations.length" :count="pendingInvitations.length" variant="gold" />
       </button>
-      <button
-        v-if="servingAsCSFor.length"
-        class="tab-pill"
-        :class="{ active: activeTab === 'for' }"
-        @click="activeTab = 'for'"
-      >
-        <AegisIcon name="shield-check" :size="12" />
-        I'm CS For
-        <AegisBadge :count="servingAsCSFor.length" />
-      </button>
+
     </div>
 
     <!-- TAB: MY CONTINUITY STEWARDS -->
@@ -535,41 +538,6 @@ function openAuthSummary(steward) {
       </div>
     </div>
 
-    <!-- TAB: I'M CS FOR -->
-    <div v-show="activeTab === 'for'">
-      <div class="info-banner info-banner--blue" style="margin-bottom:14px;">
-        <div style="display:flex;align-items:flex-start;gap:9px;">
-          <AegisIcon name="shield-check" :size="15" style="flex-shrink:0;margin-top:2px;color:var(--blue-dark);" />
-          <div>
-            <div style="font-size:13.5px;font-weight:600;color:var(--blue-dark);margin-bottom:3px;">
-              You are a Continuity Steward for <strong>{{ servingAsCSFor.length }}</strong> provider{{ servingAsCSFor.length !== 1 ? 's' : '' }}.
-            </div>
-            <div style="font-size:12px;color:var(--blue-dark);opacity:.85;line-height:1.5;">
-              Run annual reviews and complete CS tasks from the full CS Portal.
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:10px;">Providers I'm Stewarding</div>
-      <div v-for="p in servingAsCSFor" :key="p.id" class="aegis-card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;margin-bottom:8px;cursor:pointer;" @click="router.visit(route('cs.dashboard'))">
-        <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-          <div
-            style="width:40px;height:40px;border-radius:8px;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;"
-            :style="{ background: avatarColor(p.display_name) }"
-          >{{ initials(p.display_name) }}</div>
-          <div>
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
-              <span style="font-size:13.5px;font-weight:700;color:var(--text);">{{ p.display_name }}</span>
-              <AegisBadge :label="p.role" variant="gold" />
-              <AegisBadge label="Active" variant="green" />
-            </div>
-            <div style="font-size:12px;color:var(--text-4);">{{ p.organization }} · {{ p.location }}</div>
-          </div>
-        </div>
-        <AegisIcon name="arrow-right" :size="14" style="color:var(--text-3);flex-shrink:0;" />
-      </div>
-    </div>
 
     <!-- ═══════════════════════════════════════════════════════════════ MODALS -->
 
@@ -583,7 +551,7 @@ function openAuthSummary(steward) {
       <!-- Step indicators -->
       <div style="display:flex;align-items:center;gap:4px;padding:10px 22px 0;flex-wrap:wrap;">
         <span
-          v-for="(label, i) in ['Find Person', 'Role & Fee', 'Review & Send']"
+          v-for="(label, i) in ['Find Person', 'Role & Fee']"
           :key="i"
           style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;padding:4px 8px;border-radius:99px;"
           :style="designateStep === i + 1
@@ -709,32 +677,12 @@ function openAuthSummary(steward) {
         </div>
       </div>
 
-      <!-- Step 3: Review & Send -->
-      <div v-show="designateStep === 3" style="padding:18px 0 0;">
-        <div style="border:1px solid var(--border);border-radius:8px;padding:16px 18px;background:var(--surface-2);margin-bottom:14px;">
-          <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-4);margin-bottom:10px;">Invitation Summary</div>
-          <div style="display:flex;flex-direction:column;gap:7px;font-size:13px;color:var(--text-2);">
-            <div><strong>To:</strong> {{ designateForm.display_name || designateForm.email }}</div>
-            <div><strong>Email:</strong> {{ designateForm.email }}</div>
-            <div><strong>Role:</strong> {{ designateForm.role === 'primary' ? 'Primary CS' : 'Alternate CS' }}</div>
-            <div v-if="designateForm.fee_cents > 0"><strong>Fee:</strong> {{ formatMoney(designateForm.fee_cents) }} ({{ designateForm.payment_terms?.replace(/_/g, ' ') }})</div>
-            <div v-if="designateForm.auto_charge"><strong>Auto-charge:</strong> Yes</div>
-          </div>
-        </div>
-        <div class="info-banner info-banner--blue">
-          <div style="display:flex;align-items:flex-start;gap:8px;">
-            <AegisIcon name="alert-circle" :size="13" style="flex-shrink:0;margin-top:2px;color:var(--blue-dark);" />
-            <span style="font-size:12px;color:var(--blue-dark);">An engagement agreement will be created automatically when the CS accepts. If a fee is set, they must also complete Stripe Connect onboarding.</span>
-          </div>
-        </div>
-      </div>
-
       <template #footer>
         <button type="button" class="btn btn-outline" @click="designateStep > 1 ? designateStep-- : closeModal('designate')">
           {{ designateStep > 1 ? 'Back' : 'Cancel' }}
         </button>
         <button
-          v-if="designateStep < 3"
+          v-if="designateStep < 2"
           type="button"
           class="btn btn-primary"
           @click="designateStep++"

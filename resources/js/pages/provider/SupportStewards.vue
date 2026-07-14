@@ -77,9 +77,6 @@
         Pending
         <span class="badge-pill">{{ pendingCount }}</span>
       </button>
-      <button class="tab-pill" :class="{ active: activeTab === 'permissions' }" @click="activeTab = 'permissions'">
-        Permissions
-      </button>
       <button
         v-if="servingAsSSFor.length"
         class="tab-pill"
@@ -88,9 +85,6 @@
       >
         I'm a Support Steward For
         <span class="badge-pill">{{ servingAsSSFor.length }}</span>
-      </button>
-      <button class="tab-pill" :class="{ active: activeTab === 'planning' }" @click="activeTab = 'planning'">
-        Planning &amp; Guidance
       </button>
     </div>
 
@@ -131,9 +125,9 @@
             <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
               <button class="btn-icon" data-tooltip="View Agreement" @click="openAgreement(s)"><AegisIcon name="file-text" :size="14" /></button>
               <button class="btn-icon" data-tooltip="Edit" @click="openEdit(s)"><AegisIcon name="pencil" :size="14" /></button>
-              <button class="btn-icon" data-tooltip="Edit Permissions" @click="openEditPerms(s)"><AegisIcon name="lock" :size="14" /></button>
+              <button class="btn-icon" data-tooltip="Permissions" @click="openEditPerms(s)"><AegisIcon name="lock" :size="14" /></button>
               <button class="btn-icon" data-tooltip="Activity Log" @click="openModal('dsrActivityModal')"><AegisIcon name="bar-chart" :size="14" /></button>
-              <button class="btn-icon" data-tooltip="Suspend Access" @click="openSuspend(s)"><AegisIcon name="pause" :size="14" /></button>
+              <button class="btn-icon" data-tooltip="Manage Access" @click="openManageAccess(s)"><AegisIcon name="sliders" :size="14" /></button>
               <button class="btn-icon" data-tooltip="Change Role" @click="openChangeRole(s)"><AegisIcon name="refresh-cw" :size="14" /></button>
               <button class="btn-icon btn-icon-danger" data-tooltip="Remove Support Steward" @click="openRemove(s)"><AegisIcon name="trash" :size="14" /></button>
             </div>
@@ -179,21 +173,6 @@
         <div class="upload-zone-sub">Designate a trusted individual to support coordination during a critical moment</div>
       </div>
 
-      <!-- NOTIFY ME -->
-      <div class="card" style="margin-top:24px">
-        <div class="card-header">
-          <div>
-            <div class="card-title">Notify Me</div>
-            <div class="card-subtitle">Choose when Aegis should let you know about activity involving your Support Stewards.</div>
-          </div>
-        </div>
-        <div class="card-body">
-          <div v-for="pref in notifyPrefs" :key="pref" class="setting-row">
-            <div class="setting-info"><div class="setting-label">{{ pref }}</div></div>
-            <button type="button" class="toggle on" aria-pressed="true" @click="toggleSwitch"></button>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- ═══ TAB: PENDING ═══ -->
@@ -271,46 +250,6 @@
       </div>
     </div>
 
-    <!-- ═══ TAB: PERMISSIONS ═══ -->
-    <div v-show="activeTab === 'permissions'">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-        <p style="font-size:13px;color:var(--text-3);margin:0">What each active Support Steward is authorized to do on your behalf.</p>
-        <button class="btn btn-outline" @click="openEditPerms(stewards[0] ?? null)"><AegisIcon name="lock" :size="13" /> Edit Permissions</button>
-      </div>
-      <AegisEmptyState v-if="!stewards.length && !suspended.length" icon="lock" title="No Active Support Stewards" description="Add a Support Steward to configure their permissions." />
-      <div v-else class="card">
-        <div class="card-header">
-          <div class="card-title">Permission Overview</div>
-          <div class="card-subtitle">Authorized tasks per Support Steward</div>
-        </div>
-        <div class="card-body">
-          <div v-for="s in [...stewards, ...suspended]" :key="s.id" class="perm-row" :class="{ 'is-muted': s.status === 'archived' }">
-            <div class="perm-row-head">
-              <div class="avatar avatar-sm" :class="s.status === 'archived' ? 'avatar-dark' : 'avatar-gold'">{{ initials(s) }}</div>
-              <div class="perm-row-info">
-                <div class="perm-row-id-line">
-                  <span class="perm-row-name">{{ fullName(s) }}</span>
-                  <AegisBadge v-if="s.status === 'archived'" variant="red">Suspended</AegisBadge>
-                  <AegisBadge v-else variant="green">Active</AegisBadge>
-                </div>
-                <div class="perm-row-role">Support Steward</div>
-              </div>
-              <button v-if="s.status === 'archived'" class="btn-icon" data-tooltip="Reinstate" @click="openReinstate(s)"><AegisIcon name="check" :size="14" /></button>
-              <button v-else class="btn-icon" data-tooltip="Edit permissions" @click="openEditPerms(s)"><AegisIcon name="pencil" :size="14" /></button>
-            </div>
-            <div class="perm-row-badges">
-              <AegisBadge v-if="s.status === 'archived' || !s.responsibilities?.length" variant="gray">All Access Paused</AegisBadge>
-              <template v-else>
-                <AegisBadge v-for="(r, i) in normResp(s.responsibilities)" :key="i" :variant="levelBadge(r)">
-                  {{ r.text }}<template v-if="r.level"> &mdash; {{ r.level }}</template>
-                </AegisBadge>
-              </template>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- ═══ TAB: I'M A SS FOR ═══ -->
     <div v-show="activeTab === 'iamdsr'">
       <div class="alert alert-info" style="margin-bottom:20px">
@@ -341,59 +280,6 @@
         </div>
       </div>
     </div>
-
-    <!-- ═══ TAB: PLANNING & GUIDANCE ═══ -->
-    <div v-show="activeTab === 'planning'">
-      <p style="font-size:13px;color:var(--text-3);margin:0 0 16px">Guidance to help your Support Stewards feel prepared — before, during, and after a critical moment.</p>
-      <div class="accordion-item open">
-        <div class="accordion-trigger" @click="$event.currentTarget.parentElement.classList.toggle('open')">
-          <span style="display:flex;align-items:center;gap:10px"><AegisIcon name="clipboard" :size="16" /> <strong>Onboarding &amp; Planning</strong></span>
-          <span class="accordion-caret"><AegisIcon name="chevron-down" :size="14" /></span>
-        </div>
-        <div class="accordion-content">
-          <div style="display:flex;flex-direction:column;gap:10px;padding-top:6px">
-            <div v-for="item in onboardingGuidance" :key="item" style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--text-2)">
-              <span style="color:var(--gold-dark);flex-shrink:0;margin-top:1px"><AegisIcon name="check" :size="14" /></span>
-              <div>{{ item }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="accordion-item">
-        <div class="accordion-trigger" @click="$event.currentTarget.parentElement.classList.toggle('open')">
-          <span style="display:flex;align-items:center;gap:10px"><AegisIcon name="shield" :size="16" /> <strong>Active Critical Moment Guidance</strong></span>
-          <span class="accordion-caret"><AegisIcon name="chevron-down" :size="14" /></span>
-        </div>
-        <div class="accordion-content">
-          <div style="display:flex;flex-direction:column;gap:10px;padding-top:6px">
-            <div v-for="item in activeMomentGuidance" :key="item" style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--text-2)">
-              <span style="color:var(--gold-dark);flex-shrink:0;margin-top:1px"><AegisIcon name="check" :size="14" /></span>
-              <div>{{ item }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="accordion-item">
-        <div class="accordion-trigger" @click="$event.currentTarget.parentElement.classList.toggle('open')">
-          <span style="display:flex;align-items:center;gap:10px"><AegisIcon name="alert-triangle" :size="16" /> <strong>When the Continuity Steward Is Unavailable</strong></span>
-          <span class="accordion-caret"><AegisIcon name="chevron-down" :size="14" /></span>
-        </div>
-        <div class="accordion-content">
-          <div style="display:flex;flex-direction:column;gap:10px;padding-top:6px">
-            <div v-for="item in csUnavailableGuidance" :key="item" style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--text-2)">
-              <span style="color:var(--gold-dark);flex-shrink:0;margin-top:1px"><AegisIcon name="check" :size="14" /></span>
-              <div>{{ item }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="alert alert-info" style="margin-top:16px">
-        <div class="alert-icon"><AegisIcon name="info" :size="16" /></div>
-        <div>This guidance is a starting point. Tailor it with your Continuity Steward so it fits your practice.</div>
-      </div>
-    </div>
-
-
     <!-- ═══════════════════ MODALS ═══════════════════ -->
 
     <!-- ADD SS STEP 1 -->
@@ -624,52 +510,37 @@
       </template>
     </AegisModal>
 
-    <!-- SUSPEND -->
-    <AegisModal :model-value="isOpen('suspendDsrModal').value" title="Suspend Support Steward Access" size="md" @update:model-value="v => !v && closeModal('suspendDsrModal')">
-      <div class="alert alert-warning" style="margin-bottom:14px">
-        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="16" /></div>
-        <div>Suspending access will immediately block this Support Steward from performing any authorized tasks. The agreement remains in place — reinstate at any time.</div>
+    <!-- MANAGE ACCESS -->
+    <AegisModal :model-value="isOpen('manageAccessModal').value" :title="activeSteward ? 'Manage Access — ' + fullName(activeSteward) : 'Manage Access'" size="md" @update:model-value="v => !v && closeModal('manageAccessModal')">
+      <div style="display:flex;flex-direction:column;gap:14px;padding-top:4px;">
+        <div class="form-group">
+          <label class="form-label">Action <span class="required">*</span></label>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <label v-for="opt in [{ value: 'suspend', label: 'Suspend', desc: 'Block access temporarily — agreement stays in place, reinstate at any time.' }, { value: 'reinstate', label: 'Reinstate', desc: 'Restore all previously authorized permissions and resume paused task delegations.' }, { value: 'archive', label: 'Archive', desc: 'Remove this steward record from active view. They remain in the system for audit purposes.' }]" :key="opt.value"
+              style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s;"
+              :style="manageAccessForm.action === opt.value ? 'border-color:var(--gold-dark);background:rgba(160,129,62,.04);' : ''"
+            >
+              <input type="radio" :value="opt.value" v-model="manageAccessForm.action" style="margin-top:3px;" />
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">{{ opt.label }}</div>
+                <div style="font-size:12px;color:var(--text-4);">{{ opt.desc }}</div>
+              </div>
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Reason <span class="required">*</span></label>
+          <textarea v-model="manageAccessForm.reason" class="form-input" rows="2" placeholder="Briefly explain this action…" />
+        </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Reason for Suspension <span class="required">*</span></label>
-        <select v-model="suspendForm.reason" class="form-select" :class="{ 'is-error': fieldError('reason') }" @blur="v$.suspendForm.reason.$touch()">
-          <option value="">— Select Reason —</option>
-          <option>Medical / personal leave</option>
-          <option>Temporary role change</option>
-          <option>Security review in progress</option>
-          <option>Practice changes — access not needed temporarily</option>
-          <option>Performance concern — under review</option>
-          <option>Other</option>
-        </select>
-        <div v-if="fieldError('reason')" class="form-error">{{ fieldError('reason') }}</div>
-      </div>
-      <div class="row-2">
-        <div class="form-group"><label class="form-label">Suspension Start Date</label><input v-model="suspendForm.start_date" class="form-input" type="date"></div>
-        <div class="form-group"><label class="form-label">Expected Return Date (Optional)</label><input v-model="suspendForm.end_date" class="form-input" type="date"></div>
-      </div>
-      <div class="form-group"><label class="form-label">Message to Support Steward (Optional)</label><textarea v-model="suspendForm.message" class="form-input" style="min-height:60px" placeholder="Explain the suspension…"></textarea></div>
       <template #footer>
-        <button class="btn btn-outline" @click="closeModal('suspendDsrModal')">Cancel</button>
-        <button class="btn btn-danger" :class="{ 'btn-spin': suspendForm.processing }" :disabled="suspendForm.processing" @click="submitSuspend">
-          <AegisIcon name="pause" :size="14" /> {{ suspendForm.processing ? 'Suspending…' : 'Suspend Access' }}
+        <button class="btn btn-outline" @click="closeModal('manageAccessModal')">Cancel</button>
+        <button class="btn btn-primary" :disabled="!manageAccessForm.action || suspendForm.processing" @click="submitManageAccess">
+          <AegisIcon name="check" :size="13" /> Apply
         </button>
       </template>
     </AegisModal>
 
-    <!-- REINSTATE -->
-    <AegisModal :model-value="isOpen('reinstateModal').value" title="Reinstate Support Steward Access" size="md" @update:model-value="v => !v && closeModal('reinstateModal')">
-      <div class="alert alert-success" style="margin-bottom:14px">
-        <div class="alert-icon"><AegisIcon name="check" :size="16" /></div>
-        <div>Reinstating will restore all previously authorized permissions and resume paused task delegations.</div>
-      </div>
-      <div class="form-group"><label class="form-label">Message to Support Steward (Optional)</label><textarea v-model="reinstateForm.message" class="form-input" style="min-height:60px" placeholder="Welcome back message or any updated instructions…"></textarea></div>
-      <template #footer>
-        <button class="btn btn-outline" @click="closeModal('reinstateModal')">Cancel</button>
-        <button class="btn btn-primary" :class="{ 'btn-spin': reinstateForm.processing }" :disabled="reinstateForm.processing" @click="submitReinstate">
-          <AegisIcon name="check" :size="14" /> {{ reinstateForm.processing ? 'Reinstating…' : 'Reinstate Access' }}
-        </button>
-      </template>
-    </AegisModal>
 
     <!-- REMOVE -->
     <AegisModal :model-value="isOpen('removeDsrModal').value" title="Remove Support Steward" size="md" @update:model-value="v => !v && closeModal('removeDsrModal')">
@@ -804,7 +675,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import { useVuelidate } from '@vuelidate/core'
 import { required, email as emailRule, helpers } from '@vuelidate/validators'
@@ -935,6 +806,27 @@ function openEditPerms(s) {
 }
 function openSuspend(s)     { activeStewardId.value = s.id; openModal('suspendDsrModal') }
 function openReinstate(s)   { activeStewardId.value = s.id; openModal('reinstateModal') }
+function openManageAccess(s) {
+  activeStewardId.value = s.id
+  manageAccessForm.action = s.status === 'archived' ? 'reinstate' : 'suspend'
+  manageAccessForm.reason = ''
+  openModal('manageAccessModal')
+}
+function submitManageAccess() {
+  if (!manageAccessForm.action) return
+  const routeMap = { suspend: 'provider.ss.suspend', reinstate: 'provider.ss.reinstate', archive: 'provider.ss.archive' }
+  const r = routeMap[manageAccessForm.action]
+  const method = manageAccessForm.action === 'archive' ? 'post' : 'post'
+  router.post(route(r, { steward: activeStewardId.value }), { reason: manageAccessForm.reason }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      const msgs = { suspend: 'Access suspended.', reinstate: 'Steward reinstated.', archive: 'Record archived.' }
+      toast.success(msgs[manageAccessForm.action] ?? 'Done.')
+      closeModal('manageAccessModal')
+    },
+    onError: () => toast.error('Action failed.'),
+  })
+}
 function openRemove(s)      { activeStewardId.value = s.id; removeConfirm.value = ''; openModal('removeDsrModal') }
 function openResend(s)      { activeStewardId.value = s.id; openModal('resendInviteModal') }
 function openCancelInvite(s){ activeStewardId.value = s.id; openModal('cancelInviteModal') }
@@ -969,34 +861,11 @@ const responsibilitySections = {
   ],
 }
 
-const notifyPrefs = [
-  'Annual Re-Attestation is complete',
-  'A Support Steward requests changes',
-  'A Support Steward updates their information',
-  'Roles or permissions change',
-  'Important Documents are accessed',
-  'A critical incident is reported',
-  'A Continuity Response is activated',
-]
 
-const onboardingGuidance = [
-  'Review the Continuity Plan together so the role and expectations are clear.',
-  "Know how to reach the Continuity Steward and the practice's key contacts.",
-  'Confirm where access information lives in the Vault and how it unlocks during a verified critical moment.',
-  'Keep your own contact details current and re-attest once a year.',
-]
-const activeMomentGuidance = [
-  'Wait for verification — act only once the critical incident has been confirmed.',
-  'Follow the responsibilities outlined in the Continuity Plan, within your authorized permissions.',
-  'Coordinate with the Continuity Steward and keep a simple record of the actions you take.',
-  'Communicate updates to clients and contacts as the plan directs.',
-]
-const csUnavailableGuidance = [
-  "Try the Continuity Steward's listed contacts, then the Alternate Continuity Steward.",
-  'If neither can be reached, notify the Aegis team so the plan can be supported.',
-  'Do not act beyond your authorized permissions while you wait for direction.',
-  'Keep a record of your attempts to make contact.',
-]
+
+
+
+
 
 // ── Permissions state ─────────────────────────────────────
 const enabledPerms = ref(new Set())
@@ -1016,6 +885,7 @@ const editForm = useForm({
 })
 const suspendForm   = useForm({ reason: '', start_date: '', end_date: '', message: '' })
 const reinstateForm = useForm({ message: '' })
+const manageAccessForm = reactive({ action: '', reason: '' })
 const removeForm    = useForm({ reason: '', notes: '' })
 const resendForm    = useForm({ expires_days: '30', message: '' })
 const roleForm      = useForm({ role: '', reason: '' })

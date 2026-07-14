@@ -23,7 +23,7 @@
           <AegisIcon :name="attestedAt ? 'shield-check' : 'shield'" :size="14" />
           {{ attestedAt ? 'Vault Attested' : 'Attest Vault' }}
         </button>
-        <button type="button" class="btn-hero-solid is-on-light" @click="openUploadModal('standard')">
+        <button type="button" class="btn-hero-solid is-on-light" @click="openUploadModal()">
           <AegisIcon name="upload" :size="14" /> Upload Document
         </button>
       </template>
@@ -31,8 +31,8 @@
 
     <!-- ── STAT CHIPS ── -->
     <div class="stat-chips-row">
-      <AegisStatChip icon="file-text" :value="zones.standard?.length ?? 0"  label="Total Documents" />
-      <AegisStatChip icon="lock"      :value="zones.emergency?.length ?? 0"  label="Sensitive Information" />
+      <AegisStatChip icon="file-text" :value="(zones.standard?.length ?? 0) + (zones.emergency?.length ?? 0)" label="Total Documents" />
+      <AegisStatChip icon="lock"      :value="zones.emergency?.length ?? 0"  label="Sensitive" />
       <AegisStatChip icon="clock"     :value="actionNeededCount"              label="Action Needed" />
       <AegisStatChip icon="users"     :value="stewardsWithAccess"             label="People with vault access" />
     </div>
@@ -69,35 +69,10 @@
             Configure which documents each incident type requires (e.g., Death Certificate, Doctor's Note, Police Report) in the Continuity Plan Builder. Required documents are checked against this Vault when your Continuity Steward verifies an incident.
           </div>
         </div>
-        <a :href="route('provider.continuity-plan')" class="btn btn-outline" style="flex-shrink:0;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
+        <a :href="route('provider.plan.index')" class="btn btn-outline" style="flex-shrink:0;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
           Open Builder <AegisIcon name="arrow-right-line" :size="12" />
         </a>
       </div>
-    </div>
-
-    <!-- SECURITY BANNER -->
-    <div class="alert alert-success" style="margin-bottom:20px">
-      <div class="alert-icon"><AegisIcon name="shield-check" :size="18" /></div>
-      <div class="alert-content">
-        <div class="alert-title">Vault Status: Secure</div>
-        <div>All documents encrypted at rest and in transit. Last security scan: Today at 6:00 AM.</div>
-        <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px">
-          <span class="badge badge-green">HIPAA</span>
-          <span class="badge badge-green">SOC 2</span>
-          <span class="badge badge-green">HITECH</span>
-          <span class="badge badge-green">Zero-Knowledge</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- STORAGE BAR -->
-    <div class="vault-storage-bar" style="margin-bottom:24px">
-      <div style="font-size:13px;font-weight:700;color:var(--text-2);white-space:nowrap">Storage: {{ storageUsed }} / {{ storageTotal }}</div>
-      <div class="progress" style="flex:1;min-width:160px"><div class="progress-bar" :style="{ width: storagePercent + '%' }"></div></div>
-      <div style="font-size:11px;color:var(--text-4);font-weight:600">{{ storagePercent }}% used</div>
-      <a :href="route('provider.settings')" style="font-size:11px;color:var(--gold-dark);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:4px">
-        Upgrade Plan <AegisIcon name="chevron-right" :size="12" />
-      </a>
     </div>
 
     <!-- NEEDS ATTENTION -->
@@ -122,24 +97,6 @@
           </div>
           <button v-if="alert.urgent" class="btn btn-danger" @click="openUploadModal('standard')">Update Now</button>
           <button v-else class="btn btn-outline" @click="openUploadModal('standard')">Update</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- EMERGENCY RESTRICTED BANNER -->
-    <div class="alert alert-danger" style="margin-bottom:20px">
-      <div class="alert-icon"><AegisIcon name="lock" :size="18" /></div>
-      <div class="alert-content">
-        <div class="alert-title">Sensitive Information &mdash; Restricted Access</div>
-        <div>{{ zones.emergency?.length ?? 0 }} items are stored in your Sensitive Information. These are only accessible to your named Continuity Steward after a verified critical incident is triggered by your Support Steward.</div>
-        <div style="margin-top:10px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text-3)">
-          <div style="display:flex;align-items:flex-start;gap:8px">
-            <AegisIcon name="alert-triangle" :size="14" style="color:var(--red-dark);flex-shrink:0;margin-top:2px" />
-            <span><strong style="color:var(--text-2)">Trigger Conditions:</strong> Death &middot; Short-Term Incapacitation &middot; Long-Term Incapacitation &middot; Missing Person &middot; Detainment &middot; Natural Disaster &middot; Geopolitical or Conflict-Related Events</span>
-          </div>
-        </div>
-        <div style="margin-top:10px">
-          <button class="btn btn-danger" @click="setActiveTab('emergency')">Manage Sensitive Information</button>
         </div>
       </div>
     </div>
@@ -175,17 +132,6 @@
           {{ pill.label }} <span class="badge-pill">{{ pill.count }}</span>
         </button>
 
-        <!-- Emergency pills -->
-        <button
-          v-show="activeTab === 'emergency'"
-          type="button"
-          class="tab-pill"
-          :class="{ active: activeTab === 'emergency' }"
-          @click="activeCat = '__all__'"
-        >
-          All <span class="badge-pill">{{ zones.emergency?.length ?? 0 }}</span>
-        </button>
-
         <!-- Credentials pills -->
         <button
           v-show="activeTab === 'credentials'"
@@ -213,7 +159,7 @@
     </div>
 
     <!-- TOOLBAR (All + Emergency only) -->
-    <div v-show="activeTab === 'all' || activeTab === 'emergency'" class="vault-toolbar">
+    <div v-show="activeTab === 'all'" class="vault-toolbar">
       <div class="input-group" style="flex:1;min-width:220px">
         <span class="input-group-icon"><AegisIcon name="search" :size="14" /></span>
         <input v-model="searchQuery" type="text" class="form-input form-input-sm" placeholder="Search documents by name, type, tags..." autocomplete="off" />
@@ -239,7 +185,7 @@
           All Documents
           <span class="section-badge">{{ filteredStandard.length }} total &middot; grouped by category</span>
         </div>
-        <button class="btn btn-primary" @click="openUploadModal('standard')">
+        <button class="btn btn-primary" @click="openUploadModal()">
           <AegisIcon name="plus" :size="14" /> Add Document
         </button>
       </div>
@@ -283,7 +229,8 @@
                 </div>
               </div>
               <div class="doc-card-tags">
-                <span v-if="statusBadge(doc.status)" :class="['badge', statusBadge(doc.status).cls]">{{ statusBadge(doc.status).label }}</span>
+                <span v-if="doc._sensitive" class="badge badge-red">Sensitive</span>
+                <span v-else-if="statusBadge(doc.status)" :class="['badge', statusBadge(doc.status).cls]">{{ statusBadge(doc.status).label }}</span>
                 <span v-for="tag in (doc.tags ?? [])" :key="tag" class="badge badge-gold">{{ tag }}</span>
               </div>
               <div class="doc-card-footer">
@@ -299,85 +246,6 @@
           </div>
         </div>
       </template>
-    </div>
-
-    <!-- ══════ TAB: SENSITIVE INFORMATION ══════ -->
-    <div v-show="activeTab === 'emergency'">
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-header">
-          <div class="card-title" style="display:flex;align-items:center;gap:8px">
-            <span class="vault-section-icon vault-section-icon--red"><AegisIcon name="alert-triangle" :size="15" /></span>
-            Sensitive Information Completeness
-          </div>
-        </div>
-        <div class="card-body">
-          <div style="font-size:13px;color:var(--text-2);margin-bottom:12px;line-height:1.5;font-weight:600">
-            <strong>{{ zones.emergency?.length ?? 0 }} of {{ emergencyRecommended }}</strong> recommended items uploaded.
-          </div>
-          <div class="progress" style="margin-bottom:10px"><div class="progress-bar red" :style="{ width: emergencyProgress + '%' }"></div></div>
-          <div style="font-size:11px;color:var(--text-3);font-weight:600">{{ emergencyProgress }}% complete</div>
-        </div>
-      </div>
-
-      <div class="alert alert-danger" style="margin-bottom:16px">
-        <div class="alert-icon"><AegisIcon name="lock" :size="18" /></div>
-        <div class="alert-content">
-          <div class="alert-title">Sensitive Information &mdash; Maximum Security</div>
-          <div>Items in this vault are encrypted with an additional layer. They are <strong>only accessible to your designated Continuity Steward</strong> after a verified critical incident is triggered by your Support Steward.</div>
-        </div>
-      </div>
-
-      <div class="section-header">
-        <div class="section-title">
-          Sensitive Information Items
-          <span class="section-badge">{{ zones.emergency?.length ?? 0 }} stored &middot; CS access only</span>
-        </div>
-        <button class="btn btn-primary" @click="openUploadModal('emergency')">
-          <AegisIcon name="plus" :size="14" /> Add to Vault
-        </button>
-      </div>
-
-      <AegisEmptyState
-        v-if="!(zones.emergency?.length)"
-        icon="lock"
-        title="Sensitive Information is empty"
-        subtitle="Add the documents your Continuity Steward will need: client notification letters, transfer SOPs, POA, succession instructions."
-      >
-        <template #action>
-          <button class="btn btn-danger" @click="openUploadModal('emergency')">Add First Item</button>
-        </template>
-      </AegisEmptyState>
-
-      <div v-else class="doc-grid">
-        <div
-          v-for="doc in zones.emergency"
-          :key="doc.id"
-          class="doc-card"
-          @click="openDocDetail(doc)"
-        >
-          <div class="doc-card-top">
-            <div class="doc-file-icon doc-file-icon--emergency"><AegisIcon name="lock" :size="20" /></div>
-            <div class="doc-card-meta">
-              <div class="doc-card-name">{{ doc.title }}</div>
-              <div v-if="doc.sub_label" class="doc-card-sub">{{ doc.sub_label }}</div>
-            </div>
-          </div>
-          <div class="doc-card-tags">
-            <span class="badge badge-red">Emergency Only</span>
-            <span v-for="tag in (doc.tags ?? [])" :key="tag" class="badge badge-gold">{{ tag }}</span>
-          </div>
-          <div class="doc-card-footer">
-            <div class="doc-card-date">{{ dateLine(doc) }}</div>
-          </div>
-        </div>
-      </div>
-
-      <AegisPagination
-        v-if="(zones.emergency?.length ?? 0) > 12"
-        v-model:page="emergencyPage"
-        :total="zones.emergency?.length ?? 0"
-        :per-page="12"
-      />
     </div>
 
     <!-- ══════ TAB: SYSTEM ACCESS CREDENTIALS ══════ -->
@@ -639,6 +507,13 @@
         </div>
       </div>
       <div class="form-group">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-2)">
+          <input v-model="uploadForm.is_sensitive" type="checkbox" />
+          Mark as sensitive (emergency-only access)
+        </label>
+        <p style="font-size:12px;color:var(--text-4);margin-top:4px;margin-left:25px">Only accessible to your Continuity Steward after a verified critical incident</p>
+      </div>
+            <div class="form-group">
         <label class="form-label" for="up-notes">Notes / Description</label>
         <textarea id="up-notes" v-model="uploadForm.description" class="form-textarea" placeholder="Optional: add context, license numbers, policy details..."></textarea>
       </div>
@@ -670,70 +545,6 @@
           <AegisIcon v-if="uploadBusy" name="refresh-cw" :size="13" class="btn-spin" />
           <AegisIcon v-else name="upload" :size="13" />
           {{ uploadBusy ? 'Uploading...' : 'Upload & Save' }}
-        </button>
-      </template>
-    </AegisModal>
-
-    <!-- ADD TO SENSITIVE VAULT -->
-    <AegisModal v-model="modals.uploadEmergency" size="lg" title="Add to Vault" @close="closeEmergencyModal">
-      <div class="alert alert-danger" style="margin-bottom:18px">
-        <div class="alert-icon"><AegisIcon name="lock" :size="18" /></div>
-        <div class="alert-content">Documents added here are <strong>vault-locked</strong>. Only your Continuity Steward can access them after a verified critical incident is activated.</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="em-type">Document Type <span class="required">*</span></label>
-        <select
-          id="em-type"
-          v-model="emergencyForm.category"
-          class="form-select"
-          :class="{ 'is-error': fieldErrorEm('category') }"
-          @blur="vEmergency$.category.$touch()"
-        >
-          <option value="">Select type&hellip;</option>
-          <option>Client Roster</option>
-          <option>EHR / Practice System Credentials</option>
-          <option>Emergency Contact Sheet</option>
-          <option>Power of Attorney</option>
-          <option>Practice Succession Instructions</option>
-          <option>Staff Employment Contracts</option>
-          <option>Financial Account Details</option>
-          <option>Insurance Policies</option>
-          <option>Other Sensitive Information</option>
-        </select>
-        <div v-if="fieldErrorEm('category')" class="form-error">{{ fieldErrorEm('category') }}</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="em-name">Document Name <span class="required">*</span></label>
-        <input
-          id="em-name"
-          v-model="emergencyForm.title"
-          type="text"
-          class="form-input"
-          :class="{ 'is-error': fieldErrorEm('title') }"
-          placeholder="e.g. Client Roster — April 2026"
-          @blur="vEmergency$.title.$touch()"
-        />
-        <div v-if="fieldErrorEm('title')" class="form-error">{{ fieldErrorEm('title') }}</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Upload File <span class="required">*</span></label>
-        <AegisDropzone
-          @files="emergencyFiles = $event"
-          @rejected="toast.error('File rejected.')"
-          :accept="['.pdf','.doc','.docx','.jpg','.jpeg','.png','.xlsx']"
-          :max-size="50"
-        />
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="em-notes">Notes for Continuity Steward</label>
-        <textarea id="em-notes" v-model="emergencyForm.description" class="form-textarea" rows="2" placeholder="Any instructions your CS needs when accessing this document…"></textarea>
-      </div>
-      <template #footer>
-        <button class="btn btn-outline" @click="closeEmergencyModal">Cancel</button>
-        <button class="btn btn-danger" :disabled="emergencyBusy" @click="submitEmergency">
-          <AegisIcon v-if="emergencyBusy" name="refresh-cw" :size="13" class="btn-spin" />
-          <AegisIcon v-else name="lock" :size="13" />
-          {{ emergencyBusy ? 'Adding...' : 'Add to Vault' }}
         </button>
       </template>
     </AegisModal>
@@ -1054,7 +865,7 @@
       <div class="list-group">
         <div v-if="!stewards.length" class="list-group-item" style="justify-content:center;color:var(--text-3);font-weight:600">
           No stewards assigned yet. Add them from the
-          <a :href="route('provider.continuity-stewards')" style="color:var(--gold-dark);font-weight:700;text-decoration:none">Continuity Stewards</a> page.
+          <a :href="route('provider.stewards.index')" style="color:var(--gold-dark);font-weight:700;text-decoration:none">Continuity Stewards</a> page.
         </div>
         <div v-for="s in stewards" :key="s.id" class="list-group-item">
           <div class="avatar avatar-sm avatar-gold">{{ s.avatar_initials }}</div>
@@ -1177,9 +988,6 @@ const props = defineProps({
   attestNote:     { type: String, default: '' },
   totalCount:     { type: Number, default: 0 },
   stewards:       { type: Array,  default: () => [] },
-  storageUsed:    { type: String, default: '0 GB' },
-  storageTotal:   { type: String, default: '10 GB' },
-  storagePercent: { type: Number, default: 0 },
 })
 
 const toast = useToast()
@@ -1199,8 +1007,7 @@ function setActiveTab(tab) {
 }
 
 const primaryTabs = computed(() => [
-  { key: 'all',          label: 'All Documents',             icon: 'file-text', count: props.zones.standard?.length ?? 0 },
-  { key: 'emergency',    label: 'Sensitive Information',     icon: 'lock',      count: props.zones.emergency?.length ?? 0 },
+  { key: 'all',          label: 'Documents',                 icon: 'file-text', count: (props.zones.standard?.length ?? 0) + (props.zones.emergency?.length ?? 0) },
   { key: 'credentials',  label: 'System Access Credentials', icon: 'key',       count: props.zones.credentials?.length ?? 0 },
   { key: 'clientroster', label: 'Client Roster',             icon: 'users',     count: props.zones.roster?.length ?? 0 },
 ])
@@ -1208,7 +1015,8 @@ const primaryTabs = computed(() => [
 // ── Secondary pills ──────────────────────────────────────────
 const allDocPills = computed(() => {
   const cats = {}
-  for (const doc of (props.zones.standard ?? [])) {
+  const allDocs = [...(props.zones.standard ?? []), ...(props.zones.emergency ?? [])]
+  for (const doc of allDocs) {
     const c = doc.category || 'Other'
     cats[c] = (cats[c] ?? 0) + 1
   }
@@ -1219,7 +1027,7 @@ const allDocPills = computed(() => {
     'Clinical Documents':     'Clinical',
     'Financial Documents':    'Financial',
   }
-  const pills = [{ cat: '__all__', label: 'All', count: props.zones.standard?.length ?? 0 }]
+  const pills = [{ cat: '__all__', label: 'All', count: allDocs.length }, { cat: '__sensitive__', label: 'Sensitive', count: props.zones.emergency?.length ?? 0 }]
   for (const [cat, count] of Object.entries(cats)) {
     pills.push({ cat, label: shortLabel[cat] ?? cat, count })
   }
@@ -1240,12 +1048,14 @@ const rosterPills = computed(() => {
 
 // ── Filtered docs ────────────────────────────────────────────
 const filteredStandard = computed(() => {
-  let items = props.zones.standard ?? []
+  let items = [...(props.zones.standard ?? []), ...(props.zones.emergency ?? []).map(d => ({ ...d, _sensitive: true }))]
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     items = items.filter(d => d.title?.toLowerCase().includes(q))
   }
-  if (activeCat.value !== '__all__') {
+  if (activeCat.value === '__sensitive__') {
+    items = items.filter(d => d._sensitive)
+  } else if (activeCat.value !== '__all__') {
     items = items.filter(d => (d.category ?? 'Other') === activeCat.value)
   }
   return items
@@ -1331,7 +1141,7 @@ const credentialsPage = ref(1)
 
 // ── Modals ───────────────────────────────────────────────────
 const modals = reactive({
-  upload: false, uploadEmergency: false, addCredential: false,
+  upload: false, addCredential: false,
   addClient: false, editClient: false, docDetail: false,
   attest: false, permissions: false, addPermission: false, editPermission: false,
 })
@@ -1443,7 +1253,7 @@ function dischargeClient(client) {
 }
 
 // ── Upload modal ─────────────────────────────────────────────
-const uploadForm  = reactive({ zone: 'standard', title: '', category: '', doc_type: '', issued_at: '', expires_at: '', description: '' })
+const uploadForm  = reactive({ zone: 'standard', title: '', category: '', doc_type: '', issued_at: '', expires_at: '', description: '', is_sensitive: false })
 const uploadFiles = ref([])
 const uploadBusy  = ref(false)
 
@@ -1457,13 +1267,13 @@ function fieldError(field) {
   if (vUpload$.value[field]?.$error) return vUpload$.value[field].$errors[0]?.$message
   return null
 }
-function openUploadModal(zone) {
-  uploadForm.zone = zone
-  if (zone === 'emergency') { modals.uploadEmergency = true } else { modals.upload = true }
+function openUploadModal() {
+  uploadForm.is_sensitive = false
+  modals.upload = true
 }
 function closeUploadModal() {
   modals.upload = false
-  Object.assign(uploadForm, { zone: 'standard', title: '', category: '', doc_type: '', issued_at: '', expires_at: '', description: '' })
+  Object.assign(uploadForm, { zone: 'standard', title: '', category: '', doc_type: '', issued_at: '', expires_at: '', description: '', is_sensitive: false })
   uploadFiles.value = []
   vUpload$.value.$reset()
 }
@@ -1472,7 +1282,7 @@ async function submitUpload() {
   if (!valid) { toast.error('Please fix the highlighted fields.'); return }
   uploadBusy.value = true
   const data = new FormData()
-  data.append('zone', uploadForm.zone)
+  data.append('zone', uploadForm.is_sensitive ? 'emergency' : 'standard')
   data.append('title', uploadForm.title)
   if (uploadForm.description) data.append('description', uploadForm.description)
   if (uploadFiles.value.length) data.append('file', uploadFiles.value[0])
@@ -1486,44 +1296,6 @@ async function submitUpload() {
 }
 
 // ── Emergency modal ──────────────────────────────────────────
-const emergencyForm  = reactive({ category: '', title: '', description: '' })
-const emergencyFiles = ref([])
-const emergencyBusy  = ref(false)
-
-const emergencyRules = computed(() => ({
-  category: { required: helpers.withMessage('Document type is required.', required) },
-  title:    { required: helpers.withMessage('Document name is required.', required) },
-}))
-const vEmergency$ = useVuelidate(emergencyRules, emergencyForm)
-
-function fieldErrorEm(field) {
-  if (vEmergency$.value[field]?.$error) return vEmergency$.value[field].$errors[0]?.$message
-  return null
-}
-function closeEmergencyModal() {
-  modals.uploadEmergency = false
-  Object.assign(emergencyForm, { category: '', title: '', description: '' })
-  emergencyFiles.value = []
-  vEmergency$.value.$reset()
-}
-async function submitEmergency() {
-  const valid = await vEmergency$.value.$validate()
-  if (!valid) { toast.error('Please fix the highlighted fields.'); return }
-  emergencyBusy.value = true
-  const data = new FormData()
-  data.append('zone', 'emergency')
-  data.append('title', emergencyForm.title)
-  if (emergencyForm.description) data.append('description', emergencyForm.description)
-  if (emergencyFiles.value.length) data.append('file', emergencyFiles.value[0])
-  router.post(route('vault.upload'), data, {
-    forceFormData: true,
-    preserveScroll: true,
-    onSuccess: () => { toast.success('Document added to Vault.'); closeEmergencyModal() },
-    onError:   () => toast.error('Upload failed.'),
-    onFinish:  () => { emergencyBusy.value = false },
-  })
-}
-
 // ── Credential modal ─────────────────────────────────────────
 const credForm    = reactive({ title: '', category: '', credential_username: '', credential_password: '', credential_url: '', description: '' })
 const credBusy    = ref(false)
@@ -1752,7 +1524,6 @@ function revokeAccess() {
 
 <style scoped>
 .vault-toolbar { display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap; }
-.vault-storage-bar { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;display:flex;align-items:center;gap:18px;flex-wrap:wrap; }
 .vault-gold-alert { background:var(--badge-bg-gold);border:1px solid var(--gold);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow-sm); }
 .vault-category-header { display:flex;align-items:center;gap:12px;margin:24px 0 16px; }
 .vault-category-icon { width:32px;height:32px;border-radius:var(--radius-sm);background:var(--icon-bg-gold);color:var(--gold-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0; }

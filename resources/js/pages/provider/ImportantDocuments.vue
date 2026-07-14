@@ -36,10 +36,9 @@
         <div class="alert-title">{{ docStats.pending }} Agreement{{ docStats.pending !== 1 ? 's' : '' }} Require Your Action</div>
         <div>Review agreements below that are pending your signature or need renewal.</div>
         <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-primary btn-sm" @click="openModal('signatureModal')">
-            <AegisIcon name="signature" :size="13" /> Sign Now
+          <button class="btn btn-primary" @click="activeTab = 'pending_sign'">
+            <AegisIcon name="signature" :size="13" /> View Pending
           </button>
-          <button class="btn btn-outline btn-sm" @click="activeTab = 'expiring'">View Expiring</button>
         </div>
       </div>
     </div>
@@ -75,18 +74,10 @@
       </select>
       <select class="form-select form-select-sm" v-model="typeFilter" style="max-width:220px">
         <option value="">All Types</option>
-        <option value="MSA">MSA - Master Service Agreement</option>
-        <option value="NDA">NDA - Non-Disclosure Agreement</option>
-        <option value="SOW">SOW - Statement of Work</option>
-        <option value="MOU">MOU - Memorandum of Understanding</option>
-        <option value="SLA">SLA - Service Level Agreement</option>
-        <option value="BAA">BAA - Business Associate Agreement</option>
-      </select>
-      <select class="form-select form-select-sm" v-model="partyFilter" style="max-width:200px">
-        <option value="">All Parties</option>
-        <option value="pe">Continuity Stewards Only</option>
-        <option value="pd">Support Stewards Only</option>
-        <option value="tri">Tri-Party</option>
+        <option value="CSA">CS Engagement Agreement</option>
+        <option value="FA">Fee Amendment</option>
+        <option value="BAA">BAA</option>
+        <option value="OTHER">Other</option>
       </select>
       <button class="btn btn-outline btn-sm" style="margin-left:auto" @click="openModal('exportModal')">
         <AegisIcon name="download" :size="13" /> Export
@@ -94,7 +85,7 @@
     </div>
 
     <!-- CONTINUITY PLAN SECTION -->
-    <div v-show="activeTab === 'all' || activeTab === 'pe' || activeTab === 'pd' || activeTab === 'tri'">
+    <div>
       <div class="doc-section-head">
         <div>
           <div class="doc-section-title">Continuity Plan</div>
@@ -162,14 +153,9 @@
                     {{ signBusy ? 'Signing...' : 'Sign' }}
                   </button>
                   <button class="btn-icon" data-tooltip="View" @click="openViewModal(doc)"><AegisIcon name="eye" :size="14" /></button>
-                  <button class="btn-icon" data-tooltip="More actions" @click="openActionsModal(doc)"><AegisIcon name="more" :size="14" /></button>
                 </template>
                 <template v-else-if="doc.primary_action === 'renew'">
-                  <button class="btn btn-primary btn-sm" @click="openRenewModal(doc)">
-                    <AegisIcon name="refresh" :size="13" /> Renew
-                  </button>
                   <button class="btn-icon" data-tooltip="View" @click="openViewModal(doc)"><AegisIcon name="eye" :size="14" /></button>
-                  <button class="btn-icon" data-tooltip="More actions" @click="openActionsModal(doc)"><AegisIcon name="more" :size="14" /></button>
                 </template>
                 <template v-else-if="doc.primary_action === 'edit'">
                   <button class="btn btn-outline btn-sm" @click="toast.info('Opening draft editor...')">
@@ -185,7 +171,6 @@
                 <template v-else>
                   <button class="btn-icon" data-tooltip="View" @click="openViewModal(doc)"><AegisIcon name="eye" :size="14" /></button>
                   <button class="btn-icon" data-tooltip="Download PDF" @click="toast.info('Downloading PDF...')"><AegisIcon name="download" :size="14" /></button>
-                  <button class="btn-icon" data-tooltip="More actions" @click="openActionsModal(doc)"><AegisIcon name="more" :size="14" /></button>
                 </template>
               </div>
             </div>
@@ -195,7 +180,7 @@
     </div>
 
     <!-- SUPPORTING DOCUMENTS -->
-    <div v-show="activeTab === 'all'" style="margin-top:28px">
+    <div style="margin-top:28px">
       <div class="doc-section-head">
         <div>
           <div class="doc-section-title">Supporting Documents</div>
@@ -276,14 +261,10 @@
             <label class="form-label">Document Type <span class="required">*</span></label>
             <select class="form-select" v-model="wiz.docType" :class="{ 'is-error': fieldError('wiz_docType') }" @blur="v$.wiz_docType.$touch()">
               <option value="">Select Document Type</option>
-              <option value="MSA">MSA - Master Service Agreement</option>
-              <option value="NDA">NDA - Non-Disclosure Agreement</option>
-              <option value="SOW">SOW - Statement of Work</option>
-              <option value="MOU">MOU - Memorandum of Understanding</option>
-              <option value="SLA">SLA - Service Level Agreement</option>
-              <option value="REF">Referral Agreement</option>
-              <option value="ICA">Independent Contractor Agreement</option>
-              <option value="BAA">BAA - Business Associate Agreement (HIPAA)</option>
+              <option value="CSA">CS Engagement Agreement</option>
+              <option value="FA">Fee Amendment</option>
+              <option value="BAA">BAA</option>
+              <option value="OTHER">Other</option>
             </select>
             <div v-if="fieldError('wiz_docType')" class="form-error">{{ fieldError('wiz_docType') }}</div>
           </div>
@@ -504,9 +485,7 @@
 
       <template #footer>
         <button class="btn btn-outline" @click="closeWizard">Cancel</button>
-        <button v-if="wizStep >= 3" class="btn btn-outline" @click="openModal('draftSaveModal')">
-          <AegisIcon name="save" :size="13" /> Save Draft
-        </button>
+
         <div style="display:inline-flex;align-items:center;gap:6px;margin-left:auto;font-size:11px;color:var(--text-4);font-weight:600">
           <AegisIcon name="shield" :size="12" /> Encrypted &amp; audit-logged
         </div>
@@ -659,125 +638,7 @@
       <template #footer>
         <button class="btn btn-outline" @click="closeModal('viewAgreementModal')">Close</button>
         <button class="btn btn-outline" @click="openAmendModal"><AegisIcon name="pencil" :size="13" /> Request Amendment</button>
-        <button class="btn btn-outline" style="color:var(--red);margin-left:auto" @click="closeModal('viewAgreementModal'); openModal('terminateModal')">
-          <AegisIcon name="x-circle" :size="13" /> Terminate
-        </button>
-      </template>
-    </AegisModal>
 
-    <!-- MODAL 4: RENEWAL -->
-    <AegisModal
-      :model-value="isOpen('renewalModal').value"
-      title="Renew Agreement"
-      size="md"
-      @update:model-value="v => !v && closeModal('renewalModal')"
-    >
-      <div v-if="activeDoc">
-        <div class="alert alert-warning" style="margin-bottom:14px">
-          <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
-          <div class="alert-content">This agreement expires soon. If not renewed, the steward access will be suspended on the expiry date.</div>
-        </div>
-        <div class="modal-section-label" style="margin-bottom:8px">Renewal Options</div>
-        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
-          <div class="party-search-result ren-opt" :class="{ selected: renewForm.type === 'same' }" @click="renewForm.type = 'same'">
-            <div class="party-avatar-sm"><AegisIcon name="refresh" :size="16" /></div>
-            <div class="party-info-sm">
-              <div class="party-name-sm">Renew with Same Terms <AegisBadge label="Recommended" variant="green" style="margin-left:6px" /></div>
-              <div class="party-meta-sm">Extend 12 months with identical clauses. Both parties re-sign.</div>
-            </div>
-          </div>
-          <div class="party-search-result ren-opt" :class="{ selected: renewForm.type === 'amend' }" @click="renewForm.type = 'amend'">
-            <div class="party-avatar-sm"><AegisIcon name="pencil" :size="16" /></div>
-            <div class="party-info-sm">
-              <div class="party-name-sm">Renew with Amendments</div>
-              <div class="party-meta-sm">Modify specific clauses before renewal.</div>
-            </div>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">New Effective Date</label>
-            <input type="date" class="form-input" v-model="renewForm.effectiveDate" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">New Expiry Date</label>
-            <input type="date" class="form-input" v-model="renewForm.expiryDate" />
-          </div>
-        </div>
-        <div class="alert alert-success">
-          <div class="alert-icon"><AegisIcon name="check" :size="18" /></div>
-          <div class="alert-content">After renewal, the counterparty will receive an email and must re-sign within 5 business days.</div>
-        </div>
-      </div>
-      <template #footer>
-        <button class="btn btn-outline" @click="closeModal('renewalModal')">Cancel</button>
-        <button class="btn btn-primary" style="margin-left:auto" :disabled="renewBusy" @click="submitRenew">
-          <AegisIcon v-if="renewBusy" name="refresh-cw" :size="13" class="btn-spin" />
-          <AegisIcon v-else name="refresh" :size="13" />
-          {{ renewBusy ? 'Processing...' : 'Initiate Renewal' }}
-        </button>
-      </template>
-    </AegisModal>
-
-    <!-- MODAL 5: AGREEMENT ACTIONS -->
-    <AegisModal
-      :model-value="isOpen('agreementActionsModal').value"
-      title="Agreement Actions"
-      size="sm"
-      @update:model-value="v => !v && closeModal('agreementActionsModal')"
-    >
-      <div style="padding:2px 0">
-        <div v-for="a in actionItems" :key="a.label" class="list-item" @click="handleAction(a.action)">
-          <div class="list-item-icon" :style="a.iconStyle"><AegisIcon :name="a.icon" :size="16" /></div>
-          <div class="list-item-content">
-            <div class="list-item-title" :style="a.danger ? 'color:var(--red)' : ''">{{ a.label }}</div>
-            <div class="list-item-desc">{{ a.sub }}</div>
-          </div>
-          <AegisIcon name="chevron-right" :size="12" />
-        </div>
-      </div>
-    </AegisModal>
-
-    <!-- MODAL 6: TERMINATE -->
-    <AegisModal
-      :model-value="isOpen('terminateModal').value"
-      title="Terminate Agreement"
-      size="sm"
-      @update:model-value="v => !v && closeTerminate()"
-    >
-      <div class="alert alert-danger" style="margin-bottom:14px">
-        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
-        <div class="alert-content">Terminating this agreement will immediately revoke the counterparty access and delegated authority.</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="termReason">Reason for Termination <span class="required">*</span></label>
-        <select id="termReason" class="form-select" v-model="terminateForm.reason" :class="{ 'is-error': fieldError('term_reason') }" @blur="v$.term_reason.$touch()">
-          <option value="">Select Reason</option>
-          <option>Mutual Consent</option>
-          <option>Performance Issues</option>
-          <option>HIPAA / Compliance Violation</option>
-          <option>Fraud or Misconduct</option>
-          <option>End of Service Need</option>
-        </select>
-        <div v-if="fieldError('term_reason')" class="form-error">{{ fieldError('term_reason') }}</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Effective Termination Date</label>
-        <input type="date" class="form-input" v-model="terminateForm.date" />
-        <div class="form-hint">Standard 30-day notice required unless terminating for cause.</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="termConfirm">Type "TERMINATE" to confirm <span class="required">*</span></label>
-        <input id="termConfirm" type="text" class="form-input" v-model="terminateForm.confirm" :class="{ 'is-error': fieldError('term_confirm') }" @blur="v$.term_confirm.$touch()" placeholder="TERMINATE" />
-        <div v-if="fieldError('term_confirm')" class="form-error">{{ fieldError('term_confirm') }}</div>
-      </div>
-      <template #footer>
-        <button class="btn btn-outline" @click="closeTerminate">Cancel</button>
-        <button class="btn btn-danger" style="margin-left:auto" :disabled="terminateForm.confirm !== 'TERMINATE' || terminateBusy" @click="submitTerminate">
-          <AegisIcon v-if="terminateBusy" name="refresh-cw" :size="13" class="btn-spin" />
-          <AegisIcon v-else name="x-circle" :size="13" />
-          {{ terminateBusy ? 'Terminating...' : 'Confirm Termination' }}
-        </button>
       </template>
     </AegisModal>
 
@@ -1068,35 +929,6 @@
       </template>
     </AegisModal>
 
-    <!-- MODAL 14: SAVE DRAFT -->
-    <AegisModal
-      :model-value="isOpen('draftSaveModal').value"
-      title="Save as Draft"
-      size="sm"
-      @update:model-value="v => !v && closeModal('draftSaveModal')"
-    >
-      <div class="form-group">
-        <label class="form-label" for="draftName">Draft Name</label>
-        <input id="draftName" type="text" class="form-input" v-model="draftForm.name" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Notes <span style="color:var(--text-4)">(optional)</span></label>
-        <textarea class="form-textarea" rows="2" v-model="draftForm.notes" placeholder="Reminders about what still needs to be done..."></textarea>
-      </div>
-      <div class="alert alert-info">
-        <div class="alert-icon"><AegisIcon name="info" :size="18" /></div>
-        <div class="alert-content">Drafts are private. The other party will not be notified until you send for signature.</div>
-      </div>
-      <template #footer>
-        <button class="btn btn-outline" @click="closeModal('draftSaveModal')">Cancel</button>
-        <button class="btn btn-primary" style="margin-left:auto" :disabled="draftBusy" @click="submitSaveDraft">
-          <AegisIcon v-if="draftBusy" name="refresh-cw" :size="13" class="btn-spin" />
-          <AegisIcon v-else name="save" :size="13" />
-          {{ draftBusy ? 'Saving...' : 'Save Draft' }}
-        </button>
-      </template>
-    </AegisModal>
-
   </AppLayout>
 </template>
 
@@ -1130,11 +962,10 @@ const providerName     = computed(() => page.props.auth?.user?.display_name || '
 const providerInitials = computed(() => page.props.auth?.user?.avatar_initials || 'P')
 
 // UI state
-const activeTab    = ref('all')
+const activeTab    = ref('pending_sign')
 const searchQ      = ref('')
 const statusFilter = ref('')
 const typeFilter   = ref('')
-const partyFilter  = ref('')
 const activeDocId  = ref(null)
 const activeDoc    = computed(() => props.documents.find(d => d.id === activeDocId.value) ?? null)
 
@@ -1157,22 +988,18 @@ const signCheck2 = ref(false)
 
 // Tabs
 const tabs = computed(() => [
-  { id: 'all',      label: 'All Documents', count: props.documents.length },
-  { id: 'pe',       label: 'Provider & CS', count: props.documents.filter(d => d.tab_key === 'pe').length },
-  { id: 'pd',       label: 'Provider & SS', count: props.documents.filter(d => d.tab_key === 'pd').length },
-  { id: 'de',       label: 'SS & CS',       count: props.documents.filter(d => d.tab_key === 'de').length },
-  { id: 'tri',      label: 'Tri-Party',     count: props.documents.filter(d => d.tab_key === 'tri').length },
-  { id: 'expiring', label: 'Expiring Soon', count: props.documents.filter(d => d.is_expiring).length },
+  { id: 'pending_sign',       label: 'Pending My Signature', count: props.documents.filter(d => d.status === 'pending_sign').length },
+  { id: 'countersign_pending',label: 'Awaiting Others',      count: props.documents.filter(d => d.status === 'countersign_pending').length },
+  { id: 'fully_executed',     label: 'Fully Executed',       count: props.documents.filter(d => d.status === 'fully_executed' || d.status === 'active').length },
 ])
 
 const filteredDocs = computed(() => props.documents.filter(d => {
-  if (activeTab.value !== 'all') {
-    if (activeTab.value === 'expiring') { if (!d.is_expiring) return false }
-    else if (d.tab_key !== activeTab.value) return false
-  }
+  const tab = activeTab.value
+  if (tab === 'pending_sign' && d.status !== 'pending_sign') return false
+  if (tab === 'countersign_pending' && d.status !== 'countersign_pending') return false
+  if (tab === 'fully_executed' && d.status !== 'fully_executed' && d.status !== 'active') return false
   if (statusFilter.value && d.status !== statusFilter.value) return false
   if (typeFilter.value  && d.doc_type !== typeFilter.value)  return false
-  if (partyFilter.value && d.tab_key  !== partyFilter.value) return false
   if (searchQ.value) {
     const q = searchQ.value.toLowerCase()
     if (!d.title?.toLowerCase().includes(q) && !d.reference?.toLowerCase().includes(q)) return false
