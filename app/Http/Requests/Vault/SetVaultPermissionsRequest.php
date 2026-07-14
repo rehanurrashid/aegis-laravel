@@ -14,9 +14,9 @@ class SetVaultPermissionsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'access_level'  => ['nullable', Rule::in(['cs_only', 'ss_only', 'both', 'practitioner_only'])],
-            'steward_ids'   => 'nullable|array',
-            'steward_ids.*' => 'exists:users,id',
+            'steward_ids'         => 'nullable|array',
+            'steward_ids.*'       => 'exists:users,id',
+            'vault_access'        => ['nullable', Rule::in(['none', 'metadata', 'scoped', 'full'])],
             'release_on_incident' => 'nullable|boolean',
         ];
     }

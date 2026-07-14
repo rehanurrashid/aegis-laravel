@@ -226,8 +226,9 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::get('/vault', [VaultController::class, 'index'])->name('vault.index');
         Route::post('/vault/upload', [VaultController::class, 'upload'])->name('vault.upload');
         Route::post('/vault/attest', [VaultController::class, 'attest'])->name('vault.attest');
+        Route::post('/vault/permissions', [VaultController::class, 'permissions'])->name('vault.permissions');
         Route::get('/vault/{item}/download', [VaultController::class, 'download'])->name('vault.download');
-        Route::post('/vault/{item}/permissions', [VaultController::class, 'permissions'])->name('vault.permissions');
+        Route::put('/vault/{item}', [VaultController::class, 'update'])->name('vault.update');
         Route::delete('/vault/{item}', [VaultController::class, 'destroy'])->name('vault.destroy');
 
         // Network

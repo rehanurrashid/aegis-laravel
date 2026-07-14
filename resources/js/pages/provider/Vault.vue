@@ -1401,7 +1401,7 @@ async function submitEditClient() {
   if (!valid) { toast.error('Please fix the highlighted fields.'); return }
   if (!activeClient.value) return
   editClientBusy.value = true
-  router.put(route('vault.permissions', { item: activeClient.value.id }), {
+  router.put(route('vault.update', { item: activeClient.value.id }), {
     client_name:     editClientForm.client_name,
     client_location: `${editClientForm.client_city}, ${editClientForm.client_state}`,
     client_phone:    editClientForm.client_phone,
@@ -1464,7 +1464,7 @@ async function submitPermission() {
   const valid = await vPerm$.value.$validate()
   if (!valid) { toast.error('Please fix the highlighted fields.'); return }
   permBusy.value = true
-  router.post(route('vault.permissions', { item: permForm.steward_id }), {
+  router.post(route('vault.permissions'), {
     steward_ids: [permForm.steward_id],
     vault_access: permForm.level,
   }, {
@@ -1490,7 +1490,7 @@ function closeEditPermModal() { modals.editPermission = false; activeSteward.val
 async function submitEditPerm() {
   if (!activeSteward.value) return
   editPermBusy.value = true
-  router.post(route('vault.permissions', { item: activeSteward.value.id }), {
+  router.post(route('vault.permissions'), {
     steward_ids: [activeSteward.value.id],
     vault_access: editPermForm.level,
   }, {
@@ -1503,7 +1503,7 @@ async function submitEditPerm() {
 function revokeAccess() {
   if (!activeSteward.value) return
   editPermBusy.value = true
-  router.post(route('vault.permissions', { item: activeSteward.value.id }), {
+  router.post(route('vault.permissions'), {
     steward_ids: [activeSteward.value.id],
     vault_access: 'none',
   }, {

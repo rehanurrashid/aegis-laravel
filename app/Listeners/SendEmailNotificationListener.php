@@ -902,14 +902,21 @@ class SendEmailNotificationListener
     }
 
     private function documentRequested(DocumentRequested $e): array {
+        // Provider fired the event — notify party B (the steward who needs to sign).
+        $recipientId = $e->document->party_b_id ?? $e->document->holder_steward_id;
+        if (!$recipientId) {
+            return [];
+        }
+        $base = rtrim(config('app.url'), '/');
         return [[
-            'user_id'  => $e->plan->practitioner_id,
+            'user_id'  => $recipientId,
             'gate_key' => 'notify_plan',
             'template' => 'emails.gaps.60-document-requested',
             'data'     => [
-                'practitioner_name' => $e->plan->practitioner?->display_name ?? 'Practitioner',
-                'requester_name'    => $e->requester->display_name,
+                'steward_name'      => \App\Models\User::find($recipientId)?->display_name ?? 'there',
+                'practitioner_name' => $e->requester->display_name,
                 'document_title'    => $e->document->title ?? 'Document',
+                'document_url'      => $base . '/continuity-steward/important-documents',
             ],
         ]];
     }
@@ -931,13 +938,19 @@ class SendEmailNotificationListener
         $stewards = \App\Models\PlanSteward::where('plan_id', $e->document->plan_id ?? null)
             ->where('status', 'active')->get();
         if ($stewards->isEmpty()) return [];
+        $base = rtrim(config('app.url'), '/');
+        $practitioner = \App\Models\User::find($e->document->practitioner_id);
         return $stewards->map(fn($ps) => [
             'user_id'  => $ps->steward_id,
             'gate_key' => 'notify_plan',
             'template' => 'emails.gaps.64-document-updated',
             'data'     => [
-                'document_title' => $e->document->title ?? 'Document',
-                'updater_name'   => $e->updater->display_name,
+                'steward_name'      => \App\Models\User::find($ps->steward_id)?->display_name ?? 'there',
+                'practitioner_name' => $practitioner?->display_name ?? $e->updater->display_name,
+                'document_title'    => $e->document->title ?? 'Document',
+                'updater_name'      => $e->updater->display_name,
+                'change_type'       => $e->changeType ?? 'updated',
+                'document_url'      => $base . '/continuity-steward/important-documents',
             ],
         ])->values()->toArray();
     }
