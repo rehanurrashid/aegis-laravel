@@ -86,7 +86,7 @@ class ContinuityPlanController extends Controller
                 'expires_at'           => $plan->expires_at?->toISOString(),
             ] : null,
             'planSections'    => $planSections,
-            'tasks'           => Inertia::lazy(fn () => $plan
+            'tasks'           => $plan
                 ? PlanTask::where('plan_id', $plan->id)
                     ->orderBy('sort_order')
                     ->get()
@@ -97,8 +97,8 @@ class ContinuityPlanController extends Controller
                         'timeline'    => $t->timeline,
                         'sort_order'  => $t->sort_order,
                     ])
-                : []),
-            'incidentConfigs' => Inertia::lazy(fn () => $plan
+                : [],
+            'incidentConfigs' => $plan
                 ? PlanIncidentConfig::where('plan_id', $plan->id)
                     ->get()
                     ->map(fn ($c) => [
@@ -109,7 +109,7 @@ class ContinuityPlanController extends Controller
                         'authorized_ss_ids' => $c->authorized_ss_ids ?? [],
                         'authorized_cs_ids' => $c->authorized_cs_ids ?? [],
                     ])
-                : []),
+                : [],
             'stewards'        => $stewards,
             'documents'       => $documents,
             'incidentTypes'   => $incidentTypes,
