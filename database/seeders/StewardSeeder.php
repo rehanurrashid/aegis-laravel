@@ -205,22 +205,26 @@ class StewardSeeder extends Seeder
                 'updated_at'       => $now->copy()->subMonths(13),
             ],
 
-            // p_maria plan — alternate CS p_sarah (so p_sarah sees "I'm CS For" tab)
+            // p_maria plan — primary CS p_sarah (so p_sarah sees "I'm CS For" tab with rich data)
             [
                 'id'               => 'ps_maria_sarah',
                 'plan_id'          => 'plan_maria',
                 'steward_id'       => 'p_sarah',
-                'role'             => 'alternate',
+                'role'             => 'primary',
                 'steward_category' => 'continuity_steward',
                 'status'           => 'active',
-                'vault_access'     => 'scoped',
-                'permissions'      => json_encode(['view_plan', 'manage_incident', 'access_vault']),
-                'responsibilities' => json_encode(['Serve as backup CS when primary is unavailable']),
-                'signed_at'        => $now->copy()->subMonths(3),
-                'review_due_at'    => $now->copy()->addMonths(9),
-                'invited_at'       => $now->copy()->subMonths(4),
-                'created_at'       => $now->copy()->subMonths(4),
-                'updated_at'       => $now->copy()->subMonths(3),
+                'vault_access'     => 'full',
+                'permissions'      => json_encode(['view_plan', 'manage_incident', 'access_vault', 'issue_documents']),
+                'responsibilities' => json_encode([
+                    'Activate continuity plan upon verified incident',
+                    'Coordinate client notifications',
+                    'Manage vault access during active incidents',
+                ]),
+                'signed_at'        => $now->copy()->subMonths(8),
+                'review_due_at'    => $now->copy()->addDays(25), // upcoming review — shows in Next Review Due chip
+                'invited_at'       => $now->copy()->subMonths(9),
+                'created_at'       => $now->copy()->subMonths(9),
+                'updated_at'       => $now->copy()->subMonths(8),
             ],
 
             // ── p_david plan — no primary CS yet, pending request to cs_marcus

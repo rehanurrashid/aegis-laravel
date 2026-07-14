@@ -577,6 +577,35 @@ function toggleNotify(key) {
         </div>
       </div>
 
+      <!-- Summary stat chips -->
+      <div v-if="servingAsCSFor.length" class="stat-chips-row" style="margin-bottom:20px;">
+        <AegisStatChip
+          icon="users"
+          :value="servingAsCSFor.filter(p => p.status === 'active').length"
+          label="Active Agreements"
+        />
+        <AegisStatChip
+          icon="calendar"
+          :value="servingAsCSFor.filter(p => p.review_due_at).length ? fmtDate(servingAsCSFor.filter(p => p.review_due_at).sort((a,b) => new Date(a.review_due_at) - new Date(b.review_due_at))[0].review_due_at) : 'None'"
+          label="Next Review Due"
+        />
+        <AegisStatChip
+          icon="check-circle"
+          :value="servingAsCSFor.reduce((n, p) => n + (p.active_incidents ?? 0), 0)"
+          label="Active Incidents"
+        />
+        <AegisStatChip
+          icon="lock"
+          :value="servingAsCSFor.filter(p => p.vault_access && p.vault_access !== 'none').length"
+          label="Vaults Accessible"
+        />
+      </div>
+
+      <!-- Provider list -->
+      <div class="section-header" style="margin-bottom:10px;">
+        <div class="section-title"><AegisIcon name="users" :size="16" /> Providers I'm Stewarding</div>
+      </div>
+
       <div class="list-group">
         <AegisEmptyState
           v-if="!servingAsCSFor.length"
@@ -598,7 +627,9 @@ function toggleNotify(key) {
               <span v-else-if="prov.status === 'pending'" class="badge badge-yellow"><span class="status-dot yellow"></span> Pending</span>
               <span v-else class="badge badge-neutral"><span class="status-dot"></span> {{ prov.status }}</span>
             </div>
-            <div style="font-size:12px;color:var(--text-3);margin-top:2px;">{{ [prov.organization, prov.location].filter(Boolean).join(', ') }}</div>
+            <div style="font-size:12px;color:var(--text-3);margin-top:2px;">
+              {{ [prov.organization, prov.location].filter(Boolean).join(', ') }}{{ prov.review_due_at ? ' · Review due ' + fmtDate(prov.review_due_at) : '' }}
+            </div>
           </div>
           <a v-if="prov.slug" :href="'/provider/' + prov.slug" class="btn-icon" data-tooltip="View Provider Profile"><AegisIcon name="external-link" :size="14" /></a>
           <a :href="route('cs.dashboard')" class="btn-icon" data-tooltip="Manage in CS Portal"><AegisIcon name="arrow-right" :size="14" /></a>

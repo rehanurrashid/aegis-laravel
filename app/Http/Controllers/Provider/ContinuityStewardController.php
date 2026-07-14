@@ -92,15 +92,18 @@ class ContinuityStewardController extends Controller
             ->with('plan.practitioner:id,display_name,credentials,organization,location,avatar_initials,slug')
             ->get()
             ->map(fn ($s) => [
-                'id'           => $s->id,
-                'role'         => is_object($s->role) ? $s->role->value : $s->role,
-                'status'       => is_object($s->status) ? $s->status->value : $s->status,
-                'fee_cents'    => (int) ($s->fee_cents ?? 0),
-                'display_name' => $s->plan?->practitioner?->display_name ?? '—',
-                'organization' => $s->plan?->practitioner?->organization ?? '',
-                'location'     => $s->plan?->practitioner?->location ?? '',
-                'avatar_initials' => $s->plan?->practitioner?->avatar_initials ?? '??',
-                'slug'         => $s->plan?->practitioner?->slug ?? '',
+                'id'               => $s->id,
+                'role'             => is_object($s->role) ? $s->role->value : $s->role,
+                'status'           => is_object($s->status) ? $s->status->value : $s->status,
+                'fee_cents'        => (int) ($s->fee_cents ?? 0),
+                'display_name'     => $s->plan?->practitioner?->display_name ?? '—',
+                'organization'     => $s->plan?->practitioner?->organization ?? '',
+                'location'         => $s->plan?->practitioner?->location ?? '',
+                'avatar_initials'  => $s->plan?->practitioner?->avatar_initials ?? '??',
+                'slug'             => $s->plan?->practitioner?->slug ?? '',
+                'review_due_at'    => $s->review_due_at?->toDateString(),
+                'vault_access'     => $s->vault_access ?? 'none',
+                'active_incidents' => $s->plan_id ? \App\Models\CriticalIncident::where('plan_id', $s->plan_id)->where('status', 'active')->count() : 0,
             ]);
 
         $incidentConfigs = $plan
