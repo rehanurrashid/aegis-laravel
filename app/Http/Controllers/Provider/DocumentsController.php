@@ -263,6 +263,9 @@ class DocumentsController extends Controller
             'counterparty'   => $counterparty,
             'body'           => $doc->body,
             'history'        => $this->buildHistory($doc),
+            'effective_date' => $doc->effective_date?->format('M j, Y'),
+            'expiry_date'    => $expiresAt?->format('M j, Y'),
+            'version'        => null,
         ];
     }
 

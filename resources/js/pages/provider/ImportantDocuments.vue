@@ -1172,6 +1172,7 @@ const props = defineProps({
   supportingDocs: { type: Array,  default: () => [] },
   docStats:       { type: Object, default: () => ({ total: 0, active: 0, pending: 0, expiring: 0 }) },
   stewards:       { type: Array,  default: () => [] },
+  stewards:       { type: Array,  default: () => [] },
 })
 
 const { openModal, closeModal, isOpen } = useModal()
