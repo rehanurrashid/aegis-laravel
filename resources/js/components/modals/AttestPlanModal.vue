@@ -16,7 +16,7 @@
 
     <template #footer>
       <button type="button" class="btn btn-outline" @click="$emit('update:modelValue', false)">Cancel</button>
-      <button type="button" class="btn btn-primary btn-spin" :disabled="submitting" @click="submit">
+      <button type="button" class="btn btn-primary" :class="{ 'btn-spin': submitting }" :disabled="submitting" @click="submit">
         <AegisIcon v-if="submitting" name="refresh-cw" :size="14" class="spin" />
         <AegisIcon v-else name="check-circle" :size="14" />
         {{ submitting ? 'Attesting…' : 'Attest Vault' }}
@@ -38,8 +38,9 @@ const submitting = ref(false)
 function submit() {
   submitting.value = true
   form.post(route('provider.plan.attest'), {
-    onSuccess: () => { submitting.value = false; emit('update:modelValue', false) },
+    onSuccess: () => { emit('update:modelValue', false) },
     onError:   () => { submitting.value = false },
+    onFinish:  () => { submitting.value = false },
   })
 }
 </script>
