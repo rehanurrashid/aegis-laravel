@@ -32,9 +32,9 @@
     <!-- ── STAT CHIPS ── -->
     <div class="stat-chips-row">
       <AegisStatChip icon="file-text" :value="(zones.standard?.length ?? 0) + (zones.emergency?.length ?? 0)" label="Total Documents" />
-      <AegisStatChip icon="lock"      :value="zones.emergency?.length ?? 0"  label="Sensitive" />
+      <AegisStatChip icon="lock"      :value="zones.emergency?.length ?? 0"  label="Sensitive Information" />
       <AegisStatChip icon="clock"     :value="actionNeededCount"              label="Action Needed" />
-      <AegisStatChip icon="users"     :value="stewardsWithAccess"             label="People with vault access" />
+      <AegisStatChip icon="users"     :value="stewardsWithAccess"             label="People granted access during a critical moment" />
     </div>
 
     <!-- ── ATTESTATION BANNERS ── -->
@@ -95,64 +95,99 @@
       </div>
     </div>
 
-    <!-- ══════════════ PAGE-SIDEBAR LAYOUT ══════════════ -->
-    <div class="vault-layout">
-
-      <!-- LEFT NAV -->
-      <nav class="page-sidebar vault-nav" aria-label="Vault sections">
-        <div class="page-sidebar-group">
-          <div class="page-sidebar-label">Documents</div>
-          <button
-            v-for="tab in primaryTabs"
-            :key="tab.key"
-            type="button"
-            class="page-sidebar-item"
-            :class="{ active: activeTab === tab.key }"
-            @click="setActiveTab(tab.key)"
-          >
-            <span class="page-sidebar-icon"><AegisIcon :name="tab.icon" :size="15" /></span>
-            {{ tab.label }}
-            <span class="page-sidebar-badge">{{ tab.count }}</span>
-          </button>
+    <!-- SECURITY STATUS BANNER -->
+    <div class="alert alert-success vault-security-banner">
+      <div class="alert-icon"><AegisIcon name="shield-check" :size="18" /></div>
+      <div class="alert-content">
+        <div class="alert-title">Vault Status: Secure</div>
+        <div>All documents encrypted at rest and in transit. Last security scan: Today at 6:00 AM.</div>
+        <div class="vault-compliance-badges">
+          <span class="badge badge-green">HIPAA</span>
+          <span class="badge badge-green">SOC 2</span>
+          <span class="badge badge-green">HITECH</span>
+          <span class="badge badge-green">ZERO-KNOWLEDGE</span>
         </div>
+      </div>
+    </div>
 
-        <!-- Sub-filters: Documents -->
-        <div v-show="activeTab === 'all'" class="page-sidebar-group">
-          <div class="page-sidebar-label">Filter by category</div>
-          <button
-            v-for="pill in allDocPills"
-            :key="'all-' + pill.cat"
-            type="button"
-            class="page-sidebar-item"
-            :class="{ active: activeCat === pill.cat }"
-            @click="activeCat = pill.cat"
-          >
-            <span class="page-sidebar-icon"><AegisIcon name="tag" :size="13" /></span>
-            {{ pill.label }}
-            <span class="page-sidebar-badge">{{ pill.count }}</span>
-          </button>
+    <!-- STORAGE BAR -->
+    <div class="vault-storage-bar">
+      <div class="vault-storage-label">Storage: 1.2 GB / 10 GB</div>
+      <div class="progress vault-storage-progress"><div class="progress-bar" style="width:12%"></div></div>
+      <div class="vault-storage-used">12% used</div>
+      <a :href="route('provider.settings.index')" class="vault-storage-upgrade">
+        Upgrade Plan <AegisIcon name="chevron-right" :size="12" />
+      </a>
+    </div>
+
+    <!-- SENSITIVE INFORMATION RESTRICTED ACCESS BANNER -->
+    <div class="alert alert-danger vault-restricted-banner">
+      <div class="alert-icon"><AegisIcon name="lock" :size="18" /></div>
+      <div class="alert-content">
+        <div class="alert-title">Sensitive Information &mdash; Restricted Access</div>
+        <div>{{ zones.emergency?.length ?? 0 }} items are stored in your Sensitive Information. These are only accessible to your named Continuity Steward after a verified critical incident is triggered by your Support Steward. You can manage these directly but access by others is strictly controlled.</div>
+        <div class="vault-restricted-triggers">
+          <AegisIcon name="alert-triangle" :size="14" />
+          <span><strong>Trigger Conditions:</strong> Death &middot; Short-Term Incapacitation &middot; Long-Term Incapacitation &middot; Missing Person &middot; Detainment &middot; Natural Disaster &middot; Geopolitical or Conflict-Related Events</span>
         </div>
-
-        <!-- Sub-filters: Client Roster -->
-        <div v-show="activeTab === 'clientroster'" class="page-sidebar-group">
-          <div class="page-sidebar-label">Filter roster</div>
-          <button
-            v-for="pill in rosterPills"
-            :key="'roster-' + pill.cat"
-            type="button"
-            class="page-sidebar-item"
-            :class="{ active: activeCat === pill.cat }"
-            @click="activeCat = pill.cat"
-          >
-            <span class="page-sidebar-icon"><AegisIcon name="users" :size="13" /></span>
-            {{ pill.label }}
-            <span class="page-sidebar-badge">{{ pill.count }}</span>
-          </button>
+        <div class="vault-restricted-actions">
+          <button class="btn btn-danger" @click="setActiveTab('emergency')">Manage Sensitive Information</button>
         </div>
-      </nav>
+      </div>
+    </div>
 
-      <!-- MAIN CONTENT -->
-      <div class="vault-main">
+    <!-- TWO-TIER TABS -->
+    <div class="tabs-twotier">
+
+      <!-- Primary tabs -->
+      <div class="tabs-primary" role="tablist" aria-label="Document Vault sections">
+        <button
+          v-for="tab in primaryTabs"
+          :key="tab.key"
+          type="button"
+          class="tab-primary"
+          :class="{ active: activeTab === tab.key }"
+          role="tab"
+          @click="setActiveTab(tab.key)"
+        >
+          <AegisIcon :name="tab.icon" :size="15" />
+          {{ tab.label }}
+          <span class="tab-count">{{ tab.count }}</span>
+        </button>
+      </div>
+
+      <!-- Secondary pills — scoped per primary tab -->
+      <div class="tabs-segmented tabs-secondary-pills" role="tablist">
+        <!-- All Documents pills -->
+        <button
+          v-for="pill in allDocPills"
+          v-show="activeTab === 'all' || activeTab === 'emergency'"
+          :key="'all-' + pill.cat"
+          type="button"
+          class="tab-pill"
+          :class="{ active: activeCat === pill.cat }"
+          @click="activeCat = pill.cat"
+        >
+          {{ pill.label }} <span class="badge-pill">{{ pill.count }}</span>
+        </button>
+
+        <!-- Client Roster pills -->
+        <button
+          v-for="pill in rosterPills"
+          v-show="activeTab === 'clientroster'"
+          :key="'roster-' + pill.cat"
+          type="button"
+          class="tab-pill"
+          :class="{ active: activeCat === pill.cat }"
+          @click="activeCat = pill.cat"
+        >
+          {{ pill.label }} <span class="badge-pill">{{ pill.count }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB CONTENT WRAPPER -->
+    <div class="vault-tab-content">
 
         <!-- ══════ TAB: ALL DOCUMENTS ══════ -->
         <div v-show="activeTab === 'all'">
@@ -243,6 +278,84 @@
             </div>
           </template>
         </div>
+
+        <!-- ══════ TAB: SENSITIVE INFORMATION ══════ -->
+        <div v-show="activeTab === 'emergency'">
+          <div class="card vault-emergency-completeness">
+            <div class="card-header">
+              <div class="card-title vault-section-title-row">
+                <span class="vault-section-icon vault-section-icon--red"><AegisIcon name="alert-triangle" :size="15" /></span>
+                Sensitive Information Completeness
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="vault-emergency-progress-desc">
+                <strong>{{ zones.emergency?.length ?? 0 }} of 6</strong> recommended items uploaded. Add the rest so your Continuity Steward has everything they need in an incident.
+              </div>
+              <div class="progress vault-emergency-progress-bar">
+                <div class="progress-bar red" :style="{ width: emergencyProgressPct + '%' }"></div>
+              </div>
+              <div class="vault-emergency-pct">{{ emergencyProgressPct }}% complete</div>
+            </div>
+          </div>
+
+          <div class="alert alert-danger">
+            <div class="alert-icon"><AegisIcon name="lock" :size="18" /></div>
+            <div class="alert-content">
+              <div class="alert-title">Sensitive Information &mdash; Maximum Security</div>
+              <div>Items in this vault are encrypted with an additional layer. They are <strong>only accessible to your designated Continuity Steward</strong> after a verified critical incident is triggered by your Support Steward.</div>
+            </div>
+          </div>
+
+          <div class="section-header">
+            <div class="section-title">
+              Sensitive Information Items
+              <span class="section-badge">{{ zones.emergency?.length ?? 0 }} stored &middot; CS access only</span>
+            </div>
+            <button class="btn btn-danger" @click="openUploadModal('emergency')">
+              <AegisIcon name="plus" :size="14" /> Add to Vault
+            </button>
+          </div>
+
+          <AegisEmptyState
+            v-if="!(zones.emergency?.length)"
+            icon="lock"
+            title="Sensitive Information is empty"
+            subtitle="Add the documents your Continuity Steward will need: client notification letters, transfer SOPs, POA, succession instructions."
+          >
+            <template #action>
+              <button class="btn btn-danger" @click="openUploadModal('emergency')">Add First Item</button>
+            </template>
+          </AegisEmptyState>
+
+          <template v-else>
+            <div class="doc-grid">
+              <div
+                v-for="doc in zones.emergency"
+                :key="doc.id"
+                class="doc-card"
+                @click="openDocDetail(doc)"
+              >
+                <div class="doc-card-top">
+                  <div class="doc-file-icon doc-file-icon--sensitive"><AegisIcon name="lock" :size="20" /></div>
+                  <div class="doc-card-meta">
+                    <div class="doc-card-name">{{ doc.title }}</div>
+                    <div v-if="doc.sub_label" class="doc-card-sub">{{ doc.sub_label }}</div>
+                  </div>
+                </div>
+                <div class="doc-card-tags">
+                  <span class="badge badge-red">Emergency Only</span>
+                  <span v-for="tag in (doc.tags ?? [])" :key="tag" class="badge badge-gold">{{ tag }}</span>
+                </div>
+                <div class="doc-card-footer">
+                  <div class="doc-card-date">{{ dateLine(doc) }}</div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+
 
         <!-- ══════ TAB: SYSTEM ACCESS CREDENTIALS ══════ -->
         <div v-show="activeTab === 'credentials'">
@@ -439,8 +552,7 @@
           </div>
         </div>
 
-      </div><!-- /vault-main -->
-    </div><!-- /vault-layout -->
+    </div><!-- /vault-tab-content -->
 
     <!-- ══════════════ MODALS ══════════════ -->
 
@@ -1007,7 +1119,8 @@ function setActiveTab(tab) {
 }
 
 const primaryTabs = computed(() => [
-  { key: 'all',          label: 'Documents',                 icon: 'file-text', count: (props.zones.standard?.length ?? 0) + (props.zones.emergency?.length ?? 0) },
+  { key: 'all',          label: 'All Documents',             icon: 'file-text', count: props.zones.standard?.length ?? 0 },
+  { key: 'emergency',    label: 'Sensitive Information',     icon: 'lock',      count: props.zones.emergency?.length ?? 0 },
   { key: 'credentials',  label: 'System Access Credentials', icon: 'key',       count: props.zones.credentials?.length ?? 0 },
   { key: 'clientroster', label: 'Client Roster',             icon: 'users',     count: props.zones.roster?.length ?? 0 },
 ])
@@ -1015,7 +1128,7 @@ const primaryTabs = computed(() => [
 // ── Secondary pills ──────────────────────────────────────────
 const allDocPills = computed(() => {
   const cats = {}
-  const allDocs = [...(props.zones.standard ?? []), ...(props.zones.emergency ?? [])]
+  const allDocs = [...(props.zones.standard ?? [])]
   for (const doc of allDocs) {
     const c = doc.category || 'Other'
     cats[c] = (cats[c] ?? 0) + 1
@@ -1027,7 +1140,7 @@ const allDocPills = computed(() => {
     'Clinical Documents':     'Clinical',
     'Financial Documents':    'Financial',
   }
-  const pills = [{ cat: '__all__', label: 'All', count: allDocs.length }, { cat: '__sensitive__', label: 'Sensitive', count: props.zones.emergency?.length ?? 0 }]
+  const pills = [{ cat: '__all__', label: 'All', count: allDocs.length }]
   for (const [cat, count] of Object.entries(cats)) {
     pills.push({ cat, label: shortLabel[cat] ?? cat, count })
   }
@@ -1048,14 +1161,12 @@ const rosterPills = computed(() => {
 
 // ── Filtered docs ────────────────────────────────────────────
 const filteredStandard = computed(() => {
-  let items = [...(props.zones.standard ?? []), ...(props.zones.emergency ?? []).map(d => ({ ...d, _sensitive: true }))]
+  let items = [...(props.zones.standard ?? [])]
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     items = items.filter(d => d.title?.toLowerCase().includes(q))
   }
-  if (activeCat.value === '__sensitive__') {
-    items = items.filter(d => d._sensitive)
-  } else if (activeCat.value !== '__all__') {
+  if (activeCat.value !== '__all__') {
     items = items.filter(d => (d.category ?? 'Other') === activeCat.value)
   }
   return items
@@ -1109,6 +1220,11 @@ const actionNeededCount = computed(() => {
 const stewardsWithAccess = computed(() =>
   (props.stewards ?? []).filter(s => s.vault_access && s.vault_access !== 'none').length
 )
+
+const emergencyProgressPct = computed(() => {
+  const count = props.zones.emergency?.length ?? 0
+  return Math.min(100, Math.round((count / 6) * 100))
+})
 
 const needsAttention = computed(() => {
   const today = Date.now()
@@ -1261,8 +1377,9 @@ function fieldError(field) {
   if (vUpload$.value[field]?.$error) return vUpload$.value[field].$errors[0]?.$message
   return null
 }
-function openUploadModal() {
-  uploadForm.is_sensitive = false
+function openUploadModal(zone = 'standard') {
+  uploadForm.is_sensitive = zone === 'emergency'
+  uploadForm.zone = zone
   modals.upload = true
 }
 function closeUploadModal() {
@@ -1517,15 +1634,7 @@ function revokeAccess() {
 
 <style scoped>
 /* ── Layout ─────────────────────────────────────────────── */
-.vault-layout {
-  display: grid;
-  grid-template-columns: 220px 1fr;
-  gap: 22px;
-  align-items: start;
-  padding-bottom: 40px;
-}
-.vault-nav  { /* inherits page-sidebar sticky positioning */ }
-.vault-main { min-width: 0; }
+.vault-tab-content { padding-bottom: 40px; }
 
 /* ── Banners & alerts ───────────────────────────────────── */
 .vault-attest-banner {
@@ -1677,11 +1786,44 @@ function revokeAccess() {
 .vault-access-card-label { font-size: 10px; font-weight: 700; color: var(--text-4); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
 .vault-access-card-desc  { font-size: 12px; color: var(--text-2); line-height: 1.6; font-weight: 600; }
 
-/* ── Responsive ─────────────────────────────────────────── */
-@media (max-width: 900px) {
-  .vault-layout { grid-template-columns: 1fr; }
-  .vault-nav    { position: static; }
+/* ── Security banner ────────────────────────────────────── */
+.vault-security-banner { margin-bottom: 20px; }
+.vault-compliance-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+/* ── Storage bar ────────────────────────────────────────── */
+.vault-storage-bar {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px 18px; margin-bottom: 24px;
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
 }
+.vault-storage-label   { font-size: 13px; font-weight: 700; color: var(--text-2); white-space: nowrap; }
+.vault-storage-progress { flex: 1; min-width: 160px; }
+.vault-storage-used    { font-size: 11px; color: var(--text-4); font-weight: 600; }
+.vault-storage-upgrade {
+  font-size: 11px; color: var(--gold-dark); font-weight: 700;
+  text-decoration: none; display: inline-flex; align-items: center; gap: 4px;
+}
+.vault-storage-upgrade:hover { text-decoration: underline; }
+
+/* ── Restricted access banner ───────────────────────────── */
+.vault-restricted-banner  { margin-bottom: 20px; box-shadow: var(--shadow-sm); }
+.vault-restricted-triggers {
+  display: flex; align-items: flex-start; gap: 8px; margin-top: 10px;
+  padding: 10px 12px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 12px; color: var(--text-3);
+}
+.vault-restricted-triggers strong { color: var(--text-2); }
+.vault-restricted-actions { margin-top: 10px; }
+
+/* ── Sensitive info tab ─────────────────────────────────── */
+.vault-emergency-completeness   { margin-bottom: 16px; }
+.vault-emergency-progress-desc  { font-size: 13px; color: var(--text-2); margin-bottom: 12px; line-height: 1.5; font-weight: 600; }
+.vault-emergency-progress-bar   { margin-bottom: 10px; }
+.vault-emergency-pct            { font-size: 11px; color: var(--text-3); font-weight: 600; }
+.vault-section-icon--red        { background: var(--red-light) !important; color: var(--red-dark) !important; }
+.doc-file-icon--sensitive       { background: var(--red-light); color: var(--red-dark); }
+
+/* ── Responsive ─────────────────────────────────────────── */
 @media (max-width: 600px) {
   .doc-grid             { grid-template-columns: 1fr; }
   .vault-access-levels  { grid-template-columns: 1fr; }
