@@ -1211,7 +1211,7 @@ CSS;
             default    => 'No',
         };
 
-        $css   = $this->sharedCss();
+        $css   = $this->css();
         $docId = 'CS-AGR-' . strtoupper(substr($steward->id, 0, 8));
         $genAt = now()->format('M d, Y H:i');
 
