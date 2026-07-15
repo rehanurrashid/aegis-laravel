@@ -427,6 +427,7 @@
                 <button type="button" class="tab-pill" :class="{ active: csInvFilter[activeCs.id] === 'disputed' }" @click="setCsInvFilter(activeCs.id, 'disputed')">Disputed</button>
               </nav>
             </div>
+            <div class="csdt-inv-table-wrap">
             <table v-if="activeCs.invoices?.length" class="sic-table csdt-inv-table">
               <thead>
                 <tr>
@@ -464,12 +465,7 @@
                 </tr>
               </tbody>
             </table>
-            <AegisEmptyState
-              v-else
-              icon="file-text"
-              title="No invoices yet"
-              description="Invoices appear here when a critical incident closes and the CS fee becomes due."
-            />
+            </div>
             <div v-if="activeCs.invoices?.length && csTotalPages(activeCs) > 1" style="padding:10px 0 0;display:flex;justify-content:center;">
               <AegisPagination
                 :current-page="csInvPage[activeCs.id] ?? 1"
@@ -477,6 +473,12 @@
                 @change="p => setCsInvPage(activeCs.id, p)"
               />
             </div>
+            <AegisEmptyState
+              v-if="!activeCs.invoices?.length"
+              icon="file-text"
+              title="No invoices yet"
+              description="Invoices appear here when a critical incident closes and the CS fee becomes due."
+            />
           </div>
         </template>
 
@@ -1619,26 +1621,50 @@ function paymentTypeLabel(t) {
 .sic-row--clickable  { cursor: pointer; }
 .sic-row--clickable:hover > td { background: var(--surface-2); }
 .sic-row--warning > td:first-child { border-left: 3px solid var(--orange-dark); }
-.sic-avatar--gold    { background: var(--badge-bg-gold) !important; color: var(--gold-dark) !important; border: 1px solid var(--badge-border-gold); }
+
+/* sic-party layout (mirrors Services.vue — scoped here for CS wallet) */
+.sic-row   { border-bottom: 1px solid var(--border); }
+.sic-row:last-child { border-bottom: none; }
+.sic-td    { padding: 12px 14px; vertical-align: middle; font-size: 13px; }
+.sic-td--party  { width: 42%; }
+.sic-td--actions { width: 56px; text-align: right; white-space: nowrap; }
+.sic-td--actions > * + * { margin-left: 6px; }
+.sic-party { display: flex; align-items: center; gap: 10px; }
+.sic-avatar {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; overflow: hidden;
+}
+.sic-avatar--gold { background: var(--badge-bg-gold); color: var(--gold-dark); border: 1px solid var(--badge-border-gold); }
+.sic-avatar-initials { line-height: 1; letter-spacing: .3px; }
+.sic-party-info  { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sic-party-name  { font-size: 13px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sic-service-name { font-size: 11px; color: var(--text-3); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sic-date-sub    { font-size: 11px; color: var(--text-4); margin-top: 1px; display: flex; align-items: center; gap: 3px; }
+.sic-badges      { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 
 /* ── CS Detail Modal header ── */
 .csm-header      { display: flex; align-items: center; gap: 14px; padding-bottom: 16px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
-.csm-avatar      { width: 48px; height: 48px; border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-size: 18px; font-weight: 700; flex-shrink: 0; }
+.csm-avatar      { width: 52px; height: 52px; border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center; font-family: var(--font-serif); font-size: 18px; font-weight: 700; flex-shrink: 0; }
 .csm-id          { flex: 1; min-width: 0; }
 .csm-name        { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
 .csm-name-link   { font-family: var(--font-serif); font-size: 18px; font-weight: 700; color: var(--text); text-decoration: none; }
 .csm-name-link:hover { color: var(--gold-dark); }
 .csm-meta-row    { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.csm-facts       { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin: 16px 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.csm-facts       { display: grid; grid-template-columns: repeat(3, 1fr); margin: 16px 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 .csm-fact        { padding: 14px 16px; background: var(--surface-2); border-right: 1px solid var(--border); }
 .csm-fact:last-child { border-right: none; }
 .csm-fact-label  { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-4); margin-bottom: 6px; }
 .csm-fact-value  { font-family: var(--font-serif); font-weight: 700; color: var(--text); font-size: 14px; }
-.csm-fact-value.amount { font-size: 20px; color: var(--gold-dark); }
+.csm-fact-value.amount { font-size: 22px; color: var(--gold-dark); }
 
+/* ── CS invoice sub-table inside modal ── */
 .csdt-inv-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
 .csdt-inv-label  { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); }
-.csdt-inv-table  { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.csdt-inv-table-wrap { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.csdt-inv-table  { width: 100%; border-collapse: collapse; }
+.csdt-inv-table .sic-th { background: var(--surface-2); padding: 8px 12px; }
+.csdt-inv-table .sic-row:last-child td { border-bottom: none; }
 .cspay-note        { display: flex; align-items: flex-start; gap: 10px; padding: 13px 15px; border-radius: var(--radius); background: var(--blue-light); border: 1px solid var(--soft-blue); }
 .cspay-note p      { font-size: 12px; color: var(--text-2); line-height: 1.5; margin: 0; }
 .cspay-note-icon         { color: var(--gold-dark); flex-shrink: 0; margin-top: 1px; }
@@ -1691,7 +1717,7 @@ function paymentTypeLabel(t) {
 
 /* ── SESSION TABLE ── */
 .sic-table-wrap { border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
-.sic-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.sic-table { width: 100%; border-collapse: collapse; }
 .sic-th {
   padding: 9px 12px; text-align: left;
   font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;

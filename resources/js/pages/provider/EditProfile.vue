@@ -58,7 +58,7 @@
     <!-- ══════════════ PROFILE COMPLETION STRIP ══════════════ -->
     <ProfileCompletionStrip
       :pct="completionPct"
-      :subtitle="`${completionItemsRemaining} items remaining — add a profile photo and liability insurance`"
+      :subtitle="completionPct >= 100 ? '' : `${completionItemsRemaining} item${completionItemsRemaining !== 1 ? 's' : ''} remaining — complete your profile to improve discovery`"
     >
       <template #action>
         <button type="button" class="btn btn-primary" style="flex-shrink:0;white-space:nowrap" @click="activeSection = 'professional'">

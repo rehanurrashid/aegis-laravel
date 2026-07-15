@@ -23,13 +23,20 @@ class ProfileCompletionService
         $specialties = $this->metaValue($user, 'specialties');
         $services    = $this->metaValue($user, 'services');
 
-        $hasLicense  = ProviderCredential::where('user_id', $user->id)
-            ->where('cred_type', 'license')
+        // Mirror Vue: licenseCredentials = credentials where !is_insurance
+        // is_insurance accessor: cred_type contains 'insurance' or 'liability'
+        $hasLicense = ProviderCredential::where('user_id', $user->id)
+            ->whereRaw("LOWER(cred_type) NOT LIKE '%insurance%'")
+            ->whereRaw("LOWER(cred_type) NOT LIKE '%liability%'")
             ->exists();
 
+        // Mirror Vue: insuranceCredential = credentials where is_insurance
         $hasInsurance = ProviderCredential::where('user_id', $user->id)
-            ->get()
-            ->contains(fn ($c) => $c->is_insurance);
+            ->where(function ($q) {
+                $q->whereRaw("LOWER(cred_type) LIKE '%insurance%'")
+                  ->orWhereRaw("LOWER(cred_type) LIKE '%liability%'");
+            })
+            ->exists();
 
         $checks = [
             ! empty($user->display_name),
@@ -57,8 +64,7 @@ class ProfileCompletionService
 
     public function itemsRemaining(User $user): int
     {
-        $pct = $this->compute($user);
-        return max(0, 9 - (int) round(($pct / 100) * 9));
+        return max(0, 9 - (int) round(($this->compute($user) / 100) * 9));
     }
 
     private function metaValue(User $user, string $key): mixed
