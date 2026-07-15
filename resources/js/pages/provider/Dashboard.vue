@@ -907,10 +907,6 @@ const props = defineProps({
   annualReviewDate:   { type: String,  default: null },
   signedAt:           { type: String,  default: null },
   planSections:       { type: Array,   default: () => [] },
-  lastAttestedAt:     { type: String,  default: null },
-  planVersion:        { type: Number,  default: null },
-  hasDraftInProgress: { type: Boolean, default: false },
-  profileCompletion:  { type: Number,  default: 0 },
 })
 
 // ── Composables ───────────────────────────────────────────────────────
@@ -1343,7 +1339,7 @@ function submitServiceRequest() { modals.serviceRequest = false; toast.success('
 .dh-gl-head  { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .dh-gl-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-4); }
 .dh-gl-icon  { width: 26px; height: 26px; border-radius: var(--radius-sm); background: var(--icon-bg-gold); color: var(--gold-dark); display: flex; align-items: center; justify-content: center; }
-.dh-gl-icon.warn { background: var(--orange-light); color: var(--orange); }
+.dh-gl-icon.warn { background: var(--badge-bg-gold); color: var(--gold-dark); }
 .dh-gl-val   { font-family: var(--font-serif); font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; }
 .dh-gl-val small { font-family: var(--font-sans); font-size: 13px; font-weight: 400; color: var(--text-4); }
 .dh-gl-sub   { font-size: 12px; color: var(--text-3); margin-top: 6px; }
