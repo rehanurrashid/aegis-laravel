@@ -124,15 +124,6 @@
           </div>
         </div>
 
-        <!-- Active — success state -->
-        <div v-else-if="plan && plan.status === 'active'" class="alert alert-success" style="margin-bottom:16px">
-          <div class="alert-icon"><AegisIcon name="check-circle" :size="16" /></div>
-          <div class="alert-content">
-            <div class="alert-title">Plan Signed &amp; Active</div>
-            <div>Your Continuity Plan is signed and in effect. No action is needed unless your circumstances change or an annual review is due.</div>
-          </div>
-        </div>
-
         <!-- Team row -->
         <div class="section-head">
           <div>
