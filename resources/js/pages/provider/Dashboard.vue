@@ -319,29 +319,41 @@
 
       <div class="dh-glance">
         <div class="dh-gl-card" style="cursor:pointer" @click="router.visit(route('provider.referrals.index'))">
-          <div class="dh-gl-head"><div class="dh-gl-label">Referrals</div><div class="dh-gl-icon"><AegisIcon name="refresh" :size="14" /></div></div>
+          <div class="dh-gl-head">
+            <div class="dh-gl-icon"><AegisIcon name="refresh" :size="15" /></div>
+            <div class="dh-gl-label">Referrals</div>
+          </div>
           <div class="dh-gl-val">{{ stats.total_refs }}</div>
-          <div class="dh-gl-sub" v-html="stats.pending_refs > 0 ? '<strong>' + stats.pending_refs + ' pending</strong>' : 'All up to date'"></div>
+          <div class="dh-gl-sub" v-html="stats.pending_refs > 0 ? '<span class=\'dh-gl-badge\'>' + stats.pending_refs + ' pending</span>' : 'All up to date'"></div>
         </div>
         <div class="dh-gl-card" style="cursor:pointer" @click="router.visit(route('provider.network.index'))">
-          <div class="dh-gl-head"><div class="dh-gl-label">Network</div><div class="dh-gl-icon"><AegisIcon name="users" :size="14" /></div></div>
+          <div class="dh-gl-head">
+            <div class="dh-gl-icon"><AegisIcon name="users" :size="15" /></div>
+            <div class="dh-gl-label">Network</div>
+          </div>
           <div class="dh-gl-val">{{ stats.net_clinical + stats.net_business }}</div>
           <div class="dh-gl-sub">{{ stats.net_clinical }} clinical · {{ stats.net_business }} business</div>
         </div>
         <div class="dh-gl-card" style="cursor:pointer" @click="modals.ceu = true">
-          <div class="dh-gl-head"><div class="dh-gl-label">CEU Progress</div><div class="dh-gl-icon warn"><AegisIcon name="graduation-cap" :size="14" /></div></div>
+          <div class="dh-gl-head">
+            <div class="dh-gl-icon"><AegisIcon name="graduation-cap" :size="15" /></div>
+            <div class="dh-gl-label">CEU Progress</div>
+          </div>
           <div class="dh-gl-val">{{ stats.ceus_total }}<small> hrs</small></div>
           <div class="dh-gl-sub">{{ stats.ceus_count }} entries this year</div>
         </div>
         <div class="dh-gl-card" style="cursor:pointer" @click="router.visit(route('activity.index'))">
           <div class="dh-gl-head">
-            <div class="dh-gl-label">Incidents</div>
-            <div class="dh-gl-icon" :class="stats.active_incidents > 0 ? 'warn' : ''">
-              <AegisIcon name="alert-triangle" :size="14" />
+            <div class="dh-gl-icon" :class="stats.active_incidents > 0 ? 'dh-gl-icon--alert' : ''">
+              <AegisIcon name="alert-triangle" :size="15" />
             </div>
+            <div class="dh-gl-label">Incidents</div>
           </div>
           <div class="dh-gl-val">{{ stats.active_incidents }}</div>
-          <div class="dh-gl-sub">{{ stats.active_incidents > 0 ? stats.active_incidents + ' active now' : 'No active incidents' }}</div>
+          <div class="dh-gl-sub">
+            <span v-if="stats.active_incidents > 0" class="dh-gl-badge dh-gl-badge--alert">{{ stats.active_incidents }} active now</span>
+            <span v-else>No active incidents</span>
+          </div>
         </div>
       </div>
 
@@ -1331,18 +1343,37 @@ function submitServiceRequest() { modals.serviceRequest = false; toast.success('
 /* ── Glance ── */
 .dh-glance { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 0; }
 .dh-gl-card {
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-  padding: 16px 18px; 
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--gold-dark);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px 16px;
   transition: transform var(--transition), box-shadow var(--transition);
 }
 .dh-gl-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
-.dh-gl-head  { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.dh-gl-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-4); }
-.dh-gl-icon  { width: 26px; height: 26px; border-radius: var(--radius-sm); background: var(--icon-bg-gold); color: var(--gold-dark); display: flex; align-items: center; justify-content: center; }
-.dh-gl-icon.warn { background: var(--orange-light); color: var(--orange); }
-.dh-gl-val   { font-family: var(--font-serif); font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; }
-.dh-gl-val small { font-family: var(--font-sans); font-size: 13px; font-weight: 400; color: var(--text-4); }
-.dh-gl-sub   { font-size: 12px; color: var(--text-3); margin-top: 6px; }
+.dh-gl-head  { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.dh-gl-icon  {
+  flex-shrink: 0;
+  width: 30px; height: 30px;
+  border-radius: var(--radius-sm);
+  background: var(--icon-bg-gold);
+  color: var(--gold-dark);
+  display: flex; align-items: center; justify-content: center;
+}
+.dh-gl-icon--alert { background: var(--orange-light); color: var(--orange); }
+.dh-gl-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-4); }
+.dh-gl-val   { font-family: var(--font-serif); font-size: 32px; font-weight: 700; color: var(--text); line-height: 1; }
+.dh-gl-val small { font-family: var(--font-sans); font-size: 13px; font-weight: 400; color: var(--text-4); margin-left: 2px; }
+.dh-gl-sub   { font-size: 12px; color: var(--text-3); margin-top: 8px; min-height: 18px; }
+.dh-gl-badge {
+  display: inline-block;
+  background: var(--icon-bg-gold);
+  color: var(--gold-dark);
+  font-size: 11px; font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+.dh-gl-badge--alert { background: var(--orange-light); color: var(--orange); }
 
 /* ── Two-col layout ── */
 .dh-cols { display: grid; grid-template-columns: 1fr 340px; gap: 20px; margin-bottom: 0; }
