@@ -86,23 +86,17 @@ class PlanService
 
     public function configureIncidentType(ContinuityPlan $plan, string $incidentType, array $config): PlanIncidentConfig
     {
-        // Resolve plan_steward IDs to stable user IDs for storage
-        $rawCsIds = $config['authorized_cs_ids'] ?? [];
-        $rawSsIds = $config['authorized_ss_ids'] ?? [];
-
-        $csUserIds = PlanSteward::whereIn('id', $rawCsIds)->pluck('steward_id')->toArray();
-        $ssUserIds = PlanSteward::whereIn('id', $rawSsIds)->pluck('steward_id')->toArray();
-
+        // authorized_*_ids arrive as user IDs from the modal checkboxes — store directly
         return PlanIncidentConfig::updateOrCreate(
             ['plan_id' => $plan->id, 'incident_type' => $incidentType],
             [
                 'id'                    => 'pic_' . Str::lower(Str::random(12)),
                 'is_active'             => $config['is_active'] ?? $config['enabled'] ?? 0,
                 'is_optin'              => $config['is_optin'] ?? 0,
-                'docs_required'         => $config['docs_required'] ?? null,
+                'docs_required'         => isset($config['docs_required']) ? json_encode($config['docs_required']) : null,
                 'docs_required_other'   => $config['docs_required_other'] ?? null,
-                'authorized_ss_ids'     => json_encode($ssUserIds),
-                'authorized_cs_ids'     => json_encode($csUserIds),
+                'authorized_ss_ids'     => json_encode($config['authorized_ss_ids'] ?? []),
+                'authorized_cs_ids'     => json_encode($config['authorized_cs_ids'] ?? []),
             ]
         );
     }
