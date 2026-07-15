@@ -11,18 +11,21 @@
         <button type="button" class="btn-hero-ghost is-on-light" style="display:inline-flex;align-items:center;gap:6px;" @click="showSectionsModal = true">
           <AegisIcon name="check-circle" :size="14" /> {{ completedCount }}/{{ totalSections }} Sections Complete
         </button>
-        <button v-if="plan && plan.signed_at" type="button" class="btn-hero-ghost is-on-light" @click="showAnnualReview = true">
+        <!-- Annual review due → only show Begin Annual Review -->
+        <button v-if="plan && plan.status === 'annual_review_due'" type="button" class="btn-hero-solid is-on-light" style="display:inline-flex;align-items:center;gap:6px;" @click="showAnnualReview = true">
           <AegisIcon name="refresh-cw" :size="14" /> Begin Annual Review
         </button>
-        <button v-if="plan && !plan.vault_attested_at" type="button" class="btn-hero-ghost is-on-light" @click="showAttestModal = true">
-          <AegisIcon name="check-circle" :size="14" /> Attest Vault
-        </button>
-        <button v-if="plan && !plan.signed_at" type="button"
-          class="btn-hero-solid is-on-light"
-          :data-tooltip="!canSign ? signBlockedReason : undefined"
-          @click="canSign ? (showSignModal = true) : (showSectionsModal = true)">
-          <AegisIcon name="edit" :size="14" /> Finalize &amp; Sign
-        </button>
+        <!-- Draft → Attest Vault (if needed) + Finalize & Sign -->
+        <template v-else-if="plan && plan.status === 'draft'">
+          <button v-if="!plan.vault_attested_at" type="button" class="btn-hero-ghost is-on-light" style="display:inline-flex;align-items:center;gap:6px;" @click="showAttestModal = true">
+            <AegisIcon name="check-circle" :size="14" /> Attest Vault
+          </button>
+          <button type="button" class="btn-hero-solid is-on-light" style="display:inline-flex;align-items:center;gap:6px;"
+            :data-tooltip="!canSign ? signBlockedReason : undefined"
+            @click="canSign ? (showSignModal = true) : (showSectionsModal = true)">
+            <AegisIcon name="edit" :size="14" /> Finalize &amp; Sign
+          </button>
+        </template>
       </template>
     </AegisHeroBanner>
 
@@ -89,8 +92,8 @@
       <!-- ═══ BUILD PANE ═══ -->
       <div>
 
-        <!-- Sign CTA (unsigned only) -->
-        <div v-if="plan && !plan.signed_at" class="sign-cta">
+        <!-- Sign CTA — draft only -->
+        <div v-if="plan && plan.status === 'draft'" class="sign-cta">
           <div class="alert alert-warning">
             <AegisIcon name="alert-triangle" :size="16" />
             <div>By signing, you confirm this plan is accurate and authorize your stewards to act as described when a critical incident occurs.</div>
@@ -104,6 +107,29 @@
               @click="canSign ? (showSignModal = true) : (showSectionsModal = true)">
               <AegisIcon name="edit" :size="13" /> Finalize &amp; Sign
             </button>
+          </div>
+        </div>
+
+        <!-- Annual review due — show review CTA instead of sign -->
+        <div v-else-if="plan && plan.status === 'annual_review_due'" class="alert alert-info" style="margin-bottom:16px">
+          <div class="alert-icon"><AegisIcon name="refresh-cw" :size="16" /></div>
+          <div class="alert-content">
+            <div class="alert-title">Annual Review Required</div>
+            <div>Your plan is active but an annual review is due. Begin your annual review to create an updated version — your current plan remains active until the new version is signed.</div>
+            <div style="margin-top:10px;">
+              <button type="button" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;" @click="showAnnualReview = true">
+                <AegisIcon name="refresh-cw" :size="13" /> Begin Annual Review
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active — success state -->
+        <div v-else-if="plan && plan.status === 'active'" class="alert alert-success" style="margin-bottom:16px">
+          <div class="alert-icon"><AegisIcon name="check-circle" :size="16" /></div>
+          <div class="alert-content">
+            <div class="alert-title">Plan Signed &amp; Active</div>
+            <div>Your Continuity Plan is signed and in effect. No action is needed unless your circumstances change or an annual review is due.</div>
           </div>
         </div>
 
