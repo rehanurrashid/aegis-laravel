@@ -78,6 +78,8 @@ use App\Events\Plan\VaultAttested;
 use App\Events\Steward\StewardAccepted;
 use App\Events\Steward\StewardDeclined;
 use App\Events\Steward\StewardDesignated;
+use App\Events\Steward\StewardInviteCancelled;
+use App\Events\Steward\StewardInviteResent;
 use App\Events\Steward\StewardRemoved;
 use App\Events\Steward\SsSuspended;
 use App\Events\Steward\SsReinstated;
@@ -135,6 +137,8 @@ class SendEmailNotificationListener
             $event instanceof StewardAccepted         => $this->stewardAccepted($event),
             $event instanceof StewardDeclined         => $this->stewardDeclined($event),
             $event instanceof StewardRemoved          => $this->stewardRemoved($event),
+            $event instanceof StewardInviteResent       => $this->stewardInviteResent($event),
+            $event instanceof StewardInviteCancelled    => $this->stewardInviteCancelled($event),
             $event instanceof SsSuspended              => $this->ssSuspended($event),
             $event instanceof SsReinstated             => $this->ssReinstated($event),
             $event instanceof IncidentClosed          => $this->incidentClosed($event),
@@ -361,6 +365,51 @@ class SendEmailNotificationListener
         return [['user_id' => $e->steward->steward_id, 'gate_key' => 'notify_steward',
                  'template' => 'emails.steward.11-steward-removed',
                  'data' => ['plan_steward_id' => $e->steward->id]]];
+    }
+
+    private function stewardInviteResent(StewardInviteResent $e): array
+    {
+        $steward = $e->steward;
+        if (!$steward->steward_id) {
+            return [];
+        }
+        $plan = \App\Models\ContinuityPlan::find($steward->plan_id);
+        $provider = $plan ? \App\Models\User::find($plan->practitioner_id) : null;
+        $stewardUser = \App\Models\User::find($steward->steward_id);
+        $isVerified = (bool) ($stewardUser?->verified ?? false);
+        $template = $isVerified
+            ? 'emails.steward.21-cs-invite-resent-internal'
+            : 'emails.steward.20-cs-invite-resent-external';
+        return [['user_id' => $steward->steward_id, 'gate_key' => 'notify_steward',
+                 'template' => $template,
+                 'data' => [
+                     'steward_name'    => $stewardUser?->display_name ?? 'there',
+                     'provider_name'   => $provider?->display_name ?? 'Your provider',
+                     'expiry_days'     => $e->expiryDays,
+                     'expiry_date'     => now()->addDays($e->expiryDays)->format('M d, Y'),
+                     'follow_up_message' => $e->message,
+                     'invite_url'      => $isVerified
+                         ? url('/cs/dashboard')
+                         : url('/register?role=cs&path=invited&code=' . $steward->id),
+                 ]]];
+    }
+
+    private function stewardInviteCancelled(StewardInviteCancelled $e): array
+    {
+        $steward = $e->steward;
+        if (!$steward->steward_id) {
+            return [];
+        }
+        $plan = \App\Models\ContinuityPlan::find($steward->plan_id);
+        $provider = $plan ? \App\Models\User::find($plan->practitioner_id) : null;
+        $stewardUser = \App\Models\User::find($steward->steward_id);
+        return [['user_id' => $steward->steward_id, 'gate_key' => 'notify_steward',
+                 'template' => 'emails.steward.22-cs-invite-cancelled',
+                 'data' => [
+                     'steward_name'  => $stewardUser?->display_name ?? 'there',
+                     'provider_name' => $provider?->display_name ?? 'The practitioner',
+                     'cancelled_at'  => now()->format('M d, Y'),
+                 ]]];
     }
 
     private function ssSuspended(SsSuspended $e): array

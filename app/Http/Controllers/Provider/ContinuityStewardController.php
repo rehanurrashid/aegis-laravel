@@ -13,6 +13,7 @@ use App\Models\PlanIncidentConfig;
 use App\Models\PlanSteward;
 use App\Models\User;
 use App\Services\ActivityService;
+use App\Services\AegisPdfService;
 use App\Services\PlanService;
 use App\Services\ProfileService;
 use App\Services\StewardService;
@@ -277,8 +278,27 @@ class ContinuityStewardController extends Controller
         abort_if(!$plan || $steward->plan_id !== $plan->id, 404);
         $this->authorize('update', $plan);
 
-        $this->stewards->resendInvite($steward, $request->user());
+        $expiryDays = (int) $request->input('expiry_days', 14);
+        $message    = $request->input('message');
+
+        $this->stewards->resendInvite($steward, $request->user(), $expiryDays, $message);
         return back()->with('success', 'Invitation resent.');
+    }
+
+    public function downloadAgreement(Request $request, PlanSteward $steward): \Illuminate\Http\Response
+    {
+        $plan = $this->plans->getForPractitioner($request->user()->id);
+        abort_if(!$plan || $steward->plan_id !== $plan->id, 404);
+        $this->authorize('view', $plan);
+
+        $steward->load(['steward:id,display_name,email,credentials,organization']);
+        $pdf = app(AegisPdfService::class);
+        $html = $pdf->csAgreement($steward);
+
+        return response($html, 200, [
+            'Content-Type'        => 'text/html; charset=UTF-8',
+            'Content-Disposition' => 'inline; filename="cs-agreement-' . $steward->id . '.html"',
+        ]);
     }
 
     public function csCancelInvite(Request $request, PlanSteward $steward): RedirectResponse

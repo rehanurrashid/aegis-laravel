@@ -10,6 +10,7 @@ import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useMessageButton } from '@/composables/useMessageButton'
 import PlanReviewAlert from '@/components/PlanReviewAlert.vue'
+import ViewCsAgreementModal from '@/components/modals/ViewCsAgreementModal.vue'
 
 const props = defineProps({
   stewards:           { type: Array,  default: () => [] },
@@ -38,6 +39,8 @@ const activeTab = ref('myexec')
 // ── Active record refs ──────────────────────────────────────────────────────────
 const activeId      = ref(null)
 const activeSteward = computed(() => props.stewards.find(s => s.id === activeId.value) ?? null)
+const viewAgreementSteward = ref(null)
+const showViewAgreement = ref(false)
 const activePendingId = ref(null)
 const activePending   = computed(() => props.pendingInvitations.find(s => s.id === activePendingId.value) ?? null)
 
@@ -50,8 +53,8 @@ const modals = ref({
   addStep5:       false,
   editCS:         false,
   amendFee:       false,
-  viewAgreement:  false,
   resend:         false,
+  remove:         false,
   cancelInvite:   false,
   upgrade:        false,
 })
@@ -76,11 +79,11 @@ function openEditModal(s) {
 
 function openRemoveModal(s) {
   activeId.value = s.id
-  submitRemove()
+  modals.value.remove = true
 }
 function openResend(inv) {
   activePendingId.value   = inv.id
-  resendForm.expires_days = 30
+  resendForm.expiry_days = 14
   resendForm.message      = ''
   modals.value.resend = true
 }
@@ -134,28 +137,26 @@ const reviewInProgress = computed(() => props.planStatus === 'draft')
 
 
 // ── Remove form ───────────────────────────────────────────────────────────────
+const busyRemove = ref(false)
+
 function submitRemove() {
   if (!activeSteward.value) return
-  const name = stewardName(activeSteward.value)
-  confirmAction({
-    title: 'Remove Continuity Steward',
-    message: `Are you sure you want to remove ${name} as your Continuity Steward? This cannot be undone.`,
-    confirmText: 'Remove',
-    variant: 'danger',
-  }, () => {
-    router.delete(route('provider.stewards.remove', { steward: activeSteward.value.id }), {
-      preserveScroll: true,
-      onSuccess: () => {
-        toast.success('Continuity Steward removed.')
-        router.reload({ only: ['stewards', 'pendingInvitations', 'csCount'] })
-      },
-      onError:   () => toast.error('Could not remove steward.'),
-    })
+  busyRemove.value = true
+  router.delete(route('provider.stewards.remove', { steward: activeSteward.value.id }), {
+    data: { reason: '' },
+    preserveScroll: true,
+    onSuccess: () => {
+      modals.value.remove = false
+      toast.success('Continuity Steward removed.')
+      router.reload({ only: ['stewards', 'pendingInvitations', 'csCount'] })
+    },
+    onError:   () => toast.error('Could not remove steward.'),
+    onFinish:  () => { busyRemove.value = false },
   })
 }
 
 // ── Resend Invitation form ────────────────────────────────────────────────────
-const resendForm = useForm({ expires_days: 30, message: '' })
+const resendForm = useForm({ expiry_days: 14, message: '' })
 const busyResend = ref(false)
 
 function submitResend() {
@@ -434,7 +435,7 @@ function saveNotifyPrefs() {
 
           <!-- Action buttons -->
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
-            <button type="button" class="btn-icon" data-tooltip="View Agreement" @click="openModal('viewAgreement', s)"><AegisIcon name="file-text" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="View Agreement" @click="viewAgreementSteward = {...s, _incidentLabels: authIncidentLabels(s)}; showViewAgreement = true"><AegisIcon name="file-text" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Edit Details"   @click="openEditModal(s)"><AegisIcon name="pencil" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Message this CS" :disabled="msgLoading === s.steward_id" @click="openConversation(s.steward_id)"><AegisIcon name="message-square" :size="14" /></button>
 
@@ -480,7 +481,11 @@ function saveNotifyPrefs() {
           </div>
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
-              <span style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--text);">{{ inv.display_name ?? inv.email }}</span>
+              <component
+                :is="inv.slug ? 'a' : 'span'"
+                :href="inv.slug ? route('cs', inv.slug) : undefined"
+                style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--gold-dark);text-decoration:none;"
+              >{{ inv.display_name ?? inv.email }}</component>
               <span class="badge badge-orange"><AegisIcon name="clock" :size="12" /> Pending Response</span>
               <span v-if="inv.role" class="badge badge-gold"><AegisIcon name="shield" :size="10" /> {{ csRoleLabel(inv.role) }}</span>
             </div>
@@ -491,7 +496,7 @@ function saveNotifyPrefs() {
             </div>
             <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
               <button type="button" class="btn-icon" data-tooltip="Resend Invitation"  @click="openResend(inv)"><AegisIcon name="send" :size="14" /></button>
-              <button type="button" class="btn-icon" data-tooltip="Preview Agreement"  @click="openModal('viewAgreement')"><AegisIcon name="eye" :size="14" /></button>
+              <button type="button" class="btn-icon" data-tooltip="Preview Agreement" @click="viewAgreementSteward = {...inv, _incidentLabels: []}; showViewAgreement = true"><AegisIcon name="eye" :size="14" /></button>
               <button type="button" class="btn-icon" data-tooltip="Cancel Invitation"  @click="openCancelInvite(inv)"><AegisIcon name="x" :size="14" /></button>
             </div>
           </div>
@@ -729,110 +734,36 @@ function saveNotifyPrefs() {
 
 
     <!-- VIEW AGREEMENT MODAL -->
-    <AegisModal v-model="modals.viewAgreement" :title="'Continuity Plan' + (activeSteward ? ' — ' + stewardName(activeSteward) : '')" size="lg" @close="modals.viewAgreement=false">
-      <div class="alert alert-success" style="display:flex;align-items:center;gap:8px;"><AegisIcon name="check" :size="14" /><div>Agreement active · Both parties signed</div></div>
+    <ViewCsAgreementModal
+      v-model="showViewAgreement"
+      :steward="viewAgreementSteward"
+      @update:model-value="v => { showViewAgreement = v; if (!v) viewAgreementSteward = null }"
+    />
 
-      <!-- Summary header -->
-      <div v-if="activeSteward" style="display:flex;align-items:center;gap:14px;margin:16px 0 12px;">
-        <div style="width:48px;height:48px;border-radius:var(--radius);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{{ initials(stewardName(activeSteward)) }}</div>
-        <div>
-          <div style="font-size:15px;font-weight:700;color:var(--text);">{{ stewardName(activeSteward) }}</div>
-          <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;">
-            <AegisBadge :label="csRoleLabel(activeSteward.role)" variant="gold" icon="shield" />
-          </div>
-        </div>
-        <div v-if="activeSteward.signed_at" style="margin-left:auto;font-size:12px;color:var(--text-3);text-align:right;">
-          <div style="font-weight:600;">Agreement Date</div>
-          <div>{{ fmtDate(activeSteward.signed_at) }}</div>
-        </div>
-      </div>
 
-      <!-- Meta grid -->
-      <div v-if="activeSteward" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
-        <!-- Compensation -->
-        <div style="background:var(--surface-2);border-radius:var(--radius);padding:12px;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:8px;">Compensation</div>
-          <div style="font-size:13px;color:var(--text);">
-            <div v-if="activeSteward.fee_cents">
-              <strong>{{ formatMoney(activeSteward.fee_cents) }}</strong> per incident
-            </div>
-            <div v-else style="color:var(--text-3);">No compensation agreed</div>
-            <div style="font-size:12px;color:var(--text-3);margin-top:4px;">
-              Terms: {{ activeSteward.payment_terms ?? 'per_incident' }}
-              &nbsp;·&nbsp;
-              Auto-charge: {{ activeSteward.auto_charge ? 'Yes' : 'No' }}
-            </div>
-          </div>
-        </div>
-        <!-- Vault Access -->
-        <div style="background:var(--surface-2);border-radius:var(--radius);padding:12px;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:8px;">Vault Access</div>
-          <span
-            :class="{
-              'badge': true,
-              'badge-grey':  !activeSteward.vault_access || activeSteward.vault_access === 'none',
-              'badge-gold':  activeSteward.vault_access === 'metadata',
-              'badge-green': activeSteward.vault_access === 'scoped' || activeSteward.vault_access === 'full',
-            }"
-          >
-            <AegisIcon name="lock" :size="10" style="margin-right:3px;" />
-            <template v-if="!activeSteward.vault_access || activeSteward.vault_access === 'none'">No Vault Access</template>
-            <template v-else-if="activeSteward.vault_access === 'metadata'">Metadata Only</template>
-            <template v-else-if="activeSteward.vault_access === 'scoped'">Scoped Access</template>
-            <template v-else-if="activeSteward.vault_access === 'full'">Full Access</template>
-          </span>
-        </div>
-      </div>
 
-      <!-- Incident Authorization -->
-      <div v-if="activeSteward && authIncidentLabels(activeSteward).length" style="margin-bottom:16px;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:8px;">Incident Authorization</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;">
-          <span v-for="label in authIncidentLabels(activeSteward)" :key="label" class="badge badge-gold" style="text-transform:capitalize;">{{ label }}</span>
-        </div>
-      </div>
-      <div v-else-if="activeSteward" style="margin-bottom:16px;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:6px;">Incident Authorization</div>
-        <span style="font-size:12px;color:var(--text-3);">No specific incident types configured.</span>
-      </div>
 
-      <!-- Legal copy -->
-      <div style="background:var(--surface-2);border-radius:var(--radius);padding:18px 22px;font-size:13px;line-height:1.8;color:var(--text-2);">
-        <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid var(--border);">Aegis CONTINUITY PLAN</div>
-        <p><strong>Section 1. Purpose.</strong> This agreement establishes the designated Continuity Steward for the professional practice in the event of death, incapacitation, disability, voluntary retirement, license suspension, or any other event preventing the Provider from practicing.</p>
-        <p v-if="activeSteward">
-          <strong>Section 2. Compensation.</strong>
-          <template v-if="activeSteward.fee_cents">
-            Provider agrees to pay Continuity Steward {{ formatMoney(activeSteward.fee_cents) }} upon {{ activeSteward.payment_terms ?? 'per_incident' }} following closure of each verified critical incident.
-          </template>
-          <template v-else>
-            No compensation has been agreed for this engagement.
-          </template>
-        </p>
-        <p v-if="activeSteward">
-          <strong>Section 3. Vault Access.</strong>
-          Continuity Steward is granted
-          <template v-if="activeSteward.vault_access === 'scoped'">Emergency-Only (Scoped)</template>
-          <template v-else-if="activeSteward.vault_access === 'full'">Full Read</template>
-          <template v-else-if="activeSteward.vault_access === 'metadata'">Metadata-Only</template>
-          <template v-else>No</template>
-          access to the Provider's document vault.
-        </p>
-        <p v-if="activeSteward && authIncidentLabels(activeSteward).length">
-          <strong>Section 4. Authorized Incidents.</strong>
-          Continuity Steward is authorized to act on the following incident types:
-          {{ authIncidentLabels(activeSteward).join(', ') }}.
-        </p>
+
+    <!-- REMOVE CS MODAL -->
+    <AegisModal v-model="modals.remove" title="Remove Continuity Steward" size="sm" @close="modals.remove=false">
+      <div style="text-align:center;padding:12px 0;">
+        <div style="width:52px;height:52px;border-radius:50%;background:var(--red-light,#fee2e2);color:var(--red-dark);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+          <AegisIcon name="user-x" :size="22" />
+        </div>
+        <div v-if="activeSteward" style="font-family:var(--font-serif);font-size:15px;font-weight:700;margin-bottom:8px;">Remove {{ stewardName(activeSteward) }}?</div>
+        <div style="font-size:13px;color:var(--text-2);line-height:1.6;">
+          Removing <strong>{{ activeSteward ? stewardName(activeSteward) : 'this steward' }}</strong> as your Continuity Steward will deactivate their access and notify them by email. Any active engagement agreements will be marked as terminated.
+        </div>
       </div>
       <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.viewAgreement=false">Close</button>
-        <button type="button" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;"><AegisIcon name="download" :size="14" /> Download PDF</button>
+        <button type="button" class="btn btn-outline" @click="modals.remove=false">Keep Steward</button>
+        <button type="button" class="btn btn-danger" :disabled="busyRemove" style="display:inline-flex;align-items:center;gap:6px;" @click="submitRemove">
+          <AegisIcon v-if="busyRemove" name="refresh-cw" :size="13" class="btn-spin" />
+          <AegisIcon v-else name="user-x" :size="13" />
+          {{ busyRemove ? 'Removing…' : 'Remove Steward' }}
+        </button>
       </template>
     </AegisModal>
-
-
-
-
 
     <!-- RESEND INVITE MODAL -->
     <AegisModal v-model="modals.resend" title="Resend Invitation" size="sm" @close="modals.resend=false">
@@ -841,12 +772,16 @@ function saveNotifyPrefs() {
         <div><div style="font-size:13px;font-weight:700;">{{ activePending.display_name ?? activePending.email }}</div><div style="font-size:11px;color:var(--text-3);">Originally invited {{ fmtDate(activePending.invited_at) }}</div></div>
       </div>
       <div class="form-group">
-        <label class="form-label">New Expiration Date</label>
-        <select class="form-control form-select"><option>30 days from today</option><option>14 days from today</option><option>7 days from today</option></select>
+        <label class="form-label">New Expiration</label>
+        <select v-model="resendForm.expiry_days" class="form-control form-select">
+          <option :value="30">30 days from today</option>
+          <option :value="14">14 days from today</option>
+          <option :value="7">7 days from today</option>
+        </select>
       </div>
       <div class="form-group">
         <label class="form-label">Optional Follow-up Message</label>
-        <textarea class="form-control" style="min-height:70px;" placeholder="Hi, just following up on my Continuity Steward invitation…"></textarea>
+        <textarea v-model="resendForm.message" class="form-control" style="min-height:70px;" placeholder="Hi, just following up on my Continuity Steward invitation…"></textarea>
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.resend=false">Cancel</button>

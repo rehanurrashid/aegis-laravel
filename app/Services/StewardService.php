@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Events\Steward\AlternateCSActivated;
+use App\Events\Steward\StewardInviteCancelled;
+use App\Events\Steward\StewardInviteResent;
 use App\Events\Steward\StewardRoleChangeRequested;
 
 use App\Enums\ActivitySeverity;
@@ -464,12 +466,14 @@ class StewardService
     /**
      * Resend a pending invitation email and reset invited_at / expires_at.
      */
-    public function resendInvite(PlanSteward $steward, User $actor): PlanSteward
+    public function resendInvite(PlanSteward $steward, User $actor, int $expiryDays = 14, ?string $message = null): PlanSteward
     {
         $steward->update([
             'invited_at' => now(),
-            'expires_at' => now()->addDays(30),
+            'expires_at' => now()->addDays($expiryDays),
         ]);
+
+        event(new StewardInviteResent($steward, $actor, $message, $expiryDays));
 
         if ($steward->steward_id) {
             $stewardUser = User::find($steward->steward_id);
@@ -496,7 +500,7 @@ class StewardService
 
             SendEmailJob::dispatchSync(
                 $template,
-                ['plan_steward_id' => $steward->id, 'expires_days' => 30],
+                ['plan_steward_id' => $steward->id, 'expires_days' => $expiryDays, 'follow_up_message' => $message],
                 $steward->steward_id
             );
         } else {
@@ -507,7 +511,7 @@ class StewardService
 
             SendEmailJob::dispatchSync(
                 $template,
-                ['plan_steward_id' => $steward->id, 'expires_days' => 30],
+                ['plan_steward_id' => $steward->id, 'expires_days' => $expiryDays, 'follow_up_message' => $message],
                 $steward->steward_id
             );
         }
@@ -536,6 +540,25 @@ class StewardService
             'log',
             $actor->id
         );
+
+        if ($steward->steward_id) {
+            $this->activity->log(
+                $steward->steward_id,
+                'continuity_steward',
+                'steward',
+                ActivitySeverity::Info,
+                'invite_cancelled',
+                'Continuity Steward invitation withdrawn',
+                'The practitioner has withdrawn your Continuity Steward invitation.',
+                'plan_steward',
+                $steward->id,
+                $actor->id,
+                'notification',
+                $actor->id
+            );
+        }
+
+        event(new StewardInviteCancelled($steward, $actor));
 
         return $steward->fresh();
     }
