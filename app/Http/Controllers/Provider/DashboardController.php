@@ -18,6 +18,8 @@ use App\Services\ActivityService;
 use App\Services\CeuService;
 use App\Services\IncidentService;
 use App\Services\PlanService;
+use App\Enums\StewardStatus;
+use App\Enums\StewardRole;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -43,10 +45,14 @@ class DashboardController extends Controller
                 ->get()
             : collect();
 
-        $primaryCs = $stewards->where('steward_category', 'continuity_steward')->where('status', 'active')->where('role', 'primary')->first()
-            ?? $stewards->where('steward_category', 'continuity_steward')->where('status', 'active')->first();
-        $primarySs = $stewards->where('steward_category', 'support_steward')->where('status', 'active')->where('role', 'primary')->first()
-            ?? $stewards->where('steward_category', 'support_steward')->where('status', 'active')->first();
+        // status and role are enum-cast — filter on .value for collection where()
+        $activeCs = $stewards->filter(fn ($s) => $s->steward_category === 'continuity_steward'
+            && $s->status instanceof \App\Enums\StewardStatus && $s->status === StewardStatus::Active);
+        $activeSs = $stewards->filter(fn ($s) => $s->steward_category === 'support_steward'
+            && $s->status instanceof \App\Enums\StewardStatus && $s->status === StewardStatus::Active);
+
+        $primaryCs = $activeCs->first(fn ($s) => $s->role === StewardRole::Primary) ?? $activeCs->first();
+        $primarySs = $activeSs->first(fn ($s) => $s->role === StewardRole::Primary) ?? $activeSs->first();
 
         $activeIncident = CriticalIncident::where('practitioner_id', $user->id)
             ->whereIn('status', ['reported', 'verified', 'active'])
@@ -136,22 +142,29 @@ class DashboardController extends Controller
             ->toArray();
 
         // Attest summary for plan status chips
+        // Use enum-safe closures — status/role are cast to StewardStatus/StewardRole enums
         $planStatusValue = $plan?->status?->value ?? 'none';
+
+        $csStewards = $stewards->filter(fn ($s) => $s->steward_category === 'continuity_steward');
+        $ssStewards = $stewards->filter(fn ($s) => $s->steward_category === 'support_steward');
+        $csActive   = $csStewards->filter(fn ($s) => $s->status === StewardStatus::Active);
+        $ssActive   = $ssStewards->filter(fn ($s) => $s->status === StewardStatus::Active);
+
         $attest = [
             'plan_active'       => $plan && in_array($planStatusValue, ['active', 'annual_review_due']),
             'plan_review_due'   => $plan && $planStatusValue === 'annual_review_due',
             'plan_status'       => $planStatusValue,
             'plan_signed_at'    => $plan?->signed_at?->toDateString(),
             'annual_review_date'=> $plan?->annual_review_date?->toDateString(),
-            'ss_certified'      => $stewards->where('steward_category', 'support_steward')->where('status', 'active')->count() > 0,
-            'ss_assigned'       => $stewards->where('steward_category', 'support_steward')->count() > 0,
-            'ss_certified_count'=> $stewards->where('steward_category', 'support_steward')->where('status', 'active')->count(),
-            'ss_total'          => $stewards->where('steward_category', 'support_steward')->count(),
+            'ss_certified'      => $ssActive->count() > 0,
+            'ss_assigned'       => $ssStewards->count() > 0,
+            'ss_certified_count'=> $ssActive->count(),
+            'ss_total'          => $ssStewards->count(),
             'ss_latest'         => $primarySs?->updated_at,
-            'cs_certified'      => $stewards->where('steward_category', 'continuity_steward')->where('status', 'active')->count() > 0,
-            'cs_assigned'       => $stewards->where('steward_category', 'continuity_steward')->count() > 0,
-            'cs_certified_count'=> $stewards->where('steward_category', 'continuity_steward')->where('status', 'active')->count(),
-            'cs_total'          => $stewards->where('steward_category', 'continuity_steward')->count(),
+            'cs_certified'      => $csActive->count() > 0,
+            'cs_assigned'       => $csStewards->count() > 0,
+            'cs_certified_count'=> $csActive->count(),
+            'cs_total'          => $csStewards->count(),
             'cs_latest'         => $primaryCs?->updated_at,
         ];
 
@@ -163,7 +176,7 @@ class DashboardController extends Controller
             'planStatus'         => $plan?->status ?? 'none',
             'plan'               => $plan,
             'attest'             => $attest,
-            'activeStewardCount' => $stewards->where('status', 'active')->count(),
+            'activeStewardCount' => $stewards->filter(fn ($s) => $s->status === StewardStatus::Active)->count(),
             'maatActive'         => (bool) ($user->meta['maat_cs_active'] ?? false),
             'reviewDays'         => $reviewDays,
             'stats'              => [
@@ -184,8 +197,8 @@ class DashboardController extends Controller
             'planVersion'        => $plan?->plan_version ?? null,
             'hasDraftInProgress' => \App\Models\ContinuityPlan::where('practitioner_id', $user->id)->where('status', 'draft')->exists(),
             'planSections'       => $plan ? app(\App\Services\PlanService::class)->computeSections($plan) : [],
-            'continuityStewards' => $stewards->where('steward_category', 'continuity_steward')->values(),
-            'supportStewards'    => $stewards->where('steward_category', 'support_steward')->values(),
+            'continuityStewards' => $csStewards->values(),
+            'supportStewards'    => $ssStewards->values(),
             'primaryCs'          => $primaryCs,
             'primarySs'          => $primarySs,
             'netClinical'        => $netClinical,
@@ -194,6 +207,24 @@ class DashboardController extends Controller
             'referralRoster'     => $referralRoster,
             'referralNetwork'    => $referralNetwork,
             'credentials'        => $credentials,
+            '_debug'             => [
+                'plan_id'     => $plan?->id,
+                'plan_status' => $planStatusValue,
+                'steward_rows'=> $stewards->map(fn ($s) => [
+                    'id'       => $s->id,
+                    'category' => $s->steward_category,
+                    'status'   => $s->status?->value ?? $s->status,
+                    'role'     => $s->role?->value ?? $s->role,
+                ])->toArray(),
+                'cs_active_count' => $csActive->count(),
+                'ss_active_count' => $ssActive->count(),
+                'cs_certified'    => $attest['cs_certified'],
+                'ss_certified'    => $attest['ss_certified'],
+                'cs_assigned'     => $attest['cs_assigned'],
+                'ss_assigned'     => $attest['ss_assigned'],
+                'primaryCs_status'=> $primaryCs?->status?->value,
+                'primarySs_status'=> $primarySs?->status?->value,
+            ],
             'recentActivity'     => $this->activity->getForUser($user->id, [], 10),
             'upcomingCEUs'       => CeuEntry::where('practitioner_id', $user->id)
                                         ->orderByDesc('completed_on')->limit(5)->get(),
