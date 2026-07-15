@@ -311,26 +311,24 @@
               <div class="ic-section">
                 <div class="ic-section-label"><AegisIcon name="users" :size="12" /> Authorized Stewards</div>
                 <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
-                  <a v-for="sid in (getConfig(type.value)?.authorized_ss_ids ?? []).filter(id => getStewardById(id))" :key="'ss-'+sid"
-                    :href="getStewardSlug(sid) ? route('public.ss', { slug: getStewardSlug(sid) }) : '#'"
+                  <a v-for="s in (getConfig(type.value)?.authorized_ss ?? [])" :key="'ss-'+s.steward_id"
+                    :href="s.slug ? route('public.ss', { slug: s.slug }) : '#'"
                     class="steward-mini" style="text-decoration:none">
-                    <span class="steward-mini-av steward-mini-av-ss" style="overflow:hidden;padding:0">
-                      <img v-if="getStewardPhoto(sid)" :src="getStewardPhoto(sid)" style="width:100%;height:100%;object-fit:cover" />
-                      <span v-else>{{ getStewardInitials(sid) }}</span>
+                    <span class="steward-mini-av steward-mini-av-ss">
+                      {{ s.avatar_initials }}
                     </span>
-                    {{ getStewardFirstName(sid) }}
+                    {{ s.display_name.replace(/^Dr\.\s+/i, '').split(' ')[0] }}
                   </a>
-                  <a v-for="cid in (getConfig(type.value)?.authorized_cs_ids ?? []).filter(id => getStewardById(id))" :key="'cs-'+cid"
-                    :href="getStewardSlug(cid) ? route('public.cs', { slug: getStewardSlug(cid) }) : '#'"
+                  <a v-for="s in (getConfig(type.value)?.authorized_cs ?? [])" :key="'cs-'+s.steward_id"
+                    :href="s.slug ? route('public.cs', { slug: s.slug }) : '#'"
                     class="steward-mini" style="text-decoration:none">
-                    <span class="steward-mini-av steward-mini-av-cs" style="overflow:hidden;padding:0">
-                      <img v-if="getStewardPhoto(cid)" :src="getStewardPhoto(cid)" style="width:100%;height:100%;object-fit:cover" />
-                      <span v-else>{{ getStewardInitials(cid) }}</span>
+                    <span class="steward-mini-av steward-mini-av-cs">
+                      {{ s.avatar_initials }}
                     </span>
-                    {{ getStewardFirstName(cid) }}
+                    {{ s.display_name.replace(/^Dr\.\s+/i, '').split(' ')[0] }}
                   </a>
                   <AegisBadge
-                    v-if="isEnabled(type.value) && !(getConfig(type.value)?.authorized_ss_ids ?? []).some(id => getStewardById(id)) && !(getConfig(type.value)?.authorized_cs_ids ?? []).some(id => getStewardById(id))"
+                    v-if="isEnabled(type.value) && !(getConfig(type.value)?.authorized_ss ?? []).length && !(getConfig(type.value)?.authorized_cs ?? []).length"
                     variant="warning"
                     label="No stewards assigned"
                   />

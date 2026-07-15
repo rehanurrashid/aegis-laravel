@@ -109,29 +109,56 @@ class ContinuityPlanController extends Controller
                 : [],
             'incidentConfigs' => $plan
                 ? (function () use ($plan) {
-                    // Build user_id → plan_steward.id map for current plan (for checkbox UI)
+                    // Build user_id → steward data lookup for display (grid avatars/names)
+                    $stewardLookup = PlanSteward::where('plan_id', $plan->id)
+                        ->whereIn('steward_category', ['continuity_steward', 'support_steward'])
+                        ->whereIn('status', ['active', 'pending'])
+                        ->with('steward:id,display_name,avatar_initials,slug,credentials')
+                        ->get()
+                        ->keyBy('steward_id')
+                        ->map(fn ($ps) => [
+                            'id'               => $ps->id,
+                            'steward_id'       => $ps->steward_id,
+                            'role'             => is_object($ps->role) ? $ps->role->value : $ps->role,
+                            'steward_category' => $ps->steward_category,
+                            'display_name'     => $ps->steward?->display_name ?? $ps->display_name ?? '—',
+                            'avatar_initials'  => $ps->steward?->avatar_initials ?? '??',
+                            'slug'             => $ps->steward?->slug ?? null,
+                            'credentials'      => $ps->steward?->credentials ?? '',
+                        ]);
+
+                    // Build user_id → plan_steward.id map for checkbox pre-check in modal
                     $stewardUserToPsId = PlanSteward::where('plan_id', $plan->id)
                         ->whereIn('steward_category', ['continuity_steward', 'support_steward'])
-                        ->pluck('id', 'steward_id'); // user_id => ps_id
+                        ->pluck('id', 'steward_id');
 
                     return PlanIncidentConfig::where('plan_id', $plan->id)
                         ->get()
-                        ->map(fn ($c) => [
-                            'id'            => $c->id,
-                            'incident_type' => $c->incident_type?->value ?? $c->incident_type,
-                            'is_active'     => (bool) $c->is_active,
-                            'docs_required' => $this->safeArray($c->docs_required),
-                            'authorized_cs_ids' => collect($this->safeArray($c->authorized_cs_ids))
-                                ->map(fn ($userId) => $stewardUserToPsId[$userId] ?? null)
-                                ->filter()
-                                ->values()
-                                ->toArray(),
-                            'authorized_ss_ids' => collect($this->safeArray($c->authorized_ss_ids))
-                                ->map(fn ($userId) => $stewardUserToPsId[$userId] ?? null)
-                                ->filter()
-                                ->values()
-                                ->toArray(),
-                        ]);
+                        ->map(function ($c) use ($stewardLookup, $stewardUserToPsId) {
+                            $csUserIds = is_string($c->authorized_cs_ids)
+                                ? json_decode($c->authorized_cs_ids, true)
+                                : ($c->authorized_cs_ids ?? []);
+                            $ssUserIds = is_string($c->authorized_ss_ids)
+                                ? json_decode($c->authorized_ss_ids, true)
+                                : ($c->authorized_ss_ids ?? []);
+
+                            return [
+                                'id'            => $c->id,
+                                'incident_type' => $c->incident_type?->value ?? $c->incident_type,
+                                'is_active'     => (bool) $c->is_active,
+                                'docs_required' => $this->safeArray($c->docs_required),
+                                // Hydrated objects for grid display
+                                'authorized_cs' => collect($csUserIds)
+                                    ->map(fn ($uid) => $stewardLookup[$uid] ?? null)
+                                    ->filter()->values()->toArray(),
+                                'authorized_ss' => collect($ssUserIds)
+                                    ->map(fn ($uid) => $stewardLookup[$uid] ?? null)
+                                    ->filter()->values()->toArray(),
+                                // Raw user IDs kept for modal checkbox state
+                                'authorized_cs_ids' => $csUserIds,
+                                'authorized_ss_ids' => $ssUserIds,
+                            ];
+                        });
                 })()
                 : [],
             'stewards'        => $stewards,
