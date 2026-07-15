@@ -19,10 +19,12 @@ const props = defineProps({
   csMax:              { type: Number, default: 2 },
   csCount:            { type: Number, default: 0 },
   incidentConfigs:    { type: Array,  default: () => [] },
-  annualReviewDue:    { type: String, default: null },
-  planStatus:         { type: String, default: null },
-  annualReviewDate:   { type: String, default: null },
-  notifyPrefs:        { type: Object, default: () => ({}) },
+  annualReviewDue:    { type: String,  default: null },
+  planStatus:         { type: String,  default: null },
+  annualReviewDate:   { type: String,  default: null },
+  hasDraftInProgress: { type: Boolean, default: false },
+  draftPlanVersion:   { type: Number,  default: null },
+  notifyPrefs:        { type: Object,  default: () => ({}) },
 })
 
 const toast = useToast()
@@ -172,7 +174,8 @@ function submitVault() {
 
 // ── Annual Review state ───────────────────────────────────────────────────────
 const annualReviewOverdue = computed(() =>
-    props.annualReviewDate && new Date(props.annualReviewDate) < new Date()
+    props.planStatus === 'annual_review_due' ||
+    (props.annualReviewDate && new Date(props.annualReviewDate) < new Date())
 )
 const reviewInProgress = computed(() => props.planStatus === 'draft')
 
@@ -337,18 +340,34 @@ function saveNotifyPrefs() {
     </AegisHeroBanner>
 
     <!-- ANNUAL REVIEW ALERT -->
-    <div v-if="annualReviewOverdue" class="alert alert-warning" style="margin-bottom:14px;">
-      <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
-      <div class="alert-content">
-        <div class="alert-title">Annual Review Due — {{ fmtDate(annualReviewDue) }}</div>
-        <div>Your Continuity Plan requires an annual attestation. Please confirm all Continuity Steward details and procedures are current.</div>
-        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-          <button type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;" @click="router.visit(route('provider.plan.index'))">
-            <AegisIcon name="check" :size="14" /> Complete Review Now
-          </button>
+    <template v-if="annualReviewOverdue">
+      <!-- State 1: overdue, no draft in progress -->
+      <div v-if="!hasDraftInProgress" class="alert alert-warning" style="margin-bottom:14px;">
+        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
+        <div class="alert-content">
+          <div class="alert-title">Annual Review Due — {{ fmtDate(annualReviewDue) }}</div>
+          <div>Your Continuity Plan requires an annual review. Begin your review to stay compliant.</div>
+          <div style="margin-top:10px;">
+            <button type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;" @click="router.visit(route('provider.plan.index') + '?action=begin_review')">
+              <AegisIcon name="arrow-right" :size="14" /> Begin Annual Review
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+      <!-- State 2: overdue, draft in progress -->
+      <div v-else class="alert alert-warning" style="margin-bottom:14px;">
+        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
+        <div class="alert-content">
+          <div class="alert-title">Review In Progress — Draft v{{ draftPlanVersion ?? '' }} Pending Signature</div>
+          <div>Your review draft is ready. Finalize and sign it to complete your annual review.</div>
+          <div style="margin-top:10px;">
+            <button type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;" @click="router.visit(route('provider.plan.index') + '?action=sign')">
+              <AegisIcon name="check" :size="14" /> Complete &amp; Sign
+            </button>
+          </div>
+        </div>
+      </div>
+    </template>
 
     <!-- TIER INFO ALERT — always shown -->
     <div class="alert alert-info" style="margin-bottom:14px;">

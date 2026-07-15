@@ -499,7 +499,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, watch } from 'vue'
+import { ref, computed, reactive, watch, onMounted} from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import AppLayout          from '@/layouts/AppLayout.vue'
 import SignPlanModal       from '@/components/modals/SignPlanModal.vue'
@@ -528,6 +528,17 @@ const showSectionsModal  = ref(false)
 const showAttestModal    = ref(false)
 const showIncidentConfig = ref(false)
 const showAnnualReview   = ref(false)
+
+// ── Auto-open modal from ?action= query param ─────────────────────────────────
+onMounted(() => {
+  const action = new URLSearchParams(window.location.search).get('action')
+  if (action === 'begin_review') showAnnualReview.value = true
+  if (action === 'sign') {
+    if (canSign.value) showSignModal.value = true
+    else showSectionsModal.value = true
+  }
+  if (action) window.history.replaceState({}, '', window.location.pathname)
+})
 const showSignedDetails  = ref(false)
 const activeIncidentType = ref(null)
 const reviewNotes        = ref('')

@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Provider;
 use App\Enums\ActivitySeverity;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Steward\DesignateStewardRequest;
+use App\Models\ContinuityPlan;
 use App\Models\CsInvoice;
 use App\Models\PlanIncidentConfig;
 use App\Models\PlanSteward;
@@ -134,6 +135,12 @@ class ContinuityStewardController extends Controller
             'annualReviewDue'    => $plan?->annual_review_date?->toDateString(),
             'planStatus'         => $plan?->status?->value ?? null,
             'annualReviewDate'   => $plan?->annual_review_date?->toISOString() ?? null,
+            'hasDraftInProgress' => ContinuityPlan::where('practitioner_id', $user->id)
+                ->where('status', 'draft')
+                ->exists(),
+            'draftPlanVersion'   => ContinuityPlan::where('practitioner_id', $user->id)
+                ->where('status', 'draft')
+                ->value('plan_version'),
             'notifyPrefs'        => $this->profiles->getMeta($user, 'notify_cs_activity', []),
         ]);
     }
