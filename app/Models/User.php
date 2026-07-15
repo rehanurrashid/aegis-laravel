@@ -40,6 +40,7 @@ class User extends Authenticatable
         'password', 'remember_token',
         'locked_at', 'locked_reason', 'failed_login_count',
         'deactivated_at', 'last_login_at',
+        'profile_completion',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -63,6 +64,7 @@ class User extends Authenticatable
         'stripe_connected'        => 'boolean',
         'verified'                => 'boolean',
         'two_factor_enabled'      => 'boolean',
+        'profile_completion'      => 'integer',
         'slug_locked_at'          => 'datetime',
         'locked_at'               => 'datetime',
         'deactivated_at'          => 'datetime',

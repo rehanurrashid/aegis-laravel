@@ -16,6 +16,7 @@ use App\Http\Requests\Profile\UpdateNetworkPreferencesRequest;
 use App\Http\Requests\Profile\UpdatePrivacyRequest;
 use App\Http\Requests\Profile\UpdateSpecialtiesRequest;
 use App\Models\ProviderCredential;
+use App\Services\ProfileCompletionService;
 use App\Services\ProfileService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,7 +25,10 @@ use Inertia\Response;
 
 class ProfileController extends Controller
 {
-    public function __construct(private ProfileService $profiles) {}
+    public function __construct(
+        private ProfileService $profiles,
+        private ProfileCompletionService $completion,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -91,7 +95,9 @@ class ProfileController extends Controller
 
     public function updateBasic(UpdateBasicProfileRequest $request): RedirectResponse
     {
-        $this->profiles->updateBasic($request->user(), $request->validated());
+        $user = $request->user();
+        $this->profiles->updateBasic($user, $request->validated());
+        $this->recomputeCompletion($user);
         return back()->with('success', 'Profile updated.');
     }
 
@@ -110,7 +116,9 @@ class ProfileController extends Controller
 
     public function updateSpecialties(UpdateSpecialtiesRequest $request): RedirectResponse
     {
-        $this->profiles->updateSpecialties($request->user(), $request->validated()['specialties']);
+        $user = $request->user();
+        $this->profiles->updateSpecialties($user, $request->validated()['specialties']);
+        $this->recomputeCompletion($user);
         return back()->with('success', 'Specialties updated.');
     }
 
@@ -130,6 +138,7 @@ class ProfileController extends Controller
         if (isset($data['years_experience'])) $this->profiles->setMetaPublic($user, 'years_experience', (string) $data['years_experience'], 'string');
         // Pass array directly — setMetaPublic with type='json' will encode it once
         $this->profiles->setMetaPublic($user, 'service_specialties', $data['services'], 'json');
+        $this->recomputeCompletion($user);
         return back()->with('success', 'Services profile updated.');
     }
 
@@ -226,5 +235,11 @@ class ProfileController extends Controller
     {
         $row = $user->meta->firstWhere('meta_key', $key);
         return $row ? $row->typed_value : $default;
+    }
+
+    private function recomputeCompletion(\App\Models\User $user): void
+    {
+        $pct = $this->completion->compute($user);
+        $user->update(['profile_completion' => $pct]);
     }
 }

@@ -86,8 +86,9 @@
            Hides automatically when pct >= 100. Same component used
            across all portals (Provider / CS / SS / BP / Admin). -->
       <ProfileCompletionStrip
-        :pct="auth.user?.profile_completion ?? 78"
-        :edit-href="publicProfileUrl"
+        :pct="profileCompletion"
+        :subtitle="profileCompletion >= 100 ? '' : `${Math.max(0, 9 - Math.round((profileCompletion / 100) * 9))} items remaining — complete your profile to improve discovery`"
+        :edit-href="route('provider.profile.index')"
       />
 
       <!-- ══ 3. PLAN STATUS CHIPS ══════════════════════════════════ -->
@@ -919,6 +920,7 @@ const props = defineProps({
   annualReviewDate:   { type: String,  default: null },
   signedAt:           { type: String,  default: null },
   planSections:       { type: Array,   default: () => [] },
+  profileCompletion:  { type: Number,  default: 0 },
 })
 
 // ── Composables ───────────────────────────────────────────────────────

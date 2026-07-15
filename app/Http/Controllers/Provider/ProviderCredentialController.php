@@ -11,6 +11,7 @@ use App\Models\ProviderCredential;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Services\ProfileCompletionService;
 use Illuminate\Support\Str;
 
 /**
@@ -22,6 +23,8 @@ use Illuminate\Support\Str;
  */
 class ProviderCredentialController extends Controller
 {
+    public function __construct(private ProfileCompletionService $completion) {}
+
     public function store(StoreProviderCredentialRequest $request): RedirectResponse
     {
         $data = $request->validated();
@@ -44,6 +47,8 @@ class ProviderCredentialController extends Controller
             'sort_order'    => (ProviderCredential::where('user_id', $request->user()->id)->max('sort_order') ?? 0) + 1,
         ]);
 
+        $storeUser = $request->user();
+        $storeUser->update(['profile_completion' => $this->completion->compute($storeUser)]);
         return back()->with('success', 'Credential added.');
     }
 
@@ -92,6 +97,8 @@ class ProviderCredentialController extends Controller
         }
 
         $credential->delete();
+        $user = $request->user();
+        $user->update(['profile_completion' => $this->completion->compute($user)]);
         return back()->with('success', 'Credential removed.');
     }
 

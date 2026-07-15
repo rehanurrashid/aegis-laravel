@@ -22,6 +22,7 @@ use App\Enums\StewardStatus;
 use App\Enums\StewardRole;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Services\ProfileCompletionService;
 use Inertia\Response;
 
 class DashboardController extends Controller
@@ -173,6 +174,7 @@ class DashboardController extends Controller
 
         return Inertia::render('Provider/Dashboard', [
             'user'               => $user,
+            'profileCompletion'  => app(ProfileCompletionService::class)->compute($user),
             'planStatus'         => $plan?->status ?? 'none',
             'plan'               => $plan,
             'attest'             => $attest,

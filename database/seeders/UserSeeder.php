@@ -38,6 +38,7 @@ class UserSeeder extends Seeder
                 'stripe_account_id'        => 'acct_demo_sarah',
                 'stripe_id'                => 'cus_demo_sarah',
                 'stripe_payment_method_id' => 'pm_demo_visa_sarah',
+                'profile_completion' => 89,
                 'last_login_at'    => $now->copy()->subHours(2),
                 'created_at'       => $now->copy()->subMonths(8),
                 'updated_at'       => $now->copy()->subHours(2),
@@ -94,6 +95,7 @@ class UserSeeder extends Seeder
                 'stripe_id'                => 'cus_demo_david',
                 'stripe_payment_method_id' => 'pm_demo_visa_david',
                 'verified'         => 1,
+                'profile_completion' => 56,
                 'last_login_at'    => $now->copy()->subDays(1),
                 'created_at'       => $now->copy()->subMonths(4),
                 'updated_at'       => $now->copy()->subDays(1),
@@ -122,6 +124,7 @@ class UserSeeder extends Seeder
                 'stripe_account_id'        => 'acct_demo_maria',
                 'stripe_id'                => 'cus_demo_maria',
                 'stripe_payment_method_id' => 'pm_demo_visa_maria',
+                'profile_completion' => 78,
                 'last_login_at'    => $now->copy()->subHours(5),
                 'created_at'       => $now->copy()->subMonths(6),
                 'updated_at'       => $now->copy()->subHours(5),
@@ -466,6 +469,7 @@ class UserSeeder extends Seeder
                 'failed_login_count'    => 0,
                 'deactivated_at'        => null,
                 'last_login_at'         => null,
+                'profile_completion'    => 0,
             ], $user);
 
             DB::table('users')->updateOrInsert(['id' => $user['id']], $user);
