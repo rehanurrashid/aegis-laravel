@@ -907,6 +907,10 @@ const props = defineProps({
   annualReviewDate:   { type: String,  default: null },
   signedAt:           { type: String,  default: null },
   planSections:       { type: Array,   default: () => [] },
+  lastAttestedAt:     { type: String,  default: null },
+  planVersion:        { type: Number,  default: null },
+  hasDraftInProgress: { type: Boolean, default: false },
+  profileCompletion:  { type: Number,  default: 0 },
 })
 
 // ── Composables ───────────────────────────────────────────────────────
