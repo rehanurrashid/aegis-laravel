@@ -280,7 +280,7 @@ class ContinuityStewardController extends Controller
 
         $data = $request->validate([
             'fee_cents'     => 'required|integer|min:0',
-            'payment_terms' => 'required|in:per_incident,monthly,flat_rate',
+            'payment_terms' => 'required|in:on_close,net_30,net_60',
         ]);
 
         $this->stewards->updateFee($steward, (int) $data['fee_cents'], $data['payment_terms'], $request->user());

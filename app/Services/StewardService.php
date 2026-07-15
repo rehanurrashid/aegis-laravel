@@ -410,22 +410,25 @@ class StewardService
         $oldFeeCents = (int) ($steward->fee_cents ?? 0);
         $newFeeFormatted = number_format($newFeeCents / 100, 2);
 
+        $plan = ContinuityPlan::find($steward->plan_id);
+
         $doc = ContinuityDocument::create([
-            'id'             => 'doc_' . Str::lower(Str::random(12)),
-            'plan_id'        => $steward->plan_id,
-            'uploaded_by'    => $actor->id,
-            'doc_type'       => 'fee_amendment',
-            'title'          => 'CS Fee Amendment',
-            'status'         => 'pending_sign',
-            'content'        => json_encode([
+            'id'              => 'doc_' . Str::lower(Str::random(12)),
+            'plan_id'         => $steward->plan_id,
+            'practitioner_id' => $plan?->practitioner_id ?? $actor->id,
+            'uploaded_by'     => $actor->id,
+            'doc_type'        => 'fee_amendment',
+            'title'           => 'CS Fee Amendment',
+            'status'          => 'pending_sign',
+            'content'         => json_encode([
                 'steward_id'       => $steward->steward_id,
                 'old_fee_cents'    => $oldFeeCents,
                 'new_fee_cents'    => $newFeeCents,
                 'payment_terms'    => $paymentTerms,
                 'proposed_at'      => now()->toIso8601String(),
             ]),
-            'version'        => 1,
-            'file_name'      => "cs-fee-amendment-{$steward->id}.pdf",
+            'version'         => 1,
+            'file_name'       => "cs-fee-amendment-{$steward->id}.pdf",
         ]);
 
         // Notify the CS — fee change requires countersignature

@@ -101,7 +101,7 @@ const editForm = useForm({
 const busyEdit = ref(false)
 
 // ── Amend Fee form ─────────────────────────────────────────────────────────────
-const amendFeeForm = useForm({ fee_cents_display: '', payment_terms: 'per_incident' })
+const amendFeeForm = useForm({ fee_cents_display: '', payment_terms: 'on_close' })
 const busyAmendFee = ref(false)
 
 watch(() => modals.value.amendFee, (open) => {
@@ -109,7 +109,7 @@ watch(() => modals.value.amendFee, (open) => {
     amendFeeForm.fee_cents_display = activeSteward.value.fee_cents
       ? (activeSteward.value.fee_cents / 100).toFixed(2)
       : ''
-    amendFeeForm.payment_terms = activeSteward.value.payment_terms ?? 'per_incident'
+    amendFeeForm.payment_terms = activeSteward.value.payment_terms ?? 'on_close'
   }
 })
 
@@ -117,14 +117,17 @@ function submitAmendFee() {
   if (!activeSteward.value) return
   busyAmendFee.value = true
   const feeCents = Math.round(parseFloat(amendFeeForm.fee_cents_display || '0') * 100)
-  router.post(route('provider.stewards.update-fee', { steward: activeSteward.value.id }), {
+  window.axios.post(route('provider.stewards.update-fee', { steward: activeSteward.value.id }), {
     fee_cents:     feeCents,
     payment_terms: amendFeeForm.payment_terms,
-  }, {
-    preserveScroll: true,
-    onSuccess: () => { modals.value.amendFee = false; toast.success('Fee amendment created. Awaiting CS countersignature.'); router.reload({ only: ['stewards'] }) },
-    onError:   () => toast.error('Could not create fee amendment.'),
-    onFinish:  () => { busyAmendFee.value = false },
+  }).then(() => {
+    modals.value.amendFee = false
+    toast.success('Fee amendment created. Awaiting CS countersignature.')
+    router.reload({ only: ['stewards'] })
+  }).catch(() => {
+    toast.error('Could not create fee amendment.')
+  }).finally(() => {
+    busyAmendFee.value = false
   })
 }
 
@@ -717,7 +720,12 @@ function saveNotifyPrefs() {
         <div style="display:flex;align-items:center;gap:10px;">
           <span class="form-control" style="background:var(--surface-2);color:var(--text-2);cursor:default;flex:1;">
             {{ activeSteward ? formatMoney(activeSteward.fee_cents) : '—' }}
-            <span v-if="activeSteward?.payment_terms" style="color:var(--text-3);"> · {{ activeSteward.payment_terms }}</span>
+            <span v-if="activeSteward?.payment_terms" style="color:var(--text-3);"> · {{
+              activeSteward.payment_terms === 'on_close' ? 'Upon incident close' :
+              activeSteward.payment_terms === 'net_30'   ? 'Net 30' :
+              activeSteward.payment_terms === 'net_60'   ? 'Net 60' :
+              activeSteward.payment_terms
+            }}</span>
           </span>
           <button type="button" class="btn btn-outline" style="white-space:nowrap;" @click="modals.editCS=false;modals.amendFee=true">Amend Fee →</button>
         </div>
@@ -781,7 +789,6 @@ function saveNotifyPrefs() {
       <div class="form-group">
         <label class="form-label">Payment Terms</label>
         <select v-model="amendFeeForm.payment_terms" class="form-control form-select">
-          <option value="per_incident">Per Incident</option>
           <option value="on_close">Upon Incident Close</option>
           <option value="net_30">Net 30</option>
           <option value="net_60">Net 60</option>
