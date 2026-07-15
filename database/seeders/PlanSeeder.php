@@ -16,22 +16,23 @@ class PlanSeeder extends Seeder
         // vault_attested_at = signed_at + 30 days, last_review_at = signed_at - 1 year
 
         $plans = [
-            // UC-PRV: p_sarah — active, signed 6 months ago, review due in 6 months
+            // UC-PRV: p_sarah — annual_review_due, signed 13 months ago → annual_review_date 1 month ago (overdue)
+            // status='annual_review_due' matches what CheckAnnualReviewDates command would produce
             [
                 'id'                    => 'plan_sarah',
                 'practitioner_id'       => 'p_sarah',
-                'status'                => 'active',
+                'status'                => 'annual_review_due',
                 'plan_version'          => 3,
-                'signed_at'             => $now->copy()->subMonths(6),
+                'signed_at'             => $now->copy()->subMonths(13),
                 'signature_name'        => 'Sarah Johnson',
                 'signature_title'       => 'Licensed Professional Counselor',
                 'signature_ip'          => '192.168.1.10',
-                'expires_at'            => $now->copy()->subMonths(6)->addYear(),       // signed_at + 1yr
-                'annual_review_date'    => $now->copy()->subMonths(6)->addYear(),       // signed_at + 1yr
-                'last_review_at'        => $now->copy()->subMonths(6)->subYear(),       // signed_at - 1yr (previous review)
-                'vault_attested_at'     => $now->copy()->subMonths(6)->addDays(30),    // signed_at + 30d
+                'expires_at'            => $now->copy()->subMonths(13)->addYear(),      // signed_at + 1yr → 1 month ago
+                'annual_review_date'    => $now->copy()->subMonths(13)->addYear(),      // signed_at + 1yr → overdue
+                'last_review_at'        => $now->copy()->subMonths(13)->subYear(),      // signed_at - 1yr (previous review)
+                'vault_attested_at'     => $now->copy()->subMonths(13)->addDays(30),   // signed_at + 30d
                 'vault_attestation_note'=> 'All vault items verified and up to date as of this date.',
-                'created_at'            => $now->copy()->subMonths(8),
+                'created_at'            => $now->copy()->subMonths(15),
                 'updated_at'            => $now->copy()->subDays(1),
             ],
 
