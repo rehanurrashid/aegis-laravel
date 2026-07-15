@@ -77,7 +77,7 @@ function downloadPdf() {
         <div style="flex:1;min-width:0;">
           <component
             :is="steward.steward?.slug || steward.slug ? 'a' : 'span'"
-            :href="(steward.steward?.slug || steward.slug) ? route('cs', steward.steward?.slug ?? steward.slug) : undefined"
+            :href="(steward.steward?.slug || steward.slug) ? '/cs/' + (steward.steward?.slug ?? steward.slug) : undefined"
             style="font-size:15px;font-weight:700;color:var(--gold-dark);text-decoration:none;font-family:var(--font-serif);"
           >{{ stewardName(steward) }}</component>
           <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;">
