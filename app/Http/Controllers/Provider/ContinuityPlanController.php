@@ -108,16 +108,31 @@ class ContinuityPlanController extends Controller
                     ])
                 : [],
             'incidentConfigs' => $plan
-                ? PlanIncidentConfig::where('plan_id', $plan->id)
-                    ->get()
-                    ->map(fn ($c) => [
-                        'id'                => $c->id,
-                        'incident_type'     => $c->incident_type?->value ?? $c->incident_type,
-                        'is_active'         => (bool) $c->is_active,
-                        'docs_required'     => $this->safeArray($c->docs_required),
-                        'authorized_ss_ids' => $this->safeArray($c->authorized_ss_ids),
-                        'authorized_cs_ids' => $this->safeArray($c->authorized_cs_ids),
-                    ])
+                ? (function () use ($plan) {
+                    // Build user_id → plan_steward.id map for current plan (for checkbox UI)
+                    $stewardUserToPsId = PlanSteward::where('plan_id', $plan->id)
+                        ->whereIn('steward_category', ['continuity_steward', 'support_steward'])
+                        ->pluck('id', 'steward_id'); // user_id => ps_id
+
+                    return PlanIncidentConfig::where('plan_id', $plan->id)
+                        ->get()
+                        ->map(fn ($c) => [
+                            'id'            => $c->id,
+                            'incident_type' => $c->incident_type?->value ?? $c->incident_type,
+                            'is_active'     => (bool) $c->is_active,
+                            'docs_required' => $this->safeArray($c->docs_required),
+                            'authorized_cs_ids' => collect($this->safeArray($c->authorized_cs_ids))
+                                ->map(fn ($userId) => $stewardUserToPsId[$userId] ?? null)
+                                ->filter()
+                                ->values()
+                                ->toArray(),
+                            'authorized_ss_ids' => collect($this->safeArray($c->authorized_ss_ids))
+                                ->map(fn ($userId) => $stewardUserToPsId[$userId] ?? null)
+                                ->filter()
+                                ->values()
+                                ->toArray(),
+                        ]);
+                })()
                 : [],
             'stewards'        => $stewards,
             'documents'       => $documents,

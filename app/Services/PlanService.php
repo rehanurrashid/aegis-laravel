@@ -86,6 +86,13 @@ class PlanService
 
     public function configureIncidentType(ContinuityPlan $plan, string $incidentType, array $config): PlanIncidentConfig
     {
+        // Resolve plan_steward IDs to stable user IDs for storage
+        $rawCsIds = $config['authorized_cs_ids'] ?? [];
+        $rawSsIds = $config['authorized_ss_ids'] ?? [];
+
+        $csUserIds = PlanSteward::whereIn('id', $rawCsIds)->pluck('steward_id')->toArray();
+        $ssUserIds = PlanSteward::whereIn('id', $rawSsIds)->pluck('steward_id')->toArray();
+
         return PlanIncidentConfig::updateOrCreate(
             ['plan_id' => $plan->id, 'incident_type' => $incidentType],
             [
@@ -94,8 +101,8 @@ class PlanService
                 'is_optin'              => $config['is_optin'] ?? 0,
                 'docs_required'         => $config['docs_required'] ?? null,
                 'docs_required_other'   => $config['docs_required_other'] ?? null,
-                'authorized_ss_ids'     => $config['authorized_ss_ids'] ?? null,
-                'authorized_cs_ids'     => $config['authorized_cs_ids'] ?? null,
+                'authorized_ss_ids'     => json_encode($ssUserIds),
+                'authorized_cs_ids'     => json_encode($csUserIds),
             ]
         );
     }
@@ -211,37 +218,19 @@ class PlanService
             ]);
 
             // Copy plan stewards to new plan (preserve all relationships)
-            // Build old→new ID map for incident config remapping
-            $stewardIdMap = [];
-            PlanSteward::where('plan_id', $plan->id)->get()->each(function ($s) use ($newPlanId, &$stewardIdMap) {
-                $newPs = $s->replicate(['id'])->fill([
+            PlanSteward::where('plan_id', $plan->id)->get()->each(function ($s) use ($newPlanId) {
+                $s->replicate(['id'])->fill([
                     'id'      => 'ps_' . Str::lower(Str::random(12)),
                     'plan_id' => $newPlanId,
-                ]);
-                $newPs->save();
-                $stewardIdMap[$s->id] = $newPs->id;
+                ])->save();
             });
 
-            // Copy incident configs to new plan
+            // Copy incident configs to new plan — authorized_*_ids store user IDs (stable across plan versions)
             PlanIncidentConfig::where('plan_id', $plan->id)->get()->each(function ($c) use ($newPlanId) {
                 $c->replicate(['id'])->fill([
                     'id'      => 'pic_' . Str::lower(Str::random(12)),
                     'plan_id' => $newPlanId,
                 ])->save();
-            });
-
-            // Remap authorized IDs in copied configs to new plan_steward IDs
-            PlanIncidentConfig::where('plan_id', $newPlanId)->get()->each(function ($config) use ($stewardIdMap) {
-                $oldCsIds = is_array($config->authorized_cs_ids)
-                    ? $config->authorized_cs_ids
-                    : json_decode($config->authorized_cs_ids ?? '[]', true);
-                $oldSsIds = is_array($config->authorized_ss_ids)
-                    ? $config->authorized_ss_ids
-                    : json_decode($config->authorized_ss_ids ?? '[]', true);
-                $config->update([
-                    'authorized_cs_ids' => array_values(array_map(fn ($id) => $stewardIdMap[$id] ?? $id, $oldCsIds)),
-                    'authorized_ss_ids' => array_values(array_map(fn ($id) => $stewardIdMap[$id] ?? $id, $oldSsIds)),
-                ]);
             });
 
             // Copy tasks to new plan

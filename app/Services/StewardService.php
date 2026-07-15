@@ -301,12 +301,16 @@ class StewardService
 
     public function setAuthorization(ContinuityPlan $plan, string $incidentType, array $authorizedCsIds, array $authorizedSsIds): void
     {
+        // Resolve plan_steward IDs to stable user IDs for storage
+        $csUserIds = PlanSteward::whereIn('id', $authorizedCsIds)->pluck('steward_id')->toArray();
+        $ssUserIds = PlanSteward::whereIn('id', $authorizedSsIds)->pluck('steward_id')->toArray();
+
         $config = \App\Models\PlanIncidentConfig::where('plan_id', $plan->id)
             ->where('incident_type', $incidentType)
             ->firstOrFail();
         $config->update([
-            'authorized_cs_ids' => json_encode($authorizedCsIds),
-            'authorized_ss_ids' => json_encode($authorizedSsIds),
+            'authorized_cs_ids' => json_encode($csUserIds),
+            'authorized_ss_ids' => json_encode($ssUserIds),
         ]);
     }
 
