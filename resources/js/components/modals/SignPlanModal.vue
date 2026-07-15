@@ -39,7 +39,7 @@
     <!-- Signature block -->
     <div class="m-section">
       <div class="m-section-title">Your Signature</div>
-      <div class="form-group" style="margin-bottom:10px">
+      <div class="form-group" style="margin-top:14px;margin-bottom:10px">
         <label class="form-label">Legal Name</label>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:500;color:var(--text-3)">
           <span>{{ auth?.user?.display_name ?? '—' }}</span>
@@ -74,7 +74,7 @@
 
     <template #footer>
       <button type="button" class="btn btn-outline" @click="closeModal">Cancel</button>
-      <button type="button" class="btn btn-primary btn-spin"
+      <button type="button" class="btn btn-primary" :class="{ 'btn-spin': submitting }"
         :disabled="submitting || !form.confirmed || !canSign"
         :data-tooltip="!canSign ? 'Complete all required sections first' : undefined"
         @click="submit">
