@@ -53,7 +53,7 @@ class ContinuityStewardController extends Controller
                 ->where('status', 'active')
                 ->with('steward:id,display_name,credentials,email,phone,title,organization,location,avatar_initials,slug,stripe_account_id')
                 ->get()
-                ->map(function ($s) use ($user, $activeConfigs) {
+                ->map(function ($s) use ($user, $activeConfigs, $plan) {
                     $authorizedIncidents = $activeConfigs->filter(function ($config) use ($s) {
                         $ids = is_array($config->authorized_cs_ids)
                             ? $config->authorized_cs_ids

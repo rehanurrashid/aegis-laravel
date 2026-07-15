@@ -101,7 +101,7 @@ const editForm = useForm({
 const busyEdit = ref(false)
 
 // ── Amend Fee form ─────────────────────────────────────────────────────────────
-const amendFeeForm = useForm({ fee_cents_display: '', payment_terms: 'on_close' })
+const amendFeeForm = useForm({ fee_cents_display: '', payment_terms: 'per_incident' })
 const busyAmendFee = ref(false)
 
 watch(() => modals.value.amendFee, (open) => {
@@ -109,7 +109,7 @@ watch(() => modals.value.amendFee, (open) => {
     amendFeeForm.fee_cents_display = activeSteward.value.fee_cents
       ? (activeSteward.value.fee_cents / 100).toFixed(2)
       : ''
-    amendFeeForm.payment_terms = activeSteward.value.payment_terms ?? 'on_close'
+    amendFeeForm.payment_terms = activeSteward.value.payment_terms ?? 'per_incident'
   }
 })
 
@@ -117,17 +117,14 @@ function submitAmendFee() {
   if (!activeSteward.value) return
   busyAmendFee.value = true
   const feeCents = Math.round(parseFloat(amendFeeForm.fee_cents_display || '0') * 100)
-  window.axios.post(route('provider.stewards.update-fee', { steward: activeSteward.value.id }), {
+  router.post(route('provider.stewards.update-fee', { steward: activeSteward.value.id }), {
     fee_cents:     feeCents,
     payment_terms: amendFeeForm.payment_terms,
-  }).then(() => {
-    modals.value.amendFee = false
-    toast.success('Fee amendment created. Awaiting CS countersignature.')
-    router.reload({ only: ['stewards'] })
-  }).catch(() => {
-    toast.error('Could not create fee amendment.')
-  }).finally(() => {
-    busyAmendFee.value = false
+  }, {
+    preserveScroll: true,
+    onSuccess: () => { modals.value.amendFee = false; toast.success('Fee amendment created. Awaiting CS countersignature.'); router.reload({ only: ['stewards'] }) },
+    onError:   () => toast.error('Could not create fee amendment.'),
+    onFinish:  () => { busyAmendFee.value = false },
   })
 }
 
@@ -139,6 +136,8 @@ watch(() => modals.value.editCS, (open) => {
     editForm.notes        = ''
   }
 })
+
+const hasPendingFeeAmendment = computed(() => activeSteward.value?.has_pending_fee_amendment ?? false)
 
 function submitEdit() {
   if (!activeSteward.value) return
@@ -727,7 +726,18 @@ function saveNotifyPrefs() {
               activeSteward.payment_terms
             }}</span>
           </span>
-          <button type="button" class="btn btn-outline" style="white-space:nowrap;" @click="modals.editCS=false;modals.amendFee=true">Amend Fee →</button>
+          <button
+            v-if="!hasPendingFeeAmendment"
+            type="button"
+            class="btn btn-outline"
+            style="white-space:nowrap;"
+            @click="modals.editCS=false;modals.amendFee=true"
+          >Amend Fee →</button>
+          <span v-else class="badge badge-amber" style="white-space:nowrap;flex-shrink:0;"><AegisIcon name="clock" :size="11" /> Pending Signature</span>
+        </div>
+        <div v-if="hasPendingFeeAmendment" class="alert alert-warning" style="margin-top:8px;padding:8px 12px;">
+          <div class="alert-icon"><AegisIcon name="clock" :size="13" /></div>
+          <div class="alert-content" style="font-size:12px;">A fee amendment is awaiting your Continuity Steward's countersignature. You can send a new amendment once they sign or decline.</div>
         </div>
       </div>
 
@@ -789,6 +799,7 @@ function saveNotifyPrefs() {
       <div class="form-group">
         <label class="form-label">Payment Terms</label>
         <select v-model="amendFeeForm.payment_terms" class="form-control form-select">
+          <option value="per_incident">Per Incident</option>
           <option value="on_close">Upon Incident Close</option>
           <option value="net_30">Net 30</option>
           <option value="net_60">Net 60</option>
