@@ -136,18 +136,20 @@ class DashboardController extends Controller
             ->toArray();
 
         // Attest summary for plan status chips
+        $planStatusValue = $plan?->status?->value ?? 'none';
         $attest = [
-            'plan_active'       => $plan && in_array($plan->status->value ?? $plan->status, ['active', 'annual_review_due']),
-            'plan_signed_at'    => $plan?->signed_at,
-            'plan_status'       => $plan?->status?->value ?? 'none',
-            'plan_version'      => $plan?->plan_version ?? null,
+            'plan_active'       => $plan && in_array($planStatusValue, ['active', 'annual_review_due']),
+            'plan_review_due'   => $plan && $planStatusValue === 'annual_review_due',
+            'plan_status'       => $planStatusValue,
             'plan_signed_at'    => $plan?->signed_at?->toDateString(),
             'annual_review_date'=> $plan?->annual_review_date?->toDateString(),
             'ss_certified'      => $primarySs?->status === 'active',
+            'ss_assigned'       => $stewards->where('steward_category', 'support_steward')->where('status', 'active')->count() > 0,
             'ss_certified_count'=> $stewards->where('steward_category', 'support_steward')->where('status', 'active')->count(),
             'ss_total'          => $stewards->where('steward_category', 'support_steward')->count(),
             'ss_latest'         => $primarySs?->updated_at,
             'cs_certified'      => $primaryCs?->status === 'active',
+            'cs_assigned'       => $stewards->where('steward_category', 'continuity_steward')->where('status', 'active')->count() > 0,
             'cs_certified_count'=> $stewards->where('steward_category', 'continuity_steward')->where('status', 'active')->count(),
             'cs_total'          => $stewards->where('steward_category', 'continuity_steward')->count(),
             'cs_latest'         => $primaryCs?->updated_at,
@@ -168,7 +170,7 @@ class DashboardController extends Controller
                 'active_plans'     => $attest['plan_active'] ? 1 : 0,
                 'ceus_total'       => $progress['total'],
                 'ceus_count'       => $progress['count'],
-                'active_incidents' => $activeIncident ? 1 : 0,
+                'active_incidents' => CriticalIncident::where('practitioner_id', $user->id)->whereIn('status', ['reported','verified','active'])->count(),
                 'pending_refs'     => $incomingReferrals->count(),
                 'total_refs'       => Referral::where('recipient_id', $user->id)->count(),
                 'avg_response_h'   => 0,

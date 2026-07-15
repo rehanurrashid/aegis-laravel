@@ -50,12 +50,22 @@
             </div>
           </div>
           <div class="dh-greet-mcell">
-            <div class="dh-greet-mlabel">Practices</div>
-            <div class="dh-greet-mval">{{ stats.net_clinical + stats.net_business }} providers</div>
+            <div class="dh-greet-mlabel">Stewards</div>
+            <div class="dh-greet-mval"
+              :style="activeStewardCount >= 2 ? 'color:var(--green-dark)' : activeStewardCount === 1 ? 'color:var(--gold-dark)' : 'color:var(--text-4)'"
+            >
+              <AegisIcon :name="activeStewardCount >= 2 ? 'shield-check' : 'users'" :size="14" />
+              {{ activeStewardCount }} active
+            </div>
           </div>
           <div class="dh-greet-mcell">
-            <div class="dh-greet-mlabel">Avg Response</div>
-            <div class="dh-greet-mval">{{ stats.avg_response_h > 0 ? stats.avg_response_h + 'h' : '—' }}</div>
+            <div class="dh-greet-mlabel">Vault</div>
+            <div class="dh-greet-mval"
+              :style="lastAttestedAt ? 'color:var(--green-dark)' : 'color:var(--gold-dark)'"
+            >
+              <AegisIcon :name="lastAttestedAt ? 'shield-check' : 'clock'" :size="14" />
+              {{ lastAttestedAt ? 'Attested' : 'Not attested' }}
+            </div>
           </div>
         </div>
       </div>
@@ -94,39 +104,70 @@
         </div>
         <!-- Chips -->
         <div style="flex:1;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
-          <!-- Chip 1: Plan Active -->
-          <div class="stat-chip" :style="attest.plan_active ? 'background:var(--badge-bg-green);border-color:var(--green)' : 'background:var(--surface-2);border:1px solid var(--border)'">
-            <div class="stat-chip-icon" :style="'background:' + (attest.plan_active ? 'var(--green)' : 'var(--text-4)') + ';color:#fff'">
-              <AegisIcon :name="attest.plan_active ? 'check' : 'clock'" :size="14" />
+          <!-- Chip 1: Plan Status -->
+          <div class="stat-chip"
+            :style="attest.plan_active && !attest.plan_review_due ? 'background:var(--badge-bg-green);border-color:var(--green)'
+                  : attest.plan_review_due || attest.plan_status === 'draft' ? 'background:var(--badge-bg-gold);border-color:var(--gold-dark)'
+                  : 'background:var(--surface-2);border:1px solid var(--border)'"
+          >
+            <div class="stat-chip-icon"
+              :style="'background:' + (attest.plan_active && !attest.plan_review_due ? 'var(--green)' : attest.plan_review_due || attest.plan_status === 'draft' ? 'var(--gold-dark)' : 'var(--text-4)') + ';color:#fff'"
+            >
+              <AegisIcon :name="attest.plan_active && !attest.plan_review_due ? 'check' : attest.plan_review_due ? 'alert-triangle' : 'clock'" :size="14" />
             </div>
             <div>
-              <div class="stat-chip-value" style="font-size:13px;font-weight:700">{{ attest.plan_active ? 'Plan Active' : 'Plan Pending' }}</div>
+              <div class="stat-chip-value" style="font-size:13px;font-weight:700">
+                {{ attest.plan_active && !attest.plan_review_due ? 'Plan Active' : attest.plan_review_due ? 'Review Due' : attest.plan_status === 'draft' ? 'Plan Draft' : 'No Plan' }}
+              </div>
               <div class="stat-chip-label" style="font-size:11px;color:var(--text-3)">
-                {{ attest.plan_active && attest.plan_signed_at ? 'Signed ' + formatDate(attest.plan_signed_at) : 'Awaiting signature' }}
+                {{ attest.plan_active && !attest.plan_review_due && attest.plan_signed_at ? 'Signed ' + formatDate(attest.plan_signed_at)
+                 : attest.plan_review_due && attest.annual_review_date ? 'Due ' + formatDate(attest.annual_review_date)
+                 : attest.plan_status === 'draft' ? 'Complete to activate'
+                 : 'Create your plan' }}
               </div>
             </div>
           </div>
-          <!-- Chip 2: SS Certified -->
-          <div class="stat-chip" :style="attest.ss_certified ? 'background:var(--badge-bg-green);border-color:var(--green)' : 'background:var(--surface-2);border:1px solid var(--border)'">
-            <div class="stat-chip-icon" :style="'background:' + (attest.ss_certified ? 'var(--green)' : 'var(--text-4)') + ';color:#fff'">
+          <!-- Chip 2: SS Status -->
+          <div class="stat-chip"
+            :style="attest.ss_certified ? 'background:var(--badge-bg-green);border-color:var(--green)'
+                  : attest.ss_assigned ? 'background:var(--badge-bg-gold);border-color:var(--gold-dark)'
+                  : 'background:var(--surface-2);border:1px solid var(--border)'"
+          >
+            <div class="stat-chip-icon"
+              :style="'background:' + (attest.ss_certified ? 'var(--green)' : attest.ss_assigned ? 'var(--gold-dark)' : 'var(--text-4)') + ';color:#fff'"
+            >
               <AegisIcon :name="attest.ss_certified ? 'check' : 'clock'" :size="14" />
             </div>
             <div>
-              <div class="stat-chip-value" style="font-size:13px;font-weight:700">SS Certified</div>
+              <div class="stat-chip-value" style="font-size:13px;font-weight:700">
+                {{ attest.ss_certified ? 'SS Active' : attest.ss_assigned ? 'SS Pending' : 'No SS' }}
+              </div>
               <div class="stat-chip-label" style="font-size:11px;color:var(--text-3)">
-                {{ attest.ss_certified_count }} of {{ attest.ss_total }}{{ attest.ss_latest ? ' · ' + formatShortDate(attest.ss_latest) : '' }}
+                {{ attest.ss_certified ? attest.ss_certified_count + ' of ' + attest.ss_total
+                 : attest.ss_assigned ? 'Awaiting acceptance'
+                 : 'Add a Support Steward' }}
               </div>
             </div>
           </div>
-          <!-- Chip 3: CS Certified -->
-          <div class="stat-chip" :style="attest.cs_certified ? 'background:var(--badge-bg-green);border-color:var(--green)' : 'background:var(--surface-2);border:1px solid var(--border)'">
-            <div class="stat-chip-icon" :style="'background:' + (attest.cs_certified ? 'var(--green)' : 'var(--text-4)') + ';color:#fff'">
+          <!-- Chip 3: CS Status -->
+          <div class="stat-chip"
+            :style="attest.cs_certified ? 'background:var(--badge-bg-green);border-color:var(--green)'
+                  : attest.cs_assigned ? 'background:var(--badge-bg-gold);border-color:var(--gold-dark)'
+                  : 'background:var(--surface-2);border:1px solid var(--border)'"
+          >
+            <div class="stat-chip-icon"
+              :style="'background:' + (attest.cs_certified ? 'var(--green)' : attest.cs_assigned ? 'var(--gold-dark)' : 'var(--text-4)') + ';color:#fff'"
+            >
               <AegisIcon :name="attest.cs_certified ? 'check' : 'clock'" :size="14" />
             </div>
             <div>
-              <div class="stat-chip-value" style="font-size:13px;font-weight:700">CS Certified</div>
+              <div class="stat-chip-value" style="font-size:13px;font-weight:700">
+                {{ attest.cs_certified ? 'CS Active' : attest.cs_assigned ? 'CS Pending' : 'No CS' }}
+              </div>
               <div class="stat-chip-label" style="font-size:11px;color:var(--text-3)">
-                {{ attest.cs_certified_count }} of {{ attest.cs_total }}{{ attest.cs_latest ? ' · ' + formatShortDate(attest.cs_latest) : '' }}
+                {{ attest.cs_certified ? attest.cs_certified_count + ' of ' + attest.cs_total
+                 : attest.cs_assigned ? 'Awaiting acceptance'
+                 : 'Add a Continuity Steward' }}
               </div>
             </div>
           </div>
@@ -277,25 +318,30 @@
       </div>
 
       <div class="dh-glance">
-        <div class="dh-gl-card">
+        <div class="dh-gl-card" style="cursor:pointer" @click="router.visit(route('provider.referrals.index'))">
           <div class="dh-gl-head"><div class="dh-gl-label">Referrals</div><div class="dh-gl-icon"><AegisIcon name="refresh" :size="14" /></div></div>
           <div class="dh-gl-val">{{ stats.total_refs }}</div>
           <div class="dh-gl-sub" v-html="stats.pending_refs > 0 ? '<strong>' + stats.pending_refs + ' pending</strong>' : 'All up to date'"></div>
         </div>
-        <div class="dh-gl-card">
+        <div class="dh-gl-card" style="cursor:pointer" @click="router.visit(route('provider.network.index'))">
           <div class="dh-gl-head"><div class="dh-gl-label">Network</div><div class="dh-gl-icon"><AegisIcon name="users" :size="14" /></div></div>
           <div class="dh-gl-val">{{ stats.net_clinical + stats.net_business }}</div>
           <div class="dh-gl-sub">{{ stats.net_clinical }} clinical · {{ stats.net_business }} business</div>
         </div>
-        <div class="dh-gl-card">
+        <div class="dh-gl-card" style="cursor:pointer" @click="modals.ceu = true">
           <div class="dh-gl-head"><div class="dh-gl-label">CEU Progress</div><div class="dh-gl-icon warn"><AegisIcon name="graduation-cap" :size="14" /></div></div>
           <div class="dh-gl-val">{{ stats.ceus_total }}<small> hrs</small></div>
           <div class="dh-gl-sub">{{ stats.ceus_count }} entries this year</div>
         </div>
-        <div class="dh-gl-card">
-          <div class="dh-gl-head"><div class="dh-gl-label">Avg Response</div><div class="dh-gl-icon"><AegisIcon name="clock" :size="14" /></div></div>
-          <div class="dh-gl-val">{{ stats.avg_response_h > 0 ? stats.avg_response_h : '—' }}<small v-if="stats.avg_response_h > 0">h</small></div>
-          <div class="dh-gl-sub">average referral response</div>
+        <div class="dh-gl-card" style="cursor:pointer" @click="router.visit(route('activity.index'))">
+          <div class="dh-gl-head">
+            <div class="dh-gl-label">Incidents</div>
+            <div class="dh-gl-icon" :class="stats.active_incidents > 0 ? 'warn' : ''">
+              <AegisIcon name="alert-triangle" :size="14" />
+            </div>
+          </div>
+          <div class="dh-gl-val">{{ stats.active_incidents }}</div>
+          <div class="dh-gl-sub">{{ stats.active_incidents > 0 ? stats.active_incidents + ' active now' : 'No active incidents' }}</div>
         </div>
       </div>
 
