@@ -215,7 +215,7 @@
               <div class="ic-section">
                 <div class="ic-section-label"><AegisIcon name="users" :size="12" /> Authorized Stewards</div>
                 <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
-                  <a v-for="sid in (getConfig(type.value)?.authorized_ss_ids ?? [])" :key="'ss-'+sid"
+                  <a v-for="sid in (getConfig(type.value)?.authorized_ss_ids ?? []).filter(id => getStewardById(id))" :key="'ss-'+sid"
                     :href="getStewardSlug(sid) ? route('public.ss', { slug: getStewardSlug(sid) }) : '#'"
                     class="steward-mini" style="text-decoration:none">
                     <span class="steward-mini-av steward-mini-av-ss" style="overflow:hidden;padding:0">
@@ -224,7 +224,7 @@
                     </span>
                     {{ getStewardFirstName(sid) }}
                   </a>
-                  <a v-for="cid in (getConfig(type.value)?.authorized_cs_ids ?? [])" :key="'cs-'+cid"
+                  <a v-for="cid in (getConfig(type.value)?.authorized_cs_ids ?? []).filter(id => getStewardById(id))" :key="'cs-'+cid"
                     :href="getStewardSlug(cid) ? route('public.cs', { slug: getStewardSlug(cid) }) : '#'"
                     class="steward-mini" style="text-decoration:none">
                     <span class="steward-mini-av steward-mini-av-cs" style="overflow:hidden;padding:0">
@@ -233,7 +233,7 @@
                     </span>
                     {{ getStewardFirstName(cid) }}
                   </a>
-                  <span v-if="!getConfig(type.value)?.authorized_ss_ids?.length && !getConfig(type.value)?.authorized_cs_ids?.length" class="ic-empty">No stewards assigned</span>
+                  <span v-if="!(getConfig(type.value)?.authorized_ss_ids ?? []).some(id => getStewardById(id)) && !(getConfig(type.value)?.authorized_cs_ids ?? []).some(id => getStewardById(id))" class="ic-empty">No stewards assigned</span>
                 </div>
               </div>
 
