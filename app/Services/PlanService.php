@@ -368,26 +368,16 @@ class PlanService
         $vaultAttested = !is_null($plan->vault_attested_at);
 
         // Section 7 — Documents (conditional)
-        // For annual review drafts (version > 1), check docs against the parent active/review-due plan
-        // since the draft inherits the parent's already-executed agreements.
-        $docPlanId = $plan->id;
-        if (($plan->plan_version ?? 1) > 1 && $plan->status?->value === 'draft') {
-            $parentPlan = ContinuityPlan::where('practitioner_id', $plan->practitioner_id)
-                ->whereIn('status', ['active', 'annual_review_due'])
-                ->where('plan_version', ($plan->plan_version ?? 1) - 1)
-                ->latest('created_at')
-                ->first();
-            if ($parentPlan) {
-                $docPlanId = $parentPlan->id;
-            }
-        }
+        // CS engagement agreements are scoped to the practitioner across ALL plan versions —
+        // a fully-executed agreement on any prior version satisfies this requirement.
         $hasFeeCs = PlanSteward::where('plan_id', $plan->id)
             ->where('steward_category', 'continuity_steward')
             ->where('status', 'active')
             ->where('fee_cents', '>', 0)
             ->exists();
+        $allPlanIds = ContinuityPlan::where('practitioner_id', $plan->practitioner_id)->pluck('id');
         $docsComplete = !$hasFeeCs
-            || \App\Models\ContinuityDocument::where('plan_id', $docPlanId)
+            || \App\Models\ContinuityDocument::whereIn('plan_id', $allPlanIds)
                 ->where('doc_type', 'cs_engagement_agreement')
                 ->where('status', 'fully_executed')
                 ->exists();
