@@ -751,7 +751,7 @@ function saveNotifyPrefs() {
     <AegisModal v-model="modals.remove" title="Remove Continuity Steward" size="sm" @close="modals.remove=false">
       <div style="text-align:center;padding:12px 0;">
         <div style="width:52px;height:52px;border-radius:50%;background:var(--red-light,#fee2e2);color:var(--red-dark);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
-          <AegisIcon name="user-x" :size="22" />
+          <AegisIcon name="user" :size="22" />
         </div>
         <div v-if="activeSteward" style="font-family:var(--font-serif);font-size:15px;font-weight:700;margin-bottom:8px;">Remove {{ stewardName(activeSteward) }}?</div>
         <div style="font-size:13px;color:var(--text-2);line-height:1.6;">
@@ -762,7 +762,7 @@ function saveNotifyPrefs() {
         <button type="button" class="btn btn-outline" @click="modals.remove=false">Keep Steward</button>
         <button type="button" class="btn btn-danger" :disabled="busyRemove" style="display:inline-flex;align-items:center;gap:6px;" @click="submitRemove">
           <AegisIcon v-if="busyRemove" name="refresh-cw" :size="13" class="btn-spin" />
-          <AegisIcon v-else name="user-x" :size="13" />
+          <AegisIcon v-else name="trash" :size="13" />
           {{ busyRemove ? 'Removing…' : 'Remove Steward' }}
         </button>
       </template>
