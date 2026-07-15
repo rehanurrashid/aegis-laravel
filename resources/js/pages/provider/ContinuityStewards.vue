@@ -9,6 +9,7 @@ import DesignateCsModal from '@/components/modals/DesignateCsModal.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useMessageButton } from '@/composables/useMessageButton'
+import PlanReviewAlert from '@/components/PlanReviewAlert.vue'
 
 const props = defineProps({
   stewards:           { type: Array,  default: () => [] },
@@ -340,34 +341,13 @@ function saveNotifyPrefs() {
     </AegisHeroBanner>
 
     <!-- ANNUAL REVIEW ALERT -->
-    <template v-if="annualReviewOverdue">
-      <!-- State 1: overdue, no draft in progress -->
-      <div v-if="!hasDraftInProgress" class="alert alert-warning" style="margin-bottom:14px;">
-        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
-        <div class="alert-content">
-          <div class="alert-title">Annual Review Due — {{ fmtDate(annualReviewDue) }}</div>
-          <div>Your Continuity Plan requires an annual review. Begin your review to stay compliant.</div>
-          <div style="margin-top:10px;">
-            <button type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;" @click="router.visit(route('provider.plan.index') + '?action=begin_review')">
-              <AegisIcon name="arrow-right" :size="14" /> Begin Annual Review
-            </button>
-          </div>
-        </div>
-      </div>
-      <!-- State 2: overdue, draft in progress -->
-      <div v-else class="alert alert-warning" style="margin-bottom:14px;">
-        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
-        <div class="alert-content">
-          <div class="alert-title">Review In Progress — Draft v{{ draftPlanVersion ?? '' }} Pending Signature</div>
-          <div>Your review draft is ready. Finalize and sign it to complete your annual review.</div>
-          <div style="margin-top:10px;">
-            <button type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;" @click="router.visit(route('provider.plan.index') + '?action=sign')">
-              <AegisIcon name="check" :size="14" /> Complete &amp; Sign
-            </button>
-          </div>
-        </div>
-      </div>
-    </template>
+    <PlanReviewAlert
+      :plan-status="planStatus"
+      :annual-review-date="annualReviewDate"
+      :has-draft-in-progress="hasDraftInProgress"
+      :draft-plan-version="draftPlanVersion"
+      context="cs"
+    />
 
     <!-- TIER INFO ALERT — always shown -->
     <div class="alert alert-info" style="margin-bottom:14px;">

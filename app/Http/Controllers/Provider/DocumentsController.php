@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Provider\StoreDocumentRequest;
 use App\Http\Requests\Provider\UploadSupportingDocRequest;
 use App\Models\ContinuityDocument;
+use App\Models\ContinuityPlan;
 use App\Models\PlanSteward;
 use App\Models\User;
 use App\Services\DocumentService;
@@ -85,7 +86,11 @@ class DocumentsController extends Controller
             'documents'     => $shapedDocs,
             'supportingDocs'=> $shapedSupporting,
             'docStats'      => $docStats,
-            'stewards'      => $stewards,
+            'stewards'           => $stewards,
+            'planStatus'         => $plan?->status?->value ?? null,
+            'annualReviewDate'   => $plan?->annual_review_date?->toISOString() ?? null,
+            'hasDraftInProgress' => ContinuityPlan::where('practitioner_id', $user->id)->where('status', 'draft')->exists(),
+            'draftPlanVersion'   => ContinuityPlan::where('practitioner_id', $user->id)->where('status', 'draft')->value('plan_version'),
         ]);
     }
 

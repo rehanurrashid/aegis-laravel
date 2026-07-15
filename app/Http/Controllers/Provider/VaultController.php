@@ -8,6 +8,7 @@ use App\Enums\ActivitySeverity;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Vault\SetVaultPermissionsRequest;
 use App\Http\Requests\Vault\UploadVaultItemRequest;
+use App\Models\ContinuityPlan;
 use App\Models\PlanSteward;
 use App\Models\VaultItem;
 use App\Services\ActivityService;
@@ -59,7 +60,10 @@ class VaultController extends Controller
             'attestedAt' => $plan?->vault_attested_at,
             'attestNote' => $plan?->vault_attestation_note ?? '',
             'totalCount' => $items->count(),
-            'stewards'   => $stewards,
+            'stewards'           => $stewards,
+            'annualReviewDate'   => $plan?->annual_review_date?->toISOString() ?? null,
+            'hasDraftInProgress' => ContinuityPlan::where('practitioner_id', $user->id)->where('status', 'draft')->exists(),
+            'draftPlanVersion'   => ContinuityPlan::where('practitioner_id', $user->id)->where('status', 'draft')->value('plan_version'),
         ]);
     }
 

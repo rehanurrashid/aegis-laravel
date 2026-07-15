@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Steward\DesignateStewardRequest;
+use App\Models\ContinuityPlan;
 use App\Models\PlanSteward;
 use App\Models\User;
 use App\Services\PlanService;
@@ -33,7 +34,8 @@ class SupportStewardController extends Controller
 
     public function index(Request $request): Response
     {
-        $plan = $this->plans->getForPractitioner($request->user()->id);
+        $user = $request->user();
+        $plan = $this->plans->getForPractitioner($user->id);
 
         return Inertia::render('Provider/SupportStewards', [
             'stewards' => $plan
@@ -46,6 +48,10 @@ class SupportStewardController extends Controller
                     ->where('steward_type', 'support_steward')
                     ->where('status', 'pending')->get()
                 : [],
+            'planStatus'         => $plan?->status?->value ?? null,
+            'annualReviewDate'   => $plan?->annual_review_date?->toISOString() ?? null,
+            'hasDraftInProgress' => ContinuityPlan::where('practitioner_id', $user->id)->where('status', 'draft')->exists(),
+            'draftPlanVersion'   => ContinuityPlan::where('practitioner_id', $user->id)->where('status', 'draft')->value('plan_version'),
         ]);
     }
 

@@ -29,6 +29,15 @@
       <AegisStatChip icon="calendar"  :value="docStats.expiring" label="Expiring in 30 Days" />
     </div>
 
+    <!-- ANNUAL REVIEW ALERT -->
+    <PlanReviewAlert
+      :plan-status="planStatus"
+      :annual-review-date="annualReviewDate"
+      :has-draft-in-progress="hasDraftInProgress"
+      :draft-plan-version="draftPlanVersion"
+      context="documents"
+    />
+
     <!-- ACTION REQUIRED ALERT -->
     <div v-if="docStats.pending > 0" class="alert alert-gold" style="margin-bottom:18px">
       <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
@@ -1164,14 +1173,19 @@ import AegisDropzone from '@/components/ui/AegisDropzone.vue'
 import { useModal }    from '@/composables/useModal'
 import { useToast }    from '@/composables/useToast'
 import { useConfirm }  from '@/composables/useConfirm'
+import PlanReviewAlert from '@/components/PlanReviewAlert.vue'
 import { useVuelidate } from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
 
 const props = defineProps({
-  documents:      { type: Array,  default: () => [] },
-  supportingDocs: { type: Array,  default: () => [] },
-  docStats:       { type: Object, default: () => ({ total: 0, active: 0, pending: 0, expiring: 0 }) },
-  stewards:       { type: Array,  default: () => [] },
+  documents:          { type: Array,   default: () => [] },
+  supportingDocs:     { type: Array,   default: () => [] },
+  docStats:           { type: Object,  default: () => ({ total: 0, active: 0, pending: 0, expiring: 0 }) },
+  stewards:           { type: Array,   default: () => [] },
+  planStatus:         { type: String,  default: null },
+  annualReviewDate:   { type: String,  default: null },
+  hasDraftInProgress: { type: Boolean, default: false },
+  draftPlanVersion:   { type: Number,  default: null },
 })
 
 const { openModal, closeModal, isOpen } = useModal()

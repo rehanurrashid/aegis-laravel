@@ -49,6 +49,15 @@
       />
     </div>
 
+    <!-- ANNUAL REVIEW ALERT -->
+    <PlanReviewAlert
+      :plan-status="planStatus"
+      :annual-review-date="annualReviewDate"
+      :has-draft-in-progress="hasDraftInProgress"
+      :draft-plan-version="draftPlanVersion"
+      context="ss"
+    />
+
     <!-- TIER ALERT -->
     <div class="alert alert-info" style="margin-bottom:14px">
       <div class="alert-icon"><AegisIcon name="info" :size="18" /></div>
@@ -683,19 +692,24 @@ import AppLayout from '@/layouts/AppLayout.vue'
 import { useModal } from '@/composables/useModal'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
+import PlanReviewAlert from '@/components/PlanReviewAlert.vue'
 
 // ── Props ────────────────────────────────────────────────
 const props = defineProps({
-  stewards:       { type: Array, default: () => [] },
-  suspended:      { type: Array, default: () => [] },
-  pending:        { type: Array, default: () => [] },
-  invited:        { type: Array, default: () => [] },
-  declined:       { type: Array, default: () => [] },
-  archived:       { type: Array, default: () => [] },
-  servingAsSSFor: { type: Array, default: () => [] },
-  tier:           { type: String, default: 'access' },
-  ssMax:          { type: Number, default: 2 },
-  ssCount:        { type: Number, default: 0 },
+  stewards:           { type: Array,   default: () => [] },
+  suspended:          { type: Array,   default: () => [] },
+  pending:            { type: Array,   default: () => [] },
+  invited:            { type: Array,   default: () => [] },
+  declined:           { type: Array,   default: () => [] },
+  archived:           { type: Array,   default: () => [] },
+  servingAsSSFor:     { type: Array,   default: () => [] },
+  tier:               { type: String,  default: 'access' },
+  ssMax:              { type: Number,  default: 2 },
+  ssCount:            { type: Number,  default: 0 },
+  planStatus:         { type: String,  default: null },
+  annualReviewDate:   { type: String,  default: null },
+  hasDraftInProgress: { type: Boolean, default: false },
+  draftPlanVersion:   { type: Number,  default: null },
 })
 
 // ── Composables ──────────────────────────────────────────

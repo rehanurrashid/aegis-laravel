@@ -37,6 +37,15 @@
       <AegisStatChip icon="users"     :value="stewardsWithAccess"             label="People granted access during a critical moment" />
     </div>
 
+    <!-- ANNUAL REVIEW ALERT -->
+    <PlanReviewAlert
+      :plan-status="planStatus"
+      :annual-review-date="annualReviewDate"
+      :has-draft-in-progress="hasDraftInProgress"
+      :draft-plan-version="draftPlanVersion"
+      context="vault"
+    />
+
     <!-- ── ATTESTATION BANNERS ── -->
     <div v-if="attestedAt" class="alert alert-success vault-attest-banner">
       <div class="alert-icon"><AegisIcon name="shield-check" :size="16" /></div>
@@ -1089,17 +1098,21 @@ import AegisPagination from '@/components/ui/AegisPagination.vue'
 import AegisDropzone from '@/components/ui/AegisDropzone.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
+import PlanReviewAlert from '@/components/PlanReviewAlert.vue'
 import { useVuelidate } from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
 
 // ── Props ────────────────────────────────────────────────────
 const props = defineProps({
-  zones:      { type: Object, default: () => ({ standard: [], emergency: [], credentials: [], roster: [] }) },
-  planStatus: { type: String, default: 'none' },
-  attestedAt: { type: String, default: null },
-  attestNote: { type: String, default: '' },
-  totalCount: { type: Number, default: 0 },
-  stewards:   { type: Array,  default: () => [] },
+  zones:              { type: Object,  default: () => ({ standard: [], emergency: [], credentials: [], roster: [] }) },
+  planStatus:         { type: String,  default: 'none' },
+  attestedAt:         { type: String,  default: null },
+  attestNote:         { type: String,  default: '' },
+  totalCount:         { type: Number,  default: 0 },
+  stewards:           { type: Array,   default: () => [] },
+  annualReviewDate:   { type: String,  default: null },
+  hasDraftInProgress: { type: Boolean, default: false },
+  draftPlanVersion:   { type: Number,  default: null },
 })
 
 const toast = useToast()
