@@ -189,7 +189,8 @@
               </div>
               <div class="dh-cn-stew-info">
                 <div class="dh-cn-srole">Continuity Steward</div>
-                <div class="dh-cn-sname">{{ csName }}</div>
+                <a v-if="primaryCs?.steward?.slug" :href="route('public.cs', { slug: primaryCs.steward.slug })" class="dh-cn-sname" style="color:var(--gold-dark);text-decoration:none;">{{ csName }}</a>
+                <div v-else class="dh-cn-sname">{{ csName }}</div>
               </div>
               <div class="dh-cn-stat">{{ primaryCs?.status === 'active' ? 'Active' : 'Pending' }}</div>
             </div>
@@ -199,7 +200,8 @@
               </div>
               <div class="dh-cn-stew-info">
                 <div class="dh-cn-srole">Support Steward</div>
-                <div class="dh-cn-sname">{{ ssName }}</div>
+                <a v-if="primarySs?.steward?.slug" :href="route('public.ss', { slug: primarySs.steward.slug })" class="dh-cn-sname" style="color:var(--gold-dark);text-decoration:none;">{{ ssName }}</a>
+                <div v-else class="dh-cn-sname">{{ ssName }}</div>
               </div>
               <div class="dh-cn-stat">{{ primarySs?.status === 'active' ? 'Monitoring' : 'Pending' }}</div>
             </div>
@@ -230,21 +232,34 @@
           </div>
 
           <div class="dh-cn-bar">
-            <div class="dh-cn-bar-fill"></div>
-            <div class="dh-cn-bar-marker" data-tooltip="Today"></div>
+            <div class="dh-cn-bar-fill" :style="{ width: reviewProgressPct + '%' }"></div>
+            <div class="dh-cn-bar-marker" :style="{ left: reviewProgressPct + '%' }" data-tooltip="Today"></div>
           </div>
           <div class="dh-cn-bar-labels">
             <span>Last attested</span><span>Today</span><span>Due</span>
           </div>
 
           <div class="dh-cn-todos">
-            <div class="dh-cn-todo done"><AegisIcon name="check-circle" :size="13" /> Steward contact info verified</div>
-            <div class="dh-cn-todo done"><AegisIcon name="check-circle" :size="13" /> Practice information current</div>
-            <div class="dh-cn-todo"><AegisIcon name="clock" :size="13" /> Confirm Support Steward task list</div>
-            <div class="dh-cn-todo"><AegisIcon name="clock" :size="13" /> Attest Continuity Plan accuracy</div>
+            <template v-if="planSections.length">
+              <div
+                v-for="section in planSections.filter(s => s.key !== 'sign')"
+                :key="section.key"
+                class="dh-cn-todo"
+                :class="{ done: section.complete }"
+              >
+                <AegisIcon :name="section.complete ? 'check-circle' : 'clock'" :size="13" />
+                {{ section.title }}
+              </div>
+            </template>
+            <template v-else>
+              <div class="dh-cn-todo"><AegisIcon name="clock" :size="13" /> Not configured</div>
+              <div class="dh-cn-todo"><AegisIcon name="clock" :size="13" /> Not configured</div>
+              <div class="dh-cn-todo"><AegisIcon name="clock" :size="13" /> Not configured</div>
+              <div class="dh-cn-todo"><AegisIcon name="clock" :size="13" /> Not configured</div>
+            </template>
           </div>
 
-          <button class="btn btn-outline btn-sm" style="align-self:flex-start;margin-top:8px" @click="router.visit(route('provider.plan.index') + '?action=begin_review')">
+          <button v-if="annualReviewOverdue" class="btn btn-outline btn-sm" style="align-self:flex-start;margin-top:8px" @click="router.visit(route('provider.plan.index') + '?action=begin_review')">
             <AegisIcon name="clipboard-check" :size="13" /> Begin Annual Review
           </button>
         </div>
@@ -843,6 +858,9 @@ const props = defineProps({
   referralRoster:     { type: Array,   default: () => [] },
   referralNetwork:    { type: Array,   default: () => [] },
   ceuRequirements:    { type: Array,   default: () => [] },
+  annualReviewDate:   { type: String,  default: null },
+  signedAt:           { type: String,  default: null },
+  planSections:       { type: Array,   default: () => [] },
 })
 
 // ── Composables ───────────────────────────────────────────────────────
@@ -1245,7 +1263,7 @@ function submitServiceRequest() { modals.serviceRequest = false; toast.success('
   background: var(--icon-bg-gold); color: var(--gold-dark);
   font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.dh-cn-savatar.support { background: var(--blue-light); color: var(--blue-dark); }
+.dh-cn-savatar.support { background: var(--gold-dark); color: #fff; }
 .dh-cn-stew-info { flex: 1; min-width: 0; }
 .dh-cn-srole { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-4); }
 .dh-cn-sname { font-size: 13px; font-weight: 600; color: var(--text); margin-top: 1px; }
