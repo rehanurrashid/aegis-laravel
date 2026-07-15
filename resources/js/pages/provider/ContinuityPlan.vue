@@ -642,9 +642,10 @@ function formatDate(iso) {
 .sign-cta-actions { display: flex; justify-content: flex-end; gap: 10px; }
 
 /* Clickable stat chip */
-.stat-chip-btn { position: relative; background: none; border: 1px solid var(--gold-light, rgba(160,129,62,.35)); border-radius: var(--radius); padding: 0; cursor: pointer; display: inline-block; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.stat-chip-btn { position: relative; background: none; border: 1px solid var(--gold-light, rgba(160,129,62,.3)); border-radius: var(--radius); padding: 0; cursor: pointer; display: inline-block; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
 .stat-chip-btn:hover { transform: translateY(-3px); box-shadow: 0 4px 14px rgba(160,129,62,.18); border-color: var(--gold-dark); }
 .stat-chip-btn:hover .stat-chip-eye { transform: translateY(-3px); }
+.stat-chip-btn .stat-chip { border: none !important; box-shadow: none !important; }
 .stat-chip-eye { position: absolute; top: 7px; right: 4px; width: 25px; height: 18px; border-radius: 50%; color: var(--gold-dark); display: inline-flex; align-items: center; justify-content: center; border: none; pointer-events: none; transition: transform .18s ease; }
 
 /* Spin */
