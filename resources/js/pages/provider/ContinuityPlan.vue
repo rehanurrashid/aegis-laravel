@@ -8,6 +8,9 @@
         <a :href="route('provider.activity') + '?module=plan'" class="btn-hero-ghost is-on-light">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
+        <button type="button" class="btn-hero-ghost is-on-light" style="display:inline-flex;align-items:center;gap:6px;" @click="showSectionsModal = true">
+          <AegisIcon name="check-circle" :size="14" /> {{ completedCount }}/{{ totalSections }} Sections Complete
+        </button>
         <button v-if="plan && plan.signed_at" type="button" class="btn-hero-ghost is-on-light" @click="showAnnualReview = true">
           <AegisIcon name="refresh-cw" :size="14" /> Begin Annual Review
         </button>
@@ -25,7 +28,7 @@
 
     <!-- STAT CHIPS -->
     <div class="stat-chips-row">
-      <button type="button" class="stat-chip-btn" data-tooltip="View plan readiness" @click="showSectionsModal = true">
+      <button type="button" class="stat-chip-btn" @click="showSectionsModal = true">
         <AegisStatChip
           icon="shield"
           :value="`${completedSections}/7`"
@@ -33,7 +36,6 @@
           :bg-color="completedSections === 7 ? 'var(--icon-bg-green)' : 'var(--icon-bg-gold)'"
           :icon-color="completedSections === 7 ? 'var(--green-dark)' : 'var(--gold-dark)'"
         />
-        <span class="stat-chip-eye"><AegisIcon name="eye" style="width:25px;height:18px" /></span>
       </button>
       <AegisStatChip icon="users" :value="csCount" label="Continuity Stewards" />
       <AegisStatChip icon="user-check" :value="ssCount" label="Support Stewards" />
@@ -642,11 +644,8 @@ function formatDate(iso) {
 .sign-cta-actions { display: flex; justify-content: flex-end; gap: 10px; }
 
 /* Clickable stat chip */
-.stat-chip-btn { position: relative; background: none; border: 1px solid var(--gold-light, rgba(160,129,62,.3)); border-radius: var(--radius); padding: 0; cursor: pointer; display: inline-block; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
-.stat-chip-btn:hover { transform: translateY(-3px); box-shadow: 0 4px 14px rgba(160,129,62,.18); border-color: var(--gold-dark); }
-.stat-chip-btn:hover .stat-chip-eye { transform: translateY(-3px); }
-.stat-chip-btn .stat-chip { border: none !important; box-shadow: none !important; }
-.stat-chip-eye { position: absolute; top: 7px; right: 4px; width: 25px; height: 18px; border-radius: 50%; color: var(--gold-dark); display: inline-flex; align-items: center; justify-content: center; border: none; pointer-events: none; transition: transform .18s ease; }
+.stat-chip-btn { background: none; border: none; padding: 0; cursor: pointer; display: inline-block; transition: transform .18s ease; border-radius: var(--radius); }
+.stat-chip-btn:hover { transform: translateY(-3px); }
 
 /* Spin */
 @keyframes spin { to { transform: rotate(360deg); } }
