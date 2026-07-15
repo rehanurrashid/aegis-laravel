@@ -215,7 +215,8 @@ class EmailDataResolver
 
                 // Determine invite URL — existing verified users go to their portal, new users go to register prefilled
                 $isVerified  = (bool) ($stewardUser?->verified ?? false);
-                $inviteUrl   = $isVerified
+                $isInternal  = $isVerified && $stewardUser !== null;
+                $inviteUrl   = $isInternal
                     ? $base . '/continuity-steward/dashboard'
                     : $base . '/register?role=cs&path=invited&code=' . urlencode($ps->id);
 
@@ -224,18 +225,39 @@ class EmailDataResolver
                     ? max(1, (int) now()->diffInDays($expiresAt, false))
                     : ($d['expires_days'] ?? 14);
 
-                $d += array_filter([
-                    'cs_name'           => $stewardUser?->display_name ?? '',
+                // Fee display
+                $feeCents  = (int) ($ps->fee_cents ?? 0);
+                $feeDisplay = $feeCents > 0
+                    ? '$' . number_format($feeCents / 100, 2) . ' per ' . ($ps->payment_model ?? 'incident')
+                    : 'No fee / reciprocal agreement';
+
+                $roleLabel = match ($ps->role instanceof \BackedEnum ? $ps->role->value : (string) $ps->role) {
+                    'primary'   => 'Primary Continuity Steward',
+                    'alternate' => 'Alternate Continuity Steward',
+                    'support'   => 'Support Continuity Steward',
+                    default     => 'Continuity Steward',
+                };
+
+                $common = [
+                    'cs_name'           => $stewardUser?->display_name ?? $ps->display_name ?? '',
                     'practitioner_name' => $practitioner?->display_name ?? 'A healthcare practitioner',
                     'invite_url'        => $inviteUrl,
-                    'invitation_code'   => $ps->id,
                     'portal_url'        => $base . '/continuity-steward/dashboard',
                     'review_url'        => $base . '/continuity-steward/dashboard',
                     'plan_url'          => $base . '/provider/plan',
                     'expires_days'      => $expiresDays,
+                    'fee_display'       => $feeDisplay,
+                    'role_label'        => $roleLabel,
                     'requested_at'      => now()->toFormattedDateString(),
                     'activated_at'      => now()->toFormattedDateString(),
-                ], static fn ($v) => $v !== null && $v !== '');
+                ];
+
+                // External only: include invitation code for fallback manual entry
+                if (!$isInternal) {
+                    $common['invitation_code'] = $ps->id;
+                }
+
+                $d += array_filter($common, static fn ($v) => $v !== null && $v !== '');
 
                 if (str_contains($tpl, '25-alternate')) {
                     $former = PlanSteward::where('plan_id', $ps->plan_id)

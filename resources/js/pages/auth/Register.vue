@@ -404,6 +404,7 @@
                   v-model="form.invitation_code"
                   type="text"
                   class="form-input"
+                  :readonly="!!(new URLSearchParams(window.location.search)).get('code')"
                   :class="{ 'is-error': fieldError('invitation_code') }"
                   placeholder="e.g. ps_abc123def456"
                   autocomplete="off"
@@ -471,23 +472,7 @@ const year         = new Date().getFullYear()
 
 const reqs = reactive({ length: false, uppercase: false, number: false, special: false })
 
-// ── Prefill from invite URL: /register?role=cs&path=invited&code=ps_xxx ──────
-onMounted(() => {
-  const params = new URLSearchParams(window.location.search)
-  const role   = params.get('role')
-  const path   = params.get('path')
-  const code   = params.get('code')
 
-  if (role === 'cs' || role === 'continuity_steward') {
-    form.role    = 'continuity_steward'
-    form.cs_path = path === 'invited' ? 'invited' : 'invited'
-    if (code) {
-      form.invitation_code = code
-      // Skip straight to Step 4 (account creation) — steps: 0=role,1=details,2=use-cases,3=account
-      currentStep.value = 3
-    }
-  }
-})
 
 const form = useForm({
   display_name:          '',
@@ -499,6 +484,25 @@ const form = useForm({
   cs_path:               null,
   invitation_code:       '',
   use_cases:             [],
+})
+
+// ── Prefill from invite URL: /register?role=cs&path=invited&code=ps_xxx ──────
+// After useForm() so form object is available
+onMounted(() => {
+  const params = new URLSearchParams(window.location.search)
+  const role   = params.get('role')
+  const path   = params.get('path')
+  const code   = params.get('code')
+
+  if (role === 'cs' || role === 'continuity_steward') {
+    form.role    = 'continuity_steward'
+    form.cs_path = 'invited'
+    if (code) {
+      form.invitation_code = code
+      // CS: 0=role, 1=cs-path, 2=use-cases, 3=account — jump to account step
+      currentStep.value = 3
+    }
+  }
 })
 
 // ── Use-case options per role ─────────────────────────────────────────

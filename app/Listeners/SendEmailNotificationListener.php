@@ -311,9 +311,33 @@ class SendEmailNotificationListener
 
     private function stewardDesignated(StewardDesignated $e): array
     {
-        return [['user_id' => $e->steward->steward_id, 'gate_key' => 'notify_steward',
-                 'template' => 'emails.steward.07-steward-invitation',
-                 'data' => ['plan_steward_id' => $e->steward->id]]];
+        $ps          = $e->steward;
+        $stewardUser = \App\Models\User::find($ps->steward_id);
+        $isVerified  = (bool) ($stewardUser?->verified ?? false);
+
+        // External (no Aegis account or unverified stub) → template 17
+        // Internal (verified Business CS already on Aegis) → template 18
+        $template = $isVerified
+            ? ($ps->steward_category === 'support_steward'
+                ? 'emails.steward.20-ss-invite-internal'
+                : 'emails.steward.18-cs-invite-internal')
+            : ($ps->steward_category === 'support_steward'
+                ? 'emails.steward.19-ss-invite-external'
+                : 'emails.steward.17-cs-invite-external');
+
+        // For external, email goes to the stub user (who may have a different email)
+        // For internal, user_id is the real CS user
+        $recipientId = $ps->steward_id ?? null;
+
+        if (!$recipientId) {
+            // No recipient ID — external invite with no stub yet, skip (StewardService handles it directly)
+            return [];
+        }
+
+        return [['user_id'   => $recipientId,
+                 'gate_key'  => 'notify_steward',
+                 'template'  => $template,
+                 'data'      => ['plan_steward_id' => $ps->id]]];
     }
 
     private function stewardAccepted(StewardAccepted $e): array
