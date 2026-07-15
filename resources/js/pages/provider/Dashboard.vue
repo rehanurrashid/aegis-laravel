@@ -206,15 +206,12 @@
           </div>
 
           <div class="dh-cn-actions">
-            <button class="btn btn-primary btn-sm" @click="modals.executorPanel = true">
+            <button class="btn btn-primary btn-sm" @click="router.visit(route('provider.plan.index'))">
               <AegisIcon name="eye" :size="13" /> View Plan Details
             </button>
             <Link :href="route('provider.stewards.index')" class="btn btn-outline btn-sm">
               <AegisIcon name="pencil" :size="13" /> Edit Stewards
             </Link>
-            <button v-if="!activeIncident" class="btn btn-danger btn-sm" data-tooltip="Use only during a genuine critical moment" @click="modals.activateSuccession = true">
-              <AegisIcon name="alert-triangle" :size="13" />
-            </button>
           </div>
         </div>
 
@@ -247,7 +244,7 @@
             <div class="dh-cn-todo"><AegisIcon name="clock" :size="13" /> Attest Continuity Plan accuracy</div>
           </div>
 
-          <button class="btn btn-outline btn-sm" style="align-self:flex-start;margin-top:8px" @click="modals.annualReview = true">
+          <button class="btn btn-outline btn-sm" style="align-self:flex-start;margin-top:8px" @click="router.visit(route('provider.plan.index') + '?action=begin_review')">
             <AegisIcon name="clipboard-check" :size="13" /> Begin Annual Review
           </button>
         </div>
@@ -517,152 +514,6 @@
     </div><!-- /page-body-inner -->
 
     <!-- ══════════════════════ MODALS ═════════════════════════════════ -->
-
-    <!-- Executor Panel -->
-    <AegisModal v-model="modals.executorPanel" title="Continuity Plan — Details" size="lg">
-      <div class="alert alert-success" style="margin-bottom:14px">
-        <div class="alert-icon"><AegisIcon name="shield-check" :size="16" /></div>
-        <div class="alert-content">Continuity Plan is active and up to date</div>
-      </div>
-
-      <div class="section-label" style="margin-bottom:8px">Stewards</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-        <div v-if="primaryCs" style="display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:14px 0;border-bottom:1px solid var(--border)">
-          <div style="display:flex;align-items:center;gap:10px;width:100%;flex-wrap:wrap">
-            <div class="exec-avatar" :style="csAvatarUrl ? { backgroundImage: `url(${csAvatarUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
-              <template v-if="!csAvatarUrl">{{ csInitials }}</template>
-            </div>
-            <div style="flex:1;min-width:0">
-              <div style="font-weight:700;font-size:13px">{{ csName }}</div>
-              <div style="font-size:11px;color:var(--text-3)">{{ primaryCs?.steward?.title ?? '' }}</div>
-            </div>
-            <span class="exec-role-chip">Continuity Steward</span>
-            <span :class="'badge badge--' + (primaryCs?.status === 'active' ? 'green' : 'orange')">{{ primaryCs?.status === 'active' ? 'Active' : 'Pending' }}</span>
-          </div>
-          <div style="font-size:11px;color:var(--text-3);width:100%">{{ primaryCs?.steward?.email ?? '' }}{{ primaryCs?.steward?.phone ? ' · ' + primaryCs.steward.phone : '' }}</div>
-        </div>
-        <div v-if="primarySs" style="display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:14px 0;border-bottom:1px solid var(--border)">
-          <div style="display:flex;align-items:center;gap:10px;width:100%;flex-wrap:wrap">
-            <div class="exec-avatar" :style="ssAvatarUrl ? { backgroundImage: `url(${ssAvatarUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}">
-              <template v-if="!ssAvatarUrl">{{ ssInitials }}</template>
-            </div>
-            <div style="flex:1;min-width:0">
-              <div style="font-weight:700;font-size:13px">{{ ssName }}</div>
-              <div style="font-size:11px;color:var(--text-3)">{{ primarySs?.steward?.title ?? '' }}</div>
-            </div>
-            <span class="exec-role-chip">Support Steward</span>
-            <span class="badge badge--green">Monitoring</span>
-          </div>
-          <div style="font-size:11px;color:var(--text-3);width:100%">{{ primarySs?.steward?.email ?? '' }}{{ primarySs?.steward?.phone ? ' · ' + primarySs.steward.phone : '' }}</div>
-        </div>
-      </div>
-
-      <div class="section-label" style="margin-bottom:8px">Continuity Plan Details</div>
-      <div style="display:flex;flex-direction:column">
-        <div class="cc-detail-row"><span class="cc-detail-label">Signed</span><span class="cc-detail-value">{{ planSignedAt }}</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Annual Review</span><span class="cc-detail-value" style="color:var(--orange-dark)">Due {{ planReviewDue }}</span></div>
-        <div class="cc-detail-row"><span class="cc-detail-label">Activation Trigger</span><span class="cc-detail-value">48-hr Absence</span></div>
-        <div class="cc-detail-row">
-          <span class="cc-detail-label">Security Doc</span>
-          <select class="form-select" style="max-width:220px">
-            <option>None</option><option>Police Report</option><option>Doctor's Note</option><option>Death Certificate</option>
-          </select>
-        </div>
-      </div>
-      <template #footer>
-        <button class="btn btn-outline" style="margin-right:auto" @click="modals.annualReview = true; modals.executorPanel = false">Annual Review</button>
-        <button v-if="!activeIncident" class="btn btn-danger" @click="modals.activateSuccession = true; modals.executorPanel = false">
-          <AegisIcon name="alert-triangle" :size="13" /> Activate Continuity Support
-        </button>
-        <Link :href="route('provider.stewards.index')" class="btn btn-primary">
-          Manage Continuity Stewards <AegisIcon name="chevron-right" :size="13" />
-        </Link>
-      </template>
-    </AegisModal>
-
-    <!-- Activate Succession -->
-    <!-- Activate Succession — exact PHP parity -->
-    <AegisModal v-model="modals.activateSuccession" title="Activate Continuity Support" size="lg">
-
-      <div style="background:var(--red-light);border:1.5px solid var(--border-dark);border-radius:var(--radius-lg);padding:11px 14px;margin-bottom:14px;font-size:13px;color:var(--text-2);line-height:1.55">
-        <strong style="color:var(--red)">This notifies your Continuity &amp; Support Stewards</strong>
-        and initiates your Continuity Plan. Activate only during a genuine critical moment.
-      </div>
-
-      <div class="form-row" style="margin-bottom:12px">
-        <div class="form-group">
-          <label class="form-label">Incident Type <span style="color:var(--red)">*</span></label>
-          <select v-model="successionForm.incident_type" class="form-select">
-            <option value="">— Select incident type —</option>
-            <option value="death">Death</option>
-            <option value="missing">Missing Person</option>
-            <option value="incapacitation">Short-Term Incapacitation</option>
-            <option value="extended_absence">Long-Term Incapacitation</option>
-            <option value="natural_disaster">Natural Disaster</option>
-            <option value="detainment">Detainment</option>
-          </select>
-          <div v-if="successionForm.errors.incident_type" class="form-error">{{ successionForm.errors.incident_type }}</div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Supporting Documentation</label>
-          <select v-model="successionForm.documentation_type" class="form-select">
-            <option value="none">None</option>
-            <option value="police_report">Police Report</option>
-            <option value="doctors_note">Doctor's Note</option>
-            <option value="death_certificate">Death Certificate</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Additional Notes <span style="color:var(--text-4);font-weight:400">(optional)</span></label>
-        <textarea v-model="successionForm.report_narrative" class="form-textarea" rows="2" placeholder="Provide any relevant context for your Continuity Steward…"></textarea>
-        <div v-if="successionForm.errors.report_narrative" class="form-error">{{ successionForm.errors.report_narrative }}</div>
-      </div>
-
-      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:10px 14px;font-size:13px;color:var(--text-3);line-height:1.5">
-        <strong>What happens next:</strong> Your Continuity Steward ({{ csName }}) and Support Steward ({{ ssName }}) will be notified. Your Continuity Plan will be activated, and access to your Vault will be granted according to the permissions you have defined.
-      </div>
-
-      <template #footer>
-        <button class="btn btn-outline" @click="modals.activateSuccession = false">Cancel</button>
-        <button
-          class="btn btn-danger"
-          :disabled="!successionForm.incident_type || successionForm.processing"
-          @click="activateSuccession"
-        >
-          <AegisIcon name="alert-triangle" :size="13" /> Confirm Activation
-        </button>
-      </template>
-    </AegisModal>
-
-    <!-- Annual Review -->
-    <AegisModal v-model="modals.annualReview" title="Annual Review" size="lg">
-      <div class="alert alert-warning" style="margin-bottom:18px">
-        <div class="alert-icon"><AegisIcon name="megaphone" :size="14" /></div>
-        <div class="alert-content">Annual review due {{ planReviewDue }}. Please verify all items and attest.</div>
-      </div>
-      <div class="dh-review-checklist">
-        <label class="form-check"><input v-model="annualReviewForm.checklist.stewards" type="checkbox" class="form-check-input" /><span class="form-check-label">Continuity Steward identity and contact information is current</span></label>
-        <label class="form-check"><input v-model="annualReviewForm.checklist.contacts" type="checkbox" class="form-check-input" /><span class="form-check-label">Support Steward identity and contact information is current</span></label>
-        <label class="form-check"><input v-model="annualReviewForm.checklist.tasks" type="checkbox" class="form-check-input" /><span class="form-check-label">Support Steward tasks are complete and accurate</span></label>
-        <label class="form-check"><input v-model="annualReviewForm.checklist.incidents" type="checkbox" class="form-check-input" /><span class="form-check-label">Assigned Continuity Steward tasks are complete and accurate</span></label>
-        <label class="form-check"><input v-model="annualReviewForm.checklist.preferences" type="checkbox" class="form-check-input" /><span class="form-check-label">Continuity Plan is accurate</span></label>
-        <label class="form-check"><input v-model="annualReviewForm.checklist.fees" type="checkbox" class="form-check-input" /><span class="form-check-label">Practice information is accurate</span></label>
-        <label class="form-check"><input v-model="annualReviewForm.checklist.documents" type="checkbox" class="form-check-input" /><span class="form-check-label">Support documentation is complete and accurate</span></label>
-        <label class="form-check"><input v-model="annualReviewForm.checklist.vault" type="checkbox" class="form-check-input" /><span class="form-check-label">Vault documentation is complete and accurate</span></label>
-      </div>
-      <div style="margin-top:18px">
-        <label class="form-label">Additional Notes</label>
-        <textarea v-model="annualReviewForm.notes" class="form-textarea" placeholder="Any changes or notes for this review period..."></textarea>
-      </div>
-      <template #footer>
-        <button class="btn btn-outline" @click="modals.annualReview = false">Cancel</button>
-        <button class="btn btn-primary" :disabled="!allReviewChecked || annualReviewForm.processing" @click="submitAnnualReview">
-          {{ annualReviewForm.processing ? 'Submitting…' : 'Submit Annual Review' }}
-        </button>
-      </template>
-    </AegisModal>
 
     <!-- CEU Modal -->
     <AegisModal v-model="modals.ceu" title="Continuing Education (CEU)" size="lg">
@@ -1006,9 +857,6 @@ const publicProfileUrl = computed(() => {
 
 // ── Modal state — one key per modal ───────────────────────────────────
 const modals = reactive({
-  executorPanel:      false,
-  activateSuccession: false,
-  annualReview:       false,
   ceu:                false,
   newReferral:        false,
   logout:             false,
@@ -1105,7 +953,7 @@ const attentionItems = computed(() => {
           ? `Overdue by <strong>${Math.abs(days)} days</strong>`
           : `Due <strong>${formatDate(props.plan?.annual_review_date)}</strong>${pendingCount > 0 ? ` · ${pendingCount} item${pendingCount > 1 ? 's' : ''} pending` : ''}`,
         cta:    'Review',
-        action: () => { modals.annualReview = true },
+        action: () => { router.visit(route('provider.plan.index') + '?action=begin_review') },
       })
     }
   }
@@ -1198,28 +1046,6 @@ const ssInitials = computed(() => {
   return p.length >= 2 ? (p[0][0]+p[p.length-1][0]).toUpperCase() : p[0].substring(0,2).toUpperCase()
 })
 
-// ── Annual review — wired to provider.plan.review.complete ────────────
-const annualReviewForm = useForm({
-  checklist: {
-    stewards:    false,
-    incidents:   false,
-    documents:   false,
-    vault:       false,
-    tasks:       false,
-    fees:        false,
-    contacts:    false,
-    preferences: false,
-  },
-  notes: '',
-})
-const allReviewChecked = computed(() => Object.values(annualReviewForm.checklist).every(Boolean))
-function submitAnnualReview() {
-  annualReviewForm.post(route('provider.plan.review.complete'), {
-    onSuccess: () => { modals.annualReview = false; toast.success('Annual review submitted.') },
-    onError:   () => toast.error('Please complete all checklist items.'),
-  })
-}
-
 // ── CEU form — wired to provider.ceus.store ────────────────────────────
 // ── CEU Add form — wired to provider.ceus.store ────────────────────────
 const ceuForm = useForm({ type: 'ceu', title: '', category: '', delivery: 'synchronous', cycle: 'annual', credit_hours: '', provider_name: '', completed_on: '', certificate: null })
@@ -1294,25 +1120,6 @@ function removeCeuRequirement(req) {
   )
 }
 
-
-// ── Succession — wired to provider.incident.activate ─────────────────
-const successionForm = useForm({
-  plan_id:          props.plan?.id ?? '',
-  incident_type:    '',
-  report_narrative: '',
-  documentation_type: 'none',
-})
-function activateSuccession() {
-  if (!successionForm.incident_type) return
-  successionForm.post(route('provider.incident.activate'), {
-    onSuccess: () => {
-      modals.activateSuccession = false
-      successionForm.reset()
-      toast.success('Continuity Plan activated. Your stewards have been notified.')
-    },
-    onError: () => toast.error('Could not activate. Please try again.'),
-  })
-}
 
 // ── Logout ────────────────────────────────────────────────────────────
 function handleLogout() { modals.logout = false; router.post(route('logout')) }
