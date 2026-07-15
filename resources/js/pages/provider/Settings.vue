@@ -574,7 +574,7 @@
               </div>
 
               <!-- Add-ons — MAAT (requires Practice) -->
-              <div class="st-included-head" style="margin-top:24px">Add-ons</div>
+              <div class="st-included-head" id="settings-anchor-maat" style="margin-top:24px">Add-ons</div>
               <div class="st-note" style="margin-top:-4px;margin-bottom:14px">Stack on top of your base plan. Add or remove at any time.</div>
               <div class="st-addon-card">
                 <span class="st-card-ico"><AegisIcon name="shield" :size="17" /></span>
