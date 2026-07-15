@@ -24,6 +24,9 @@ use Illuminate\Support\Facades\Schedule;
 | (* * * * * php artisan schedule:run).
 */
 
+// Daily 00:05 UTC — flip active plans to annual_review_due when review date has passed.
+Schedule::command('aegis:check-annual-review-dates')->dailyAt('00:05')->name('aegis.check_annual_review_dates');
+
 // Daily 09:00 UTC — fire AnnualReviewDue at 30d / 7d / 0d windows.
 Schedule::job(new AnnualReviewReminderJob)->dailyAt('09:00')->name('aegis.annual_review_reminder');
 

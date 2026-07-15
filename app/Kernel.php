@@ -19,6 +19,7 @@ class Kernel extends ConsoleKernel
         Commands\DispatchDigestsCommand::class,
         Commands\ExpireStalePlansCommand::class,
         Commands\SweepOverdueInvoicesCommand::class,
+        Commands\CheckAnnualReviewDates::class,
     ];
 
     protected function schedule(Schedule $schedule): void

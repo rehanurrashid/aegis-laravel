@@ -134,6 +134,34 @@ class DocumentSeeder extends Seeder
                 'auto_renew'      => 0,
             ],
 
+            // p_sarah — CS Engagement Agreement (fully executed, satisfies Section 7 — Documents)
+            [
+                'id'                  => 'doc_sarah_cs_engagement',
+                'plan_id'             => 'plan_sarah',
+                'practitioner_id'     => 'p_sarah',
+                'party_b_id'          => 'cs_marcus',
+                'reference'           => 'CEA-2024-001',
+                'title'               => 'CS Engagement Agreement — Marcus Williams',
+                'doc_type'            => 'cs_engagement_agreement',
+                'category'            => 'pe',
+                'status'              => 'fully_executed',
+                'holder_steward_id'   => 'cs_marcus',
+                'signed_by_id'        => 'p_sarah',
+                'signature_name'      => 'Dr. Sarah Johnson, LPC',
+                'signature_ip'        => '127.0.0.1',
+                'signed_at'           => $now->copy()->subMonths(6)->toDateTimeString(),
+                'countersigned_by_id' => 'cs_marcus',
+                'countersignature_name' => 'Marcus Williams, MSW, LICSW',
+                'countersignature_ip' => '127.0.0.1',
+                'countersigned_at'    => $now->copy()->subMonths(6)->addDay()->toDateTimeString(),
+                'body'                => null,
+                'notes'               => 'CS engagement agreement covering primary steward role for Dr. Sarah Johnson.',
+                'is_supporting'       => 0,
+                'auto_renew'          => 0,
+                'created_at'          => $now->copy()->subMonths(6)->toDateTimeString(),
+                'updated_at'          => $now->copy()->subMonths(6)->addDay()->toDateTimeString(),
+            ],
+
             // p_sarah — Expiring soon (primary_action = renew)
             [
                 'id'                  => 'doc_sarah_sla_expiring',

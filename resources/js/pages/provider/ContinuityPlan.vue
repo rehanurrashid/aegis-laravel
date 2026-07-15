@@ -9,7 +9,7 @@
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
         <button type="button" class="btn-hero-ghost is-on-light" style="display:inline-flex;align-items:center;gap:6px;" @click="showSectionsModal = true">
-          <AegisIcon name="check-circle" :size="14" /> {{ completedCount }}/{{ totalSections }} Sections Complete
+          <AegisIcon name="check-circle" :size="14" /> {{ completedSections }}/7 Sections Complete
         </button>
         <!-- Annual review due → only show Begin Annual Review -->
         <button v-if="plan && plan.status === 'annual_review_due'" type="button" class="btn-hero-solid is-on-light" style="display:inline-flex;align-items:center;gap:6px;" @click="showAnnualReview = true">
@@ -261,7 +261,11 @@
                     </span>
                     {{ getStewardFirstName(cid) }}
                   </a>
-                  <span v-if="!(getConfig(type.value)?.authorized_ss_ids ?? []).some(id => getStewardById(id)) && !(getConfig(type.value)?.authorized_cs_ids ?? []).some(id => getStewardById(id))" class="ic-empty">No stewards assigned</span>
+                  <AegisBadge
+                    v-if="isEnabled(type.value) && !(getConfig(type.value)?.authorized_ss_ids ?? []).some(id => getStewardById(id)) && !(getConfig(type.value)?.authorized_cs_ids ?? []).some(id => getStewardById(id))"
+                    variant="warning"
+                    label="No stewards assigned"
+                  />
                 </div>
               </div>
 
