@@ -147,8 +147,8 @@ class ContinuityStewardController extends Controller
                 'location'         => $s->plan?->practitioner?->location ?? '',
                 'avatar_initials'  => $s->plan?->practitioner?->avatar_initials ?? '??',
                 'slug'             => $s->plan?->practitioner?->slug ?? '',
-                'review_due_at'    => $s->review_due_at?->toDateString(),
-                'vault_access'     => $s->vault_access ?? 'none',
+                'review_due_at'    => $s->review_due_at?->toDateString() ?? $s->plan?->annual_review_date?->toDateString(),
+                'vault_access'     => is_object($s->vault_access) ? $s->vault_access->value : ($s->vault_access ?? 'none'),
                 'active_incidents' => $s->plan_id ? \App\Models\CriticalIncident::where('plan_id', $s->plan_id)->where('status', 'active')->count() : 0,
             ]);
 
