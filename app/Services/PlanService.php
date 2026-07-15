@@ -119,14 +119,15 @@ class PlanService
             throw new RuntimeException('At least one active Continuity Steward is required to sign.');
         }
 
+        $signedAt = now();
         $plan->update([
-            'status'           => 'active',
-            'signed_at'        => now(),
-            'signature_name'   => $signature['name'] ?? null,
-            'signature_title'  => $signature['title'] ?? null,
-            'signature_ip'     => $ip,
-            'expires_at'       => now()->addYear(),
-            'annual_review_date' => now()->addYear(),
+            'status'             => 'active',
+            'signed_at'          => $signedAt,
+            'signature_name'     => $signature['name'] ?? null,
+            'signature_title'    => $signature['title'] ?? null,
+            'signature_ip'       => $ip,
+            'expires_at'         => $signedAt->copy()->addYear(),
+            'annual_review_date' => $signedAt->copy()->addYear(),
         ]);
 
         $practitioner = User::find($plan->practitioner_id);
@@ -250,12 +251,14 @@ class PlanService
             }
         }
 
+        $signedAt = now();
         $plan->update([
             'status'              => 'active',
-            'last_review_at'      => now(),
+            'signed_at'           => $signedAt,
+            'last_review_at'      => $signedAt,
             'annual_review_notes' => $notes,
-            'annual_review_date'  => now()->addYear(),
-            'expires_at'          => now()->addYear(),
+            'annual_review_date'  => $signedAt->copy()->addYear(),
+            'expires_at'          => $signedAt->copy()->addYear(),
             'plan_version'        => ($plan->plan_version ?? 1) + 1,
         ]);
 

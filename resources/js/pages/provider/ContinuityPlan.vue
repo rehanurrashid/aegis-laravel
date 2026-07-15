@@ -424,8 +424,8 @@
         </div>
       </div>
       <div v-if="plan.annual_review_date" class="alert alert-info">
-        <AegisIcon name="calendar" :size="15" />
-        <div>Next annual review due <strong>{{ formatDate(plan.annual_review_date) }}</strong>. You will be reminded when it approaches.</div>
+        <div class="alert-icon"><AegisIcon name="calendar" :size="14" /></div>
+        <div>Next annual review due <strong>{{ formatDate(plan.annual_review_date) }}</strong>. You will be reminded 30 days before it's due.</div>
       </div>
       <div v-if="plan.signature_agreed" style="margin-top:16px;padding:14px 16px;background:var(--surface-2);border-radius:var(--radius-sm);border:1px solid var(--border)">
         <div style="font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Signatory Agreement</div>
