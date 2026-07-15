@@ -368,21 +368,12 @@ async function stepNext() {
   if (step.value === 1) {
     v$.value.email.$touch()
     v$.value.display_name.$touch()
-    if (v$.value.email.$error || v$.value.display_name.$error) {
-      toast.error('Please fill in all required fields.')
-      return
-    }
-    if (!form.user_id && !form.email.trim()) {
-      toast.error('Email is required.')
-      return
-    }
+    if (v$.value.email.$error || v$.value.display_name.$error) return
+    if (!form.user_id && !form.email.trim()) return
   }
   if (step.value === 2) {
     v$.value.role.$touch()
-    if (v$.value.role.$error || !form.role) {
-      toast.error('Please select a role.')
-      return
-    }
+    if (v$.value.role.$error || !form.role) return
   }
   step.value = Math.min(step.value + 1, 5)
 }

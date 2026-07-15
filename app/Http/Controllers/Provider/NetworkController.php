@@ -436,6 +436,7 @@ class NetworkController extends Controller
             'networkConfig'                => $this->loadNetworkConfig($user),
             'csStewards'                   => $csStewards,
             'csFilters'                    => ['specialties' => $csSpecialties, 'states' => $csStates],
+            'initialScope'                 => $request->query('tab', 'clinical'),
         ]);
     }
 

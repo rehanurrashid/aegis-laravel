@@ -77,16 +77,16 @@
     <!-- ── 3. MAIN TABS ──────────────────────────────────────────────────── -->
     <div class="tabs-twotier">
       <div class="tabs-primary" role="tablist">
-        <button type="button" class="tab-primary" :class="{ active: scope === 'clinical' }" @click="scope = 'clinical'">
+        <button type="button" id="nw-tab-clinical" class="tab-primary" :class="{ active: scope === 'clinical' }" @click="scope = 'clinical'">
           <AegisIcon name="users" :size="15" /> Integrative Care Network
         </button>
-        <button type="button" class="tab-primary" :class="{ active: scope === 'business' }" @click="scope = 'business'">
+        <button type="button" id="nw-tab-business" class="tab-primary" :class="{ active: scope === 'business' }" @click="scope = 'business'">
           <AegisIcon name="heart-2" :size="15" /> Business Partners
         </button>
-        <button type="button" class="tab-primary" :class="{ active: scope === 'tools' }" @click="scope = 'tools'">
+        <button type="button" id="nw-tab-tools" class="tab-primary" :class="{ active: scope === 'tools' }" @click="scope = 'tools'">
           <AegisIcon name="cpu" :size="15" /> Referrals &amp; Tools
         </button>
-        <button type="button" class="tab-primary" :class="{ active: scope === 'cs' }" @click="scope = 'cs'">
+        <button type="button" id="nw-tab-cs" class="tab-primary" :class="{ active: scope === 'cs' }" @click="scope = 'cs'">
           <AegisIcon name="shield" :size="15" /> Continuity Stewards
         </button>
       </div>
@@ -2196,6 +2196,7 @@ const props = defineProps({
   referralRoster:               { type: Array,  default: () => [] },
   roster:                       { type: Array,  default: () => [] },
   stats:                        { type: Object, default: () => ({}) },
+  initialScope:                 { type: String,  default: 'clinical' },
   networkConfig:                { type: Object, default: () => ({}) },
   csStewards:                   { type: Array,  default: () => [] },
   csFilters:                    { type: Object, default: () => ({ specialties: [], states: [] }) },
@@ -2295,7 +2296,7 @@ onMounted(() => {
 })
 
 // ── Tab / scope state ──────────────────────────────────────────────────────
-const scope       = ref('clinical')
+const scope       = ref(props.initialScope ?? 'clinical')
 const clinicalTab = ref('search')
 const businessTab = ref('search')
 const toolsTab    = ref('list')
