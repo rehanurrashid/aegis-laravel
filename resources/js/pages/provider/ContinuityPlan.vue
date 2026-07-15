@@ -512,8 +512,21 @@ function getStewardSlug(id)       { return getStewardById(id)?.slug ?? null }
 function getStewardPhoto(id)      { return getStewardById(id)?.avatar_url ?? null }
 
 // ── Doc label ──────────────────────────────────────────────────────────────────
+const DOC_LABELS = {
+  death_certificate:      'Death Certificate',
+  doctors_note:           "Doctor's Note / Medical Certificate",
+  medical_documentation:  'Medical Documentation',
+  hospitalization_record: 'Hospitalization Record',
+  leave_documentation:    'Leave / Absence Documentation',
+  police_report:          'Police Report',
+  legal_documentation:    'Legal Documentation',
+  insurance_documentation:'Insurance Documentation',
+  government_id:          'Government ID',
+  power_of_attorney:      'Power of Attorney',
+  other:                  'Other',
+}
 function docLabel(v) {
-  return { death_certificate: 'Death Certificate', medical_documentation: 'Medical Documentation', police_report: 'Police Report', legal_documentation: 'Legal Documentation', other: 'Other' }[v] ?? v
+  return DOC_LABELS[v] ?? v.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
 // ── Incident icon ──────────────────────────────────────────────────────────────

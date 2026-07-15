@@ -169,11 +169,17 @@ const emit = defineEmits(['update:modelValue', 'update-config'])
 const { confirmAction } = useConfirm()
 
 const docOptions = [
-  { value: 'death_certificate',     label: 'Death Certificate' },
-  { value: 'medical_documentation', label: 'Medical Documentation' },
-  { value: 'police_report',         label: 'Police Report' },
-  { value: 'legal_documentation',   label: 'Legal Documentation' },
-  { value: 'other',                 label: 'Other' },
+  { value: 'death_certificate',      label: 'Death Certificate' },
+  { value: 'doctors_note',           label: "Doctor's Note / Medical Certificate" },
+  { value: 'medical_documentation',  label: 'Medical Documentation' },
+  { value: 'hospitalization_record', label: 'Hospitalization Record' },
+  { value: 'leave_documentation',    label: 'Leave / Absence Documentation' },
+  { value: 'police_report',          label: 'Police Report' },
+  { value: 'legal_documentation',    label: 'Legal Documentation / Court Order' },
+  { value: 'insurance_documentation',label: 'Insurance Documentation' },
+  { value: 'government_id',          label: 'Government-Issued ID / Identification' },
+  { value: 'power_of_attorney',      label: 'Power of Attorney' },
+  { value: 'other',                  label: 'Other' },
 ]
 
 const timelineOptions = [
