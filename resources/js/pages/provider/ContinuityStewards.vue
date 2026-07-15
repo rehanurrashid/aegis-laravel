@@ -50,7 +50,6 @@ const modals = ref({
   addStep5:       false,
   editCS:         false,
   amendFee:       false,
-  changeRole:     false,
   grantVault:     false,
   viewAgreement:  false,
   resend:         false,
@@ -74,12 +73,7 @@ function openEditModal(s) {
   activeId.value = s.id
   modals.value.editCS = true
 }
-function openChangeRole(s) {
-  activeId.value = s.id
-  changeRoleForm.role   = s.role ?? 'primary'
-  changeRoleForm.reason = ''
-  modals.value.changeRole = true
-}
+
 function openVaultModal(s) {
   activeId.value = s.id
   vaultForm.vault_access_level = activeSteward.value?.vault_access ?? 'scoped'
@@ -102,16 +96,18 @@ function openCancelInvite(inv) {
 
 // ── Edit CS form ─────────────────────────────────────────────────────────────
 const editForm = useForm({
-  role:  '',
-  notes: '',
+  role:         '',
+  vault_access: 'scoped',
+  notes:        '',
 })
 const busyEdit = ref(false)
 
 watch(() => modals.value.editCS, (open) => {
   if (open && activeSteward.value) {
     const s = activeSteward.value
-    editForm.role  = s.role ?? 'primary'
-    editForm.notes = ''
+    editForm.role         = s.role ?? 'primary'
+    editForm.vault_access = s.vault_access ?? 'scoped'
+    editForm.notes        = ''
   }
 })
 
@@ -127,22 +123,7 @@ function submitEdit() {
 }
 
 // ── Change Role form ──────────────────────────────────────────────────────────
-const changeRoleForm = useForm({ role: 'primary', reason: '' })
-const busyChangeRole = ref(false)
 
-function submitChangeRole() {
-  if (!activeSteward.value) return
-  busyChangeRole.value = true
-  router.post(route('provider.stewards.update', { steward: activeSteward.value.id }), {
-    role:   changeRoleForm.role,
-    reason: changeRoleForm.reason,
-  }, {
-    preserveScroll: true,
-    onSuccess: () => { modals.value.changeRole = false; toast.success('Role updated.'); router.reload({ only: ['stewards'] }) },
-    onError:   () => toast.error('Could not update role.'),
-    onFinish:  () => { busyChangeRole.value = false },
-  })
-}
 
 // ── Vault Access form ─────────────────────────────────────────────────────────
 const vaultForm = useForm({ vault_access_level: 'scoped' })
@@ -478,7 +459,7 @@ function saveNotifyPrefs() {
             <button type="button" class="btn-icon" data-tooltip="View Agreement" @click="openModal('viewAgreement', s)"><AegisIcon name="file-text" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Edit Details"   @click="openEditModal(s)"><AegisIcon name="pencil" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Message this CS" :disabled="msgLoading === s.steward_id" @click="openConversation(s.steward_id)"><AegisIcon name="message-square" :size="14" /></button>
-            <button type="button" class="btn-icon" data-tooltip="Change Role"    @click="openChangeRole(s)"><AegisIcon name="refresh-cw" :size="14" /></button>
+
             <button type="button" class="btn-icon" data-tooltip="Vault Access"   @click="openVaultModal(s)"><AegisIcon name="lock" :size="14" /></button>
 
             <button type="button" class="btn-icon" data-tooltip="Remove" @click="openRemoveModal(s)"><AegisIcon name="trash" :size="14" /></button>
@@ -707,7 +688,9 @@ function saveNotifyPrefs() {
 
     <!-- EDIT CS MODAL -->
     <AegisModal v-model="modals.editCS" title="Edit Continuity Steward" size="md" @close="modals.editCS=false">
-      <div class="alert alert-info"><div class="alert-icon"><AegisIcon name="info" :size="14" /></div><div class="alert-content">Role changes will notify your Continuity Steward. No countersignature required.</div></div>
+      <div class="alert alert-info"><div class="alert-icon"><AegisIcon name="info" :size="14" /></div><div class="alert-content">Role changes will notify your Continuity Steward by email. No countersignature required.</div></div>
+
+      <!-- Role -->
       <div class="form-group" style="margin-top:14px;">
         <label class="form-label">Role</label>
         <select v-model="editForm.role" class="form-control form-select">
@@ -715,17 +698,45 @@ function saveNotifyPrefs() {
           <option value="alternate">Alternate Continuity Steward</option>
         </select>
       </div>
+
+      <!-- Fee (read-only) -->
       <div class="form-group">
-        <label class="form-label">Current Fee</label>
+        <label class="form-label">Fee &amp; Payment Terms</label>
         <div style="display:flex;align-items:center;gap:10px;">
-          <span class="form-control" style="background:var(--surface-2);color:var(--text-2);cursor:default;">{{ activeSteward ? formatMoney(activeSteward.fee_cents) : '—' }}</span>
-          <button type="button" class="btn btn-outline" style="white-space:nowrap;" @click="modals.editCS=false;modals.amendFee=true">Amend Fee</button>
+          <span class="form-control" style="background:var(--surface-2);color:var(--text-2);cursor:default;flex:1;">
+            {{ activeSteward ? formatMoney(activeSteward.fee_cents) : '—' }}
+            <span v-if="activeSteward?.payment_terms" style="color:var(--text-3);"> · {{ activeSteward.payment_terms }}</span>
+          </span>
+          <button type="button" class="btn btn-outline" style="white-space:nowrap;" @click="modals.editCS=false;$nextTick(()=>modals.amendFee=true)">Amend Fee →</button>
         </div>
       </div>
+
+      <!-- Vault Access -->
+      <div class="form-group">
+        <label class="form-label">Vault Access</label>
+        <select v-model="editForm.vault_access" class="form-control form-select">
+          <option value="scoped">Emergency Only (Recommended)</option>
+          <option value="full">Full Read Access (Anytime)</option>
+          <option value="none">No Access</option>
+        </select>
+      </div>
+
+      <!-- Notes -->
       <div class="form-group">
         <label class="form-label">Notes / Instructions</label>
         <textarea v-model="editForm.notes" class="form-control" style="min-height:80px;" placeholder="Any updates or context…"></textarea>
       </div>
+
+      <!-- Authorized Incidents (read-only) -->
+      <div class="form-group">
+        <label class="form-label">Authorized Incident Types</label>
+        <div v-if="activeSteward && authIncidentLabels(activeSteward).length" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+          <span v-for="label in authIncidentLabels(activeSteward)" :key="label" class="badge badge-gold" style="text-transform:capitalize;">{{ label }}</span>
+        </div>
+        <div v-else style="font-size:12px;color:var(--text-3);margin-bottom:6px;">No incident types configured.</div>
+        <a :href="route('provider.plan.index') + '#incident-grid'" style="font-size:12px;color:var(--gold-dark);text-decoration:none;" @click.prevent="modals.editCS=false;router.visit(route('provider.plan.index') + '#incident-grid')">Configure on Plan →</a>
+      </div>
+
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.editCS=false">Cancel</button>
         <button type="button" class="btn btn-primary" :disabled="busyEdit" style="display:inline-flex;align-items:center;gap:6px;" @click="submitEdit">
@@ -736,29 +747,7 @@ function saveNotifyPrefs() {
       </template>
     </AegisModal>
 
-    <!-- CHANGE ROLE MODAL -->
-    <AegisModal v-model="modals.changeRole" title="Change Continuity Steward Role" size="md" @close="modals.changeRole=false">
-      <div v-if="activeSteward" style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-        <div style="width:42px;height:42px;border-radius:var(--radius);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{{ initials(stewardName(activeSteward)) }}</div>
-        <div><div style="font-size:13px;font-weight:700;">{{ stewardName(activeSteward) }}</div><div style="font-size:11px;color:var(--text-3);">Currently: {{ csRoleLabel(activeSteward.role) }}</div></div>
-      </div>
-      <div class="alert alert-warning"><div class="alert-icon"><AegisIcon name="alert-triangle" :size="14" /></div><div class="alert-content">Changing the role will notify your Continuity Steward. No countersignature required.</div></div>
-      <div class="form-group" style="margin-top:14px;">
-        <label class="form-label">New Role</label>
-        <select v-model="changeRoleForm.role" class="form-control form-select">
-          <option value="primary">Primary Continuity Steward</option>
-          <option value="alternate">Alternate Continuity Steward</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Reason for Change (Optional)</label>
-        <textarea v-model="changeRoleForm.reason" class="form-control" style="min-height:60px;" placeholder="e.g., Swapping roles for scheduling reasons"></textarea>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.changeRole=false">Cancel</button>
-        <button type="button" class="btn btn-primary" :disabled="busyChangeRole" @click="submitChangeRole">{{ busyChangeRole ? 'Saving…' : 'Confirm Role Change' }}</button>
-      </template>
-    </AegisModal>
+
 
     <!-- GRANT VAULT ACCESS MODAL -->
     <AegisModal v-model="modals.grantVault" :title="'Manage Document Vault Access' + (activeSteward ? ' — ' + stewardName(activeSteward) : '')" size="lg" @close="modals.grantVault=false">
@@ -771,11 +760,11 @@ function saveNotifyPrefs() {
             { value:'full',   title:'Full Read Access (Anytime)',   desc:'Continuity Steward can view documents at any time.' },
             { value:'none',   title:'No Access',                   desc:'Emergency credentials must be shared separately.' },
           ]" :key="opt.value"
-            style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:2px solid var(--border);border-radius:var(--radius);cursor:pointer;"
+            style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;"
             :style="vaultForm.vault_access_level===opt.value ? 'border-color:var(--gold-dark);' : ''"
             @click="vaultForm.vault_access_level = opt.value"
           >
-            <input type="radio" :value="opt.value" v-model="vaultForm.vault_access_level" style="margin-top:3px;" />
+            <input type="radio" :value="opt.value" v-model="vaultForm.vault_access_level" style="align-self:center;" />
             <div><strong style="font-size:13px;">{{ opt.title }}</strong><div style="font-size:12px;color:var(--text-3);">{{ opt.desc }}</div></div>
           </label>
         </div>
@@ -788,13 +777,99 @@ function saveNotifyPrefs() {
 
     <!-- VIEW AGREEMENT MODAL -->
     <AegisModal v-model="modals.viewAgreement" :title="'Continuity Plan' + (activeSteward ? ' — ' + stewardName(activeSteward) : '')" size="lg" @close="modals.viewAgreement=false">
-      <div class="alert alert-success"><AegisIcon name="check" :size="14" /><div>Agreement active · Both parties signed</div></div>
-      <div style="background:var(--surface-2);border-radius:var(--radius);padding:22px;font-size:13px;line-height:1.8;color:var(--text-2);margin-top:12px;">
+      <div class="alert alert-success" style="display:flex;align-items:center;gap:8px;"><AegisIcon name="check" :size="14" /><div>Agreement active · Both parties signed</div></div>
+
+      <!-- Summary header -->
+      <div v-if="activeSteward" style="display:flex;align-items:center;gap:14px;margin:16px 0 12px;">
+        <div style="width:48px;height:48px;border-radius:var(--radius);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{{ initials(stewardName(activeSteward)) }}</div>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--text);">{{ stewardName(activeSteward) }}</div>
+          <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;">
+            <AegisBadge :label="csRoleLabel(activeSteward.role)" variant="gold" icon="shield" />
+          </div>
+        </div>
+        <div v-if="activeSteward.signed_at" style="margin-left:auto;font-size:12px;color:var(--text-3);text-align:right;">
+          <div style="font-weight:600;">Agreement Date</div>
+          <div>{{ fmtDate(activeSteward.signed_at) }}</div>
+        </div>
+      </div>
+
+      <!-- Meta grid -->
+      <div v-if="activeSteward" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <!-- Compensation -->
+        <div style="background:var(--surface-2);border-radius:var(--radius);padding:12px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:8px;">Compensation</div>
+          <div style="font-size:13px;color:var(--text);">
+            <div v-if="activeSteward.fee_cents">
+              <strong>{{ formatMoney(activeSteward.fee_cents) }}</strong> per incident
+            </div>
+            <div v-else style="color:var(--text-3);">No compensation agreed</div>
+            <div style="font-size:12px;color:var(--text-3);margin-top:4px;">
+              Terms: {{ activeSteward.payment_terms ?? 'per_incident' }}
+              &nbsp;·&nbsp;
+              Auto-charge: {{ activeSteward.auto_charge ? 'Yes' : 'No' }}
+            </div>
+          </div>
+        </div>
+        <!-- Vault Access -->
+        <div style="background:var(--surface-2);border-radius:var(--radius);padding:12px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:8px;">Vault Access</div>
+          <span
+            :class="{
+              'badge': true,
+              'badge-grey':  !activeSteward.vault_access || activeSteward.vault_access === 'none',
+              'badge-gold':  activeSteward.vault_access === 'metadata',
+              'badge-green': activeSteward.vault_access === 'scoped' || activeSteward.vault_access === 'full',
+            }"
+          >
+            <AegisIcon name="lock" :size="10" style="margin-right:3px;" />
+            <template v-if="!activeSteward.vault_access || activeSteward.vault_access === 'none'">No Vault Access</template>
+            <template v-else-if="activeSteward.vault_access === 'metadata'">Metadata Only</template>
+            <template v-else-if="activeSteward.vault_access === 'scoped'">Scoped Access</template>
+            <template v-else-if="activeSteward.vault_access === 'full'">Full Access</template>
+          </span>
+        </div>
+      </div>
+
+      <!-- Incident Authorization -->
+      <div v-if="activeSteward && authIncidentLabels(activeSteward).length" style="margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:8px;">Incident Authorization</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <span v-for="label in authIncidentLabels(activeSteward)" :key="label" class="badge badge-gold" style="text-transform:capitalize;">{{ label }}</span>
+        </div>
+      </div>
+      <div v-else-if="activeSteward" style="margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:6px;">Incident Authorization</div>
+        <span style="font-size:12px;color:var(--text-3);">No specific incident types configured.</span>
+      </div>
+
+      <!-- Legal copy -->
+      <div style="background:var(--surface-2);border-radius:var(--radius);padding:18px 22px;font-size:13px;line-height:1.8;color:var(--text-2);">
         <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid var(--border);">Aegis CONTINUITY PLAN</div>
-        <p v-if="activeSteward"><strong>Continuity Steward:</strong> {{ stewardName(activeSteward) }} — {{ csRoleLabel(activeSteward?.role) }}</p>
-        <p v-if="activeSteward?.signed_at"><strong>Agreement Date:</strong> {{ fmtDate(activeSteward.signed_at) }}</p>
-        <br />
         <p><strong>Section 1. Purpose.</strong> This agreement establishes the designated Continuity Steward for the professional practice in the event of death, incapacitation, disability, voluntary retirement, license suspension, or any other event preventing the Provider from practicing.</p>
+        <p v-if="activeSteward">
+          <strong>Section 2. Compensation.</strong>
+          <template v-if="activeSteward.fee_cents">
+            Provider agrees to pay Continuity Steward {{ formatMoney(activeSteward.fee_cents) }} upon {{ activeSteward.payment_terms ?? 'per_incident' }} following closure of each verified critical incident.
+          </template>
+          <template v-else>
+            No compensation has been agreed for this engagement.
+          </template>
+        </p>
+        <p v-if="activeSteward">
+          <strong>Section 3. Vault Access.</strong>
+          Continuity Steward is granted
+          <template v-if="activeSteward.vault_access === 'scoped'">Emergency-Only (Scoped)</template>
+          <template v-else-if="activeSteward.vault_access === 'full'">Full Read</template>
+          <template v-else-if="activeSteward.vault_access === 'metadata'">Metadata-Only</template>
+          <template v-else>No</template>
+          access to the Provider's document vault.
+        </p>
+        <p v-if="activeSteward && authIncidentLabels(activeSteward).length">
+          <strong>Section 4. Authorized Incidents.</strong>
+          Continuity Steward is authorized to act on the following incident types:
+          {{ authIncidentLabels(activeSteward).join(', ') }}.
+        </p>
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.viewAgreement=false">Close</button>

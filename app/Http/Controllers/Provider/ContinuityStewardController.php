@@ -193,25 +193,46 @@ class ContinuityStewardController extends Controller
         abort_if(!$plan || $steward->plan_id !== $plan->id, 404);
         $this->authorize('update', $plan);
 
-        $data = $request->validate([
-            'role'  => 'required|in:primary,alternate',
-            'notes' => 'nullable|string|max:1000',
+        $request->validate([
+            'role'         => 'required|in:primary,alternate',
+            'vault_access' => 'nullable|in:none,metadata,scoped,full',
+            'notes'        => 'nullable|string|max:1000',
         ]);
 
+        $role        = $request->input('role');
+        $notes       = $request->input('notes');
+        $vaultAccess = $request->input('vault_access');
+
+        $actor   = $request->user();
         $oldRole = is_object($steward->role) ? $steward->role->value : $steward->role;
-        $steward->update(['role' => $data['role']]);
 
-        $actor = $request->user();
+        $updates = ['role' => $role];
+        if ($vaultAccess !== null) {
+            $updates['vault_access'] = $vaultAccess;
+        }
+        $steward->update($updates);
 
-        if ($oldRole !== $data['role']) {
-            $this->stewards->requestRoleChange($steward, $data['role'], $data['notes'] ?? null);
+        if ($oldRole !== $role) {
+            $this->stewards->requestRoleChange($steward, $role, $notes);
+        }
+
+        if ($vaultAccess !== null && $vaultAccess !== (is_object($steward->getOriginal('vault_access')) ? $steward->getOriginal('vault_access') : $steward->getOriginal('vault_access'))) {
+            $this->activity->log(
+                $steward->steward_id, 'continuity_steward', 'steward',
+                ActivitySeverity::Info, 'vault_access_updated',
+                'Vault access updated',
+                "Provider updated your vault access to {$vaultAccess}",
+                'plan_steward', $steward->id,
+                $actor->id,
+                'notification', $actor->id
+            );
         }
 
         $this->activity->log(
             $actor->id, 'provider', 'steward',
             ActivitySeverity::Info, 'cs_updated',
             'Continuity Steward details updated',
-            'Role: ' . $data['role'] . ($data['notes'] ? ' — ' . $data['notes'] : ''),
+            'Role: ' . $role . ($notes ? ' — ' . $notes : ''),
             'plan_steward', $steward->id,
             $steward->steward_id,
             'log', $actor->id
