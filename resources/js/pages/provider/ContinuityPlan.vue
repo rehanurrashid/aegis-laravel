@@ -5,27 +5,37 @@
     <AegisHeroBanner eyebrow="Continuity Planning" :title="'My Continuity Plan'"
       :subtitle="plan ? `Version ${plan.plan_version ?? 1} · ${planStatusLabel}` : 'Build your plan below'" quiet>
       <template #actions>
-        <a :href="route('provider.activity') + '?module=plan'" class="btn-hero-ghost is-on-light">
+        <a :href="route('provider.activity') + '?module=plan'" class="btn-hero-ghost is-on-light" style="display:inline-flex;align-items:center;gap:6px;">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
         <button type="button" class="btn-hero-ghost is-on-light" style="display:inline-flex;align-items:center;gap:6px;" @click="showSectionsModal = true">
           <AegisIcon name="check-circle" :size="14" /> {{ completedSections }}/7 Sections Complete
         </button>
-        <!-- Annual review due → only show Begin Annual Review -->
-        <button v-if="plan && plan.status === 'annual_review_due'" type="button" class="btn-hero-solid is-on-light" style="display:inline-flex;align-items:center;gap:6px;" @click="showAnnualReview = true">
+
+        <!-- No plan → create draft -->
+        <button v-if="!plan" type="button" class="btn-hero-solid is-on-light" style="display:inline-flex;align-items:center;gap:6px;" @click="createDraft">
+          <AegisIcon name="plus" :size="14" /> Create Draft Plan
+        </button>
+
+        <!-- Draft → Finalize & Sign (always clickable — opens readiness if !canSign) -->
+        <button v-else-if="plan.status === 'draft'" type="button" class="btn-hero-solid is-on-light" style="display:inline-flex;align-items:center;gap:6px;"
+          :data-tooltip="!canSign ? 'Complete required sections to sign' : undefined"
+          @click="canSign ? (showSignModal = true) : (showSectionsModal = true)">
+          <AegisIcon name="edit" :size="14" /> Finalize &amp; Sign
+        </button>
+
+        <!-- annual_review_due + draft in progress → Continue Review Draft -->
+        <button v-else-if="(plan.status === 'annual_review_due' || plan.status === 'active') && hasDraftInProgress"
+          type="button" class="btn-hero-solid is-on-light" style="display:inline-flex;align-items:center;gap:6px;"
+          @click="showAnnualReview = true">
+          <AegisIcon name="refresh-cw" :size="14" /> Continue Review Draft
+        </button>
+
+        <!-- annual_review_due + no draft → Begin Annual Review -->
+        <button v-else-if="plan.status === 'annual_review_due'" type="button" class="btn-hero-solid is-on-light" style="display:inline-flex;align-items:center;gap:6px;" @click="showAnnualReview = true">
           <AegisIcon name="refresh-cw" :size="14" /> Begin Annual Review
         </button>
-        <!-- Draft → Attest Vault (if needed) + Finalize & Sign -->
-        <template v-else-if="plan && plan.status === 'draft'">
-          <button v-if="!plan.vault_attested_at" type="button" class="btn-hero-ghost is-on-light" style="display:inline-flex;align-items:center;gap:6px;" @click="showAttestModal = true">
-            <AegisIcon name="check-circle" :size="14" /> Attest Vault
-          </button>
-          <button type="button" class="btn-hero-solid is-on-light" style="display:inline-flex;align-items:center;gap:6px;"
-            :data-tooltip="!canSign ? signBlockedReason : undefined"
-            @click="canSign ? (showSignModal = true) : (showSectionsModal = true)">
-            <AegisIcon name="edit" :size="14" /> Finalize &amp; Sign
-          </button>
-        </template>
+        <!-- active + no review due → activity link only (no extra button) -->
       </template>
     </AegisHeroBanner>
 
@@ -65,8 +75,23 @@
 
     <template v-else>
 
-      <!-- SIGNED BANNER -->
-      <div v-if="plan.signed_at" class="alert alert-success" style="margin-bottom:16px">
+      <!-- STATUS BANNER — one slot, content switches on status -->
+      <!-- draft -->
+      <div v-if="plan.status === 'draft'" class="alert alert-info" style="margin-bottom:16px">
+        <div class="alert-icon"><AegisIcon name="info" :size="16" /></div>
+        <div class="alert-content">Draft plan. Complete all sections and sign to activate.</div>
+      </div>
+
+      <!-- active + draft in progress = review in progress -->
+      <div v-else-if="plan.status === 'active' && hasDraftInProgress" class="alert alert-info" style="margin-bottom:16px">
+        <div class="alert-icon"><AegisIcon name="refresh-cw" :size="16" /></div>
+        <div class="alert-content">
+          <strong>Review in progress.</strong> v{{ plan.plan_version + 1 }} draft created. Sign it to replace your current plan.
+        </div>
+      </div>
+
+      <!-- active (no review in progress) → signed banner -->
+      <div v-else-if="plan.status === 'active'" class="alert alert-success" style="margin-bottom:16px">
         <AegisIcon name="check-circle" :size="16" />
         <div style="flex:1">
           <strong>Plan Signed &amp; Active</strong>
@@ -80,8 +105,16 @@
         </button>
       </div>
 
-      <!-- ANNUAL REVIEW DUE BANNER -->
-      <div v-if="plan.status === 'annual_review_due'" class="alert alert-warning" style="margin-bottom:16px">
+      <!-- annual_review_due + draft in progress -->
+      <div v-else-if="plan.status === 'annual_review_due' && hasDraftInProgress" class="alert alert-info" style="margin-bottom:16px">
+        <div class="alert-icon"><AegisIcon name="refresh-cw" :size="16" /></div>
+        <div class="alert-content">
+          <strong>Review draft in progress.</strong> Complete and sign it to finish your annual review.
+        </div>
+      </div>
+
+      <!-- annual_review_due + no draft -->
+      <div v-else-if="plan.status === 'annual_review_due'" class="alert alert-warning" style="margin-bottom:16px">
         <AegisIcon name="alert-triangle" :size="16" />
         <div>
           <strong>Annual review due{{ plan.annual_review_date ? ' ' + formatDate(plan.annual_review_date) : '' }}.</strong>
@@ -92,8 +125,25 @@
       <!-- ═══ BUILD PANE ═══ -->
       <div>
 
-        <!-- Sign CTA — draft only -->
-        <div v-if="plan && plan.status === 'draft'" class="sign-cta">
+        <!-- SIGN CARD — state machine -->
+        <!-- draft OR (annual_review_due/active + draft in progress) → full sign card -->
+        <div v-if="plan.status === 'draft' || ((plan.status === 'annual_review_due' || plan.status === 'active') && hasDraftInProgress)" class="sign-cta">
+          <!-- Alert row: draft + !canSign → show incomplete sections -->
+          <div v-if="plan.status === 'draft' && !canSign" class="alert alert-info" style="margin-bottom:12px">
+            <div class="alert-icon"><AegisIcon name="info" :size="14" /></div>
+            <div class="alert-content" style="font-size:13px">
+              Complete required sections first:
+              <strong>{{ planSections.filter(s => s.blocks_signing && !s.complete).map(s => s.title).join(', ') }}</strong>
+            </div>
+          </div>
+          <!-- Alert row: review draft in progress -->
+          <div v-else-if="hasDraftInProgress" class="alert alert-info" style="margin-bottom:12px">
+            <div class="alert-icon"><AegisIcon name="info" :size="14" /></div>
+            <div class="alert-content" style="font-size:13px">
+              Draft v{{ plan.plan_version + 1 }} in progress. Complete and sign it to finish your annual review.
+            </div>
+          </div>
+
           <div class="alert alert-warning">
             <AegisIcon name="alert-triangle" :size="16" />
             <div>By signing, you confirm this plan is accurate and authorize your stewards to act as described when a critical incident occurs.</div>
@@ -103,21 +153,26 @@
               <AegisIcon name="check-circle" :size="13" /> Attest Vault
             </button>
             <button type="button" class="btn btn-primary"
-              :data-tooltip="!canSign ? signBlockedReason : undefined"
+              data-tooltip="Complete required sections to sign — click to see what's missing"
               @click="canSign ? (showSignModal = true) : (showSectionsModal = true)">
               <AegisIcon name="edit" :size="13" /> Finalize &amp; Sign
             </button>
           </div>
         </div>
 
-        <!-- Annual review due — show review CTA instead of sign -->
-        <div v-else-if="plan && plan.status === 'annual_review_due'" class="alert alert-info" style="margin-bottom:16px">
-          <div class="alert-icon"><AegisIcon name="refresh-cw" :size="16" /></div>
+        <!-- active + !hasDraftInProgress → green success card -->
+        <div v-else-if="plan.status === 'active' && !hasDraftInProgress" class="alert alert-success" style="margin-bottom:16px">
+          <div class="alert-icon"><AegisIcon name="check-circle" :size="16" /></div>
+          <div class="alert-content">Plan signed and active. No action needed unless your circumstances change or an annual review is due.</div>
+        </div>
+
+        <!-- annual_review_due + !hasDraftInProgress → yellow prompt -->
+        <div v-else-if="plan.status === 'annual_review_due' && !hasDraftInProgress" class="alert alert-warning" style="margin-bottom:16px">
+          <div class="alert-icon"><AegisIcon name="alert-triangle" :size="16" /></div>
           <div class="alert-content">
-            <div class="alert-title">Annual Review Required</div>
-            <div>Your plan is active but an annual review is due. Begin your annual review to create an updated version — your current plan remains active until the new version is signed.</div>
-            <div style="margin-top:10px;">
-              <button type="button" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;" @click="showAnnualReview = true">
+            Begin your annual review above to stay compliant. Your current plan remains active until re-signed.
+            <div style="margin-top:10px">
+              <button type="button" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px" @click="showAnnualReview = true">
                 <AegisIcon name="refresh-cw" :size="13" /> Begin Annual Review
               </button>
             </div>
@@ -424,10 +479,11 @@ const props = defineProps({
   stewards:        { type: Array,   default: () => [] },
   documents:       { type: Array,   default: () => [] },
   incidentTypes:   { type: Array,   default: () => [] },
-  canSign:         { type: Boolean, default: false },
-  canActivate:     { type: Boolean, default: false },
-  tierLimits:      { type: Object,  default: () => ({}) },
-  auth:            { type: Object,  default: null },
+  canSign:             { type: Boolean, default: false },
+  canActivate:         { type: Boolean, default: false },
+  hasDraftInProgress:  { type: Boolean, default: false },
+  tierLimits:          { type: Object,  default: () => ({}) },
+  auth:                { type: Object,  default: null },
 })
 
 // ── State ──────────────────────────────────────────────────────────────────────

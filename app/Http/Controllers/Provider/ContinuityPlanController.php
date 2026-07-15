@@ -11,6 +11,7 @@ use App\Http\Requests\Plan\AnnualReviewRequest;
 use App\Http\Requests\Plan\AttestVaultRequest;
 use App\Http\Requests\Plan\SignPlanRequest;
 use App\Models\ContinuityDocument;
+use App\Models\ContinuityPlan;
 use App\Models\PlanIncidentConfig;
 use App\Models\PlanSteward;
 use App\Models\PlanTask;
@@ -73,6 +74,14 @@ class ContinuityPlanController extends Controller
         $canSign      = $plan ? $this->plans->canSign($plan) : false;
         $canActivate  = $plan ? $this->plans->canActivate($plan, $user) : false;
 
+        // Does a newer draft exist for this practitioner? (annual review in progress)
+        $hasDraftInProgress = $plan
+            ? ContinuityPlan::where('practitioner_id', $user->id)
+                ->where('status', 'draft')
+                ->where('plan_version', '>', $plan->plan_version ?? 0)
+                ->exists()
+            : false;
+
         return Inertia::render('Provider/ContinuityPlan', [
             'plan'            => $plan ? [
                 'id'                   => $plan->id,
@@ -115,6 +124,7 @@ class ContinuityPlanController extends Controller
             'incidentTypes'   => $incidentTypes,
             'canSign'         => $canSign,
             'canActivate'     => $canActivate,
+            'hasDraftInProgress' => $hasDraftInProgress,
             'tierLimits'      => config('aegis.tier_limits.' . ($user->tier?->value ?? 'access'), []),
         ]);
     }
