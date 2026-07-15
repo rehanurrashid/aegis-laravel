@@ -59,6 +59,22 @@
         bg-color="var(--icon-bg-gold)"
         icon-color="var(--gold-dark)"
       />
+      <AegisStatChip
+        v-if="plan && plan.signed_at"
+        icon="file-check"
+        :value="formatDate(plan.signed_at)"
+        label="Last Review Signed"
+        bg-color="var(--icon-bg-green)"
+        icon-color="var(--green-dark)"
+      />
+      <AegisStatChip
+        v-if="plan && plan.signed_at"
+        icon="calendar"
+        :value="plan.annual_review_date ? formatDate(plan.annual_review_date) : '—'"
+        label="Next Review Due"
+        :bg-color="plan.annual_review_date && new Date(plan.annual_review_date) < new Date() ? 'var(--icon-bg-red)' : 'var(--icon-bg-gold)'"
+        :icon-color="plan.annual_review_date && new Date(plan.annual_review_date) < new Date() ? 'var(--red-dark)' : 'var(--gold-dark)'"
+      />
     </div>
 
     <!-- NO PLAN -->
