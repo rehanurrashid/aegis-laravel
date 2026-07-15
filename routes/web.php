@@ -210,6 +210,8 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::post('/continuity-stewards/{steward}/update-fee', [ContinuityStewardController::class, 'csUpdateFee'])->name('stewards.update-fee');
         Route::post('/continuity-stewards/{steward}/resend-invite', [ContinuityStewardController::class, 'csResendInvite'])->name('stewards.resend-invite');
         Route::delete('/continuity-stewards/{steward}/cancel-invite', [ContinuityStewardController::class, 'csCancelInvite'])->name('stewards.cancel-invite');
+        Route::post('/continuity-stewards/{steward}/update', [ContinuityStewardController::class, 'csUpdate'])->name('stewards.update');
+        Route::post('/continuity-stewards/{steward}/vault-access', [ContinuityStewardController::class, 'csVaultAccess'])->name('stewards.vault-access');
 
         // Support Stewards
         Route::get('/support-stewards', [ContinuityStewardController::class, 'ssIndex'])->name('ss.index');

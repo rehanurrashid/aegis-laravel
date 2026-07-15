@@ -16,6 +16,7 @@ use App\Services\ActivityService;
 use App\Services\PlanService;
 use App\Services\ProfileService;
 use App\Services\StewardService;
+use App\Enums\VaultAccess;
 use App\Events\Steward\SsSuspended;
 use App\Events\Steward\SsReinstated;
 use Illuminate\Http\RedirectResponse;
@@ -67,6 +68,7 @@ class ContinuityStewardController extends Controller
                     'email'        => $s->email,
                     'display_name' => $s->display_name,
                     'review_overdue' => $s->review_due_at && $s->review_due_at->isPast(),
+                    'vault_access'   => is_object($s->vault_access) ? $s->vault_access->value : ($s->vault_access ?? 'scoped'),
                 ])
                 ->values()
             : [];
@@ -185,6 +187,39 @@ class ContinuityStewardController extends Controller
         return back()->with('success', 'Continuity Steward invited.');
     }
 
+    public function csUpdate(Request $request, PlanSteward $steward): RedirectResponse
+    {
+        $plan = $this->plans->getForPractitioner($request->user()->id);
+        abort_if(!$plan || $steward->plan_id !== $plan->id, 404);
+        $this->authorize('update', $plan);
+
+        $data = $request->validate([
+            'role'  => 'required|in:primary,alternate',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        $oldRole = is_object($steward->role) ? $steward->role->value : $steward->role;
+        $steward->update(['role' => $data['role']]);
+
+        $actor = $request->user();
+
+        if ($oldRole !== $data['role']) {
+            $this->stewards->requestRoleChange($steward, $data['role'], $data['notes'] ?? null);
+        }
+
+        $this->activity->log(
+            $actor->id, 'provider', 'steward',
+            ActivitySeverity::Info, 'cs_updated',
+            'Continuity Steward details updated',
+            'Role: ' . $data['role'] . ($data['notes'] ? ' — ' . $data['notes'] : ''),
+            'plan_steward', $steward->id,
+            $steward->steward_id,
+            'log', $actor->id
+        );
+
+        return back()->with('success', 'Steward updated.');
+    }
+
     public function csRemove(Request $request, PlanSteward $steward): RedirectResponse
     {
         $plan = $this->plans->getForPractitioner($request->user()->id);
@@ -251,6 +286,44 @@ class ContinuityStewardController extends Controller
     }
 
     // ── SS ─────────────────────────────────────────────────────────────────────
+    public function csVaultAccess(Request $request, PlanSteward $steward): RedirectResponse
+    {
+        $plan = $this->plans->getForPractitioner($request->user()->id);
+        abort_if(!$plan || $steward->plan_id !== $plan->id, 404);
+        $this->authorize('update', $plan);
+
+        $data = $request->validate([
+            'vault_access' => 'required|in:none,metadata,scoped,full',
+        ]);
+
+        $vaultAccess = $data['vault_access'];
+        $steward->update(['vault_access' => $vaultAccess]);
+
+        $user = $request->user();
+
+        $this->activity->log(
+            $steward->steward_id, 'continuity_steward', 'steward',
+            ActivitySeverity::Info, 'vault_access_updated',
+            'Vault access updated',
+            "Provider updated your vault access to {$vaultAccess}",
+            'plan_steward', $steward->id,
+            $user->id,
+            'notification', $user->id
+        );
+
+        $this->activity->log(
+            $user->id, 'provider', 'steward',
+            ActivitySeverity::Info, 'vault_access_updated',
+            'CS vault access updated',
+            "Vault access set to {$vaultAccess} for {$steward->steward?->display_name}.",
+            'plan_steward', $steward->id,
+            $steward->steward_id,
+            'log', $user->id
+        );
+
+        return back()->with('success', 'Vault access updated.');
+    }
+
     public function ssIndex(Request $request): Response
     {
         $user = $request->user();

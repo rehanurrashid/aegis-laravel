@@ -49,10 +49,10 @@ const modals = ref({
   addStep4:       false,
   addStep5:       false,
   editCS:         false,
+  amendFee:       false,
   changeRole:     false,
   grantVault:     false,
   viewAgreement:  false,
-  remove:         false,
   resend:         false,
   cancelInvite:   false,
   upgrade:        false,
@@ -82,14 +82,12 @@ function openChangeRole(s) {
 }
 function openVaultModal(s) {
   activeId.value = s.id
-  vaultForm.vault_access_level = 'emergency'
+  vaultForm.vault_access_level = activeSteward.value?.vault_access ?? 'scoped'
   modals.value.grantVault = true
 }
 function openRemoveModal(s) {
   activeId.value = s.id
-  removeForm.reason  = ''
-  removeForm.confirm = ''
-  modals.value.remove = true
+  submitRemove()
 }
 function openResend(inv) {
   activePendingId.value   = inv.id
@@ -104,35 +102,25 @@ function openCancelInvite(inv) {
 
 // ── Edit CS form ─────────────────────────────────────────────────────────────
 const editForm = useForm({
-  display_name:   '',
-  email:          '',
-  phone:          '',
-  organization:   '',
-  title:          '',
-  emergency_phone:'',
-  notes:          '',
+  role:  '',
+  notes: '',
 })
 const busyEdit = ref(false)
 
 watch(() => modals.value.editCS, (open) => {
   if (open && activeSteward.value) {
     const s = activeSteward.value
-    editForm.display_name    = s.steward?.display_name ?? s.display_name ?? ''
-    editForm.email           = s.steward?.email ?? s.email ?? ''
-    editForm.phone           = s.steward?.phone ?? ''
-    editForm.organization    = s.steward?.organization ?? ''
-    editForm.title           = s.steward?.title ?? ''
-    editForm.emergency_phone = ''
-    editForm.notes           = ''
+    editForm.role  = s.role ?? 'primary'
+    editForm.notes = ''
   }
 })
 
 function submitEdit() {
   if (!activeSteward.value) return
   busyEdit.value = true
-  editForm.put(route('provider.stewards.invite', { steward: activeSteward.value.steward_id ?? activeSteward.value.id }), {
+  editForm.post(route('provider.stewards.update', { steward: activeSteward.value.id }), {
     preserveScroll: true,
-    onSuccess: () => { modals.value.editCS = false; toast.success('Steward details updated.') },
+    onSuccess: () => { modals.value.editCS = false; toast.success('Steward details updated.'); router.reload({ only: ['stewards'] }) },
     onError:   () => toast.error('Could not update steward details.'),
     onFinish:  () => { busyEdit.value = false },
   })
@@ -145,7 +133,7 @@ const busyChangeRole = ref(false)
 function submitChangeRole() {
   if (!activeSteward.value) return
   busyChangeRole.value = true
-  router.post(route('provider.ss.update-role', { steward: activeSteward.value.id }), {
+  router.post(route('provider.stewards.update', { steward: activeSteward.value.id }), {
     role:   changeRoleForm.role,
     reason: changeRoleForm.reason,
   }, {
@@ -157,17 +145,17 @@ function submitChangeRole() {
 }
 
 // ── Vault Access form ─────────────────────────────────────────────────────────
-const vaultForm = useForm({ vault_access_level: 'emergency' })
+const vaultForm = useForm({ vault_access_level: 'scoped' })
 const busyVault = ref(false)
 
 function submitVault() {
   if (!activeSteward.value) return
   busyVault.value = true
-  router.post(route('provider.stewards.authorize', { steward: activeSteward.value.id }), {
+  router.post(route('provider.stewards.vault-access', { steward: activeSteward.value.id }), {
     vault_access: vaultForm.vault_access_level,
   }, {
     preserveScroll: true,
-    onSuccess: () => { modals.value.grantVault = false; toast.success('Vault access updated.') },
+    onSuccess: () => { modals.value.grantVault = false; toast.success('Vault access updated.'); router.reload({ only: ['stewards'] }) },
     onError:   () => toast.error('Could not update vault access.'),
     onFinish:  () => { busyVault.value = false },
   })
@@ -184,22 +172,23 @@ const reviewInProgress = computed(() => props.planStatus === 'draft')
 
 
 // ── Remove form ───────────────────────────────────────────────────────────────
-const removeForm = useForm({ reason: '', confirm: '', notes: '' })
-const busyRemove = ref(false)
-
 function submitRemove() {
-  if (!activeSteward.value || removeForm.confirm !== 'REMOVE') return
-  busyRemove.value = true
-  router.delete(route('provider.stewards.remove', { steward: activeSteward.value.id }), {
-    data: { reason: removeForm.reason, notes: removeForm.notes },
-    preserveScroll: true,
-    onSuccess: () => {
-      modals.value.remove = false
-      toast.success('Continuity Steward removed.')
-      router.reload({ only: ['stewards', 'pendingInvitations', 'csCount'] })
-    },
-    onError:   () => toast.error('Could not remove steward.'),
-    onFinish:  () => { busyRemove.value = false },
+  if (!activeSteward.value) return
+  const name = stewardName(activeSteward.value)
+  confirmAction({
+    title: 'Remove Continuity Steward',
+    message: `Are you sure you want to remove ${name} as your Continuity Steward? This cannot be undone.`,
+    confirmText: 'Remove',
+    variant: 'danger',
+  }, () => {
+    router.delete(route('provider.stewards.remove', { steward: activeSteward.value.id }), {
+      preserveScroll: true,
+      onSuccess: () => {
+        toast.success('Continuity Steward removed.')
+        router.reload({ only: ['stewards', 'pendingInvitations', 'csCount'] })
+      },
+      onError:   () => toast.error('Could not remove steward.'),
+    })
   })
 }
 
@@ -432,11 +421,31 @@ function saveNotifyPrefs() {
         <div style="flex:1;min-width:0;">
           <!-- Name + badges row -->
           <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
-            <span style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);cursor:pointer;" class="exec-name is-link">{{ stewardName(s) }}</span>
+            <span style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--gold-dark);cursor:pointer;" class="exec-name is-link">{{ stewardName(s) }}</span>
             <AegisBadge :label="csRoleLabel(s.role)" variant="gold" icon="shield" />
             <span class="badge badge-green"><span class="status-dot green"></span> Active</span>
             <span v-if="s.engagement_document?.status === 'fully_executed'" class="badge badge-green" :data-tooltip="'Agreement signed' + (s.countersigned_at ? ' — Countersigned ' + fmtDate(s.countersigned_at) : '')"><AegisIcon name="check" :size="11" /> Agreement Signed</span>
             <span v-else-if="s.engagement_document?.status === 'countersign_pending'" class="badge badge-amber" data-tooltip="Agreement sent — awaiting countersignature"><AegisIcon name="clock" :size="11" /> Awaiting Countersignature</span>
+          </div>
+          <!-- Vault access chip -->
+          <div style="margin-top:6px;display:flex;align-items:center;gap:6px;">
+            <span
+              :class="{
+                'badge': true,
+                'badge-grey':  s.vault_access === 'none' || !s.vault_access,
+                'badge-gold':  s.vault_access === 'metadata',
+                'badge-green': s.vault_access === 'scoped' || s.vault_access === 'full',
+              }"
+              style="cursor:pointer;"
+              data-tooltip="Edit vault access"
+              @click="openVaultModal(s)"
+            >
+              <AegisIcon name="lock" :size="10" style="margin-right:3px;" />
+              <template v-if="s.vault_access === 'none' || !s.vault_access">No Vault Access</template>
+              <template v-else-if="s.vault_access === 'metadata'">Metadata Only</template>
+              <template v-else-if="s.vault_access === 'scoped'">Scoped Access</template>
+              <template v-else-if="s.vault_access === 'full'">Full Access</template>
+            </span>
           </div>
 
           <!-- Sub line -->
@@ -469,7 +478,6 @@ function saveNotifyPrefs() {
             <button type="button" class="btn-icon" data-tooltip="View Agreement" @click="openModal('viewAgreement', s)"><AegisIcon name="file-text" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Edit Details"   @click="openEditModal(s)"><AegisIcon name="pencil" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Message this CS" :disabled="msgLoading === s.steward_id" @click="openConversation(s.steward_id)"><AegisIcon name="message-square" :size="14" /></button>
-            <button type="button" class="btn-icon" data-tooltip="Annual Review" @click="router.visit(route('provider.plan.index'))"><AegisIcon name="calendar" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Change Role"    @click="openChangeRole(s)"><AegisIcon name="refresh-cw" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Vault Access"   @click="openVaultModal(s)"><AegisIcon name="lock" :size="14" /></button>
 
@@ -699,8 +707,22 @@ function saveNotifyPrefs() {
 
     <!-- EDIT CS MODAL -->
     <AegisModal v-model="modals.editCS" title="Edit Continuity Steward" size="md" @close="modals.editCS=false">
-      <div class="alert alert-info"><div class="alert-icon"><AegisIcon name="info" :size="14" /></div><div class="alert-content">Changes to name, email, or role will generate an amendment notice sent to the Continuity Steward for acknowledgment.</div></div>
+      <div class="alert alert-info"><div class="alert-icon"><AegisIcon name="info" :size="14" /></div><div class="alert-content">Role changes will notify your Continuity Steward. No countersignature required.</div></div>
       <div class="form-group" style="margin-top:14px;">
+        <label class="form-label">Role</label>
+        <select v-model="editForm.role" class="form-control form-select">
+          <option value="primary">Primary Continuity Steward</option>
+          <option value="alternate">Alternate Continuity Steward</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Current Fee</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="form-control" style="background:var(--surface-2);color:var(--text-2);cursor:default;">{{ activeSteward ? formatMoney(activeSteward.fee_cents) : '—' }}</span>
+          <button type="button" class="btn btn-outline" style="white-space:nowrap;" @click="modals.editCS=false;modals.amendFee=true">Amend Fee</button>
+        </div>
+      </div>
+      <div class="form-group">
         <label class="form-label">Notes / Instructions</label>
         <textarea v-model="editForm.notes" class="form-control" style="min-height:80px;" placeholder="Any updates or context…"></textarea>
       </div>
@@ -720,12 +742,11 @@ function saveNotifyPrefs() {
         <div style="width:42px;height:42px;border-radius:var(--radius);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{{ initials(stewardName(activeSteward)) }}</div>
         <div><div style="font-size:13px;font-weight:700;">{{ stewardName(activeSteward) }}</div><div style="font-size:11px;color:var(--text-3);">Currently: {{ csRoleLabel(activeSteward.role) }}</div></div>
       </div>
-      <div class="alert alert-warning"><div class="alert-icon"><AegisIcon name="alert-triangle" :size="14" /></div><div class="alert-content">Changing the role will update the agreement and send an amendment to both parties for acknowledgment.</div></div>
+      <div class="alert alert-warning"><div class="alert-icon"><AegisIcon name="alert-triangle" :size="14" /></div><div class="alert-content">Changing the role will notify your Continuity Steward. No countersignature required.</div></div>
       <div class="form-group" style="margin-top:14px;">
         <label class="form-label">New Role</label>
         <select v-model="changeRoleForm.role" class="form-control form-select">
           <option value="primary">Primary Continuity Steward</option>
-          <option value="secondary">Support Continuity Steward</option>
           <option value="alternate">Alternate Continuity Steward</option>
         </select>
       </div>
@@ -746,9 +767,9 @@ function saveNotifyPrefs() {
         <div class="form-label" style="margin-bottom:10px;">Access Level</div>
         <div style="display:flex;flex-direction:column;gap:8px;">
           <label v-for="opt in [
-            { value:'emergency_only', title:'Emergency Only (Recommended)', desc:'Vault unlocks automatically when continuity support is activated.' },
-            { value:'full_read',      title:'Full Read Access (Now)',        desc:'Continuity Steward can view documents at any time.' },
-            { value:'no_access',      title:'No Access',                    desc:'Emergency credentials must be shared separately.' },
+            { value:'scoped', title:'Emergency Only (Recommended)', desc:'Vault unlocks automatically when continuity support is activated.' },
+            { value:'full',   title:'Full Read Access (Anytime)',   desc:'Continuity Steward can view documents at any time.' },
+            { value:'none',   title:'No Access',                   desc:'Emergency credentials must be shared separately.' },
           ]" :key="opt.value"
             style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:2px solid var(--border);border-radius:var(--radius);cursor:pointer;"
             :style="vaultForm.vault_access_level===opt.value ? 'border-color:var(--gold-dark);' : ''"
@@ -778,46 +799,12 @@ function saveNotifyPrefs() {
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.viewAgreement=false">Close</button>
         <button type="button" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;"><AegisIcon name="download" :size="14" /> Download PDF</button>
-        <button type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;" @click="modals.viewAgreement=false;router.visit(route('provider.plan.index'))"><AegisIcon name="calendar" :size="14" /> Start Annual Review</button>
       </template>
     </AegisModal>
 
 
 
-    <!-- REMOVE MODAL -->
-    <AegisModal v-model="modals.remove" title="Remove Continuity Steward" size="md" @close="modals.remove=false;removeForm.reset();v$remove.$reset()">
-      <div class="alert alert-danger"><div class="alert-icon"><AegisIcon name="alert-triangle" :size="14" /></div><div class="alert-content"><strong>Warning:</strong> Removing a Continuity Steward voids the existing agreement. This action is permanent. The Continuity Steward will be notified by email.</div></div>
-      <div v-if="activeSteward" style="display:flex;align-items:center;gap:12px;margin:14px 0;">
-        <div style="width:42px;height:42px;border-radius:var(--radius);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{{ initials(stewardName(activeSteward)) }}</div>
-        <div><div style="font-size:13px;font-weight:700;">{{ stewardName(activeSteward) }}</div><div style="font-size:11px;color:var(--text-3);">{{ csRoleLabel(activeSteward.role) }}</div></div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Reason for Removal <span style="color:var(--red-dark);">*</span></label>
-        <select v-model="removeForm.reason" class="form-control form-select" :class="fieldClass(v$remove,'reason')" @blur="v$remove.reason.$touch()">
-          <option value="">— Select Reason —</option>
-          <option>Continuity Steward is no longer available or willing</option>
-          <option>Continuity Steward has relocated or left the organization</option>
-          <option>Replacing with another Continuity Steward</option>
-          <option>Mutual agreement to end arrangement</option>
-          <option>Continuity Steward requested to be released</option>
-          <option>Other</option>
-        </select>
-        <div v-if="fieldError(v$remove,'reason')" class="form-error">{{ fieldError(v$remove,'reason') }}</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Confirm by typing "REMOVE"</label>
-        <input v-model="removeForm.confirm" type="text" class="form-control" :class="fieldClass(v$remove,'confirm')" placeholder="Type REMOVE to confirm" style="border-color:var(--red);" @blur="v$remove.confirm.$touch()" />
-        <div v-if="fieldError(v$remove,'confirm')" class="form-error">{{ fieldError(v$remove,'confirm') }}</div>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.remove=false">Cancel</button>
-        <button type="button" class="btn btn-danger" :disabled="busyRemove || removeForm.confirm!=='REMOVE'" style="display:inline-flex;align-items:center;gap:6px;" @click="submitRemove">
-          <AegisIcon v-if="busyRemove" name="refresh-cw" :size="13" class="btn-spin" />
-          <AegisIcon v-else name="trash" :size="13" />
-          {{ busyRemove ? 'Removing…' : 'Remove Continuity Steward' }}
-        </button>
-      </template>
-    </AegisModal>
+
 
     <!-- RESEND INVITE MODAL -->
     <AegisModal v-model="modals.resend" title="Resend Invitation" size="sm" @close="modals.resend=false">
