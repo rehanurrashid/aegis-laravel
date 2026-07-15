@@ -44,7 +44,7 @@ class ContinuityPlanController extends Controller
         $stewards = $plan
             ? PlanSteward::with('steward')
                 ->where('plan_id', $plan->id)
-                ->whereIn('status', ['active', 'pending', 'invited'])
+                ->where('status', 'active')
                 ->get()
                 ->map(fn ($s) => [
                     'id'           => $s->id,
