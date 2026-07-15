@@ -1248,7 +1248,8 @@ const paginatedTransactions = computed(() => {
 // ── Active refs ──────────────────────────────────────────────────────────
 const activeInvoice  = ref(null)
 const activeContract = ref(null)
-const activeCs       = ref(null)
+const activeCsId     = ref(null)
+const activeCs       = computed(() => props.csStewards.find(cs => cs.id === activeCsId.value) ?? null)
 
 // ── Modals ───────────────────────────────────────────────────────────────
 const modals = ref({
@@ -1325,7 +1326,12 @@ function doPayCs() {
   paying.value = csTarget.value.id
   router.post(route('provider.finances.cs-invoice.pay', { invoice: csTarget.value.id }), {}, {
     preserveScroll: true,
-    onSuccess: () => { modals.value.confirmCsPay = false; csTarget.value = null; toast.success('CS invoice paid.') },
+    onSuccess: () => {
+      modals.value.confirmCsPay = false
+      csTarget.value = null
+      toast.success('CS invoice paid.')
+      router.reload({ only: ['csStewards', 'csInvoices', 'pendingInvoiceCount', 'pendingInvoiceTotal', 'pendingBreakdown', 'recentTransactions'] })
+    },
     onError: (errors) => toast.error(errors.invoice || errors.message || 'Payment failed. Please check your default payment method.'),
     onFinish: () => { paying.value = null },
   })
@@ -1397,8 +1403,8 @@ function handleReceiptApprove(inv) {
 
 // ── Form: Cancel CS Agreement ────────────────────────────────────────────
 const cancelCsForm = useForm({ reason: 'Replacing with another Continuity Steward' })
-function openCsDetail(cs) { activeCs.value = cs; modals.value.csDetail = true }
-function openCancelCs(cs) { activeCs.value = cs; cancelCsForm.reset(); modals.value.cancelCsAgreement = true }
+function openCsDetail(cs) { activeCsId.value = cs.id; modals.value.csDetail = true }
+function openCancelCs(cs) { activeCsId.value = cs.id; cancelCsForm.reset(); modals.value.cancelCsAgreement = true }
 function doCancelCsAgreement() {
   if (!activeCs.value) return
   cancelCsForm.post(route('provider.finances.cs-steward.cancel', { steward: activeCs.value.id }), {
@@ -1419,9 +1425,9 @@ const payModelOptions = [
   { value: 'net_30',   label: 'Net 30',            icon: 'calendar', desc: 'Invoice due 30 days after incident close.' },
   { value: 'net_60',   label: 'Net 60',            icon: 'calendar', desc: 'Invoice due 60 days after incident close (institutional CS).' },
 ]
-function openPayArrangement(cs) { activeCs.value = cs; modals.value.payArrangement = true }
+function openPayArrangement(cs) { activeCsId.value = cs.id; modals.value.payArrangement = true }
 function openChangePayModel(cs) {
-  activeCs.value = cs
+  activeCsId.value = cs.id
   payModelForm.payment_model = cs.payment_model || 'on_close'
   payModelForm.fee_cents = cs.fee_cents || 0
   payModelFeeUsd.value = (cs.fee_cents || 0) / 100

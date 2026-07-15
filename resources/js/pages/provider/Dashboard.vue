@@ -87,7 +87,7 @@
            across all portals (Provider / CS / SS / BP / Admin). -->
       <ProfileCompletionStrip
         :pct="profileCompletion"
-        :subtitle="profileCompletion >= 100 ? '' : `${Math.max(0, 9 - Math.round((profileCompletion / 100) * 9))} item${Math.max(0, 9 - Math.round((profileCompletion / 100) * 9)) !== 1 ? 's' : ''} remaining — complete your profile to improve discovery`"
+        :subtitle="profileCompletion >= 100 ? '' : `${profileItemsRemaining} item${profileItemsRemaining !== 1 ? 's' : ''} remaining${profileNextStep ? ' — ' + profileNextStep : ''}`"
         :edit-href="route('provider.profile.index')"
       />
 
@@ -921,6 +921,7 @@ const props = defineProps({
   signedAt:           { type: String,  default: null },
   planSections:       { type: Array,   default: () => [] },
   profileCompletion:  { type: Number,  default: 0 },
+  profileNextStep:    { type: String,  default: '' },
 })
 
 // ── Composables ───────────────────────────────────────────────────────
@@ -928,6 +929,7 @@ const toast            = useToast()
 const { confirmAction } = useConfirm()
 const { openConversation, loading: msgLoading } = useMessageButton()
 const auth             = computed(() => usePage().props.auth ?? {})
+const profileItemsRemaining = computed(() => Math.max(0, 12 - Math.round((props.profileCompletion / 100) * 12)))
 const publicProfileUrl = computed(() => {
   const slug = auth.value.user?.slug
   return slug ? route('public.provider', { slug }) : '#'

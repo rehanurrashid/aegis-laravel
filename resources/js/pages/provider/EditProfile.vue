@@ -57,8 +57,8 @@
 
     <!-- ══════════════ PROFILE COMPLETION STRIP ══════════════ -->
     <ProfileCompletionStrip
-      :pct="completionPct"
-      :subtitle="completionPct >= 100 ? '' : `${completionItemsRemaining} item${completionItemsRemaining !== 1 ? 's' : ''} remaining — complete your profile to improve discovery`"
+      :pct="props.profileCompletion"
+      :subtitle="props.profileCompletion >= 100 ? '' : `${profileItemsRemaining} item${profileItemsRemaining !== 1 ? 's' : ''} remaining${props.profileNextStep ? ' — ' + props.profileNextStep : ''}`"
     >
       <template #action>
         <button type="button" class="btn btn-primary" style="flex-shrink:0;white-space:nowrap" @click="activeSection = 'professional'">
@@ -1019,9 +1019,11 @@ import { useConfirm } from '@/composables/useConfirm'
 import ProfileCompletionStrip from '@/components/features/ProfileCompletionStrip.vue'
 
 const props = defineProps({
-  user:        { type: Object, required: true },
-  credentials: { type: Array,  default: () => [] },
-  meta:        { type: Object, default: () => ({}) },
+  user:              { type: Object, required: true },
+  credentials:       { type: Array,  default: () => [] },
+  meta:              { type: Object, default: () => ({}) },
+  profileCompletion: { type: Number, default: 0 },
+  profileNextStep:   { type: String, default: '' },
 })
 
 const toast = useToast()
@@ -1498,6 +1500,8 @@ const completionItemsRemaining = computed(() => {
   const total = 9
   return Math.max(0, total - Math.round((completionPct.value / 100) * total))
 })
+// Items remaining based on server-side 12-check platform score
+const profileItemsRemaining = computed(() => Math.max(0, 12 - Math.round((props.profileCompletion / 100) * 12)))
 
 const lastSavedLabel = computed(() => {
   if (!props.user.updated_at) return 'recently'

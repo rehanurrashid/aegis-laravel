@@ -55,9 +55,13 @@ class ProfileController extends Controller
             ])
             ->toArray();
 
+        $svc = app(\App\Services\ProfileCompletionService::class);
+
         return Inertia::render('Provider/EditProfile', [
-            'user'        => $user,
-            'credentials' => $credentials,
+            'user'              => $user,
+            'credentials'       => $credentials,
+            'profileCompletion' => $svc->compute($user),
+            'profileNextStep'   => $svc->nextStepLabel($user),
             'meta' => [
                 'specialties'      => $meta['specialties'],
                 'services'         => $this->rawMeta($user, 'services', []),

@@ -175,6 +175,7 @@ class DashboardController extends Controller
         return Inertia::render('Provider/Dashboard', [
             'user'               => $user,
             'profileCompletion'  => app(ProfileCompletionService::class)->compute($user),
+            'profileNextStep'    => app(ProfileCompletionService::class)->nextStepLabel($user),
             'planStatus'         => $plan?->status ?? 'none',
             'plan'               => $plan,
             'attest'             => $attest,
