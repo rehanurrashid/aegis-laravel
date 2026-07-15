@@ -50,7 +50,6 @@ const modals = ref({
   addStep5:       false,
   editCS:         false,
   amendFee:       false,
-  grantVault:     false,
   viewAgreement:  false,
   resend:         false,
   cancelInvite:   false,
@@ -74,11 +73,7 @@ function openEditModal(s) {
   modals.value.editCS = true
 }
 
-function openVaultModal(s) {
-  activeId.value = s.id
-  vaultForm.vault_access_level = activeSteward.value?.vault_access ?? 'scoped'
-  modals.value.grantVault = true
-}
+
 function openRemoveModal(s) {
   activeId.value = s.id
   submitRemove()
@@ -126,21 +121,7 @@ function submitEdit() {
 
 
 // ── Vault Access form ─────────────────────────────────────────────────────────
-const vaultForm = useForm({ vault_access_level: 'scoped' })
-const busyVault = ref(false)
 
-function submitVault() {
-  if (!activeSteward.value) return
-  busyVault.value = true
-  router.post(route('provider.stewards.vault-access', { steward: activeSteward.value.id }), {
-    vault_access: vaultForm.vault_access_level,
-  }, {
-    preserveScroll: true,
-    onSuccess: () => { modals.value.grantVault = false; toast.success('Vault access updated.'); router.reload({ only: ['stewards'] }) },
-    onError:   () => toast.error('Could not update vault access.'),
-    onFinish:  () => { busyVault.value = false },
-  })
-}
 
 // ── Annual Review state ───────────────────────────────────────────────────────
 const annualReviewOverdue = computed(() =>
@@ -417,9 +398,6 @@ function saveNotifyPrefs() {
                 'badge-gold':  s.vault_access === 'metadata',
                 'badge-green': s.vault_access === 'scoped' || s.vault_access === 'full',
               }"
-              style="cursor:pointer;"
-              data-tooltip="Edit vault access"
-              @click="openVaultModal(s)"
             >
               <AegisIcon name="lock" :size="10" style="margin-right:3px;" />
               <template v-if="s.vault_access === 'none' || !s.vault_access">No Vault Access</template>
@@ -460,7 +438,6 @@ function saveNotifyPrefs() {
             <button type="button" class="btn-icon" data-tooltip="Edit Details"   @click="openEditModal(s)"><AegisIcon name="pencil" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Message this CS" :disabled="msgLoading === s.steward_id" @click="openConversation(s.steward_id)"><AegisIcon name="message-square" :size="14" /></button>
 
-            <button type="button" class="btn-icon" data-tooltip="Vault Access"   @click="openVaultModal(s)"><AegisIcon name="lock" :size="14" /></button>
 
             <button type="button" class="btn-icon" data-tooltip="Remove" @click="openRemoveModal(s)"><AegisIcon name="trash" :size="14" /></button>
           </div>
@@ -749,31 +726,7 @@ function saveNotifyPrefs() {
 
 
 
-    <!-- GRANT VAULT ACCESS MODAL -->
-    <AegisModal v-model="modals.grantVault" :title="'Manage Document Vault Access' + (activeSteward ? ' — ' + stewardName(activeSteward) : '')" size="lg" @close="modals.grantVault=false">
-      <div class="alert alert-info"><div class="alert-icon"><AegisIcon name="info" :size="14" /></div><div class="alert-content">Control what documents this Continuity Steward can access and when. Vault access is unlocked automatically when continuity support is activated.</div></div>
-      <div style="margin:16px 0;">
-        <div class="form-label" style="margin-bottom:10px;">Access Level</div>
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <label v-for="opt in [
-            { value:'scoped', title:'Emergency Only (Recommended)', desc:'Vault unlocks automatically when continuity support is activated.' },
-            { value:'full',   title:'Full Read Access (Anytime)',   desc:'Continuity Steward can view documents at any time.' },
-            { value:'none',   title:'No Access',                   desc:'Emergency credentials must be shared separately.' },
-          ]" :key="opt.value"
-            style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;"
-            :style="vaultForm.vault_access_level===opt.value ? 'border-color:var(--gold-dark);' : ''"
-            @click="vaultForm.vault_access_level = opt.value"
-          >
-            <input type="radio" :value="opt.value" v-model="vaultForm.vault_access_level" style="align-self:center;" />
-            <div><strong style="font-size:13px;">{{ opt.title }}</strong><div style="font-size:12px;color:var(--text-3);">{{ opt.desc }}</div></div>
-          </label>
-        </div>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.grantVault=false">Cancel</button>
-        <button type="button" class="btn btn-primary" :disabled="busyVault" @click="submitVault">{{ busyVault ? 'Saving…' : 'Save Access Settings' }}</button>
-      </template>
-    </AegisModal>
+
 
     <!-- VIEW AGREEMENT MODAL -->
     <AegisModal v-model="modals.viewAgreement" :title="'Continuity Plan' + (activeSteward ? ' — ' + stewardName(activeSteward) : '')" size="lg" @close="modals.viewAgreement=false">
