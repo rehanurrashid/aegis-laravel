@@ -40,48 +40,58 @@
     </AegisHeroBanner>
 
     <!-- STAT CHIPS -->
-    <div class="stat-chips-row">
-      <button type="button" class="stat-chip-btn" data-tooltip="View your plan readiness checklist" @click="showSectionsModal = true">
+    <!-- STAT CHIPS ROW 1 — counts -->
+    <div class="stat-chips-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:8px;">
+      <button type="button" class="stat-chip-btn" style="width:100%" data-tooltip="View your plan readiness checklist" @click="showSectionsModal = true">
         <AegisStatChip
+          style="width:100%"
           icon="shield"
           :value="`${completedSections}/7`"
-          label="Plan Sections"
+          label="Sections Complete"
           :bg-color="completedSections === 7 ? 'var(--icon-bg-green)' : 'var(--icon-bg-gold)'"
           :icon-color="completedSections === 7 ? 'var(--green-dark)' : 'var(--gold-dark)'"
         />
       </button>
-      <span data-tooltip="Active Continuity Stewards on this plan">
-        <AegisStatChip icon="users" :value="csCount" label="CS Stewards" />
+      <span data-tooltip="Active Continuity Stewards on this plan" style="display:block">
+        <AegisStatChip style="width:100%" icon="users" :value="csCount" label="Continuity Stewards" />
       </span>
-      <span data-tooltip="Active Support Stewards on this plan">
-        <AegisStatChip icon="user-check" :value="ssCount" label="SS Stewards" />
+      <span data-tooltip="Active Support Stewards on this plan" style="display:block">
+        <AegisStatChip style="width:100%" icon="user-check" :value="ssCount" label="Support Stewards" />
       </span>
-      <span :data-tooltip="plan && plan.vault_attested_at ? 'Vault last verified on ' + formatDate(plan.vault_attested_at) : 'Vault has not been attested yet'">
+    </div>
+
+    <!-- STAT CHIPS ROW 2 — dates (only show when plan exists) -->
+    <div v-if="plan" class="stat-chips-row" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+      <span :data-tooltip="plan.vault_attested_at ? 'Vault last verified on ' + formatDate(plan.vault_attested_at) : 'Vault has not been attested yet'" style="display:block">
         <AegisStatChip
+          style="width:100%"
           icon="lock"
-          :value="plan && plan.vault_attested_at ? formatDate(plan.vault_attested_at) : 'Not attested'"
-          label="Vault Attested"
+          :value="plan.vault_attested_at ? formatDate(plan.vault_attested_at) : 'Not attested'"
+          label="Last Vault Attestation"
           bg-color="var(--icon-bg-gold)"
           icon-color="var(--gold-dark)"
         />
       </span>
-      <span v-if="plan && plan.signed_at" data-tooltip="Date this plan was last signed and activated">
+      <span v-if="plan.signed_at" data-tooltip="Date this plan was last signed and activated" style="display:block">
         <AegisStatChip
+          style="width:100%"
           icon="file-check"
           :value="formatDate(plan.signed_at)"
-          label="Last Signed"
+          label="Last Review Signed"
           bg-color="var(--icon-bg-green)"
           icon-color="var(--green-dark)"
         />
       </span>
-      <span v-if="plan && plan.signed_at"
+      <span v-if="plan.signed_at"
         :data-tooltip="plan.annual_review_date && new Date(plan.annual_review_date) < new Date()
-          ? 'Annual review is overdue — begin review now'
-          : plan.annual_review_date ? 'Annual review due ' + formatDate(plan.annual_review_date) : 'No review date set'">
+          ? 'Annual review is overdue — begin your review now'
+          : plan.annual_review_date ? 'Annual review due ' + formatDate(plan.annual_review_date) : 'No review date set'"
+        style="display:block">
         <AegisStatChip
+          style="width:100%"
           icon="calendar"
           :value="plan.annual_review_date ? formatDate(plan.annual_review_date) : '—'"
-          label="Review Due"
+          label="Next Review Due"
           :bg-color="plan.annual_review_date && new Date(plan.annual_review_date) < new Date() ? 'var(--icon-bg-red)' : 'var(--icon-bg-gold)'"
           :icon-color="plan.annual_review_date && new Date(plan.annual_review_date) < new Date() ? 'var(--red-dark)' : 'var(--gold-dark)'"
         />
@@ -748,8 +758,9 @@ function formatDate(iso) {
 .sign-cta-actions { display: flex; justify-content: flex-end; gap: 10px; }
 
 /* Clickable stat chip */
-.stat-chip-btn { background: none; border: none; padding: 0; cursor: pointer; display: inline-block; transition: transform .18s ease; border-radius: var(--radius); }
+.stat-chip-btn { background: none; border: none; padding: 0; cursor: pointer; display: block; width: 100%; transition: transform .18s ease; border-radius: var(--radius); }
 .stat-chip-btn:hover { transform: translateY(-3px); }
+.stat-chip-btn .stat-chip { width: 100%; }
 
 /* Spin */
 @keyframes spin { to { transform: rotate(360deg); } }
