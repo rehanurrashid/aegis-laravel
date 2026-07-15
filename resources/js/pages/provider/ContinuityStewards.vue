@@ -20,6 +20,8 @@ const props = defineProps({
   csCount:            { type: Number, default: 0 },
   incidentConfigs:    { type: Array,  default: () => [] },
   annualReviewDue:    { type: String, default: null },
+  planStatus:         { type: String, default: null },
+  annualReviewDate:   { type: String, default: null },
   notifyPrefs:        { type: Object, default: () => ({}) },
 })
 
@@ -169,6 +171,12 @@ function submitVault() {
     onFinish:  () => { busyVault.value = false },
   })
 }
+
+// ── Annual Review state ───────────────────────────────────────────────────────
+const annualReviewOverdue = computed(() =>
+    props.annualReviewDate && new Date(props.annualReviewDate) < new Date()
+)
+const reviewInProgress = computed(() => props.planStatus === 'draft')
 
 // ── Annual Review form ────────────────────────────────────────────────────────
 const reviewForm = useForm({ notes: '', confirmed: true })
@@ -342,7 +350,7 @@ function saveNotifyPrefs() {
     </AegisHeroBanner>
 
     <!-- ANNUAL REVIEW ALERT -->
-    <div v-if="annualReviewDue && new Date(annualReviewDue) < new Date()" class="alert alert-warning" style="margin-bottom:14px;">
+    <div v-if="annualReviewOverdue" class="alert alert-warning" style="margin-bottom:14px;">
       <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
       <div class="alert-content">
         <div class="alert-title">Annual Review Due — {{ fmtDate(annualReviewDue) }}</div>
@@ -372,7 +380,13 @@ function saveNotifyPrefs() {
       <AegisStatChip icon="users" :value="stewards.filter(s => s.status === 'active').length" label="Active Continuity Stewards" />
       <AegisStatChip icon="mail"  :value="pendingInvitations.length" label="Pending Invitation" />
       <AegisStatChip v-if="servingAsCSFor.length" icon="check-circle" :value="servingAsCSFor.length" label="I'm Continuity Steward For" />
-      <AegisStatChip icon="calendar" :value="stewards.some(s => s.review_overdue) ? (stewards.filter(s => s.review_overdue).length + ' Overdue') : 'On Track'" label="Annual Review" />
+      <AegisStatChip
+        icon="calendar"
+        :value="annualReviewOverdue ? 'Review Overdue' : reviewInProgress ? 'In Progress' : 'On Track'"
+        label="Annual Review"
+        :icon-bg="annualReviewOverdue ? 'var(--icon-bg-red)' : reviewInProgress ? 'var(--icon-bg-blue)' : 'var(--icon-bg-green)'"
+        :color="annualReviewOverdue ? 'var(--red-dark)' : reviewInProgress ? 'var(--blue-dark)' : 'var(--green-dark)'"
+      />
     </div>
 
     <!-- TABS -->

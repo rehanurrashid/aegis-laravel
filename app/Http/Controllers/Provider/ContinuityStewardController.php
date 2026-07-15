@@ -132,6 +132,8 @@ class ContinuityStewardController extends Controller
             'csCount'            => collect($stewards)->where('status', 'active')->count(),
             'incidentConfigs'    => $incidentConfigs,
             'annualReviewDue'    => $plan?->annual_review_date?->toDateString(),
+            'planStatus'         => $plan?->status?->value ?? null,
+            'annualReviewDate'   => $plan?->annual_review_date?->toISOString() ?? null,
             'notifyPrefs'        => $this->profiles->getMeta($user, 'notify_cs_activity', []),
         ]);
     }
