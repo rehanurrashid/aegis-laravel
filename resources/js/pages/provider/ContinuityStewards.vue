@@ -48,12 +48,10 @@ const modals = ref({
   editCS:         false,
   changeRole:     false,
   grantVault:     false,
-  annualReview:   false,
   viewAgreement:  false,
   remove:         false,
   resend:         false,
   cancelInvite:   false,
-  snoozeReview:   false,
   upgrade:        false,
 })
 
@@ -179,18 +177,7 @@ const annualReviewOverdue = computed(() =>
 const reviewInProgress = computed(() => props.planStatus === 'draft')
 
 // ── Annual Review form ────────────────────────────────────────────────────────
-const reviewForm = useForm({ notes: '', confirmed: true })
-const busyReview = ref(false)
 
-function submitReview() {
-  busyReview.value = true
-  reviewForm.post(route('provider.stewards.invite'), {
-    preserveScroll: true,
-    onSuccess: () => { modals.value.annualReview = false; toast.success('Annual review completed.') },
-    onError:   () => toast.error('Could not complete review.'),
-    onFinish:  () => { busyReview.value = false },
-  })
-}
 
 // ── Remove form ───────────────────────────────────────────────────────────────
 const removeForm = useForm({ reason: '', confirm: '', notes: '' })
@@ -356,11 +343,8 @@ function saveNotifyPrefs() {
         <div class="alert-title">Annual Review Due — {{ fmtDate(annualReviewDue) }}</div>
         <div>Your Continuity Plan requires an annual attestation. Please confirm all Continuity Steward details and procedures are current.</div>
         <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-          <button type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;" @click="modals.annualReview = true">
+          <button type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;" @click="router.visit(route('provider.plan.index'))">
             <AegisIcon name="check" :size="14" /> Complete Review Now
-          </button>
-          <button type="button" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;" @click="modals.snoozeReview = true">
-            <AegisIcon name="clock" :size="14" /> Remind Me Later
           </button>
         </div>
       </div>
@@ -486,7 +470,7 @@ function saveNotifyPrefs() {
             <button type="button" class="btn-icon" data-tooltip="View Agreement" @click="openModal('viewAgreement', s)"><AegisIcon name="file-text" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Edit Details"   @click="openEditModal(s)"><AegisIcon name="pencil" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Message this CS" :disabled="msgLoading === s.steward_id" @click="openConversation(s.steward_id)"><AegisIcon name="message-square" :size="14" /></button>
-            <button type="button" class="btn-icon" data-tooltip="Annual Review"  @click="modals.annualReview = true"><AegisIcon name="calendar" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="Annual Review" @click="router.visit(route('provider.plan.index'))"><AegisIcon name="calendar" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Change Role"    @click="openChangeRole(s)"><AegisIcon name="refresh-cw" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Vault Access"   @click="openVaultModal(s)"><AegisIcon name="lock" :size="14" /></button>
 
@@ -795,42 +779,11 @@ function saveNotifyPrefs() {
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.viewAgreement=false">Close</button>
         <button type="button" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;"><AegisIcon name="download" :size="14" /> Download PDF</button>
-        <button type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;" @click="modals.viewAgreement=false;modals.annualReview=true"><AegisIcon name="calendar" :size="14" /> Start Annual Review</button>
+        <button type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;" @click="modals.viewAgreement=false;router.visit(route('provider.plan.index'))"><AegisIcon name="calendar" :size="14" /> Start Annual Review</button>
       </template>
     </AegisModal>
 
-    <!-- ANNUAL REVIEW MODAL -->
-    <AegisModal v-model="modals.annualReview" title="Annual Continuity Steward Review" size="lg" @close="modals.annualReview=false">
-      <div class="alert alert-warning"><div class="alert-icon"><AegisIcon name="alert-triangle" :size="14" /></div><div class="alert-content">Annual review{{ annualReviewDue ? ' due ' + fmtDate(annualReviewDue) : '' }}. Confirm all Continuity Steward details and procedures are current.</div></div>
-      <div style="font-size:13px;font-weight:700;margin:14px 0 10px;color:var(--text);">Continuity Steward Availability Confirmation</div>
-      <div v-for="item in stewards.filter(s=>s.status==='active')" :key="item.id" class="setting-row">
-        <div class="setting-info"><div class="setting-label">{{ stewardName(item) }} ({{ csRoleLabel(item.role) }}) still agrees to serve</div></div>
-        <button type="button" class="toggle on" aria-pressed="true"></button>
-      </div>
-      <div style="font-size:13px;font-weight:700;margin:16px 0 10px;color:var(--text);">Practice Information</div>
-      <div v-for="item in [
-        'Document Vault contains current client roster',
-        'Malpractice insurance policy is current and on file',
-        'Practice billing info and payer contacts documented',
-        'Client transition protocol is documented and accessible',
-        'Continuity Steward Vault access credentials have been updated',
-      ]" :key="item" class="setting-row">
-        <div class="setting-info"><div class="setting-label">{{ item }}</div></div>
-        <button type="button" class="toggle" aria-pressed="false"></button>
-      </div>
-      <div class="form-group" style="margin-top:16px;">
-        <label class="form-label">Review Notes / Changes Since Last Year</label>
-        <textarea v-model="reviewForm.notes" class="form-control" placeholder="Document any personnel changes, updated responsibilities, or other relevant changes…"></textarea>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.annualReview=false">Cancel</button>
-        <button type="button" class="btn btn-primary" :disabled="busyReview" style="display:inline-flex;align-items:center;gap:6px;" @click="submitReview">
-          <AegisIcon v-if="busyReview" name="refresh-cw" :size="13" class="btn-spin" />
-          <AegisIcon v-else name="check" :size="13" />
-          {{ busyReview ? 'Saving…' : 'Attest & Complete Review' }}
-        </button>
-      </template>
-    </AegisModal>
+
 
     <!-- REMOVE MODAL -->
     <AegisModal v-model="modals.remove" title="Remove Continuity Steward" size="md" @close="modals.remove=false;removeForm.reset();v$remove.$reset()">
@@ -908,18 +861,7 @@ function saveNotifyPrefs() {
       </template>
     </AegisModal>
 
-    <!-- SNOOZE REVIEW MODAL -->
-    <AegisModal v-model="modals.snoozeReview" title="Remind Me Later" size="sm" @close="modals.snoozeReview=false">
-      <div class="alert alert-warning"><div class="alert-icon"><AegisIcon name="alert-triangle" :size="14" /></div><div class="alert-content">Annual reviews are required for your continuity plan to remain compliant.</div></div>
-      <div class="form-group" style="margin-top:14px;">
-        <label class="form-label">Remind me in</label>
-        <select class="form-control form-select"><option>3 days</option><option>1 week</option><option>2 weeks</option></select>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.snoozeReview=false">Cancel</button>
-        <button type="button" class="btn btn-primary" @click="modals.snoozeReview=false">Set Reminder</button>
-      </template>
-    </AegisModal>
+
 
 
     <!-- UPGRADE MODAL -->
