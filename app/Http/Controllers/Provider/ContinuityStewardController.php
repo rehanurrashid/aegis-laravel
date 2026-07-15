@@ -54,11 +54,20 @@ class ContinuityStewardController extends Controller
                 ->with('steward:id,display_name,credentials,email,phone,title,organization,location,avatar_initials,slug,stripe_account_id')
                 ->get()
                 ->map(function ($s) use ($user, $activeConfigs, $plan) {
-                    $authorizedIncidents = $activeConfigs->filter(function ($config) use ($s) {
+                    $stewardPsId   = $s->id;
+                    $stewardUserId = $s->steward_id;
+                    $authorizedIncidents = $activeConfigs->filter(function ($config) use ($stewardPsId, $stewardUserId) {
                         $ids = is_array($config->authorized_cs_ids)
                             ? $config->authorized_cs_ids
                             : json_decode($config->authorized_cs_ids ?? '[]', true);
-                        return in_array($s->id, $ids);
+                        // Direct match (current plan IDs)
+                        if (in_array($stewardPsId, $ids)) {
+                            return true;
+                        }
+                        // Fallback: stale IDs from a prior annual review copy — match by user ID
+                        return \App\Models\PlanSteward::whereIn('id', $ids)
+                            ->where('steward_id', $stewardUserId)
+                            ->exists();
                     })->pluck('incident_type')->values()->toArray();
 
                     return [
