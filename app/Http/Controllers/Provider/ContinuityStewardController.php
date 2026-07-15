@@ -42,35 +42,50 @@ class ContinuityStewardController extends Controller
         $tier = is_object($user->tier) ? $user->tier->value : ($user->tier ?? 'access');
         $tierLimits = config('aegis.tier_limits.' . $tier, config('aegis.tier_limits.access'));
 
+        // Pre-load active incident configs once for authorized_incidents lookup
+        $activeConfigs = $plan
+            ? \App\Models\PlanIncidentConfig::where('plan_id', $plan->id)->where('is_active', 1)->get()
+            : collect();
+
         $stewards = $plan
             ? \App\Models\PlanSteward::where('plan_id', $plan->id)
                 ->where('steward_category', 'continuity_steward')
                 ->where('status', 'active')
                 ->with('steward:id,display_name,credentials,email,phone,title,organization,location,avatar_initials,slug,stripe_account_id')
                 ->get()
-                ->map(fn ($s) => [
-                    'id'                       => $s->id,
-                    'role'                     => is_object($s->role) ? $s->role->value : $s->role,
-                    'status'                   => is_object($s->status) ? $s->status->value : $s->status,
-                    'fee_cents'                => (int) ($s->fee_cents ?? 0),
-                    'payment_terms'            => $s->payment_terms ?? 'per_incident',
-                    'auto_charge'              => (bool) ($s->auto_charge ?? false),
-                    'engagement_document_id'   => $s->engagement_document_id,
-                    'signed_at'                => $s->signed_at?->toDateString(),
-                    'invited_at'               => $s->invited_at?->toDateString(),
-                    'expires_at'               => $s->expires_at?->toDateString(),
-                    'stripe_connected'         => (bool) ($s->steward?->stripe_account_id),
-                    'has_outstanding_invoices' => \App\Models\CsInvoice::where('cs_id', $s->steward_id)
-                        ->where('practitioner_id', $user->id)
-                        ->whereIn('status', ['sent', 'overdue', 'disputed'])
-                        ->exists(),
-                    'steward' => $s->steward ? $s->steward->toArray() : null,
-                    'steward_id'   => $s->steward_id,
-                    'email'        => $s->email,
-                    'display_name' => $s->display_name,
-                    'review_overdue' => $s->review_due_at && $s->review_due_at->isPast(),
-                    'vault_access'   => is_object($s->vault_access) ? $s->vault_access->value : ($s->vault_access ?? 'scoped'),
-                ])
+                ->map(function ($s) use ($user, $activeConfigs) {
+                    $authorizedIncidents = $activeConfigs->filter(function ($config) use ($s) {
+                        $ids = is_array($config->authorized_cs_ids)
+                            ? $config->authorized_cs_ids
+                            : json_decode($config->authorized_cs_ids ?? '[]', true);
+                        return in_array($s->id, $ids);
+                    })->pluck('incident_type')->values()->toArray();
+
+                    return [
+                        'id'                       => $s->id,
+                        'role'                     => is_object($s->role) ? $s->role->value : $s->role,
+                        'status'                   => is_object($s->status) ? $s->status->value : $s->status,
+                        'fee_cents'                => (int) ($s->fee_cents ?? 0),
+                        'payment_terms'            => $s->payment_terms ?? 'per_incident',
+                        'auto_charge'              => (bool) ($s->auto_charge ?? false),
+                        'engagement_document_id'   => $s->engagement_document_id,
+                        'signed_at'                => $s->signed_at?->toDateString(),
+                        'invited_at'               => $s->invited_at?->toDateString(),
+                        'expires_at'               => $s->expires_at?->toDateString(),
+                        'stripe_connected'         => (bool) ($s->steward?->stripe_account_id),
+                        'has_outstanding_invoices' => \App\Models\CsInvoice::where('cs_id', $s->steward_id)
+                            ->where('practitioner_id', $user->id)
+                            ->whereIn('status', ['sent', 'overdue', 'disputed'])
+                            ->exists(),
+                        'steward'              => $s->steward ? $s->steward->toArray() : null,
+                        'steward_id'           => $s->steward_id,
+                        'email'                => $s->email,
+                        'display_name'         => $s->display_name,
+                        'review_overdue'       => $s->review_due_at && $s->review_due_at->isPast(),
+                        'vault_access'         => is_object($s->vault_access) ? $s->vault_access->value : ($s->vault_access ?? 'scoped'),
+                        'authorized_incidents' => $authorizedIncidents,
+                    ];
+                })
                 ->values()
             : [];
 

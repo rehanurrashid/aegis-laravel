@@ -211,11 +211,15 @@ class PlanService
             ]);
 
             // Copy plan stewards to new plan (preserve all relationships)
-            PlanSteward::where('plan_id', $plan->id)->get()->each(function ($s) use ($newPlanId) {
-                $s->replicate(['id'])->fill([
+            // Build old→new ID map for incident config remapping
+            $stewardIdMap = [];
+            PlanSteward::where('plan_id', $plan->id)->get()->each(function ($s) use ($newPlanId, &$stewardIdMap) {
+                $newPs = $s->replicate(['id'])->fill([
                     'id'      => 'ps_' . Str::lower(Str::random(12)),
                     'plan_id' => $newPlanId,
-                ])->save();
+                ]);
+                $newPs->save();
+                $stewardIdMap[$s->id] = $newPs->id;
             });
 
             // Copy incident configs to new plan
@@ -224,6 +228,20 @@ class PlanService
                     'id'      => 'pic_' . Str::lower(Str::random(12)),
                     'plan_id' => $newPlanId,
                 ])->save();
+            });
+
+            // Remap authorized IDs in copied configs to new plan_steward IDs
+            PlanIncidentConfig::where('plan_id', $newPlanId)->get()->each(function ($config) use ($stewardIdMap) {
+                $oldCsIds = is_array($config->authorized_cs_ids)
+                    ? $config->authorized_cs_ids
+                    : json_decode($config->authorized_cs_ids ?? '[]', true);
+                $oldSsIds = is_array($config->authorized_ss_ids)
+                    ? $config->authorized_ss_ids
+                    : json_decode($config->authorized_ss_ids ?? '[]', true);
+                $config->update([
+                    'authorized_cs_ids' => array_values(array_map(fn ($id) => $stewardIdMap[$id] ?? $id, $oldCsIds)),
+                    'authorized_ss_ids' => array_values(array_map(fn ($id) => $stewardIdMap[$id] ?? $id, $oldSsIds)),
+                ]);
             });
 
             // Copy tasks to new plan

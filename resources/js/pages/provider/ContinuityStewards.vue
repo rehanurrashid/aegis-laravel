@@ -226,6 +226,11 @@ function fmtDate(val) {
 }
 
 function authIncidentLabels(steward) {
+  // Use pre-computed authorized_incidents from controller when available
+  if (steward?.authorized_incidents) {
+    return steward.authorized_incidents.map(t => t.replace(/_/g, ' '))
+  }
+  // Fallback: compute from incidentConfigs prop
   if (!props.incidentConfigs.length) return []
   return props.incidentConfigs
     .filter(c => c.is_active && (c.authorized_cs_ids ?? []).includes(steward.id))
@@ -712,6 +717,7 @@ function saveNotifyPrefs() {
         <div v-if="activeSteward && authIncidentLabels(activeSteward).length" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
           <span v-for="label in authIncidentLabels(activeSteward)" :key="label" class="badge badge-gold" style="text-transform:capitalize;">{{ label }}</span>
         </div>
+        <div v-else-if="props.incidentConfigs.some(c => c.is_active)" style="font-size:12px;color:var(--text-3);margin-bottom:6px;">Not authorized for any incidents yet.</div>
         <div v-else style="font-size:12px;color:var(--text-3);margin-bottom:6px;">No incident types configured.</div>
         <a :href="route('provider.plan.index') + '#incident-grid'" style="font-size:12px;color:var(--gold-dark);text-decoration:none;" @click.prevent="modals.editCS=false;router.visit(route('provider.plan.index') + '#incident-grid')">Configure on Plan →</a>
       </div>
