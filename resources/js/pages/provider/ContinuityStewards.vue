@@ -342,7 +342,7 @@ function saveNotifyPrefs() {
     </AegisHeroBanner>
 
     <!-- ANNUAL REVIEW ALERT -->
-    <div v-if="annualReviewDue" class="alert alert-warning" style="margin-bottom:14px;">
+    <div v-if="annualReviewDue && new Date(annualReviewDue) < new Date()" class="alert alert-warning" style="margin-bottom:14px;">
       <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
       <div class="alert-content">
         <div class="alert-title">Annual Review Due — {{ fmtDate(annualReviewDue) }}</div>
@@ -438,8 +438,8 @@ function saveNotifyPrefs() {
             <span style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);cursor:pointer;" class="exec-name is-link">{{ stewardName(s) }}</span>
             <AegisBadge :label="csRoleLabel(s.role)" variant="gold" icon="shield" />
             <span class="badge badge-green"><span class="status-dot green"></span> Active</span>
-            <span v-if="s.countersigned_at" class="badge badge-green" :data-tooltip="'Countersigned ' + fmtDate(s.countersigned_at)"><AegisIcon name="check" :size="11" /> Countersigned</span>
-            <span v-else class="badge badge-amber" data-tooltip="Agreement sent — awaiting countersignature"><AegisIcon name="clock" :size="11" /> Awaiting Countersignature</span>
+            <span v-if="s.engagement_document?.status === 'fully_executed'" class="badge badge-green" :data-tooltip="'Agreement signed' + (s.countersigned_at ? ' — Countersigned ' + fmtDate(s.countersigned_at) : '')"><AegisIcon name="check" :size="11" /> Agreement Signed</span>
+            <span v-else-if="s.engagement_document?.status === 'countersign_pending'" class="badge badge-amber" data-tooltip="Agreement sent — awaiting countersignature"><AegisIcon name="clock" :size="11" /> Awaiting Countersignature</span>
           </div>
 
           <!-- Sub line -->
