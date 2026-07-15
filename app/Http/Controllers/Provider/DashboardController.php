@@ -43,8 +43,10 @@ class DashboardController extends Controller
                 ->get()
             : collect();
 
-        $primaryCs = $stewards->where('steward_type', 'continuity_steward')->first();
-        $primarySs = $stewards->where('steward_type', 'support_steward')->first();
+        $primaryCs = $stewards->where('steward_category', 'continuity_steward')->where('status', 'active')->where('role', 'primary')->first()
+            ?? $stewards->where('steward_category', 'continuity_steward')->where('status', 'active')->first();
+        $primarySs = $stewards->where('steward_category', 'support_steward')->where('status', 'active')->where('role', 'primary')->first()
+            ?? $stewards->where('steward_category', 'support_steward')->where('status', 'active')->first();
 
         $activeIncident = CriticalIncident::where('practitioner_id', $user->id)
             ->whereIn('status', ['reported', 'verified', 'active'])
@@ -135,15 +137,19 @@ class DashboardController extends Controller
 
         // Attest summary for plan status chips
         $attest = [
-            'plan_active'       => $plan && in_array($plan->status, ['active', 'annual_review_due']),
+            'plan_active'       => $plan && in_array($plan->status->value ?? $plan->status, ['active', 'annual_review_due']),
             'plan_signed_at'    => $plan?->signed_at,
+            'plan_status'       => $plan?->status?->value ?? 'none',
+            'plan_version'      => $plan?->plan_version ?? null,
+            'plan_signed_at'    => $plan?->signed_at?->toDateString(),
+            'annual_review_date'=> $plan?->annual_review_date?->toDateString(),
             'ss_certified'      => $primarySs?->status === 'active',
-            'ss_certified_count'=> $stewards->where('steward_type', 'support_steward')->where('status', 'active')->count(),
-            'ss_total'          => $stewards->where('steward_type', 'support_steward')->count(),
+            'ss_certified_count'=> $stewards->where('steward_category', 'support_steward')->where('status', 'active')->count(),
+            'ss_total'          => $stewards->where('steward_category', 'support_steward')->count(),
             'ss_latest'         => $primarySs?->updated_at,
             'cs_certified'      => $primaryCs?->status === 'active',
-            'cs_certified_count'=> $stewards->where('steward_type', 'continuity_steward')->where('status', 'active')->count(),
-            'cs_total'          => $stewards->where('steward_type', 'continuity_steward')->count(),
+            'cs_certified_count'=> $stewards->where('steward_category', 'continuity_steward')->where('status', 'active')->count(),
+            'cs_total'          => $stewards->where('steward_category', 'continuity_steward')->count(),
             'cs_latest'         => $primaryCs?->updated_at,
         ];
 
@@ -170,8 +176,14 @@ class DashboardController extends Controller
                 'net_business'     => $netBusiness->count(),
             ],
             'activeIncident'     => $activeIncident,
-            'continuityStewards' => $stewards->where('steward_type', 'continuity_steward')->values(),
-            'supportStewards'    => $stewards->where('steward_type', 'support_steward')->values(),
+            'annualReviewDate'   => $plan?->annual_review_date?->toISOString() ?? null,
+            'lastAttestedAt'     => $plan?->vault_attested_at?->toISOString() ?? null,
+            'signedAt'           => $plan?->signed_at?->toISOString() ?? null,
+            'planVersion'        => $plan?->plan_version ?? null,
+            'hasDraftInProgress' => \App\Models\ContinuityPlan::where('practitioner_id', $user->id)->where('status', 'draft')->exists(),
+            'planSections'       => $plan ? app(\App\Services\PlanService::class)->computeSections($plan) : [],
+            'continuityStewards' => $stewards->where('steward_category', 'continuity_steward')->values(),
+            'supportStewards'    => $stewards->where('steward_category', 'support_steward')->values(),
             'primaryCs'          => $primaryCs,
             'primarySs'          => $primarySs,
             'netClinical'        => $netClinical,

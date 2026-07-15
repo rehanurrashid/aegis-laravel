@@ -94,15 +94,31 @@
         </div>
         <!-- Chips -->
         <div style="flex:1;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
-          <!-- Chip 1: Plan Active -->
-          <div class="stat-chip" :style="attest.plan_active ? 'background:var(--badge-bg-green);border-color:var(--green)' : 'background:var(--surface-2);border:1px solid var(--border)'">
-            <div class="stat-chip-icon" :style="'background:' + (attest.plan_active ? 'var(--green)' : 'var(--text-4)') + ';color:#fff'">
-              <AegisIcon :name="attest.plan_active ? 'check' : 'clock'" :size="14" />
+          <!-- Chip 1: Plan Status -->
+          <div class="stat-chip"
+            :style="attest.plan_status === 'active' || attest.plan_status === 'annual_review_due'
+              ? 'background:var(--badge-bg-green);border-color:var(--green)'
+              : attest.plan_status === 'draft'
+                ? 'background:var(--badge-bg-gold);border-color:var(--gold-dark)'
+                : 'background:var(--surface-2);border:1px solid var(--border)'"
+          >
+            <div class="stat-chip-icon"
+              :style="'background:' + (attest.plan_status === 'active' || attest.plan_status === 'annual_review_due' ? 'var(--green)' : attest.plan_status === 'draft' ? 'var(--gold-dark)' : 'var(--text-4)') + ';color:#fff'"
+            >
+              <AegisIcon
+                :name="attest.plan_status === 'active' ? 'check' : attest.plan_status === 'annual_review_due' ? 'alert-triangle' : 'clock'"
+                :size="14"
+              />
             </div>
             <div>
-              <div class="stat-chip-value" style="font-size:13px;font-weight:700">{{ attest.plan_active ? 'Plan Active' : 'Plan Pending' }}</div>
+              <div class="stat-chip-value" style="font-size:13px;font-weight:700">
+                <template v-if="attest.plan_status === 'active'">Plan Active</template>
+                <template v-else-if="attest.plan_status === 'annual_review_due'">Review Due</template>
+                <template v-else-if="attest.plan_status === 'draft'">Plan Draft</template>
+                <template v-else>No Plan</template>
+              </div>
               <div class="stat-chip-label" style="font-size:11px;color:var(--text-3)">
-                {{ attest.plan_active && attest.plan_signed_at ? 'Signed ' + formatDate(attest.plan_signed_at) : 'Awaiting signature' }}
+                {{ attest.plan_signed_at ? 'Signed ' + formatDate(attest.plan_signed_at) : 'Awaiting signature' }}
               </div>
             </div>
           </div>
@@ -140,7 +156,7 @@
             <div style="flex:1;min-width:0">
               <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3)">Support Team</div>
               <div style="font-size:13px;color:var(--text);margin-top:2px">
-                <strong>{{ activeStewardCount }} of 5</strong> designated
+                <strong>{{ activeStewardCount }} of {{ (attest.cs_total ?? 0) + (attest.ss_total ?? 0) }}</strong> designated
                 <span style="color:var(--text-3);font-weight:400">· Primary &amp; Alternate Stewards</span>
               </div>
             </div>
@@ -177,7 +193,10 @@
         <div class="dh-cn-left">
           <div class="dh-cn-eyebrow">
             <span class="dh-cn-pulse"></span>
-            Continuity Plan · Active since {{ planSince }}
+            <template v-if="planStatus === 'active'">Continuity Plan · Active since {{ planSince }}</template>
+            <template v-else-if="planStatus === 'annual_review_due'">Continuity Plan · Annual Review Due</template>
+            <template v-else-if="planStatus === 'draft'">Continuity Plan · Draft — Complete to activate</template>
+            <template v-else>Continuity Plan · Not yet created</template>
           </div>
           <div class="dh-cn-title">Your practice continues,<br>even when you can't.</div>
           <div class="dh-cn-desc">When circumstances change, your Continuity Plan helps you keep care connected for your clients, records remain supported, and your stewards know what to do.</div>
@@ -223,8 +242,9 @@
             <div>
               <div class="dh-cn-rtag">Annual review</div>
               <div class="dh-cn-due">
-                Due {{ planReviewDue }}
-                <small>{{ reviewDaysLabel }} · last attested {{ planSignedAt }}</small>
+                <template v-if="annualReviewOverdue">Overdue since {{ formatShortDate(annualReviewDate) }}</template>
+                <template v-else>Due {{ formatShortDate(annualReviewDate) }}</template>
+                <small v-if="!annualReviewOverdue">{{ reviewDaysLabel }} · last attested {{ formatShortDate(lastAttestedAt) }}</small>
               </div>
             </div>
             <span style="color:var(--gold-dark);flex-shrink:0;display:inline-flex;align-items:center">
@@ -233,21 +253,28 @@
           </div>
 
           <div class="dh-cn-bar">
-            <div class="dh-cn-bar-fill"></div>
-            <div class="dh-cn-bar-marker" data-tooltip="Today"></div>
+            <div class="dh-cn-bar-fill" :style="{ width: reviewProgressPct + '%' }"></div>
+            <div class="dh-cn-bar-marker" :style="{ left: todayMarkerPct + '%' }" data-tooltip="Today"></div>
           </div>
           <div class="dh-cn-bar-labels">
             <span>Last attested</span><span>Today</span><span>Due</span>
           </div>
 
           <div class="dh-cn-todos">
-            <div class="dh-cn-todo done"><AegisIcon name="check-circle" :size="13" /> Steward contact info verified</div>
-            <div class="dh-cn-todo done"><AegisIcon name="check-circle" :size="13" /> Practice information current</div>
-            <div class="dh-cn-todo"><AegisIcon name="clock" :size="13" /> Confirm Support Steward task list</div>
-            <div class="dh-cn-todo"><AegisIcon name="clock" :size="13" /> Attest Continuity Plan accuracy</div>
+            <div
+              v-for="section in planSections.filter(s => s.key !== 'sign')"
+              :key="section.key"
+              class="dh-cn-todo"
+              :class="{ done: section.complete }"
+            >
+              <AegisIcon :name="section.complete ? 'check-circle' : 'clock'" :size="13" />
+              {{ section.title }}
+              <span v-if="!section.complete && section.blocks_signing" style="color:var(--red-dark);font-size:11px;margin-left:4px;">Required</span>
+              <span v-if="!section.complete && !section.blocks_signing" style="color:var(--text-3);font-size:11px;margin-left:4px;">Recommended</span>
+            </div>
           </div>
 
-          <button class="btn btn-outline btn-sm" style="align-self:flex-start;margin-top:8px" @click="modals.annualReview = true">
+          <button class="btn btn-outline btn-sm" style="align-self:flex-start;margin-top:8px" @click="router.visit(route('provider.plan.index') + '?action=begin_review')">
             <AegisIcon name="clipboard-check" :size="13" /> Begin Annual Review
           </button>
         </div>
@@ -570,7 +597,7 @@
         </div>
       </div>
       <template #footer>
-        <button class="btn btn-outline" style="margin-right:auto" @click="modals.annualReview = true; modals.executorPanel = false">Annual Review</button>
+        <button class="btn btn-outline" style="margin-right:auto" @click="router.visit(route('provider.plan.index') + '?action=begin_review'); modals.executorPanel = false">Annual Review</button>
         <button v-if="!activeIncident" class="btn btn-danger" @click="modals.activateSuccession = true; modals.executorPanel = false">
           <AegisIcon name="alert-triangle" :size="13" /> Activate Continuity Support
         </button>
@@ -632,34 +659,6 @@
           @click="activateSuccession"
         >
           <AegisIcon name="alert-triangle" :size="13" /> Confirm Activation
-        </button>
-      </template>
-    </AegisModal>
-
-    <!-- Annual Review -->
-    <AegisModal v-model="modals.annualReview" title="Annual Review" size="lg">
-      <div class="alert alert-warning" style="margin-bottom:18px">
-        <div class="alert-icon"><AegisIcon name="megaphone" :size="14" /></div>
-        <div class="alert-content">Annual review due {{ planReviewDue }}. Please verify all items and attest.</div>
-      </div>
-      <div class="dh-review-checklist">
-        <label class="form-check"><input v-model="annualReviewForm.checklist.stewards" type="checkbox" class="form-check-input" /><span class="form-check-label">Continuity Steward identity and contact information is current</span></label>
-        <label class="form-check"><input v-model="annualReviewForm.checklist.contacts" type="checkbox" class="form-check-input" /><span class="form-check-label">Support Steward identity and contact information is current</span></label>
-        <label class="form-check"><input v-model="annualReviewForm.checklist.tasks" type="checkbox" class="form-check-input" /><span class="form-check-label">Support Steward tasks are complete and accurate</span></label>
-        <label class="form-check"><input v-model="annualReviewForm.checklist.incidents" type="checkbox" class="form-check-input" /><span class="form-check-label">Assigned Continuity Steward tasks are complete and accurate</span></label>
-        <label class="form-check"><input v-model="annualReviewForm.checklist.preferences" type="checkbox" class="form-check-input" /><span class="form-check-label">Continuity Plan is accurate</span></label>
-        <label class="form-check"><input v-model="annualReviewForm.checklist.fees" type="checkbox" class="form-check-input" /><span class="form-check-label">Practice information is accurate</span></label>
-        <label class="form-check"><input v-model="annualReviewForm.checklist.documents" type="checkbox" class="form-check-input" /><span class="form-check-label">Support documentation is complete and accurate</span></label>
-        <label class="form-check"><input v-model="annualReviewForm.checklist.vault" type="checkbox" class="form-check-input" /><span class="form-check-label">Vault documentation is complete and accurate</span></label>
-      </div>
-      <div style="margin-top:18px">
-        <label class="form-label">Additional Notes</label>
-        <textarea v-model="annualReviewForm.notes" class="form-textarea" placeholder="Any changes or notes for this review period..."></textarea>
-      </div>
-      <template #footer>
-        <button class="btn btn-outline" @click="modals.annualReview = false">Cancel</button>
-        <button class="btn btn-primary" :disabled="!allReviewChecked || annualReviewForm.processing" @click="submitAnnualReview">
-          {{ annualReviewForm.processing ? 'Submitting…' : 'Submit Annual Review' }}
         </button>
       </template>
     </AegisModal>
@@ -992,6 +991,12 @@ const props = defineProps({
   referralRoster:     { type: Array,   default: () => [] },
   referralNetwork:    { type: Array,   default: () => [] },
   ceuRequirements:    { type: Array,   default: () => [] },
+  annualReviewDate:   { type: String,  default: null },
+  lastAttestedAt:     { type: String,  default: null },
+  signedAt:           { type: String,  default: null },
+  planVersion:        { type: Number,  default: null },
+  hasDraftInProgress: { type: Boolean, default: false },
+  planSections:       { type: Array,   default: () => [] },
 })
 
 // ── Composables ───────────────────────────────────────────────────────
@@ -1008,7 +1013,6 @@ const publicProfileUrl = computed(() => {
 const modals = reactive({
   executorPanel:      false,
   activateSuccession: false,
-  annualReview:       false,
   ceu:                false,
   newReferral:        false,
   logout:             false,
@@ -1105,7 +1109,7 @@ const attentionItems = computed(() => {
           ? `Overdue by <strong>${Math.abs(days)} days</strong>`
           : `Due <strong>${formatDate(props.plan?.annual_review_date)}</strong>${pendingCount > 0 ? ` · ${pendingCount} item${pendingCount > 1 ? 's' : ''} pending` : ''}`,
         cta:    'Review',
-        action: () => { modals.annualReview = true },
+        action: () => { router.visit(route('provider.plan.index') + '?action=begin_review') },
       })
     }
   }
@@ -1182,6 +1186,16 @@ const planStatusLabel = computed(() => ({
   draft: 'Draft', active: 'Active', annual_review_due: 'Review Due', none: 'Not Created',
 }[props.planStatus] ?? props.planStatus))
 
+const annualReviewOverdue = computed(() => props.annualReviewDate && new Date(props.annualReviewDate) < new Date())
+const reviewProgressPct = computed(() => {
+  if (!props.signedAt || !props.annualReviewDate) return 0
+  const start = new Date(props.signedAt).getTime()
+  const end = new Date(props.annualReviewDate).getTime()
+  const now = Date.now()
+  return Math.min(100, Math.max(0, Math.round(((now - start) / (end - start)) * 100)))
+})
+const todayMarkerPct = reviewProgressPct
+
 // ── Steward display ────────────────────────────────────────────────────
 const csName     = computed(() => props.primaryCs?.steward?.display_name ?? 'Not assigned')
 const ssName     = computed(() => props.primarySs?.steward?.display_name ?? 'Not assigned')
@@ -1197,28 +1211,6 @@ const ssInitials = computed(() => {
   const p = n.replace(/^(Dr\.|Prof\.)\s*/i,'').split(' ')
   return p.length >= 2 ? (p[0][0]+p[p.length-1][0]).toUpperCase() : p[0].substring(0,2).toUpperCase()
 })
-
-// ── Annual review — wired to provider.plan.review.complete ────────────
-const annualReviewForm = useForm({
-  checklist: {
-    stewards:    false,
-    incidents:   false,
-    documents:   false,
-    vault:       false,
-    tasks:       false,
-    fees:        false,
-    contacts:    false,
-    preferences: false,
-  },
-  notes: '',
-})
-const allReviewChecked = computed(() => Object.values(annualReviewForm.checklist).every(Boolean))
-function submitAnnualReview() {
-  annualReviewForm.post(route('provider.plan.review.complete'), {
-    onSuccess: () => { modals.annualReview = false; toast.success('Annual review submitted.') },
-    onError:   () => toast.error('Please complete all checklist items.'),
-  })
-}
 
 // ── CEU form — wired to provider.ceus.store ────────────────────────────
 // ── CEU Add form — wired to provider.ceus.store ────────────────────────
