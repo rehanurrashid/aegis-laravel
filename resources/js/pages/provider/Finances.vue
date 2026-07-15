@@ -270,8 +270,9 @@
     <!-- ══════════════════════════════ TAB: CS WALLET ══════════════════════════════ -->
     <div v-show="activeTab === 'executor'">
       <div class="stat-chips-row" style="margin-bottom:24px;">
-        <AegisStatChip icon="shield" :value="formatMoney(csAgreedTotal / 100)" label="Agreed CS Fees"       bg-color="var(--badge-bg-gold)" icon-color="var(--gold-dark)" />
-        <AegisStatChip icon="users"  :value="csStewards.length"                  label="Active Stewards"      bg-color="var(--badge-bg-gold)" icon-color="var(--gold-dark)" />
+        <AegisStatChip icon="shield" :value="formatMoney(csAgreedTotal / 100)" label="Agreed CS Fees"            bg-color="var(--badge-bg-gold)" icon-color="var(--gold-dark)" />
+        <AegisStatChip icon="file-text" :value="feeCs.length"                  label="CS Agreements with Fee"    bg-color="var(--badge-bg-gold)" icon-color="var(--gold-dark)" />
+        <AegisStatChip icon="users"     :value="csStewards.length"              label="Active Stewards"           bg-color="var(--badge-bg-gold)" icon-color="var(--gold-dark)" />
       </div>
 
       <div class="alert alert-info" style="margin-bottom:20px;">
@@ -293,66 +294,176 @@
         </template>
       </AegisEmptyState>
 
-      <div v-for="cs in csStewards" :key="cs.id" class="cspay-card">
-        <div class="cspay-body">
-          <div class="cspay-top">
-            <a :href="profileHref(cs.slug, 'cs')" target="_blank" class="avatar avatar-md avatar-gold" data-tooltip="View profile" style="text-decoration:none;">
-              {{ cs.initials }}
-            </a>
-            <div class="cspay-id">
-              <div class="cspay-name-row">
-                <a :href="profileHref(cs.slug, 'cs')" target="_blank" class="cspay-name">{{ cs.display_name }}</a>
-                <AegisBadge :label="payTermsLabel(cs.payment_model)" variant="gold" />
-                <span class="connect-pill" :class="cs.stripe_connected ? 'is-connected' : 'is-not-connected'">
-                  <span class="status-dot"></span>
-                  {{ cs.stripe_connected ? 'Stripe Connected' : 'Not Connected' }}
-                </span>
-              </div>
-              <div class="cspay-role">{{ cs.role_label }}</div>
-            </div>
-            <div class="cspay-actions">
-              <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Payment history" @click="openPayArrangement(cs)">
-                <AegisIcon name="clock" :size="13" />
-              </button>
-              <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Update payment model" @click="openChangePayModel(cs)">
-                <AegisIcon name="settings" :size="13" />
-              </button>
-              <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Cancel agreement" @click="openCancelCs(cs)">
-                <AegisIcon name="trash" :size="13" />
-              </button>
-            </div>
-          </div>
+      <!-- ── CS Steward table (matches SessionTable sic-* pattern) ── -->
+      <div v-if="csStewards.length" class="sic-table-wrap">
+        <table class="sic-table">
+          <thead>
+            <tr>
+              <th class="sic-th">Steward</th>
+              <th class="sic-th">Fee / Activation</th>
+              <th class="sic-th">Terms</th>
+              <th class="sic-th">Status</th>
+              <th class="sic-th"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="cs in csStewards" :key="cs.id">
+              <!-- ── PRIMARY ROW ── -->
+              <tr
+                class="sic-row"
+                :class="{
+                  'sic-row--expanded': expandedCs === cs.id,
+                  'sic-row--warning': !cs.stripe_connected || cs.has_pending_fee_amendment,
+                }"
+              >
+                <!-- Col 1: Avatar + name + role -->
+                <td class="sic-td sic-td--party">
+                  <div class="sic-party">
+                    <div class="sic-avatar sic-avatar--gold">
+                      <span class="sic-avatar-initials">{{ cs.initials }}</span>
+                    </div>
+                    <div class="sic-party-info">
+                      <a :href="profileHref(cs.slug, 'cs')" target="_blank" class="sic-party-name">{{ cs.display_name }}</a>
+                      <span class="sic-service-name">{{ cs.role_label }}</span>
+                      <span v-if="!cs.stripe_connected" class="sic-date-sub" style="color:var(--orange-dark);">
+                        <AegisIcon name="alert-triangle" :size="11" /> Stripe not connected
+                      </span>
+                      <span v-else-if="cs.has_pending_fee_amendment" class="sic-date-sub" style="color:var(--orange-dark);">
+                        <AegisIcon name="clock" :size="11" /> Fee amendment pending signature
+                      </span>
+                    </div>
+                  </div>
+                </td>
+                <!-- Col 2: Fee -->
+                <td class="sic-td" style="font-weight:700;font-family:var(--font-serif);font-size:15px;">
+                  {{ formatCents(cs.fee_cents) }}
+                </td>
+                <!-- Col 3: Terms + auto-charge -->
+                <td class="sic-td">
+                  <div style="display:flex;flex-direction:column;gap:3px;">
+                    <AegisBadge :label="payTermsLabel(cs.payment_model)" variant="gold" />
+                    <span style="font-size:11px;color:var(--text-4);">{{ cs.auto_charge ? 'Auto-charge on' : 'Manual pay' }}</span>
+                  </div>
+                </td>
+                <!-- Col 4: Stripe + invoice pending badges -->
+                <td class="sic-td">
+                  <div class="sic-badges">
+                    <span class="connect-pill" :class="cs.stripe_connected ? 'is-connected' : 'is-not-connected'">
+                      <span class="status-dot"></span>
+                      {{ cs.stripe_connected ? 'Stripe Connected' : 'Not Connected' }}
+                    </span>
+                    <AegisBadge
+                      v-if="cs.invoices && cs.invoices.filter(i => i.payable).length"
+                      :label="cs.invoices.filter(i => i.payable).length + ' due'"
+                      variant="gold"
+                    />
+                  </div>
+                </td>
+                <!-- Col 5: Actions + expand chevron -->
+                <td class="sic-td sic-td--actions">
+                  <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Update payment model" @click="openChangePayModel(cs)">
+                    <AegisIcon name="settings" :size="13" />
+                  </button>
+                  <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Cancel agreement" @click="openCancelCs(cs)">
+                    <AegisIcon name="trash" :size="13" />
+                  </button>
+                  <button
+                    type="button" class="btn-icon"
+                    :data-tooltip="expandedCs === cs.id ? 'Collapse' : 'View invoices &amp; details'"
+                    @click="expandedCs = expandedCs === cs.id ? null : cs.id"
+                  >
+                    <AegisIcon :name="expandedCs === cs.id ? 'chevron-up' : 'chevron-right'" :size="15" />
+                  </button>
+                </td>
+              </tr>
 
-          <div class="cspay-meta">
-            <div class="cspay-meta-item">
-              <div class="cspay-meta-label">Agreed Fee per Activation</div>
-              <div class="cspay-meta-value amount">{{ formatCents(cs.fee_cents) }}</div>
-            </div>
-            <div class="cspay-meta-item">
-              <div class="cspay-meta-label">Payment Terms</div>
-              <div class="cspay-meta-value">{{ payTermsLabel(cs.payment_model) }}</div>
-            </div>
-            <div class="cspay-meta-item">
-              <div class="cspay-meta-label">Auto-charge</div>
-              <div class="cspay-meta-value">{{ cs.auto_charge ? 'Enabled' : 'Manual' }}</div>
-            </div>
-          </div>
+              <!-- ── EXPANDED DETAIL PANEL ── -->
+              <tr v-if="expandedCs === cs.id" class="sic-row-detail">
+                <td colspan="5" class="sic-td-detail">
 
-          <div v-if="!cs.stripe_connected" class="cspay-note cspay-note--warning" style="margin-bottom:10px;">
-            <span class="cspay-note-icon--warning"><AegisIcon name="alert-triangle" :size="16" /></span>
-            <p>
-              <strong>{{ cs.display_name }} hasn't finished Stripe Connect onboarding.</strong>
-              Until they do, the agreed fee can't be routed to them automatically. Ask them to complete payment setup in their portal.
-            </p>
-          </div>
+                  <!-- Warning banners -->
+                  <div v-if="!cs.stripe_connected" class="cspay-note cspay-note--warning" style="margin-bottom:12px;">
+                    <span class="cspay-note-icon--warning"><AegisIcon name="alert-triangle" :size="16" /></span>
+                    <p><strong>{{ cs.display_name }} hasn't finished Stripe Connect onboarding.</strong>
+                    Until they do, the agreed fee can't be routed to them automatically. Ask them to complete payment setup in their portal.</p>
+                  </div>
+                  <div v-if="cs.has_pending_fee_amendment" class="cspay-note cspay-note--warning" style="margin-bottom:12px;">
+                    <span class="cspay-note-icon--warning"><AegisIcon name="clock" :size="16" /></span>
+                    <p>A fee amendment is pending <strong>{{ cs.display_name }}'s</strong> countersignature.
+                    The current fee of <strong>{{ formatCents(cs.fee_cents) }}</strong> remains in effect until signed.
+                    <a :href="route('provider.documents.index')" style="color:var(--gold-dark)">View in Documents →</a></p>
+                  </div>
 
-          <div class="cspay-note">
-            <span class="cspay-note-icon"><AegisIcon name="shield" :size="16" /></span>
-            <p>
-              The agreed fee of <strong>{{ formatCents(cs.fee_cents) }}</strong> is charged directly to {{ cs.display_name }} through your saved Stripe payment authorization when a critical incident is verified. Aegis does not hold these funds.
-            </p>
-          </div>
-        </div>
+                  <!-- Invoice history sub-table -->
+                  <div v-if="cs.invoices && cs.invoices.length">
+                    <div class="csdt-inv-header">
+                      <span class="csdt-inv-label">Invoice History</span>
+                      <nav class="tabs-segmented" style="width:fit-content;">
+                        <button type="button" class="tab-pill" :class="{ active: (csInvFilter[cs.id] ?? 'all') === 'all' }" @click="setCsInvFilter(cs.id, 'all')">All</button>
+                        <button type="button" class="tab-pill" :class="{ active: csInvFilter[cs.id] === 'payable' }" @click="setCsInvFilter(cs.id, 'payable')">
+                          Due <span class="sessions-chip-count">{{ cs.invoices.filter(i => i.payable).length }}</span>
+                        </button>
+                        <button type="button" class="tab-pill" :class="{ active: csInvFilter[cs.id] === 'paid' }" @click="setCsInvFilter(cs.id, 'paid')">Paid</button>
+                        <button type="button" class="tab-pill" :class="{ active: csInvFilter[cs.id] === 'disputed' }" @click="setCsInvFilter(cs.id, 'disputed')">Disputed</button>
+                      </nav>
+                    </div>
+                    <table class="sic-table csdt-inv-table">
+                      <thead>
+                        <tr>
+                          <th class="sic-th">Invoice</th>
+                          <th class="sic-th">Issued</th>
+                          <th class="sic-th">Amount</th>
+                          <th class="sic-th">Status</th>
+                          <th class="sic-th"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="inv in paginatedCsInvoices(cs)" :key="inv.id" class="sic-row">
+                          <td class="sic-td">{{ inv.invoice_number }}</td>
+                          <td class="sic-td">{{ inv.issued_at ?? '—' }}</td>
+                          <td class="sic-td" style="font-weight:700;font-family:var(--font-serif)">{{ formatCents(inv.total_cents) }}</td>
+                          <td class="sic-td">
+                            <AegisBadge
+                              :label="inv.status"
+                              :variant="inv.status === 'paid' ? 'green' : inv.status === 'disputed' ? 'red' : inv.payable ? 'gold' : 'neutral'"
+                            />
+                          </td>
+                          <td class="sic-td sic-td--actions">
+                            <button v-if="inv.payable && has_valid_default_pm" type="button" class="btn btn-primary" @click="askPayCs(inv)">Pay Now</button>
+                            <button v-else-if="inv.payable && !has_valid_default_pm" type="button" class="btn btn-outline" @click="activeTab = 'methods'">Add Card</button>
+                            <button v-if="inv.disputed" type="button" class="btn btn-outline" @click="openDisputeDetail(inv)">View Dispute</button>
+                            <button type="button" class="btn-icon btn-icon-sm" data-tooltip="View invoice" @click="viewCsInvoice(inv)">
+                              <AegisIcon name="eye" :size="13" />
+                            </button>
+                          </td>
+                        </tr>
+                        <tr v-if="!filteredCsInvoices(cs).length">
+                          <td colspan="5" style="text-align:center;padding:16px;color:var(--text-3);font-size:13px;">
+                            No invoices {{ (csInvFilter[cs.id] ?? 'all') !== 'all' ? 'in this filter' : 'yet' }}.
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <!-- Pagination for invoice sub-table -->
+                    <div v-if="csTotalPages(cs) > 1" style="padding:10px 0 0;display:flex;justify-content:center;">
+                      <AegisPagination
+                        :current-page="csInvPage[cs.id] ?? 1"
+                        :total-pages="csTotalPages(cs)"
+                        @change="p => setCsInvPage(cs.id, p)"
+                      />
+                    </div>
+                  </div>
+                  <AegisEmptyState
+                    v-else
+                    icon="file-text"
+                    title="No invoices yet"
+                    description="Invoices appear here when a critical incident closes and the CS fee becomes due."
+                  />
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -1011,6 +1122,49 @@ const props = defineProps({
   spendingControls:        { type: Object,  default: () => ({ auto_pay: false, approval_threshold: 500, monthly_limit: 5000 }) },
 })
 
+// ── CS fee-bearing stewards (FIX 3) ─────────────────────────────────────
+const feeCs = computed(() => props.csStewards.filter(cs => cs.fee_cents > 0))
+
+// ── CS Wallet: expand/collapse + invoice filter + pagination ─────────────
+const expandedCs  = ref(null) // steward id of currently expanded row
+const csInvFilter = ref({})   // { [steward_id]: 'all'|'payable'|'paid'|'disputed' }
+const csInvPage   = ref({})   // { [steward_id]: page number }
+const CS_INV_PER_PAGE = 5
+
+function setCsInvFilter(id, filter) { csInvFilter.value[id] = filter; csInvPage.value[id] = 1 }
+function setCsInvPage(id, page)    { csInvPage.value[id] = page }
+
+function filteredCsInvoices(cs) {
+  const filter = csInvFilter.value[cs.id] ?? 'all'
+  if (filter === 'payable')  return cs.invoices.filter(i => i.payable)
+  if (filter === 'paid')     return cs.invoices.filter(i => i.status === 'paid')
+  if (filter === 'disputed') return cs.invoices.filter(i => i.disputed)
+  return cs.invoices
+}
+
+function paginatedCsInvoices(cs) {
+  const list  = filteredCsInvoices(cs)
+  const page  = csInvPage.value[cs.id] ?? 1
+  const start = (page - 1) * CS_INV_PER_PAGE
+  return list.slice(start, start + CS_INV_PER_PAGE)
+}
+
+function csTotalPages(cs) {
+  return Math.max(1, Math.ceil(filteredCsInvoices(cs).length / CS_INV_PER_PAGE))
+}
+function viewCsInvoice(inv) {
+  const full = props.csInvoices.find(i => i.id === inv.id)
+  activeInvoice.value = full ? { ...full, kind: 'cs_invoice' } : { ...inv, kind: 'cs_invoice' }
+  modals.value.viewReceipt = true
+}
+function openDisputeDetail(inv) {
+  // Switch to dispute section within Finances — disputes tab not in sidebar,
+  // so open the ViewInvoiceModal to show dispute context
+  const full = props.csInvoices.find(i => i.id === inv.id)
+  activeInvoice.value = full ? { ...full, kind: 'cs_invoice' } : { ...inv, kind: 'cs_invoice' }
+  modals.value.viewReceipt = true
+}
+
 // ── Tab + BP filter state ───────────────────────────────────────────────
 const activeTab = ref('overview')
 
@@ -1221,7 +1375,11 @@ function doCancelCsAgreement() {
   if (!activeCs.value) return
   cancelCsForm.post(route('provider.finances.cs-steward.cancel', { steward: activeCs.value.id }), {
     preserveScroll: true,
-    onSuccess: () => { modals.value.cancelCsAgreement = false; toast.info('Continuity Steward agreement cancelled.') },
+    onSuccess: () => {
+      modals.value.cancelCsAgreement = false
+      toast.info('Agreement cancelled. The steward has been removed from your plan.')
+      router.visit(route('provider.stewards.index'))
+    },
   })
 }
 
@@ -1431,22 +1589,17 @@ function paymentTypeLabel(t) {
 .upcoming-more  { padding: 8px 0; text-align: center; font-size: 12px; color: var(--gold-dark); cursor: pointer; font-weight: 600; }
 .upcoming-more:hover { color: var(--text); }
 
-/* ── CS payment cards ── */
-.cspay-card        { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: 14px; }
-.cspay-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--gold-dark); }
-.cspay-body        { padding: 22px 24px; }
-.cspay-top         { display: flex; align-items: center; gap: 14px; }
-.cspay-id          { flex: 1; min-width: 0; }
-.cspay-name-row    { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-.cspay-name        { font-family: var(--font-serif); font-size: 16px; font-weight: 600; color: var(--text); text-decoration: none; }
-.cspay-name:hover  { color: var(--gold-dark); }
-.cspay-role        { font-size: 12px; color: var(--text-3); margin-top: 3px; }
-.cspay-actions     { display: flex; gap: 6px; flex-shrink: 0; }
-.cspay-meta        { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 20px 0; padding: 18px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-.cspay-meta-item:not(:last-child) { border-right: 1px solid var(--border); }
-.cspay-meta-label  { font-size: 10px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-4); margin-bottom: 7px; }
-.cspay-meta-value  { font-family: var(--font-serif); font-weight: 600; color: var(--text); line-height: 1; font-size: 15px; }
-.cspay-meta-value.amount { font-size: 22px; }
+/* ── CS steward table rows ── */
+.sic-row--expanded > td { background: var(--badge-bg-gold) !important; }
+.sic-row--warning  > td:first-child { border-left: 3px solid var(--orange-dark); }
+.sic-row-detail > td { padding: 0; }
+.sic-td-detail     { padding: 18px 22px !important; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+.sic-avatar--gold  { background: var(--badge-bg-gold) !important; color: var(--gold-dark) !important; border: 1px solid var(--badge-border-gold); }
+.csdt-inv-header   { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.csdt-inv-label    { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); }
+.csdt-inv-table    { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+
+/* keep cspay-note/warning used in detail panel */
 .cspay-note        { display: flex; align-items: flex-start; gap: 10px; padding: 13px 15px; border-radius: var(--radius); background: var(--blue-light); border: 1px solid var(--soft-blue); }
 .cspay-note p      { font-size: 12px; color: var(--text-2); line-height: 1.5; margin: 0; }
 .cspay-note-icon         { color: var(--gold-dark); flex-shrink: 0; margin-top: 1px; }

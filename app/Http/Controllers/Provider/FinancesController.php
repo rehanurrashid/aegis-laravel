@@ -287,28 +287,69 @@ class FinancesController extends Controller
         $plan       = ContinuityPlan::where('practitioner_id', $user->id)->first();
         $csStewards = collect();
         if ($plan) {
+            // Pre-load CS invoices grouped by cs_id for per-steward invoice table (FIX 2)
+            $csInvoicesBySteward = CsInvoice::where('practitioner_id', $user->id)
+                ->orderByDesc('created_at')
+                ->get()
+                ->groupBy('cs_id');
+
             $csStewards = PlanSteward::where('plan_id', $plan->id)
                 ->where('steward_category', 'continuity_steward')
                 ->where('status', StewardStatus::Active->value)
                 ->with(['steward:id,display_name,slug,stripe_connected,stripe_account_id'])
                 ->get()
-                ->map(function (PlanSteward $ps) {
+                ->map(function (PlanSteward $ps) use ($user, $csInvoicesBySteward) {
                     $steward     = $ps->steward;
                     $role        = $ps->role instanceof \App\Enums\StewardRole ? $ps->role->value : (string) $ps->role;
                     $displayName = $steward?->display_name ?? '—';
+
+                    // FIX 1 — pending fee amendment flags
+                    $hasPendingAmendment = \App\Models\ContinuityDocument::where('practitioner_id', $user->id)
+                        ->where('holder_steward_id', $ps->steward_id)
+                        ->where('doc_type', 'fee_amendment')
+                        ->whereIn('status', ['pending_sign', 'countersign_pending'])
+                        ->exists();
+
+                    $pendingAmendmentAmount = \App\Models\ContinuityDocument::where('practitioner_id', $user->id)
+                        ->where('holder_steward_id', $ps->steward_id)
+                        ->where('doc_type', 'fee_amendment')
+                        ->whereIn('status', ['pending_sign', 'countersign_pending'])
+                        ->latest()
+                        ->value('notes');
+
+                    // FIX 2 — per-steward invoice list
+                    $stewardInvoices = ($csInvoicesBySteward[$ps->steward_id] ?? collect())
+                        ->map(function ($inv) {
+                            $status = $inv->status instanceof InvoiceStatus ? $inv->status->value : (string) $inv->status;
+                            return [
+                                'id'             => $inv->id,
+                                'invoice_number' => $inv->invoice_number ?? substr($inv->id, 0, 10),
+                                'status'         => $status,
+                                'total_cents'    => (int) $inv->total_cents,
+                                'issued_at'      => $inv->issued_at?->toDateString(),
+                                'paid_at'        => $inv->paid_at?->toDateString(),
+                                'due_date'       => $inv->due_date?->toDateString(),
+                                'payable'        => in_array($status, [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value], true),
+                                'disputed'       => $status === InvoiceStatus::Disputed->value,
+                            ];
+                        })->values()->toArray();
+
                     return [
-                        'id'              => $ps->id,
-                        'steward_id'      => $ps->steward_id,
-                        'display_name'    => $displayName,
-                        'slug'            => $steward?->slug,
-                        'initials'        => strtoupper(mb_substr($displayName, 0, 2)),
-                        'role'            => $role,
-                        'role_label'      => $role === 'primary' ? 'Primary Continuity Steward' : ucfirst($role) . ' Continuity Steward',
-                        'fee_cents'       => (int) ($ps->fee_cents ?? 0),
-                        'payment_model'   => $ps->payment_terms ?? 'on_close',
-                        'payment_terms'   => $ps->payment_terms ?? 'on_close',
-                        'auto_charge'     => (bool) ($ps->auto_charge ?? false),
-                        'stripe_connected'=> (bool) ($steward?->stripe_connected ?? false),
+                        'id'                       => $ps->id,
+                        'steward_id'               => $ps->steward_id,
+                        'display_name'             => $displayName,
+                        'slug'                     => $steward?->slug,
+                        'initials'                 => strtoupper(mb_substr($displayName, 0, 2)),
+                        'role'                     => $role,
+                        'role_label'               => $role === 'primary' ? 'Primary Continuity Steward' : ucfirst($role) . ' Continuity Steward',
+                        'fee_cents'                => (int) ($ps->fee_cents ?? 0),
+                        'payment_model'            => $ps->payment_terms ?? 'on_close',
+                        'payment_terms'            => $ps->payment_terms ?? 'on_close',
+                        'auto_charge'              => (bool) ($ps->auto_charge ?? false),
+                        'stripe_connected'         => (bool) ($steward?->stripe_connected ?? false),
+                        'has_pending_fee_amendment'=> $hasPendingAmendment,
+                        'pending_amendment_amount' => $pendingAmendmentAmount,
+                        'invoices'                 => $stewardInvoices,
                     ];
                 })->values();
         }
