@@ -179,7 +179,11 @@ class DashboardController extends Controller
             'planStatus'         => $plan?->status ?? 'none',
             'plan'               => $plan,
             'attest'             => $attest,
-            'activeStewardCount' => $stewards->filter(fn ($s) => $s->status === StewardStatus::Active)->count(),
+            'activeStewardCount'  => $stewards->filter(fn ($s) => $s->status === StewardStatus::Active)->count(),
+            'activeCsCount'       => $csActive->count(),
+            'activeSsCount'       => $ssActive->count(),
+            'supportTeamTotal'    => $csStewards->count() + $ssStewards->count(),
+            'supportTeamActive'   => $csActive->count() + $ssActive->count(),
             'maatActive'         => (bool) ($user->meta['maat_cs_active'] ?? false),
             'reviewDays'         => $reviewDays,
             'stats'              => [

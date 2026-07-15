@@ -52,10 +52,10 @@
           <div class="dh-greet-mcell">
             <div class="dh-greet-mlabel">Stewards</div>
             <div class="dh-greet-mval"
-              :style="activeStewardCount >= 2 ? 'color:var(--green-dark)' : activeStewardCount === 1 ? 'color:var(--gold-dark)' : 'color:var(--text-4)'"
+              :style="activeCsCount >= 1 ? 'color:var(--green-dark)' : activeSsCount >= 1 ? 'color:var(--gold-dark)' : 'color:var(--text-4)'"
             >
-              <AegisIcon :name="activeStewardCount >= 2 ? 'shield-check' : 'users'" :size="14" />
-              {{ activeStewardCount }} active
+              <AegisIcon :name="activeCsCount >= 1 ? 'shield-check' : 'users'" :size="14" />
+              {{ activeCsCount }} CS · {{ activeSsCount }} SS
             </div>
           </div>
           <div class="dh-greet-mcell">
@@ -182,7 +182,7 @@
             <div style="flex:1;min-width:0">
               <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3)">Support Team</div>
               <div style="font-size:13px;color:var(--text);margin-top:2px">
-                <strong>{{ activeStewardCount }} of 5</strong> designated
+                <strong>{{ supportTeamActive }} of {{ supportTeamTotal }}</strong> designated
                 <span style="color:var(--text-3);font-weight:400">· Primary &amp; Alternate Stewards</span>
               </div>
             </div>
@@ -219,7 +219,18 @@
         <div class="dh-cn-left">
           <div class="dh-cn-eyebrow">
             <span class="dh-cn-pulse"></span>
-            Continuity Plan · Active since {{ planSince }}
+            <template v-if="planStatus === 'active' && !attest.plan_review_due">
+              Continuity Plan · Active since {{ planSince }}
+            </template>
+            <template v-else-if="attest.plan_review_due || planStatus === 'annual_review_due'">
+              Continuity Plan · Annual Review Due
+            </template>
+            <template v-else-if="planStatus === 'draft'">
+              Continuity Plan · Draft in Progress
+            </template>
+            <template v-else>
+              Continuity Plan · Not yet created
+            </template>
           </div>
           <div class="dh-cn-title">Your practice continues,<br>even when you can't.</div>
           <div class="dh-cn-desc">When circumstances change, your Continuity Plan helps you keep care connected for your clients, records remain supported, and your stewards know what to do.</div>
@@ -900,7 +911,11 @@ const props = defineProps({
   plan:               { type: Object,  default: null },
   attest:             { type: Object,  default: () => ({}) },
   stats:              { type: Object,  default: () => ({}) },
-  activeStewardCount: { type: Number,  default: 0 },
+  activeStewardCount:  { type: Number,  default: 0 },
+  activeCsCount:       { type: Number,  default: 0 },
+  activeSsCount:       { type: Number,  default: 0 },
+  supportTeamTotal:    { type: Number,  default: 0 },
+  supportTeamActive:   { type: Number,  default: 0 },
   maatActive:         { type: Boolean, default: false },
   reviewDays:         { type: Number,  default: 0 },
   activeIncident:     { type: Object,  default: null },
