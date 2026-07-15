@@ -239,7 +239,6 @@ class ProfileController extends Controller
 
     private function recomputeCompletion(\App\Models\User $user): void
     {
-        $pct = $this->completion->compute($user);
-        $user->update(['profile_completion' => $pct]);
+        $this->completion->recompute($user);
     }
 }

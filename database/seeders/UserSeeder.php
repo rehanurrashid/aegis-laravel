@@ -144,6 +144,7 @@ class UserSeeder extends Seeder
                 'practitioner_public' => 1,
                 'tier'             => 'access',
                 'verified'         => 0,
+                'profile_completion' => 44,
                 'last_login_at'    => $now->copy()->subDays(3),
                 'created_at'       => $now->copy()->subWeeks(2),
                 'updated_at'       => $now->copy()->subDays(3),

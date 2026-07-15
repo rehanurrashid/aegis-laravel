@@ -47,8 +47,7 @@ class ProviderCredentialController extends Controller
             'sort_order'    => (ProviderCredential::where('user_id', $request->user()->id)->max('sort_order') ?? 0) + 1,
         ]);
 
-        $storeUser = $request->user();
-        $storeUser->update(['profile_completion' => $this->completion->compute($storeUser)]);
+        $this->completion->recompute($request->user());
         return back()->with('success', 'Credential added.');
     }
 
@@ -97,8 +96,7 @@ class ProviderCredentialController extends Controller
         }
 
         $credential->delete();
-        $user = $request->user();
-        $user->update(['profile_completion' => $this->completion->compute($user)]);
+        $this->completion->recompute($request->user());
         return back()->with('success', 'Credential removed.');
     }
 

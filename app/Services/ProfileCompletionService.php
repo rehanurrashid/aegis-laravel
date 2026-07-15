@@ -48,6 +48,19 @@ class ProfileCompletionService
         return (int) round(($filled / count($checks)) * 100);
     }
 
+    public function recompute(User $user): int
+    {
+        $pct = $this->compute($user);
+        $user->update(['profile_completion' => $pct]);
+        return $pct;
+    }
+
+    public function itemsRemaining(User $user): int
+    {
+        $pct = $this->compute($user);
+        return max(0, 9 - (int) round(($pct / 100) * 9));
+    }
+
     private function metaValue(User $user, string $key): mixed
     {
         $row = $user->meta->firstWhere('meta_key', $key);

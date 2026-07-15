@@ -87,7 +87,7 @@
            across all portals (Provider / CS / SS / BP / Admin). -->
       <ProfileCompletionStrip
         :pct="profileCompletion"
-        :subtitle="profileCompletion >= 100 ? '' : `${Math.max(0, 9 - Math.round((profileCompletion / 100) * 9))} items remaining — complete your profile to improve discovery`"
+        :subtitle="profileCompletion >= 100 ? '' : `${Math.max(0, 9 - Math.round((profileCompletion / 100) * 9))} item${Math.max(0, 9 - Math.round((profileCompletion / 100) * 9)) !== 1 ? 's' : ''} remaining — complete your profile to improve discovery`"
         :edit-href="route('provider.profile.index')"
       />
 
