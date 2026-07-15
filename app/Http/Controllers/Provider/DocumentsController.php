@@ -31,15 +31,14 @@ class DocumentsController extends Controller
         $user = $request->user();
         $plan = $this->plans->getForPractitioner($user->id);
 
-        $allDocs = $plan
-            ? $this->documents->getForPlan($plan->id)->load(['signedBy', 'countersignedBy', 'holderSteward'])
-            : collect();
+        $allDocs = $this->documents->getForPractitioner($user->id)
+            ->load(['signedBy', 'countersignedBy', 'holderSteward']);
 
         $now = Carbon::now();
 
         // Separate supporting docs from continuity plan documents
-        $continuityDocs   = $allDocs->where('is_supporting', false)->values();
-        $supportingDocs   = $allDocs->where('is_supporting', true)->values();
+        $continuityDocs   = $allDocs->filter(fn ($d) => !(bool) $d->is_supporting)->values();
+        $supportingDocs   = $allDocs->filter(fn ($d) => (bool) $d->is_supporting)->values();
 
         // Shape documents for Vue
         $shapedDocs = $continuityDocs->map(fn ($doc) => $this->shapeDoc($doc, $user, $now));

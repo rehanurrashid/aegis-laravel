@@ -375,9 +375,8 @@ class PlanService
             ->where('status', 'active')
             ->where('fee_cents', '>', 0)
             ->exists();
-        $allPlanIds = ContinuityPlan::where('practitioner_id', $plan->practitioner_id)->pluck('id');
         $docsComplete = !$hasFeeCs
-            || \App\Models\ContinuityDocument::whereIn('plan_id', $allPlanIds)
+            || \App\Models\ContinuityDocument::where('practitioner_id', $plan->practitioner_id)
                 ->where('doc_type', 'cs_engagement_agreement')
                 ->where('status', 'fully_executed')
                 ->exists();

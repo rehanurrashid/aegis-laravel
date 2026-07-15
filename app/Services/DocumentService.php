@@ -256,6 +256,13 @@ class DocumentService
             ->get();
     }
 
+    public function getForPractitioner(string $practitionerId): Collection
+    {
+        return ContinuityDocument::where('practitioner_id', $practitionerId)
+            ->orderByDesc('created_at')
+            ->get();
+    }
+
     // ── Legacy compat ──────────────────────────────────────────────────────────
 
     public function requestRelease(ContinuityDocument $doc, User $requester): void
