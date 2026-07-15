@@ -407,6 +407,9 @@ class StewardService
      */
     public function updateFee(PlanSteward $steward, int $newFeeCents, string $paymentTerms, User $actor): ContinuityDocument
     {
+        // Normalize legacy alias: per_incident is identical to on_close
+        $paymentTerms = $paymentTerms === 'per_incident' ? 'on_close' : $paymentTerms;
+
         $oldFeeCents = (int) ($steward->fee_cents ?? 0);
         $newFeeFormatted = number_format($newFeeCents / 100, 2);
 
@@ -458,6 +461,8 @@ class StewardService
             'log',
             $actor->id
         );
+
+        event(new \App\Events\Steward\CsFeeAmended($steward, $doc, $actor));
 
         return $doc;
     }

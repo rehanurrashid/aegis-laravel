@@ -83,6 +83,7 @@ use App\Events\Steward\StewardInviteResent;
 use App\Events\Steward\StewardRemoved;
 use App\Events\Steward\SsSuspended;
 use App\Events\Steward\SsReinstated;
+use App\Events\Steward\CsFeeAmended;
 use App\Events\Support\FeedbackReceived;
 use App\Events\Support\TicketCreated;
 use App\Events\Support\TicketReplied;
@@ -141,6 +142,7 @@ class SendEmailNotificationListener
             $event instanceof StewardInviteCancelled    => $this->stewardInviteCancelled($event),
             $event instanceof SsSuspended              => $this->ssSuspended($event),
             $event instanceof SsReinstated             => $this->ssReinstated($event),
+            $event instanceof CsFeeAmended             => $this->csFeeAmended($event),
             $event instanceof IncidentClosed          => $this->incidentClosed($event),
             $event instanceof ProposalAccepted        => $this->proposalAccepted($event),
             $event instanceof ProposalDeclined        => $this->proposalDeclined($event),
@@ -441,6 +443,34 @@ class SendEmailNotificationListener
                      'ss_name'           => $ssUser?->display_name ?? 'there',
                      'practitioner_name' => $practitionerName,
                      'portal_url'        => rtrim(config('app.url'), '/') . '/support-steward/dashboard',
+                 ]]];
+    }
+
+    private function csFeeAmended(CsFeeAmended $e): array
+    {
+        if (!$e->steward->steward_id) {
+            return [];
+        }
+        $notes        = is_string($e->document->notes) ? json_decode($e->document->notes, true) : ($e->document->notes ?? []);
+        $oldFee       = number_format((($notes['old_fee_cents'] ?? 0) / 100), 2);
+        $newFee       = number_format((($notes['new_fee_cents'] ?? 0) / 100), 2);
+        $paymentTerms = $notes['payment_terms'] ?? 'on_close';
+        $csUser       = \App\Models\User::find($e->steward->steward_id);
+        $termsLabel   = match ($paymentTerms) {
+            'net_30'   => 'Net 30',
+            'net_60'   => 'Net 60',
+            default    => 'Upon Incident Close',
+        };
+        return [['user_id' => $e->steward->steward_id, 'gate_key' => 'notify_cs_activity',
+                 'template' => 'emails.steward.24-cs-fee-amendment',
+                 'data' => [
+                     'provider_name' => $e->actor->display_name ?? 'Your Practitioner',
+                     'cs_name'       => $csUser?->display_name ?? 'there',
+                     'old_fee'       => $oldFee,
+                     'new_fee'       => $newFee,
+                     'payment_terms' => $termsLabel,
+                     'doc_id'        => $e->document->id,
+                     'portal_url'    => rtrim(config('app.url'), '/') . '/continuity-steward/documents',
                  ]]];
     }
 

@@ -65,6 +65,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Steward\StewardRemoved::class,        Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Steward\StewardInviteResent::class,    Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Steward\StewardInviteCancelled::class, Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Steward\CsFeeAmended::class,           Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Steward\SsSuspended::class,           Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Steward\SsReinstated::class,          Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Incident\IncidentClosed::class,       Listeners\SendEmailNotificationListener::class);

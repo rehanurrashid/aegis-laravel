@@ -83,7 +83,17 @@ class ContinuityStewardController extends Controller
                         'display_name'         => $s->display_name,
                         'review_overdue'       => $s->review_due_at && $s->review_due_at->isPast(),
                         'vault_access'         => is_object($s->vault_access) ? $s->vault_access->value : ($s->vault_access ?? 'scoped'),
-                        'authorized_incidents' => $authorizedIncidents,
+                        'authorized_incidents'         => $authorizedIncidents,
+                        'has_pending_fee_amendment'    => \App\Models\ContinuityDocument::where('plan_id', $plan->id)
+                            ->where('holder_steward_id', $s->steward_id)
+                            ->where('doc_type', 'fee_amendment')
+                            ->whereIn('status', ['pending_sign', 'countersign_pending'])
+                            ->exists(),
+                        'pending_amendment_id'         => \App\Models\ContinuityDocument::where('plan_id', $plan->id)
+                            ->where('holder_steward_id', $s->steward_id)
+                            ->where('doc_type', 'fee_amendment')
+                            ->whereIn('status', ['pending_sign', 'countersign_pending'])
+                            ->value('id'),
                     ];
                 })
                 ->values()
@@ -282,6 +292,16 @@ class ContinuityStewardController extends Controller
             'fee_cents'     => 'required|integer|min:0',
             'payment_terms' => 'required|in:on_close,net_30,net_60',
         ]);
+
+        $hasPending = \App\Models\ContinuityDocument::where('plan_id', $plan->id)
+            ->where('holder_steward_id', $steward->steward_id)
+            ->where('doc_type', 'fee_amendment')
+            ->whereIn('status', ['pending_sign', 'countersign_pending'])
+            ->exists();
+
+        if ($hasPending) {
+            return back()->withErrors(['fee_cents' => 'A fee amendment is already pending countersignature. Wait for your CS to sign or decline before sending another.']);
+        }
 
         $this->stewards->updateFee($steward, (int) $data['fee_cents'], $data['payment_terms'], $request->user());
         return back()->with('success', 'Fee amendment created. Awaiting CS countersignature.');

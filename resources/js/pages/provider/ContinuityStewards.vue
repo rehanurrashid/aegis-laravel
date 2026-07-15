@@ -101,7 +101,7 @@ const editForm = useForm({
 const busyEdit = ref(false)
 
 // ── Amend Fee form ─────────────────────────────────────────────────────────────
-const amendFeeForm = useForm({ fee_cents_display: '', payment_terms: 'per_incident' })
+const amendFeeForm = useForm({ fee_cents_display: '', payment_terms: 'on_close' })
 const busyAmendFee = ref(false)
 
 watch(() => modals.value.amendFee, (open) => {
@@ -109,7 +109,8 @@ watch(() => modals.value.amendFee, (open) => {
     amendFeeForm.fee_cents_display = activeSteward.value.fee_cents
       ? (activeSteward.value.fee_cents / 100).toFixed(2)
       : ''
-    amendFeeForm.payment_terms = activeSteward.value.payment_terms ?? 'per_incident'
+    const rawTerms = activeSteward.value.payment_terms ?? 'on_close'
+    amendFeeForm.payment_terms = rawTerms === 'per_incident' ? 'on_close' : rawTerms
   }
 })
 
@@ -123,7 +124,7 @@ function submitAmendFee() {
   }, {
     preserveScroll: true,
     onSuccess: () => { modals.value.amendFee = false; toast.success('Fee amendment created. Awaiting CS countersignature.'); router.reload({ only: ['stewards'] }) },
-    onError:   () => toast.error('Could not create fee amendment.'),
+    onError:   (errors) => toast.error(errors.fee_cents ?? 'Could not create fee amendment.'),
     onFinish:  () => { busyAmendFee.value = false },
   })
 }
@@ -784,30 +785,36 @@ function saveNotifyPrefs() {
 
     <!-- AMEND FEE MODAL -->
     <AegisModal v-model="modals.amendFee" title="Amend CS Fee" size="sm" @close="modals.amendFee=false">
-      <div class="alert alert-info"><div class="alert-icon"><AegisIcon name="info" :size="14" /></div><div class="alert-content">A fee amendment document will be sent to your Continuity Steward for countersignature. The fee updates once signed.</div></div>
-      <div v-if="activeSteward" style="display:flex;align-items:center;gap:12px;margin:14px 0 4px;">
-        <div style="width:38px;height:38px;border-radius:var(--radius);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{{ initials(stewardName(activeSteward)) }}</div>
-        <div><div style="font-size:13px;font-weight:700;">{{ stewardName(activeSteward) }}</div><div style="font-size:11px;color:var(--text-3);">Current fee: {{ formatMoney(activeSteward.fee_cents) }}</div></div>
+      <!-- Pending guard -->
+      <div v-if="hasPendingFeeAmendment" class="alert alert-warning">
+        <div class="alert-icon"><AegisIcon name="clock" :size="14" /></div>
+        <div class="alert-content">A fee amendment is already awaiting your Continuity Steward's countersignature. You can send a new amendment once they sign or decline the current one.</div>
       </div>
-      <div class="form-group" style="margin-top:14px;">
-        <label class="form-label">New Fee (USD)</label>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <span style="font-size:14px;color:var(--text-3);">$</span>
-          <input v-model="amendFeeForm.fee_cents_display" type="number" min="0" step="0.01" class="form-control" placeholder="0.00" />
+      <template v-if="!hasPendingFeeAmendment">
+        <div class="alert alert-info"><div class="alert-icon"><AegisIcon name="info" :size="14" /></div><div class="alert-content">A fee amendment document will be sent to your Continuity Steward for countersignature. The fee updates once signed.</div></div>
+        <div v-if="activeSteward" style="display:flex;align-items:center;gap:12px;margin:14px 0 4px;">
+          <div style="width:38px;height:38px;border-radius:var(--radius);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{{ initials(stewardName(activeSteward)) }}</div>
+          <div><div style="font-size:13px;font-weight:700;">{{ stewardName(activeSteward) }}</div><div style="font-size:11px;color:var(--text-3);">Current fee: {{ formatMoney(activeSteward.fee_cents) }}</div></div>
         </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Payment Terms</label>
-        <select v-model="amendFeeForm.payment_terms" class="form-control form-select">
-          <option value="per_incident">Per Incident</option>
-          <option value="on_close">Upon Incident Close</option>
-          <option value="net_30">Net 30</option>
-          <option value="net_60">Net 60</option>
-        </select>
-      </div>
+        <div class="form-group" style="margin-top:14px;">
+          <label class="form-label">New Fee (USD)</label>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:14px;color:var(--text-3);">$</span>
+            <input v-model="amendFeeForm.fee_cents_display" type="number" min="0" step="0.01" class="form-control" placeholder="0.00" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Payment Terms</label>
+          <select v-model="amendFeeForm.payment_terms" class="form-control form-select">
+            <option value="on_close">Upon Incident Close</option>
+            <option value="net_30">Net 30</option>
+            <option value="net_60">Net 60</option>
+          </select>
+        </div>
+      </template>
       <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.amendFee=false">Cancel</button>
-        <button type="button" class="btn btn-primary" :disabled="busyAmendFee" style="display:inline-flex;align-items:center;gap:6px;" @click="submitAmendFee">
+        <button type="button" class="btn btn-outline" @click="modals.amendFee=false">{{ hasPendingFeeAmendment ? 'Close' : 'Cancel' }}</button>
+        <button v-if="!hasPendingFeeAmendment" type="button" class="btn btn-primary" :disabled="busyAmendFee" style="display:inline-flex;align-items:center;gap:6px;" @click="submitAmendFee">
           <AegisIcon v-if="busyAmendFee" name="refresh-cw" :size="13" class="btn-spin" />
           <AegisIcon v-else name="send" :size="13" />
           {{ busyAmendFee ? 'Sending…' : 'Send Amendment' }}
