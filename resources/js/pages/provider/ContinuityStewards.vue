@@ -389,9 +389,6 @@ function saveNotifyPrefs() {
             <span class="badge badge-green"><span class="status-dot green"></span> Active</span>
             <span v-if="s.engagement_document?.status === 'fully_executed'" class="badge badge-green" :data-tooltip="'Agreement signed' + (s.countersigned_at ? ' — Countersigned ' + fmtDate(s.countersigned_at) : '')"><AegisIcon name="check" :size="11" /> Agreement Signed</span>
             <span v-else-if="s.engagement_document?.status === 'countersign_pending'" class="badge badge-amber" data-tooltip="Agreement sent — awaiting countersignature"><AegisIcon name="clock" :size="11" /> Awaiting Countersignature</span>
-          </div>
-          <!-- Vault access chip -->
-          <div style="margin-top:6px;display:flex;align-items:center;gap:6px;">
             <span
               :class="{
                 'badge': true,
