@@ -861,7 +861,7 @@ body {
 .auth-checkbox {
     width: 16px;
     height: 16px;
-    border: 1.5px solid var(--border-dark);
+    border: 1px solid var(--border-dark);
     border-radius: 4px;
     background: var(--surface);
     -webkit-appearance: none;
@@ -984,7 +984,7 @@ body {
 .auth-option-chip {
     flex: 1;
     padding: 0.5rem 1rem;
-    border: 1.5px solid var(--border);
+    border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--surface);
     color: var(--text-2);
@@ -1015,7 +1015,7 @@ body {
     align-items: flex-start;
     gap: 0.9rem;
     padding: 0.85rem 1rem;
-    border: 1.5px solid var(--border);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
     background: var(--surface);
     cursor: pointer;

@@ -5501,7 +5501,7 @@ html.theme-slate body {
   .cfg-subcat:first-child { margin-top: 16px; padding-top: 0; }
   .cfg-field-row   { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; }
   .cfg-field-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-2); margin-bottom: 5px; display: block; }
-  .cfg-add-btn     { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: var(--primary); background: none; border: 1.5px dashed var(--border); padding: 5px 12px; border-radius: var(--radius-full); cursor: pointer; transition: all var(--transition); margin-top: 10px; }
+  .cfg-add-btn     { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: var(--primary); background: none; border: 1px dashed var(--border); padding: 5px 12px; border-radius: var(--radius-full); cursor: pointer; transition: all var(--transition); margin-top: 10px; }
   .cfg-add-btn:hover { border-color: var(--primary); background: var(--surface-2); }
   /* cfg-save-bar — fixed at bottom of viewport when tab-config is active (mirrors ep-save-bar pattern) */
   .cfg-save-bar {
@@ -5525,7 +5525,7 @@ html.theme-slate body {
   #tab-config .config-content { padding-bottom: 70px; }
 
   /* ── CONFIG SELECTABLE ITEMS ── */
-  .ctag            { display: inline-flex; align-items: center; padding: 5px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-full); font-size: 12px; font-weight: 600; color: var(--text-2); background: var(--surface-2); cursor: pointer; transition: all var(--transition); margin: 3px 3px 3px 0; user-select: none; }
+  .ctag            { display: inline-flex; align-items: center; padding: 5px 12px; border: 1px solid var(--border); border-radius: var(--radius-full); font-size: 12px; font-weight: 600; color: var(--text-2); background: var(--surface-2); cursor: pointer; transition: all var(--transition); margin: 3px 3px 3px 0; user-select: none; }
   .ctag:hover      { border-color: var(--primary); color: var(--primary); background: var(--surface-2); }
   .ctag.selected   { background: var(--gold-dark); color: #fff; border-color: var(--gold-dark); font-weight: 700; }
   .ctag.hidden     { display: none; }
@@ -5549,7 +5549,7 @@ html.theme-slate body {
     height: 16px;
     min-width: 16px;
     flex-shrink: 0;
-    border: 1.5px solid var(--border-dark);
+    border: 1px solid var(--border-dark);
     border-radius: 4px;
     background: var(--surface);
     background-repeat: no-repeat;
@@ -6558,7 +6558,7 @@ html.theme-slate body {
   .icon-action-btn:hover .icon-action-circle { transform: translateY(-2px); }
   .icon-action-circle { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.15s ease; flex-shrink: 0; }
   .icon-action-circle.c-primary { background: var(--primary); color: #fff; box-shadow: var(--shadow); }
-  .icon-action-circle.c-outline  { background: var(--surface-2); border: 1.5px solid var(--border); color: var(--text-2); }
+  .icon-action-circle.c-outline  { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); }
   .icon-action-circle.c-gold     { background: var(--gold-primary); color: #fff; box-shadow: var(--shadow); }
   .icon-action-circle.c-green    { background: var(--green-light); color: var(--green-dark); }
   .icon-action-circle.c-amber    { background: var(--orange-light); color: var(--orange-dark); }
@@ -6695,11 +6695,11 @@ html.theme-slate body {
   .uc-act-btn:hover .uc-act-circle { transform: translateY(-2px); box-shadow: var(--shadow); }
   .uc-ac-primary { background: var(--primary); color: #fff; }
   .uc-ac-gold    { background: var(--gold-primary); color: #fff; }
-  .uc-ac-green   { background: var(--green-light); color: var(--green-dark); border: 1.5px solid var(--green-dark); }
-  .uc-ac-amber   { background: var(--orange-light); color: var(--orange-dark); border: 1.5px solid var(--orange-dark); }
-  .uc-ac-outline { background: var(--surface-2); color: var(--text-2); border: 1.5px solid var(--border); }
-  .uc-ac-red     { background: var(--red-light); color: var(--danger); border: 1.5px solid var(--red-light); }
-  .uc-ac-blue    { background: var(--blue-light); color: var(--blue-primary); border: 1.5px solid var(--blue-dark); }
+  .uc-ac-green   { background: var(--green-light); color: var(--green-dark); border: 1px solid var(--green-dark); }
+  .uc-ac-amber   { background: var(--orange-light); color: var(--orange-dark); border: 1px solid var(--orange-dark); }
+  .uc-ac-outline { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
+  .uc-ac-red     { background: var(--red-light); color: var(--danger); border: 1px solid var(--red-light); }
+  .uc-ac-blue    { background: var(--blue-light); color: var(--blue-primary); border: 1px solid var(--blue-dark); }
   /* Hide elements that don't fit in the row layout */
   /* Move pills inline */
   /* Move rating into the body row */

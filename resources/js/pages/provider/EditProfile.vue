@@ -1658,7 +1658,7 @@ const lastSavedLabel = computed(() => {
 .ep-money { position: relative; }
 .ep-money-prefix { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: 600; color: var(--text-3); pointer-events: none; }
 .ep-money .form-input { padding-left: 24px; }
-.ep-input-prefix { display: flex; align-items: stretch; border: 1.5px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: border-color var(--transition), box-shadow var(--transition); }
+.ep-input-prefix { display: flex; align-items: stretch; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: border-color var(--transition), box-shadow var(--transition); }
 .ep-input-prefix:focus-within { border-color: var(--gold-dark); box-shadow: 0 0 0 3px var(--badge-bg-gold); }
 .ep-input-prefix-label { padding: 9px 12px; background: var(--surface-2); border-right: 1.5px solid var(--border); font-size: 12px; color: var(--text-3); white-space: nowrap; display: flex; align-items: center; }
 .ep-input-prefix .form-input { border: none; border-radius: 0; flex: 1; }
@@ -1681,7 +1681,7 @@ const lastSavedLabel = computed(() => {
 .ep-avatar-btns { display: flex; gap: 8px; margin-top: 10px; }
 
 /* ─── Credential cards (licenses) ─── */
-.ep-cred { background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px; transition: border-color var(--transition); }
+.ep-cred { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px; transition: border-color var(--transition); }
 .ep-cred.primary { border: 1px solid var(--gold-dark); background: var(--badge-bg-gold); }
 .ep-cred.is-archived { opacity: 0.55; border-color: var(--border); background: var(--surface-3); }
 .ep-cred-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
@@ -1710,17 +1710,17 @@ details > div > div:first-child > .ep-cat { margin-top: 0; }
 
 /* ─── Insurance checklist grid ─── */
 .ep-ins-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
-.ep-ins-item { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all var(--transition); font-size: 13px; font-weight: 600; color: var(--text); background: var(--surface); }
+.ep-ins-item { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all var(--transition); font-size: 13px; font-weight: 600; color: var(--text); background: var(--surface); }
 .ep-ins-item:hover { border-color: var(--gold-dark); background: var(--badge-bg-gold); }
 .ep-ins-item.checked { border: 1px solid var(--gold-dark); background: var(--badge-bg-gold); color: var(--gold-dark); font-weight: 700; }
-.ep-ins-dot { width: 14px; height: 14px; border-radius: var(--radius-full); flex-shrink: 0; border: 1.5px solid var(--border-dark); background: var(--surface); display: flex; align-items: center; justify-content: center; transition: all var(--transition); position: relative; }
+.ep-ins-dot { width: 14px; height: 14px; border-radius: var(--radius-full); flex-shrink: 0; border: 1px solid var(--border-dark); background: var(--surface); display: flex; align-items: center; justify-content: center; transition: all var(--transition); position: relative; }
 .ep-ins-dot::after { content: ''; width: 6px; height: 6px; border-radius: var(--radius-full); background: transparent; transition: background var(--transition), transform var(--transition); transform: scale(0); }
 .ep-ins-item.checked .ep-ins-dot { border-color: var(--gold-dark); background: var(--surface); }
 .ep-ins-item.checked .ep-ins-dot::after { background: var(--gold-dark); transform: scale(1); }
 
 /* ─── State grid ─── */
 .ep-states { display: grid; grid-template-columns: repeat(9, 1fr); gap: 5px; }
-.ep-state { height: 34px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--text-3); cursor: pointer; transition: all var(--transition); background: var(--surface); }
+.ep-state { height: 34px; border: 1px solid var(--border); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--text-3); cursor: pointer; transition: all var(--transition); background: var(--surface); }
 .ep-state:hover { border-color: var(--gold-dark); color: var(--gold-dark); }
 .ep-state.selected { background: var(--gold-dark); color: var(--text-inverted); border: 1px solid var(--gold-dark); }
 
@@ -1728,7 +1728,7 @@ details > div > div:first-child > .ep-cat { margin-top: 0; }
 .ep-days { display: flex; gap: 8px; flex-wrap: wrap; }
 .ep-day {
   width: 46px; height: 46px; border-radius: var(--radius);
-  border: 1.5px solid var(--border); background: var(--surface);
+  border: 1px solid var(--border); background: var(--surface);
   font-size: 11px; font-weight: 700; color: var(--text-3);
   cursor: pointer; transition: all var(--transition);
   display: flex; align-items: center; justify-content: center;

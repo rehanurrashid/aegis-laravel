@@ -200,7 +200,7 @@ function submitResolution() {
 .form-stack          { display: flex; flex-direction: column; gap: 14px; }
 .form-group          { display: flex; flex-direction: column; gap: 6px; }
 .form-label          { font-size: 11px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; color: var(--text-2); }
-.form-input          { padding: 10px 12px; font-size: 13.5px; color: var(--text); background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; }
+.form-input          { padding: 10px 12px; font-size: 13.5px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; }
 .form-hint           { font-size: 11px; color: var(--text-4); }
 .dispute-warning     { display: flex; gap: 8px; padding: 12px; background: rgba(220,38,38,.05); border-radius: var(--radius-sm); font-size: 12px; color: var(--text-2); line-height: 1.5; }
 </style>

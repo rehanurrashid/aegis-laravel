@@ -197,7 +197,7 @@ function submit() {
 
 .pg-form-group { margin-bottom: 18px; }
 .pg-form-label { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-2); margin-bottom: 6px; }
-.pg-form-input { display: block; width: 100%; padding: 10px 13px; font-size: 13px; color: var(--text); background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm, 8px); transition: border-color var(--transition), box-shadow var(--transition); outline: none; }
+.pg-form-input { display: block; width: 100%; padding: 10px 13px; font-size: 13px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm, 8px); transition: border-color var(--transition), box-shadow var(--transition); outline: none; }
 .pg-form-input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(196,169,106,0.18); }
 .pg-form-input.error { border-color: var(--red); }
 .pg-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: end; }
@@ -206,7 +206,7 @@ function submit() {
 .checkbox-cell { height: 38px; display: flex; align-items: center; margin-bottom: 18px; }
 
 .checkbox-label { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-2); cursor: pointer; }
-.checkbox-input { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border: 1.5px solid var(--border-dark); border-radius: 4px; background: var(--surface); cursor: pointer; transition: all var(--transition); flex-shrink: 0; }
+.checkbox-input { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border: 1px solid var(--border-dark); border-radius: 4px; background: var(--surface); cursor: pointer; transition: all var(--transition); flex-shrink: 0; }
 .checkbox-input:checked { background: var(--gold); border-color: var(--gold); position: relative; }
 .checkbox-input:checked::after { content: "\2713"; position: absolute; top: -1px; left: 3px; font-size: 13px; color: #fff; }
 

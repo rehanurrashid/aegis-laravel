@@ -533,7 +533,7 @@ function submitReset() {
   font-weight: 500;
   color: var(--text);
   background-color: var(--surface);
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   transition: border-color var(--transition), box-shadow var(--transition);
   -webkit-appearance: none;
@@ -606,7 +606,7 @@ function submitReset() {
   appearance: none;
   width: 16px;
   height: 16px;
-  border: 1.5px solid var(--border-dark);
+  border: 1px solid var(--border-dark);
   border-radius: 4px;
   background: var(--surface);
   cursor: pointer;
@@ -641,7 +641,7 @@ function submitReset() {
   font-weight: 700;
   letter-spacing: 0.2px;
   border-radius: var(--radius-full);
-  border: 1.5px solid transparent;
+  border: 1px solid transparent;
   cursor: pointer;
   transition: all var(--transition);
   text-decoration: none;
@@ -671,7 +671,7 @@ function submitReset() {
 /* Error alert */
 .alert-error {
   background: var(--red-light);
-  border: 1.5px solid rgba(224,92,92,0.25);
+  border: 1px solid rgba(224,92,92,0.25);
   border-left: 3px solid var(--red);
   border-radius: var(--radius-sm);
   padding: 12px 14px;
@@ -722,7 +722,7 @@ function submitReset() {
   justify-content: center;
   gap: 8px;
   padding: 10px 14px;
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface);
   font-family: var(--font-sans);

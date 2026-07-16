@@ -320,7 +320,7 @@ function navigateLink(url) {
 .filter-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-4); letter-spacing: 0.5px; }
 .filter-input {
   display: block; width: 100%; padding: 10px 13px; font-size: 13px; color: var(--text);
-  background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm, 8px);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm, 8px);
   outline: none; transition: border-color var(--transition);
 }
 .filter-input:focus { border-color: var(--gold); }
@@ -413,7 +413,7 @@ function navigateLink(url) {
 .resolve-form { border-top: 1px solid var(--border); padding-top: 18px; }
 .pg-form-group { margin-bottom: 16px; }
 .pg-form-label { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-2); margin-bottom: 6px; }
-.pg-form-input { display: block; width: 100%; padding: 10px 13px; font-size: 13px; color: var(--text); background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm, 8px); transition: border-color var(--transition), box-shadow var(--transition); outline: none; }
+.pg-form-input { display: block; width: 100%; padding: 10px 13px; font-size: 13px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm, 8px); transition: border-color var(--transition), box-shadow var(--transition); outline: none; }
 .pg-form-input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(196,169,106,0.18); }
 .pg-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 

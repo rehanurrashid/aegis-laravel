@@ -108,6 +108,6 @@ function submit() {
 .thread-empty   { font-size: 13px; color: var(--text-4); text-align: center; padding: 20px; }
 .reply-area     { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
 .reply-actions  { display: flex; justify-content: flex-end; margin-top: 8px; }
-.form-input     { width: 100%; padding: 10px 12px; font-size: 13.5px; color: var(--text); background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; }
+.form-input     { width: 100%; padding: 10px 12px; font-size: 13.5px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: inherit; }
 .form-input:focus { border-color: var(--gold); outline: none; box-shadow: 0 0 0 3px rgba(196,169,106,.18); }
 </style>

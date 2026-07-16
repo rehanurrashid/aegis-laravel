@@ -264,7 +264,7 @@ function navigateLink(url) {
 .filter-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-4); letter-spacing: 0.5px; }
 .filter-input {
   display: block; width: 100%; padding: 10px 13px; font-size: 13px; color: var(--text);
-  background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm, 8px);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm, 8px);
   outline: none; transition: border-color var(--transition);
 }
 .filter-input:focus { border-color: var(--gold); }

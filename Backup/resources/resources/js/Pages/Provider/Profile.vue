@@ -1257,14 +1257,14 @@ function showToast(msg, type = 'info') {
 .ep-photo-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 
 /* Website prefix */
-.ep-input-prefix { display: flex; align-items: stretch; border: 1.5px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.ep-input-prefix { display: flex; align-items: stretch; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
 .ep-input-prefix:focus-within { border-color: var(--gold); box-shadow: var(--focus-ring); }
 .ep-input-prefix-label { display: flex; align-items: center; padding: 0 11px; background: var(--surface-2); color: var(--text-3); font-size: 13px; border-right: 1px solid var(--border); }
 .ep-input-prefix :deep(.form-input) { border: none; border-radius: 0; box-shadow: none; }
 
 /* Tags */
 .ep-tags { display: flex; flex-wrap: wrap; gap: 8px; }
-.ep-tag { font-size: 12.5px; font-weight: 500; color: var(--text-2); background: #ffffff; border: 1.5px solid #d4c3a8; border-radius: 9999px; padding: 6px 16px; cursor: pointer; transition: all var(--transition); user-select: none; }
+.ep-tag { font-size: 12.5px; font-weight: 500; color: var(--text-2); background: #ffffff; border: 1px solid #d4c3a8; border-radius: 9999px; padding: 6px 16px; cursor: pointer; transition: all var(--transition); user-select: none; }
 .ep-tag:hover { border-color: #a0813e; }
 .ep-tag.active { background: #a0813e; border-color: #a0813e; color: #ffffff; font-weight: 600; }
 
@@ -1278,7 +1278,7 @@ function showToast(msg, type = 'info') {
 .ep-switch.on .ep-switch-dot { transform: translateX(18px); }
 
 /* Dropzone */
-.ep-dropzone { display: flex; align-items: center; justify-content: center; gap: 9px; border: 1.5px dashed var(--border-dark); border-radius: var(--radius-sm); padding: 16px; font-size: 12.5px; color: var(--text-3); cursor: pointer; transition: all var(--transition); }
+.ep-dropzone { display: flex; align-items: center; justify-content: center; gap: 9px; border: 1px dashed var(--border-dark); border-radius: var(--radius-sm); padding: 16px; font-size: 12.5px; color: var(--text-3); cursor: pointer; transition: all var(--transition); }
 .ep-dropzone:hover { border-color: var(--gold); background: var(--surface-2); color: var(--gold-dark); }
 
 /* Save bar */

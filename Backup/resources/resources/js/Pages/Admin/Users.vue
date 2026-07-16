@@ -191,7 +191,7 @@ function navigateLink(url) {
 }
 .filter-input {
   display: block; width: 100%; padding: 10px 13px; font-size: 13px; color: var(--text);
-  background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm, 8px);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm, 8px);
   outline: none; transition: border-color var(--transition);
 }
 .search-input { padding-left: 36px; }

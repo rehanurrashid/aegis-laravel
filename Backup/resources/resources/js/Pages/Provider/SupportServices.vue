@@ -1149,7 +1149,7 @@ function goToMessages(partner) {
 .ss-modal-select,
 .ss-modal-textarea {
   font-family: var(--font-sans); font-size: 13.5px; color: var(--text);
-  background: var(--surface); border: 1.5px solid var(--border);
+  background: var(--surface); border: 1px solid var(--border);
   border-radius: 8px; padding: 9px 12px;
   transition: border-color 0.15s, box-shadow 0.15s; outline: none; width: 100%;
 }
@@ -1170,7 +1170,7 @@ function goToMessages(partner) {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 7px 14px; font-family: var(--font-sans); font-size: 12.5px; font-weight: 600;
   background: var(--surface); color: var(--text-2);
-  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
   cursor: pointer; transition: all 0.15s;
 }
 .ss-modal-close-posting-btn:hover { border-color: var(--red); color: var(--red); background: var(--red-light); }

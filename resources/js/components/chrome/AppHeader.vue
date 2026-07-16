@@ -442,7 +442,7 @@ onBeforeUnmount(() => {
 .notif-dot {
   position: absolute; top: 8px; right: 9px;
   width: 7px; height: 7px; background: var(--red);
-  border-radius: var(--radius-full); border: 1.5px solid var(--surface);
+  border-radius: var(--radius-full); border: 1px solid var(--surface);
 }
 .notif-dot.emergency { background: var(--emergency); animation: dot-pulse 1.5s ease infinite; }
 

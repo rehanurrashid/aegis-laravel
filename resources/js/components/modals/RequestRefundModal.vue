@@ -249,7 +249,7 @@ async function submit() {
 .rr-type-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
 .rr-type-option {
   display: flex; align-items: flex-start; gap: 10px;
-  border: 1.5px solid var(--border); border-radius: var(--radius);
+  border: 1px solid var(--border); border-radius: var(--radius);
   padding: 12px 14px; cursor: pointer;
   transition: border-color var(--transition), background var(--transition);
 }

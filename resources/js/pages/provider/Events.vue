@@ -1001,7 +1001,7 @@ function changeCalMonth(dir) {
 }
 .evt-search-input {
   width: 100%; padding: 9px 13px 9px 36px;
-  border: 1.5px solid var(--border); border-radius: var(--radius);
+  border: 1px solid var(--border); border-radius: var(--radius);
   font-family: var(--font-sans); font-size: 13px; color: var(--text);
   background: var(--surface); transition: border-color var(--transition);
 }
@@ -1093,7 +1093,7 @@ function changeCalMonth(dir) {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   width: 100%; padding: 9px 14px; border-radius: var(--radius);
   font-family: var(--font-sans); font-size: 13px; font-weight: 700; letter-spacing: 0.2px;
-  border: 1.5px solid transparent; cursor: pointer; white-space: nowrap; line-height: 1;
+  border: 1px solid transparent; cursor: pointer; white-space: nowrap; line-height: 1;
   transition: background var(--transition), border-color var(--transition), color var(--transition);
 }
 .evt-btn-primary          { background: var(--gold-dark); color: #fff; }

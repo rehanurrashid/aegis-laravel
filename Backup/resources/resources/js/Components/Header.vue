@@ -431,7 +431,7 @@ onBeforeUnmount(() => {
   width: 7px; height: 7px;
   background: var(--red, #e05c5c);
   border-radius: var(--radius-full);
-  border: 1.5px solid var(--surface, #ffffff);
+  border: 1px solid var(--surface, #ffffff);
 }
 .notif-dot.emergency {
   background: var(--emergency, #dc2626);

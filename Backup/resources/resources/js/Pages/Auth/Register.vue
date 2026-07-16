@@ -715,7 +715,7 @@
             </div>
 
             <!-- Pricing Structure -->
-            <div style="border: 1.5px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 18px; background: var(--surface-2);">
+            <div style="border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 18px; background: var(--surface-2);">
               <div class="section-label" style="margin-top: 0;">Pricing Structure</div>
               <p style="font-size: 12px; color: var(--text-2); margin-bottom: 14px; line-height: 1.5;">Help practitioners understand your pricing upfront to find the right match.</p>
 
@@ -792,7 +792,7 @@
             <p class="step-subtitle">As an invited Continuity Steward, there's nothing to pay. Your account is linked to the practitioner who invited you.</p>
           </div>
 
-          <div style="background: var(--surface-2); border: 1.5px solid var(--border); border-left: 3px solid var(--gold); border-radius: var(--radius-lg); padding: 22px; margin-bottom: 20px;">
+          <div style="background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: var(--radius-lg); padding: 22px; margin-bottom: 20px;">
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
               <div style="width: 36px; height: 36px; background: var(--green-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                 <svg width="18" height="18" fill="none" stroke="var(--green-dark)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
@@ -802,7 +802,7 @@
             <p style="font-family: var(--font-sans); font-size: 13px; color: var(--text-2); line-height: 1.6; margin: 0;">Your account stays free while you serve the practitioner who invited you. To take on additional practitioners, you can upgrade later from your account settings.</p>
           </div>
 
-          <div style="background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 24px;">
+          <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 24px;">
             <div style="font-family: var(--font-sans); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-2); margin-bottom: 10px;">If you need to serve more practitioners later</div>
             <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; font-family: var(--font-sans); font-size: 13px; color: var(--text-2); line-height: 1.55;">
               <li><strong style="color: var(--text);">2–40 practitioners</strong> — $49/mo or $429/yr</li>
@@ -821,7 +821,7 @@
             <p class="step-subtitle">As an invited Support Steward, your account is free. Your role and access permissions are set by the Practitioner Partner who invited you.</p>
           </div>
 
-          <div style="background: var(--surface-2); border: 1.5px solid var(--border); border-left: 3px solid var(--gold); border-radius: var(--radius-lg); padding: 22px; margin-bottom: 20px;">
+          <div style="background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: var(--radius-lg); padding: 22px; margin-bottom: 20px;">
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
               <div style="width: 36px; height: 36px; background: var(--green-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                 <svg width="18" height="18" fill="none" stroke="var(--green-dark)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
@@ -831,7 +831,7 @@
             <p style="font-family: var(--font-sans); font-size: 13px; color: var(--text-2); line-height: 1.6; margin: 0;">Your Support Steward account is covered by the practitioner's subscription &mdash; you'll never be charged. You'll have access to the specific tasks they authorized (administrative, billing, scheduling, or coordination), all tracked and logged for HIPAA compliance.</p>
           </div>
 
-          <div style="background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 24px;">
+          <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 24px;">
             <div style="font-family: var(--font-sans); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-2); margin-bottom: 10px;">What this means</div>
             <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; font-family: var(--font-sans); font-size: 13px; color: var(--text-2); line-height: 1.55;">
               <li><strong style="color: var(--text);">One practice per account</strong> &mdash; if a second practitioner needs to invite you, they'll send a separate invitation for a separate Support Steward account.</li>
@@ -1747,7 +1747,7 @@ onBeforeUnmount(() => clearInterval(timerInterval));
   font-weight: 500;
   color: var(--text);
   background-color: var(--surface);
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   transition: border-color var(--transition), box-shadow var(--transition);
   -webkit-appearance: none;
@@ -1856,7 +1856,7 @@ onBeforeUnmount(() => clearInterval(timerInterval));
   appearance: none;
   width: 17px;
   height: 17px;
-  border: 1.5px solid var(--border-dark);
+  border: 1px solid var(--border-dark);
   border-radius: 4px;
   background: var(--surface);
   cursor: pointer;
@@ -1931,7 +1931,7 @@ onBeforeUnmount(() => clearInterval(timerInterval));
   font-weight: 700;
   letter-spacing: 0.2px;
   border-radius: var(--radius-full);
-  border: 1.5px solid transparent;
+  border: 1px solid transparent;
   cursor: pointer;
   transition: all var(--transition);
   text-decoration: none;
@@ -2003,7 +2003,7 @@ onBeforeUnmount(() => clearInterval(timerInterval));
 }
 
 .role-card {
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 20px 22px;
   cursor: pointer;
@@ -2104,7 +2104,7 @@ onBeforeUnmount(() => clearInterval(timerInterval));
    PATH CARDS
 ══════════════════════════════════════════════════ */
 .path-card {
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 24px;
   cursor: pointer;
@@ -2192,7 +2192,7 @@ onBeforeUnmount(() => clearInterval(timerInterval));
   font-size: 24px;
   font-weight: 700;
   color: var(--text);
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface);
   transition: all var(--transition);
@@ -2230,7 +2230,7 @@ onBeforeUnmount(() => clearInterval(timerInterval));
 }
 
 .purpose-item {
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 14px 16px;
   cursor: pointer;
@@ -2248,7 +2248,7 @@ onBeforeUnmount(() => clearInterval(timerInterval));
   appearance: none;
   width: 16px;
   height: 16px;
-  border: 1.5px solid var(--border-dark);
+  border: 1px solid var(--border-dark);
   border-radius: 4px;
   background: var(--surface);
   cursor: pointer;
@@ -2284,7 +2284,7 @@ onBeforeUnmount(() => clearInterval(timerInterval));
 }
 
 .pricing-card {
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 22px;
   cursor: pointer;
@@ -2355,7 +2355,7 @@ onBeforeUnmount(() => clearInterval(timerInterval));
 
 /* MAAT Banner */
 .maat-banner {
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-left: 3px solid var(--gold);
   border-radius: var(--radius);
   padding: 18px 20px;
@@ -2414,7 +2414,7 @@ onBeforeUnmount(() => clearInterval(timerInterval));
 .maat-feature svg { width: 11px; height: 11px; stroke: var(--gold); flex-shrink: 0; fill: none; }
 
 .maat-checkbox-row {
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 12px 14px;
   background: var(--surface);
@@ -2444,7 +2444,7 @@ onBeforeUnmount(() => clearInterval(timerInterval));
    PLAN SUMMARY
 ══════════════════════════════════════════════════ */
 .plan-summary {
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px 18px;
   background: var(--surface-2);
@@ -2509,7 +2509,7 @@ onBeforeUnmount(() => clearInterval(timerInterval));
 .success-header { text-align: center; margin-bottom: 32px; }
 
 .success-next-steps {
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-left: 3px solid var(--gold);
   border-radius: var(--radius);
   padding: 20px 22px;
@@ -2556,7 +2556,7 @@ onBeforeUnmount(() => clearInterval(timerInterval));
    INFO BOX
 ══════════════════════════════════════════════════ */
 .info-box {
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   border-left: 3px solid var(--gold);
   border-radius: var(--radius-sm);
   padding: 14px 16px;
@@ -2575,7 +2575,7 @@ onBeforeUnmount(() => clearInterval(timerInterval));
 ══════════════════════════════════════════════════ */
 .alert-error {
   background: rgba(224,92,92,0.06);
-  border: 1.5px solid rgba(224,92,92,0.22);
+  border: 1px solid rgba(224,92,92,0.22);
   border-left: 3px solid var(--red);
   border-radius: var(--radius-sm);
   padding: 10px 12px;

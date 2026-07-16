@@ -1975,7 +1975,7 @@ const serviceTypeOptions = [
 
 /* ── PRICING OPTIONS (create/edit modal) ── */
 .pricing-options { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 14px; }
-.pricing-opt { border: 1.5px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center; cursor: pointer; transition: background var(--transition); background: var(--surface); }
+.pricing-opt { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center; cursor: pointer; transition: background var(--transition); background: var(--surface); }
 .pricing-opt:hover    { background: var(--badge-bg-gold); }
 .pricing-opt.selected { background: var(--badge-bg-gold); }
 .pricing-opt-label { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; display: inline-flex; align-items: center; gap: 6px; }
