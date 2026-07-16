@@ -8,7 +8,7 @@
       quiet
     >
       <template #actions>
-        <a :href="route('provider.activity', { module: 'steward' })" class="btn-hero-ghost is-on-light" data-tooltip="Module activity">
+        <a :href="route('activity.index') + '?module=steward'" class="btn-hero-ghost is-on-light" data-tooltip="Module activity">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
         <button class="btn-hero-ghost is-on-light" @click="openModal('dsrGuideModal')">
@@ -34,14 +34,7 @@
         style="cursor:pointer"
         @click="activeTab = 'pending'"
       />
-      <AegisStatChip
-        v-if="servingAsSSFor.length"
-        icon="shield"
-        :value="servingAsSSFor.length"
-        label="I'm a Support Steward For"
-        style="cursor:pointer"
-        @click="activeTab = 'iamdsr'"
-      />
+
       <AegisStatChip
         icon="calendar"
         :value="nextReviewLabel"
@@ -76,6 +69,13 @@
       </div>
     </div>
 
+    <!-- SS-FOR BANNER -->
+    <div v-if="servingAsSSFor?.length" class="alert alert-info" style="margin-bottom:12px;">
+      <AegisIcon name="info" :size="16" />
+      <div>You are also serving as Support Steward for <strong>{{ servingAsSSFor.length }}</strong> provider{{ servingAsSSFor.length !== 1 ? 's' : '' }}.
+      <a :href="route('ss.dashboard')" style="color:var(--gold-dark)">Open SS Portal →</a></div>
+    </div>
+
     <!-- TABS -->
     <div class="tabs-segmented">
       <button class="tab-pill" :class="{ active: activeTab === 'mydsr' }" @click="activeTab = 'mydsr'">
@@ -86,15 +86,7 @@
         Pending
         <span class="badge-pill">{{ pendingCount }}</span>
       </button>
-      <button
-        v-if="servingAsSSFor.length"
-        class="tab-pill"
-        :class="{ active: activeTab === 'iamdsr' }"
-        @click="activeTab = 'iamdsr'"
-      >
-        I'm a Support Steward For
-        <span class="badge-pill">{{ servingAsSSFor.length }}</span>
-      </button>
+
     </div>
 
     <!-- ═══ TAB: MY SUPPORT STEWARDS ═══ -->
@@ -132,19 +124,23 @@
               </div>
             </div>
             <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-              <button class="btn-icon" data-tooltip="View Agreement" @click="openAgreement(s)"><AegisIcon name="file-text" :size="14" /></button>
               <button class="btn-icon" data-tooltip="Edit" @click="openEdit(s)"><AegisIcon name="pencil" :size="14" /></button>
-              <button class="btn-icon" data-tooltip="Permissions" @click="openEditPerms(s)"><AegisIcon name="lock" :size="14" /></button>
-              <button class="btn-icon" data-tooltip="Activity Log" @click="openModal('dsrActivityModal')"><AegisIcon name="bar-chart" :size="14" /></button>
+              <button class="btn-icon" data-tooltip="View Agreement" @click="openAgreement(s)"><AegisIcon name="file-text" :size="14" /></button>
               <button class="btn-icon" data-tooltip="Manage Access" @click="openManageAccess(s)"><AegisIcon name="sliders" :size="14" /></button>
-              <button class="btn-icon" data-tooltip="Change Role" @click="openChangeRole(s)"><AegisIcon name="refresh-cw" :size="14" /></button>
+              <a :href="route('activity.index') + '?module=steward'" class="btn-icon" data-tooltip="View activity">
+                <AegisIcon name="clock" :size="14" />
+              </a>
               <button class="btn-icon btn-icon-danger" data-tooltip="Remove Support Steward" @click="openRemove(s)"><AegisIcon name="trash" :size="14" /></button>
             </div>
           </div>
         </div>
 
         <!-- SUSPENDED -->
-        <div v-for="s in suspended" :key="s.id" class="dsr-card suspended">
+        <details v-if="suspended.length" style="margin-top:16px;">
+          <summary style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-3);cursor:pointer;">
+            Suspended ({{ suspended.length }})
+          </summary>
+        <div v-for="s in suspended" :key="s.id" class="dsr-card suspended" style="margin-top:10px;">
           <div class="avatar avatar-lg avatar-dark">{{ initials(s) }}</div>
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
@@ -162,11 +158,10 @@
             </div>
             <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
               <button class="btn btn-outline" @click="openReinstate(s)"><AegisIcon name="check" :size="14" /> Reinstate</button>
-              <button class="btn-icon" data-tooltip="View Agreement" @click="openAgreement(s)"><AegisIcon name="file-text" :size="14" /></button>
-              <button class="btn-icon btn-icon-danger" data-tooltip="Remove" @click="openRemove(s)"><AegisIcon name="trash" :size="14" /></button>
             </div>
           </div>
         </div>
+        </details>
       </template>
 
       <AegisEmptyState v-else icon="users" title="No Support Stewards Yet" description="Add your first Support Steward to delegate day-to-day practice tasks.">
@@ -259,36 +254,7 @@
       </div>
     </div>
 
-    <!-- ═══ TAB: I'M A SS FOR ═══ -->
-    <div v-show="activeTab === 'iamdsr'">
-      <div class="alert alert-info" style="margin-bottom:20px">
-        <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
-        <div class="alert-content">
-          <div class="alert-title">You are a Support Steward for {{ servingAsSSFor.length }} provider{{ servingAsSSFor.length !== 1 ? 's' : '' }}.</div>
-          <div>This is a summary of your active SS designations. For full SS work — daily check-ins, task list, and critical-incident reporting — open your Support Steward Portal.</div>
-          <div style="margin-top:10px"><a :href="route('ss.dashboard')" class="btn btn-outline"><AegisIcon name="shield" :size="13" /> Open SS Portal</a></div>
-        </div>
-      </div>
-      <div class="section-header" style="margin-bottom:10px">
-        <div class="section-title" style="display:flex;align-items:center;gap:8px"><AegisIcon name="users" :size="16" /> Providers I'm Supporting</div>
-      </div>
-      <AegisEmptyState v-if="!servingAsSSFor.length" icon="users" title="No active SS designations" description="You are not currently designated as a Support Steward for any provider." />
-      <div v-else class="list-group">
-        <div v-for="p in servingAsSSFor" :key="p.id" class="list-group-item">
-          <div class="avatar avatar-sm avatar-gold">{{ p.avatar_initials || '??' }}</div>
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              <span style="font-size:13px;font-weight:700;color:var(--text)">{{ p.display_name }}{{ p.credentials ? ', ' + p.credentials : '' }}</span>
-              <AegisBadge variant="gold" icon="shield">{{ capitalize(p.role) }} SS</AegisBadge>
-              <AegisBadge variant="green"><span class="status-dot green"></span> Active</AegisBadge>
-            </div>
-            <div style="font-size:12px;color:var(--text-3);margin-top:2px">
-              {{ [p.organization, p.location].filter(Boolean).join(' · ') }}<template v-if="p.review_due_at"> &middot; Review due {{ fmtDate(p.review_due_at) }}</template>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+
     <!-- ═══════════════════ MODALS ═══════════════════ -->
 
     <!-- ADD SS STEP 1 -->
@@ -296,9 +262,7 @@
       <div class="modal-steps">
         <div class="modal-step active"><span class="modal-step-num">1</span>Find Person</div>
         <div class="modal-step-divider"></div>
-        <div class="modal-step"><span class="modal-step-num">2</span>Role &amp; Permissions</div>
-        <div class="modal-step-divider"></div>
-        <div class="modal-step"><span class="modal-step-num">3</span>Review &amp; Send</div>
+        <div class="modal-step"><span class="modal-step-num">2</span>Role &amp; Send</div>
       </div>
       <div class="form-group">
         <label class="form-label">Search Aegis Users or Invite by Email</label>
@@ -338,9 +302,7 @@
       <div class="modal-steps">
         <div class="modal-step done"><span class="modal-step-num"><AegisIcon name="check" :size="10" /></span>Find Person</div>
         <div class="modal-step-divider"></div>
-        <div class="modal-step active"><span class="modal-step-num">2</span>Role &amp; Permissions</div>
-        <div class="modal-step-divider"></div>
-        <div class="modal-step"><span class="modal-step-num">3</span>Review &amp; Send</div>
+        <div class="modal-step active"><span class="modal-step-num">2</span>Role &amp; Send</div>
       </div>
       <div class="form-group">
         <label class="form-label">Support Steward Role <span class="required">*</span></label>
@@ -359,90 +321,20 @@
           </div>
         </div>
       </div>
-      <div style="background:var(--surface-2);border-radius:var(--radius);padding:16px;margin-top:4px">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:6px">Responsibilities</div>
-        <div style="font-size:12px;color:var(--text-3);margin-bottom:14px">Select the responsibilities this Support Steward is authorized to carry out.</div>
-        <div v-for="(items, section) in responsibilitySections" :key="section" style="margin-bottom:16px">
-          <div style="font-size:11px;font-weight:700;color:var(--text-2);margin:6px 0;text-transform:uppercase;letter-spacing:0.3px">{{ section }}</div>
-          <table class="perm-matrix">
-            <thead><tr><th>Responsibility</th><th style="text-align:center;width:78px">Support</th><th style="text-align:center;width:78px">Alternative</th></tr></thead>
-            <tbody>
-              <tr v-for="item in items" :key="item">
-                <td class="task-name">{{ item }}</td>
-                <td style="text-align:center"><button type="button" class="toggle on" aria-pressed="true" @click="toggleSwitch"></button></td>
-                <td style="text-align:center"><button type="button" class="toggle" aria-pressed="false" @click="toggleSwitch"></button></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <div class="alert alert-info" style="margin-top:8px;">
+        <AegisIcon name="info" :size="16" />
+        <div>This Support Steward will be authorized to verify critical incidents and trigger your Continuity Plan. Specific task lists are defined in your <a :href="route('provider.plan.index')">Continuity Plan</a>.</div>
       </div>
-      <div class="form-group" style="margin-top:16px">
-        <label class="form-label">Access Duration</label>
-        <select v-model="inviteForm.access_duration" class="form-select">
-          <option value="ongoing">Ongoing — until manually removed or expired</option>
-          <option value="6m">6 months — with auto-renewal option</option>
-          <option value="1y">1 year — renewable</option>
-        </select>
-      </div>
+
       <template #footer>
         <button class="btn btn-outline" @click="closeModal('addDsrStep2Modal'); openModal('addDsrStep1Modal')">← Back</button>
-        <button class="btn btn-primary" @click="closeModal('addDsrStep2Modal'); openModal('addDsrStep3Modal')">Next: Review &amp; Send &rarr;</button>
-      </template>
-    </AegisModal>
-
-    <!-- ADD SS STEP 3 -->
-    <AegisModal :model-value="isOpen('addDsrStep3Modal').value" title="Review &amp; Send" size="lg" @update:model-value="v => !v && closeModal('addDsrStep3Modal')">
-      <div class="modal-steps">
-        <div class="modal-step done"><span class="modal-step-num"><AegisIcon name="check" :size="10" /></span>Find Person</div>
-        <div class="modal-step-divider"></div>
-        <div class="modal-step done"><span class="modal-step-num"><AegisIcon name="check" :size="10" /></span>Role &amp; Permissions</div>
-        <div class="modal-step-divider"></div>
-        <div class="modal-step active"><span class="modal-step-num">3</span>Review &amp; Send</div>
-      </div>
-      <div class="alert alert-success" style="margin-bottom:14px">
-        <div class="alert-icon"><AegisIcon name="check" :size="16" /></div>
-        <div>Review the agreement details below. Sign digitally and send for counter-signature.</div>
-      </div>
-      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;font-size:13px;line-height:1.8;color:var(--text-2);margin-bottom:16px">
-        <div style="font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--gold-dark);text-align:center;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--border)">Aegis SUPPORT STEWARD AGREEMENT</div>
-        <p><strong>Support Steward:</strong> {{ inviteForm.display_name || '—' }}</p>
-        <p><strong>Agreement Date:</strong> {{ todayLabel }} | <strong>Annual Attestation:</strong> Required</p>
-        <br>
-        <p><strong>Authorized Responsibilities:</strong> As designated across the five sections — Activation &amp; Verification, Access &amp; Resource Coordination, Oversight &amp; Coordination, Financial Responsibilities, and Completion &amp; Transition — guided by the Provider's Continuity Plan.</p>
-        <br>
-        <p><strong>Compliance:</strong> Support Steward agrees to comply with HIPAA, maintain confidentiality, and act only within authorized responsibilities. All actions are logged for audit purposes.</p>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Your Digital Signature</label>
-        <div class="sig-block" :class="{ signed: agreementSigned }" @click="agreementSigned = true">
-          <AegisIcon name="edit-3" :size="24" />
-          <div style="margin-top:8px;font-weight:600">{{ agreementSigned ? 'Signed digitally' : 'Click to apply your digital signature' }}</div>
-          <div style="font-size:11px;margin-top:4px">By signing, you confirm all details are accurate and authorize the stated permissions</div>
-        </div>
-      </div>
-      <div class="row-2">
-        <div class="form-group">
-          <label class="form-label">Invitation Expiration</label>
-          <select v-model="inviteForm.expires_days" class="form-select">
-            <option value="30">30 days</option>
-            <option value="14">14 days</option>
-            <option value="7">7 days</option>
-          </select>
-        </div>
-        <div class="form-group"><label class="form-label">&nbsp;</label></div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Personal Message (Optional)</label>
-        <textarea v-model="inviteForm.message" class="form-input" style="min-height:65px" placeholder="Hi, I'd like to formally designate you as my Support Steward on Aegis…"></textarea>
-      </div>
-      <template #footer>
-        <button class="btn btn-outline" @click="closeModal('addDsrStep3Modal'); openModal('addDsrStep2Modal')">← Back</button>
-        <button class="btn btn-outline" @click="toast.info('Draft saved'); closeModal('addDsrStep3Modal')">Save Draft</button>
-        <button class="btn btn-primary" :class="{ 'btn-spin': inviteForm.processing }" :disabled="inviteForm.processing" @click="sendAgreement">
-          <AegisIcon name="check" :size="13" /> {{ inviteForm.processing ? 'Sending…' : 'Send Agreement →' }}
+        <button class="btn btn-primary" :class="{ 'btn-spin': inviteForm.processing }" :disabled="inviteForm.processing" @click="submitInvite">
+          <AegisIcon name="check" :size="13" /> {{ inviteForm.processing ? 'Sending…' : 'Send Invitation' }}
         </button>
       </template>
     </AegisModal>
+
+
 
     <!-- EDIT SS -->
     <AegisModal :model-value="isOpen('editDsrModal').value" :title="activeSteward ? 'Edit Support Steward — ' + fullName(activeSteward) : 'Edit Support Steward'" size="md" @update:model-value="v => !v && closeModal('editDsrModal')">
@@ -458,6 +350,13 @@
         <div class="form-group"><label class="form-label">Phone</label><input v-model="editForm.phone" class="form-input" type="tel"></div>
         <div class="form-group"><label class="form-label">Email</label><input v-model="editForm.email" class="form-input" type="email"></div>
       </div>
+      <div class="form-group">
+        <label class="form-label">Role</label>
+        <select v-model="editForm.role" class="form-select">
+          <option value="primary">Support Steward</option>
+          <option value="alternate">Alternative Support Steward</option>
+        </select>
+      </div>
       <div class="form-group"><label class="form-label">Notes</label><textarea v-model="editForm.notes" class="form-input" style="min-height:60px"></textarea></div>
       <template #footer>
         <button class="btn btn-outline" @click="closeModal('editDsrModal')">Cancel</button>
@@ -465,29 +364,7 @@
       </template>
     </AegisModal>
 
-    <!-- EDIT PERMISSIONS -->
-    <AegisModal :model-value="isOpen('editPermissionsModal').value" :title="activeSteward ? 'Edit Permissions — ' + fullName(activeSteward) : 'Edit Permissions'" size="lg" @update:model-value="v => !v && closeModal('editPermissionsModal')">
-      <div v-for="(items, section) in responsibilitySections" :key="section" style="margin-bottom:16px">
-        <div style="font-size:11px;font-weight:700;color:var(--text-2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.3px">{{ section }}</div>
-        <table class="perm-matrix">
-          <thead><tr><th>Responsibility</th><th style="text-align:center;width:78px">Enabled</th></tr></thead>
-          <tbody>
-            <tr v-for="item in items" :key="item">
-              <td class="task-name">{{ item }}</td>
-              <td style="text-align:center">
-                <button type="button" class="toggle" :class="{ on: enabledPerms.has(item) }" :aria-pressed="enabledPerms.has(item)" @click="togglePerm(item)"></button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <template #footer>
-        <button class="btn btn-outline" @click="closeModal('editPermissionsModal')">Cancel</button>
-        <button class="btn btn-primary" :class="{ 'btn-spin': permForm.processing }" :disabled="permForm.processing" @click="savePermissions">
-          <AegisIcon name="check" :size="13" /> {{ permForm.processing ? 'Saving…' : 'Save Permissions' }}
-        </button>
-      </template>
-    </AegisModal>
+
 
     <!-- VIEW AGREEMENT -->
     <AegisModal :model-value="isOpen('viewDsrAgreementModal').value" :title="activeSteward ? 'Support Steward Agreement — ' + fullName(activeSteward) : 'Support Steward Agreement'" size="lg" @update:model-value="v => !v && closeModal('viewDsrAgreementModal')">
@@ -514,7 +391,6 @@
       </div>
       <template #footer>
         <button class="btn btn-outline" @click="toast.success('Agreement downloaded')"><AegisIcon name="download" :size="14" /> Download PDF</button>
-        <button class="btn btn-outline" @click="openEditPerms(activeSteward); closeModal('viewDsrAgreementModal')"><AegisIcon name="lock" :size="14" /> Edit Permissions</button>
         <button class="btn btn-primary" @click="closeModal('viewDsrAgreementModal')">Close</button>
       </template>
     </AegisModal>
@@ -612,42 +488,9 @@
       </template>
     </AegisModal>
 
-    <!-- CHANGE ROLE -->
-    <AegisModal :model-value="isOpen('changeDsrRoleModal').value" :title="activeSteward ? 'Change Role — ' + fullName(activeSteward) : 'Change Role'" size="md" @update:model-value="v => !v && closeModal('changeDsrRoleModal')">
-      <div class="alert alert-warning" style="margin-bottom:14px">
-        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="16" /></div>
-        <div>Changing the Support Steward role will <strong>void the current agreement</strong> and generate a new one for both parties to re-sign.</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Current Role</label>
-        <div style="padding:9px 13px;background:var(--surface-2);border-radius:var(--radius);font-size:13px;color:var(--text-3)">
-          <AegisIcon name="user" :size="14" /> {{ activeSteward ? capitalize(roleVal(activeSteward.role)) : '—' }} Support Steward
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">New Role <span class="required">*</span></label>
-        <select v-model="roleForm.role" class="form-select">
-          <option value="">— Select New Role —</option>
-          <option value="primary">Support Steward</option>
-          <option value="alternate">Alternative Support Steward</option>
-        </select>
-      </div>
-      <div class="form-group"><label class="form-label">Reason for Role Change</label><textarea v-model="roleForm.reason" class="form-input" style="min-height:65px" placeholder="e.g., Staff member has moved to a different role…"></textarea></div>
-      <template #footer>
-        <button class="btn btn-outline" @click="closeModal('changeDsrRoleModal')">Cancel</button>
-        <button class="btn btn-primary" :class="{ 'btn-spin': roleForm.processing }" :disabled="!roleForm.role || roleForm.processing" @click="submitChangeRole">
-          {{ roleForm.processing ? 'Updating…' : 'Update Role & Send New Agreement' }}
-        </button>
-      </template>
-    </AegisModal>
 
-    <!-- ACTIVITY LOG (read-only display from Inertia shared props) -->
-    <AegisModal :model-value="isOpen('dsrActivityModal').value" title="Support Steward Activity Log" size="lg" @update:model-value="v => !v && closeModal('dsrActivityModal')">
-      <p style="font-size:13px;color:var(--text-3)">Full activity log is available in the <a :href="route('provider.activity', { module: 'steward' })" style="color:var(--gold-dark)">Activity module</a>.</p>
-      <template #footer>
-        <button class="btn btn-primary" @click="closeModal('dsrActivityModal')">Close</button>
-      </template>
-    </AegisModal>
+
+
 
     <!-- WHAT IS A SUPPORT STEWARD -->
     <AegisModal :model-value="isOpen('dsrGuideModal').value" title="What is a Support Steward?" size="lg" @update:model-value="v => !v && closeModal('dsrGuideModal')">
@@ -782,15 +625,9 @@ function normResp(r) {
     typeof item === 'string' ? { text: item } : item
   )
 }
-function toggleSwitch(e) {
-  const btn = e.currentTarget
-  const on = btn.classList.toggle('on')
-  btn.setAttribute('aria-pressed', on ? 'true' : 'false')
-}
 
-const todayLabel = computed(() =>
-  new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-)
+
+
 
 // ── Tier gate ─────────────────────────────────────────────
 function handleAddSS() {
@@ -810,13 +647,10 @@ function openEdit(s) {
   editForm.display_name = fullName(s)
   editForm.phone = s?.steward?.phone ?? ''
   editForm.email = s?.steward?.email ?? ''
+  editForm.role = roleVal(s?.role) || 'primary'
+  editForm.relationship = s?.steward?.relationship ?? ''
+  editForm.notes = s?.notes ?? ''
   openModal('editDsrModal')
-}
-function openEditPerms(s) {
-  if (!s) return
-  activeStewardId.value = s.id
-  enabledPerms.value = new Set(normResp(s.responsibilities).map(r => r.text))
-  openModal('editPermissionsModal')
 }
 function openSuspend(s)     { activeStewardId.value = s.id; openModal('suspendDsrModal') }
 function openReinstate(s)   { activeStewardId.value = s.id; openModal('reinstateModal') }
@@ -844,36 +678,6 @@ function submitManageAccess() {
 function openRemove(s)      { activeStewardId.value = s.id; removeConfirm.value = ''; openModal('removeDsrModal') }
 function openResend(s)      { activeStewardId.value = s.id; openModal('resendInviteModal') }
 function openCancelInvite(s){ activeStewardId.value = s.id; openModal('cancelInviteModal') }
-function openChangeRole(s)  { activeStewardId.value = s.id; roleForm.role = ''; openModal('changeDsrRoleModal') }
-
-// ── Static data ───────────────────────────────────────────
-const responsibilitySections = {
-  'Activation & Verification': [
-    "Confirm the practitioner's status when something seems wrong",
-    'Report a critical incident through the Critical Incident Log',
-    'Help verify documentation with the Continuity Steward',
-  ],
-  'Access & Resource Coordination': [
-    'Locate practice keys, devices, and access information',
-    'Coordinate Document Vault access requests',
-    'Connect the Continuity Steward with office staff and contacts',
-  ],
-  'Oversight & Coordination': [
-    'Keep a simple record of actions taken during a critical moment',
-    'Maintain the list of people who need to be notified',
-    'Coordinate communication between the parties involved',
-  ],
-  'Financial Responsibilities': [
-    'Identify outstanding invoices and payments',
-    'Coordinate with billing or accounting contacts',
-    'Track practice expenses during the transition',
-  ],
-  'Completion & Transition': [
-    'Confirm outstanding tasks are complete',
-    'Hand off remaining items to the Continuity Steward',
-    'Close out the Support Steward role when the transition ends',
-  ],
-}
 
 
 
@@ -881,33 +685,24 @@ const responsibilitySections = {
 
 
 
-// ── Permissions state ─────────────────────────────────────
-const enabledPerms = ref(new Set())
-function togglePerm(item) {
-  const s = new Set(enabledPerms.value)
-  if (s.has(item)) s.delete(item); else s.add(item)
-  enabledPerms.value = s
-}
 
 // ── Forms (all at top-level of setup) ────────────────────
 const inviteForm = useForm({
   user_id: null, email: '', display_name: '', role: 'primary',
-  access_duration: 'ongoing', expires_days: '30', message: '',
+  expires_days: '30', message: '',
 })
 const editForm = useForm({
-  display_name: '', relationship: '', phone: '', email: '', notes: '',
+  display_name: '', relationship: '', phone: '', email: '', role: 'primary', notes: '',
 })
 const suspendForm   = useForm({ reason: '', start_date: '', end_date: '', message: '' })
 const reinstateForm = useForm({ message: '' })
 const manageAccessForm = reactive({ action: '', reason: '' })
 const removeForm    = useForm({ reason: '', notes: '' })
 const resendForm    = useForm({ expires_days: '30', message: '' })
-const roleForm      = useForm({ role: '', reason: '' })
-const permForm      = useForm({ responsibilities: [] })
+
 
 const removeConfirm  = ref('')
 const searchQuery    = ref('')
-const agreementSigned = ref(false)
 
 // ── Vuelidate ─────────────────────────────────────────────
 const rules = {
@@ -928,12 +723,12 @@ function fieldError(key) {
 }
 
 // ── Submit actions ────────────────────────────────────────
-async function sendAgreement() {
+async function submitInvite() {
   const ok = await v$.value.$validate()
   if (!ok) return
   inviteForm.post(route('provider.ss.invite'), {
     preserveScroll: true,
-    onSuccess: () => { toast.success('Support Steward invited successfully.'); closeModal('addDsrStep3Modal'); inviteForm.reset(); agreementSigned.value = false },
+    onSuccess: () => { toast.success('Support Steward invited successfully.'); closeModal('addDsrStep2Modal'); inviteForm.reset() },
   })
 }
 
@@ -987,20 +782,7 @@ function submitCancelInvite() {
   })
 }
 
-function submitChangeRole() {
-  roleForm.put(route('provider.ss.update-role', { steward: activeStewardId.value }), {
-    preserveScroll: true,
-    onSuccess: () => { toast.success('Role updated. New agreement sent for signature.'); closeModal('changeDsrRoleModal'); roleForm.reset() },
-  })
-}
 
-function savePermissions() {
-  permForm.responsibilities = Array.from(enabledPerms.value).map(text => ({ text, level: 'Full' }))
-  permForm.put(route('provider.ss.update-permissions', { steward: activeStewardId.value }), {
-    preserveScroll: true,
-    onSuccess: () => { toast.success('Permissions updated. Logged.'); closeModal('editPermissionsModal') },
-  })
-}
 </script>
 
 <style scoped>
