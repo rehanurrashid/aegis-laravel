@@ -96,6 +96,17 @@ class ProfileController extends Controller
                     'cs_public'               => $user->cs_public,
                     'business_partner_public' => $user->business_partner_public,
                 ],
+                'accepting_status' => (function() use ($user) {
+                    $prefs = $this->rawMeta($user, 'network_prefs', []);
+                    if (!is_array($prefs)) $prefs = [];
+                    return [
+                        'new_clients'       => $prefs['new_clients']       ?? 'Yes — Accepting New Clients',
+                        'new_referrals'     => $prefs['new_referrals']     ?? 'Yes — Open to Referrals',
+                        'supervisees'       => $prefs['supervisees']       ?? 'Not Currently',
+                        'continuity_clients'=> $prefs['continuity_clients']?? 'Not Currently',
+                        'service_format'    => $prefs['service_format']    ?? 'Both In-Person & Telehealth',
+                    ];
+                })(),
             ],
         ]);
     }

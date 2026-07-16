@@ -126,10 +126,10 @@
                   <p>{{ user.avatar_url ? 'Photo uploaded' : 'No photo uploaded — initials shown as placeholder' }}</p>
                   <p style="font-size:11px;color:var(--text-4);margin-top:2px">JPG, PNG or WebP · Max 5 MB · Recommended 400×400 px</p>
                   <div class="ep-avatar-btns">
-                    <button type="button" class="btn btn-primary btn-sm" @click="modals.photoUpload = true">
+                    <button type="button" class="btn btn-primary" @click="modals.photoUpload = true">
                       <AegisIcon name="upload" :size="12" /> Upload Photo
                     </button>
-                    <button v-if="user.avatar_url" type="button" class="btn btn-outline btn-sm" @click="modals.removePhoto = true">Remove</button>
+                    <button v-if="user.avatar_url" type="button" class="btn btn-outline btn-xs" @click="modals.removePhoto = true">Remove</button>
                   </div>
                 </div>
               </div>
@@ -151,11 +151,19 @@
               <div class="form-row form-row-2">
                 <div class="form-group">
                   <label class="form-label">First Name <span class="ep-label-req">*</span></label>
-                  <input v-model="firstName" type="text" class="form-input" placeholder="First name">
+                  <input v-model="firstName" type="text"
+                    :class="['form-input', { 'is-error': fieldError(vBasic, 'firstName') }]"
+                    placeholder="First name"
+                    @blur="vBasic.value.firstName.$touch()">
+                  <div v-if="fieldError(vBasic, 'firstName')" class="form-error">{{ fieldError(vBasic, 'firstName') }}</div>
                 </div>
                 <div class="form-group">
                   <label class="form-label">Last Name <span class="ep-label-req">*</span></label>
-                  <input v-model="lastName" type="text" class="form-input" placeholder="Last name">
+                  <input v-model="lastName" type="text"
+                    :class="['form-input', { 'is-error': fieldError(vBasic, 'lastName') }]"
+                    placeholder="Last name"
+                    @blur="vBasic.value.lastName.$touch()">
+                  <div v-if="fieldError(vBasic, 'lastName')" class="form-error">{{ fieldError(vBasic, 'lastName') }}</div>
                 </div>
               </div>
 
@@ -167,7 +175,11 @@
 
               <div class="form-group">
                 <label class="form-label">Professional Title <span class="ep-label-req">*</span></label>
-                <input v-model="basicForm.title" type="text" class="form-input" placeholder="e.g. Board-Certified Psychiatrist">
+                <input v-model="basicForm.title" type="text"
+                  :class="['form-input', { 'is-error': fieldError(vBasic, 'basicForm', 'title') }]"
+                  placeholder="e.g. Board-Certified Psychiatrist"
+                  @blur="vBasic.value.basicForm.title.$touch()">
+                <div v-if="fieldError(vBasic, 'basicForm', 'title')" class="form-error">{{ fieldError(vBasic, 'basicForm', 'title') }}</div>
               </div>
 
               <div class="form-group">
@@ -177,9 +189,19 @@
 
               <div class="form-group form-group-last">
                 <label class="form-label">Professional Bio <span class="ep-label-req">*</span></label>
-                <textarea v-model="basicForm.bio" class="form-textarea" rows="5" maxlength="500"></textarea>
+                <textarea v-model="basicForm.bio"
+                  :class="['form-textarea', { 'is-error': fieldError(vBasic, 'basicForm', 'bio') }]"
+                  rows="5" maxlength="500"
+                  @blur="vBasic.value.basicForm.bio.$touch()"></textarea>
                 <div class="form-char">{{ basicForm.bio.length }} / 500</div>
-                <div class="form-help">Write a 2–4 sentence bio. Be specific about your approach and client population.</div>
+                <div v-if="fieldError(vBasic, 'basicForm', 'bio')" class="form-error">{{ fieldError(vBasic, 'basicForm', 'bio') }}</div>
+                <div v-else class="form-help">Write a 2–4 sentence bio. Be specific about your approach and client population.</div>
+              </div>
+
+              <div class="form-actions-bar">
+                <button type="button" class="btn btn-primary" :disabled="basicForm.processing" @click="submitBasic">
+                  {{ basicForm.processing ? 'Saving…' : 'Save basic info' }}
+                </button>
               </div>
             </div>
           </div>
@@ -198,12 +220,19 @@
             <div class="card-body">
               <div class="form-group">
                 <label class="form-label">Location <span class="ep-label-req">*</span></label>
-                <input v-model="basicForm.location" type="text" class="form-input" placeholder="City, State">
+                <input v-model="basicForm.location" type="text"
+                  :class="['form-input', { 'is-error': fieldError(vBasic, 'basicForm', 'location') }]"
+                  placeholder="City, State"
+                  @blur="vBasic.value.basicForm.location.$touch()">
+                <div v-if="fieldError(vBasic, 'basicForm', 'location')" class="form-error">{{ fieldError(vBasic, 'basicForm', 'location') }}</div>
               </div>
               <div class="form-row form-row-2">
                 <div class="form-group">
                   <label class="form-label">Phone <span class="ep-label-req">*</span></label>
-                  <input v-model="basicForm.phone" type="tel" class="form-input">
+                  <input v-model="basicForm.phone" type="tel"
+                    :class="['form-input', { 'is-error': fieldError(vBasic, 'basicForm', 'phone') }]"
+                    @blur="vBasic.value.basicForm.phone.$touch()">
+                  <div v-if="fieldError(vBasic, 'basicForm', 'phone')" class="form-error">{{ fieldError(vBasic, 'basicForm', 'phone') }}</div>
                 </div>
                 <div class="form-group">
                   <label class="form-label">Avatar initials</label>
@@ -216,10 +245,12 @@
               </div>
               <div class="form-group">
                 <label class="form-label">Website <span class="ep-label-opt">(Optional)</span></label>
-                <div class="ep-input-prefix">
+                <div :class="['ep-input-prefix', { 'is-error': fieldError(vWebsite, 'websiteForm', 'website') }]">
                   <span class="ep-input-prefix-label">https://</span>
-                  <input v-model="websiteForm.website" type="text" class="form-input" placeholder="yoursite.com">
+                  <input v-model="websiteForm.website" type="text" class="form-input" placeholder="yoursite.com"
+                    @blur="vWebsite.value.websiteForm.website.$touch()">
                 </div>
+                <div v-if="fieldError(vWebsite, 'websiteForm', 'website')" class="form-error">{{ fieldError(vWebsite, 'websiteForm', 'website') }}</div>
               </div>
               <div class="form-group form-group-last">
                 <label class="form-label">Languages Spoken</label>
@@ -230,7 +261,7 @@
                 </div>
                 <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
                   <input v-model="customLanguageInput" type="text" class="form-input" placeholder="Add other language…" style="flex:1;font-size:13px" @keydown.enter.prevent="addCustomLanguage">
-                  <button type="button" class="btn btn-outline btn-sm" style="white-space:nowrap;flex-shrink:0" @click="addCustomLanguage">+ Add</button>
+                  <button type="button" class="btn btn-outline btn-xs" style="white-space:nowrap;flex-shrink:0" @click="addCustomLanguage">+ Add</button>
                 </div>
               </div>
               <div class="form-actions-bar">
@@ -242,11 +273,6 @@
           </div>
 
           <!-- Accepting Status -->
-          <!-- NOTE: no backend fields exist yet for these 5 selects (no migration
-               columns, no FormRequest). Rendered per design; saving routes through
-               provider.profile.basic as free-text additions would corrupt that
-               contract, so these are left as local-only state pending a future
-               schema addition (flagged, not fabricated). -->
           <div class="ep-card">
             <div class="ep-card-header">
               <div class="ep-card-header-left">
@@ -302,13 +328,12 @@
                   </select>
                 </div>
               </div>
+              <div class="form-actions-bar">
+                <button type="button" class="btn btn-primary" :disabled="acceptingStatus.processing" @click="submitAcceptingStatus">
+                  {{ acceptingStatus.processing ? 'Saving…' : 'Save accepting status' }}
+                </button>
+              </div>
             </div>
-          </div>
-
-          <div class="form-actions-bar" style="margin-bottom:18px">
-            <button type="button" class="btn btn-primary" :disabled="basicForm.processing" @click="submitBasic">
-              {{ basicForm.processing ? 'Saving…' : 'Save basic info' }}
-            </button>
           </div>
 
         </div><!-- /basic-info -->
@@ -561,7 +586,7 @@
                   <div class="ep-cat" style="margin-top:14px">Add Custom Service</div>
                   <div style="display:flex;gap:8px;align-items:center">
                     <input v-model="customServiceInput" type="text" class="form-input" placeholder="Enter a service not listed…" style="flex:1;font-size:13px" @keydown.enter.prevent="addCustomService">
-                    <button type="button" class="btn btn-outline btn-sm" style="white-space:nowrap;flex-shrink:0" @click="addCustomService">+ Add</button>
+                    <button type="button" class="btn btn-outline btn-xs" style="white-space:nowrap;flex-shrink:0" @click="addCustomService">+ Add</button>
                   </div>
                 </div>
               </details>
@@ -580,7 +605,7 @@
                   <div class="ep-cat" style="margin-top:14px">Add Custom Specialty</div>
                   <div style="display:flex;gap:8px;align-items:center">
                     <input v-model="customSpecialtyInput" type="text" class="form-input" placeholder="Enter a specialty not listed…" style="flex:1;font-size:13px" @keydown.enter.prevent="addCustomSpecialty">
-                    <button type="button" class="btn btn-outline btn-sm" style="white-space:nowrap;flex-shrink:0" @click="addCustomSpecialty">+ Add</button>
+                    <button type="button" class="btn btn-outline btn-xs" style="white-space:nowrap;flex-shrink:0" @click="addCustomSpecialty">+ Add</button>
                   </div>
                 </div>
               </details>
@@ -620,7 +645,7 @@
                 <label class="form-label">Add Custom Approach</label>
                 <div style="display:flex;gap:8px;align-items:center">
                   <input v-model="customApproachInput" type="text" class="form-input" placeholder="Enter approach or framework not listed…" style="flex:1;font-size:13px" @keydown.enter.prevent="addCustomApproach">
-                  <button type="button" class="btn btn-outline btn-sm" style="white-space:nowrap;flex-shrink:0" @click="addCustomApproach">+ Add</button>
+                  <button type="button" class="btn btn-outline btn-xs" style="white-space:nowrap;flex-shrink:0" @click="addCustomApproach">+ Add</button>
                 </div>
               </div>
 
@@ -660,7 +685,12 @@
               </div>
               <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
                 <input v-model="customInsuranceInput" type="text" class="form-input" placeholder="Add insurance not listed…" style="flex:1;font-size:13px" @keydown.enter.prevent="addCustomInsurance">
-                <button type="button" class="btn btn-outline btn-sm" style="white-space:nowrap;flex-shrink:0" @click="addCustomInsurance">+ Add</button>
+                <button type="button" class="btn btn-outline" style="white-space:nowrap;flex-shrink:0" @click="addCustomInsurance">+ Add</button>
+              </div>
+              <div class="form-actions-bar">
+                <button type="button" class="btn btn-primary" :disabled="feesForm.processing" @click="submitFees">
+                  {{ feesForm.processing ? 'Saving…' : 'Save insurance panels' }}
+                </button>
               </div>
             </div>
           </div>
@@ -689,7 +719,13 @@
                 </div>
                 <div class="form-group">
                   <label class="form-label">Session Rate <span class="ep-label-req">*</span></label>
-                  <div class="ep-money"><span class="ep-money-prefix">$</span><input v-model.number="sessionRateDollars" type="number" min="0" class="form-input"></div>
+                  <div class="ep-money">
+                    <span class="ep-money-prefix">$</span>
+                    <input v-model.number="sessionRateDollars" type="number" min="0"
+                      :class="['form-input', { 'is-error': fieldError(vFees, 'feesForm', 'session_rate_cents') }]"
+                      @blur="vFees.value.feesForm.session_rate_cents.$touch()">
+                  </div>
+                  <div v-if="fieldError(vFees, 'feesForm', 'session_rate_cents')" class="form-error">{{ fieldError(vFees, 'feesForm', 'session_rate_cents') }}</div>
                 </div>
               </div>
               <div class="ep-divider"></div>
@@ -879,7 +915,7 @@
       <p style="font-size:13px;color:var(--text-2);line-height:1.6">Your profile photo will be removed and your initials will be shown instead. This cannot be undone.</p>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.removePhoto = false">Cancel</button>
-        <button type="button" class="btn btn-danger btn-sm" @click="confirmRemovePhoto">Yes, Remove</button>
+        <button type="button" class="btn btn-danger" @click="confirmRemovePhoto">Yes, Remove</button>
       </template>
     </AegisModal>
 
@@ -1017,6 +1053,8 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
+import { useVuelidate } from '@vuelidate/core'
+import { required, minLength, maxLength, helpers, email as emailValidator, url as urlValidator } from '@vuelidate/validators'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AegisDropzone from '@/components/ui/AegisDropzone.vue'
 import AegisToggle from '@/components/ui/AegisToggle.vue'
@@ -1038,6 +1076,63 @@ const props = defineProps({
 
 const toast = useToast()
 const { confirmAction } = useConfirm()
+
+// ── Vuelidate setup ───────────────────────────────────────────────────
+// Basic info rules (firstName, lastName, title, bio are required)
+const basicRules = computed(() => ({
+  firstName: { required: helpers.withMessage('First name is required', required) },
+  lastName:  { required: helpers.withMessage('Last name is required', required) },
+  basicForm: {
+    title: { required: helpers.withMessage('Professional title is required', required) },
+    bio:   {
+      required: helpers.withMessage('Professional bio is required', required),
+      minLength: helpers.withMessage('Bio must be at least 20 characters', minLength(20)),
+    },
+    phone: { required: helpers.withMessage('Phone is required', required) },
+    location: { required: helpers.withMessage('Location is required', required) },
+  },
+}))
+const basicState = computed(() => ({ firstName, lastName, basicForm }))
+const vBasic = useVuelidate(basicRules, basicState)
+
+// Website / contact rules
+const websiteRules = computed(() => ({
+  websiteForm: {
+    website: {
+      validUrl: helpers.withMessage('Enter a valid URL (e.g. yoursite.com)', (v) => {
+        if (!v) return true
+        try { new URL(v.startsWith('http') ? v : `https://${v}`); return true } catch { return false }
+      }),
+    },
+  },
+}))
+const websiteState = computed(() => ({ websiteForm }))
+const vWebsite = useVuelidate(websiteRules, websiteState)
+
+// Fees rules
+const feesRules = computed(() => ({
+  feesForm: {
+    session_rate_cents: {
+      required: helpers.withMessage('Session rate is required', required),
+      positive: helpers.withMessage('Rate must be greater than $0', (v) => !v || v > 0),
+    },
+  },
+}))
+const feesState = computed(() => ({ feesForm }))
+const vFees = useVuelidate(feesRules, feesState)
+
+// Helper: get field error message for display
+function fieldError(v$obj, ...path) {
+  let node = v$obj.value
+  for (const key of path) {
+    node = node?.[key]
+    if (!node) return null
+  }
+  if (node.$dirty && node.$error) {
+    return node.$errors?.[0]?.$message ?? null
+  }
+  return null
+}
 
 // ── Section nav ───────────────────────────────────────────────────────
 const activeSection = ref('basic-info')
@@ -1081,7 +1176,9 @@ const initialsFromName = computed(() => {
   return (f + l).toUpperCase() || '—'
 })
 
-function submitBasic() {
+async function submitBasic() {
+  const ok = await vBasic.value.$validate()
+  if (!ok) { toast.error('Please fix the errors before saving.'); return }
   basicForm.display_name = `${firstName.value} ${lastName.value}`.trim()
   basicForm.put(route('provider.profile.basic'), {
     preserveScroll: true,
@@ -1092,14 +1189,20 @@ function submitBasic() {
   })
 }
 
-// ── Accepting status (UI-only — no backend fields exist yet) ──────────
-const acceptingStatus = reactive({
-  new_clients:        'Yes — Accepting New Clients',
-  new_referrals:       'Yes — Open to Referrals',
-  supervisees:         'Not Currently',
-  continuity_clients:  'Not Currently',
-  service_format:      'Both In-Person & Telehealth',
+// ── Accepting status (wired to provider.profile.network → network_prefs blob) ──
+const acceptingStatus = useForm({
+  new_clients:        props.meta.accepting_status?.new_clients        ?? 'Yes — Accepting New Clients',
+  new_referrals:      props.meta.accepting_status?.new_referrals      ?? 'Yes — Open to Referrals',
+  supervisees:        props.meta.accepting_status?.supervisees        ?? 'Not Currently',
+  continuity_clients: props.meta.accepting_status?.continuity_clients ?? 'Not Currently',
+  service_format:     props.meta.accepting_status?.service_format     ?? 'Both In-Person & Telehealth',
 })
+function submitAcceptingStatus() {
+  acceptingStatus.put(route('provider.profile.network'), {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Accepting status saved.'),
+  })
+}
 
 // ── Languages / website ──────────────────────────────────────────────
 const languageOptions = ['English','Spanish','Mandarin Chinese','French','Arabic','Hindi','Portuguese','Russian','Korean','Japanese','Vietnamese','Tagalog','Italian','German','Polish']
@@ -1114,7 +1217,9 @@ function addCustomLanguage() {
   if (!websiteForm.languages.includes(v)) websiteForm.languages.push(v)
   customLanguageInput.value = ''
 }
-function submitLanguages() {
+async function submitLanguages() {
+  const ok = await vWebsite.value.$validate()
+  if (!ok) { toast.error('Please fix the errors before saving.'); return }
   websiteForm.put(route('provider.profile.languages'), {
     preserveScroll: true,
     onSuccess: () => toast.success('Contact details saved.'),
@@ -1382,7 +1487,9 @@ const packageRateDollars = computed({
   get: () => feesForm.package_rate_cents != null ? feesForm.package_rate_cents / 100 : null,
   set: (v) => { feesForm.package_rate_cents = v ? Math.round(v * 100) : null },
 })
-function submitFees() {
+async function submitFees() {
+  const ok = await vFees.value.$validate()
+  if (!ok) { toast.error('Please fix the errors before saving.'); return }
   feesForm.put(route('provider.profile.fees'), {
     preserveScroll: true,
     onSuccess: () => {

@@ -21,6 +21,11 @@ class UpdateNetworkPreferencesRequest extends FormRequest
             'network_languages.*' => 'string|max:50',
             'network_format'      => 'nullable|array',
             'network_format.*'    => 'string|max:50',
+            'new_clients'         => 'nullable|string|max:100',
+            'new_referrals'       => 'nullable|string|max:100',
+            'supervisees'         => 'nullable|string|max:100',
+            'continuity_clients'  => 'nullable|string|max:100',
+            'service_format'      => 'nullable|string|max:100',
         ];
     }
 }
