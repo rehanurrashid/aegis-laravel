@@ -1970,50 +1970,28 @@
         </div>
       </div>
 
-      <div class="sbp-layout">
-        <!-- SS Filter Sidebar -->
-        <aside class="filter-sidebar">
-          <div class="filter-sidebar-header">
-            <div class="filter-sidebar-title"><AegisIcon name="filter" :size="14" /> Filters</div>
-            <button type="button" class="filter-clear-btn" @click="ssAvailFilter = false">Clear All</button>
-          </div>
-          <div class="filter-group">
-            <div class="filter-group-label">Availability</div>
-            <label class="nw-sbp-clinical-label" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;">
-              <span style="display:flex;align-items:center;gap:6px;font-size:13px;">
-                <AegisIcon name="user-check" :size="14" />
-                Available as SS only
-              </span>
-              <button type="button" class="toggle" :class="{ on: ssAvailFilter }" @click="ssAvailFilter = !ssAvailFilter" />
-            </label>
-          </div>
-        </aside>
+      <AegisEmptyState v-if="!filteredSsDirectory.length" icon="user-check" title="No providers found" description="No providers have listed themselves as available SS yet." />
 
-        <!-- SS Provider Cards -->
-        <div class="sbp-results">
-          <div v-if="!filteredSsDirectory.length" style="padding:40px 0;text-align:center;color:var(--text-3);">
-            <AegisIcon name="user-check" :size="28" style="margin-bottom:12px;" />
-            <div style="font-size:14px;font-weight:600;">No providers found</div>
-            <div style="font-size:13px;margin-top:4px;">Try clearing filters or check back later.</div>
+      <div class="provider-grid">
+        <div
+          v-for="p in filteredSsDirectory"
+          :key="p.id"
+          class="spc-card"
+          @click="p.slug ? viewProfile(p.slug) : null"
+        >
+          <div class="spc-top-pills">
+            <AegisBadge variant="green" icon="check" style="font-size:10px;">Available as SS</AegisBadge>
           </div>
-          <div v-for="p in filteredSsDirectory" :key="p.id" class="sbp-card">
-            <div class="sbp-card-header">
-              <div class="avatar avatar-lg avatar-gold">{{ p.avatar_initials }}</div>
-              <div class="sbp-card-info">
-                <div class="sbp-card-name" style="color:var(--gold-dark);">{{ p.display_name }}{{ p.credentials ? ', ' + p.credentials : '' }}</div>
-                <div class="sbp-card-role">{{ p.title }}</div>
-                <div class="sbp-card-location" v-if="p.location"><AegisIcon name="map-pin" :size="12" /> {{ p.location }}</div>
-              </div>
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;margin:10px 0;">
-              <AegisBadge v-if="p.available_as_ss" variant="green" icon="check">Available as SS</AegisBadge>
-            </div>
-            <div class="sbp-card-actions">
-              
-              <button type="button" class="btn btn-primary" style="font-size:12px;" @click="router.visit(route('provider.ss.index'))">
-                <AegisIcon name="user-plus" :size="13" /> Designate as SS
-              </button>
-            </div>
+          <div class="spc-body">
+            <div class="spc-avatar spc-avatar-lg">{{ p.avatar_initials }}</div>
+            <div class="spc-name" style="color:var(--gold-dark);">{{ p.display_name }}{{ p.credentials ? ', ' + p.credentials : '' }}</div>
+            <div class="spc-role">{{ p.title }}</div>
+            <div class="spc-loc">{{ p.location }}</div>
+          </div>
+          <div class="spc-actions" @click.stop>
+            <button type="button" class="btn btn-primary" style="font-size:12px;width:100%;justify-content:center;" @click="router.visit(route('provider.ss.index'))">
+              <AegisIcon name="user-plus" :size="13" /> Designate as SS
+            </button>
           </div>
         </div>
       </div>
