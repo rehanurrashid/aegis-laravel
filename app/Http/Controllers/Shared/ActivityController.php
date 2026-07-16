@@ -36,8 +36,13 @@ class ActivityController extends Controller
             ->with('actor:id,display_name,role')
             ->orderByDesc('created_at');
         if (!empty($filters['module'])) {
-            $moduleVal = $filters['module'] === 'continuity_stewards' ? 'steward' : $filters['module'];
-            $filteredQuery->where('module', $moduleVal);
+            if ($filters['module'] === 'support_stewards') {
+                $filteredQuery->where('module', 'steward')
+                    ->where(fn($q) => $q->where('event_type', 'like', 'ss_%'));
+            } else {
+                $moduleVal = $filters['module'] === 'continuity_stewards' ? 'steward' : $filters['module'];
+                $filteredQuery->where('module', $moduleVal);
+            }
         }
         if (!empty($filters['severity']))   $filteredQuery->where('severity', $filters['severity']);
         // 'services' is a module-based filter, not an event_type filter
@@ -94,6 +99,7 @@ class ActivityController extends Controller
             ['key' => 'incident',     'label' => 'Incidents',     'icon' => 'alert-triangle'],
             ['key' => 'plan',         'label' => 'Continuity Plan','icon' => 'shield'],
             ['key' => 'continuity_stewards', 'label' => 'Continuity Stewards', 'icon' => 'users'],
+            ['key' => 'support_stewards',    'label' => 'Support Stewards',    'icon' => 'user-check'],
             ['key' => 'message',      'label' => 'Messages',      'icon' => 'message-square'],
             ['key' => 'support',      'label' => 'Support',       'icon' => 'life-buoy'],
             ['key' => 'task',         'label' => 'Tasks',         'icon' => 'check-circle'],
@@ -141,7 +147,15 @@ class ActivityController extends Controller
             } elseif ($cat['key'] === 'plan') {
                 $cat['count'] = (int) (clone $baseQuery)->where('module', 'plan')->count();
             } elseif ($cat['key'] === 'continuity_stewards') {
-                $cat['count'] = (int) (clone $baseQuery)->where('module', 'steward')->count();
+                $cat['count'] = (int) (clone $baseQuery)->where('module', 'steward')
+                    ->where(fn($q) => $q
+                        ->where('event_type', 'like', 'cs_%')
+                        ->orWhereNotIn('event_type', ['ss_invite','ss_added','ss_removed','ss_suspended','ss_reinstated'])
+                    )->count();
+            } elseif ($cat['key'] === 'support_stewards') {
+                $cat['count'] = (int) (clone $baseQuery)->where('module', 'steward')
+                    ->where(fn($q) => $q->where('event_type', 'like', 'ss_%'))
+                    ->count();
             } else {
                 $cat['count'] = (int) ($catCountsRaw[$cat['key']] ?? 0);
             }

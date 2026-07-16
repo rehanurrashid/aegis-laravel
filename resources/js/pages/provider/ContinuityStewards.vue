@@ -14,6 +14,7 @@ import ViewCsAgreementModal from '@/components/modals/ViewCsAgreementModal.vue'
 
 const props = defineProps({
   stewards:           { type: Array,  default: () => [] },
+  suspended:          { type: Array,  default: () => [] },
   pendingInvitations: { type: Array,  default: () => [] },
   servingAsCSFor:     { type: Array,  default: () => [] },
   tierLimits:         { type: Object, default: () => ({}) },
@@ -38,7 +39,9 @@ const activeTab = ref('myexec')
 
 // ── Active record refs ──────────────────────────────────────────────────────────
 const activeId      = ref(null)
-const activeSteward = computed(() => props.stewards.find(s => s.id === activeId.value) ?? null)
+const activeSteward = computed(() =>
+  [...(props.stewards ?? []), ...(props.suspended ?? [])].find(s => s.id === activeId.value) ?? null
+)
 const viewAgreementSteward = ref(null)
 const showViewAgreement = ref(false)
 const activePendingId = ref(null)
@@ -57,6 +60,7 @@ const modals = ref({
   remove:         false,
   cancelInvite:   false,
   upgrade:        false,
+  reinstateCs:    false,
 })
 
 function openModal(key, steward = null) {
@@ -80,6 +84,22 @@ function openEditModal(s) {
 function openRemoveModal(s) {
   activeId.value = s.id
   modals.value.remove = true
+}
+function openCsReinstate(s) {
+  activeId.value = s.id
+  modals.value.reinstateCs = true
+}
+function submitCsReinstate() {
+  if (!activeSteward.value) return
+  router.post(route('stewards.reinstate', { steward: activeSteward.value.id }), {}, {
+    preserveScroll: true,
+    onSuccess: () => {
+      modals.value.reinstateCs = false
+      toast.success('Continuity Steward reinstated.')
+      router.reload({ only: ['stewards', 'suspended'] })
+    },
+    onError: () => toast.error('Could not reinstate steward.'),
+  })
 }
 function openResend(inv) {
   activePendingId.value   = inv.id
@@ -370,6 +390,10 @@ function saveNotifyPrefs() {
         <AegisIcon name="mail" :size="13" />
         Pending <span class="badge-pill">{{ pendingInvitations.length }}</span>
       </button>
+      <button v-if="suspended?.length" class="tab-pill" :class="{ active: activeTab === 'suspended' }" @click="activeTab = 'suspended'">
+        <AegisIcon name="pause" :size="13" />
+        Suspended <span class="badge-pill">{{ suspended.length }}</span>
+      </button>
       <button v-if="servingAsCSFor.length" class="tab-pill" :class="{ active: activeTab === 'for' }" @click="activeTab = 'for'">
         <AegisIcon name="check-circle" :size="13" />
         I'm Continuity Steward For <span class="badge-pill">{{ servingAsCSFor.length }}</span>
@@ -531,6 +555,34 @@ function saveNotifyPrefs() {
               <button type="button" class="btn-icon" data-tooltip="Resend Invitation"  @click="openResend(inv)"><AegisIcon name="send" :size="14" /></button>
               <button type="button" class="btn-icon" data-tooltip="Preview Agreement" @click="viewAgreementSteward = {...inv, _incidentLabels: []}; showViewAgreement = true"><AegisIcon name="eye" :size="14" /></button>
               <button type="button" class="btn-icon" data-tooltip="Cancel Invitation"  @click="openCancelInvite(inv)"><AegisIcon name="x" :size="14" /></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════ TAB: SUSPENDED ═══════════════════ -->
+    <div v-show="activeTab === 'suspended'">
+      <p style="font-size:13px;color:var(--text-3);margin-bottom:16px">Continuity Stewards with temporarily suspended access.</p>
+      <AegisEmptyState v-if="!suspended?.length" icon="pause-circle" title="No Suspended Stewards" description="Stewards with suspended access will appear here." />
+      <div v-for="s in (suspended ?? [])" :key="s.id" class="cs-card" style="border-left:4px solid var(--red-dark);margin-bottom:12px;">
+        <div class="cs-card-header" style="display:flex;align-items:flex-start;gap:14px;">
+          <div class="avatar avatar-lg avatar-dark">{{ s.steward?.avatar_initials ?? (s.display_name ?? '??').slice(0,2).toUpperCase() }}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+              <span style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);">{{ s.display_name ?? s.steward?.display_name ?? '—' }}</span>
+              <AegisBadge variant="gold" icon="user">Continuity Steward</AegisBadge>
+              <AegisBadge variant="red"><AegisIcon name="pause" :size="11" /> Suspended</AegisBadge>
+            </div>
+            <div style="font-size:12px;color:var(--text-3);margin-top:2px;">{{ [s.steward?.title, s.steward?.organization].filter(Boolean).join(' · ') }}</div>
+            <div v-if="s.declined_reason" class="alert alert-danger" style="margin:10px 0 0;">
+              <div class="alert-icon"><AegisIcon name="lock" :size="16" /></div>
+              <div class="alert-content"><strong>Access suspended:</strong> {{ s.declined_reason }}</div>
+            </div>
+            <div style="margin-top:12px;display:flex;gap:8px;">
+              <button class="btn btn-outline" @click="openCsReinstate(s)">
+                <AegisIcon name="check" :size="13" /> Reinstate
+              </button>
             </div>
           </div>
         </div>
@@ -917,6 +969,18 @@ function saveNotifyPrefs() {
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.upgrade=false">Not Now</button>
         <a :href="route('provider.settings.billing.portal')" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;"><AegisIcon name="arrow-right" :size="13" /> Upgrade Plan</a>
+      </template>
+    </AegisModal>
+
+    <!-- REINSTATE CS -->
+    <AegisModal v-model="modals.reinstateCs" title="Reinstate Continuity Steward" size="sm" @close="modals.reinstateCs=false">
+      <p>Reinstate <strong>{{ activeSteward?.display_name ?? activeSteward?.steward?.display_name ?? '' }}</strong> as your Continuity Steward?</p>
+      <p style="font-size:12px;color:var(--text-3);margin-top:8px;">Their access will be restored. They will be notified by email.</p>
+      <template #footer>
+        <button type="button" class="btn btn-outline" @click="modals.reinstateCs=false">Cancel</button>
+        <button type="button" class="btn btn-primary" @click="submitCsReinstate">
+          <AegisIcon name="check" :size="13" /> Reinstate
+        </button>
       </template>
     </AegisModal>
 

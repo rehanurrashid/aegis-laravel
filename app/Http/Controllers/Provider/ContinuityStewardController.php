@@ -362,6 +362,69 @@ class ContinuityStewardController extends Controller
         return back()->with('success', 'Authorization updated.');
     }
 
+    public function csSuspend(Request $request, PlanSteward $steward): RedirectResponse
+    {
+        $plan = $this->plans->getForPractitioner($request->user()->id);
+        abort_if(!$plan || $steward->plan_id !== $plan->id, 404);
+        $this->authorize('update', $plan);
+
+        $data = $request->validate(['reason' => 'required|string|max:255']);
+        $steward->update(['status' => 'archived', 'declined_reason' => $data['reason']]);
+
+        $actor = $request->user();
+        $this->activity->log(
+            $actor->id, 'provider', 'steward',
+            ActivitySeverity::Warning, 'cs_suspended',
+            'Continuity Steward access suspended',
+            'Reason: ' . $data['reason'],
+            'plan_steward', $steward->id,
+            $steward->steward_id,
+            'log', $actor->id
+        );
+        $this->activity->log(
+            $steward->steward_id, 'continuity_steward', 'steward',
+            ActivitySeverity::Warning, 'cs_suspended',
+            'Your Continuity Steward access has been suspended',
+            'Reason: ' . $data['reason'],
+            'plan_steward', $steward->id,
+            $actor->id,
+            'notification', $actor->id
+        );
+
+        return back()->with('success', 'Continuity Steward access suspended.');
+    }
+
+    public function csReinstate(Request $request, PlanSteward $steward): RedirectResponse
+    {
+        $plan = $this->plans->getForPractitioner($request->user()->id);
+        abort_if(!$plan || $steward->plan_id !== $plan->id, 404);
+        $this->authorize('update', $plan);
+
+        $steward->update(['status' => 'active', 'declined_reason' => null]);
+
+        $actor = $request->user();
+        $this->activity->log(
+            $actor->id, 'provider', 'steward',
+            ActivitySeverity::Info, 'cs_reinstated',
+            'Continuity Steward access reinstated',
+            'Access restored for continuity steward.',
+            'plan_steward', $steward->id,
+            $steward->steward_id,
+            'log', $actor->id
+        );
+        $this->activity->log(
+            $steward->steward_id, 'continuity_steward', 'steward',
+            ActivitySeverity::Info, 'cs_reinstated',
+            'Your Continuity Steward access has been reinstated',
+            'Your access has been restored by the practitioner.',
+            'plan_steward', $steward->id,
+            $actor->id,
+            'notification', $actor->id
+        );
+
+        return back()->with('success', 'Continuity Steward reinstated.');
+    }
+
     // ── SS ─────────────────────────────────────────────────────────────────────
     public function csVaultAccess(Request $request, PlanSteward $steward): RedirectResponse
     {
@@ -424,11 +487,13 @@ class ContinuityStewardController extends Controller
 
         // Partition by status
         $active    = collect($allStewards)->whereIn('status', ['active'])->values();
-        $suspended = collect($allStewards)->where('status', 'archived')->where('signed_at', '!=', null)->values(); // suspended uses archived + had signed_at
+        $suspended = collect($allStewards)->where('status', 'archived')
+            ->filter(fn($s) => !empty($s['declined_reason']))->values(); // has reason = suspended
         $pending   = collect($allStewards)->where('status', 'pending')->values();
         $invited   = collect($allStewards)->where('status', 'invited')->values();
         $declined  = collect($allStewards)->where('status', 'declined')->values();
-        $archived  = collect($allStewards)->where('status', 'archived')->whereNull('signed_at')->values();
+        $archived  = collect($allStewards)->where('status', 'archived')
+            ->filter(fn($s) => empty($s['declined_reason']))->values(); // no reason = cleanly archived
 
         $ssCount = $active->count() + $pending->count() + $invited->count();
 
@@ -462,6 +527,11 @@ class ContinuityStewardController extends Controller
             'tier'            => $tier,
             'ssMax'           => $ssMax,
             'ssCount'         => $ssCount,
+            'planStatus'      => $plan?->status?->value ?? null,
+            'annualReviewDate'=> $plan?->annual_review_date?->toISOString() ?? null,
+            'hasDraftInProgress' => \App\Models\ContinuityPlan::where('practitioner_id', $user->id)->where('status', 'draft')->exists(),
+            'draftPlanVersion'   => \App\Models\ContinuityPlan::where('practitioner_id', $user->id)->where('status', 'draft')->value('plan_version'),
+            'notifyPrefs'     => $this->profiles->getMeta($user, 'notify_ss_activity', []),
         ]);
     }
 

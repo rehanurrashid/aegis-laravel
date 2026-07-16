@@ -8,12 +8,9 @@
       quiet
     >
       <template #actions>
-        <a :href="route('activity.index') + '?module=steward'" class="btn-hero-ghost is-on-light" data-tooltip="Module activity">
+        <a :href="route('activity.index') + '?module=support_stewards'" class="btn-hero-ghost is-on-light" data-tooltip="Module activity">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
-        <button class="btn-hero-ghost is-on-light" @click="openModal('dsrGuideModal')">
-          What is a Support Steward?
-        </button>
         <button class="btn-hero-solid is-on-light" @click="handleAddSS">
           <AegisIcon name="plus" :size="14" /> Add Support Steward
         </button>
@@ -143,13 +140,6 @@
           <button class="btn btn-primary" @click="handleAddSS"><AegisIcon name="plus" :size="14" /> Add Support Steward</button>
         </template>
       </AegisEmptyState>
-
-      <!-- ADD CTA ZONE -->
-      <div class="upload-zone" style="margin-bottom:14px" @click="handleAddSS">
-        <div class="upload-zone-icon"><AegisIcon name="plus" :size="22" /></div>
-        <div class="upload-zone-title">Add Another Support Steward</div>
-        <div class="upload-zone-sub">Designate a trusted individual to support coordination during a critical moment</div>
-      </div>
 
     </div>
 
@@ -573,6 +563,18 @@
 
 
 
+    <!-- REINSTATE -->
+    <AegisModal :model-value="isOpen('reinstateModal').value" title="Reinstate Support Steward" size="sm" @update:model-value="v => !v && closeModal('reinstateModal')">
+      <p>Reinstate <strong>{{ activeSteward ? fullName(activeSteward) : '' }}</strong> as your Support Steward?</p>
+      <p style="font-size:12px;color:var(--text-3);margin-top:8px;">Their access and responsibilities will be restored immediately. They will be notified by email.</p>
+      <template #footer>
+        <button class="btn btn-outline" @click="closeModal('reinstateModal')">Cancel</button>
+        <button class="btn btn-primary" :disabled="reinstateForm.processing" @click="submitReinstate">
+          <AegisIcon name="check" :size="13" /> Reinstate Steward
+        </button>
+      </template>
+    </AegisModal>
+
     <!-- WHAT IS A SUPPORT STEWARD -->
     <AegisModal :model-value="isOpen('dsrGuideModal').value" title="What is a Support Steward?" size="lg" @update:model-value="v => !v && closeModal('dsrGuideModal')">
       <div style="font-size:13px;color:var(--text-2);line-height:1.7">
@@ -838,9 +840,10 @@ async function submitSuspend() {
 }
 
 function submitReinstate() {
-  reinstateForm.post(route('provider.ss.reinstate', { steward: activeStewardId.value }), {
+  reinstateForm.post(route('ss.reinstate', { steward: activeStewardId.value }), {
     preserveScroll: true,
     onSuccess: () => { toast.success('Support Steward reinstated.'); closeModal('reinstateModal'); reinstateForm.reset() },
+    onError: () => toast.error('Could not reinstate steward.'),
   })
 }
 

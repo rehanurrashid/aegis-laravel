@@ -125,7 +125,7 @@
               :key="cat.key || 'all'"
               type="button"
               class="page-sidebar-item"
-              :class="{ active: (cat.key === 'services' || cat.key === 'plan' || cat.key === 'continuity_stewards') ? localFilters.module === cat.key : localFilters.event_type === cat.key }"
+              :class="{ active: (cat.key === 'services' || cat.key === 'plan' || cat.key === 'continuity_stewards' || cat.key === 'support_stewards') ? localFilters.module === cat.key : localFilters.event_type === cat.key }"
               @click="setEventType(cat.key)"
             >
               <AegisIcon :name="cat.icon" :size="14" />
@@ -428,7 +428,7 @@ function applyQuickFilter(q) {
 
 function setEventType(et) {
   // module-based filters (not event_type)
-  if (et === 'services' || et === 'plan' || et === 'continuity_stewards') {
+  if (et === 'services' || et === 'plan' || et === 'continuity_stewards' || et === 'support_stewards') {
     localFilters.event_type = ''
     localFilters.module = et
     activeQuick.value = 'all'

@@ -238,8 +238,18 @@ class SettingsController extends Controller
             'cs_notify.steward_added_removed'         => 'nullable|boolean',
             'cs_notify.critical_incident_reported'    => 'nullable|boolean',
             'cs_notify.continuity_response'           => 'nullable|boolean',
+            'ss_notify'                               => 'nullable|array',
+            'ss_notify.re_attestation_complete'       => 'nullable|boolean',
+            'ss_notify.steward_requests_changes'      => 'nullable|boolean',
+            'ss_notify.steward_updates_info'          => 'nullable|boolean',
+            'ss_notify.roles_permissions_change'      => 'nullable|boolean',
+            'ss_notify.documents_accessed'            => 'nullable|boolean',
+            'ss_notify.steward_added_removed'         => 'nullable|boolean',
+            'ss_notify.critical_incident_reported'    => 'nullable|boolean',
+            'ss_notify.continuity_response'           => 'nullable|boolean',
         ]);
         $this->profiles->saveMeta($request->user(), 'notify_cs_activity', $data['cs_notify'] ?? [], 'json');
+        $this->profiles->saveMeta($request->user(), 'notify_ss_activity', $data['ss_notify'] ?? [], 'json');
         return back()->with('success', 'Notification preferences saved.');
     }
 
