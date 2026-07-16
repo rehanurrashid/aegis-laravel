@@ -244,6 +244,43 @@ class StewardSeeder extends Seeder
                 'created_at'       => $now->copy()->subDays(3),
                 'updated_at'       => $now->copy()->subDays(3),
             ],
+
+            // p_david plan — p_sarah as primary SS (so sarah sees "I'm SS For" tab)
+            [
+                'id'               => 'ps_david_ss_sarah',
+                'plan_id'          => 'plan_david',
+                'steward_id'       => 'p_sarah',
+                'steward_category' => 'support_steward',
+                'role'             => 'primary',
+                'status'           => 'active',
+                'vault_access'     => 'none',
+                'permissions'      => json_encode([]),
+                'signed_at'        => $now->copy()->subMonths(3),
+                'review_due_at'    => $now->copy()->addMonths(9),
+                'invited_at'       => $now->copy()->subMonths(3)->subDays(5),
+                'created_at'       => $now->copy()->subMonths(3),
+                'updated_at'       => $now->copy()->subMonths(3),
+            ],
+
+            // p_sarah plan — suspended CS priya (archived + declined_reason = suspended)
+            [
+                'id'               => 'ps_sarah_cs_suspended',
+                'plan_id'          => 'plan_sarah',
+                'steward_id'       => 'cs_priya',
+                'role'             => 'alternate',
+                'steward_category' => 'continuity_steward',
+                'status'           => 'archived',
+                'vault_access'     => 'none',
+                'permissions'      => json_encode([]),
+                'responsibilities' => json_encode([]),
+                'signed_at'        => $now->copy()->subMonths(5),
+                'declined_reason'  => 'On extended medical leave — access paused until return.',
+                'fee_cents'        => 50000,
+                'payment_terms'    => 'on_close',
+                'invited_at'       => $now->copy()->subMonths(6),
+                'created_at'       => $now->copy()->subMonths(5),
+                'updated_at'       => $now->copy()->subMonths(1),
+            ],
         ];
 
         foreach ($stewards as $s) {

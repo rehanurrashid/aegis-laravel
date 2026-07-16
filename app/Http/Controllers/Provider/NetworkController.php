@@ -193,6 +193,11 @@ class NetworkController extends Controller
             ->where('practitioner_public', 1)
             ->where('role', 'practitioner')
             ->where('id', '!=', $user->id)
+            ->when($request->boolean('ss_avail_only'), function ($q) {
+                $q->whereHas('meta', fn ($m) =>
+                    $m->where('meta_key', 'available_as_ss')->where('meta_value', '1')
+                );
+            })
             ->orderBy('display_name')
             ->limit(60)
             ->get()
@@ -216,6 +221,7 @@ class NetworkController extends Controller
                     'resp'          => '— resp',
                     'telehealth'    => false,
                     'has_services'  => (bool) $u->services_mode,
+                    'available_as_ss' => (bool) ($u->meta->where('meta_key', 'available_as_ss')->first()?->meta_value),
                     'networkStatus' => in_array($u->id, $connectedIds, true)
                         ? 'in-network'
                         : (in_array($u->id, $pendingInboundIds, true) ? 'pending-received'
@@ -408,6 +414,22 @@ class NetworkController extends Controller
         $csSpecialties = ['Trauma','Couples','EMDR','Grief','Anxiety','ADHD','Addiction','Family Systems','Other'];
         $csStates      = ['AL','AK','AZ','AR','CA','CO','CT','DC','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
 
+        $ssDirectory = User::where('role', 'practitioner')
+            ->whereHas('meta', fn ($q) => $q->where('meta_key', 'available_as_ss')->where('meta_value', '1'))
+            ->with('meta')
+            ->limit(50)
+            ->get()
+            ->map(fn (User $u) => [
+                'id'              => $u->id,
+                'display_name'    => $u->display_name,
+                'credentials'     => $u->credentials ?? '',
+                'title'           => $u->title ?? '',
+                'location'        => $u->location ?? '',
+                'avatar_initials' => $u->avatar_initials ?? strtoupper(substr($u->display_name, 0, 2)),
+                'slug'            => $u->slug ?? '',
+                'available_as_ss' => true,
+            ])->values();
+
         return Inertia::render('provider/Network', [
             'clinicalConnections'          => $clinical,
             'bpConnections'                => $business,
@@ -436,7 +458,8 @@ class NetworkController extends Controller
             'networkConfig'                => $this->loadNetworkConfig($user),
             'csStewards'                   => $csStewards,
             'csFilters'                    => ['specialties' => $csSpecialties, 'states' => $csStates],
-            'initialScope'                 => $request->query('tab', 'clinical'),
+            'ssDirectory'                  => $ssDirectory,
+            'initialScope'                 => $request->query('tab', $request->query('scope', 'clinical')),
         ]);
     }
 

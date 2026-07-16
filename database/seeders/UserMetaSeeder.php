@@ -97,6 +97,10 @@ class UserMetaSeeder extends Seeder
             $rows[] = $this->row('p_maria', $k, $v, $t);
         }
 
+        // ── available_as_ss — p_david and p_maria visible in SS directory ──
+        $rows[] = $this->row('p_david', 'available_as_ss', '1', 'boolean');
+        $rows[] = $this->row('p_maria', 'available_as_ss', '1', 'boolean');
+
         // ── cs_marcus — CS profile meta ────────────────────────────────────
         $marcusMeta = [
             ['cs_fee_type',           'annual',                                            'string'],

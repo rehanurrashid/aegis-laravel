@@ -89,6 +89,9 @@
         <button type="button" id="nw-tab-cs" class="tab-primary" :class="{ active: scope === 'cs' }" @click="scope = 'cs'">
           <AegisIcon name="shield" :size="15" /> Continuity Stewards
         </button>
+        <button type="button" id="nw-tab-ss" class="tab-primary" :class="{ active: scope === 'ss' }" @click="scope = 'ss'">
+          <AegisIcon name="user-check" :size="14" /> Find SS
+        </button>
       </div>
 
       <!-- Sub-tabs: Integrative Care Network -->
@@ -268,7 +271,18 @@
             </label>
           </div>
 
-          <!-- 1. Provider Type -->
+          <div class="filter-group nw-sbp-clinical-toggle">
+            <label class="nw-sbp-clinical-label">
+              <span class="nw-sbp-clinical-text">
+                <AegisIcon name="user-check" :size="14" />
+                Available as Support Steward
+                <span class="sbp-info-tip" data-tooltip="Show providers who have indicated they can serve as a Support Steward.">
+                  <AegisIcon name="info" :size="12" />
+                </span>
+              </span>
+              <button type="button" class="toggle" :class="{ on: ssAvailFilter }" @click="ssAvailFilter = !ssAvailFilter" />
+            </label>
+          </div>
           <div class="filter-group" :class="{ open: openGroups.type }">
             <div class="filter-group-header" @click="toggleGroup('type')">
               <span class="filter-group-label">
@@ -1945,6 +1959,68 @@
       </div>
     </div><!-- /cs stewards -->
 
+    <!-- ══════════ SUPPORT STEWARDS DIRECTORY ══════════ -->
+    <div v-show="scope === 'ss'">
+
+      <div class="alert alert-info" style="margin-bottom:20px;">
+        <div class="alert-icon"><AegisIcon name="user-check" :size="18" /></div>
+        <div class="alert-content">
+          <div class="alert-title">Find a Support Steward</div>
+          <div>Browse practitioners who have indicated they are available to serve as a Support Steward. Designate one to authorize them for critical-incident reporting and coordination.</div>
+        </div>
+      </div>
+
+      <div class="sbp-layout">
+        <!-- SS Filter Sidebar -->
+        <aside class="filter-sidebar">
+          <div class="filter-sidebar-header">
+            <div class="filter-sidebar-title"><AegisIcon name="filter" :size="14" /> Filters</div>
+            <button type="button" class="filter-clear-btn" @click="ssAvailFilter = false">Clear All</button>
+          </div>
+          <div class="filter-group">
+            <div class="filter-group-label">Availability</div>
+            <label class="nw-sbp-clinical-label" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;">
+              <span style="display:flex;align-items:center;gap:6px;font-size:13px;">
+                <AegisIcon name="user-check" :size="14" />
+                Available as SS only
+              </span>
+              <button type="button" class="toggle" :class="{ on: ssAvailFilter }" @click="ssAvailFilter = !ssAvailFilter" />
+            </label>
+          </div>
+        </aside>
+
+        <!-- SS Provider Cards -->
+        <div class="sbp-results">
+          <div v-if="!filteredSsDirectory.length" style="padding:40px 0;text-align:center;color:var(--text-3);">
+            <AegisIcon name="user-check" :size="28" style="margin-bottom:12px;" />
+            <div style="font-size:14px;font-weight:600;">No providers found</div>
+            <div style="font-size:13px;margin-top:4px;">Try clearing filters or check back later.</div>
+          </div>
+          <div v-for="p in filteredSsDirectory" :key="p.id" class="sbp-card">
+            <div class="sbp-card-header">
+              <div class="avatar avatar-lg avatar-gold">{{ p.avatar_initials }}</div>
+              <div class="sbp-card-info">
+                <div class="sbp-card-name">{{ p.display_name }}{{ p.credentials ? ', ' + p.credentials : '' }}</div>
+                <div class="sbp-card-role">{{ p.title }}</div>
+                <div class="sbp-card-location" v-if="p.location"><AegisIcon name="map-pin" :size="12" /> {{ p.location }}</div>
+              </div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin:10px 0;">
+              <AegisBadge v-if="p.available_as_ss" variant="green" icon="check">Available as SS</AegisBadge>
+            </div>
+            <div class="sbp-card-actions">
+              <a v-if="p.slug" :href="route('public.provider', p.slug)" class="btn-icon" data-tooltip="View profile">
+                <AegisIcon name="eye" :size="14" />
+              </a>
+              <button type="button" class="btn btn-primary" style="font-size:12px;" @click="router.visit(route('provider.ss.index'))">
+                <AegisIcon name="user-plus" :size="13" /> Designate as SS
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /ss directory -->
+
     <!-- ══════════ MODALS ══════════ -->
 
     <!-- Review Pending Requests -->
@@ -2200,6 +2276,7 @@ const props = defineProps({
   networkConfig:                { type: Object, default: () => ({}) },
   csStewards:                   { type: Array,  default: () => [] },
   csFilters:                    { type: Object, default: () => ({ specialties: [], states: [] }) },
+  ssDirectory:                  { type: Array,  default: () => [] },
 })
 
 // ── Composables ────────────────────────────────────────────────────────────
@@ -2300,6 +2377,7 @@ const scope       = ref(props.initialScope ?? 'clinical')
 const clinicalTab = ref('search')
 const businessTab = ref('search')
 const toolsTab    = ref('list')
+const ssAvailFilter = ref(false)
 
 // ── Local modal state ──────────────────────────────────────────────────────
 const modals = reactive({
@@ -3229,6 +3307,12 @@ const filteredCS = computed(() => {
     list = [...list].sort((a, b) => (a.rate_min_cents ?? 0) - (b.rate_min_cents ?? 0))
   else if (csSort.value === 'rate_desc')
     list = [...list].sort((a, b) => (b.rate_min_cents ?? 0) - (a.rate_min_cents ?? 0))
+  return list
+})
+
+const filteredSsDirectory = computed(() => {
+  let list = [...(props.ssDirectory ?? [])]
+  if (ssAvailFilter.value) list = list.filter(p => p.available_as_ss)
   return list
 })
 

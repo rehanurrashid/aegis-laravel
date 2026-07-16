@@ -346,6 +346,15 @@ class SettingsController extends Controller
         return back()->with('success', 'Privacy settings saved.');
     }
 
+    public function updateSsAvailability(Request $request): RedirectResponse
+    {
+        $available = $request->boolean('available_as_ss');
+        /** @var \App\Services\ProfileService $ps */
+        $ps = app(\App\Services\ProfileService::class);
+        $ps->saveMeta($request->user(), 'available_as_ss', $available ? '1' : '0', 'boolean');
+        return back()->with('success', 'SS availability updated.');
+    }
+
 
 
 

@@ -440,6 +440,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::put('/settings/referral',          [ProviderSettingsController::class, 'updateReferral'])->name('settings.referral');
         Route::put('/settings/services-settings', [ProviderSettingsController::class, 'updateServicesSettings'])->name('settings.services-settings');
         Route::put('/settings/privacy-settings',  [ProviderSettingsController::class, 'updatePrivacySettings'])->name('settings.privacy-settings');
+        Route::post('/settings/ss-availability',   [ProviderSettingsController::class, 'updateSsAvailability'])->name('settings.ss-availability');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
         Route::put('/settings/account', [ProviderSettingsController::class, 'updateAccount'])->name('settings.account');
         Route::put('/settings/appearance', [ProviderSettingsController::class, 'updateAppearance'])->name('settings.appearance');
