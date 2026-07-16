@@ -136,13 +136,6 @@
         </div>
       </div>
 
-      <!-- ═══ STAT CHIPS ═══ -->
-      <div class="stat-chips-row">
-        <AegisStatChip v-if="pm.show_ratings && pm.rating" icon="star" :value="pm.rating" label="Overall Rating" />
-        <AegisStatChip v-if="yearsExperience" icon="briefcase" :value="yearsExperience + ' yrs'" label="Years in Practice" />
-        <AegisStatChip v-if="pm.show_ref_stats && pm.stats.referrals_exchanged" icon="share-tree" :value="pm.stats.referrals_exchanged" label="Network Referrals" />
-
-      </div>
 
       <!-- ═══ MY SERVICE REQUESTS (viewer strip) ═══ -->
       <div v-if="isVerifiedMember && !isOwner && myServiceRequests.length" class="svc-request-strip">
