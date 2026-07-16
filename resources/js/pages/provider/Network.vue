@@ -1979,9 +1979,6 @@
           class="spc-card"
           @click="p.slug ? viewProfile(p.slug) : null"
         >
-          <div class="spc-top-pills">
-            <AegisBadge variant="green" icon="check" style="font-size:10px;">Available as SS</AegisBadge>
-          </div>
           <div class="spc-body">
             <div class="spc-avatar spc-avatar-lg">{{ p.avatar_initials }}</div>
             <div class="spc-name" style="color:var(--gold-dark);">{{ p.display_name }}{{ p.credentials ? ', ' + p.credentials : '' }}</div>
@@ -1989,8 +1986,8 @@
             <div class="spc-loc">{{ p.location }}</div>
           </div>
           <div class="spc-actions" @click.stop>
-            <button type="button" class="btn btn-primary" style="font-size:12px;width:100%;justify-content:center;" @click="router.visit(route('provider.ss.index'))">
-              <AegisIcon name="user-plus" :size="13" /> Designate as SS
+            <button type="button" class="btn-icon" data-tooltip="Designate as SS" @click="router.visit(route('provider.ss.index'))">
+              <AegisIcon name="user-plus" :size="14" />
             </button>
           </div>
         </div>

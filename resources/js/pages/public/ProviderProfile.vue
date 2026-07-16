@@ -141,11 +141,7 @@
         <AegisStatChip v-if="pm.show_ratings && pm.rating" icon="star" :value="pm.rating" label="Overall Rating" />
         <AegisStatChip v-if="yearsExperience" icon="briefcase" :value="yearsExperience + ' yrs'" label="Years in Practice" />
         <AegisStatChip v-if="pm.show_ref_stats && pm.stats.referrals_exchanged" icon="share-tree" :value="pm.stats.referrals_exchanged" label="Network Referrals" />
-        <AegisStatChip
-          :icon="pm.stats.client_slots === 'Open' ? 'user-check' : 'clock'"
-          :value="pm.stats.client_slots === 'Open' ? 'Open' : pm.stats.client_slots === 'Waitlist' ? 'Waitlist' : 'Not Accepting'"
-          label="Accepting Clients"
-        />
+
       </div>
 
       <!-- ═══ MY SERVICE REQUESTS (viewer strip) ═══ -->
