@@ -86,7 +86,12 @@
         Pending
         <span class="badge-pill">{{ pendingCount }}</span>
       </button>
-
+      <button v-if="suspended.length" class="tab-pill" :class="{ active: activeTab === 'suspended' }" @click="activeTab = 'suspended'">
+        Suspended <span class="badge-pill">{{ suspended.length }}</span>
+      </button>
+      <button class="tab-pill" :class="{ active: activeTab === 'notifications' }" @click="activeTab = 'notifications'">
+        Notifications
+      </button>
     </div>
 
     <!-- ═══ TAB: MY SUPPORT STEWARDS ═══ -->
@@ -98,7 +103,7 @@
         </button>
       </div>
 
-      <template v-if="stewards.length || suspended.length">
+      <template v-if="stewards.length">
         <!-- ACTIVE -->
         <div v-for="s in stewards" :key="s.id" class="dsr-card active">
           <div class="avatar avatar-lg avatar-gold">{{ initials(s) }}</div>
@@ -115,13 +120,9 @@
               <span v-if="s.signed_at"><AegisIcon name="file-text" :size="12" /> Agreement: {{ fmtDate(s.signed_at) }}</span>
               <span v-if="s.review_due_at"><AegisIcon name="refresh-cw" :size="12" /> Review Due: {{ fmtDate(s.review_due_at) }}</span>
             </div>
-            <div v-if="s.responsibilities?.length" class="perm-list">
-              <div class="perm-list-label">Authorized Responsibilities</div>
-              <div v-for="(r, i) in normResp(s.responsibilities)" :key="i" class="perm-item">
-                <span class="pi-icon"><AegisIcon name="check" :size="14" /></span>
-                <span>{{ r.text }}</span>
-                <span v-if="r.level" class="pi-level" :class="levelClass(r.level)">{{ r.level }}</span>
-              </div>
+            <div v-if="s.status === 'active'" class="dsr-resp-line">
+              <AegisIcon name="shield-check" :size="13" style="color:var(--gold-dark);flex-shrink:0;" />
+              <span>Authorized to verify critical incidents and trigger the Continuity Plan</span>
             </div>
             <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
               <button class="btn-icon" data-tooltip="Edit" @click="openEdit(s)"><AegisIcon name="pencil" :size="14" /></button>
@@ -135,33 +136,6 @@
           </div>
         </div>
 
-        <!-- SUSPENDED -->
-        <details v-if="suspended.length" style="margin-top:16px;">
-          <summary style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--text-3);cursor:pointer;">
-            Suspended ({{ suspended.length }})
-          </summary>
-        <div v-for="s in suspended" :key="s.id" class="dsr-card suspended" style="margin-top:10px;">
-          <div class="avatar avatar-lg avatar-dark">{{ initials(s) }}</div>
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
-              <span class="dsr-name">{{ fullName(s) }}</span>
-              <AegisBadge variant="gold" icon="user">Support Steward</AegisBadge>
-              <AegisBadge variant="red"><AegisIcon name="pause" :size="11" /> Suspended</AegisBadge>
-            </div>
-            <div class="dsr-sub">{{ subLine(s) }}</div>
-            <div class="dsr-meta">
-              <span v-if="s.signed_at"><AegisIcon name="file-text" :size="12" /> Agreement: {{ fmtDate(s.signed_at) }}</span>
-            </div>
-            <div class="alert alert-danger" style="margin-top:12px">
-              <div class="alert-icon"><AegisIcon name="lock" :size="16" /></div>
-              <div class="alert-content"><strong>Access suspended:</strong> {{ s.declined_reason || 'Access suspended. All task delegation paused.' }}</div>
-            </div>
-            <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-              <button class="btn btn-outline" @click="openReinstate(s)"><AegisIcon name="check" :size="14" /> Reinstate</button>
-            </div>
-          </div>
-        </div>
-        </details>
       </template>
 
       <AegisEmptyState v-else icon="users" title="No Support Stewards Yet" description="Add your first Support Steward to delegate day-to-day practice tasks.">
@@ -254,6 +228,113 @@
       </div>
     </div>
 
+
+    <!-- ═══ TAB: SUSPENDED ═══ -->
+    <div v-show="activeTab === 'suspended'">
+      <p style="font-size:13px;color:var(--text-3);margin-bottom:16px">Support Stewards with temporarily suspended access.</p>
+      <AegisEmptyState v-if="!suspended.length" icon="pause" title="No Suspended Stewards" description="Any suspended Support Stewards will appear here." />
+      <div v-for="s in suspended" :key="s.id" class="dsr-card suspended">
+        <div class="avatar avatar-lg avatar-dark">{{ initials(s) }}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+            <span class="dsr-name">{{ fullName(s) }}</span>
+            <AegisBadge variant="gold" icon="user">Support Steward</AegisBadge>
+            <AegisBadge variant="red"><AegisIcon name="pause" :size="11" /> Suspended</AegisBadge>
+          </div>
+          <div class="dsr-sub">{{ subLine(s) }}</div>
+          <div class="dsr-meta">
+            <span v-if="s.signed_at"><AegisIcon name="file-text" :size="12" /> Agreement: {{ fmtDate(s.signed_at) }}</span>
+          </div>
+          <div class="alert alert-danger" style="margin-top:12px">
+            <div class="alert-icon"><AegisIcon name="lock" :size="16" /></div>
+            <div class="alert-content"><strong>Access suspended:</strong> {{ s.declined_reason || 'Access suspended. All task delegation paused.' }}</div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+            <button class="btn btn-outline" @click="openReinstate(s)"><AegisIcon name="check" :size="14" /> Reinstate</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TAB: NOTIFICATIONS ═══ -->
+    <div v-show="activeTab === 'notifications'">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <div class="stat-chip-icon" style="width:36px;height:36px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark);"><AegisIcon name="bell" :size="16" /></div>
+            <div>
+              <div class="card-title">SS Activity Notifications</div>
+              <div class="card-subtitle">Choose when Aegis should alert you about activity involving your Support Stewards.</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Annual Re-Attestation is complete</div>
+              <div class="toggle-desc">Get notified when your Support Steward completes their annual re-attestation</div>
+            </div>
+            <AegisToggle v-model="ssNotifyToggles.re_attestation_complete" />
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">A Support Steward requests changes</div>
+              <div class="toggle-desc">Alert when a Support Steward submits a change request</div>
+            </div>
+            <AegisToggle v-model="ssNotifyToggles.steward_requests_changes" />
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">A Support Steward updates their information</div>
+              <div class="toggle-desc">Alert when a Support Steward updates their contact details</div>
+            </div>
+            <AegisToggle v-model="ssNotifyToggles.steward_updates_info" />
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Roles or permissions change</div>
+              <div class="toggle-desc">Alert when a steward role is modified</div>
+            </div>
+            <AegisToggle v-model="ssNotifyToggles.roles_permissions_change" />
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">Important Documents are accessed</div>
+              <div class="toggle-desc">Alert when a Support Steward views or downloads a document</div>
+            </div>
+            <AegisToggle v-model="ssNotifyToggles.documents_accessed" />
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">SS added, removed, or updated</div>
+              <div class="toggle-desc">Alert when any Support Steward is added, removed, or updated</div>
+            </div>
+            <AegisToggle v-model="ssNotifyToggles.steward_added_removed" />
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">A critical incident is reported</div>
+              <div class="toggle-desc">Alert when a Support Steward reports a critical incident</div>
+            </div>
+            <AegisToggle v-model="ssNotifyToggles.critical_incident_reported" />
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <div class="toggle-label">A Continuity Response is activated</div>
+              <div class="toggle-desc">Alert when your Continuity Response plan is formally activated</div>
+            </div>
+            <AegisToggle v-model="ssNotifyToggles.continuity_response" />
+          </div>
+          <div class="btn-group" style="justify-content:flex-end;margin-top:20px;">
+            <button type="button" class="btn btn-primary" :disabled="ssNotifySaving" style="display:inline-flex;align-items:center;gap:6px;" @click="saveSsNotifyPrefs">
+              <AegisIcon v-if="ssNotifySaving" name="refresh-cw" :size="13" class="btn-spin" />
+              <AegisIcon v-else name="check" :size="13" />
+              {{ ssNotifySaving ? 'Saving…' : 'Save Preferences' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- ═══════════════════ MODALS ═══════════════════ -->
 
@@ -532,6 +613,7 @@ import { useForm, router } from '@inertiajs/vue3'
 import { useVuelidate } from '@vuelidate/core'
 import { required, email as emailRule, helpers } from '@vuelidate/validators'
 import AppLayout from '@/layouts/AppLayout.vue'
+import AegisToggle from '@/components/ui/AegisToggle.vue'
 import { useModal } from '@/composables/useModal'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
@@ -553,6 +635,7 @@ const props = defineProps({
   annualReviewDate:   { type: String,  default: null },
   hasDraftInProgress: { type: Boolean, default: false },
   draftPlanVersion:   { type: Number,  default: null },
+  notifyPrefs:        { type: Object,  default: () => ({}) },
 })
 
 // ── Composables ──────────────────────────────────────────
@@ -573,7 +656,7 @@ const activeSteward = computed(() =>
 // ── Computed ──────────────────────────────────────────────
 const activeCount  = computed(() => props.stewards.length)
 const pendingCount = computed(() => props.pending.length + props.invited.length)
-const rosterCount  = computed(() => props.stewards.length + props.suspended.length)
+const rosterCount  = computed(() => props.stewards.length)
 const atLimit      = computed(() => props.ssCount >= props.ssMax)
 
 const nextReviewLabel = computed(() => {
@@ -581,6 +664,28 @@ const nextReviewLabel = computed(() => {
   if (!dates.length) return '—'
   return fmtDate(dates[0])
 })
+
+// ── SS Notification Preferences ──────────────────────────
+const ssNotifyToggles = ref({
+  re_attestation_complete:    props.notifyPrefs?.re_attestation_complete    ?? true,
+  steward_requests_changes:   props.notifyPrefs?.steward_requests_changes   ?? true,
+  steward_updates_info:       props.notifyPrefs?.steward_updates_info       ?? true,
+  roles_permissions_change:   props.notifyPrefs?.roles_permissions_change   ?? true,
+  documents_accessed:         props.notifyPrefs?.documents_accessed         ?? true,
+  steward_added_removed:      props.notifyPrefs?.steward_added_removed      ?? true,
+  critical_incident_reported: props.notifyPrefs?.critical_incident_reported ?? true,
+  continuity_response:        props.notifyPrefs?.continuity_response        ?? true,
+})
+const ssNotifySaving = ref(false)
+function saveSsNotifyPrefs() {
+  ssNotifySaving.value = true
+  router.put(route('provider.settings.notifications'), { ss_notify: ssNotifyToggles.value }, {
+    preserveScroll: true,
+    onSuccess: () => toast.success('Notification preferences saved.'),
+    onError:   () => toast.error('Could not save preferences.'),
+    onFinish:  () => { ssNotifySaving.value = false },
+  })
+}
 
 // ── Helpers ───────────────────────────────────────────────
 function fullName(s) {
@@ -607,24 +712,7 @@ function daysSince(v) {
 }
 function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : '' }
 function roleVal(r) { return typeof r === 'object' ? r?.value ?? '' : r ?? '' }
-function levelClass(level) {
-  const l = (level ?? '').toLowerCase()
-  if (l === 'none') return 'level-none'
-  if (['limited', 'read only', 'read-only'].includes(l)) return 'level-limited'
-  return 'level-full'
-}
-function levelBadge(r) {
-  const l = (typeof r === 'string' ? '' : r?.level ?? '').toLowerCase()
-  if (l === 'none') return 'gray'
-  if (['limited', 'read only', 'read-only'].includes(l)) return 'gold'
-  return 'green'
-}
-function normResp(r) {
-  if (!r) return []
-  return (Array.isArray(r) ? r : []).map(item =>
-    typeof item === 'string' ? { text: item } : item
-  )
-}
+
 
 
 
@@ -801,6 +889,16 @@ function submitCancelInvite() {
 .dsr-sub  { font-size:12px; color:var(--text-3); margin-top:2px; }
 .dsr-meta { display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:12px; color:var(--text-3); }
 .dsr-meta span { display:flex; align-items:center; gap:4px; }
+
+/* ── RESP LINE ── */
+.dsr-resp-line { display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2);padding:8px 0;border-top:1px solid var(--border);margin-top:10px; }
+
+/* ── TOGGLE ROW ── */
+.toggle-row { display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--border); }
+.toggle-row:last-of-type { border-bottom:none; }
+.toggle-info { flex:1;min-width:0; }
+.toggle-label { font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px; }
+.toggle-desc  { font-size:12px;color:var(--text-3); }
 
 /* ── PERM LIST ── */
 .perm-list { background:var(--surface-2); border-radius:var(--radius); padding:12px 16px; margin-top:14px; }
