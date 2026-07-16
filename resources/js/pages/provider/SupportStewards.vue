@@ -11,6 +11,9 @@
         <a :href="route('activity.index') + '?module=support_stewards'" class="btn-hero-ghost is-on-light" data-tooltip="Module activity">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
+        <button type="button" class="btn-hero-ghost is-on-light" @click="router.visit(route('provider.network.index') + '?scope=ss')">
+          <AegisIcon name="search" :size="14" /> Browse SS Directory
+        </button>
         <button class="btn-hero-solid is-on-light" @click="handleAddSS">
           <AegisIcon name="plus" :size="14" /> Add Support Steward
         </button>
@@ -66,13 +69,6 @@
       </div>
     </div>
 
-    <!-- SS-FOR BANNER -->
-    <div v-if="servingAsSSFor?.length" class="alert alert-info" style="margin-bottom:12px;">
-      <AegisIcon name="info" :size="16" />
-      <div>You are also serving as Support Steward for <strong>{{ servingAsSSFor.length }}</strong> provider{{ servingAsSSFor.length !== 1 ? 's' : '' }}.
-      <a :href="route('ss.dashboard')" style="color:var(--gold-dark)">Open SS Portal →</a></div>
-    </div>
-
     <!-- TABS -->
     <div class="tabs-segmented">
       <button class="tab-pill" :class="{ active: activeTab === 'mydsr' }" @click="activeTab = 'mydsr'">
@@ -85,6 +81,9 @@
       </button>
       <button v-if="suspended.length" class="tab-pill" :class="{ active: activeTab === 'suspended' }" @click="activeTab = 'suspended'">
         Suspended <span class="badge-pill">{{ suspended.length }}</span>
+      </button>
+      <button v-if="servingAsSsFor?.length" class="tab-pill" :class="{ active: activeTab === 'iamdsr' }" @click="activeTab = 'iamdsr'">
+        I'm SS For <span class="badge-pill">{{ servingAsSsFor.length }}</span>
       </button>
       <button class="tab-pill" :class="{ active: activeTab === 'notifications' }" @click="activeTab = 'notifications'">
         Notifications
@@ -125,7 +124,7 @@
               <button class="btn-icon" data-tooltip="Edit" @click="openEdit(s)"><AegisIcon name="pencil" :size="14" /></button>
               <button class="btn-icon" data-tooltip="View Agreement" @click="openAgreement(s)"><AegisIcon name="file-text" :size="14" /></button>
               <button class="btn-icon" data-tooltip="Manage Access" @click="openManageAccess(s)"><AegisIcon name="sliders" :size="14" /></button>
-              <a :href="route('activity.index') + '?module=steward'" class="btn-icon" data-tooltip="View activity">
+              <a :href="route('activity.index') + '?module=support_stewards'" class="btn-icon" data-tooltip="View activity">
                 <AegisIcon name="clock" :size="14" />
               </a>
               <button class="btn-icon btn-icon-danger" data-tooltip="Remove Support Steward" @click="openRemove(s)"><AegisIcon name="trash" :size="14" /></button>
@@ -242,6 +241,49 @@
           <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
             <button class="btn btn-outline" @click="openReinstate(s)"><AegisIcon name="check" :size="14" /> Reinstate</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TAB: I'M SS FOR ═══ -->
+    <div v-show="activeTab === 'iamdsr'">
+      <div class="alert alert-info" style="margin-bottom:20px;">
+        <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
+        <div class="alert-content">
+          <div class="alert-title">You are a Support Steward for {{ servingAsSsFor?.length ?? 0 }} provider{{ (servingAsSsFor?.length ?? 0) !== 1 ? 's' : '' }}.</div>
+          <div>This is a summary of your active SS designations. For full SS work — daily check-ins, task list, critical-incident reporting, and agreement archive — open your Support Steward Portal.</div>
+          <div style="margin-top:10px;">
+            <a :href="route('ss.dashboard')" class="btn btn-outline">
+              <AegisIcon name="shield" :size="13" /> Open SS Portal
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="section-title" style="margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+        <AegisIcon name="users" :size="16" /> Providers I'm Supporting
+      </div>
+      <div class="list-group">
+        <div v-for="item in (servingAsSsFor ?? [])" :key="item.id" class="list-group-item">
+          <div class="avatar avatar-sm avatar-gold">{{ item.provider?.avatar_initials ?? '??' }}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <a v-if="item.provider?.slug"
+                 :href="route('public.provider', item.provider.slug)"
+                 style="font-size:13px;font-weight:700;color:var(--gold-dark);">
+                {{ item.provider?.display_name }}{{ item.provider?.credentials ? ', ' + item.provider.credentials : '' }}
+              </a>
+              <span v-else style="font-size:13px;font-weight:700;">{{ item.provider?.display_name ?? '—' }}</span>
+              <AegisBadge :label="item.role === 'primary' ? 'Primary SS' : 'Alternate SS'" variant="gold" />
+              <AegisBadge :label="item.status === 'active' ? 'Active' : 'Pending'" :variant="item.status === 'active' ? 'green' : 'gold'" />
+            </div>
+            <div style="font-size:12px;color:var(--text-3);margin-top:2px;">
+              {{ item.provider?.organization }}{{ item.provider?.location ? ' · ' + item.provider.location : '' }}
+              <span v-if="item.review_due_at"> · Review due {{ fmtDate(item.review_due_at) }}</span>
+            </div>
+          </div>
+          <a :href="route('ss.dashboard')" class="btn-icon" data-tooltip="Manage in SS Portal">
+            <AegisIcon name="arrow-right" :size="14" />
+          </a>
         </div>
       </div>
     </div>
