@@ -21,6 +21,7 @@ class UpdateBasicProfileRequest extends FormRequest
             'organization'    => 'nullable|string|max:200',
             'location'        => 'nullable|string|max:200',
             'avatar_initials' => 'nullable|string|max:5',
+            'credentials'     => 'nullable|string|max:100',
         ];
     }
 }

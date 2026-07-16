@@ -820,6 +820,62 @@
             </div>
           </div>
 
+          <!-- Availability -->
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="clock" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">Availability</div>
+                  <div class="ep-card-sub">Set your available days, hours, and service delivery preferences</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="form-group">
+                <label class="form-label">Available Days</label>
+                <div class="ep-days">
+                  <button
+                    v-for="day in weekDays" :key="day"
+                    type="button"
+                    class="ep-day"
+                    :class="{ selected: availabilityForm.hours.days?.includes(day) }"
+                    @click="toggleInArray(availabilityForm.hours.days, day)"
+                  >{{ day }}</button>
+                </div>
+              </div>
+              <div class="form-row form-row-2">
+                <div class="form-group">
+                  <label class="form-label">Start Time</label>
+                  <input v-model="availabilityForm.hours.start" type="time" class="form-input">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">End Time</label>
+                  <input v-model="availabilityForm.hours.end" type="time" class="form-input">
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Timezone</label>
+                <select v-model="availabilityForm.hours.timezone" class="form-select">
+                  <option>Eastern Time (EST)</option>
+                  <option>Central Time (CST)</option>
+                  <option>Mountain Time (MST)</option>
+                  <option>Pacific Time (PST)</option>
+                  <option>Alaska Time (AKST)</option>
+                  <option>Hawaii Time (HST)</option>
+                </select>
+              </div>
+              <div class="ep-divider"></div>
+              <AegisToggle v-model="availabilityForm.accepting" label="Accepting new clients" />
+              <AegisToggle v-model="availabilityForm.telehealth" label="Available via telehealth" />
+              <div class="form-actions-bar">
+                <button type="button" class="btn btn-primary" :disabled="availabilityForm.processing" @click="submitAvailability">
+                  {{ availabilityForm.processing ? 'Saving…' : 'Save availability' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
         </div><!-- /network -->
 
         <!-- ══════════════ DEMOGRAPHICS ══════════════ -->
@@ -1552,7 +1608,14 @@ const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const availability = props.meta.availability ?? {}
 const hoursDefault = { days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], start: '09:00', end: '17:00', timezone: 'Eastern Time (EST)', response_time: 'Within 2 hours' }
 const availabilityForm = useForm({
-  hours:      availability.hours && typeof availability.hours === 'object' ? { ...hoursDefault, ...availability.hours } : { ...hoursDefault },
+  hours: (() => {
+    const base = { ...hoursDefault }
+    if (availability.hours && typeof availability.hours === 'object') {
+      Object.assign(base, availability.hours)
+      if (Array.isArray(availability.hours.days)) base.days = [...availability.hours.days]
+    }
+    return base
+  })(),
   accepting:  availability.accepting ?? true,
   telehealth: availability.telehealth ?? true,
 })
@@ -1658,7 +1721,7 @@ const lastSavedLabel = computed(() => {
 .ep-money { position: relative; }
 .ep-money-prefix { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: 600; color: var(--text-3); pointer-events: none; }
 .ep-money .form-input { padding-left: 24px; }
-.ep-input-prefix { display: flex; align-items: stretch; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: border-color var(--transition), box-shadow var(--transition); }
+.ep-input-prefix { display: flex; align-items: stretch; border: 1.5px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: border-color var(--transition), box-shadow var(--transition); }
 .ep-input-prefix:focus-within { border-color: var(--gold-dark); box-shadow: 0 0 0 3px var(--badge-bg-gold); }
 .ep-input-prefix-label { padding: 9px 12px; background: var(--surface-2); border-right: 1.5px solid var(--border); font-size: 12px; color: var(--text-3); white-space: nowrap; display: flex; align-items: center; }
 .ep-input-prefix .form-input { border: none; border-radius: 0; flex: 1; }
@@ -1681,7 +1744,7 @@ const lastSavedLabel = computed(() => {
 .ep-avatar-btns { display: flex; gap: 8px; margin-top: 10px; }
 
 /* ─── Credential cards (licenses) ─── */
-.ep-cred { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px; transition: border-color var(--transition); }
+.ep-cred { background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px; transition: border-color var(--transition); }
 .ep-cred.primary { border: 1px solid var(--gold-dark); background: var(--badge-bg-gold); }
 .ep-cred.is-archived { opacity: 0.55; border-color: var(--border); background: var(--surface-3); }
 .ep-cred-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
@@ -1713,7 +1776,7 @@ details > div > div:first-child > .ep-cat { margin-top: 0; }
 .ep-ins-item { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all var(--transition); font-size: 13px; font-weight: 600; color: var(--text); background: var(--surface); }
 .ep-ins-item:hover { border-color: var(--gold-dark); background: var(--badge-bg-gold); }
 .ep-ins-item.checked { border: 1px solid var(--gold-dark); background: var(--badge-bg-gold); color: var(--gold-dark); font-weight: 700; }
-.ep-ins-dot { width: 14px; height: 14px; border-radius: var(--radius-full); flex-shrink: 0; border: 1px solid var(--border-dark); background: var(--surface); display: flex; align-items: center; justify-content: center; transition: all var(--transition); position: relative; }
+.ep-ins-dot { width: 14px; height: 14px; border-radius: var(--radius-full); flex-shrink: 0; border: 1.5px solid var(--border-dark); background: var(--surface); display: flex; align-items: center; justify-content: center; transition: all var(--transition); position: relative; }
 .ep-ins-dot::after { content: ''; width: 6px; height: 6px; border-radius: var(--radius-full); background: transparent; transition: background var(--transition), transform var(--transition); transform: scale(0); }
 .ep-ins-item.checked .ep-ins-dot { border-color: var(--gold-dark); background: var(--surface); }
 .ep-ins-item.checked .ep-ins-dot::after { background: var(--gold-dark); transform: scale(1); }
@@ -1728,7 +1791,7 @@ details > div > div:first-child > .ep-cat { margin-top: 0; }
 .ep-days { display: flex; gap: 8px; flex-wrap: wrap; }
 .ep-day {
   width: 46px; height: 46px; border-radius: var(--radius);
-  border: 1px solid var(--border); background: var(--surface);
+  border: 1.5px solid var(--border); background: var(--surface);
   font-size: 11px; font-weight: 700; color: var(--text-3);
   cursor: pointer; transition: all var(--transition);
   display: flex; align-items: center; justify-content: center;
