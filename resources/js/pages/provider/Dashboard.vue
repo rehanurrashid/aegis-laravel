@@ -91,6 +91,13 @@
         :edit-href="route('provider.profile.index')"
       />
 
+      <SecurityChecklistStrip
+        v-if="securityCompletion < 100"
+        :pct="securityCompletion"
+        :subtitle="`${securityItemsRemaining} item${securityItemsRemaining !== 1 ? 's' : ''} remaining — ${securityNextItem}`"
+        :edit-href="route('provider.settings.index') + '?section=security'"
+      />
+
       <!-- ══ 3. PLAN STATUS CHIPS ══════════════════════════════════ -->
       <div class="card" style="margin-bottom:22px;padding:18px 20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
         <!-- Icon + label -->
@@ -898,6 +905,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3'
 import AppLayout   from '@/layouts/AppLayout.vue'
 import AegisDropzone from '@/components/ui/AegisDropzone.vue'
 import ProfileCompletionStrip from '@/components/features/ProfileCompletionStrip.vue'
+import SecurityChecklistStrip from '@/components/features/SecurityChecklistStrip.vue'
 import ReferralModal from '@/components/modals/ReferralModal.vue'
 import CredentialModal from '@/components/modals/CredentialModal.vue'
 import { useToast }        from '@/composables/useToast'
@@ -934,9 +942,12 @@ const props = defineProps({
   ceuRequirements:    { type: Array,   default: () => [] },
   annualReviewDate:   { type: String,  default: null },
   signedAt:           { type: String,  default: null },
-  planSections:       { type: Array,   default: () => [] },
-  profileCompletion:  { type: Number,  default: 0 },
-  profileNextStep:    { type: String,  default: '' },
+  planSections:            { type: Array,   default: () => [] },
+  profileCompletion:       { type: Number,  default: 0 },
+  profileNextStep:         { type: String,  default: '' },
+  securityCompletion:      { type: Number,  default: 100 },
+  securityItemsRemaining:  { type: Number,  default: 0 },
+  securityNextItem:        { type: String,  default: '' },
 })
 
 // ── Composables ───────────────────────────────────────────────────────

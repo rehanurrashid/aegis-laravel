@@ -134,6 +134,12 @@
 
         <!-- SECURITY & 2FA -->
         <div v-show="section === 'security'" class="settings-panel">
+          <SecurityChecklistStrip
+            v-if="securityCompletion < 100"
+            :pct="securityCompletion"
+            :subtitle="`${securityItemsRemaining} item${securityItemsRemaining !== 1 ? 's' : ''} remaining — ${securityNextItem}`"
+            :edit-href="'#'"
+          />
           <SettingsSecurity
             enable-mfa-route="provider.settings.mfa.enable"
             disable-mfa-route="provider.settings.mfa.disable"
@@ -842,15 +848,19 @@ import SettingsTierUpgradeModal   from '@/components/settings/SettingsTierUpgrad
 import SettingsPaymentMethods     from '@/components/settings/SettingsPaymentMethods.vue';
 import SettingsSubscriptionInvoices from '@/components/settings/SettingsSubscriptionInvoices.vue';
 import SettingsStripeConnect      from '@/components/settings/SettingsStripeConnect.vue';
+import SecurityChecklistStrip     from '@/components/features/SecurityChecklistStrip.vue';
 
 const props = defineProps({
-  user:             { type: Object,  default: () => ({}) },
-  meta:             { type: Object,  default: () => ({}) },
-  mfaEnabled:       { type: Boolean, default: false },
-  mfaMethod:        { type: String,  default: '' },
-  sessions:         { type: Array,   default: () => [] },
-  subscription:     { type: Object,  default: () => ({}) },
-  pricing:          { type: Object,  default: () => ({}) },
+  user:                    { type: Object,  default: () => ({}) },
+  meta:                    { type: Object,  default: () => ({}) },
+  mfaEnabled:              { type: Boolean, default: false },
+  mfaMethod:               { type: String,  default: '' },
+  securityCompletion:      { type: Number,  default: 100 },
+  securityItemsRemaining:  { type: Number,  default: 0 },
+  securityNextItem:        { type: String,  default: '' },
+  sessions:                { type: Array,   default: () => [] },
+  subscription:            { type: Object,  default: () => ({}) },
+  pricing:                 { type: Object,  default: () => ({}) },
   activeAgreements: { type: Array,   default: () => [] },
   paymentMethods:   { type: Array,   default: () => [] },
 });

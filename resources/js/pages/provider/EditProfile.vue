@@ -58,7 +58,9 @@
     <!-- ══════════════ PROFILE COMPLETION STRIP ══════════════ -->
     <ProfileCompletionStrip
       :pct="props.profileCompletion"
-      :subtitle="props.profileCompletion >= 100 ? '' : `${profileItemsRemaining} item${profileItemsRemaining !== 1 ? 's' : ''} remaining${props.profileNextStep ? ' — ' + props.profileNextStep : ''}`"
+      :subtitle="props.profileCompletion >= 100
+        ? 'Your profile is complete'
+        : `${props.profileItemsRemaining} section${props.profileItemsRemaining !== 1 ? 's' : ''} remaining — complete your profile to improve discovery`"
     >
       <template #action>
         <button type="button" class="btn btn-primary" style="flex-shrink:0;white-space:nowrap" @click="activeSection = 'professional'">
@@ -79,7 +81,13 @@
              href="#" @click.prevent="activeSection = item.key">
             <span class="page-sidebar-icon"><AegisIcon :name="item.icon" :size="15" /></span>
             <span style="flex:1;line-height:1.3;">{{ item.label }}</span>
-            <span class="ep-nav-check"><AegisIcon name="check-badge" :size="15" class="aegis-icon-filled" /></span>
+            <span class="ep-nav-check">
+              <AegisIcon
+                :name="sectionCompletion[item.key] ? 'check-badge' : 'circle'"
+                :size="15"
+                :class="sectionCompletion[item.key] ? 'aegis-icon-filled' : 'aegis-icon-empty'"
+              />
+            </span>
           </a>
         </div>
       </div><!-- /.ep-nav-wrap -->
@@ -1019,11 +1027,13 @@ import { useConfirm } from '@/composables/useConfirm'
 import ProfileCompletionStrip from '@/components/features/ProfileCompletionStrip.vue'
 
 const props = defineProps({
-  user:              { type: Object, required: true },
-  credentials:       { type: Array,  default: () => [] },
-  meta:              { type: Object, default: () => ({}) },
-  profileCompletion: { type: Number, default: 0 },
-  profileNextStep:   { type: String, default: '' },
+  user:                  { type: Object,  required: true },
+  credentials:           { type: Array,   default: () => [] },
+  meta:                  { type: Object,  default: () => ({}) },
+  profileCompletion:     { type: Number,  default: 0 },
+  profileItemsRemaining: { type: Number,  default: 0 },
+  profileNextStep:       { type: String,  default: '' },
+  sectionCompletion:     { type: Object,  default: () => ({}) },
 })
 
 const toast = useToast()
@@ -1483,25 +1493,10 @@ function confirmRemovePhoto() {
   })
 }
 
-// ── Completion strip (computed from filled fields — no backend % exists) ──
-const completionPct = computed(() => {
-  const checks = [
-    !!basicForm.display_name, !!basicForm.title, !!basicForm.bio,
-    !!basicForm.location, !!basicForm.phone,
-    specialtiesForm.specialties.length > 0,
-    servicesForm.services.length > 0,
-    licenseCredentials.value.length > 0,
-    !!insuranceCredential.value,
-  ]
-  const filled = checks.filter(Boolean).length
-  return Math.round((filled / checks.length) * 100)
-})
-const completionItemsRemaining = computed(() => {
-  const total = 9
-  return Math.max(0, total - Math.round((completionPct.value / 100) * total))
-})
-// Items remaining based on server-side 12-check platform score
-const profileItemsRemaining = computed(() => Math.max(0, 12 - Math.round((props.profileCompletion / 100) * 12)))
+// ── Completion — driven entirely by server-side per-section state ──
+// sectionCompletion prop: { 'basic-info': bool, 'professional': bool, ... }
+// profileItemsRemaining prop: number of incomplete sections
+const sectionCompletion = computed(() => props.sectionCompletion ?? {})
 
 const lastSavedLabel = computed(() => {
   if (!props.user.updated_at) return 'recently'
@@ -1539,6 +1534,8 @@ const lastSavedLabel = computed(() => {
 .ep-nav-check { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--gold-dark); opacity: 0.7; transition: opacity var(--transition); }
 .page-sidebar-item:hover .ep-nav-check,
 .page-sidebar-item.active .ep-nav-check { opacity: 1; }
+.ep-nav-check .aegis-icon-empty { color: var(--border); opacity: 1; }
+.page-sidebar-item.active .ep-nav-check .aegis-icon-empty { color: var(--text-4); }
 
 /* ─── Sections ─── */
 .ep-section { animation: epSectionIn 0.22s ease; }

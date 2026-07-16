@@ -137,6 +137,8 @@ class PasswordResetController extends Controller
             $user->id,
         );
 
+        app(\App\Services\SecurityCompletionService::class)->recompute($user);
+
         return back()->with('success', 'Password updated successfully.');
     }
 }

@@ -174,6 +174,8 @@ class MfaController extends Controller
             null, null, null, 'log', $user->id,
         );
 
+        app(\App\Services\SecurityCompletionService::class)->recompute($user);
+
         return back()->with('success', 'Email two-factor authentication has been enabled.');
     }
 
@@ -212,6 +214,8 @@ class MfaController extends Controller
             null, null, null, 'log', $user->id,
         );
 
+        app(\App\Services\SecurityCompletionService::class)->recompute($user);
+
         return back()->with('success', 'Two-factor authentication has been enabled.');
     }
 
@@ -243,6 +247,8 @@ class MfaController extends Controller
             'Two-factor authentication was disabled on your account.',
             null, null, null, 'log', $user->id,
         );
+
+        app(\App\Services\SecurityCompletionService::class)->recompute($user);
 
         return back()->with('success', 'Two-factor authentication has been disabled.');
     }

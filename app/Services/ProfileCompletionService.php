@@ -7,39 +7,28 @@ namespace App\Services;
 use App\Models\ContinuityPlan;
 use App\Models\PlanSteward;
 use App\Models\ProviderCredential;
+use App\Models\ServiceOffering;
 use App\Models\User;
 
 /**
- * Platform readiness score for Practitioner accounts.
+ * Profile completion service — per-section + overall pct.
  *
- * 12-check checklist spanning profile, credentials, billing, and continuity setup.
- * Each check is one point; percentage = filled / 12 × 100.
- *
- * Checks:
- *  1.  Display name set
- *  2.  Professional title set
- *  3.  Bio set
- *  4.  Location + phone set (both required)
- *  5.  Specialties added
- *  6.  License credential on file (cred_type not insurance/liability)
- *  7.  Liability insurance on file (cred_type contains insurance or liability)
- *  8.  Subscription active (stripe_id exists and not demo prefix)
- *  9.  Payment method saved (stripe_payment_method_id not null/demo)
- * 10.  MFA enabled
- * 11.  Continuity Plan created
- * 12.  CS + SS both assigned (both needed = 1 check; partial = 0)
+ * compute(user)       → array{ sections, pct, items_remaining, total }
+ *                       sections keyed by EditProfile nav key → bool
+ * recompute(user)     → persists pct to users.profile_completion, returns int
+ * nextStepLabel(user) → first incomplete section label string
  */
 class ProfileCompletionService
 {
-    private const TOTAL = 12;
-
-    public function compute(User $user): int
+    public function compute(User $user): array
     {
         if (! $user->relationLoaded('meta')) {
             $user->load('meta');
         }
 
-        $specialties = $this->metaValue($user, 'specialties');
+        $specialties  = $this->metaValue($user, 'specialties');
+        $networkPrefs = $this->metaValue($user, 'network_preferences');
+        $demographics = $this->metaValue($user, 'demographics');
 
         $hasLicense = ProviderCredential::where('user_id', $user->id)
             ->whereRaw("LOWER(cred_type) NOT LIKE '%insurance%'")
@@ -53,84 +42,77 @@ class ProfileCompletionService
             })
             ->exists();
 
-        $stripeId = $user->stripe_id ?? '';
-        $pmId     = $user->stripe_payment_method_id ?? '';
-        $hasSubscription  = ! empty($stripeId)  && ! str_starts_with($stripeId, 'cus_demo_');
-        $hasPaymentMethod = ! empty($pmId)       && ! str_starts_with($pmId, 'pm_demo_');
+        $hasServices = ServiceOffering::where('user_id', $user->id)
+            ->where('is_active', 1)
+            ->exists();
 
-        $plan = ContinuityPlan::where('practitioner_id', $user->id)->first();
-
-        $hasCs = false;
-        $hasSs = false;
-        if ($plan) {
-            $hasCs = PlanSteward::where('plan_id', $plan->id)
-                ->where('steward_category', 'cs')
-                ->where('status', 'active')
-                ->exists();
-            $hasSs = PlanSteward::where('plan_id', $plan->id)
-                ->where('steward_category', 'ss')
-                ->where('status', 'active')
-                ->exists();
-        }
-
-        $checks = [
-            ! empty($user->display_name),                                             // 1
-            ! empty($user->title),                                                    // 2
-            ! empty($user->bio),                                                      // 3
-            ! empty($user->location) && ! empty($user->phone),                       // 4
-            ! empty($specialties) && is_array($specialties) && count($specialties) > 0, // 5
-            $hasLicense,                                                              // 6
-            $hasInsurance,                                                            // 7
-            $hasSubscription,                                                         // 8
-            $hasPaymentMethod,                                                        // 9
-            (bool) $user->two_factor_enabled,                                        // 10
-            $plan !== null,                                                           // 11
-            $hasCs && $hasSs,                                                         // 12
+        $sections = [
+            'basic-info'   => ! empty($user->display_name)
+                           && ! empty($user->phone)
+                           && ! empty($user->location),
+            'professional' => ! empty($user->title)
+                           && ! empty($user->bio)
+                           && $hasLicense,
+            'specialties'  => ! empty($specialties)
+                           && is_array($specialties)
+                           && count($specialties) > 0,
+            'insurance'    => $hasInsurance && $hasServices,
+            'network'      => ! empty($networkPrefs)
+                           && (is_array($networkPrefs) ? count($networkPrefs) > 0 : true),
+            'demographics' => ! empty($demographics)
+                           && (is_array($demographics) ? count($demographics) > 0 : true),
         ];
 
-        $filled = count(array_filter($checks));
+        $filled = count(array_filter($sections));
+        $total  = count($sections);
+        $pct    = (int) round(($filled / $total) * 100);
 
-        return (int) round(($filled / self::TOTAL) * 100);
+        return [
+            'sections'        => $sections,
+            'pct'             => $pct,
+            'items_remaining' => $total - $filled,
+            'total'           => $total,
+        ];
     }
 
     public function recompute(User $user): int
     {
-        $pct = $this->compute($user);
-        $user->update(['profile_completion' => $pct]);
-        return $pct;
+        $result = $this->compute($user);
+        $user->update(['profile_completion' => $result['pct']]);
+        return $result['pct'];
     }
 
     public function itemsRemaining(User $user): int
     {
-        return max(0, self::TOTAL - (int) round(($this->compute($user) / 100) * self::TOTAL));
+        return $this->compute($user)['items_remaining'];
     }
 
-    /**
-     * Returns a human-readable label for the first incomplete check.
-     * Used in subtitle hints.
-     */
     public function nextStepLabel(User $user): string
     {
         if (! $user->relationLoaded('meta')) {
             $user->load('meta');
         }
 
-        if (empty($user->display_name))  return 'Add your display name';
-        if (empty($user->title))         return 'Add your professional title';
-        if (empty($user->bio))           return 'Write your bio';
+        if (empty($user->display_name) || empty($user->phone) || empty($user->location)) {
+            return 'Complete your basic info';
+        }
 
-        if (empty($user->location) || empty($user->phone)) return 'Add your location and phone';
-
-        $specialties = $this->metaValue($user, 'specialties');
-        if (empty($specialties) || ! is_array($specialties) || count($specialties) === 0) {
-            return 'Add your specialties';
+        if (empty($user->title) || empty($user->bio)) {
+            return 'Add your professional details';
         }
 
         $hasLicense = ProviderCredential::where('user_id', $user->id)
             ->whereRaw("LOWER(cred_type) NOT LIKE '%insurance%'")
             ->whereRaw("LOWER(cred_type) NOT LIKE '%liability%'")
             ->exists();
-        if (! $hasLicense) return 'Add a license credential';
+        if (! $hasLicense) {
+            return 'Add a license credential';
+        }
+
+        $specialties = $this->metaValue($user, 'specialties');
+        if (empty($specialties) || ! is_array($specialties) || count($specialties) === 0) {
+            return 'Add your specialties';
+        }
 
         $hasInsurance = ProviderCredential::where('user_id', $user->id)
             ->where(function ($q) {
@@ -138,24 +120,20 @@ class ProfileCompletionService
                   ->orWhereRaw("LOWER(cred_type) LIKE '%liability%'");
             })
             ->exists();
-        if (! $hasInsurance) return 'Add liability insurance';
+        $hasServices = ServiceOffering::where('user_id', $user->id)->where('is_active', 1)->exists();
+        if (! $hasInsurance || ! $hasServices) {
+            return 'Add insurance and services';
+        }
 
-        $stripeId = $user->stripe_id ?? '';
-        if (empty($stripeId) || str_starts_with($stripeId, 'cus_demo_')) return 'Activate your subscription';
+        $networkPrefs = $this->metaValue($user, 'network_preferences');
+        if (empty($networkPrefs)) {
+            return 'Set network preferences';
+        }
 
-        $pmId = $user->stripe_payment_method_id ?? '';
-        if (empty($pmId) || str_starts_with($pmId, 'pm_demo_')) return 'Save a payment method';
-
-        if (! $user->two_factor_enabled) return 'Enable two-factor authentication';
-
-        $plan = ContinuityPlan::where('practitioner_id', $user->id)->first();
-        if (! $plan) return 'Create your Continuity Plan';
-
-        $hasCs = PlanSteward::where('plan_id', $plan->id)->where('steward_category', 'cs')->where('status', 'active')->exists();
-        if (! $hasCs) return 'Assign a Continuity Steward';
-
-        $hasSs = PlanSteward::where('plan_id', $plan->id)->where('steward_category', 'ss')->where('status', 'active')->exists();
-        if (! $hasSs) return 'Assign a Support Steward';
+        $demographics = $this->metaValue($user, 'demographics');
+        if (empty($demographics)) {
+            return 'Add demographics';
+        }
 
         return '';
     }

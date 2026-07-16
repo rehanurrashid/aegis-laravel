@@ -11,6 +11,7 @@ use App\Models\UserSession;
 use App\Services\ActivityService;
 use App\Events\Business\MaatAddonChanged;
 use App\Services\ProfileService;
+use App\Services\SecurityCompletionService;
 use App\Services\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
@@ -105,10 +106,15 @@ class SettingsController extends Controller
             }
         }
 
+        $security = app(SecurityCompletionService::class)->compute($user);
+
         return Inertia::render('Provider/Settings', [
-            'user'             => $userArr,
-            'meta'             => $meta,
-            'mfaEnabled'       => (bool) $user->two_factor_enabled,
+            'user'                   => $userArr,
+            'meta'                   => $meta,
+            'mfaEnabled'             => (bool) $user->two_factor_enabled,
+            'securityCompletion'     => $security['pct'],
+            'securityItemsRemaining' => $security['items_remaining'],
+            'securityNextItem'       => $security['next_item'],
             'mfaMethod'        => $user->mfaToken?->method ?? '',
             'sessions'         => $sessions,
             'subscription'     => $this->subscriptions->getFullSubscriptionData($user),

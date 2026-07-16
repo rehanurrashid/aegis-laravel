@@ -471,9 +471,22 @@ class UserSeeder extends Seeder
                 'deactivated_at'        => null,
                 'last_login_at'         => null,
                 'profile_completion'    => 0,
+                'security_completion'   => 0,
             ], $user);
 
             DB::table('users')->updateOrInsert(['id' => $user['id']], $user);
+        }
+
+        // Recompute profile + security completion for all practitioners
+        $practitioners = \App\Models\User::whereIn('id', [
+            'p_sarah', 'p_rehan', 'p_david', 'p_maria', 'p_access_only',
+        ])->get();
+        $profileSvc  = app(\App\Services\ProfileCompletionService::class);
+        $securitySvc = app(\App\Services\SecurityCompletionService::class);
+        foreach ($practitioners as $p) {
+            $p->load('meta');
+            $profileSvc->recompute($p);
+            $securitySvc->recompute($p);
         }
 
         // user_roles — seed one row per user matching their role enum

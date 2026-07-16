@@ -23,6 +23,7 @@ use App\Enums\StewardRole;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Services\ProfileCompletionService;
+use App\Services\SecurityCompletionService;
 use Inertia\Response;
 
 class DashboardController extends Controller
@@ -172,10 +173,16 @@ class DashboardController extends Controller
         $reviewDue = $plan?->annual_review_date;
         $reviewDays = $reviewDue ? (int) now()->diffInDays($reviewDue, false) : 0;
 
+        $profileCompletion = app(ProfileCompletionService::class)->compute($user);
+        $security          = app(SecurityCompletionService::class)->compute($user);
+
         return Inertia::render('Provider/Dashboard', [
             'user'               => $user,
-            'profileCompletion'  => app(ProfileCompletionService::class)->compute($user),
-            'profileNextStep'    => app(ProfileCompletionService::class)->nextStepLabel($user),
+            'profileCompletion'        => $profileCompletion['pct'],
+            'profileNextStep'          => app(ProfileCompletionService::class)->nextStepLabel($user),
+            'securityCompletion'       => $security['pct'],
+            'securityItemsRemaining'   => $security['items_remaining'],
+            'securityNextItem'         => $security['next_item'],
             'planStatus'         => $plan?->status ?? 'none',
             'plan'               => $plan,
             'attest'             => $attest,
