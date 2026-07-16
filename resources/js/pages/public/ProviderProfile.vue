@@ -138,14 +138,13 @@
 
       <!-- ═══ STAT CHIPS ═══ -->
       <div class="stat-chips-row">
-        <template v-if="pm.show_ref_stats">
-          <AegisStatChip icon="share-tree" :value="pm.stats.referrals_exchanged" label="Referrals Exchanged" />
-          <AegisStatChip icon="check" :value="pm.stats.acceptance_rate" label="Acceptance Rate" />
-          <AegisStatChip icon="clock" :value="pm.stats.avg_response" label="Avg Response" />
-        </template>
         <AegisStatChip v-if="pm.show_ratings && pm.rating" icon="star" :value="pm.rating" label="Overall Rating" />
         <AegisStatChip icon="users-network" :value="pm.stats.mutual_connections" label="Mutual Connections" />
-        <AegisStatChip icon="user-check" :value="pm.stats.client_slots" label="Client Slots" />
+        <AegisStatChip
+          :icon="pm.stats.client_slots === 'Open' ? 'user-check' : 'clock'"
+          :value="pm.stats.client_slots === 'Open' ? 'Open' : pm.stats.client_slots === 'Waitlist' ? 'Waitlist' : 'Not Accepting'"
+          label="Accepting Clients"
+        />
       </div>
 
       <!-- ═══ MY SERVICE REQUESTS (viewer strip) ═══ -->
@@ -602,7 +601,7 @@
             <div class="pp-info-row"><span class="pp-info-label">Connected Since</span><span class="pp-info-val">{{ pm.connection.connected_since }}</span></div>
             <div class="pp-info-row"><span class="pp-info-label">Connection Type</span><span class="pp-info-val">{{ pm.connection.connection_type }}</span></div>
             <div v-if="pm.connection.last_interaction" class="pp-info-row"><span class="pp-info-label">Last Interaction</span><span class="pp-info-val">{{ pm.connection.last_interaction }}</span></div>
-            <div class="pp-info-row"><span class="pp-info-label">Mutual Connections</span><span class="pp-info-val">{{ pm.connection.mutual_connections }} shared in network</span></div>
+
             <div class="pp-info-row" style="border-bottom:none"><span class="pp-info-label">Profile Completeness</span><span class="pp-info-val" style="color:var(--green-dark)">{{ pm.connection.profile_completeness }} Complete</span></div>
             <div class="pp-action-row">
               <button class="btn-icon btn-icon-danger" data-tooltip="Remove from network" @click="confirmRemove">

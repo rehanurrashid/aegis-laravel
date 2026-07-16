@@ -206,7 +206,7 @@
               <div class="rsp-body">
                 <div class="rsp-avatar">{{ p.initials }}</div>
                 <div class="rsp-info">
-                  <div class="rsp-name">{{ p.name }}</div>
+                  <div class="rsp-name" style="color:var(--gold-dark);">{{ p.name }}</div>
                   <div class="rsp-role">{{ p.role }}</div>
                   <div class="rsp-loc"><AegisIcon name="map-pin" :size="9" /> {{ p.location }}</div>
                 </div>
@@ -217,7 +217,7 @@
               </ul>
               <footer class="rsp-foot" @click.stop>
                 <button type="button" class="rsp-act" data-tooltip="Message" :disabled="msgLoading === p.id" @click="openConversation(p.id)"><AegisIcon name="message-square" :size="13" /></button>
-                <button type="button" class="rsp-act" data-tooltip="View Profile" @click="viewProfile(p.slug)"><AegisIcon name="eye" :size="13" /></button>
+                
                 <button v-if="p.networkStatus === 'pending-received'" type="button" class="rsp-connect" @click="acceptPendingRequest(p)"><AegisIcon name="check" :size="12" /> Accept</button>
                 <button v-else-if="p.networkStatus === 'not-connected' || !p.networkStatus" type="button" class="rsp-connect" @click="openConnect(p)"><AegisIcon name="user-plus" :size="12" /> Connect</button>
                 <span v-else-if="p.networkStatus === 'pending'" class="rsp-connect" style="opacity:.5;cursor:default"><AegisIcon name="clock" :size="12" /> Pending</span>
@@ -499,7 +499,7 @@
               <div class="spc-rating" :data-tooltip="p.rating + ' from ' + p.reviews + ' peer reviews'"><AegisIcon name="star" :size="12" /> {{ p.rating }}</div>
               <div class="spc-body">
                 <div class="spc-avatar spc-avatar-lg">{{ p.initials }}</div>
-                <div class="spc-name">{{ p.name }}</div>
+                <div class="spc-name" style="color:var(--gold-dark);">{{ p.name }}</div>
                 <div class="spc-role">{{ p.role }}</div>
                 <div class="spc-loc">{{ p.location }}</div>
                 <div class="spc-tags">
@@ -526,7 +526,7 @@
                   v-else-if="p.networkStatus === 'pending'"
                   class="btn-icon" data-tooltip="Connection request pending" style="opacity:.45;cursor:default"
                 ><AegisIcon name="clock" :size="14" /></span>
-                <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(p.slug)"><AegisIcon name="eye" :size="14" /></button>
+                
               </div>
             </div>
           </div>
@@ -590,7 +590,7 @@
           </div>
           <div class="spc-body">
             <div class="spc-avatar">{{ nc.partner_initials }}</div>
-            <div class="spc-name">{{ nc.partner_name }}</div>
+            <div class="spc-name" style="color:var(--gold-dark);">{{ nc.partner_name }}</div>
             <div class="spc-role">{{ nc.partner_role }}</div>
             <div class="spc-loc">{{ nc.partner_location }}</div>
             <div class="spc-tags">
@@ -603,7 +603,7 @@
             <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === nc.partner_id" @click="openConversation(nc.partner_id)"><AegisIcon name="message-square" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Refer Client" @click="openReferralForConnection(nc)"><AegisIcon name="refresh" :size="14" /></button>
             <button v-if="nc.partner_has_services" type="button" class="btn-icon" data-tooltip="Request Service" @click="openSvcRequest('Services', { id: nc.partner_id, name: nc.partner_name })"><AegisIcon name="briefcase-rx" :size="14" /></button>
-            <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(nc.partner_slug, 'business')"><AegisIcon name="eye" :size="14" /></button>
+            
             <button type="button" class="btn-icon" data-tooltip="Remove from network" @click="confirmDisconnect(nc)"><AegisIcon name="trash-2" :size="14" /></button>
           </div>
         </div>
@@ -904,7 +904,7 @@
               </div>
               <div class="spc-body">
                 <div class="spc-avatar">{{ p.initials }}</div>
-                <div class="spc-name">{{ p.name }}</div>
+                <div class="spc-name" style="color:var(--gold-dark);">{{ p.name }}</div>
                 <div class="spc-role">{{ p.partnerType ? p.partnerType + ' · ' : '' }}{{ p.role }}</div>
                 <div class="spc-loc">{{ p.location }}</div>
                 <div class="spc-tags">
@@ -929,7 +929,7 @@
                   @click="openConnect(p)"
                 ><AegisIcon name="user-plus" :size="14" /></button>
                 <span v-else-if="p.networkStatus === 'pending'" class="btn-icon" data-tooltip="Request pending" style="opacity:.45;cursor:default"><AegisIcon name="clock" :size="14" /></span>
-                <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(p.slug, p.kind || 'business')"><AegisIcon name="eye" :size="14" /></button>
+                
               </div>
             </div>
           </div>
@@ -996,7 +996,7 @@
           </div>
           <div class="spc-body">
             <div class="spc-avatar">{{ nc.partner_initials }}</div>
-            <div class="spc-name">{{ nc.partner_name }}</div>
+            <div class="spc-name" style="color:var(--gold-dark);">{{ nc.partner_name }}</div>
             <div class="spc-role">{{ nc.partner_role }}</div>
             <div class="spc-loc">{{ nc.partner_location }}</div>
           </div>
@@ -1005,7 +1005,7 @@
             <button type="button" class="btn-icon" data-tooltip="Hire" @click="openBpHire(nc)"><AegisIcon name="briefcase" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Request Quote" @click="openBpQuote({ id: nc.partner_id, display_name: nc.partner_name, slug: nc.partner_slug })"><AegisIcon name="clipboard" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Schedule Consultation" @click="openBpSchedule({ id: nc.partner_id, display_name: nc.partner_name, slug: nc.partner_slug })"><AegisIcon name="calendar" :size="14" /></button>
-            <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(nc.partner_slug, 'business')"><AegisIcon name="eye" :size="14" /></button>
+            
             <button type="button" class="btn-icon" data-tooltip="Remove" @click="confirmDisconnect(nc)"><AegisIcon name="trash-2" :size="14" /></button>
           </div>
         </div>
@@ -1066,7 +1066,7 @@
           </div>
           <div class="spc-body">
             <div class="spc-avatar">{{ s.initials }}</div>
-            <div class="spc-name">{{ s.name }}</div>
+            <div class="spc-name" style="color:var(--gold-dark);">{{ s.name }}</div>
             <div class="spc-role">{{ s.role }}</div>
             <div class="spc-loc">{{ s.location }}</div>
             <div class="spc-tags">
@@ -1079,7 +1079,7 @@
             <button type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === s.id || !s.id" @click="s.id && openConversation(s.id)"><AegisIcon name="message-square" :size="14" /></button>
             <button v-if="s.slug" type="button" class="btn-icon" data-tooltip="Refer Client" @click="openReferralForProvider(s)"><AegisIcon name="share-tree" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Add to My Shadows" @click="addShadowDirect(s)"><AegisIcon name="user-plus" :size="14" /></button>
-            <button v-if="s.slug" type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(s.slug, 'provider')"><AegisIcon name="eye" :size="14" /></button>
+            
           </div>
         </div>
       </div>
@@ -1163,7 +1163,7 @@
           </div>
           <div class="spc-body">
             <div class="spc-avatar">{{ s.shadow_initials }}</div>
-            <div class="spc-name">{{ s.shadow_name }}</div>
+            <div class="spc-name" style="color:var(--gold-dark);">{{ s.shadow_name }}</div>
             <div class="spc-role">{{ s.shadow_role }}</div>
             <div class="spc-loc">{{ s.shadow_location }}</div>
             <div class="spc-tags">
@@ -1175,7 +1175,7 @@
           <div class="spc-actions" @click.stop>
             <button v-if="s.shadow_user_id" type="button" class="btn-icon" data-tooltip="Message" :disabled="msgLoading === s.shadow_user_id" @click="openConversation(s.shadow_user_id)"><AegisIcon name="message-square" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Refer Client" @click="openReferralForShadow(s)"><AegisIcon name="refresh" :size="14" /></button>
-            <button type="button" class="btn-icon" data-tooltip="View Profile" @click="viewProfile(s.shadow_slug)"><AegisIcon name="eye" :size="14" /></button>
+            
             <button type="button" class="btn-icon" data-tooltip="Remove Shadow" @click="confirmRemoveShadow(s)"><AegisIcon name="trash-2" :size="14" /></button>
           </div>
         </div>
@@ -1893,7 +1893,7 @@
 
               <div class="spc-body">
                 <div class="spc-avatar">{{ cs.avatar_initials }}</div>
-                <div class="spc-name">{{ cs.display_name }}<span v-if="cs.credentials" style="font-size:11px;color:var(--text-3);font-weight:400;">, {{ cs.credentials }}</span></div>
+                <div class="spc-name" style="color:var(--gold-dark);">{{ cs.display_name }}<span v-if="cs.credentials" style="font-size:11px;color:var(--text-3);font-weight:400;">, {{ cs.credentials }}</span></div>
                 <div class="spc-role" v-if="cs.license_state">Licensed in {{ cs.license_state }}</div>
                 <div class="spc-loc" v-if="cs.location">{{ cs.location }}</div>
                 <div class="spc-tags" v-if="cs.specialties?.length">
@@ -2000,7 +2000,7 @@
             <div class="sbp-card-header">
               <div class="avatar avatar-lg avatar-gold">{{ p.avatar_initials }}</div>
               <div class="sbp-card-info">
-                <div class="sbp-card-name">{{ p.display_name }}{{ p.credentials ? ', ' + p.credentials : '' }}</div>
+                <div class="sbp-card-name" style="color:var(--gold-dark);">{{ p.display_name }}{{ p.credentials ? ', ' + p.credentials : '' }}</div>
                 <div class="sbp-card-role">{{ p.title }}</div>
                 <div class="sbp-card-location" v-if="p.location"><AegisIcon name="map-pin" :size="12" /> {{ p.location }}</div>
               </div>
@@ -2009,9 +2009,7 @@
               <AegisBadge v-if="p.available_as_ss" variant="green" icon="check">Available as SS</AegisBadge>
             </div>
             <div class="sbp-card-actions">
-              <a v-if="p.slug" :href="route('public.provider', p.slug)" class="btn-icon" data-tooltip="View profile">
-                <AegisIcon name="eye" :size="14" />
-              </a>
+              
               <button type="button" class="btn btn-primary" style="font-size:12px;" @click="router.visit(route('provider.ss.index'))">
                 <AegisIcon name="user-plus" :size="13" /> Designate as SS
               </button>
