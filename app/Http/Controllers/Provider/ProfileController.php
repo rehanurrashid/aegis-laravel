@@ -205,7 +205,7 @@ class ProfileController extends Controller
     public function updateLicensedStates(UpdateLicensedStatesRequest $request): RedirectResponse
     {
         $user = $request->user();
-        $this->profiles->updateLicensedStates($user, $request->validated()['states']);
+        $this->profiles->updateLicensedStates($user, $request->validated()['states'] ?? []);
         $this->recomputeCompletion($user);
         return back()->with('success', 'Licensed states updated.');
     }
@@ -218,9 +218,9 @@ class ProfileController extends Controller
 
     public function updateNetworkPartners(Request $request): RedirectResponse
     {
-        $data = $request->validate(['partners' => 'required|array', 'partners.*' => 'string|max:100']);
+        $data = $request->validate(['partners' => 'nullable|array', 'partners.*' => 'string|max:100']);
         $user = $request->user();
-        $this->profiles->updateNetworkPartners($user, $data['partners']);
+        $this->profiles->updateNetworkPartners($user, $data['partners'] ?? []);
         $this->recomputeCompletion($user);
         return back()->with('success', 'Network preferences updated.');
     }

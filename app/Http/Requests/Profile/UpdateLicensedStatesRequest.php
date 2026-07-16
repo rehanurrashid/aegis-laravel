@@ -13,7 +13,7 @@ class UpdateLicensedStatesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'states'   => 'required|array',
+            'states'   => 'nullable|array',
             'states.*' => 'string|max:2',
         ];
     }
