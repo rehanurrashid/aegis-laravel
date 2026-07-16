@@ -144,23 +144,9 @@
           Your Service Requests to {{ user.display_name }}
         </div>
         <div v-for="req in myServiceRequests" :key="req.id" class="svc-request-strip-row">
-          <div class="svc-request-strip-left">
-            <div class="svc-request-strip-service">{{ req.service_title }}</div>
-            <div class="svc-request-strip-meta">Sent {{ req.created_at }}</div>
-            <div v-if="req.message" class="svc-request-strip-note">{{ req.message }}</div>
-          </div>
-          <div class="svc-request-strip-right">
-            <span :class="['badge', statusBadgeClass(req.status)]">
-              {{ statusLabel(req.status) }}
-            </span>
-            <div v-if="req.response_note" class="svc-request-strip-response">
-              <AegisIcon name="message" :size="11" />
-              {{ req.response_note }}
-            </div>
-            <div v-if="req.responded_at" class="svc-request-strip-response-date">
-              Responded {{ req.responded_at }}
-            </div>
-          </div>
+          <span class="svc-request-strip-service">{{ req.service_title }}</span>
+          <span class="svc-request-strip-meta">{{ req.created_at }}</span>
+          <span :class="['badge', statusBadgeClass(req.status)]">{{ statusLabel(req.status) }}</span>
         </div>
         <div class="svc-request-strip-footer">
           <a :href="route('provider.services.index') + '?tab=outgoing'" class="svc-request-strip-link">
@@ -1064,6 +1050,69 @@ function copyShareLink() {
 </script>
 
 <style scoped>
+/* ── Service Request Strip ───────────────────────────────────────────── */
+.svc-request-strip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.svc-request-strip-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-3);
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.svc-request-strip-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.svc-request-strip-row:last-of-type { border-bottom: none; }
+.svc-request-strip-service {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.svc-request-strip-meta {
+  font-size: 11px;
+  color: var(--text-4);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.svc-request-strip-footer {
+  padding: 10px 18px;
+  background: var(--surface-2);
+  border-top: 1px solid var(--border);
+}
+.svc-request-strip-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--gold-dark);
+  text-decoration: none;
+}
+.svc-request-strip-link:hover {
+  text-decoration: underline;
+}
+
 /* ── Services Profile Meta ───────────────────────────────────────────── */
 .pp-svc-profile-meta {
   border-left: 3px solid var(--gold-dark);

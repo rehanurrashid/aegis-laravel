@@ -1984,6 +1984,15 @@
             <div class="spc-name" style="color:var(--gold-dark);">{{ p.display_name }}{{ p.credentials ? ', ' + p.credentials : '' }}</div>
             <div class="spc-role">{{ p.title }}</div>
             <div class="spc-loc">{{ p.location }}</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:8px;">
+              <span
+                style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:var(--radius-full);background:var(--icon-bg-gold);color:var(--gold-dark);flex-shrink:0;"
+                data-tooltip="Practitioner who is available as Support Steward"
+              >
+                <AegisIcon name="provider-ss" :size="13" />
+              </span>
+              <span style="font-size:11px;color:var(--text-3);font-weight:600;letter-spacing:0.2px;">Also a Practitioner</span>
+            </div>
           </div>
           <div class="spc-actions" @click.stop>
             <button type="button" class="btn btn-primary" style="font-size:12px;" @click="router.visit(route('provider.ss.index'))">

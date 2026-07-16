@@ -208,6 +208,7 @@ export const ICONS = {
   'heart-3': `<path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06z"/>`,
   'trophy-2': `<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/>`,
   'panel-left': `<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/>`,
+  'provider-ss': `<circle cx="12" cy="12" r="10"/><path d="M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21v-1a6 6 0 0 1 6-6"/><polyline points="15 18 17 20 21 16"/>`,
 }
 
 // Semantic aliases — ported verbatim from aegis_icon()'s match() fallback in
