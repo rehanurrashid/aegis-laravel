@@ -300,10 +300,10 @@
                     <span class="ep-cred-badge">{{ cred.subtitle || cred.issuer || '—' }}</span>
                   </div>
                   <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
-                    <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Edit / Renew" @click="openCredModal('edit-credential', cred)"><AegisIcon name="edit" :size="13" /></button>
-                    <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Set Reminder" @click="openCredModal('reminder', cred)"><AegisIcon name="bell" :size="13" /></button>
-                    <button type="button" class="btn-icon btn-icon-sm" :data-tooltip="cred.archived ? 'Restore' : 'Archive'" @click="toggleArchiveCredential(cred)"><AegisIcon :name="cred.archived ? 'refresh-cw' : 'archive'" :size="13" /></button>
-                    <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Remove" @click="confirmRemoveCredential(cred)"><AegisIcon name="trash-2" :size="13" /></button>
+                    <button type="button" class="btn-icon" data-tooltip="Edit / Renew" @click="openCredModal('edit-credential', cred)"><AegisIcon name="edit" :size="13" /></button>
+                    <button type="button" class="btn-icon" data-tooltip="Set Reminder" @click="openCredModal('reminder', cred)"><AegisIcon name="bell" :size="13" /></button>
+                    <button type="button" class="btn-icon" :data-tooltip="cred.archived ? 'Restore' : 'Archive'" @click="toggleArchiveCredential(cred)"><AegisIcon :name="cred.archived ? 'refresh-cw' : 'archive'" :size="13" /></button>
+                    <button type="button" class="btn-icon btn-icon-danger" data-tooltip="Remove" @click="confirmRemoveCredential(cred)"><AegisIcon name="trash-2" :size="13" /></button>
                   </div>
                 </div>
                 <div class="ep-cred-meta-row">
@@ -324,9 +324,9 @@
                       </div>
                     </div>
                     <div style="display:flex;gap:6px;flex-shrink:0">
-                      <a :href="`/storage/${p}`" target="_blank" rel="noopener" class="btn-icon btn-icon-sm" data-tooltip="Preview"><AegisIcon name="eye" :size="13" /></a>
-                      <a :href="route('provider.credentials.download', cred.id) + '?path=' + encodeURIComponent(p)" class="btn-icon btn-icon-sm" data-tooltip="Download"><AegisIcon name="download" :size="13" /></a>
-                      <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Remove file" @click="removeCredentialDoc(cred, p)"><AegisIcon name="x" :size="11" /></button>
+                      <a :href="`/storage/${p}`" target="_blank" rel="noopener" class="btn-icon" data-tooltip="Preview"><AegisIcon name="eye" :size="13" /></a>
+                      <a :href="route('provider.credentials.download', cred.id) + '?path=' + encodeURIComponent(p)" class="btn-icon" data-tooltip="Download"><AegisIcon name="download" :size="13" /></a>
+                      <button type="button" class="btn-icon btn-icon-danger" data-tooltip="Remove file" @click="removeCredentialDoc(cred, p)"><AegisIcon name="x" :size="11" /></button>
                     </div>
                   </div>
                 </div>
@@ -407,9 +407,9 @@
                       <span class="ep-cred-badge">{{ insuranceCredential.issuer || '—' }}</span>
                     </div>
                     <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
-                      <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Edit / Renew" @click="openCredModal('edit-insurance', insuranceCredential)"><AegisIcon name="edit" :size="13" /></button>
-                      <button type="button" class="btn-icon btn-icon-sm" data-tooltip="Set Reminder" @click="openCredModal('reminder', insuranceCredential)"><AegisIcon name="bell" :size="13" /></button>
-                      <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Remove" @click="confirmRemoveCredential(insuranceCredential)"><AegisIcon name="trash-2" :size="13" /></button>
+                      <button type="button" class="btn-icon" data-tooltip="Edit / Renew" @click="openCredModal('edit-insurance', insuranceCredential)"><AegisIcon name="edit" :size="13" /></button>
+                      <button type="button" class="btn-icon" data-tooltip="Set Reminder" @click="openCredModal('reminder', insuranceCredential)"><AegisIcon name="bell" :size="13" /></button>
+                      <button type="button" class="btn-icon btn-icon-danger" data-tooltip="Remove" @click="confirmRemoveCredential(insuranceCredential)"><AegisIcon name="trash-2" :size="13" /></button>
                     </div>
                   </div>
                   <div class="ep-cred-meta-row">
@@ -430,16 +430,16 @@
                         </div>
                       </div>
                       <div style="display:flex;gap:6px;flex-shrink:0">
-                        <a :href="`/storage/${p}`" target="_blank" rel="noopener" class="btn-icon btn-icon-sm" data-tooltip="Preview"><AegisIcon name="eye" :size="13" /></a>
-                        <a :href="route('provider.credentials.download', insuranceCredential.id) + '?path=' + encodeURIComponent(p)" class="btn-icon btn-icon-sm" data-tooltip="Download"><AegisIcon name="download" :size="13" /></a>
-                        <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" data-tooltip="Remove file" @click="removeCredentialDoc(insuranceCredential, p)"><AegisIcon name="x" :size="11" /></button>
+                        <a :href="`/storage/${p}`" target="_blank" rel="noopener" class="btn-icon" data-tooltip="Preview"><AegisIcon name="eye" :size="13" /></a>
+                        <a :href="route('provider.credentials.download', insuranceCredential.id) + '?path=' + encodeURIComponent(p)" class="btn-icon" data-tooltip="Download"><AegisIcon name="download" :size="13" /></a>
+                        <button type="button" class="btn-icon btn-icon-danger" data-tooltip="Remove file" @click="removeCredentialDoc(insuranceCredential, p)"><AegisIcon name="x" :size="11" /></button>
                       </div>
                     </div>
                   </div>
                 </div>
               </template>
 
-              <button type="button" class="btn btn-outline" style="margin-top:4px" @click="modals.addInsurance = true">
+              <button type="button" class="btn btn-outline" style="margin-top:4px" @click="openAddInsurance">
                 <AegisIcon name="plus" :size="13" /> {{ insuranceCredential ? 'Add Another Policy' : 'Add Insurance Policy' }}
               </button>
             </div>
@@ -1270,8 +1270,9 @@ const licenseForm = useForm({
   document:    [],
 })
 function submitLicense() {
+  if (!licenseForm.cred_type) { toast.error('Please select a credential type.'); return }
   const type = licenseForm.cred_type === 'custom'
-    ? (licenseForm.custom_type || 'Other')
+    ? (licenseForm.custom_type.trim() || 'Other')
     : licenseForm.cred_type
   licenseForm
     .transform((d) => ({ ...d, cred_type: type, document: d.document }))
@@ -1308,6 +1309,7 @@ function uploadCredentialDocument(cred, file) {
 }
 
 function toggleArchiveCredential(cred) {
+  // Visual-only archive — no is_archived column exists in DB yet
   cred.archived = !cred.archived
   toast.info(cred.archived ? 'Credential archived — kept for your records' : 'Credential restored')
 }
@@ -1332,29 +1334,34 @@ function removeCredentialDoc(cred, filePath) {
 }
 
 const insuranceForm = useForm({
-  cred_type:   insuranceCredential.value?.cred_type ?? '',
-  issuer:      insuranceCredential.value?.issuer ?? '',
-  number:      insuranceCredential.value?.number ?? '',
-  subtitle:    insuranceCredential.value?.subtitle ?? '',
-  issued_on:   insuranceCredential.value?.issued_on ?? '',
-  expires_on:  insuranceCredential.value?.expires_on ?? '',
+  cred_type:   '',
+  issuer:      '',
+  number:      '',
+  subtitle:    '',
+  issued_on:   '',
+  expires_on:  '',
   document:    [],
 })
+function openAddInsurance() {
+  insuranceForm.reset()
+  modals.addInsurance = true
+}
 function submitInsurance() {
-  const isUpdate = !!insuranceCredential.value
-  const target = isUpdate
-    ? route('provider.credentials.update', insuranceCredential.value.id)
-    : route('provider.credentials.store')
-
+  if (!insuranceForm.cred_type) { toast.error('Please select a policy type.'); return }
+  if (!insuranceForm.issuer.trim()) { toast.error('Please enter the insurance provider.'); return }
   insuranceForm.transform((data) => ({
     ...data,
-    cred_type: 'Liability Insurance',
-    name: 'Liability Insurance',
-    ...(isUpdate ? { _method: 'put' } : {}),
-  })).post(target, {
+    cred_type: data.cred_type,
+    name: data.cred_type,
+  })).post(route('provider.credentials.store'), {
     forceFormData: true,
     preserveScroll: true,
-    onSuccess: () => { modals.addInsurance = false; toast.success('Insurance saved.'); router.reload({ only: ['credentials', 'sectionCompletion', 'profileCompletion', 'profileItemsRemaining'] }) },
+    onSuccess: () => {
+      modals.addInsurance = false
+      toast.success('Insurance policy saved.')
+      insuranceForm.reset()
+      router.reload({ only: ['credentials', 'sectionCompletion', 'profileCompletion', 'profileItemsRemaining'] })
+    },
     onFinish: () => insuranceForm.transform((data) => data),
   })
 }
@@ -1567,6 +1574,12 @@ const educationForm = useForm({
     : [{ degree: '', field: '', institution: '', duration: '' }],
 })
 function submitEducation() {
+  // Filter out completely blank rows before submitting
+  const cleaned = educationForm.education.filter(
+    (e) => e.degree?.trim() || e.field?.trim() || e.institution?.trim() || e.duration?.trim()
+  )
+  if (!cleaned.length) { toast.error('Add at least one education entry before saving.'); return }
+  educationForm.education = cleaned
   educationForm.put(route('provider.profile.education'), {
     preserveScroll: true,
     onSuccess: () => toast.success('Education saved.'),
