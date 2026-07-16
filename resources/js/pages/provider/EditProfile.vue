@@ -63,7 +63,7 @@
         : `${props.profileItemsRemaining} section${props.profileItemsRemaining !== 1 ? 's' : ''} remaining — complete your profile to improve discovery`"
     >
       <template #action>
-        <button type="button" class="btn btn-primary" style="flex-shrink:0;white-space:nowrap" @click="activeSection = 'professional'">
+        <button type="button" class="btn btn-primary" style="flex-shrink:0;white-space:nowrap" @click="scrollToFirstIncomplete">
           Complete <AegisIcon name="arrow-right-line" :size="12" />
         </button>
       </template>
@@ -1053,6 +1053,11 @@ const mainNavItems = [
 // ── Modals ────────────────────────────────────────────────────────────
 const modals = reactive({ photoUpload: false, removePhoto: false, addLicense: false, addInsurance: false })
 
+function scrollToFirstIncomplete() {
+  const first = mainNavItems.find(s => !props.sectionCompletion[s.key])
+  if (first) activeSection.value = first.key
+}
+
 // ── Identity / basic info ────────────────────────────────────────────
 const nameParts = (props.user.display_name ?? '').replace(/^(Dr\.|Prof\.|Mr\.|Ms\.|Mrs\.)\s*/i, '').trim().split(' ')
 const firstName = ref(nameParts[0] ?? '')
@@ -1381,7 +1386,10 @@ const networkPartnersForm = useForm({ partners: Array.isArray(props.meta.network
 function submitNetworkPartners() {
   networkPartnersForm.put(route('provider.profile.network-partners'), {
     preserveScroll: true,
-    onSuccess: () => toast.success('Network preferences saved.'),
+    onSuccess: () => {
+      toast.success('Network preferences saved.')
+      router.reload({ only: ['sectionCompletion', 'profileCompletion', 'profileItemsRemaining'] })
+    },
   })
 }
 
@@ -1391,7 +1399,10 @@ const licensedStatesForm = useForm({ states: Array.isArray(props.meta.licensed_s
 function submitLicensedStates() {
   licensedStatesForm.put(route('provider.profile.licensed-states'), {
     preserveScroll: true,
-    onSuccess: () => toast.success('Licensed states saved.'),
+    onSuccess: () => {
+      toast.success('Licensed states saved.')
+      router.reload({ only: ['sectionCompletion', 'profileCompletion', 'profileItemsRemaining'] })
+    },
   })
 }
 
@@ -1409,7 +1420,10 @@ const aiForm = useForm({
 function submitAiSettings() {
   aiForm.put(route('provider.profile.ai-settings'), {
     preserveScroll: true,
-    onSuccess: () => toast.success('AI & Shadow Network settings saved.'),
+    onSuccess: () => {
+      toast.success('AI & Shadow Network settings saved.')
+      router.reload({ only: ['sectionCompletion', 'profileCompletion', 'profileItemsRemaining'] })
+    },
   })
 }
 
