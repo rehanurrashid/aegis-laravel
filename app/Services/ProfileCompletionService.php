@@ -27,7 +27,7 @@ class ProfileCompletionService
         }
 
         $specialties  = $this->metaValue($user, 'specialties');
-        $networkPrefs = $this->metaValue($user, 'network_preferences');
+        $networkPrefs = $this->metaValue($user, 'network_prefs');
         $demographics = $this->metaValue($user, 'demographics');
 
         $hasLicense = ProviderCredential::where('user_id', $user->id)
@@ -127,7 +127,7 @@ class ProfileCompletionService
             return 'Add insurance and services';
         }
 
-        $networkPrefs = $this->metaValue($user, 'network_preferences');
+        $networkPrefs = $this->metaValue($user, 'network_prefs');
         if (empty($networkPrefs)) {
             return 'Set network preferences';
         }
