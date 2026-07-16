@@ -158,7 +158,9 @@ class ProfileController extends Controller
 
     public function updateFees(UpdateFeesRequest $request): RedirectResponse
     {
-        $this->profiles->updateFees($request->user(), $request->validated());
+        $user = $request->user();
+        $this->profiles->updateFees($user, $request->validated());
+        $this->recomputeCompletion($user);
         return back()->with('success', 'Fees updated.');
     }
 
@@ -176,7 +178,9 @@ class ProfileController extends Controller
 
     public function updateNetwork(UpdateNetworkPreferencesRequest $request): RedirectResponse
     {
-        $this->profiles->updateNetwork($request->user(), $request->validated());
+        $user = $request->user();
+        $this->profiles->updateNetwork($user, $request->validated());
+        $this->recomputeCompletion($user);
         return back()->with('success', 'Network preferences updated.');
     }
 
@@ -189,7 +193,9 @@ class ProfileController extends Controller
 
     public function updateLicensedStates(UpdateLicensedStatesRequest $request): RedirectResponse
     {
-        $this->profiles->updateLicensedStates($request->user(), $request->validated()['states']);
+        $user = $request->user();
+        $this->profiles->updateLicensedStates($user, $request->validated()['states']);
+        $this->recomputeCompletion($user);
         return back()->with('success', 'Licensed states updated.');
     }
 
@@ -202,7 +208,9 @@ class ProfileController extends Controller
     public function updateNetworkPartners(Request $request): RedirectResponse
     {
         $data = $request->validate(['partners' => 'required|array', 'partners.*' => 'string|max:100']);
-        $this->profiles->updateNetworkPartners($request->user(), $data['partners']);
+        $user = $request->user();
+        $this->profiles->updateNetworkPartners($user, $data['partners']);
+        $this->recomputeCompletion($user);
         return back()->with('success', 'Network preferences updated.');
     }
 
@@ -217,13 +225,17 @@ class ProfileController extends Controller
             'appear_in_suggestions'    => 'nullable|boolean',
             'show_in_directory'        => 'nullable|boolean',
         ]);
-        $this->profiles->updateAiSettings($request->user(), $data);
+        $user = $request->user();
+        $this->profiles->updateAiSettings($user, $data);
+        $this->recomputeCompletion($user);
         return back()->with('success', 'AI & Shadow Network settings updated.');
     }
 
     public function updateDemographics(UpdateDemographicsRequest $request): RedirectResponse
     {
-        $this->profiles->updateDemographics($request->user(), $request->validated());
+        $user = $request->user();
+        $this->profiles->updateDemographics($user, $request->validated());
+        $this->recomputeCompletion($user);
         return back()->with('success', 'Demographics updated.');
     }
 

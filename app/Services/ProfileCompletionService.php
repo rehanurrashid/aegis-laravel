@@ -7,7 +7,6 @@ namespace App\Services;
 use App\Models\ContinuityPlan;
 use App\Models\PlanSteward;
 use App\Models\ProviderCredential;
-use App\Models\Service;
 use App\Models\User;
 
 /**
@@ -27,25 +26,23 @@ class ProfileCompletionService
         }
 
         $specialties      = $this->metaValue($user, 'specialties');
+        $services         = $this->metaValue($user, 'services');
         $networkPrefs     = $this->metaValue($user, 'network_prefs');
         $licensedStates   = $this->metaValue($user, 'licensed_states');
         $aiShadowSettings = $this->metaValue($user, 'ai_shadow_settings');
         $demographics     = $this->metaValue($user, 'demographics');
+        $fees             = $this->metaValue($user, 'fees');
 
         $hasLicense = ProviderCredential::where('user_id', $user->id)
             ->whereRaw("LOWER(cred_type) NOT LIKE '%insurance%'")
             ->whereRaw("LOWER(cred_type) NOT LIKE '%liability%'")
             ->exists();
 
-        $hasInsurance = ProviderCredential::where('user_id', $user->id)
+        $hasInsuranceCred = ProviderCredential::where('user_id', $user->id)
             ->where(function ($q) {
                 $q->whereRaw("LOWER(cred_type) LIKE '%insurance%'")
                   ->orWhereRaw("LOWER(cred_type) LIKE '%liability%'");
             })
-            ->exists();
-
-        $hasServices = Service::where('practitioner_id', $user->id)
-            ->where('status', 'active')
             ->exists();
 
         $sections = [
@@ -55,10 +52,10 @@ class ProfileCompletionService
             'professional' => ! empty($user->title)
                            && ! empty($user->bio)
                            && $hasLicense,
-            'specialties'  => ! empty($specialties)
-                           && is_array($specialties)
-                           && count($specialties) > 0,
-            'insurance'    => $hasInsurance && $hasServices,
+            'specialties'  => (! empty($specialties) && is_array($specialties) && count($specialties) > 0)
+                           || (! empty($services) && is_array($services) && count($services) > 0),
+            'insurance'    => $hasInsuranceCred
+                           || (! empty($fees) && is_array($fees) && count($fees) > 0),
             'network'      => (! empty($networkPrefs) && (is_array($networkPrefs) ? count($networkPrefs) > 0 : true))
                            || (! empty($licensedStates) && is_array($licensedStates) && count($licensedStates) > 0)
                            || (! empty($aiShadowSettings) && (is_array($aiShadowSettings) ? count($aiShadowSettings) > 0 : true)),
@@ -113,20 +110,21 @@ class ProfileCompletionService
         }
 
         $specialties = $this->metaValue($user, 'specialties');
-        if (empty($specialties) || ! is_array($specialties) || count($specialties) === 0) {
+        $services    = $this->metaValue($user, 'services');
+        if ((empty($specialties) || ! is_array($specialties) || count($specialties) === 0)
+            && (empty($services) || ! is_array($services) || count($services) === 0)) {
             return 'Add your specialties';
         }
 
-        $hasInsurance = ProviderCredential::where('user_id', $user->id)
+        $hasInsuranceCred = ProviderCredential::where('user_id', $user->id)
             ->where(function ($q) {
                 $q->whereRaw("LOWER(cred_type) LIKE '%insurance%'")
                   ->orWhereRaw("LOWER(cred_type) LIKE '%liability%'");
             })
             ->exists();
-        $hasServices = Service::where('practitioner_id', $user->id)
-            ->where('status', 'active')
-            ->exists();
-        if (! $hasInsurance || ! $hasServices) {
+        $fees = $this->metaValue($user, 'fees');
+        $feesComplete = $hasInsuranceCred || (! empty($fees) && is_array($fees) && count($fees) > 0);
+        if (! $feesComplete) {
             return 'Add insurance and services';
         }
 

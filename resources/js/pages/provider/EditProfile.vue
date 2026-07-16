@@ -1085,7 +1085,10 @@ function submitBasic() {
   basicForm.display_name = `${firstName.value} ${lastName.value}`.trim()
   basicForm.put(route('provider.profile.basic'), {
     preserveScroll: true,
-    onSuccess: () => toast.success('Basic info saved.'),
+    onSuccess: () => {
+      toast.success('Basic info saved.')
+      router.reload({ only: ['sectionCompletion', 'profileCompletion', 'profileItemsRemaining'] })
+    },
   })
 }
 
@@ -1172,7 +1175,7 @@ function submitLicense() {
         modals.addLicense = false
         toast.success('License added.')
         licenseForm.reset()
-        router.reload({ only: ['credentials'] })
+        router.reload({ only: ['credentials', 'sectionCompletion', 'profileCompletion', 'profileItemsRemaining'] })
       },
     })
 }
@@ -1244,7 +1247,7 @@ function submitInsurance() {
   })).post(target, {
     forceFormData: true,
     preserveScroll: true,
-    onSuccess: () => { modals.addInsurance = false; toast.success('Insurance saved.'); router.reload({ only: ['credentials'] }) },
+    onSuccess: () => { modals.addInsurance = false; toast.success('Insurance saved.'); router.reload({ only: ['credentials', 'sectionCompletion', 'profileCompletion', 'profileItemsRemaining'] }) },
     onFinish: () => insuranceForm.transform((data) => data),
   })
 }
@@ -1319,7 +1322,10 @@ const specialtiesForm = useForm({ specialties: Array.isArray(props.meta.specialt
 function submitSpecialties() {
   specialtiesForm.put(route('provider.profile.specialties'), {
     preserveScroll: true,
-    onSuccess: () => toast.success('Specialties saved.'),
+    onSuccess: () => {
+      toast.success('Specialties saved.')
+      router.reload({ only: ['sectionCompletion', 'profileCompletion', 'profileItemsRemaining'] })
+    },
   })
 }
 
@@ -1327,7 +1333,10 @@ const servicesForm = useForm({ services: Array.isArray(props.meta.services) ? [.
 function submitServices() {
   servicesForm.put(route('provider.profile.services'), {
     preserveScroll: true,
-    onSuccess: () => toast.success('Services saved.'),
+    onSuccess: () => {
+      toast.success('Services saved.')
+      router.reload({ only: ['sectionCompletion', 'profileCompletion', 'profileItemsRemaining'] })
+    },
   })
 }
 
@@ -1376,7 +1385,10 @@ const packageRateDollars = computed({
 function submitFees() {
   feesForm.put(route('provider.profile.fees'), {
     preserveScroll: true,
-    onSuccess: () => toast.success('Fees saved.'),
+    onSuccess: () => {
+      toast.success('Fees saved.')
+      router.reload({ only: ['sectionCompletion', 'profileCompletion', 'profileItemsRemaining'] })
+    },
   })
 }
 
@@ -1463,7 +1475,10 @@ const demographicsForm = useForm({
 function submitDemographics() {
   demographicsForm.put(route('provider.profile.demographics'), {
     preserveScroll: true,
-    onSuccess: () => toast.success('Demographics saved.'),
+    onSuccess: () => {
+      toast.success('Demographics saved.')
+      router.reload({ only: ['sectionCompletion', 'profileCompletion', 'profileItemsRemaining'] })
+    },
   })
 }
 
