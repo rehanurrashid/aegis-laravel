@@ -1470,7 +1470,10 @@ const approachesForm = useForm({ approaches: Array.isArray(props.meta.approaches
 function submitApproaches() {
   approachesForm.put(route('provider.profile.approaches'), {
     preserveScroll: true,
-    onSuccess: () => toast.success('Approaches saved.'),
+    onSuccess: () => {
+      toast.success('Approaches saved.')
+      router.reload({ only: ['sectionCompletion', 'profileCompletion', 'profileItemsRemaining'] })
+    },
   })
 }
 

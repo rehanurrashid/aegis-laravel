@@ -13,7 +13,7 @@ class UpdateSpecialtiesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'specialties'   => 'required|array',
+            'specialties'   => 'nullable|array',
             'specialties.*' => 'string|max:100',
         ];
     }

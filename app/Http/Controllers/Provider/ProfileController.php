@@ -135,7 +135,7 @@ class ProfileController extends Controller
     public function updateSpecialties(UpdateSpecialtiesRequest $request): RedirectResponse
     {
         $user = $request->user();
-        $this->profiles->updateSpecialties($user, $request->validated()['specialties']);
+        $this->profiles->updateSpecialties($user, $request->validated()['specialties'] ?? []);
         $this->recomputeCompletion($user);
         return back()->with('success', 'Specialties updated.');
     }
@@ -143,13 +143,13 @@ class ProfileController extends Controller
     public function updateServices(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'services'         => 'required|array',
+            'services'         => 'nullable|array',
             'service_bio'      => 'nullable|string|max:2000',
             'service_headline' => 'nullable|string|max:200',
             'years_experience' => 'nullable|integer|min:0|max:60',
         ]);
         $user = $request->user();
-        $this->profiles->updateServices($user, $data['services']);
+        $this->profiles->updateServices($user, $data['services'] ?? []);
         // Use type='string' so values are stored as plain strings, not double-encoded JSON
         if (isset($data['service_bio']))      $this->profiles->setMetaPublic($user, 'service_bio',      $data['service_bio'],      'string');
         if (isset($data['service_headline'])) $this->profiles->setMetaPublic($user, 'service_headline', $data['service_headline'], 'string');
@@ -162,8 +162,8 @@ class ProfileController extends Controller
 
     public function updateApproaches(Request $request): RedirectResponse
     {
-        $data = $request->validate(['approaches' => 'required|array']);
-        $this->profiles->updateApproaches($request->user(), $data['approaches']);
+        $data = $request->validate(['approaches' => 'nullable|array', 'approaches.*' => 'string|max:200']);
+        $this->profiles->updateApproaches($request->user(), $data['approaches'] ?? []);
         return back()->with('success', 'Approaches updated.');
     }
 
