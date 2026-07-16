@@ -298,7 +298,7 @@ const availOptions = ['Available', 'Away', 'Busy — Do Not Disturb'];
 .ms-cp-k { color:var(--text-4); flex-shrink:0; }
 .ms-cp-v { margin-left:auto; color:var(--text); font-weight:600; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:170px; }
 
-.ms-bubble.hit .ms-bubble-text { box-shadow:0 0 0 2px var(--gold); }
+.ms-bubble.hit .ms-bubble-text { box-shadow:0 0 0 1px var(--gold); }
 .ms-conv-av { width:40px; height:40px; border-radius:var(--radius-sm); background:var(--gold-dark); color:var(--text-inverted); display:flex; align-items:center; justify-content:center; font-family:var(--font-serif); font-weight:700; font-size:14px; flex-shrink:0; }
 .ms-conv-info { flex:1; min-width:0; }
 .ms-conv-name { font-family:var(--font-serif); font-size:15px; font-weight:600; color:var(--text); }

@@ -504,7 +504,7 @@ function switchAccount() { router.post(route('logout')) }
 .ob-card-input .StripeElement { width: 100%; }
 .ob-field-error { font-size: 11px; color: var(--red); margin-top: 4px; line-height: 1.4; }
 .ob-stripe-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:40px 20px; color:var(--text-2); font-size:12px; }
-.ob-stripe-spinner { width:24px; height:24px; border:2px solid var(--border); border-top-color:var(--gold); border-radius:var(--radius-full); animation:spin 0.8s linear infinite; }
+.ob-stripe-spinner { width:24px; height:24px; border:1px solid var(--border); border-top-color:var(--gold); border-radius:var(--radius-full); animation:spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .ob-spin { animation: spin 0.7s linear infinite; display: inline-block; }
 

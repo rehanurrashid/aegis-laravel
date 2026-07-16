@@ -189,7 +189,7 @@
     <div v-if="step === 5" style="margin-top:16px;">
       <div class="alert alert-success"><AegisIcon name="check" :size="14" /><div>Review the summary below, apply your digital signature, then send.</div></div>
       <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;font-size:13px;line-height:1.75;color:var(--text-2);margin:14px 0;">
-        <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:14px;border-bottom:2px solid var(--border);padding-bottom:10px;">Aegis Continuity Plan</div>
+        <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:10px;">Aegis Continuity Plan</div>
         <p><strong>Continuity Steward:</strong> {{ preselectedUser?.display_name || form.display_name || '—' }}<span v-if="preselectedUser?.credentials" style="color:var(--text-3);font-weight:400;">, {{ preselectedUser.credentials }}</span></p>
         <p v-if="!preselectedUser"><strong>Email:</strong> <span :style="!form.email ? 'color:var(--text-4);font-style:italic;' : ''">{{ form.email || 'Not entered' }}</span></p>
         <p v-if="preselectedUser?.location"><strong>Location:</strong> {{ preselectedUser.location }}</p>

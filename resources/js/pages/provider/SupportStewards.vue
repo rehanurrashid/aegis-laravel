@@ -458,7 +458,7 @@
         <div>Awaiting counter-signature from Support Steward.</div>
       </div>
       <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;font-size:13px;line-height:1.8;color:var(--text-2)">
-        <div style="font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--gold-dark);text-align:center;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--border)">Aegis SUPPORT STEWARD AGREEMENT</div>
+        <div style="font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--gold-dark);text-align:center;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">Aegis SUPPORT STEWARD AGREEMENT</div>
         <p><strong>Support Steward:</strong> {{ activeSteward ? fullName(activeSteward) : '—' }}</p>
         <p><strong>Agreement Date:</strong> {{ activeSteward ? fmtDate(activeSteward.signed_at ?? activeSteward.invited_at) : '—' }} | <strong>Annual Attestation:</strong> Required</p>
         <br>
@@ -930,9 +930,9 @@ function submitCancelInvite() {
 .perm-matrix .task-name { font-size:13px; font-weight:600; color:var(--text); }
 
 /* ── ROLE OPTION ── */
-.role-option { display:flex; align-items:flex-start; gap:12px; padding:14px; border:2px solid var(--border); border-radius:var(--radius); cursor:pointer; transition:border-color var(--transition),background var(--transition); margin-bottom:10px; background:var(--surface); }
+.role-option { display:flex; align-items:flex-start; gap:12px; padding:14px; border:1px solid var(--border); border-radius:var(--radius); cursor:pointer; transition:border-color var(--transition),background var(--transition); margin-bottom:10px; background:var(--surface); }
 .role-option:hover { border-color:var(--soft-gold); background:var(--badge-bg-gold); }
-.role-option.selected { border-color:transparent; background:var(--badge-bg-gold); box-shadow:0 0 0 2px var(--gold-dark); }
+.role-option.selected { border-color:transparent; background:var(--badge-bg-gold); box-shadow:0 0 0 1px var(--gold-dark); }
 
 /* ── SIG BLOCK ── */
 .sig-block { border:2px dashed var(--border); border-radius:var(--radius); padding:20px; text-align:center; color:var(--text-3); font-size:13px; cursor:pointer; transition:border-color var(--transition),background var(--transition),color var(--transition); margin-top:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; }

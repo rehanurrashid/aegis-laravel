@@ -139,7 +139,7 @@ function downloadPdf() {
 
       <!-- LEGAL DOCUMENT -->
       <div style="background:var(--surface-2);border-radius:var(--radius);padding:18px 22px;font-size:13px;line-height:1.8;color:var(--text-2);">
-        <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid var(--border);">Aegis CONTINUITY PLAN</div>
+        <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);">Aegis CONTINUITY PLAN</div>
 
         <p><strong>Section 1. Purpose.</strong> This agreement establishes the designated Continuity Steward for the professional practice in the event of death, incapacitation, disability, voluntary retirement, license suspension, or any other event preventing the Provider from practicing.</p>
 

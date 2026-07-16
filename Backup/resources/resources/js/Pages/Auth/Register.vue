@@ -1984,7 +1984,7 @@ onBeforeUnmount(() => clearInterval(timerInterval));
 .btn-spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(255,255,255,0.35);
+  border: 1px solid rgba(255,255,255,0.35);
   border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
@@ -2497,7 +2497,7 @@ onBeforeUnmount(() => clearInterval(timerInterval));
   height: 80px;
   border-radius: 50%;
   background: rgba(76,175,125,0.1);
-  border: 2px solid rgba(76,175,125,0.25);
+  border: 1px solid rgba(76,175,125,0.25);
   display: flex;
   align-items: center;
   justify-content: center;

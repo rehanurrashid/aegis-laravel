@@ -417,7 +417,7 @@ body {
     font-weight: 700;
     line-height: 1.4;
     text-align: center;
-    border: 2px solid var(--surface);
+    border: 1px solid var(--surface);
 }
 .header-bell-dropdown {
     position: absolute;
@@ -930,7 +930,7 @@ body {
     width: 24px;
     height: 24px;
     border-radius: var(--radius-full);
-    border: 2px solid var(--border-dark);
+    border: 1px solid var(--border-dark);
     background: var(--surface);
     display: flex;
     align-items: center;

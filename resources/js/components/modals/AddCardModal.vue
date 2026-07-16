@@ -294,7 +294,7 @@ function resetFieldState() {
 
 /* Loading */
 .acm-loading       { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-2); padding: 24px 0; }
-.acm-spinner       { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: var(--radius-full); animation: acm-spin 0.8s linear infinite; flex-shrink: 0; }
+.acm-spinner       { width: 20px; height: 20px; border: 1px solid var(--border); border-top-color: var(--gold); border-radius: var(--radius-full); animation: acm-spin 0.8s linear infinite; flex-shrink: 0; }
 @keyframes acm-spin { to { transform: rotate(360deg); } }
 
 /* Error banner */

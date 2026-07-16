@@ -492,7 +492,7 @@ function toggleFaq(i) { openFaq.value = openFaq.value === i ? -1 : i; }
 .hu-num {
   width: 38px; height: 38px; border-radius: 50%;
   background: var(--surface, #ffffff);
-  border: 2px solid var(--border, #e4dfd7);
+  border: 1px solid var(--border, #e4dfd7);
   color: var(--text-3, #6b655d);
   font-family: var(--font-serif, 'Spectral', Georgia, serif);
   font-size: 15px; font-weight: 700;

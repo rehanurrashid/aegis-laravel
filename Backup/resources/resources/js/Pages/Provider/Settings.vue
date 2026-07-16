@@ -1128,7 +1128,7 @@ function generateKey() {
 .st-theme-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
 .st-theme-card { display:flex; flex-direction:column; text-align:left; padding:0; background:var(--surface); border:1.5px solid var(--border-dark); border-radius:var(--radius-lg); overflow:hidden; cursor:pointer; transition:all .15s ease; }
 .st-theme-card:hover { border-color:var(--gold-dark); }
-.st-theme-card.active { border-color:var(--gold-dark); box-shadow:0 0 0 2px var(--badge-bg-gold); }
+.st-theme-card.active { border-color:var(--gold-dark); box-shadow:0 0 0 1px var(--badge-bg-gold); }
 .st-theme-swatch { display:block; height:54px; }
 .st-theme-body { padding:12px 14px; }
 .st-theme-name { display:block; font-size:13px; font-weight:700; color:var(--text); }
@@ -1185,7 +1185,7 @@ function generateKey() {
 .st-save-pill { font-size:10px; font-weight:700; padding:2px 8px; border-radius:var(--radius-full); background:var(--green-light); color:var(--green-dark); }
 .st-plan-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 .st-plan-tier { position:relative; border:1.5px solid var(--border-dark); border-radius:var(--radius-lg); padding:24px 22px; text-align:center; }
-.st-plan-tier.current { border-color:var(--gold-dark); background:var(--surface-2); box-shadow:0 0 0 2px var(--badge-bg-gold); }
+.st-plan-tier.current { border-color:var(--gold-dark); background:var(--surface-2); box-shadow:0 0 0 1px var(--badge-bg-gold); }
 .st-plan-tier-badge { position:absolute; top:-11px; left:50%; transform:translateX(-50%); display:inline-flex; align-items:center; gap:5px; font-size:9.5px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; padding:5px 12px; border-radius:var(--radius-full); background:var(--gold-dark); color:var(--text-inverted); white-space:nowrap; }
 .st-plan-tier-name { font-family:var(--font-serif); font-size:18px; font-weight:600; color:var(--text); }
 .st-plan-tier-price { font-family:var(--font-serif); font-size:32px; font-weight:700; color:var(--gold-dark); margin-top:10px; }

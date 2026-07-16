@@ -747,7 +747,7 @@ const supportingDocs = reactive([
 /* Step progress */
 .id-wiz-progress { display:flex; align-items:flex-start; padding:14px 22px; border-bottom:1px solid var(--border); gap:0; flex-shrink:0; overflow-x:auto; }
 .id-wiz-step { display:flex; flex-direction:column; align-items:center; position:relative; min-width:90px; }
-.id-wiz-circle { width:26px; height:26px; border-radius:50%; border:2px solid var(--border); background:var(--surface); color:var(--text-4); font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all .2s; }
+.id-wiz-circle { width:26px; height:26px; border-radius:50%; border:1px solid var(--border); background:var(--surface); color:var(--text-4); font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all .2s; }
 .id-wiz-step.done .id-wiz-circle  { background:var(--gold-dark); border-color:var(--gold-dark); color:#fff; }
 .id-wiz-step.active .id-wiz-circle { background:var(--gold-dark); border-color:var(--gold-dark); color:#fff; }
 .id-wiz-label { font-size:10px; text-align:center; color:var(--text-4); margin-top:4px; line-height:1.3; }

@@ -1820,7 +1820,7 @@ export default {
 .form-error svg { width: 11px; height: 11px; stroke: currentColor; fill: none; flex-shrink: 0; }
 
 /* Dropzone */
-.dropzone { display: flex; align-items: center; gap: 12px; border: 2px dashed var(--border); border-radius: var(--radius-sm); padding: 14px 16px; cursor: pointer; transition: background .18s ease, border-color .18s ease; background: var(--surface); }
+.dropzone { display: flex; align-items: center; gap: 12px; border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 14px 16px; cursor: pointer; transition: background .18s ease, border-color .18s ease; background: var(--surface); }
 .dropzone:hover { background: var(--surface-2); border-color: var(--gold); }
 .dropzone.is-compact { padding: 11px 14px; }
 .dz-icon { width: 34px; height: 34px; border-radius: var(--radius-sm); background: var(--gold-dark); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -1863,7 +1863,7 @@ export default {
 .nrf-review-label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; }
 .nrf-review-value { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.4; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
 .nrf-review-section-full .nrf-review-value { font-weight: 500; color: var(--text-2); line-height: 1.55; }
-.nrf-dropzone { border: 2px dashed var(--border); border-radius: var(--radius-sm); padding: 16px; text-align: center; font-size: 13px; color: var(--text-3); cursor: pointer; transition: background 180ms, box-shadow 180ms; }
+.nrf-dropzone { border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 16px; text-align: center; font-size: 13px; color: var(--text-3); cursor: pointer; transition: background 180ms, box-shadow 180ms; }
 .nrf-dropzone:hover { background: var(--surface-2); box-shadow: var(--shadow-sm); }
 .nrf-dropzone-icon { display: inline-flex; align-items: center; line-height: 0; margin-bottom: 4px; }
 .nrf-attach-list { margin-top: 8px; font-size: 12px; color: var(--text-3); }

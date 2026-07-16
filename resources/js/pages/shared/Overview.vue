@@ -458,7 +458,7 @@ const nextIndex = computed(() => props.checklist.findIndex(t => !t.done))
   height: 38px;
   border-radius: var(--radius-full);
   background: var(--surface);
-  border: 2px solid var(--border);
+  border: 1px solid var(--border);
   color: var(--text-3);
   font-family: var(--font-serif);
   font-size: 15px;

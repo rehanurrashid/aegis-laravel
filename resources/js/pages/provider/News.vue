@@ -1723,7 +1723,7 @@ function anyError(v$ref, form, field) {
 .em-remove:hover { background:var(--red-light); color:var(--red-dark); border-color:var(--soft-red); }
 
 /* ── Library tabs ─────────────────────────────────────────────────────────── */
-.lib-tabs { display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:20px; }
+.lib-tabs { display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px; }
 .lib-tab { display:inline-flex;align-items:center;gap:6px;padding:8px 14px;font-size:13px;font-weight:600;color:var(--text-3);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color var(--transition),border-color var(--transition); }
 .lib-tab:hover { color:var(--text); }
 .lib-tab.is-active { color:var(--gold-dark);border-bottom-color:var(--gold-dark); }

@@ -410,7 +410,7 @@ Real file uploads always use `.aegis-dropzone`. Never `<input type="file">`, nev
 ```css
 .aegis-dropzone {
   position: relative; min-height: 130px;
-  border: 2px dashed var(--border); border-radius: var(--radius);
+  border: 1px dashed var(--border); border-radius: var(--radius);
   background: var(--surface);
   transition: border-color var(--transition), background var(--transition);
   padding: 22px 18px !important; cursor: pointer;

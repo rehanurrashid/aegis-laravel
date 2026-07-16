@@ -227,7 +227,7 @@ function printInvoice() {
 .sim-watermark-badge {
   font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
   text-transform: uppercase; padding: 4px 12px;
-  border-radius: 100px; border: 2px solid;
+  border-radius: 100px; border: 1px solid;
 }
 .sim-watermark--paid    { color: var(--green); border-color: var(--green); background: rgba(34,197,94,.07); }
 .sim-watermark--due     { color: var(--gold-dark); border-color: var(--gold); background: rgba(245,158,11,.07); }

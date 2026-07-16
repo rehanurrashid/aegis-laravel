@@ -196,7 +196,7 @@ function showToast(msg, type = 'info') {
 .vault-folders { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .vault-folder { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; cursor: pointer; box-shadow: var(--shadow-xs); transition: all var(--transition); }
 .vault-folder:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); border-color: var(--surface-4); }
-.vault-folder.active { border-color: var(--gold); background: rgba(196,169,106,0.04); box-shadow: 0 0 0 2px rgba(160,129,62,0.18); }
+.vault-folder.active { border-color: var(--gold); background: rgba(196,169,106,0.04); box-shadow: 0 0 0 1px rgba(160,129,62,0.18); }
 .vault-folder-icon { width: 40px; height: 40px; border-radius: var(--radius-sm); background: var(--icon-bg-gold); color: var(--gold-dark); display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
 .vault-folder-name { font-size: 13.5px; font-weight: 700; color: var(--text); line-height: 1.3; }
 .vault-folder-count { font-size: 12px; color: var(--text-3); margin-top: 3px; }

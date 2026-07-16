@@ -799,7 +799,7 @@ function submitReset() {
   height: 64px;
   border-radius: 50%;
   background: rgba(76,175,125,0.1);
-  border: 2px solid rgba(76,175,125,0.25);
+  border: 1px solid rgba(76,175,125,0.25);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -844,7 +844,7 @@ function submitReset() {
   position: absolute;
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255,255,255,0.3);
+  border: 1px solid rgba(255,255,255,0.3);
   border-top-color: white;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;

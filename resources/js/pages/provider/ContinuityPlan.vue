@@ -763,7 +763,7 @@ function formatDate(iso) {
 .sig-card { margin-top: 22px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
 .sig-card.is-signed { border-color: var(--green-dark); }
 .signed-meta { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; padding: 20px 24px; }
-.signed-meta-item { border-left: 2px solid var(--border); padding-left: 12px; }
+.signed-meta-item { border-left: 1px solid var(--border); padding-left: 12px; }
 .signed-meta-label { font-size: 10px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: var(--text-3); margin-bottom: 4px; }
 .signed-meta-value { font-family: var(--font-serif); font-size: 16px; font-weight: 600; color: var(--text); }
 

@@ -1606,7 +1606,7 @@ html.sidebar-collapsed .main-content { margin-left: var(--sidebar-collapsed-widt
   font-size: 12px; color: var(--text-3);
 }
 .ag-people { display: inline-flex; align-items: center; gap: 6px; }
-.ag-people .avatar { box-shadow: 0 0 0 2px var(--surface); }
+.ag-people .avatar { box-shadow: 0 0 0 1px var(--surface); }
 .ag-people .avatar:not(:first-child) { margin-left: -8px; }
 .ag-name   { font-weight: 600; color: var(--text-2); margin-left: 2px; }
 
@@ -2229,7 +2229,7 @@ html.sidebar-collapsed .main-content { margin-left: var(--sidebar-collapsed-widt
   display: flex;
   align-items: flex-end;
   gap: 2px;
-  border-bottom: 2px solid var(--border);
+  border-bottom: 1px solid var(--border);
   margin-bottom: 20px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -2895,7 +2895,7 @@ label.toggle input:checked ~ .toggle-thumb { transform: translate(18px, -50%); }
 /* ─── Upload Zone ────────────────────────────────────────────── */
 /* RULE: icon = white SVG on var(--gold-dark) background */
 .upload-zone {
-  border: 2px dashed var(--border-dark);
+  border: 1px dashed var(--border-dark);
   border-radius: var(--radius-lg);
   padding: 32px 24px;
   display: flex;
@@ -3410,7 +3410,7 @@ body.modal-open {
 .avatar-red  { background: var(--red-dark);  color: var(--text-inverted); }
 
 .avatar-stack { display: flex; }
-.avatar-stack .avatar { border: 2px solid var(--surface); margin-left: -8px; }
+.avatar-stack .avatar { border: 1px solid var(--surface); margin-left: -8px; }
 .avatar-stack .avatar:first-child { margin-left: 0; }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -3455,7 +3455,7 @@ body.modal-open {
   width: 10px; height: 10px;
   border-radius: 50%;
   background: var(--gold);
-  border: 2px solid var(--surface-2);
+  border: 1px solid var(--surface-2);
 }
 
 .timeline-dot.green     { background: var(--green); }
@@ -4331,7 +4331,7 @@ html.sidebar-collapsed .save-bar { left: var(--sidebar-collapsed-width); }
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--soft-gold);
+  box-shadow: 0 0 0 1px var(--surface), 0 0 0 3px var(--soft-gold);
 }
 .rsp-info { flex: 1; min-width: 0; }
 .rsp-name {
@@ -4571,7 +4571,7 @@ html.sidebar-collapsed .save-bar { left: var(--sidebar-collapsed-width); }
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--soft-gold);
+  box-shadow: 0 0 0 1px var(--surface), 0 0 0 3px var(--soft-gold);
 }
 .rfc-info { flex: 1; min-width: 0; }
 .rfc-patient {

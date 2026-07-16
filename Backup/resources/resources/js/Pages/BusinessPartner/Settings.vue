@@ -651,7 +651,7 @@ const showPause = ref(false);
 .st-theme-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
 .st-theme-card { display:flex; flex-direction:column; text-align:left; padding:0; background:var(--surface); border:1.5px solid var(--border-dark); border-radius:var(--radius-lg); overflow:hidden; cursor:pointer; transition:all .15s ease; }
 .st-theme-card:hover { border-color:var(--gold-dark); }
-.st-theme-card.active { border-color:var(--gold-dark); box-shadow:0 0 0 2px var(--badge-bg-gold); }
+.st-theme-card.active { border-color:var(--gold-dark); box-shadow:0 0 0 1px var(--badge-bg-gold); }
 .st-theme-swatch { display:block; height:54px; }
 .st-theme-body { padding:12px 14px; }
 .st-theme-name { display:block; font-size:13px; font-weight:700; color:var(--text); }

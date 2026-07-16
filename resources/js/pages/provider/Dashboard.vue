@@ -1334,7 +1334,7 @@ function submitServiceRequest() { modals.serviceRequest = false; toast.success('
 }
 .dh-cn-pulse {
   width: 7px; height: 7px; border-radius: var(--radius-full);
-  background: var(--green); box-shadow: 0 0 0 2px var(--green); flex-shrink: 0;
+  background: var(--green); box-shadow: 0 0 0 1px var(--green); flex-shrink: 0;
   animation: pulse-ring 2s ease-out infinite;
 }
 @keyframes pulse-ring {
@@ -1364,7 +1364,7 @@ function submitServiceRequest() { modals.serviceRequest = false; toast.success('
 .dh-cn-due small { display: block; font-family: var(--font-sans); font-size: 11px; font-weight: 400; color: var(--text-4); margin-top: 3px; }
 .dh-cn-bar    { position: relative; height: 6px; background: var(--surface-3); border-radius: var(--radius-full); margin: 4px 0; }
 .dh-cn-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 70%; background: var(--gold-dark); border-radius: var(--radius-full); }
-.dh-cn-bar-marker { position: absolute; right: 30%; top: 50%; transform: translate(50%,-50%); width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--primary); border: 2px solid var(--surface);  }
+.dh-cn-bar-marker { position: absolute; right: 30%; top: 50%; transform: translate(50%,-50%); width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--primary); border: 1px solid var(--surface);  }
 .dh-cn-bar-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-4); font-weight: 600; }
 .dh-cn-todos  { display: flex; flex-direction: column; gap: 7px; }
 .dh-cn-todo   { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-3); }

@@ -1608,7 +1608,7 @@ function useTemplate(body) {
   width: 9px;
   height: 9px;
   border-radius: var(--radius-full);
-  border: 2px solid var(--surface);
+  border: 1px solid var(--surface);
   flex-shrink: 0;
 }
 .msg-presence-dot--available { background: var(--green, #22c55e); }
