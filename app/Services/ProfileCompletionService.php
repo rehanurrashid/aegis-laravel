@@ -26,9 +26,11 @@ class ProfileCompletionService
             $user->load('meta');
         }
 
-        $specialties  = $this->metaValue($user, 'specialties');
-        $networkPrefs = $this->metaValue($user, 'network_prefs');
-        $demographics = $this->metaValue($user, 'demographics');
+        $specialties      = $this->metaValue($user, 'specialties');
+        $networkPrefs     = $this->metaValue($user, 'network_prefs');
+        $licensedStates   = $this->metaValue($user, 'licensed_states');
+        $aiShadowSettings = $this->metaValue($user, 'ai_shadow_settings');
+        $demographics     = $this->metaValue($user, 'demographics');
 
         $hasLicense = ProviderCredential::where('user_id', $user->id)
             ->whereRaw("LOWER(cred_type) NOT LIKE '%insurance%'")
@@ -57,8 +59,9 @@ class ProfileCompletionService
                            && is_array($specialties)
                            && count($specialties) > 0,
             'insurance'    => $hasInsurance && $hasServices,
-            'network'      => ! empty($networkPrefs)
-                           && (is_array($networkPrefs) ? count($networkPrefs) > 0 : true),
+            'network'      => (! empty($networkPrefs) && (is_array($networkPrefs) ? count($networkPrefs) > 0 : true))
+                           || (! empty($licensedStates) && is_array($licensedStates) && count($licensedStates) > 0)
+                           || (! empty($aiShadowSettings) && (is_array($aiShadowSettings) ? count($aiShadowSettings) > 0 : true)),
             'demographics' => ! empty($demographics)
                            && (is_array($demographics) ? count($demographics) > 0 : true),
         ];
@@ -127,8 +130,13 @@ class ProfileCompletionService
             return 'Add insurance and services';
         }
 
-        $networkPrefs = $this->metaValue($user, 'network_prefs');
-        if (empty($networkPrefs)) {
+        $networkPrefs     = $this->metaValue($user, 'network_prefs');
+        $licensedStates   = $this->metaValue($user, 'licensed_states');
+        $aiShadowSettings = $this->metaValue($user, 'ai_shadow_settings');
+        $networkComplete  = (! empty($networkPrefs) && (is_array($networkPrefs) ? count($networkPrefs) > 0 : true))
+                         || (! empty($licensedStates) && is_array($licensedStates) && count($licensedStates) > 0)
+                         || (! empty($aiShadowSettings) && (is_array($aiShadowSettings) ? count($aiShadowSettings) > 0 : true));
+        if (! $networkComplete) {
             return 'Set network preferences';
         }
 
