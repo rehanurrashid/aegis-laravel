@@ -102,14 +102,6 @@
           placeholder="Search events…"
         />
       </div>
-      <div v-if="localFilters.module" class="activity-module-badge">
-        <AegisIcon name="filter" :size="11" />
-        <span>{{ localFilters.module }}</span>
-        <button type="button" class="activity-module-clear" data-tooltip="Clear module filter"
-          @click="localFilters.module = ''; pushQuery({})">
-          <AegisIcon name="x" :size="11" />
-        </button>
-      </div>
     </div>
 
     <!-- ── Two-column shell ────────────────────────────── -->
@@ -790,29 +782,4 @@ function submitExport() {
   .activity-categories { position: static; }
 }
 
-/* ── Module filter badge ───────────────────────────── */
-.activity-module-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 8px 3px 7px;
-  background: var(--badge-bg-gold);
-  border: 1px solid var(--soft-gold);
-  border-radius: var(--radius-full);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--gold-dark);
-  white-space: nowrap;
-}
-.activity-module-clear {
-  display: inline-flex;
-  align-items: center;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: var(--gold-dark);
-  padding: 0;
-  opacity: 0.7;
-}
-.activity-module-clear:hover { opacity: 1; }
 </style>

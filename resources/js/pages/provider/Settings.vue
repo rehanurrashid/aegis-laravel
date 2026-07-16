@@ -437,7 +437,7 @@
                   <div class="toggle-label">Available as Support Steward</div>
                   <div class="toggle-desc">Allow other providers to find and designate you as their Support Steward. You will appear in the SS directory in Network.</div>
                 </div>
-                <AegisToggle v-model="availableAsSs" @update:model-value="saveAvailableAsSs" />
+                <button type="button" class="toggle" :class="{ on: availableAsSs }" :aria-pressed="availableAsSs" @click="availableAsSs = !availableAsSs; saveAvailableAsSs(availableAsSs)"></button>
               </div>
               <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
                 <button type="button" class="btn btn-primary btn-sm" :disabled="privacySaving" @click="savePrivacySettings">
@@ -845,7 +845,6 @@ import { required, email, minLength, sameAs, helpers } from '@vuelidate/validato
 import { useToast }   from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
 import AddCardModal   from '@/components/modals/AddCardModal.vue';
-import AegisToggle    from '@/components/ui/AegisToggle.vue';
 import AppLayout           from '@/layouts/AppLayout.vue';
 import SettingsAccount      from '@/components/settings/SettingsAccount.vue';
 import SettingsSecurity     from '@/components/settings/SettingsSecurity.vue';

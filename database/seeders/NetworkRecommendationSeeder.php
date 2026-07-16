@@ -145,6 +145,23 @@ class NetworkRecommendationSeeder extends Seeder
             DB::table('users')->updateOrInsert(['id' => $u['id']], $row);
         }
 
+        // ── available_as_ss meta for selected nd_* users ──────────────────
+        $ssAvailIds = ['nd_danielle_fox', 'nd_diana_vasquez', 'nd_luisa_pena'];
+        foreach ($ssAvailIds as $uid) {
+            DB::table('user_meta')->updateOrInsert(
+                ['user_id' => $uid, 'meta_key' => 'available_as_ss'],
+                [
+                    'id'         => 'um_ss_' . substr(md5($uid), 0, 10),
+                    'user_id'    => $uid,
+                    'meta_key'   => 'available_as_ss',
+                    'meta_value' => '1',
+                    'meta_type'  => 'boolean',
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]
+            );
+        }
+
         // ── 2. Per-user recommendations ───────────────────────────────────
         foreach (self::RECIPIENTS as $recipientId) {
             $this->seedFor($recipientId, $now);

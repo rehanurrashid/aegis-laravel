@@ -98,6 +98,7 @@ class UserMetaSeeder extends Seeder
         }
 
         // ── available_as_ss — p_david and p_maria visible in SS directory ──
+        // nd_* shadow users are seeded in NetworkRecommendationSeeder (after their users rows exist)
         $rows[] = $this->row('p_david', 'available_as_ss', '1', 'boolean');
         $rows[] = $this->row('p_maria', 'available_as_ss', '1', 'boolean');
 
