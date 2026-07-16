@@ -671,7 +671,7 @@ const props = defineProps({
   invited:            { type: Array,   default: () => [] },
   declined:           { type: Array,   default: () => [] },
   archived:           { type: Array,   default: () => [] },
-  servingAsSSFor:     { type: Array,   default: () => [] },
+  servingAsSsFor:     { type: Array,   default: () => [] },
   tier:               { type: String,  default: 'access' },
   ssMax:              { type: Number,  default: 2 },
   ssCount:            { type: Number,  default: 0 },
