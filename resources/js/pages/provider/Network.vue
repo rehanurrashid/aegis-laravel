@@ -1972,7 +1972,7 @@
 
       <AegisEmptyState v-if="!filteredSsDirectory.length" icon="user-check" title="No providers found" description="No providers have listed themselves as available SS yet." />
 
-      <div class="provider-grid">
+      <div class="ss-grid">
         <div
           v-for="p in filteredSsDirectory"
           :key="p.id"
@@ -1986,8 +1986,8 @@
             <div class="spc-loc">{{ p.location }}</div>
           </div>
           <div class="spc-actions" @click.stop>
-            <button type="button" class="btn-icon" data-tooltip="Designate as SS" @click="router.visit(route('provider.ss.index'))">
-              <AegisIcon name="user-plus" :size="14" />
+            <button type="button" class="btn btn-primary" style="font-size:12px;" @click="router.visit(route('provider.ss.index'))">
+              <AegisIcon name="user-plus" :size="13" /> Designate as SS
             </button>
           </div>
         </div>
@@ -3667,6 +3667,15 @@ function resetConfig() {
 </script>
 
 <style scoped>
+/* SS directory — 3-column grid */
+.ss-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 4px;
+}
+@media (max-width: 900px) { .ss-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 580px) { .ss-grid { grid-template-columns: 1fr; } }
 /* ══ ONLY layout guards that cannot live in _shared.css ══
    All component classes use 100% legacy PHP class names.
    All visual styles come from public/css/_shared.css.       */
