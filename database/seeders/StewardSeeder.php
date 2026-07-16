@@ -308,6 +308,26 @@ class StewardSeeder extends Seeder
                 'created_at'       => $now->copy()->subMonths(5),
                 'updated_at'       => $now->copy()->subMonths(1),
             ],
+
+            // p_sarah plan — suspended CS alternate (conflict of interest)
+            [
+                'id'               => 'ps_sarah_cs_susp_alt',
+                'plan_id'          => 'plan_sarah',
+                'steward_id'       => 'cs_alternate',
+                'role'             => 'alternate',
+                'steward_category' => 'continuity_steward',
+                'status'           => 'archived',
+                'vault_access'     => 'none',
+                'permissions'      => json_encode([]),
+                'responsibilities' => json_encode([]),
+                'signed_at'        => $now->copy()->subMonths(3),
+                'declined_reason'  => 'Conflict of interest identified — access suspended pending review.',
+                'fee_cents'        => 0,
+                'payment_terms'    => 'on_close',
+                'invited_at'       => $now->copy()->subMonths(4),
+                'created_at'       => $now->copy()->subMonths(4),
+                'updated_at'       => $now->copy()->subWeeks(2),
+            ],
         ];
 
         foreach ($stewards as $s) {
