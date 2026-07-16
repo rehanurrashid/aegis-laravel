@@ -457,7 +457,7 @@
               </div>
             </div>
             <div class="card-body">
-              <div v-for="(entry, idx) in educationForm.education" :key="idx" class="form-row form-row-2" style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)">
+              <div v-for="(entry, idx) in educationForm.education" :key="idx" class="form-row form-row-2 ep-edu-grid" style="padding-bottom:14px;border-bottom:1px solid var(--border)">
                 <div class="form-group">
                   <label class="form-label">Degree / Credential</label>
                   <input v-model="entry.degree" type="text" class="form-input" placeholder="e.g. MD, PhD, MSW, BS">
@@ -475,7 +475,7 @@
                     <label class="form-label">Duration</label>
                     <input v-model="entry.duration" type="text" class="form-input" placeholder="e.g. 4 years">
                   </div>
-                  <button type="button" class="btn-icon btn-icon-danger" data-tooltip="Remove entry" @click="educationForm.education.splice(idx, 1)">
+                  <button type="button" class="btn-icon btn-icon-danger" data-tooltip="Remove entry" @click="confirmAction('Remove this education entry?', () => educationForm.education.splice(idx, 1), { title: 'Remove Entry', btnLabel: 'Remove', type: 'danger' })">
                     <AegisIcon name="trash" :size="14" />
                   </button>
                 </div>
@@ -1766,6 +1766,9 @@ details > div > div:first-child > .ep-cat { margin-top: 0; }
 .ep-accordion-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
 .ep-accordion-enter-from,
 .ep-accordion-leave-to { opacity: 0; transform: translateY(-4px); }
+
+/* ─── Education grid — no margin-bottom on inner form-groups ─── */
+.ep-edu-grid .form-group { margin-bottom: 0; }
 
 @media (max-width: 960px) {
   .ep-layout { grid-template-columns: 1fr; }
