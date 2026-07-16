@@ -56,9 +56,9 @@ class ProfileCompletionService
                            || (! empty($services) && is_array($services) && count($services) > 0),
             'insurance'    => $hasInsuranceCred
                            || (! empty($fees) && is_array($fees) && count($fees) > 0),
-            'network'      => (! empty($networkPrefs) && (is_array($networkPrefs) ? count($networkPrefs) > 0 : true))
-                           || (! empty($licensedStates) && is_array($licensedStates) && count($licensedStates) > 0)
-                           || (! empty($aiShadowSettings) && (is_array($aiShadowSettings) ? count($aiShadowSettings) > 0 : true)),
+            'network'      => (is_array($networkPrefs) && count(array_filter($networkPrefs, fn($v) => ! is_null($v) && $v !== '' && $v !== [])) > 0)
+                           || (is_array($licensedStates) && count($licensedStates) > 0)
+                           || (is_array($aiShadowSettings) && count(array_filter($aiShadowSettings, fn($v) => ! is_null($v) && $v !== '' && $v !== [])) > 0),
             'demographics' => is_array($demographics)
                            && count(array_filter($demographics, fn($v) => ! empty($v))) > 0,
         ];
@@ -131,9 +131,9 @@ class ProfileCompletionService
         $networkPrefs     = $this->metaValue($user, 'network_prefs');
         $licensedStates   = $this->metaValue($user, 'licensed_states');
         $aiShadowSettings = $this->metaValue($user, 'ai_shadow_settings');
-        $networkComplete  = (! empty($networkPrefs) && (is_array($networkPrefs) ? count($networkPrefs) > 0 : true))
-                         || (! empty($licensedStates) && is_array($licensedStates) && count($licensedStates) > 0)
-                         || (! empty($aiShadowSettings) && (is_array($aiShadowSettings) ? count($aiShadowSettings) > 0 : true));
+        $networkComplete  = (is_array($networkPrefs) && count(array_filter($networkPrefs, fn($v) => ! is_null($v) && $v !== '' && $v !== [])) > 0)
+                         || (is_array($licensedStates) && count($licensedStates) > 0)
+                         || (is_array($aiShadowSettings) && count(array_filter($aiShadowSettings, fn($v) => ! is_null($v) && $v !== '' && $v !== [])) > 0);
         if (! $networkComplete) {
             return 'Set network preferences';
         }

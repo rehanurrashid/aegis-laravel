@@ -220,7 +220,8 @@ class ProfileService
 
     public function updateNetwork(User $user, array $prefs): User
     {
-        $this->setMeta($user, 'network_prefs', $prefs);
+        $filtered = array_filter($prefs, fn($v) => ! is_null($v) && $v !== '' && $v !== []);
+        $this->setMeta($user, 'network_prefs', $filtered);
         return $user->fresh();
     }
 
@@ -253,7 +254,8 @@ class ProfileService
 
     public function updateAiSettings(User $user, array $settings): User
     {
-        $this->setMeta($user, 'ai_shadow_settings', $settings);
+        $filtered = array_filter($settings, fn($v) => ! is_null($v) && $v !== '' && $v !== []);
+        $this->setMeta($user, 'ai_shadow_settings', $filtered);
         return $user->fresh();
     }
 
