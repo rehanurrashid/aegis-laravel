@@ -144,6 +144,32 @@ class ContinuityStewardController extends Controller
                 'active_incidents' => $s->plan_id ? \App\Models\CriticalIncident::where('plan_id', $s->plan_id)->where('status', 'active')->count() : 0,
             ]);
 
+        $suspendedCs = $plan
+            ? \App\Models\PlanSteward::where('plan_id', $plan->id)
+                ->where('steward_category', 'continuity_steward')
+                ->where('status', 'archived')
+                ->whereNotNull('declined_reason')
+                ->whereNotNull('signed_at')
+                ->with('steward:id,display_name,credentials,email,avatar_initials,slug')
+                ->get()
+                ->map(fn ($s) => [
+                    'id'              => $s->id,
+                    'steward_id'      => $s->steward_id,
+                    'role'            => is_object($s->role) ? $s->role->value : ($s->role ?? 'alternate'),
+                    'status'          => 'suspended',
+                    'fee_cents'       => (int) ($s->fee_cents ?? 0),
+                    'payment_terms'   => is_object($s->payment_terms) ? $s->payment_terms->value : ($s->payment_terms ?? 'on_close'),
+                    'signed_at'       => $s->signed_at?->toDateString(),
+                    'declined_reason' => $s->declined_reason,
+                    'display_name'    => $s->steward?->display_name ?? $s->display_name ?? '—',
+                    'credentials'     => $s->steward?->credentials ?? '',
+                    'avatar_initials' => $s->steward?->avatar_initials ?? '??',
+                    'slug'            => $s->steward?->slug ?? null,
+                    'email'           => $s->steward?->email ?? '',
+                ])
+                ->values()
+            : [];
+
         $incidentConfigs = $plan
             ? \App\Models\PlanIncidentConfig::where('plan_id', $plan->id)->get()->map(fn ($c) => [
                 'incident_type'     => $c->incident_type,
@@ -154,6 +180,7 @@ class ContinuityStewardController extends Controller
 
         return Inertia::render('Provider/ContinuityStewards', [
             'stewards'           => $stewards,
+            'suspended'          => $suspendedCs,
             'pendingInvitations' => $pendingInvitations,
             'servingAsCSFor'     => $servingAsCSFor,
             'tierLimits'         => $tierLimits,
