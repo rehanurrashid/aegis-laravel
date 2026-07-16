@@ -129,7 +129,7 @@
                     <button type="button" class="btn btn-primary" @click="modals.photoUpload = true">
                       <AegisIcon name="upload" :size="12" /> Upload Photo
                     </button>
-                    <button v-if="user.avatar_url" type="button" class="btn btn-outline btn-xs" @click="modals.removePhoto = true">Remove</button>
+                    <button v-if="user.avatar_url" type="button" class="btn btn-outline" @click="modals.removePhoto = true">Remove</button>
                   </div>
                 </div>
               </div>
@@ -261,76 +261,12 @@
                 </div>
                 <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
                   <input v-model="customLanguageInput" type="text" class="form-input" placeholder="Add other language…" style="flex:1;font-size:13px" @keydown.enter.prevent="addCustomLanguage">
-                  <button type="button" class="btn btn-outline btn-xs" style="white-space:nowrap;flex-shrink:0" @click="addCustomLanguage">+ Add</button>
+                  <button type="button" class="btn btn-outline" style="white-space:nowrap;flex-shrink:0" @click="addCustomLanguage">+ Add</button>
                 </div>
               </div>
               <div class="form-actions-bar">
                 <button type="button" class="btn btn-primary" :disabled="websiteForm.processing" @click="submitLanguages">
                   {{ websiteForm.processing ? 'Saving…' : 'Save contact details' }}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Accepting Status -->
-          <div class="ep-card">
-            <div class="ep-card-header">
-              <div class="ep-card-header-left">
-                <div class="ep-card-icon"><AegisIcon name="check-circle" :size="16" /></div>
-                <div>
-                  <div class="ep-card-title">Accepting Status</div>
-                  <div class="ep-card-sub">Manage your visibility and contact preferences on Aegis to ensure appropriate connections.</div>
-                </div>
-              </div>
-            </div>
-            <div class="card-body">
-              <div class="form-row form-row-2">
-                <div class="form-group">
-                  <label class="form-label">Accepting New Clients?</label>
-                  <select v-model="acceptingStatus.new_clients" class="form-select">
-                    <option>Yes — Accepting New Clients</option>
-                    <option>No — Waitlist Only</option>
-                    <option>Not Currently Accepting</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Accepting New Referrals?</label>
-                  <select v-model="acceptingStatus.new_referrals" class="form-select">
-                    <option>Yes — Open to Referrals</option>
-                    <option>Selective Referrals Only</option>
-                    <option>Not Currently</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Accepting Supervisees?</label>
-                  <select v-model="acceptingStatus.supervisees" class="form-select">
-                    <option>Yes — Accepting Supervisees</option>
-                    <option>Not Currently</option>
-                    <option>N/A — Not a Supervisor</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Accepting Provider Continuity Clients?</label>
-                  <select v-model="acceptingStatus.continuity_clients" class="form-select">
-                    <option>Yes — Accepting Provider Continuity Clients</option>
-                    <option>Not Currently</option>
-                    <option>N/A</option>
-                  </select>
-                  <div class="form-help">Continuity support when another provider becomes unavailable</div>
-                </div>
-                <div class="form-group form-group-last">
-                  <label class="form-label">Service Format</label>
-                  <select v-model="acceptingStatus.service_format" class="form-select">
-                    <option>In-Person Only</option>
-                    <option>Telehealth Only</option>
-                    <option>Both In-Person &amp; Telehealth</option>
-                    <option>Hybrid (Case-by-Case)</option>
-                  </select>
-                </div>
-              </div>
-              <div class="form-actions-bar">
-                <button type="button" class="btn btn-primary" :disabled="acceptingStatus.processing" @click="submitAcceptingStatus">
-                  {{ acceptingStatus.processing ? 'Saving…' : 'Save accepting status' }}
                 </button>
               </div>
             </div>
@@ -560,60 +496,79 @@
         <!-- ══════════════ 3. SPECIALTIES ══════════════ -->
         <div v-show="activeSection === 'specialties'" class="ep-section">
 
+          <!-- Services card -->
           <div class="ep-card">
             <div class="ep-card-header">
               <div class="ep-card-header-left">
                 <div class="ep-card-icon"><AegisIcon name="star" :size="16" /></div>
                 <div>
-                  <div class="ep-card-title">Services &amp; Specialties</div>
-                  <div class="ep-card-sub">Select all that apply — tap section headers to expand. You may also add custom entries.</div>
+                  <div class="ep-card-title">Services</div>
+                  <div class="ep-card-sub">Select all services you offer — tap a group to expand</div>
                 </div>
               </div>
             </div>
             <div class="card-body">
-
-              <details open style="margin-bottom:14px">
-                <summary style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);cursor:pointer;padding:6px 0;user-select:none">Services</summary>
-                <div style="margin-top:10px">
-                  <div v-for="group in serviceTagGroups" :key="group.label">
-                    <div class="ep-cat">{{ group.label }}</div>
+              <div v-for="group in serviceTagGroups" :key="group.label" class="ep-accordion">
+                <button type="button" class="ep-accordion-header" @click="toggleAccordion('svc_' + group.label)">
+                  <span>{{ group.label }}</span>
+                  <AegisIcon :name="openAccordions.has('svc_' + group.label) ? 'chevron-up' : 'chevron-down'" :size="14" class="ep-accordion-chevron" />
+                </button>
+                <transition name="ep-accordion">
+                  <div v-show="openAccordions.has('svc_' + group.label)" class="ep-accordion-body">
                     <div class="ep-tags">
                       <div v-for="opt in group.options" :key="opt"
                            class="ep-tag" :class="{ active: servicesForm.services.includes(opt) }"
                            @click="toggleInArray(servicesForm.services, opt)">{{ opt }}</div>
                     </div>
                   </div>
-                  <div class="ep-cat" style="margin-top:14px">Add Custom Service</div>
-                  <div style="display:flex;gap:8px;align-items:center">
-                    <input v-model="customServiceInput" type="text" class="form-input" placeholder="Enter a service not listed…" style="flex:1;font-size:13px" @keydown.enter.prevent="addCustomService">
-                    <button type="button" class="btn btn-outline btn-xs" style="white-space:nowrap;flex-shrink:0" @click="addCustomService">+ Add</button>
-                  </div>
-                </div>
-              </details>
+                </transition>
+              </div>
+              <div class="ep-cat" style="margin-top:14px">Add Custom Service</div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input v-model="customServiceInput" type="text" class="form-input" placeholder="Enter a service not listed…" style="flex:1;font-size:13px" @keydown.enter.prevent="addCustomService">
+                <button type="button" class="btn btn-outline" style="white-space:nowrap;flex-shrink:0" @click="addCustomService">+ Add</button>
+              </div>
+              <div class="form-actions-bar">
+                <button type="button" class="btn btn-primary" :disabled="servicesForm.processing" @click="submitServices">
+                  {{ servicesForm.processing ? 'Saving…' : 'Save services' }}
+                </button>
+              </div>
+            </div>
+          </div>
 
-              <details open style="margin-bottom:14px">
-                <summary style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);cursor:pointer;padding:6px 0;user-select:none">Specialties</summary>
-                <div style="margin-top:10px">
-                  <div v-for="group in specialtyTagGroups" :key="group.label">
-                    <div class="ep-cat">{{ group.label }}</div>
+          <!-- Specialties card -->
+          <div class="ep-card">
+            <div class="ep-card-header">
+              <div class="ep-card-header-left">
+                <div class="ep-card-icon"><AegisIcon name="bookmark" :size="16" /></div>
+                <div>
+                  <div class="ep-card-title">Specialties</div>
+                  <div class="ep-card-sub">Select all specialty areas you work in — tap a group to expand</div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <div v-for="group in specialtyTagGroups" :key="group.label" class="ep-accordion">
+                <button type="button" class="ep-accordion-header" @click="toggleAccordion('sp_' + group.label)">
+                  <span>{{ group.label }}</span>
+                  <AegisIcon :name="openAccordions.has('sp_' + group.label) ? 'chevron-up' : 'chevron-down'" :size="14" class="ep-accordion-chevron" />
+                </button>
+                <transition name="ep-accordion">
+                  <div v-show="openAccordions.has('sp_' + group.label)" class="ep-accordion-body">
                     <div class="ep-tags">
                       <div v-for="opt in group.options" :key="opt"
                            class="ep-tag" :class="{ active: specialtiesForm.specialties.includes(opt) }"
                            @click="toggleInArray(specialtiesForm.specialties, opt)">{{ opt }}</div>
                     </div>
                   </div>
-                  <div class="ep-cat" style="margin-top:14px">Add Custom Specialty</div>
-                  <div style="display:flex;gap:8px;align-items:center">
-                    <input v-model="customSpecialtyInput" type="text" class="form-input" placeholder="Enter a specialty not listed…" style="flex:1;font-size:13px" @keydown.enter.prevent="addCustomSpecialty">
-                    <button type="button" class="btn btn-outline btn-xs" style="white-space:nowrap;flex-shrink:0" @click="addCustomSpecialty">+ Add</button>
-                  </div>
-                </div>
-              </details>
-
+                </transition>
+              </div>
+              <div class="ep-cat" style="margin-top:14px">Add Custom Specialty</div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input v-model="customSpecialtyInput" type="text" class="form-input" placeholder="Enter a specialty not listed…" style="flex:1;font-size:13px" @keydown.enter.prevent="addCustomSpecialty">
+                <button type="button" class="btn btn-outline" style="white-space:nowrap;flex-shrink:0" @click="addCustomSpecialty">+ Add</button>
+              </div>
               <div class="form-actions-bar">
-                <button type="button" class="btn btn-primary" :disabled="servicesForm.processing" @click="submitServices">
-                  {{ servicesForm.processing ? 'Saving…' : 'Save services' }}
-                </button>
                 <button type="button" class="btn btn-primary" :disabled="specialtiesForm.processing" @click="submitSpecialties">
                   {{ specialtiesForm.processing ? 'Saving…' : 'Save specialties' }}
                 </button>
@@ -632,20 +587,27 @@
               </div>
             </div>
             <div class="card-body">
-              <details v-for="(group, idx) in approachTagGroups" :key="group.label" :open="idx === 0" style="margin-bottom:14px">
-                <summary style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-3);cursor:pointer;padding:6px 0;user-select:none">{{ group.label }}</summary>
-                <div class="ep-tags" style="margin-top:8px">
-                  <div v-for="opt in group.options" :key="opt"
-                       class="ep-tag" :class="{ active: approachesForm.approaches.includes(opt) }"
-                       @click="toggleInArray(approachesForm.approaches, opt)">{{ opt }}</div>
-                </div>
-              </details>
+              <div v-for="(group, idx) in approachTagGroups" :key="group.label" class="ep-accordion">
+                <button type="button" class="ep-accordion-header" @click="toggleAccordion('ap_' + group.label)">
+                  <span>{{ group.label }}</span>
+                  <AegisIcon :name="openAccordions.has('ap_' + group.label) ? 'chevron-up' : 'chevron-down'" :size="14" class="ep-accordion-chevron" />
+                </button>
+                <transition name="ep-accordion">
+                  <div v-show="openAccordions.has('ap_' + group.label)" class="ep-accordion-body">
+                    <div class="ep-tags">
+                      <div v-for="opt in group.options" :key="opt"
+                           class="ep-tag" :class="{ active: approachesForm.approaches.includes(opt) }"
+                           @click="toggleInArray(approachesForm.approaches, opt)">{{ opt }}</div>
+                    </div>
+                  </div>
+                </transition>
+              </div>
 
               <div class="form-group" style="margin-bottom:0;margin-top:4px">
                 <label class="form-label">Add Custom Approach</label>
                 <div style="display:flex;gap:8px;align-items:center">
                   <input v-model="customApproachInput" type="text" class="form-input" placeholder="Enter approach or framework not listed…" style="flex:1;font-size:13px" @keydown.enter.prevent="addCustomApproach">
-                  <button type="button" class="btn btn-outline btn-xs" style="white-space:nowrap;flex-shrink:0" @click="addCustomApproach">+ Add</button>
+                  <button type="button" class="btn btn-outline" style="white-space:nowrap;flex-shrink:0" @click="addCustomApproach">+ Add</button>
                 </div>
               </div>
 
@@ -1189,21 +1151,6 @@ async function submitBasic() {
   })
 }
 
-// ── Accepting status (wired to provider.profile.network → network_prefs blob) ──
-const acceptingStatus = useForm({
-  new_clients:        props.meta.accepting_status?.new_clients        ?? 'Yes — Accepting New Clients',
-  new_referrals:      props.meta.accepting_status?.new_referrals      ?? 'Yes — Open to Referrals',
-  supervisees:        props.meta.accepting_status?.supervisees        ?? 'Not Currently',
-  continuity_clients: props.meta.accepting_status?.continuity_clients ?? 'Not Currently',
-  service_format:     props.meta.accepting_status?.service_format     ?? 'Both In-Person & Telehealth',
-})
-function submitAcceptingStatus() {
-  acceptingStatus.put(route('provider.profile.network'), {
-    preserveScroll: true,
-    onSuccess: () => toast.success('Accepting status saved.'),
-  })
-}
-
 // ── Languages / website ──────────────────────────────────────────────
 const languageOptions = ['English','Spanish','Mandarin Chinese','French','Arabic','Hindi','Portuguese','Russian','Korean','Japanese','Vietnamese','Tagalog','Italian','German','Polish']
 const customLanguageInput = ref('')
@@ -1225,7 +1172,6 @@ async function submitLanguages() {
     onSuccess: () => toast.success('Contact details saved.'),
   })
 }
-
 // ── Generic tag toggle helper ─────────────────────────────────────────
 function toggleInArray(arr, value) {
   const i = arr.indexOf(value)
@@ -1415,6 +1361,18 @@ const approachTagGroups = [
   { label: 'Functional Medicine', options: ['Root-Cause Analysis', 'Systems Biology Approach', 'Personalized Medicine', 'Lifestyle Medicine', 'Hormone Optimization', 'Gut Restoration Protocols', 'Anti-Inflammatory Interventions', 'Detoxification Protocols', 'Nutraceutical & Supplement Therapy', 'Stress & HPA Axis Regulation', 'Mind-Body Medicine', 'Preventive & Longevity Medicine', 'Environmental Medicine'] },
   { label: 'Psychiatry', options: ['Psychopharmacology', 'Medication Management', 'Combined Therapy & Medication', 'Evidence-Based Prescribing', 'Treatment-Resistant Protocols', 'Long-Acting Injectable Therapy', 'Somatic Therapies (ECT, TMS, Ketamine)', 'Collaborative Care Models', 'Psychiatric Assessment & Care Planning'] },
 ]
+
+// ── Accordion state (must be after tag group arrays) ─────────────────
+const openAccordions = ref(new Set([
+  'svc_' + (serviceTagGroups[0]?.label ?? ''),
+  'sp_'  + (specialtyTagGroups[0]?.label ?? ''),
+  'ap_'  + (approachTagGroups[0]?.label ?? ''),
+]))
+function toggleAccordion(key) {
+  if (openAccordions.value.has(key)) openAccordions.value.delete(key)
+  else openAccordions.value.add(key)
+}
+
 const customApproachInput = ref('')
 function addCustomApproach() {
   const v = customApproachInput.value.trim()
@@ -1754,7 +1712,7 @@ details > div > div:first-child > .ep-cat { margin-top: 0; }
 .ep-ins-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
 .ep-ins-item { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all var(--transition); font-size: 13px; font-weight: 600; color: var(--text); background: var(--surface); }
 .ep-ins-item:hover { border-color: var(--gold-dark); background: var(--badge-bg-gold); }
-.ep-ins-item.checked { border-color: var(--gold-dark); background: var(--badge-bg-gold); color: var(--gold-dark); font-weight: 700; }
+.ep-ins-item.checked { border: 1px solid var(--gold-dark); background: var(--badge-bg-gold); color: var(--gold-dark); font-weight: 700; }
 .ep-ins-dot { width: 14px; height: 14px; border-radius: var(--radius-full); flex-shrink: 0; border: 1.5px solid var(--border-dark); background: var(--surface); display: flex; align-items: center; justify-content: center; transition: all var(--transition); position: relative; }
 .ep-ins-dot::after { content: ''; width: 6px; height: 6px; border-radius: var(--radius-full); background: transparent; transition: background var(--transition), transform var(--transition); transform: scale(0); }
 .ep-ins-item.checked .ep-ins-dot { border-color: var(--gold-dark); background: var(--surface); }
@@ -1764,7 +1722,7 @@ details > div > div:first-child > .ep-cat { margin-top: 0; }
 .ep-states { display: grid; grid-template-columns: repeat(9, 1fr); gap: 5px; }
 .ep-state { height: 34px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--text-3); cursor: pointer; transition: all var(--transition); background: var(--surface); }
 .ep-state:hover { border-color: var(--gold-dark); color: var(--gold-dark); }
-.ep-state.selected { background: var(--gold-dark); color: var(--text-inverted); border-color: var(--primary); }
+.ep-state.selected { background: var(--gold-dark); color: var(--text-inverted); border: 1px solid var(--gold-dark); }
 
 /* ─── Day buttons ─── */
 .ep-days { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -1785,6 +1743,30 @@ details > div > div:first-child > .ep-cat { margin-top: 0; }
 .ep-radio-item input { width: 15px; height: 15px; cursor: pointer; accent-color: var(--gold-dark); flex-shrink: 0; }
 
 /* ─── Responsive ─── */
+
+/* ─── Accordion (replaces <details>) ─── */
+.ep-accordion { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; overflow: hidden; }
+.ep-accordion-header {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 11px 16px;
+  background: var(--surface-2);
+  border: none; cursor: pointer;
+  font-family: var(--font-sans); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.6px;
+  color: var(--text-3);
+  transition: background var(--transition), color var(--transition);
+  text-align: left;
+}
+.ep-accordion-header:hover { background: var(--surface-3); color: var(--gold-dark); }
+.ep-accordion-chevron { color: var(--text-4); transition: transform 0.22s ease; flex-shrink: 0; }
+.ep-accordion-body { padding: 14px 16px; border-top: 1px solid var(--border); }
+
+/* Accordion transition */
+.ep-accordion-enter-active,
+.ep-accordion-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.ep-accordion-enter-from,
+.ep-accordion-leave-to { opacity: 0; transform: translateY(-4px); }
+
 @media (max-width: 960px) {
   .ep-layout { grid-template-columns: 1fr; }
   .ep-nav-wrap { position: static; }
