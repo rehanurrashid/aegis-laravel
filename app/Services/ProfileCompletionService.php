@@ -7,7 +7,7 @@ namespace App\Services;
 use App\Models\ContinuityPlan;
 use App\Models\PlanSteward;
 use App\Models\ProviderCredential;
-use App\Models\ServiceOffering;
+use App\Models\Service;
 use App\Models\User;
 
 /**
@@ -42,8 +42,8 @@ class ProfileCompletionService
             })
             ->exists();
 
-        $hasServices = ServiceOffering::where('user_id', $user->id)
-            ->where('is_active', 1)
+        $hasServices = Service::where('practitioner_id', $user->id)
+            ->where('status', 'active')
             ->exists();
 
         $sections = [
@@ -120,7 +120,9 @@ class ProfileCompletionService
                   ->orWhereRaw("LOWER(cred_type) LIKE '%liability%'");
             })
             ->exists();
-        $hasServices = ServiceOffering::where('user_id', $user->id)->where('is_active', 1)->exists();
+        $hasServices = Service::where('practitioner_id', $user->id)
+            ->where('status', 'active')
+            ->exists();
         if (! $hasInsurance || ! $hasServices) {
             return 'Add insurance and services';
         }
