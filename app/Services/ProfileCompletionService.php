@@ -59,8 +59,8 @@ class ProfileCompletionService
             'network'      => (! empty($networkPrefs) && (is_array($networkPrefs) ? count($networkPrefs) > 0 : true))
                            || (! empty($licensedStates) && is_array($licensedStates) && count($licensedStates) > 0)
                            || (! empty($aiShadowSettings) && (is_array($aiShadowSettings) ? count($aiShadowSettings) > 0 : true)),
-            'demographics' => ! empty($demographics)
-                           && (is_array($demographics) ? count($demographics) > 0 : true),
+            'demographics' => is_array($demographics)
+                           && count(array_filter($demographics, fn($v) => ! empty($v))) > 0,
         ];
 
         $filled = count(array_filter($sections));
@@ -139,7 +139,9 @@ class ProfileCompletionService
         }
 
         $demographics = $this->metaValue($user, 'demographics');
-        if (empty($demographics)) {
+        $demographicsComplete = is_array($demographics)
+            && count(array_filter($demographics, fn($v) => ! empty($v))) > 0;
+        if (! $demographicsComplete) {
             return 'Add demographics';
         }
 

@@ -259,7 +259,9 @@ class ProfileService
 
     public function updateDemographics(User $user, array $demographics): User
     {
-        $this->setMeta($user, 'demographics', $demographics);
+        // Filter out null and empty values — only store fields with actual selections
+        $filtered = array_filter($demographics, fn($v) => ! empty($v));
+        $this->setMeta($user, 'demographics', $filtered);
         return $user->fresh();
     }
 
