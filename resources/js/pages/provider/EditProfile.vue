@@ -650,70 +650,8 @@
                 <button type="button" class="btn btn-outline" style="white-space:nowrap;flex-shrink:0" @click="addCustomInsurance">+ Add</button>
               </div>
               <div class="form-actions-bar">
-                <button type="button" class="btn btn-primary" :disabled="feesForm.processing" @click="submitFees">
+                <button type="button" class="btn btn-primary" :disabled="feesForm.processing" @click="submitInsurancePanels">
                   {{ feesForm.processing ? 'Saving…' : 'Save insurance panels' }}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="ep-card">
-            <div class="ep-card-header">
-              <div class="ep-card-header-left">
-                <div class="ep-card-icon"><AegisIcon name="dollar" :size="16" /></div>
-                <div>
-                  <div class="ep-card-title">Out-of-Pocket Fees</div>
-                  <div class="ep-card-sub">Fees and insurance information are shared with Continuity Stewards and other providers to facilitate referrals and care coordination.</div>
-                </div>
-              </div>
-            </div>
-            <div class="card-body">
-              <div class="form-row form-row-2">
-                <div class="form-group">
-                  <label class="form-label">Session Length (minutes) <span class="ep-label-req">*</span></label>
-                  <select v-model.number="feesForm.session_length_mins" class="form-select">
-                    <option :value="30">30 min</option>
-                    <option :value="45">45 min</option>
-                    <option :value="50">50 min</option>
-                    <option :value="60">60 min</option>
-                    <option :value="90">90 min</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Session Rate <span class="ep-label-req">*</span></label>
-                  <div class="ep-money">
-                    <span class="ep-money-prefix">$</span>
-                    <input v-model.number="sessionRateDollars" type="number" min="0"
-                      :class="['form-input', { 'is-error': fieldError(vFees, 'feesForm', 'session_rate_cents') }]"
-                      @blur="vFees.value.feesForm.session_rate_cents.$touch()">
-                  </div>
-                  <div v-if="fieldError(vFees, 'feesForm', 'session_rate_cents')" class="form-error">{{ fieldError(vFees, 'feesForm', 'session_rate_cents') }}</div>
-                </div>
-              </div>
-              <div class="ep-divider"></div>
-              <AegisToggle v-model="feesForm.accepts_insurance" label="Accepts insurance" />
-              <AegisToggle v-model="feesForm.accepts_cash" label="Accepts self-pay / cash" />
-              <div class="ep-divider"></div>
-              <div class="form-group">
-                <label class="form-label">Package / Bundle Available?</label>
-                <div style="display:flex;gap:16px;margin-top:8px">
-                  <label class="ep-radio-item"><input type="radio" :checked="feesForm.package_available" @change="feesForm.package_available = true"> Yes</label>
-                  <label class="ep-radio-item"><input type="radio" :checked="!feesForm.package_available" @change="feesForm.package_available = false"> No</label>
-                </div>
-              </div>
-              <div v-if="feesForm.package_available" class="form-row form-row-2">
-                <div class="form-group">
-                  <label class="form-label">Package Description</label>
-                  <input v-model="feesForm.package_description" type="text" class="form-input" placeholder="e.g. 4-session bundle, 8-week program">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Package Rate</label>
-                  <div class="ep-money"><span class="ep-money-prefix">$</span><input v-model.number="packageRateDollars" type="number" min="0" class="form-input"></div>
-                </div>
-              </div>
-              <div class="form-actions-bar">
-                <button type="button" class="btn btn-primary" :disabled="feesForm.processing" @click="submitFees">
-                  {{ feesForm.processing ? 'Saving…' : 'Save fees' }}
                 </button>
               </div>
             </div>
@@ -1127,18 +1065,6 @@ const websiteRules = computed(() => ({
 const websiteState = computed(() => ({ websiteForm }))
 const vWebsite = useVuelidate(websiteRules, websiteState)
 
-// Fees rules
-const feesRules = computed(() => ({
-  feesForm: {
-    session_rate_cents: {
-      required: helpers.withMessage('Session rate is required', required),
-      positive: helpers.withMessage('Rate must be greater than $0', (v) => !v || v > 0),
-    },
-  },
-}))
-const feesState = computed(() => ({ feesForm }))
-const vFees = useVuelidate(feesRules, feesState)
-
 // Helper: get field error message for display
 function fieldError(v$obj, ...path) {
   let node = v$obj.value
@@ -1492,36 +1418,17 @@ function addCustomInsurance() {
   customInsuranceInput.value = ''
 }
 
-const fees = props.meta.fees ?? {}
 const feesForm = useForm({
-  session_rate_cents:   fees.session_rate_cents ?? 25000,
-  session_length_mins:  fees.session_length_mins ?? 50,
-  accepts_insurance:    fees.accepts_insurance ?? true,
-  accepts_cash:         fees.accepts_cash ?? true,
-  insurance_types:      Array.isArray(props.meta.insurance_panels) ? [...props.meta.insurance_panels] : [],
-  package_available:    fees.package_available ?? false,
-  package_description:  fees.package_description ?? '',
-  package_rate_cents:   fees.package_rate_cents ?? null,
+  insurance_types: Array.isArray(props.meta.insurance_panels) ? [...props.meta.insurance_panels] : [],
 })
-const sessionRateDollars = computed({
-  get: () => feesForm.session_rate_cents != null ? feesForm.session_rate_cents / 100 : null,
-  set: (v) => { feesForm.session_rate_cents = v ? Math.round(v * 100) : null },
-})
-const packageRateDollars = computed({
-  get: () => feesForm.package_rate_cents != null ? feesForm.package_rate_cents / 100 : null,
-  set: (v) => { feesForm.package_rate_cents = v ? Math.round(v * 100) : null },
-})
-async function submitFees() {
-  const ok = await vFees.value.$validate()
-  if (!ok) { toast.error('Please fix the errors before saving.'); return }
+function submitInsurancePanels() {
   feesForm.put(route('provider.profile.fees'), {
     preserveScroll: true,
-    onSuccess: () => {
-      toast.success('Fees saved.')
-      router.reload({ only: ['sectionCompletion', 'profileCompletion', 'profileItemsRemaining'] })
-    },
+    onSuccess: () => toast.success('Insurance panels saved.'),
   })
 }
+
+
 
 // ── Network partners (interdisciplinary tags) ─────────────────────────
 const interdisciplinaryOptions = ['Psychotherapist & Psychologist', 'Psychiatrist', 'Movement / Dance Specialist', 'Coach (lifestyle, career)', 'Behavioral Therapist', 'Massage Therapist', 'Acupuncturist', 'Functional Medicine Practitioner', 'Holistic Nutrition Practitioner', 'Certified Diabetes Educator (CDE)', 'Hypnotherapist', 'Energy Healing Practitioner', 'Homeopath', 'Herbalist', 'Somatic Practitioner', 'Ayurveda Practitioner', 'Certified Nurse-Midwife (CNM)', 'Doula', 'Sleep Specialist', 'Genetic Counselor', 'Personal Trainer']
