@@ -540,7 +540,7 @@ function saveNotifyPrefs() {
             <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
               <component
                 :is="inv.slug ? 'a' : 'span'"
-                :href="inv.slug ? route('cs', inv.slug) : undefined"
+                :href="inv.slug ? '/continuity-steward/' + inv.slug : undefined"
                 style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--gold-dark);text-decoration:none;"
               >{{ inv.display_name ?? inv.email }}</component>
               <span class="badge badge-orange"><AegisIcon name="clock" :size="12" /> Pending Response</span>
@@ -565,28 +565,44 @@ function saveNotifyPrefs() {
     <div v-show="activeTab === 'suspended'">
       <p style="font-size:13px;color:var(--text-3);margin-bottom:16px">Continuity Stewards with temporarily suspended access.</p>
       <AegisEmptyState v-if="!suspended?.length" icon="pause-circle" title="No Suspended Stewards" description="Stewards with suspended access will appear here." />
-      <div v-for="s in (suspended ?? [])" :key="s.id" class="cs-card" style="border-left:4px solid var(--red-dark);margin-bottom:12px;">
-        <div class="cs-card-header" style="display:flex;align-items:flex-start;gap:14px;">
-          <div class="avatar avatar-lg avatar-dark">{{ s.steward?.avatar_initials ?? (s.display_name ?? '??').slice(0,2).toUpperCase() }}</div>
+      <div
+          v-for="s in (suspended ?? [])"
+          :key="s.id"
+          class="card exec-card suspended"
+          style="display:flex;align-items:flex-start;gap:18px;padding:20px 22px;margin-bottom:8px;position:relative;overflow:hidden;"
+        >
+          <span style="position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--red-dark);"></span>
+          <div style="width:48px;height:48px;border-radius:var(--radius);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:17px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            {{ initials(s.display_name ?? '') }}
+          </div>
           <div style="flex:1;min-width:0;">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
-              <span style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);">{{ s.display_name ?? s.steward?.display_name ?? '—' }}</span>
-              <AegisBadge variant="gold" icon="user">Continuity Steward</AegisBadge>
-              <AegisBadge variant="red"><AegisIcon name="pause" :size="11" /> Suspended</AegisBadge>
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
+              <a
+                v-if="s.slug"
+                :href="'/continuity-steward/' + s.slug"
+                style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--gold-dark);text-decoration:none;"
+              >{{ s.display_name ?? '—' }}{{ s.credentials ? ', ' + s.credentials : '' }}</a>
+              <span
+                v-else
+                style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--gold-dark);"
+              >{{ s.display_name ?? '—' }}{{ s.credentials ? ', ' + s.credentials : '' }}</span>
+              <span class="badge badge-red"><AegisIcon name="lock" :size="12" /> Suspended</span>
+              <span v-if="s.role" class="badge badge-gold"><AegisIcon name="shield" :size="10" /> {{ csRoleLabel(s.role) }}</span>
             </div>
-            <div style="font-size:12px;color:var(--text-3);margin-top:2px;">{{ [s.steward?.title, s.steward?.organization].filter(Boolean).join(' · ') }}</div>
-            <div v-if="s.declined_reason" class="alert alert-danger" style="margin:10px 0 0;">
-              <div class="alert-icon"><AegisIcon name="lock" :size="16" /></div>
-              <div class="alert-content"><strong>Access suspended:</strong> {{ s.declined_reason }}</div>
+            <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-3);">
+              <span v-if="s.email" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="mail" :size="13" />{{ s.email }}</span>
+              <span v-if="s.signed_at" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="file-text" :size="13" />Agreement: {{ fmtDate(s.signed_at) }}</span>
+              <span v-if="s.fee_cents > 0" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="dollar-sign" :size="13" />{{ formatMoney(s.fee_cents) }} · {{ s.payment_terms }}</span>
             </div>
-            <div style="margin-top:12px;display:flex;gap:8px;">
-              <button class="btn btn-outline" @click="openCsReinstate(s)">
-                <AegisIcon name="check" :size="13" /> Reinstate
-              </button>
+            <div v-if="s.declined_reason" style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:var(--red-dark);">
+              <AegisIcon name="alert-circle" :size="13" />
+              <span>{{ s.declined_reason }}</span>
+            </div>
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+              <button type="button" class="btn" @click="openCsReinstate(s)" style="display:inline-flex;align-items:center;gap:6px;background:var(--black,#000);color:var(--white,#fff);border-color:var(--black,#000);"><AegisIcon name="check" :size="13" /> Reinstate</button>
             </div>
           </div>
         </div>
-      </div>
     </div>
 
     <!-- ═══════════════════ TAB: I'M CS FOR ═══════════════════ -->
@@ -986,3 +1002,4 @@ function saveNotifyPrefs() {
 
   </AppLayout>
 </template>
+
