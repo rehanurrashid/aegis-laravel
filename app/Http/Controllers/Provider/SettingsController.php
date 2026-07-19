@@ -9,6 +9,7 @@ use App\Http\Controllers\Concerns\HasCommonSettingsMethods;
 use App\Models\UserMeta;
 use App\Models\UserSession;
 use App\Services\ActivityService;
+use App\Events\Business\CsAddonChanged;
 use App\Events\Business\MaatAddonChanged;
 use App\Services\ProfileService;
 use App\Services\SecurityCompletionService;
@@ -123,6 +124,8 @@ class SettingsController extends Controller
             'pausedUntil'      => $user->getMeta ? optional($user->meta->where('meta_key','pause_prefs')->first())?->typed_value['until'] ?? null : null,
             'activeAgreements' => $activeAgreements->values(),
             'paymentMethods'   => $this->fetchPaymentMethods($user),
+            'hasCsAddon'       => (bool) $user->cs_addon,
+            'availableAsCs'    => (bool) $this->profiles->getMeta($user->id, 'available_as_cs', false),
         ]);
     }
 
@@ -346,13 +349,16 @@ class SettingsController extends Controller
         return back()->with('success', 'Privacy settings saved.');
     }
 
-    public function updateSsAvailability(Request $request): RedirectResponse
+    /**
+     * Toggle whether this practitioner is listed as available to serve as CS for others.
+     * Stored in user_meta key 'available_as_cs'.
+     * Note: available_as_ss has been removed per Chapman decision #2.
+     */
+    public function updateCsAvailability(Request $request): RedirectResponse
     {
-        $available = $request->boolean('available_as_ss');
-        /** @var \App\Services\ProfileService $ps */
-        $ps = app(\App\Services\ProfileService::class);
-        $ps->saveMeta($request->user(), 'available_as_ss', $available ? '1' : '0', 'boolean');
-        return back()->with('success', 'SS availability updated.');
+        $available = $request->boolean('available_as_cs');
+        $this->profiles->setMeta($request->user()->id, 'available_as_cs', $available ? '1' : '0', 'bool');
+        return back()->with('success', 'CS availability updated.');
     }
 
 
@@ -422,6 +428,49 @@ class SettingsController extends Controller
             return back()->with('success', $msg);
         } catch (\Throwable $e) {
             return back()->withErrors(['maat' => $e->getMessage()]);
+        }
+    }
+
+    public function toggleCsAddon(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['enable' => ['required', 'boolean']]);
+        $user = $request->user();
+
+        if ($data['enable'] && $user->tier?->value !== 'practice') {
+            return back()->withErrors(['cs_addon' => 'CS Add-On requires Continuity Practice tier.']);
+        }
+
+        // Detect billing period from base subscription
+        $sub     = $user->subscription('default');
+        $billing = 'monthly';
+        if ($sub && $sub->stripe_price) {
+            $annualPrices = array_filter([
+                env('STRIPE_PRICE_PRACTICE_ANNUAL'),
+            ]);
+            if (in_array($sub->stripe_price, $annualPrices, true)) {
+                $billing = 'annual';
+            }
+        }
+
+        try {
+            $this->subscriptions->toggleCsAddon($user, (bool) $data['enable'], $billing);
+            $msg = $data['enable'] ? 'CS Add-On activated.' : 'CS Add-On removed.';
+
+            $this->activity->log(
+                $user->id, 'provider', 'account',
+                \App\Enums\ActivitySeverity::Info,
+                $data['enable'] ? 'cs_addon_added' : 'cs_addon_removed',
+                $data['enable'] ? 'CS Add-On activated' : 'CS Add-On removed',
+                $msg,
+                \App\Models\User::class, $user->id,
+                null, 'log', $user->id,
+            );
+
+            event(new CsAddonChanged($user->fresh(), $data['enable'] ? 'activated' : 'deactivated'));
+
+            return back()->with('success', $msg);
+        } catch (\Throwable $e) {
+            return back()->withErrors(['cs_addon' => $e->getMessage()]);
         }
     }
 

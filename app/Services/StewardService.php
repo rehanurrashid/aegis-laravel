@@ -38,6 +38,12 @@ class StewardService
     {
         $this->enforceTierLimits($plan, $stewardType);
 
+        // If the designated steward is a practitioner, check provider-as-CS cap.
+        // (Circular CS is allowed — no block for mutual arrangements.)
+        if ($stewardType === 'continuity_steward') {
+            $this->enforceProviderAsCsCap($steward);
+        }
+
         $row = PlanSteward::create([
             'id'               => 'ps_' . Str::lower(Str::random(12)),
             'plan_id'          => $plan->id,
@@ -372,6 +378,9 @@ class StewardService
      * Access tier: 1 CS + 2 SS max
      * Practice tier: 2 CS (no SS limit)
      */
+    /**
+     * Enforce plan-level CS/SS slot limits (how many stewards the plan can have).
+     */
     private function enforceTierLimits(ContinuityPlan $plan, string $stewardType): void
     {
         $practitioner = User::find($plan->practitioner_id);
@@ -385,7 +394,7 @@ class StewardService
             ->count();
 
         if ($stewardType === 'continuity_steward') {
-            $max = (int) ($limits['max_continuity_stewards'] ?? 2);
+            $max = (int) ($limits['max_continuity_stewards'] ?? 1);
             if ($current >= $max) {
                 throw new RuntimeException("Tier '{$tier}' allows max {$max} Continuity Steward(s).");
             }
@@ -394,6 +403,52 @@ class StewardService
             if ($current >= $max) {
                 throw new RuntimeException("Tier '{$tier}' allows max {$max} Support Steward(s).");
             }
+        }
+    }
+
+    /**
+     * Enforce provider-as-CS cap: how many OTHER practices this user can serve as CS.
+     *
+     * Called when a practitioner is being DESIGNATED (not invited) as CS on another plan.
+     * Caps:
+     *   Access                   → 1  (PROVIDER_AS_CS_MAX_ACCESS)
+     *   Practice                 → 3  (PROVIDER_AS_CS_MAX_PRACTICE)
+     *   Practice + CS Add-On     → 43 (PROVIDER_AS_CS_MAX_PRACTICE_CS_ADDON)
+     *
+     * Circular CS (mutual CS arrangements) are explicitly ALLOWED per Chapman decision #5.
+     * No blocking check for that case.
+     */
+    public function enforceProviderAsCsCap(User $csUser): void
+    {
+        // Only applies when a practitioner serves as CS for others
+        if ($csUser->role?->value !== 'practitioner') {
+            return; // Business CS accounts have their own cap logic
+        }
+
+        $tier = is_object($csUser->tier) ? $csUser->tier->value : ($csUser->tier ?? 'access');
+
+        // Determine cap
+        if ($tier === 'practice' && $csUser->cs_addon) {
+            $cap = (int) config('aegis.provider_as_cs_caps.practice_cs_addon',
+                               env('PROVIDER_AS_CS_MAX_PRACTICE_CS_ADDON', 43));
+        } elseif ($tier === 'practice') {
+            $cap = (int) config('aegis.provider_as_cs_caps.practice',
+                               env('PROVIDER_AS_CS_MAX_PRACTICE', 3));
+        } else {
+            $cap = (int) config('aegis.provider_as_cs_caps.access',
+                               env('PROVIDER_AS_CS_MAX_ACCESS', 1));
+        }
+
+        // Count plans where this user is an active or pending CS (across ALL plans, not own plan)
+        $current = PlanSteward::where('steward_id', $csUser->id)
+            ->where('steward_category', 'continuity_steward')
+            ->whereIn('status', ['active', 'pending'])
+            ->count();
+
+        if ($current >= $cap) {
+            throw new RuntimeException(
+                "provider_as_cs_cap_exceeded:{$tier}:{$cap}"
+            );
         }
     }
 

@@ -193,11 +193,7 @@ class NetworkController extends Controller
             ->where('practitioner_public', 1)
             ->where('role', 'practitioner')
             ->where('id', '!=', $user->id)
-            ->when($request->boolean('ss_avail_only'), function ($q) {
-                $q->whereHas('meta', fn ($m) =>
-                    $m->where('meta_key', 'available_as_ss')->where('meta_value', '1')
-                );
-            })
+
             ->orderBy('display_name')
             ->limit(60)
             ->get()
@@ -221,7 +217,7 @@ class NetworkController extends Controller
                     'resp'          => '— resp',
                     'telehealth'    => false,
                     'has_services'  => (bool) $u->services_mode,
-                    'available_as_ss' => (bool) ($u->meta->where('meta_key', 'available_as_ss')->first()?->meta_value),
+                    // available_as_ss removed per Chapman decision #2
                     'networkStatus' => in_array($u->id, $connectedIds, true)
                         ? 'in-network'
                         : (in_array($u->id, $pendingInboundIds, true) ? 'pending-received'
@@ -414,21 +410,41 @@ class NetworkController extends Controller
         $csSpecialties = ['Trauma','Couples','EMDR','Grief','Anxiety','ADHD','Addiction','Family Systems','Other'];
         $csStates      = ['AL','AK','AZ','AR','CA','CO','CT','DC','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
 
-        $ssDirectory = User::where('role', 'practitioner')
-            ->whereHas('meta', fn ($q) => $q->where('meta_key', 'available_as_ss')->where('meta_value', '1'))
+        // Practitioners available to serve as CS for others (available_as_cs meta = '1').
+        // Chapman decision #1: show tier badge. Decision #3: no license/clinical info.
+        // Chapman decision #4: ssDirectory removed entirely.
+        $csDirectory = User::where('role', 'practitioner')
+            ->whereNull('deactivated_at')
+            ->whereHas('meta', fn ($q) => $q->where('meta_key', 'available_as_cs')->where('meta_value', '1'))
+            ->where('id', '!=', $user->id)
             ->with('meta')
-            ->limit(50)
+            ->orderBy('display_name')
+            ->limit(60)
             ->get()
-            ->map(fn (User $u) => [
-                'id'              => $u->id,
-                'display_name'    => $u->display_name,
-                'credentials'     => $u->credentials ?? '',
-                'title'           => $u->title ?? '',
-                'location'        => $u->location ?? '',
-                'avatar_initials' => $u->avatar_initials ?? strtoupper(substr($u->display_name, 0, 2)),
-                'slug'            => $u->slug ?? '',
-                'available_as_ss' => true,
-            ])->values();
+            ->map(function (User $u) use ($plan, $existingDesignations) {
+                $ps = $existingDesignations->get($u->id);
+                $designationStatus = $ps
+                    ? ($ps->status instanceof \BackedEnum ? $ps->status->value : (string) $ps->status)
+                    : 'none';
+                $tierVal = $u->tier instanceof \BackedEnum ? $u->tier->value : (string) ($u->tier ?? '');
+                return [
+                    'id'               => $u->id,
+                    'display_name'     => $u->display_name,
+                    'credentials'      => $u->credentials ?? '',
+                    'specialty'        => $u->specialty ?? '',
+                    'location'         => $u->location ?? '',
+                    'avatar_initials'  => $u->avatar_initials ?? strtoupper(substr($u->display_name, 0, 2)),
+                    'avatar_path'      => $u->avatar_path,
+                    'slug'             => $u->slug ?? '',
+                    // Tier badge per Chapman decision #1 — no clinical license info
+                    'cs_tier_badge'    => match($tierVal) {
+                        'practice' => 'Practice',
+                        'access'   => 'Access',
+                        default    => null,
+                    },
+                    'designation_status' => $designationStatus,
+                ];
+            })->values();
 
         return Inertia::render('provider/Network', [
             'clinicalConnections'          => $clinical,
@@ -458,7 +474,8 @@ class NetworkController extends Controller
             'networkConfig'                => $this->loadNetworkConfig($user),
             'csStewards'                   => $csStewards,
             'csFilters'                    => ['specialties' => $csSpecialties, 'states' => $csStates],
-            'ssDirectory'                  => $ssDirectory,
+            'csDirectory'                  => $csDirectory,
+            // ssDirectory intentionally omitted — removed per Chapman decision #4
             'initialScope'                 => $request->query('tab', $request->query('scope', 'clinical')),
         ]);
     }

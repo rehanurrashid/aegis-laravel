@@ -440,7 +440,8 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::put('/settings/referral',          [ProviderSettingsController::class, 'updateReferral'])->name('settings.referral');
         Route::put('/settings/services-settings', [ProviderSettingsController::class, 'updateServicesSettings'])->name('settings.services-settings');
         Route::put('/settings/privacy-settings',  [ProviderSettingsController::class, 'updatePrivacySettings'])->name('settings.privacy-settings');
-        Route::post('/settings/ss-availability',   [ProviderSettingsController::class, 'updateSsAvailability'])->name('settings.ss-availability');
+        // CS availability toggle (replaces removed ss-availability per Chapman decision #2)
+        Route::post('/settings/cs-availability',   [ProviderSettingsController::class, 'updateCsAvailability'])->name('settings.cs-availability');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
         Route::put('/settings/account', [ProviderSettingsController::class, 'updateAccount'])->name('settings.account');
         Route::put('/settings/appearance', [ProviderSettingsController::class, 'updateAppearance'])->name('settings.appearance');
@@ -465,6 +466,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::post('/settings/subscription/cancel',   [ProviderSettingsController::class, 'cancelPlan'])->name('settings.subscription.cancel');
         Route::post('/settings/subscription/resume',   [ProviderSettingsController::class, 'resumePlan'])->name('settings.subscription.resume');
         Route::post('/settings/subscription/maat',     [ProviderSettingsController::class, 'toggleMaat'])->name('settings.subscription.maat');
+        Route::post('/settings/subscription/cs-addon', [ProviderSettingsController::class, 'toggleCsAddon'])->name('settings.subscription.cs-addon');
 
         // Payment methods — Settings.vue panel-billing
         Route::post('/settings/payment-method',            [ProviderSettingsController::class, 'storePaymentMethod'])->name('settings.payment.store');

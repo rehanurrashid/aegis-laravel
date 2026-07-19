@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Events\Business\SubscriptionTierChanged;
+use App\Events\Business\CsAddonChanged;
 use App\Events\Business\MaatAddonChanged;
 use App\Events\Business\SubscriptionCancelled;
 
@@ -392,6 +393,74 @@ class SubscriptionService
 
         $addonState = $enable ? 'activated' : 'deactivated';
         event(new MaatAddonChanged($user->fresh(), $addonState));
+
+        return $user->fresh();
+    }
+
+    /**
+     * Toggle the Practice CS Add-On subscription item.
+     * Mirrors toggleMaatAddon() exactly — second SubscriptionItem on 'default' sub.
+     * Sets users.cs_addon = 1/0 locally and fires CsAddonChanged event.
+     * Webhook (handleSubscriptionUpdated) will also sync cs_addon for redundancy.
+     */
+    public function toggleCsAddon(User $user, bool $enable, string $billing = 'monthly'): User
+    {
+        $priceId = $billing === 'annual'
+            ? env('STRIPE_PRICE_PRACTICE_CS_ADDON_ANNUAL')
+            : env('STRIPE_PRICE_PRACTICE_CS_ADDON_MONTHLY');
+
+        if (!$priceId) {
+            throw new \RuntimeException(
+                'CS Add-On price not configured. Set STRIPE_PRICE_PRACTICE_CS_ADDON_MONTHLY / _ANNUAL in .env.'
+            );
+        }
+
+        if ($user->tier?->value !== 'practice') {
+            throw new \RuntimeException('CS Add-On requires the Practice tier.');
+        }
+
+        // Demo stub — no real Stripe call for demo accounts
+        if (str_starts_with((string) $user->stripe_id, 'cus_demo_')) {
+            $user->update(['cs_addon' => $enable ? 1 : 0]);
+            event(new CsAddonChanged($user->fresh(), $enable ? 'activated' : 'deactivated'));
+            return $user->fresh();
+        }
+
+        $sub = $user->subscription('default');
+        if (!$sub) {
+            throw new \RuntimeException('Cannot toggle CS Add-On — no active base subscription.');
+        }
+
+        try {
+            if ($enable) {
+                if (!$sub->hasPrice($priceId)) {
+                    $sub->addPrice($priceId);
+                }
+            } else {
+                // Remove either billing-period price if present
+                foreach ([
+                    env('STRIPE_PRICE_PRACTICE_CS_ADDON_MONTHLY'),
+                    env('STRIPE_PRICE_PRACTICE_CS_ADDON_ANNUAL'),
+                ] as $pid) {
+                    if ($pid && $sub->hasPrice($pid)) {
+                        $sub->removePrice($pid);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::error('[SubscriptionService] toggleCsAddon failed', [
+                'user_id' => $user->id,
+                'enable'  => $enable,
+                'price'   => $priceId,
+                'error'   => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+
+        $user->update(['cs_addon' => $enable ? 1 : 0]);
+
+        $addonState = $enable ? 'activated' : 'deactivated';
+        event(new CsAddonChanged($user->fresh(), $addonState));
 
         return $user->fresh();
     }

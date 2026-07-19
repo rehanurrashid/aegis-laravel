@@ -246,6 +246,22 @@ class StripeEventListener
                 'has_maat' => $hasMaat,
             ]);
         }
+
+        // Sync Practice CS Add-On state — mirrors MAAT pattern exactly.
+        // When this subscription item is present, users.cs_addon = 1
+        // unlocking provider-as-CS cap of 43 (PROVIDER_AS_CS_MAX_PRACTICE_CS_ADDON).
+        $csAddonMonthly = env('STRIPE_PRICE_PRACTICE_CS_ADDON_MONTHLY');
+        $csAddonAnnual  = env('STRIPE_PRICE_PRACTICE_CS_ADDON_ANNUAL');
+        $hasCsAddon = ($csAddonMonthly && in_array($csAddonMonthly, $itemPriceIds, true))
+                   || ($csAddonAnnual  && in_array($csAddonAnnual,  $itemPriceIds, true));
+
+        if ((bool) $user->cs_addon !== $hasCsAddon) {
+            $user->update(['cs_addon' => $hasCsAddon ? 1 : 0]);
+            Log::info('[STRIPE_WEBHOOK] CS addon state synced', [
+                'user_id'      => $user->id,
+                'has_cs_addon' => $hasCsAddon,
+            ]);
+        }
     }
 
     private function handleSubscriptionCancelled(array $payload): void

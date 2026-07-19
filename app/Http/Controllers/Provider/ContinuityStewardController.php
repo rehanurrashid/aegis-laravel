@@ -42,6 +42,20 @@ class ContinuityStewardController extends Controller
         $tier = is_object($user->tier) ? $user->tier->value : ($user->tier ?? 'access');
         $tierLimits = config('aegis.tier_limits.' . $tier, config('aegis.tier_limits.access'));
 
+        // Provider-as-CS caps (how many OTHER plans this user can serve on as CS)
+        $caps = config('aegis.provider_as_cs_caps', []);
+        if ($tier === 'practice' && $user->cs_addon) {
+            $providerAsCsCap = (int) ($caps['practice_cs_addon'] ?? env('PROVIDER_AS_CS_MAX_PRACTICE_CS_ADDON', 43));
+        } elseif ($tier === 'practice') {
+            $providerAsCsCap = (int) ($caps['practice'] ?? env('PROVIDER_AS_CS_MAX_PRACTICE', 3));
+        } else {
+            $providerAsCsCap = (int) ($caps['access'] ?? env('PROVIDER_AS_CS_MAX_ACCESS', 1));
+        }
+        $providerAsCsCount = \App\Models\PlanSteward::where('steward_id', $user->id)
+            ->where('steward_category', 'continuity_steward')
+            ->whereIn('status', ['active', 'pending'])
+            ->count();
+
         // Pre-load active incident configs once for authorized_incidents lookup
         $activeConfigs = $plan
             ? \App\Models\PlanIncidentConfig::where('plan_id', $plan->id)->where('is_active', 1)->get()
@@ -185,7 +199,7 @@ class ContinuityStewardController extends Controller
             'servingAsCSFor'     => $servingAsCSFor,
             'tierLimits'         => $tierLimits,
             'tier'               => $tier,
-            'csMax'              => (int) ($tierLimits['max_continuity_stewards'] ?? 2),
+            'csMax'              => (int) ($tierLimits['max_continuity_stewards'] ?? 1),
             'csCount'            => collect($stewards)->where('status', 'active')->count(),
             'incidentConfigs'    => $incidentConfigs,
             'annualReviewDue'    => $plan?->annual_review_date?->toDateString(),
@@ -198,6 +212,10 @@ class ContinuityStewardController extends Controller
                 ->where('status', 'draft')
                 ->value('plan_version'),
             'notifyPrefs'        => $this->profiles->getMeta($user, 'notify_cs_activity', []),
+            'hasCsAddon'         => (bool) $user->cs_addon,
+            'providerAsCsCount'  => $providerAsCsCount,
+            'providerAsCsCap'    => $providerAsCsCap,
+            'userTier'           => $tier,
         ]);
     }
 

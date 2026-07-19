@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Steward\DesignateStewardRequest;
 use App\Models\ContinuityPlan;
 use App\Models\PlanSteward;
 use App\Models\User;
@@ -111,31 +110,70 @@ class SupportStewardController extends Controller
         ]);
     }
 
-    public function designate(DesignateStewardRequest $request): RedirectResponse
+    /**
+     * Two-flow SS invitation:
+     * Flow A (existing Aegis user): POST with display_name + email — lookup user by both,
+     *   must match exactly. Calls stewards->designate() with the found user.
+     * Flow B (external invite): POST with display_name + email + external=true.
+     *   Calls stewards->inviteExternal() which creates a placeholder user + invite token.
+     *
+     * Chapman decision #12/13: SS is anyone, free, no cap, invite-only.
+     * SS-specific language about practitioner-only has been removed.
+     */
+    public function designate(Request $request): RedirectResponse
     {
+        $data = $request->validate([
+            'display_name' => 'required|string|max:100',
+            'email'        => 'required|email|max:191',
+            'external'     => 'nullable|boolean',
+            'role'         => 'nullable|string|in:primary,alternate,support',
+        ]);
+
         $plan = $this->plans->getForPractitioner($request->user()->id);
         abort_if(!$plan, 404);
         $this->authorize('update', $plan);
 
-        $data = $request->validated();
-        if (!empty($data['user_id'])) {
-            $this->stewards->designate(
-                $plan,
-                User::findOrFail($data['user_id']),
-                'support_steward',
-                $data['role'] ?? 'primary'
-            );
-        } else {
+        $isExternal = !empty($data['external']);
+
+        if ($isExternal) {
+            // Flow B: send an onboarding invite to a non-Aegis user
             $this->stewards->inviteExternal(
                 $plan,
                 $data['email'],
-                $data['display_name'] ?? 'Support Steward',
+                $data['display_name'],
                 'support_steward',
-                $data['role'] ?? 'primary'
+                $data['role'] ?? 'support'
             );
+            return back()->with('success', 'Invitation sent to ' . $data['display_name'] . '.');
         }
 
-        return back()->with('success', 'Support Steward designated.');
+        // Flow A: locate existing Aegis user — both name AND email must match
+        $match = User::where('email', $data['email'])
+            ->whereNull('deactivated_at')
+            ->first();
+
+        if (!$match) {
+            return back()->withErrors([
+                'email' => 'No active Aegis user found with that email address.',
+            ]);
+        }
+
+        // Soft name match: allow different capitalisation / trailing spaces
+        $normalise = fn (string $s) => strtolower(trim($s));
+        if ($normalise($match->display_name) !== $normalise($data['display_name'])) {
+            return back()->withErrors([
+                'display_name' => 'The name you entered does not match the account on file for that email.',
+            ]);
+        }
+
+        $this->stewards->designate(
+            $plan,
+            $match,
+            'support_steward',
+            $data['role'] ?? 'support'
+        );
+
+        return back()->with('success', $data['display_name'] . ' has been invited as a Support Steward.');
     }
 
     public function remove(Request $request, PlanSteward $steward): RedirectResponse
