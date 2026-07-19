@@ -125,7 +125,7 @@ class SettingsController extends Controller
             'activeAgreements' => $activeAgreements->values(),
             'paymentMethods'   => $this->fetchPaymentMethods($user),
             'hasCsAddon'       => (bool) $user->cs_addon,
-            'availableAsCs'    => (bool) $this->profiles->getMeta($user->id, 'available_as_cs', false),
+            'availableAsCs'    => (bool) $this->profiles->getMeta($user, 'available_as_cs', false),
         ]);
     }
 
@@ -444,16 +444,14 @@ class SettingsController extends Controller
         $sub     = $user->subscription('default');
         $billing = 'monthly';
         if ($sub && $sub->stripe_price) {
-            $annualPrices = array_filter([
-                env('STRIPE_PRICE_PRACTICE_ANNUAL'),
-            ]);
+            $annualPrices = array_filter([env('STRIPE_PRICE_PRACTICE_ANNUAL')]);
             if (in_array($sub->stripe_price, $annualPrices, true)) {
                 $billing = 'annual';
             }
         }
 
         try {
-            $this->subscriptions->toggleCsAddon($user, (bool) $data['enable'], $billing);
+            app(\App\Services\SubscriptionService::class)->toggleCsAddon($user, (bool) $data['enable'], $billing);
             $msg = $data['enable'] ? 'CS Add-On activated.' : 'CS Add-On removed.';
 
             $this->activity->log(
