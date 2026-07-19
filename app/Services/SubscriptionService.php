@@ -151,6 +151,7 @@ class SubscriptionService
                 'status'          => 'none',
                 'tier'            => $user->tier,
                 'has_maat_addon'  => (bool) $user->maat_addon,
+                'has_cs_addon'    => (bool) $user->cs_addon,
             ];
         }
 
@@ -161,6 +162,7 @@ class SubscriptionService
             'ends_at'         => $sub->ends_at,
             'price_id'        => $sub->stripe_price,
             'has_maat_addon'  => (bool) $user->maat_addon,
+            'has_cs_addon'    => (bool) $user->cs_addon,
         ];
     }
 
@@ -316,12 +318,14 @@ class SubscriptionService
 
         return match ($role) {
             'practitioner' => [
-                'access_monthly'   => env('STRIPE_PRICE_ACCESS_MONTHLY'),
-                'access_annual'    => env('STRIPE_PRICE_ACCESS_ANNUAL'),
-                'practice_monthly' => env('STRIPE_PRICE_PRACTICE_MONTHLY'),
-                'practice_annual'  => env('STRIPE_PRICE_PRACTICE_ANNUAL'),
-                'maat_monthly'     => env('STRIPE_PRICE_MAAT_MONTHLY'),
-                'maat_annual'      => env('STRIPE_PRICE_MAAT_ANNUAL'),
+                'access_monthly'    => env('STRIPE_PRICE_ACCESS_MONTHLY'),
+                'access_annual'     => env('STRIPE_PRICE_ACCESS_ANNUAL'),
+                'practice_monthly'  => env('STRIPE_PRICE_PRACTICE_MONTHLY'),
+                'practice_annual'   => env('STRIPE_PRICE_PRACTICE_ANNUAL'),
+                'maat_monthly'      => env('STRIPE_PRICE_MAAT_MONTHLY'),
+                'maat_annual'       => env('STRIPE_PRICE_MAAT_ANNUAL'),
+                'cs_addon_monthly'  => env('STRIPE_PRICE_PRACTICE_CS_ADDON_MONTHLY'),
+                'cs_addon_annual'   => env('STRIPE_PRICE_PRACTICE_CS_ADDON_ANNUAL'),
             ],
             'business_partner' => [
                 'bp_monthly' => env('STRIPE_PRICE_BP_MONTHLY'),

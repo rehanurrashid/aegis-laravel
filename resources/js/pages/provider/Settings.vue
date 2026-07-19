@@ -1469,7 +1469,12 @@ const swapButtonLabel = (tier) => {
 };
 const planBusy = ref(false); const maatBusy = ref(false); const pmBusy = ref(false);
 const csAddonBusy = ref(false);
+// Read cs_addon state from subscription data (live Stripe) falling back to prop
+// This keeps it in sync with the webhook-confirmed state on page load
+const hasCsAddon     = computed(() => !!sub.value.has_cs_addon);
 const hasCsAddonLocal = ref(props.hasCsAddon ?? false);
+// Sync local ref when subscription data updates (e.g. after page reload)
+watch(hasCsAddon, (v) => { hasCsAddonLocal.value = v; }, { immediate: true });
 const csAddonBillingAnnual = ref(false);
 // CS Add-On confirmation — mirrors MAAT pattern exactly
 const pendingCsAddon = reactive({ enable: false });

@@ -390,24 +390,18 @@ class SettingsController extends Controller
 
     public function toggleMaat(Request $request): RedirectResponse
     {
-        $data = $request->validate(['enable' => ['required', 'boolean']]);
+        $data = $request->validate([
+            'enable'  => ['required', 'boolean'],
+            'billing' => ['nullable', 'in:monthly,annual'],
+        ]);
         $user = $request->user();
 
         if ($data['enable'] && $user->tier?->value !== 'practice') {
             return back()->withErrors(['maat' => 'MAAT requires Continuity Practice tier.']);
         }
 
-        $sub     = $user->subscription('default');
-        $billing = 'monthly';
-        if ($sub && $sub->stripe_price) {
-            $annualPrices = array_filter([
-                env('STRIPE_PRICE_ACCESS_ANNUAL'),
-                env('STRIPE_PRICE_PRACTICE_ANNUAL'),
-            ]);
-            if (in_array($sub->stripe_price, $annualPrices, true)) {
-                $billing = 'annual';
-            }
-        }
+        // Use billing period sent from Vue toggle — falls back to monthly if not provided
+        $billing = $data['billing'] ?? 'monthly';
 
         try {
             $this->subscriptions->toggleMaatAddon($user, (bool) $data['enable'], $billing);
@@ -433,22 +427,18 @@ class SettingsController extends Controller
 
     public function toggleCsAddon(Request $request): RedirectResponse
     {
-        $data = $request->validate(['enable' => ['required', 'boolean']]);
+        $data = $request->validate([
+            'enable'  => ['required', 'boolean'],
+            'billing' => ['nullable', 'in:monthly,annual'],
+        ]);
         $user = $request->user();
 
         if ($data['enable'] && $user->tier?->value !== 'practice') {
             return back()->withErrors(['cs_addon' => 'CS Add-On requires Continuity Practice tier.']);
         }
 
-        // Detect billing period from base subscription
-        $sub     = $user->subscription('default');
-        $billing = 'monthly';
-        if ($sub && $sub->stripe_price) {
-            $annualPrices = array_filter([env('STRIPE_PRICE_PRACTICE_ANNUAL')]);
-            if (in_array($sub->stripe_price, $annualPrices, true)) {
-                $billing = 'annual';
-            }
-        }
+        // Use billing period sent from Vue toggle — falls back to monthly if not provided
+        $billing = $data['billing'] ?? 'monthly';
 
         try {
             app(\App\Services\SubscriptionService::class)->toggleCsAddon($user, (bool) $data['enable'], $billing);
