@@ -49,18 +49,19 @@
                     : 'Aegis Plan' }}
             </div>
             <div class="sub-cart-item-desc">
-              {{ subscription?.billing_interval === 'year'
-                  ? 'Active — renews annually'
-                  : subscription?.status === 'active'
-                    ? 'Active — renews monthly'
-                    : subscription?.status === 'past_due'
-                      ? 'Payment past due'
-                      : subscription?.status || 'Inactive' }}
+              {{ subscription?.status === 'active'
+                  ? (billingInterval === 'annual' ? 'Active — renews annually' : 'Active — renews monthly')
+                  : subscription?.status === 'past_due'
+                    ? 'Payment past due'
+                    : subscription?.status || 'Inactive' }}
             </div>
           </div>
           <div class="sub-cart-item-price">
-            {{ subscription?.tier === 'practice' ? '$79' : subscription?.tier === 'access' ? '$39' : '—' }}
-            <span class="sub-cart-item-per">/mo</span>
+            {{ subscription?.tier === 'practice'
+                ? (billingInterval === 'annual' ? '$65.83' : '$79')
+                : subscription?.tier === 'access'
+                  ? (billingInterval === 'annual' ? '$35.75' : '$39')
+                  : '—' }}<span class="sub-cart-item-per">/mo</span>
           </div>
           <AegisBadge
             :label="subscription?.status || 'inactive'"
@@ -75,7 +76,7 @@
             <div class="sub-cart-item-name">MAAT Professional CS Add-on</div>
             <div class="sub-cart-item-desc">Certified Continuity Steward · 4-hr emergency response</div>
           </div>
-          <div class="sub-cart-item-price">+$29<span class="sub-cart-item-per">/mo</span></div>
+          <div class="sub-cart-item-price">+${{ billingInterval === 'annual' ? '23' : '29' }}<span class="sub-cart-item-per">/mo</span></div>
           <AegisBadge label="Active" variant="gold" />
         </div>
 
@@ -86,7 +87,7 @@
             <div class="sub-cart-item-name">Practice CS Add-On</div>
             <div class="sub-cart-item-desc">Serve as CS for up to 43 practitioners</div>
           </div>
-          <div class="sub-cart-item-price">+$25<span class="sub-cart-item-per">/mo</span></div>
+          <div class="sub-cart-item-price">+${{ billingInterval === 'annual' ? '20.83' : '25' }}<span class="sub-cart-item-per">/mo</span></div>
           <AegisBadge label="Active" variant="gold" />
         </div>
 
@@ -96,7 +97,7 @@
       <div class="sub-cart-total">
         <div class="sub-cart-total-label">
           <AegisIcon name="credit-card" :size="13" />
-          {{ subscription?.billing_interval === 'year' ? 'Billed annually to your default card' : 'Billed monthly to your default card' }}
+          {{ billingInterval === 'annual' ? 'Billed annually to your default card' : 'Billed monthly to your default card' }}
         </div>
         <div class="sub-cart-total-amount">
           <template v-if="subscription?.next_invoice?.amount_cents">
@@ -105,11 +106,18 @@
           <template v-else>
             {{
               subscription?.tier === 'practice'
-                ? (subscription?.has_maat_addon && subscription?.has_cs_addon ? '$133'
-                   : subscription?.has_maat_addon ? '$108'
-                   : subscription?.has_cs_addon   ? '$104'
-                   : '$79')
-                : subscription?.tier === 'access' ? '$39' : '—'
+                ? billingInterval === 'annual'
+                  ? (subscription?.has_maat_addon && subscription?.has_cs_addon ? '$109.66'
+                     : subscription?.has_maat_addon ? '$88.83'
+                     : subscription?.has_cs_addon   ? '$86.66'
+                     : '$65.83')
+                  : (subscription?.has_maat_addon && subscription?.has_cs_addon ? '$133'
+                     : subscription?.has_maat_addon ? '$108'
+                     : subscription?.has_cs_addon   ? '$104'
+                     : '$79')
+                : subscription?.tier === 'access'
+                  ? (billingInterval === 'annual' ? '$35.75' : '$39')
+                  : '—'
             }}
           </template>
           <span class="sub-cart-item-per">/mo</span>
@@ -142,6 +150,7 @@ defineProps({
   invoices:        { type: Array,   default: () => [] },
   showManageLink:  { type: Boolean, default: true },
   showInvoices:    { type: Boolean, default: true },
+  billingInterval: { type: String,  default: 'monthly' },
 })
 
 function formatSubscriptionDate(val) {

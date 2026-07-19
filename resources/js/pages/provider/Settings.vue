@@ -886,6 +886,7 @@
             :invoices="subscriptionInvoices"
             :show-manage-link="false"
             :show-invoices="true"
+            :billing-interval="sub?.billing_interval ?? 'monthly'"
           />
         </div>
 
@@ -938,7 +939,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, watch, watchEffect, nextTick } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { useVuelidate } from '@vuelidate/core';
 import { required, email, minLength, sameAs, helpers } from '@vuelidate/validators';
@@ -1437,11 +1438,14 @@ const stripeInvoices    = computed(() => sub.value.invoices || []);
 const stripePaymentMethods    = computed(() => sub.value.payment_methods || []);
 const subscriptionInvoices    = computed(() => sub.value.invoices || []);
 const stStripeConnected       = computed(() => !!(props.user?.stripe_connected) && !String(props.user?.stripe_account_id ?? '').startsWith('acct_demo'));
-const currentBillingIsAnnual = computed(() => {
-  const p = sub.value.price_id;
-  return p === prices.value.access_annual || p === prices.value.practice_annual;
-});
+const currentBillingIsAnnual = computed(() => sub.value.billing_interval === 'annual');
 const billingAnnualView = ref(false);
+// Sync toggle to actual billing interval once sub data is available
+watchEffect(() => {
+  if (sub.value?.billing_interval) {
+    billingAnnualView.value = sub.value.billing_interval === 'annual';
+  }
+});
 const accessPriceId     = computed(() => billingAnnualView.value ? prices.value.access_annual   : prices.value.access_monthly);
 const practicePriceId   = computed(() => billingAnnualView.value ? prices.value.practice_annual : prices.value.practice_monthly);
 // Addon billing interval is always forced to match the base plan interval.
@@ -1462,7 +1466,7 @@ const billingMetaLine = computed(() => {
   const parts = [];
   if (period?.start && period?.end) parts.push(`Billing cycle: ${formatDate(period.start)} – ${formatDate(period.end)}`);
   if (next?.amount_cents != null && next?.date) parts.push(`Next invoice: $${(next.amount_cents / 100).toFixed(2)} on ${formatDate(next.date)}`);
-  return parts.join(' · ') || 'Billing details will appear after your first cycle.';
+  return parts.join(' · ') || (subStatus.value !== 'active' ? 'Billing details will appear after your first cycle.' : '');
 });
 const isSwapAllowed = (tier) => tier !== currentTier.value || billingAnnualView.value !== currentBillingIsAnnual.value;
 const swapButtonLabel = (tier) => {

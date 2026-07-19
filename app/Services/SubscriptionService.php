@@ -162,6 +162,7 @@ class SubscriptionService
                 'tier'            => $user->tier,
                 'has_maat_addon'  => (bool) $user->maat_addon,
                 'has_cs_addon'    => (bool) $user->cs_addon,
+                'billing_interval' => 'monthly',
             ];
         }
 
@@ -171,7 +172,7 @@ class SubscriptionService
             env('STRIPE_PRICE_CS_BUSINESS_ANNUAL'), env('STRIPE_PRICE_BP_ANNUAL'),
             env('STRIPE_PRICE_MAAT_ANNUAL'), env('STRIPE_PRICE_PRACTICE_CS_ADDON_ANNUAL'),
         ]);
-        $billingInterval = in_array($sub->stripe_price, $knownAnnual, true) ? 'year' : 'month';
+        $billingInterval = in_array($sub->stripe_price, $knownAnnual, true) ? 'annual' : 'monthly';
 
         return [
             'status'           => $sub->stripe_status,
