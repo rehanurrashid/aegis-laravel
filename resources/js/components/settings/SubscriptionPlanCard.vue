@@ -151,3 +151,27 @@ function formatSubscriptionDate(val) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 </script>
+
+<style scoped>
+.sub-cart             { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
+.sub-cart-head        { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 22px; background: var(--badge-bg-gold); border-bottom: 1px solid var(--badge-border-gold); }
+.sub-cart-head-left   { display: flex; align-items: center; gap: 12px; }
+.sub-cart-logo        { width: 40px; height: 40px; border-radius: var(--radius); background: var(--gold-dark); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sub-cart-brand       { font-family: var(--font-serif); font-size: 16px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.sub-cart-type        { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.sub-cart-items       { padding: 8px 0; }
+.sub-cart-item        { display: flex; align-items: center; gap: 14px; padding: 14px 22px; border-bottom: 1px solid var(--border); }
+.sub-cart-item:last-child { border-bottom: none; }
+.sub-cart-item--addon { background: var(--surface-2); }
+.sub-cart-item-icon   { width: 34px; height: 34px; border-radius: var(--radius-sm); background: var(--green-light); color: var(--green-dark); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sub-cart-item-icon--gold { background: var(--badge-bg-gold); color: var(--gold-dark); }
+.sub-cart-item-info   { flex: 1; min-width: 0; }
+.sub-cart-item-name   { font-size: 14px; font-weight: 700; color: var(--text); }
+.sub-cart-item-desc   { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.sub-cart-item-price  { font-family: var(--font-serif); font-size: 20px; font-weight: 700; color: var(--text); white-space: nowrap; margin-right: 10px; }
+.sub-cart-item-per    { font-family: var(--font-sans); font-size: 12px; font-weight: 400; color: var(--text-3); }
+.sub-cart-total       { display: flex; align-items: center; justify-content: space-between; padding: 14px 22px; background: var(--surface-2); border-top: 1px solid var(--border); }
+.sub-cart-total-label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-3); font-weight: 600; }
+.sub-cart-total-amount { font-family: var(--font-serif); font-size: 22px; font-weight: 700; color: var(--text); }
+.sub-cart-alert       { display: flex; align-items: center; gap: 8px; padding: 10px 22px; background: var(--orange-light); border-top: 1px solid var(--soft-gold); font-size: 12px; color: var(--orange-dark); font-weight: 600; }
+</style>
