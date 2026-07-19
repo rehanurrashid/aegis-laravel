@@ -605,19 +605,26 @@
                       <div>The MAAT Professional CS add-on is only available on the Continuity Practice plan. Upgrade your plan above to unlock this add-on.</div>
                     </div>
                   </div>
-                  <div class="st-addon-foot">
-                    <button v-if="hasMaat" type="button" class="btn btn-outline" @click="toggleMaat(false)" :disabled="maatBusy"><AegisIcon v-if="maatBusy" name="refresh-cw" :size="13" class="btn-spin" />{{ maatBusy ? 'Removing…' : 'Remove MAAT' }}</button>
-                    <button
-                      v-else
-                      type="button"
-                      class="btn btn-gold"
-                      @click="toggleMaat(true)"
-                      :disabled="maatBusy || currentTier !== 'practice'"
-                      :data-tooltip="currentTier !== 'practice' ? 'Upgrade to Continuity Practice to add MAAT' : null"
-                    >
-                      <AegisIcon name="shield" :size="13" /> Add MAAT Service
-                    </button>
-                    <span v-if="currentTier === 'practice'" class="st-addon-req">Available with your plan</span>
+                  <div class="st-addon-foot" style="flex-direction:column;align-items:flex-start;gap:10px;">
+                    <div v-if="!hasMaat" class="addon-billing-toggle" style="display:flex;align-items:center;gap:8px;font-size:12px;">
+                      <span :style="!maatBillingAnnual ? 'font-weight:700;color:var(--text)' : 'color:var(--text-3)'">Monthly +$29/mo</span>
+                      <button type="button" class="toggle" :class="{ on: maatBillingAnnual }" @click="maatBillingAnnual = !maatBillingAnnual" />
+                      <span :style="maatBillingAnnual ? 'font-weight:700;color:var(--text)' : 'color:var(--text-3)'">Annual $276/yr <span class="st-save-pill">Save 20%</span></span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                      <button v-if="hasMaat" type="button" class="btn btn-outline" @click="toggleMaat(false)" :disabled="maatBusy"><AegisIcon v-if="maatBusy" name="refresh-cw" :size="13" class="btn-spin" />{{ maatBusy ? 'Removing…' : 'Remove MAAT' }}</button>
+                      <button
+                        v-else
+                        type="button"
+                        class="btn btn-gold"
+                        @click="toggleMaat(true)"
+                        :disabled="maatBusy || currentTier !== 'practice'"
+                        :data-tooltip="currentTier !== 'practice' ? 'Upgrade to Continuity Practice to add MAAT' : null"
+                      >
+                        <AegisIcon name="shield" :size="13" /> Add MAAT Service
+                      </button>
+                      <span v-if="currentTier === 'practice'" class="st-addon-req">Available with your plan</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -649,21 +656,28 @@
                       <div>The CS Add-On is only available on the Continuity Practice plan. Upgrade your plan above to unlock it.</div>
                     </div>
                   </div>
-                  <div class="st-addon-foot">
-                    <button v-if="hasCsAddonLocal" type="button" class="btn btn-outline" @click="toggleCsAddon(false)" :disabled="csAddonBusy">
-                      <AegisIcon v-if="csAddonBusy" name="refresh-cw" :size="13" class="btn-spin" />{{ csAddonBusy ? 'Removing…' : 'Remove CS Add-On' }}
-                    </button>
-                    <button
-                      v-else
-                      type="button"
-                      class="btn btn-gold"
-                      @click="toggleCsAddon(true)"
-                      :disabled="csAddonBusy || currentTier !== 'practice'"
-                      :data-tooltip="currentTier !== 'practice' ? 'Upgrade to Continuity Practice to add CS Add-On' : null"
-                    >
-                      <AegisIcon name="users" :size="13" /> Add CS Add-On
-                    </button>
-                    <span v-if="currentTier === 'practice'" class="st-addon-req">Available with your plan</span>
+                  <div class="st-addon-foot" style="flex-direction:column;align-items:flex-start;gap:10px;">
+                    <div v-if="!hasCsAddonLocal" class="addon-billing-toggle" style="display:flex;align-items:center;gap:8px;font-size:12px;">
+                      <span :style="!csAddonBillingAnnual ? 'font-weight:700;color:var(--text)' : 'color:var(--text-3)'">Monthly +$25/mo</span>
+                      <button type="button" class="toggle" :class="{ on: csAddonBillingAnnual }" @click="csAddonBillingAnnual = !csAddonBillingAnnual" />
+                      <span :style="csAddonBillingAnnual ? 'font-weight:700;color:var(--text)' : 'color:var(--text-3)'">Annual $250/yr <span class="st-save-pill">2 months free</span></span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                      <button v-if="hasCsAddonLocal" type="button" class="btn btn-outline" @click="toggleCsAddon(false)" :disabled="csAddonBusy">
+                        <AegisIcon v-if="csAddonBusy" name="refresh-cw" :size="13" class="btn-spin" />{{ csAddonBusy ? 'Removing…' : 'Remove CS Add-On' }}
+                      </button>
+                      <button
+                        v-else
+                        type="button"
+                        class="btn btn-gold"
+                        @click="toggleCsAddon(true)"
+                        :disabled="csAddonBusy || currentTier !== 'practice'"
+                        :data-tooltip="currentTier !== 'practice' ? 'Upgrade to Continuity Practice to add CS Add-On' : null"
+                      >
+                        <AegisIcon name="users" :size="13" /> Add CS Add-On
+                      </button>
+                      <span v-if="currentTier === 'practice'" class="st-addon-req">Available with your plan</span>
+                    </div>
 
                     <!-- CS Add-On confirmation modal -->
                     <AegisModal v-model="confirmCsAddon" :title="pendingCsAddon.enable ? 'Add Practice CS Add-On' : 'Remove CS Add-On'" size="md">
@@ -1429,7 +1443,7 @@ const currentBillingIsAnnual = computed(() => {
 const billingAnnualView = ref(false);
 const accessPriceId     = computed(() => billingAnnualView.value ? prices.value.access_annual   : prices.value.access_monthly);
 const practicePriceId   = computed(() => billingAnnualView.value ? prices.value.practice_annual : prices.value.practice_monthly);
-const maatBillingAnnual = computed(() => currentBillingIsAnnual.value);
+const maatBillingAnnual  = ref(false);
 const currentTierLabel  = computed(() => ({ access: 'Continuity Access', practice: 'Continuity Practice' }[currentTier.value] || 'No active plan'));
 const currentPlanLine   = computed(() => {
   if (subStatus.value === 'none') return 'No active subscription';
@@ -1456,7 +1470,7 @@ const swapButtonLabel = (tier) => {
 const planBusy = ref(false); const maatBusy = ref(false); const pmBusy = ref(false);
 const csAddonBusy = ref(false);
 const hasCsAddonLocal = ref(props.hasCsAddon ?? false);
-const csAddonBillingAnnual = computed(() => currentBillingIsAnnual.value);
+const csAddonBillingAnnual = ref(false);
 // CS Add-On confirmation — mirrors MAAT pattern exactly
 const pendingCsAddon = reactive({ enable: false });
 const confirmCsAddon = ref(false);
@@ -1577,7 +1591,7 @@ function doToggleMaat() {
   const enable = pendingMaat.enable;
   confirmMaat.value = false;
   maatBusy.value = true;
-  router.post(route('provider.settings.subscription.maat'), { enable }, {
+  router.post(route('provider.settings.subscription.maat'), { enable, billing: maatBillingAnnual.value ? 'annual' : 'monthly' }, {
     preserveScroll: true,
     onSuccess: () => toast.success(enable
       ? 'MAAT Professional CS Service added to your subscription.'
