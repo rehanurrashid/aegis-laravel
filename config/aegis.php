@@ -18,51 +18,53 @@ return [
     /*
     |--------------------------------------------------------------------------
     | Practitioner Subscription Pricing (cents)
-    | Access $29/mo · $23/mo annual ($276/yr) — save 20%
-    | Practice $49/mo · $39/mo annual ($468/yr) — save 20%
+    | Access  $39/mo · $35.75/mo annual ($429/yr) — 1 month free
+    | Practice $79/mo · $65.83/mo annual ($790/yr) — 2 months free
+    | Pricing confirmed: Chapman doc 2026-07-17
     |--------------------------------------------------------------------------
     */
     'pricing' => [
 
         'practitioner' => [
             'access' => [
-                'name'              => 'Continuity Access',
-                'tagline'           => 'Essential continuity for solo practitioners.',
-                'monthly_cents'     => 2900,    // $29/mo
-                'annual_cents'      => 2300,    // $23/mo billed annually
-                'annual_total_cents'=> 27600,   // $276/yr
-                'save_label'        => 'save 20%',
-                'is_popular'        => false,
-                'features'          => [
+                'name'               => 'Continuity Access',
+                'tagline'            => 'Foundational continuity infrastructure.',
+                'monthly_cents'      => 3900,    // $39/mo
+                'annual_cents'       => 3575,    // $35.75/mo billed annually ($429/yr ÷ 12)
+                'annual_total_cents' => 42900,   // $429/yr
+                'save_label'         => '1 month free',
+                'is_popular'         => false,
+                'features'           => [
                     'Continuity Plan Builder',
                     'All 7 critical incident types',
                     'Document Vault (4 zones)',
-                    '1 Continuity Steward',
-                    '1 Support Steward',
+                    '1 Continuity Steward invitation',
+                    '2 Support Steward invitations',
+                    'Serve as CS for 1 practitioner',
                     'Shadow Network (limited)',
-                    'Secure messaging',
-                    'Activity log',
+                    'Secure messaging · Activity log',
                 ],
-                'locked'            => [
+                'locked'             => [
                     'Referrals — locked',
                     'My Services — locked',
                 ],
-                'hidden'            => [
+                'hidden'             => [
                     'Job Postings — hidden',
                 ],
             ],
             'practice' => [
-                'name'              => 'Continuity Practice',
-                'tagline'           => 'Full toolkit. The standard for active practices.',
-                'monthly_cents'     => 4900,    // $49/mo
-                'annual_cents'      => 3900,    // $39/mo billed annually
-                'annual_total_cents'=> 46800,   // $468/yr
-                'save_label'        => 'save 20%',
-                'is_popular'        => true,
-                'features'          => [
+                'name'               => 'Continuity Practice',
+                'tagline'            => 'Full toolkit. The standard for active practices.',
+                'monthly_cents'      => 7900,    // $79/mo
+                'annual_cents'       => 6583,    // $65.83/mo billed annually ($790/yr ÷ 12)
+                'annual_total_cents' => 79000,   // $790/yr
+                'save_label'         => '2 months free',
+                'is_popular'         => true,
+                'features'           => [
                     'Everything in Continuity Access, plus:',
-                    'Up to 2 Continuity Stewards (Primary + Alternate)',
-                    'Up to 4 Support Stewards',
+                    'Up to 2 Continuity Steward invitations',
+                    'Up to 4 Support Steward invitations',
+                    'Serve as CS for up to 3 practitioners',
                     'Referrals — send & receive',
                     'Full Integrative Network search',
                     'Integrative Services Mode (offer services to peers)',
@@ -71,15 +73,41 @@ return [
                     'Activity log export',
                     'Priority support & onboarding call',
                 ],
-                'locked'            => [],
-                'hidden'            => [],
+                'locked'             => [],
+                'hidden'             => [],
+            ],
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Practice CS Add-On (Practitioner only, requires Practice tier)
+        | +$25/mo · +$250/yr
+        | Unlocks provider-as-CS cap of 43 practitioners.
+        | Mirrors maat_addon billing pattern: second SubscriptionItem on
+        | the same 'default' subscription. Stripe webhook sets users.cs_addon.
+        |----------------------------------------------------------------------
+        */
+        'practice_cs_addon' => [
+            'name'              => 'Practice CS Add-On',
+            'short_name'        => 'CS Add-On',
+            'tagline'           => 'Serve as Continuity Steward for up to 43 practitioners.',
+            'requires_tier'     => 'practice',
+            'monthly_cents'     => 2500,    // +$25/mo
+            'annual_cents'      => 2083,    // +$20.83/mo annual ($250/yr ÷ 12)
+            'annual_total_cents'=> 25000,   // +$250/yr
+            'save_label'        => '2 months free',
+            'features'          => [
+                'Expand your CS capacity to 43 practitioners',
+                'Full earnings from each engagement via Stripe Connect',
+                'Multi-practitioner dashboard',
+                'Aegis Verified CS badge eligible',
             ],
         ],
 
         /*
         |----------------------------------------------------------------------
         | MAAT Professional CS Add-on (Practitioner only, requires Practice)
-        | +$29/mo · +$23/mo annual ($276/yr) — save 20%
+        | +$29/mo · +$23/mo annual ($276/yr) — unchanged
         |----------------------------------------------------------------------
         */
         'maat_addon' => [
@@ -103,15 +131,22 @@ return [
         /*
         |----------------------------------------------------------------------
         | Combo pricing (for display only — Stripe bills base + addon separately)
-        | Practice + MAAT: $78/mo · $62/mo annual
+        | Practice + MAAT:       $108/mo · $88.67/mo annual ($1,064/yr)
+        | Practice + CS Add-On:  $104/mo · $86.67/mo annual ($1,040/yr)
         |----------------------------------------------------------------------
         */
         'practitioner_combos' => [
             'practice_maat' => [
                 'label'              => 'Continuity Practice + MAAT',
-                'monthly_cents'      => 7800,    // $78/mo
-                'annual_cents'       => 6200,    // $62/mo annual
-                'annual_total_cents' => 74400,   // $744/yr
+                'monthly_cents'      => 10800,   // $108/mo ($79 + $29)
+                'annual_cents'       => 8867,    // $88.67/mo annual ($790 + $276 = $1,066/yr ÷ 12)
+                'annual_total_cents' => 106600,  // $1,066/yr
+            ],
+            'practice_cs_addon' => [
+                'label'              => 'Continuity Practice + CS Add-On',
+                'monthly_cents'      => 10400,   // $104/mo ($79 + $25)
+                'annual_cents'       => 8667,    // $86.67/mo annual ($790 + $250 = $1,040/yr ÷ 12)
+                'annual_total_cents' => 104000,  // $1,040/yr
             ],
         ],
 
@@ -143,7 +178,7 @@ return [
         /*
         |----------------------------------------------------------------------
         | Continuity Steward — Business Account
-        | $49/mo · $429/yr (≈ $35.75/mo — save ~27%)
+        | $49/mo · $490/yr (≈ $40.83/mo — 2 months free)
         | Covers 2–40 practitioners. Enterprise (41+) is custom quote.
         |----------------------------------------------------------------------
         */
@@ -151,9 +186,9 @@ return [
             'name'              => 'Business CS',
             'tagline'           => 'Independent paid CS account. Serve 2–40 practitioners.',
             'monthly_cents'     => 4900,    // $49/mo
-            'annual_cents'      => 3575,    // $429/yr ÷ 12 ≈ $35.75
-            'annual_total_cents'=> 42900,   // $429/yr
-            'save_label'        => 'save ~27%',
+            'annual_cents'      => 4083,    // $490/yr ÷ 12 ≈ $40.83
+            'annual_total_cents'=> 49000,   // $490/yr
+            'save_label'        => '2 months free',
             'scope'             => '2–40 practitioners',
             'features'          => [
                 'Independent paid CS account',
@@ -271,16 +306,34 @@ return [
     |--------------------------------------------------------------------------
     */
     'stripe_price_to_tier' => [
-        env('STRIPE_PRICE_ACCESS_MONTHLY')      => 'access',
-        env('STRIPE_PRICE_ACCESS_ANNUAL')       => 'access',
-        env('STRIPE_PRICE_PRACTICE_MONTHLY')    => 'practice',
-        env('STRIPE_PRICE_PRACTICE_ANNUAL')     => 'practice',
-        env('STRIPE_PRICE_BP_MONTHLY')          => 'business_partner',
-        env('STRIPE_PRICE_BP_ANNUAL')           => 'business_partner',
-        env('STRIPE_PRICE_CS_BUSINESS_MONTHLY') => 'cs_business',
-        env('STRIPE_PRICE_CS_BUSINESS_ANNUAL')  => 'cs_business',
-        env('STRIPE_PRICE_MAAT_MONTHLY')        => 'maat_addon',
-        env('STRIPE_PRICE_MAAT_ANNUAL')         => 'maat_addon',
+        env('STRIPE_PRICE_ACCESS_MONTHLY')              => 'access',
+        env('STRIPE_PRICE_ACCESS_ANNUAL')               => 'access',
+        env('STRIPE_PRICE_PRACTICE_MONTHLY')            => 'practice',
+        env('STRIPE_PRICE_PRACTICE_ANNUAL')             => 'practice',
+        env('STRIPE_PRICE_BP_MONTHLY')                  => 'business_partner',
+        env('STRIPE_PRICE_BP_ANNUAL')                   => 'business_partner',
+        env('STRIPE_PRICE_CS_BUSINESS_MONTHLY')         => 'cs_business',
+        env('STRIPE_PRICE_CS_BUSINESS_ANNUAL')          => 'cs_business',
+        env('STRIPE_PRICE_MAAT_MONTHLY')                => 'maat_addon',
+        env('STRIPE_PRICE_MAAT_ANNUAL')                 => 'maat_addon',
+        // Practice CS Add-On: does NOT change tier. Used by StripeEventListener
+        // to detect cs_addon subscription item → sets users.cs_addon = 1.
+        // Listed here for completeness; handled separately in webhook logic.
+        env('STRIPE_PRICE_PRACTICE_CS_ADDON_MONTHLY')   => 'practice_cs_addon',
+        env('STRIPE_PRICE_PRACTICE_CS_ADDON_ANNUAL')    => 'practice_cs_addon',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Provider-as-CS Caps
+    | How many OTHER practitioners' plans this provider can serve on as CS.
+    | Separate from tier_limits which governs how many CS/SS they can INVITE.
+    |--------------------------------------------------------------------------
+    */
+    'provider_as_cs_caps' => [
+        'access'              => (int) env('PROVIDER_AS_CS_MAX_ACCESS', 1),
+        'practice'            => (int) env('PROVIDER_AS_CS_MAX_PRACTICE', 3),
+        'practice_cs_addon'   => (int) env('PROVIDER_AS_CS_MAX_PRACTICE_CS_ADDON', 43),
     ],
 
     /*
@@ -301,7 +354,7 @@ return [
     */
     'tier_limits' => [
         'access' => [
-            'max_continuity_stewards' => (int) env('TIER_ACCESS_MAX_CS', 2),
+            'max_continuity_stewards' => (int) env('TIER_ACCESS_MAX_CS', 1),
             'max_support_stewards'    => (int) env('TIER_ACCESS_MAX_SS', 2),
             'referrals'               => false,
             'services_mode'           => false,
