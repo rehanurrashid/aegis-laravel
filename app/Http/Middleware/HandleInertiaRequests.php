@@ -182,6 +182,10 @@ class HandleInertiaRequests extends Middleware
                 'status'             => session('status'),
                 'review_contract_id' => session('review_contract_id'),
             ],
+            // Global pricing — single source of truth from config/aegis.php.
+            // Available on every page via usePricingStore() / usePage().props.pricing.
+            // Never hardcode prices in Vue — read them here.
+            'pricing' => config('aegis.pricing'),
         ]);
     }
 }

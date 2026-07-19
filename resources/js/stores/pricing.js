@@ -1,58 +1,57 @@
 import { defineStore } from 'pinia'
+import { usePage } from '@inertiajs/vue3'
+import { computed } from 'vue'
 
-/*
- * usePricingStore — mirrors the PHP pricing_data.php helper.
+/**
+ * usePricingStore — single source of truth for pricing data.
  *
- * Amounts are integer cents to match Aegis schema convention (money never
- * lives in floats). UI formats with formatCents() helper.
+ * Data flows: config/aegis.php → controller prop → Inertia shared props → here.
+ * No hardcoded prices live in this file. To change a price, edit config/aegis.php only.
+ *
+ * formatCents() is the platform-wide money formatter. Import this store anywhere
+ * you need to display a dollar amount from cents.
+ *
+ * getTier(key) — convenience accessor for 'access' | 'practice' plan data.
+ * Returns shape: { name, tagline, monthly, annual, maxCs, maxSs, includes, ... }
+ * with monthly/annual already converted to cents for use with formatCents().
  */
 export const usePricingStore = defineStore('pricing', () => {
-    const tiers = {
-        access: {
-            key: 'access',
-            name: 'Continuity Access',
-            tagline: 'Essential coverage for solo practitioners',
-            monthly: 2900,   // $29.00
-            annual:  2300,   // $23.00 / month billed annually
-            maxCs: 1,
-            maxSs: 2,
-            servicesMode: false,
-            includes: [
-                '1 Continuity Steward',
-                'Up to 2 Support Stewards',
-                'Vault (sealed credentials)',
-                'Plan attestation',
-                'Activity feed',
-            ],
-        },
-        practice: {
-            key: 'practice',
-            name: 'Continuity Practice',
-            tagline: 'For practices, group offices, and discoverability',
-            monthly: 4900,   // $49.00
-            annual:  3900,   // $39.00 / month billed annually
-            maxCs: 2,
-            maxSs: 4,
-            servicesMode: true,
-            includes: [
-                '2 Continuity Stewards',
-                'Up to 4 Support Stewards',
-                'Everything in Access',
-                'Services discoverability',
-                'Job postings & proposals',
-                'Network & referrals',
-            ],
-        },
-    }
+    const page = usePage()
 
+    /** Raw pricing object from config/aegis.php via Inertia prop */
+    const raw = computed(() => page.props?.pricing ?? {})
+
+    /** Format integer cents → "$12.34" */
     function formatCents(cents) {
-        const dollars = (cents / 100).toFixed(2)
-        return `$${dollars}`
+        if (cents == null || cents === '') return '—'
+        const n = Number(cents)
+        if (isNaN(n)) return '—'
+        return '$' + (n / 100).toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        })
     }
 
+    /**
+     * getTier(key) — returns normalized tier object for 'access' | 'practice'.
+     * Shape mirrors the old hardcoded tiers object so existing callers work unchanged.
+     */
     function getTier(key) {
-        return tiers[key] ?? null
+        const p = raw.value?.practitioner?.[key]
+        if (!p) return null
+        return {
+            key,
+            name:     p.name,
+            tagline:  p.tagline,
+            monthly:  p.monthly_cents,         // cents — use formatCents()
+            annual:   p.annual_cents,           // cents per month — use formatCents()
+            annualTotal: p.annual_total_cents,  // cents per year
+            saveLabel: p.save_label,
+            maxCs:    key === 'access' ? 1 : 2,
+            maxSs:    key === 'access' ? 2 : 4,
+            includes: p.features ?? [],
+        }
     }
 
-    return { tiers, getTier, formatCents }
+    return { raw, formatCents, getTier }
 })

@@ -92,7 +92,7 @@
           </div>
         </div>
         <div class="upgrade-order-price">
-          {{ pricing.formatCents(form.billing_cycle === 'annual' ? practice.annual * 12 : practice.monthly) }}
+          {{ pricing.formatCents(form.billing_cycle === 'annual' ? practice.annualTotal : practice.monthly) }}
           <span class="upgrade-order-price-sub">/{{ form.billing_cycle === 'annual' ? 'yr' : 'mo' }}</span>
         </div>
       </div>
@@ -241,7 +241,7 @@ const canSubmit = computed(() =>
 )
 
 const amountDue = computed(() =>
-  form.billing_cycle === 'annual' ? practice.annual * 12 : practice.monthly,
+  form.billing_cycle === 'annual' ? practice.annualTotal : practice.monthly,
 )
 
 function onUpdateOpen(value) {
