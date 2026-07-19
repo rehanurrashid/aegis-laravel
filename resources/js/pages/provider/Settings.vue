@@ -606,10 +606,9 @@
                     </div>
                   </div>
                   <div class="st-addon-foot" style="flex-direction:column;align-items:flex-start;gap:10px;">
-                    <div v-if="!hasMaat" class="addon-billing-toggle" style="display:flex;align-items:center;gap:8px;font-size:12px;">
-                      <span :style="!maatBillingAnnual ? 'font-weight:700;color:var(--text)' : 'color:var(--text-3)'">Monthly +$29/mo</span>
-                      <button type="button" class="toggle" :class="{ on: maatBillingAnnual }" @click="maatBillingAnnual = !maatBillingAnnual" />
-                      <span :style="maatBillingAnnual ? 'font-weight:700;color:var(--text)' : 'color:var(--text-3)'">Annual $276/yr <span class="st-save-pill">Save 20%</span></span>
+                    <div v-if="!hasMaat" style="font-size:12px;color:var(--text-3);display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+                      <AegisIcon name="info" :size="12" style="flex-shrink:0;color:var(--gold-dark);" />
+                      Billed {{ maatBillingAnnual ? 'annually ($276/yr)' : 'monthly (+$29/mo)' }} — matches your base plan.
                     </div>
                     <div style="display:flex;align-items:center;gap:12px;">
                       <button v-if="hasMaat" type="button" class="btn btn-outline" @click="toggleMaat(false)" :disabled="maatBusy"><AegisIcon v-if="maatBusy" name="refresh-cw" :size="13" class="btn-spin" />{{ maatBusy ? 'Removing…' : 'Remove MAAT' }}</button>
@@ -657,10 +656,9 @@
                     </div>
                   </div>
                   <div class="st-addon-foot" style="flex-direction:column;align-items:flex-start;gap:10px;">
-                    <div v-if="!hasCsAddonLocal" class="addon-billing-toggle" style="display:flex;align-items:center;gap:8px;font-size:12px;">
-                      <span :style="!csAddonBillingAnnual ? 'font-weight:700;color:var(--text)' : 'color:var(--text-3)'">Monthly +$25/mo</span>
-                      <button type="button" class="toggle" :class="{ on: csAddonBillingAnnual }" @click="csAddonBillingAnnual = !csAddonBillingAnnual" />
-                      <span :style="csAddonBillingAnnual ? 'font-weight:700;color:var(--text)' : 'color:var(--text-3)'">Annual $250/yr <span class="st-save-pill">2 months free</span></span>
+                    <div v-if="!hasCsAddonLocal" style="font-size:12px;color:var(--text-3);display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+                      <AegisIcon name="info" :size="12" style="flex-shrink:0;color:var(--gold-dark);" />
+                      Billed {{ csAddonBillingAnnual ? 'annually ($250/yr)' : 'monthly (+$25/mo)' }} — matches your base plan.
                     </div>
                     <div style="display:flex;align-items:center;gap:12px;">
                       <button v-if="hasCsAddonLocal" type="button" class="btn btn-outline" @click="toggleCsAddon(false)" :disabled="csAddonBusy">
@@ -1443,7 +1441,10 @@ const currentBillingIsAnnual = computed(() => {
 const billingAnnualView = ref(false);
 const accessPriceId     = computed(() => billingAnnualView.value ? prices.value.access_annual   : prices.value.access_monthly);
 const practicePriceId   = computed(() => billingAnnualView.value ? prices.value.practice_annual : prices.value.practice_monthly);
-const maatBillingAnnual  = ref(false);
+// Addon billing interval is always forced to match the base plan interval.
+// Stripe does not allow mixing monthly + annual items on one subscription.
+// This computed drives both the display and the POST payload.
+const maatBillingAnnual  = computed(() => currentBillingIsAnnual.value);
 const currentTierLabel  = computed(() => ({ access: 'Continuity Access', practice: 'Continuity Practice' }[currentTier.value] || 'No active plan'));
 const currentPlanLine   = computed(() => {
   if (subStatus.value === 'none') return 'No active subscription';
@@ -1475,7 +1476,7 @@ const hasCsAddon     = computed(() => !!sub.value.has_cs_addon);
 const hasCsAddonLocal = ref(props.hasCsAddon ?? false);
 // Sync local ref when subscription data updates (e.g. after page reload)
 watch(hasCsAddon, (v) => { hasCsAddonLocal.value = v; }, { immediate: true });
-const csAddonBillingAnnual = ref(false);
+const csAddonBillingAnnual = computed(() => currentBillingIsAnnual.value);
 // CS Add-On confirmation — mirrors MAAT pattern exactly
 const pendingCsAddon = reactive({ enable: false });
 const confirmCsAddon = ref(false);

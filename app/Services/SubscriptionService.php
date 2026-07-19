@@ -355,7 +355,15 @@ class SubscriptionService
      */
     public function toggleMaatAddon(User $user, bool $enable, string $billing = 'monthly'): User
     {
-        $maatPriceId = $billing === 'annual'
+        $sub = $user->subscription('default');
+        if (!$sub) {
+            throw new \RuntimeException('Cannot toggle MAAT — no active base subscription.');
+        }
+
+        // Always match the base subscription interval — Stripe requires all items
+        // on a subscription to share the same recurring.interval.
+        $resolvedBilling = $this->resolveAddonBilling($user, $sub);
+        $maatPriceId = $resolvedBilling === 'annual'
             ? env('STRIPE_PRICE_MAAT_ANNUAL')
             : env('STRIPE_PRICE_MAAT_MONTHLY');
 
@@ -365,18 +373,13 @@ class SubscriptionService
             );
         }
 
-        $sub = $user->subscription('default');
-        if (!$sub) {
-            throw new \RuntimeException('Cannot toggle MAAT — no active base subscription.');
-        }
-
         try {
             if ($enable) {
                 if (!$sub->hasPrice($maatPriceId)) {
                     $sub->addPrice($maatPriceId);
                 }
             } else {
-                // Remove either MAAT price (monthly or annual) if present
+                // Remove whichever MAAT interval is currently active
                 foreach ([env('STRIPE_PRICE_MAAT_MONTHLY'), env('STRIPE_PRICE_MAAT_ANNUAL')] as $priceId) {
                     if ($priceId && $sub->hasPrice($priceId)) {
                         $sub->removePrice($priceId);
@@ -387,6 +390,7 @@ class SubscriptionService
             Log::error('[SubscriptionService] toggleMaatAddon failed', [
                 'user_id' => $user->id,
                 'enable'  => $enable,
+                'resolved_billing' => $resolvedBilling,
                 'price'   => $maatPriceId,
                 'error'   => $e->getMessage(),
             ]);
@@ -409,16 +413,6 @@ class SubscriptionService
      */
     public function toggleCsAddon(User $user, bool $enable, string $billing = 'monthly'): User
     {
-        $priceId = $billing === 'annual'
-            ? env('STRIPE_PRICE_PRACTICE_CS_ADDON_ANNUAL')
-            : env('STRIPE_PRICE_PRACTICE_CS_ADDON_MONTHLY');
-
-        if (!$priceId) {
-            throw new \RuntimeException(
-                'CS Add-On price not configured. Set STRIPE_PRICE_PRACTICE_CS_ADDON_MONTHLY / _ANNUAL in .env.'
-            );
-        }
-
         if ($user->tier?->value !== 'practice') {
             throw new \RuntimeException('CS Add-On requires the Practice tier.');
         }
@@ -435,13 +429,26 @@ class SubscriptionService
             throw new \RuntimeException('Cannot toggle CS Add-On — no active base subscription.');
         }
 
+        // Always match the base subscription interval — Stripe requires all items
+        // on a subscription to share the same recurring.interval.
+        $resolvedBilling = $this->resolveAddonBilling($user, $sub);
+        $priceId = $resolvedBilling === 'annual'
+            ? env('STRIPE_PRICE_PRACTICE_CS_ADDON_ANNUAL')
+            : env('STRIPE_PRICE_PRACTICE_CS_ADDON_MONTHLY');
+
+        if (!$priceId) {
+            throw new \RuntimeException(
+                'CS Add-On price not configured. Set STRIPE_PRICE_PRACTICE_CS_ADDON_MONTHLY / _ANNUAL in .env.'
+            );
+        }
+
         try {
             if ($enable) {
                 if (!$sub->hasPrice($priceId)) {
                     $sub->addPrice($priceId);
                 }
             } else {
-                // Remove either billing-period price if present
+                // Remove whichever CS addon interval is currently active
                 foreach ([
                     env('STRIPE_PRICE_PRACTICE_CS_ADDON_MONTHLY'),
                     env('STRIPE_PRICE_PRACTICE_CS_ADDON_ANNUAL'),
@@ -455,6 +462,7 @@ class SubscriptionService
             Log::error('[SubscriptionService] toggleCsAddon failed', [
                 'user_id' => $user->id,
                 'enable'  => $enable,
+                'resolved_billing' => $resolvedBilling,
                 'price'   => $priceId,
                 'error'   => $e->getMessage(),
             ]);
@@ -467,6 +475,55 @@ class SubscriptionService
         event(new CsAddonChanged($user->fresh(), $addonState));
 
         return $user->fresh();
+    }
+
+    /**
+     * Detect the billing interval of the user's base subscription by inspecting
+     * the first subscription item's price interval on Stripe.
+     *
+     * Stripe requires all SubscriptionItems on a subscription to share the same
+     * recurring.interval. We enforce this by always matching the addon interval
+     * to the base plan interval, regardless of what the UI toggle says.
+     *
+     * Returns 'annual' if the base item interval is 'year', 'monthly' otherwise.
+     */
+    private function resolveAddonBilling(User $user, \Laravel\Cashier\Subscription $sub): string
+    {
+        // Fast path: check against known annual price IDs from env
+        $knownAnnualPrices = array_filter([
+            env('STRIPE_PRICE_ACCESS_ANNUAL'),
+            env('STRIPE_PRICE_PRACTICE_ANNUAL'),
+            env('STRIPE_PRICE_CS_BUSINESS_ANNUAL'),
+            env('STRIPE_PRICE_BP_ANNUAL'),
+            env('STRIPE_PRICE_MAAT_ANNUAL'),
+            env('STRIPE_PRICE_PRACTICE_CS_ADDON_ANNUAL'),
+        ]);
+
+        if ($sub->stripe_price && in_array($sub->stripe_price, $knownAnnualPrices, true)) {
+            return 'annual';
+        }
+
+        // Slow path: fetch from Stripe to inspect the actual interval
+        // (handles edge cases where stripe_price is a different item)
+        try {
+            $stripe    = $user->stripe();
+            $stripeSub = $stripe->subscriptions->retrieve($sub->stripe_id, [
+                'expand' => ['items.data.price'],
+            ]);
+            foreach ($stripeSub->items->data as $item) {
+                $interval = $item->price->recurring->interval ?? 'month';
+                if ($interval === 'year') {
+                    return 'annual';
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('[SubscriptionService] resolveAddonBilling Stripe fetch failed — defaulting to monthly', [
+                'user_id' => $user->id,
+                'error'   => $e->getMessage(),
+            ]);
+        }
+
+        return 'monthly';
     }
 
     /**
