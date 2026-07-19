@@ -64,7 +64,7 @@
           <div class="ob-billing-toggle">
             <button type="button" class="ob-billing-btn" :class="{ active: billing === 'monthly' }" @click="billing = 'monthly'">Monthly</button>
             <button type="button" class="ob-billing-btn" :class="{ active: billing === 'annual' }" @click="billing = 'annual'">
-              Annual <span class="ob-save-badge">Save 20%</span>
+              Annual <span class="ob-save-badge">Up to 2 months free</span>
             </button>
           </div>
 
@@ -76,7 +76,7 @@
                 <span class="ob-price-amount">${{ billing === 'annual' ? p.practitioner.access.annual_monthly : p.practitioner.access.monthly }}</span>
                 <span class="ob-price-period">/mo</span>
               </div>
-              <div v-if="billing === 'annual'" class="ob-plan-card-note">Billed ${{ p.practitioner.access.annual_total }}/year · save 20%</div>
+              <div v-if="billing === 'annual'" class="ob-plan-card-note">Billed ${{ p.practitioner.access.annual_total }}/year · 1 month free</div>
               <div class="ob-plan-card-desc">Essential continuity for solo practitioners</div>
               <ul class="ob-plan-features">
                 <li v-for="f in p.practitioner.access.features" :key="f">
@@ -101,7 +101,7 @@
                 <span class="ob-price-amount">${{ billing === 'annual' ? p.practitioner.practice.annual_monthly : p.practitioner.practice.monthly }}</span>
                 <span class="ob-price-period">/mo</span>
               </div>
-              <div v-if="billing === 'annual'" class="ob-plan-card-note">Billed ${{ p.practitioner.practice.annual_total }}/year · save 20%</div>
+              <div v-if="billing === 'annual'" class="ob-plan-card-note">Billed ${{ p.practitioner.practice.annual_total }}/year · 2 months free</div>
               <div class="ob-plan-card-desc">Full toolkit for active practices</div>
               <ul class="ob-plan-features">
                 <li v-for="f in p.practitioner.practice.features" :key="f">
@@ -273,20 +273,25 @@ const addMaat      = ref(false)
 // ── Pricing helpers (cents → dollars) ─────────────────────────────────
 const p = computed(() => {
   const pricing = props.pricing
-  const toD = (c) => Math.round((c ?? 0) / 100)
+  const toD  = (c) => Math.round((c ?? 0) / 100)
+  // For annual monthly display — show exact decimal (e.g. $35.75, $65.83)
+  const toDF = (c) => {
+    const v = (c ?? 0) / 100
+    return v % 1 === 0 ? v.toString() : v.toFixed(2)
+  }
 
   return {
     practitioner: {
       access: {
         monthly:       toD(pricing?.practitioner?.access?.monthly_cents),
-        annual_monthly:toD(pricing?.practitioner?.access?.annual_cents),
+        annual_monthly:toDF(pricing?.practitioner?.access?.annual_cents),
         annual_total:  toD(pricing?.practitioner?.access?.annual_total_cents),
         features:      pricing?.practitioner?.access?.features ?? [],
         locked:        pricing?.practitioner?.access?.locked ?? [],
       },
       practice: {
         monthly:       toD(pricing?.practitioner?.practice?.monthly_cents),
-        annual_monthly:toD(pricing?.practitioner?.practice?.annual_cents),
+        annual_monthly:toDF(pricing?.practitioner?.practice?.annual_cents),
         annual_total:  toD(pricing?.practitioner?.practice?.annual_total_cents),
         features:      pricing?.practitioner?.practice?.features ?? [],
         locked:        [],

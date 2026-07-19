@@ -224,11 +224,11 @@ const toD = (c) => Math.round((c ?? 0) / 100)
 const basePlanPriceCents = computed(() => {
   const t = props.plan?.tier
   const b = props.plan?.billing
-  if (t === 'access')      return b === 'annual' ? (props.pricing?.practitioner?.access?.annual_cents   ?? 2300) : (props.pricing?.practitioner?.access?.monthly_cents   ?? 2900)
-  if (t === 'practice')    return b === 'annual' ? (props.pricing?.practitioner?.practice?.annual_cents ?? 3900) : (props.pricing?.practitioner?.practice?.monthly_cents ?? 4900)
+  if (t === 'access')      return b === 'annual' ? (props.pricing?.practitioner?.access?.annual_cents   ?? 3575) : (props.pricing?.practitioner?.access?.monthly_cents   ?? 3900)
+  if (t === 'practice')    return b === 'annual' ? (props.pricing?.practitioner?.practice?.annual_cents ?? 6583) : (props.pricing?.practitioner?.practice?.monthly_cents ?? 7900)
   if (t === 'monthly')     return props.pricing?.business_partner?.monthly_cents  ?? 6900
   if (t === 'annual')      return props.pricing?.business_partner?.annual_total_cents ?? 69000
-  if (t === 'cs_business') return b === 'annual' ? (props.pricing?.continuity_steward_business?.annual_cents ?? 3600) : (props.pricing?.continuity_steward_business?.monthly_cents ?? 4900)
+  if (t === 'cs_business') return b === 'annual' ? (props.pricing?.continuity_steward_business?.annual_cents ?? 4083) : (props.pricing?.continuity_steward_business?.monthly_cents ?? 4900)
   return 0
 })
 
@@ -262,7 +262,7 @@ const planDisplayPrice = computed(() => {
 
 const planBillingDetail = computed(() => {
   const b = props.plan?.billing
-  if (b === 'annual') return 'Billed annually · save 20%'
+  if (b === 'annual') return 'Billed annually · up to 2 months free'
   return 'Billed monthly · cancel anytime'
 })
 

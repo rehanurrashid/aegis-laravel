@@ -11,9 +11,7 @@
         <a :href="route('activity.index') + '?module=support_stewards'" class="btn-hero-ghost is-on-light" data-tooltip="Module activity">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
-        <button type="button" class="btn-hero-ghost is-on-light" @click="router.visit(route('provider.network.index') + '?scope=ss')">
-          <AegisIcon name="search" :size="14" /> Browse SS Directory
-        </button>
+        <!-- Browse SS Directory removed per Chapman decision #4 -->
         <button class="btn-hero-solid is-on-light" @click="handleAddSS">
           <AegisIcon name="plus" :size="14" /> Add Support Steward
         </button>
@@ -370,79 +368,84 @@
 
     <!-- ═══════════════════ MODALS ═══════════════════ -->
 
-    <!-- ADD SS STEP 1 -->
-    <AegisModal :model-value="isOpen('addDsrStep1Modal').value" title="Find Person" size="lg" @update:model-value="v => !v && closeModal('addDsrStep1Modal')">
-      <div class="modal-steps">
-        <div class="modal-step active"><span class="modal-step-num">1</span>Find Person</div>
-        <div class="modal-step-divider"></div>
-        <div class="modal-step"><span class="modal-step-num">2</span>Role &amp; Send</div>
+    <!-- ADD SUPPORT STEWARD — two-tab modal (Chapman decision #13) -->
+    <!-- Tab A: existing Aegis user (match by name + email) -->
+    <!-- Tab B: external invite (send onboarding email) -->
+    <AegisModal :model-value="isOpen('addDsrStep1Modal').value" title="Add Support Steward" size="lg" @update:model-value="v => !v && closeModal('addDsrStep1Modal')">
+
+      <!-- Flow tabs -->
+      <div class="tabs-segmented" style="margin-bottom:20px" role="tablist">
+        <button type="button" class="tab-pill" :class="{ active: addSsFlow === 'existing' }" @click="addSsFlow = 'existing'">
+          <AegisIcon name="user" :size="13" /> Existing Aegis User
+        </button>
+        <button type="button" class="tab-pill" :class="{ active: addSsFlow === 'external' }" @click="addSsFlow = 'external'">
+          <AegisIcon name="mail" :size="13" /> External Invite
+        </button>
       </div>
-      <div class="form-group">
-        <label class="form-label">Search Aegis Users or Invite by Email</label>
-        <input v-model="searchQuery" class="form-input" type="text" placeholder="Search by name, email, or relationship…">
-      </div>
-      <div class="accordion-item" style="margin-top:6px">
-        <div class="accordion-trigger" @click="$event.currentTarget.parentElement.classList.toggle('open')">
-          <div style="display:flex;align-items:center;gap:8px"><AegisIcon name="mail" :size="14" /> <span>Invite someone who isn't on Aegis yet</span></div>
-          <span class="accordion-caret"><AegisIcon name="chevron-down" :size="14" /></span>
+
+      <!-- Flow A: existing user -->
+      <div v-show="addSsFlow === 'existing'">
+        <div class="alert alert-info" style="margin-bottom:14px">
+          <div class="alert-icon"><AegisIcon name="info" :size="14" /></div>
+          <div>Enter the full name and email address of an existing Aegis user. Both must match exactly.</div>
         </div>
-        <div class="accordion-content">
-          <div class="row-2" style="margin-top:4px">
-            <div class="form-group">
-              <label class="form-label">Full Name</label>
-              <input v-model="inviteForm.display_name" class="form-input" type="text" placeholder="First Last">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Email <span class="required">*</span></label>
-              <input v-model="inviteForm.email" class="form-input" :class="{ 'is-error': fieldError('email') }" type="email" placeholder="email@example.com" @blur="v$.inviteForm.email.$touch()">
-              <div v-if="fieldError('email')" class="form-error">{{ fieldError('email') }}</div>
-            </div>
+        <div class="row-2">
+          <div class="form-group">
+            <label class="form-label">Full Name <span class="required">*</span></label>
+            <input v-model="inviteForm.display_name" class="form-input" :class="{ 'is-error': fieldError('display_name') }" type="text" placeholder="First Last" @blur="v$.inviteForm.display_name.$touch()">
+            <div v-if="fieldError('display_name')" class="form-error">{{ fieldError('display_name') }}</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address <span class="required">*</span></label>
+            <input v-model="inviteForm.email" class="form-input" :class="{ 'is-error': fieldError('email') }" type="email" placeholder="email@example.com" @blur="v$.inviteForm.email.$touch()">
+            <div v-if="fieldError('email')" class="form-error">{{ fieldError('email') }}</div>
           </div>
         </div>
       </div>
-      <div class="alert alert-info" style="margin-top:4px">
-        <div class="alert-icon"><AegisIcon name="info" :size="16" /></div>
-        <div><strong>Invitation-only:</strong> Support Stewards cannot self-sign-up — they must be invited by you.</div>
-      </div>
-      <template #footer>
-        <button class="btn btn-outline" @click="closeModal('addDsrStep1Modal')">Cancel</button>
-        <button class="btn btn-primary" @click="closeModal('addDsrStep1Modal'); openModal('addDsrStep2Modal')">Next: Set Role &amp; Permissions &rarr;</button>
-      </template>
-    </AegisModal>
 
-    <!-- ADD SS STEP 2 -->
-    <AegisModal :model-value="isOpen('addDsrStep2Modal').value" title="Set Role &amp; Permissions" size="lg" @update:model-value="v => !v && closeModal('addDsrStep2Modal')">
-      <div class="modal-steps">
-        <div class="modal-step done"><span class="modal-step-num"><AegisIcon name="check" :size="10" /></span>Find Person</div>
-        <div class="modal-step-divider"></div>
-        <div class="modal-step active"><span class="modal-step-num">2</span>Role &amp; Send</div>
+      <!-- Flow B: external invite -->
+      <div v-show="addSsFlow === 'external'">
+        <div class="alert alert-info" style="margin-bottom:14px">
+          <div class="alert-icon"><AegisIcon name="mail" :size="14" /></div>
+          <div>Send an onboarding invitation to someone who is not yet on Aegis. They will receive an email to create their account and accept your SS invitation.</div>
+        </div>
+        <div class="row-2">
+          <div class="form-group">
+            <label class="form-label">Full Name <span class="required">*</span></label>
+            <input v-model="inviteForm.display_name" class="form-input" :class="{ 'is-error': fieldError('display_name') }" type="text" placeholder="First Last" @blur="v$.inviteForm.display_name.$touch()">
+            <div v-if="fieldError('display_name')" class="form-error">{{ fieldError('display_name') }}</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email Address <span class="required">*</span></label>
+            <input v-model="inviteForm.email" class="form-input" :class="{ 'is-error': fieldError('email') }" type="email" placeholder="email@example.com" @blur="v$.inviteForm.email.$touch()">
+            <div v-if="fieldError('email')" class="form-error">{{ fieldError('email') }}</div>
+          </div>
+        </div>
       </div>
-      <div class="form-group">
+
+      <!-- Role picker (shared) -->
+      <div class="form-group" style="margin-top:16px">
         <label class="form-label">Support Steward Role <span class="required">*</span></label>
-        <div class="role-option" :class="{ selected: inviteForm.role === 'primary' }" @click="inviteForm.role = 'primary'">
-          <input type="radio" name="dsrRole" value="primary" :checked="inviteForm.role === 'primary'" style="accent-color:var(--gold-dark)">
+        <div class="role-option" :class="{ selected: inviteForm.role === 'support' }" @click="inviteForm.role = 'support'">
+          <input type="radio" name="dsrRole" value="support" :checked="inviteForm.role === 'support'" style="accent-color:var(--gold-dark)">
           <div>
             <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text)"><AegisIcon name="user" :size="14" /> Support Steward</div>
-            <div style="font-size:12px;color:var(--text-3);margin-top:3px">A trusted individual who supports communication, coordination, and key tasks during a critical moment, guided by your Continuity Plan.</div>
+            <div style="font-size:12px;color:var(--text-3);margin-top:3px">Supports communication, coordination, and key tasks during a critical moment, guided by your Continuity Plan.</div>
           </div>
         </div>
         <div class="role-option" :class="{ selected: inviteForm.role === 'alternate' }" @click="inviteForm.role = 'alternate'">
           <input type="radio" name="dsrRole" value="alternate" :checked="inviteForm.role === 'alternate'" style="accent-color:var(--gold-dark)">
           <div>
-            <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text)"><AegisIcon name="user" :size="14" /> Alternative Support Steward</div>
-            <div style="font-size:12px;color:var(--text-3);margin-top:3px">Steps in if your primary Support Steward is unavailable, so coordination continues without interruption.</div>
+            <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text)"><AegisIcon name="user" :size="14" /> Alternate Support Steward</div>
+            <div style="font-size:12px;color:var(--text-3);margin-top:3px">Steps in if the primary Support Steward is unavailable.</div>
           </div>
         </div>
       </div>
-      <div class="alert alert-info" style="margin-top:8px;">
-        <AegisIcon name="info" :size="16" />
-        <div>This Support Steward will be authorized to verify critical incidents and trigger your Continuity Plan. Specific task lists are defined in your <a :href="route('provider.plan.index')">Continuity Plan</a>.</div>
-      </div>
 
       <template #footer>
-        <button class="btn btn-outline" @click="closeModal('addDsrStep2Modal'); openModal('addDsrStep1Modal')">← Back</button>
+        <button class="btn btn-outline" @click="closeModal('addDsrStep1Modal')">Cancel</button>
         <button class="btn btn-primary" :class="{ 'btn-spin': inviteForm.processing }" :disabled="inviteForm.processing" @click="submitInvite">
-          <AegisIcon name="check" :size="13" /> {{ inviteForm.processing ? 'Sending…' : 'Send Invitation' }}
+          <AegisIcon name="check" :size="13" /> {{ inviteForm.processing ? 'Sending…' : addSsFlow === 'external' ? 'Send Invitation' : 'Designate as SS' }}
         </button>
       </template>
     </AegisModal>
@@ -820,8 +823,8 @@ function openCancelInvite(s){ activeStewardId.value = s.id; openModal('cancelInv
 
 // ── Forms (all at top-level of setup) ────────────────────
 const inviteForm = useForm({
-  user_id: null, email: '', display_name: '', role: 'primary',
-  expires_days: '30', message: '',
+  user_id: null, email: '', display_name: '', role: 'support',
+  external: false, expires_days: '30', message: '',
 })
 const editForm = useForm({
   display_name: '', relationship: '', phone: '', email: '', role: 'primary', notes: '',
@@ -835,10 +838,14 @@ const resendForm    = useForm({ expires_days: '30', message: '' })
 
 const removeConfirm  = ref('')
 const searchQuery    = ref('')
+const addSsFlow      = ref('existing') // 'existing' | 'external'
 
 // ── Vuelidate ─────────────────────────────────────────────
 const rules = {
-  inviteForm: { email: { email: helpers.withMessage('A valid email is required.', emailRule) } },
+  inviteForm: {
+    email: { email: helpers.withMessage('A valid email is required.', emailRule) },
+    display_name: { required: helpers.withMessage('Full name is required.', required) },
+  },
   suspendForm: { reason: { required: helpers.withMessage('Please select a reason.', required) } },
   removeForm:  { reason: { required: helpers.withMessage('Please select a reason.', required) } },
 }
@@ -847,6 +854,7 @@ const v$ = useVuelidate(rules, { inviteForm, suspendForm, removeForm })
 function fieldError(key) {
   const map = {
     email:        v$.value.inviteForm?.email,
+    display_name: v$.value.inviteForm?.display_name,
     reason:       v$.value.suspendForm?.reason,
     removeReason: v$.value.removeForm?.reason,
   }
@@ -858,9 +866,21 @@ function fieldError(key) {
 async function submitInvite() {
   const ok = await v$.value.$validate()
   if (!ok) return
-  inviteForm.post(route('provider.ss.invite'), {
+  // Set external flag based on active flow tab
+  inviteForm.external = addSsFlow.value === 'external'
+  inviteForm.post(route('provider.ss.designate'), {
     preserveScroll: true,
-    onSuccess: () => { toast.success('Support Steward invited successfully.'); closeModal('addDsrStep2Modal'); inviteForm.reset() },
+    onSuccess: () => {
+      toast.success(addSsFlow.value === 'external' ? 'Invitation sent.' : 'Support Steward designated.')
+      closeModal('addDsrStep1Modal')
+      inviteForm.reset()
+      addSsFlow.value = 'existing'
+    },
+    onError: (errors) => {
+      if (errors.email || errors.display_name) {
+        // Validation error from backend — stay on modal, show field errors
+      }
+    },
   })
 }
 

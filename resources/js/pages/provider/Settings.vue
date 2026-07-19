@@ -434,10 +434,10 @@
               <div v-for="row in privacyToggles" :key="row.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ row.label }}</div><div class="toggle-desc">{{ row.desc }}</div></div><button type="button" class="toggle" :class="{ on: privacy[row.key] }" @click="privacy[row.key] = !privacy[row.key]" :aria-pressed="privacy[row.key]"></button></div>
               <div class="toggle-row">
                 <div class="toggle-info">
-                  <div class="toggle-label">Available as Support Steward</div>
-                  <div class="toggle-desc">Allow other providers to find and designate you as their Support Steward. You will appear in the SS directory in Network.</div>
+                  <div class="toggle-label">Available as Continuity Steward</div>
+                  <div class="toggle-desc">Allow other providers to find and designate you as their Continuity Steward. You will appear in the CS directory in Network.</div>
                 </div>
-                <button type="button" class="toggle" :class="{ on: availableAsSs }" :aria-pressed="availableAsSs" @click="availableAsSs = !availableAsSs; saveAvailableAsSs(availableAsSs)"></button>
+                <button type="button" class="toggle" :class="{ on: availableAsCs }" :aria-pressed="availableAsCs" @click="availableAsCs = !availableAsCs; saveAvailableAsCs(availableAsCs)"></button>
               </div>
               <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
                 <button type="button" class="btn btn-primary btn-sm" :disabled="privacySaving" @click="savePrivacySettings">
@@ -540,7 +540,7 @@
               <div class="st-cycle-toggle" v-if="subStatus !== 'none'">
                 <span :class="{ active: !billingAnnualView }">Monthly</span>
                 <button type="button" class="toggle" :class="{ on: billingAnnualView }" @click="billingAnnualView = !billingAnnualView"></button>
-                <span :class="{ active: billingAnnualView }">Annual <span class="st-save-pill">Save 20%</span></span>
+                <span :class="{ active: billingAnnualView }">Annual <span class="st-save-pill">Save up to 2 months</span></span>
               </div>
 
               <!-- Plan grid -->
@@ -551,8 +551,8 @@
                     <AegisIcon name="check" :size="11" /> Current Plan
                   </span>
                   <div class="st-plan-tier-name">Continuity Access</div>
-                  <div class="st-plan-tier-price">${{ billingAnnualView ? 23 : 29 }}<span>/mo</span></div>
-                  <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $276/yr' : 'or $276/yr (save 20%)' }}</div>
+                  <div class="st-plan-tier-price">${{ billingAnnualView ? '35.75' : 39 }}<span>/mo</span></div>
+                  <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $429/yr · 1 month free' : 'or $429/yr (1 month free)' }}</div>
                   <div class="st-plan-feats">
                     <span v-for="f in accessFeatures" :key="f"><AegisIcon name="check" :size="13" /> {{ f }}</span>
                   </div>
@@ -571,8 +571,8 @@
                     <AegisIcon name="check" :size="11" /> Current Plan
                   </span>
                   <div class="st-plan-tier-name">Continuity Practice</div>
-                  <div class="st-plan-tier-price">${{ billingAnnualView ? 39 : 49 }}<span>/mo</span></div>
-                  <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $468/yr' : 'or $468/yr (save 20%)' }}</div>
+                  <div class="st-plan-tier-price">${{ billingAnnualView ? '65.83' : 79 }}<span>/mo</span></div>
+                  <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $790/yr · 2 months free' : 'or $790/yr (2 months free)' }}</div>
                   <div class="st-plan-feats">
                     <span v-for="f in practiceFeatures" :key="f"><AegisIcon name="check" :size="13" /> {{ f }}</span>
                   </div>
@@ -586,7 +586,7 @@
                 </div>
               </div>
 
-              <!-- Add-ons — MAAT (requires Practice) -->
+              <!-- Add-ons — MAAT + CS Add-On (both require Practice) -->
               <div class="st-included-head" id="settings-anchor-maat" style="margin-top:24px">Add-ons</div>
               <div class="st-note" style="margin-top:-4px;margin-bottom:14px">Stack on top of your base plan. Add or remove at any time.</div>
               <div class="st-addon-card">
@@ -631,6 +631,35 @@
           </div>
 
           <!-- ── PLAN SWAP CONFIRMATION ──────────────────────────────────── -->
+
+              <!-- CS Add-On (requires Practice) -->
+              <div class="st-addon-row" style="margin-top:16px" :class="{ 'st-addon-active': hasCsAddonLocal }">
+                <div class="st-addon-header">
+                  <div class="st-addon-name">Practice CS Add-On <span class="st-addon-tag">CS Add-On</span></div>
+                  <div class="st-addon-price">
+                    +<strong>${{ csAddonBillingAnnual ? '20.83' : 25 }}</strong>/mo
+                    <div class="st-addon-billed">{{ csAddonBillingAnnual ? 'billed $250/yr · 2 months free' : 'or $250/yr (2 months free)' }}</div>
+                  </div>
+                </div>
+                <div class="st-addon-desc">Expand your CS capacity to serve up to 43 practitioners as a Continuity Steward. For active practitioners who serve as CS for others.</div>
+                <div v-if="currentTier !== 'practice'" class="alert alert-warning" style="margin-bottom:12px;margin-top:4px;">
+                  <div class="alert-icon"><AegisIcon name="lock" :size="14" /></div>
+                  <div class="alert-content"><div>The CS Add-On is only available on the Continuity Practice plan.</div></div>
+                </div>
+                <div class="st-addon-actions" style="margin-top:10px">
+                  <button v-if="hasCsAddonLocal" type="button" class="btn btn-outline" @click="toggleCsAddon(false)" :disabled="csAddonBusy">
+                    <AegisIcon v-if="csAddonBusy" name="refresh-cw" :size="13" class="btn-spin" />{{ csAddonBusy ? 'Removing…' : 'Remove CS Add-On' }}
+                  </button>
+                  <button v-else type="button" class="btn btn-gold"
+                    @click="toggleCsAddon(true)"
+                    :disabled="csAddonBusy || currentTier !== 'practice'"
+                    :data-tooltip="currentTier !== 'practice' ? 'Upgrade to Continuity Practice to add CS Add-On' : null">
+                    <AegisIcon name="users" :size="13" /> Add CS Add-On
+                  </button>
+                  <span v-if="currentTier === 'practice'" class="st-addon-req">Available with your plan</span>
+                </div>
+              </div>
+
           <!-- MAAT downgrade blocker -->
           <AegisModal v-model="confirmDowngradeBlocked" title="Remove MAAT Before Downgrading" size="sm">
             <div class="alert alert-gold" style="margin-bottom:16px;">
@@ -870,6 +899,8 @@ const props = defineProps({
   pricing:                 { type: Object,  default: () => ({}) },
   activeAgreements: { type: Array,   default: () => [] },
   paymentMethods:   { type: Array,   default: () => [] },
+  hasCsAddon:       { type: Boolean, default: false },
+  availableAsCs:    { type: Boolean, default: false },
 });
 
 const toast = useToast();
@@ -1276,12 +1307,12 @@ function savePrivacySettings() {
     onFinish:  () => { privacySaving.value = false; },
   });
 }
-const availableAsSs = ref(props.meta?.available_as_ss ?? false);
-function saveAvailableAsSs(val) {
-  router.post(route('provider.settings.ss-availability'), { available_as_ss: val }, {
+const availableAsCs = ref(props.availableAsCs ?? false);
+function saveAvailableAsCs(val) {
+  router.post(route('provider.settings.cs-availability'), { available_as_cs: val }, {
     preserveScroll: true,
-    onSuccess: () => toast.success('SS availability updated.'),
-    onError:   () => toast.error('Could not update SS availability.'),
+    onSuccess: () => toast.success('CS availability updated.'),
+    onError:   () => toast.error('Could not update CS availability.'),
   });
 }
 const privacyLevels = [
@@ -1353,8 +1384,8 @@ const maatBillingAnnual = computed(() => currentBillingIsAnnual.value);
 const currentTierLabel  = computed(() => ({ access: 'Continuity Access', practice: 'Continuity Practice' }[currentTier.value] || 'No active plan'));
 const currentPlanLine   = computed(() => {
   if (subStatus.value === 'none') return 'No active subscription';
-  const monthly = currentTier.value === 'access' ? 29 : 49;
-  const annualMo = currentTier.value === 'access' ? 23 : 39;
+  const monthly = currentTier.value === 'access' ? 39 : 79;
+  const annualMo = currentTier.value === 'access' ? 35.75 : 65.83;
   const rate = currentBillingIsAnnual.value ? annualMo : monthly;
   return `${currentTierLabel.value} — $${rate}/mo (${currentBillingIsAnnual.value ? 'annual' : 'monthly'})`;
 });
@@ -1374,6 +1405,24 @@ const swapButtonLabel = (tier) => {
   return isUpgrade ? 'Upgrade to this plan' : 'Downgrade to this plan';
 };
 const planBusy = ref(false); const maatBusy = ref(false); const pmBusy = ref(false);
+const csAddonBusy = ref(false);
+const hasCsAddonLocal = ref(props.hasCsAddon ?? false);
+const csAddonBillingAnnual = computed(() => currentBillingIsAnnual.value);
+function toggleCsAddon(enable) {
+  csAddonBusy.value = true;
+  router.post(route('provider.settings.subscription.cs-addon'), {
+    enable,
+    billing: csAddonBillingAnnual.value ? 'annual' : 'monthly',
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      hasCsAddonLocal.value = enable;
+      toast.success(enable ? 'CS Add-On activated.' : 'CS Add-On removed.');
+    },
+    onError:   () => toast.error('Could not update CS Add-On.'),
+    onFinish:  () => { csAddonBusy.value = false; },
+  });
+}
 const confirmCancel  = ref(false);
 const confirmResume  = ref(false);
 // Plan swap confirmation
@@ -1383,15 +1432,15 @@ const confirmSwap    = ref(false);
 const pendingMaat    = reactive({ enable: false });
 const confirmMaat    = ref(false);
 const confirmDowngradeBlocked = ref(false);
-const accessFeatures   = ['Limited dashboard view','1 Continuity Steward included','2 Support Stewards included','Core continuity planning','Continuity Plan','Document Vault','Integrative Care Network (limited)'];
-const practiceFeatures = ['Full dashboard access','Up to 2 Continuity Stewards','2 Support Stewards included','All continuity features','Continuity Plan','Full Document Vault','Full Integrative Care Network','Integrative Care Network Matching','Business Partners access'];
+const accessFeatures   = ['1 Continuity Steward invitation','2 Support Steward invitations','Serve as CS for 1 practitioner','Continuity Plan Builder','All 7 incident types','Document Vault (4 zones)','Shadow Network (limited)'];
+const practiceFeatures = ['Up to 2 Continuity Steward invitations','Up to 4 Support Steward invitations','Serve as CS for up to 3 practitioners','Referrals · Services Mode · Job Postings','Full Integrative Network','Priority support & onboarding call'];
 const maatFeatures     = ['Licensed & insured CS, certified by MAAT','4-hour emergency response guarantee','Annual CS recertification included'];
 function swapPlan(tier) {
   const priceId = tier === 'access' ? accessPriceId.value : practicePriceId.value;
   if (!priceId) { toast.error('Price ID not configured.'); return; }
 
   const tierLabels = { access: 'Continuity Access', practice: 'Continuity Practice' };
-  const tierPrices = { access: billingAnnualView.value ? 23 : 29, practice: billingAnnualView.value ? 39 : 49 };
+  const tierPrices = { access: billingAnnualView.value ? 35.75 : 39, practice: billingAnnualView.value ? 65.83 : 79 };
   const billingLabel = billingAnnualView.value ? 'billed annually' : 'billed monthly';
 
   // Detect direction

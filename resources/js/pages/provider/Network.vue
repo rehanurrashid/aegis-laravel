@@ -89,9 +89,7 @@
         <button type="button" id="nw-tab-cs" class="tab-primary" :class="{ active: scope === 'cs' }" @click="scope = 'cs'">
           <AegisIcon name="shield" :size="15" /> Continuity Stewards
         </button>
-        <button type="button" id="nw-tab-ss" class="tab-primary" :class="{ active: scope === 'ss' }" @click="scope = 'ss'">
-          <AegisIcon name="user-check" :size="14" /> Find SS
-        </button>
+        <!-- SS tab removed per Chapman decision #4 -->
       </div>
 
       <!-- Sub-tabs: Integrative Care Network -->
@@ -272,16 +270,7 @@
           </div>
 
           <div class="filter-group nw-sbp-clinical-toggle">
-            <label class="nw-sbp-clinical-label">
-              <span class="nw-sbp-clinical-text">
-                <AegisIcon name="user-check" :size="14" />
-                Available as Support Steward
-                <span class="sbp-info-tip" data-tooltip="Show providers who have indicated they can serve as a Support Steward.">
-                  <AegisIcon name="info" :size="12" />
-                </span>
-              </span>
-              <button type="button" class="toggle" :class="{ on: ssAvailFilter }" @click="ssAvailFilter = !ssAvailFilter" />
-            </label>
+            <!-- Available as SS filter removed per Chapman decision #2 -->
           </div>
           <div class="filter-group" :class="{ open: openGroups.type }">
             <div class="filter-group-header" @click="toggleGroup('type')">
@@ -1957,51 +1946,56 @@
           </AegisEmptyState>
         </div>
       </div>
+
+      <!-- ── Practitioner CS Directory ── -->
+      <div style="margin-top:32px">
+        <div style="font-size:13px;font-weight:700;color:var(--text-2);letter-spacing:0.3px;margin-bottom:12px;text-transform:uppercase;">
+          Practitioners Available as CS
+        </div>
+        <div v-if="(csDirectory ?? []).length" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;">
+          <div
+            v-for="p in (csDirectory ?? [])"
+            :key="p.id"
+            class="spc-card"
+            style="cursor:pointer"
+            @click="p.slug ? viewProfile(p.slug) : null"
+          >
+            <div class="spc-body">
+              <div class="spc-avatar">{{ p.avatar_initials }}</div>
+              <div class="spc-name" style="color:var(--gold-dark);">
+                {{ p.display_name }}<span v-if="p.credentials" style="font-size:11px;color:var(--text-3);font-weight:400;">, {{ p.credentials }}</span>
+              </div>
+              <!-- Tier badge — Chapman decision #1. No license info — Chapman decision #3 -->
+              <div v-if="p.cs_tier_badge" style="margin-top:4px">
+                <span class="badge badge-gold" style="font-size:10px;">
+                  <AegisIcon name="star" :size="10" /> {{ p.cs_tier_badge }} Plan
+                </span>
+              </div>
+              <div v-if="p.location" class="spc-loc" style="margin-top:4px">{{ p.location }}</div>
+              <div v-if="p.specialty" class="spc-tags" style="margin-top:6px">
+                <span v-for="tag in String(p.specialty).split(',').slice(0,2)" :key="tag" class="spc-tag">{{ tag.trim() }}</span>
+              </div>
+            </div>
+            <div class="spc-actions" @click.stop>
+              <span v-if="p.designation_status === 'active'" class="badge badge-green" style="font-size:11px;padding:5px 8px;display:inline-flex;align-items:center;gap:4px;">
+                <AegisIcon name="check-circle" :size="10" /> Active CS
+              </span>
+              <span v-else-if="p.designation_status === 'pending' || p.designation_status === 'invited'" class="badge badge-yellow" style="font-size:11px;padding:5px 8px;display:inline-flex;align-items:center;gap:4px;">
+                <AegisIcon name="clock" :size="10" /> Invited
+              </span>
+              <button v-else type="button" class="btn btn-primary" style="width:100%;font-size:12px;justify-content:center;" @click.stop="router.visit(route('provider.cs.index'))">
+                <AegisIcon name="shield" :size="13" /> Designate as CS
+              </button>
+            </div>
+          </div>
+        </div>
+        <AegisEmptyState v-else icon="user-check" title="No practitioners available" description="No practitioners have listed themselves as available CS yet." />
+      </div>
+
     </div><!-- /cs stewards -->
 
     <!-- ══════════ SUPPORT STEWARDS DIRECTORY ══════════ -->
-    <div v-show="scope === 'ss'">
-
-      <div class="alert alert-info" style="margin-bottom:20px;">
-        <div class="alert-icon"><AegisIcon name="user-check" :size="18" /></div>
-        <div class="alert-content">
-          <div class="alert-title">Find a Support Steward</div>
-          <div>Browse practitioners who have indicated they are available to serve as a Support Steward. Designate one to authorize them for critical-incident reporting and coordination.</div>
-        </div>
-      </div>
-
-      <AegisEmptyState v-if="!filteredSsDirectory.length" icon="user-check" title="No providers found" description="No providers have listed themselves as available SS yet." />
-
-      <div class="ss-grid">
-        <div
-          v-for="p in filteredSsDirectory"
-          :key="p.id"
-          class="spc-card"
-          @click="p.slug ? viewProfile(p.slug) : null"
-        >
-          <div class="spc-body">
-            <div class="spc-avatar spc-avatar-lg">{{ p.avatar_initials }}</div>
-            <div class="spc-name" style="color:var(--gold-dark);">{{ p.display_name }}{{ p.credentials ? ', ' + p.credentials : '' }}</div>
-            <div class="spc-role">{{ p.title }}</div>
-            <div class="spc-loc">{{ p.location }}</div>
-            <div style="display:flex;align-items:center;gap:6px;margin-top:8px;">
-              <span
-                style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:var(--radius-full);background:var(--icon-bg-gold);color:var(--gold-dark);flex-shrink:0;"
-                data-tooltip="Practitioner who is available as Support Steward"
-              >
-                <AegisIcon name="provider-ss" :size="13" />
-              </span>
-              <span style="font-size:11px;color:var(--text-3);font-weight:600;letter-spacing:0.2px;">Also a Practitioner</span>
-            </div>
-          </div>
-          <div class="spc-actions" @click.stop>
-            <button type="button" class="btn btn-primary" style="font-size:12px;" @click="router.visit(route('provider.ss.index'))">
-              <AegisIcon name="user-plus" :size="13" /> Designate as SS
-            </button>
-          </div>
-        </div>
-      </div>
-    </div><!-- /ss directory -->
+    <!-- SS directory panel removed per Chapman decision #4 -->
 
     <!-- ══════════ MODALS ══════════ -->
 
@@ -2258,7 +2252,8 @@ const props = defineProps({
   networkConfig:                { type: Object, default: () => ({}) },
   csStewards:                   { type: Array,  default: () => [] },
   csFilters:                    { type: Object, default: () => ({ specialties: [], states: [] }) },
-  ssDirectory:                  { type: Array,  default: () => [] },
+  csDirectory:                  { type: Array,  default: () => [] },
+  // ssDirectory removed per Chapman decision #4
 })
 
 // ── Composables ────────────────────────────────────────────────────────────
@@ -2359,7 +2354,7 @@ const scope       = ref(props.initialScope ?? 'clinical')
 const clinicalTab = ref('search')
 const businessTab = ref('search')
 const toolsTab    = ref('list')
-const ssAvailFilter = ref(false)
+// ssAvailFilter removed per Chapman decision #4
 
 // ── Local modal state ──────────────────────────────────────────────────────
 const modals = reactive({
@@ -3292,11 +3287,7 @@ const filteredCS = computed(() => {
   return list
 })
 
-const filteredSsDirectory = computed(() => {
-  let list = [...(props.ssDirectory ?? [])]
-  if (ssAvailFilter.value) list = list.filter(p => p.available_as_ss)
-  return list
-})
+// filteredSsDirectory removed per Chapman decision #4
 
 function formatCsRate(cs) {
   if (!cs.rate_min_cents && !cs.rate_max_cents) return 'Rate TBD'

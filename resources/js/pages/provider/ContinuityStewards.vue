@@ -28,6 +28,10 @@ const props = defineProps({
   hasDraftInProgress: { type: Boolean, default: false },
   draftPlanVersion:   { type: Number,  default: null },
   notifyPrefs:        { type: Object,  default: () => ({}) },
+  hasCsAddon:         { type: Boolean, default: false },
+  providerAsCsCount:  { type: Number,  default: 0 },
+  providerAsCsCap:    { type: Number,  default: 1 },
+  userTier:           { type: String,  default: 'access' },
 })
 
 const toast = useToast()
@@ -292,10 +296,12 @@ function authIncidentLabels(steward) {
 const atLimit = computed(() => props.csCount >= props.csMax)
 const hasAlternate = computed(() => props.stewards.some(s => s.role === 'alternate'))
 
+// atProviderCap: this user is at their provider-as-CS cap (serving as CS on other plans)
+const atProviderCap = computed(() => props.providerAsCsCount >= props.providerAsCsCap)
+
 function handleAddCS() {
   if (atLimit.value) {
-    if (props.tier === 'access') { modals.value.upgrade = true }
-    else { toast.info(`You've reached the maximum of ${props.csMax} Continuity Stewards on the Continuity Practice plan. Contact support to discuss enterprise options.`) }
+    modals.value.upgrade = true
     return
   }
   modals.value.designateCs = true
@@ -362,7 +368,9 @@ function saveNotifyPrefs() {
       <div class="alert-icon"><AegisIcon name="info" :size="18" /></div>
       <div class="alert-content" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <span>Your Continuity <strong>{{ tier === 'access' ? 'Access' : 'Practice' }}</strong> plan includes up to <strong>{{ csMax }} Continuity Steward{{ csMax !== 1 ? 's' : '' }}</strong> &middot; <strong>{{ csCount }} of {{ csMax }}</strong> in use{{ atLimit ? ' (limit reached)' : '' }}.</span>
-        <a v-if="tier === 'access'" href="#" style="font-weight:700;color:var(--gold-dark);text-decoration:none;" @click.prevent="modals.upgrade = true">Upgrade for more &rarr;</a>
+        <a v-if="atLimit" href="#" style="font-weight:700;color:var(--gold-dark);text-decoration:none;" @click.prevent="modals.upgrade = true">
+          {{ tier === 'access' ? 'Upgrade for more →' : (hasCsAddon ? 'Contact support' : 'Add CS Add-On →') }}
+        </a>
       </div>
     </div>
 
@@ -971,20 +979,44 @@ function saveNotifyPrefs() {
 
 
     <!-- UPGRADE MODAL -->
-    <AegisModal v-model="modals.upgrade" title="Upgrade to Add More CS" size="md" @close="modals.upgrade=false">
+    <AegisModal v-model="modals.upgrade" title="CS Slot Limit Reached" size="md" @close="modals.upgrade=false">
       <div style="display:flex;flex-direction:column;gap:12px;padding-top:4px;">
-        <div style="display:flex;align-items:flex-start;gap:9px;padding:10px 13px;background:var(--badge-bg-gold);border:1px solid var(--fade-gold);border-radius:var(--radius);">
-          <AegisIcon name="award" :size="14" style="flex-shrink:0;margin-top:2px;color:var(--gold-dark);" />
-          <span style="font-size:12.5px;color:var(--text-2);line-height:1.5;">Your <strong>Continuity Access</strong> plan supports up to <strong>{{ csMax }} Continuity Steward{{ csMax!==1?'s':'' }}</strong>. Upgrade to <strong>Continuity Practice</strong> to add more.</span>
+        <div class="alert alert-warning">
+          <div class="alert-icon"><AegisIcon name="lock" :size="16" /></div>
+          <div class="alert-content">
+            <div class="alert-title">You've reached your CS capacity</div>
+            <!-- Access tier: upgrade to Practice -->
+            <div v-if="tier === 'access'">
+              Your Access plan supports up to <strong>{{ csMax }} Continuity Steward{{ csMax!==1?'s':'' }}</strong>.
+              Upgrade to Continuity Practice to invite up to 2 CS — or upgrade to Business CS ($49/mo) to serve more practitioners.
+            </div>
+            <!-- Practice tier without addon: add CS addon -->
+            <div v-else-if="tier === 'practice' && !hasCsAddon">
+              Your Practice plan supports up to <strong>{{ csMax }} Continuity Stewards</strong>.
+              Add the <strong>Practice CS Add-On (+$25/mo)</strong> to expand your capacity to 2 CS slots on your plan.
+            </div>
+            <!-- Practice + addon or other -->
+            <div v-else>
+              You've reached the maximum CS slots for your current plan. Contact support to discuss enterprise options.
+            </div>
+          </div>
         </div>
-        <div style="padding:14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);">
-          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;">Continuity Practice — $49/mo</div>
-          <div style="font-size:12px;color:var(--text-3);">Up to 2 Continuity Stewards + 4 Support Stewards, full vault access, and more.</div>
+        <!-- Upgrade CTA -->
+        <div v-if="tier === 'access'" style="padding:14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;">Continuity Practice — $79/mo</div>
+          <div style="font-size:12px;color:var(--text-3);">Up to 2 Continuity Steward invitations, 4 Support Stewards, full vault, referrals, and more.</div>
+        </div>
+        <div v-else-if="tier === 'practice' && !hasCsAddon" style="padding:14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;">Practice CS Add-On — +$25/mo</div>
+          <div style="font-size:12px;color:var(--text-3);">Adds an additional CS slot and increases your provider-as-CS capacity to 43.</div>
         </div>
       </div>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.upgrade=false">Not Now</button>
-        <a :href="route('provider.settings.billing.portal')" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;"><AegisIcon name="arrow-right" :size="13" /> Upgrade Plan</a>
+        <a :href="route('provider.settings.index') + '?section=billing'" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;">
+          <AegisIcon name="arrow-right" :size="13" />
+          {{ tier === 'access' ? 'Upgrade to Practice' : 'Add CS Add-On' }}
+        </a>
       </template>
     </AegisModal>
 
