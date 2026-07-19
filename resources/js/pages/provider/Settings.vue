@@ -727,6 +727,15 @@
             </div>
           </div>
 
+          <!-- ── SUBSCRIPTION PLAN CARD — live summary + invoices ── -->
+          <SubscriptionPlanCard
+            :subscription="sub"
+            :invoices="subscriptionInvoices"
+            :show-manage-link="false"
+            :show-invoices="true"
+            style="margin-top:24px;"
+          />
+
           <!-- ── PLAN SWAP CONFIRMATION ──────────────────────────────────── -->
 
           <!-- MAAT downgrade blocker -->
@@ -951,7 +960,8 @@ import SettingsAppearance   from '@/components/settings/SettingsAppearance.vue';
 import SettingsDangerZone          from '@/components/settings/SettingsDangerZone.vue';
 import SettingsTierUpgradeModal   from '@/components/settings/SettingsTierUpgradeModal.vue';
 import SettingsPaymentMethods     from '@/components/settings/SettingsPaymentMethods.vue';
-import SettingsSubscriptionInvoices from '@/components/settings/SettingsSubscriptionInvoices.vue';
+import SettingsSubscriptionInvoices from '@/components/settings/SettingsSubscriptionInvoices.vue'
+import SubscriptionPlanCard from '@/components/settings/SubscriptionPlanCard.vue';
 import SettingsStripeConnect      from '@/components/settings/SettingsStripeConnect.vue';
 import SecurityChecklistStrip     from '@/components/features/SecurityChecklistStrip.vue';
 
@@ -1010,7 +1020,7 @@ const nav = [
 
   ]},
   { group: 'Subscription & Payments', items: [
-    { key: 'billing',       label: 'Subscription & Plan', icon: 'star' },
+    { key: 'billing',       label: 'Subscriptions & Plan', icon: 'star' },
     { key: 'payment_methods',       label: 'Payment Methods',       icon: 'credit-card' },
     { key: 'subscription_invoices', label: 'Subscription Invoices', icon: 'file-text' },
     { key: 'stripe_connect',        label: 'Stripe Connect',        icon: 'link' },

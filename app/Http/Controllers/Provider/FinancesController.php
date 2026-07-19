@@ -564,7 +564,7 @@ class FinancesController extends Controller
 
         return Inertia::render('provider/Finances', [
             // ── Subscription ──────────────────────────────────────────────────
-            'subscription'             => $this->subscriptions->getStatus($user),
+            'subscription'             => $subscriptionData,
             'subscriptionInvoices'     => $subscriptionInvoices,
             // ── Payment methods ───────────────────────────────────────────────
             'paymentMethods'           => $paymentMethods,

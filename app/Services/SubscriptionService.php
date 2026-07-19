@@ -165,14 +165,23 @@ class SubscriptionService
             ];
         }
 
+        // Detect billing interval from known annual price IDs
+        $knownAnnual = array_filter([
+            env('STRIPE_PRICE_ACCESS_ANNUAL'), env('STRIPE_PRICE_PRACTICE_ANNUAL'),
+            env('STRIPE_PRICE_CS_BUSINESS_ANNUAL'), env('STRIPE_PRICE_BP_ANNUAL'),
+            env('STRIPE_PRICE_MAAT_ANNUAL'), env('STRIPE_PRICE_PRACTICE_CS_ADDON_ANNUAL'),
+        ]);
+        $billingInterval = in_array($sub->stripe_price, $knownAnnual, true) ? 'year' : 'month';
+
         return [
-            'status'          => $sub->stripe_status,
-            'tier'            => $user->tier,
-            'on_grace_period' => $sub->onGracePeriod(),
-            'ends_at'         => $sub->ends_at,
-            'price_id'        => $sub->stripe_price,
-            'has_maat_addon'  => (bool) $user->maat_addon,
-            'has_cs_addon'    => (bool) $user->cs_addon,
+            'status'           => $sub->stripe_status,
+            'tier'             => $user->tier,
+            'on_grace_period'  => $sub->onGracePeriod(),
+            'ends_at'          => $sub->ends_at,
+            'price_id'         => $sub->stripe_price,
+            'has_maat_addon'   => (bool) $user->maat_addon,
+            'has_cs_addon'     => (bool) $user->cs_addon,
+            'billing_interval' => $billingInterval,
         ];
     }
 
