@@ -890,9 +890,11 @@
 
         <!-- SUBSCRIPTION INVOICES -->
         <div v-show="section === 'subscription_invoices'" class="settings-panel">
-          <SettingsSubscriptionInvoices
+          <SubscriptionPlanCard
+            :subscription="sub"
             :invoices="subscriptionInvoices"
-            portal-label="Practice Continuity Subscription"
+            :show-manage-link="false"
+            :show-invoices="true"
           />
         </div>
 
@@ -1022,7 +1024,7 @@ const nav = [
   { group: 'Subscription & Payments', items: [
     { key: 'billing',       label: 'Subscriptions & Plan', icon: 'star' },
     { key: 'payment_methods',       label: 'Payment Methods',       icon: 'credit-card' },
-    { key: 'subscription_invoices', label: 'Subscription Invoices', icon: 'file-text' },
+    { key: 'subscription_invoices', label: 'Subscriptions & Invoices', icon: 'file-text' },
     { key: 'stripe_connect',        label: 'Stripe Connect',        icon: 'link' },
   ]},
 

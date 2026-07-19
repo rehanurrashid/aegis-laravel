@@ -905,7 +905,7 @@ TIER_PRACTICE_MAX_CS=2
 
 | Username | Email | Notes |
 |---|---|---|
-| `p_sarah` | `sarah@demo.aegis` | Practice tier; real Stripe sub; services mode ON |
+| `p_sarah` | `sarah_johnson@demo.aegis` | Practice tier; real Stripe sub; services mode ON |
 | `p_maria` | `maria@demo.aegis` | Practice tier; has active contract with Acme Health |
 
 ### Business Partners
