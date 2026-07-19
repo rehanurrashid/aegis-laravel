@@ -664,6 +664,50 @@
                       <AegisIcon name="users" :size="13" /> Add CS Add-On
                     </button>
                     <span v-if="currentTier === 'practice'" class="st-addon-req">Available with your plan</span>
+
+                    <!-- CS Add-On confirmation modal -->
+                    <AegisModal v-model="confirmCsAddon" :title="pendingCsAddon.enable ? 'Add Practice CS Add-On' : 'Remove CS Add-On'" size="md">
+                      <template v-if="pendingCsAddon.enable">
+                        <div style="margin-bottom:14px;padding:14px;border-radius:var(--radius);background:var(--icon-bg-gold);border:1px solid var(--badge-border-gold)">
+                          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                            <AegisIcon name="users" :size="20" style="color:var(--gold-dark);flex-shrink:0" />
+                            <div>
+                              <div style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--text)">Practice CS Add-On</div>
+                              <div style="font-size:12px;color:var(--text-3)">+${{ csAddonBillingAnnual ? '20.83' : 25 }}/mo added to your subscription</div>
+                            </div>
+                          </div>
+                          <ul style="margin:0 0 0 14px;font-size:13px;color:var(--text-2);line-height:1.8">
+                            <li>Serve as CS for up to 43 practitioners</li>
+                            <li>Appear in the practitioner CS directory automatically</li>
+                            <li>Full Stripe Connect earnings per engagement</li>
+                          </ul>
+                        </div>
+                        <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin-bottom:0;display:flex;align-items:center;gap:8px;">
+                          <span style="flex-shrink:0;color:var(--gold-dark);display:flex;"><AegisIcon name="info" :size="13" /></span>
+                          <span>The CS Add-On will be billed on the same cycle as your base plan. A prorated charge will be applied today.</span>
+                        </p>
+                      </template>
+                      <template v-else>
+                        <p style="font-size:14px;color:var(--text-2);margin-bottom:14px">You are about to remove the <strong>Practice CS Add-On</strong>.</p>
+                        <div style="padding:12px 14px;border-radius:var(--radius);background:var(--orange-light);border:1px solid var(--border-dark);font-size:13px;color:var(--text-2);line-height:1.6;display:flex;align-items:flex-start;gap:8px;">
+                          <AegisIcon name="alert-triangle" :size="13" style="color:var(--gold-dark);flex-shrink:0;margin-top:2px;" />
+                          <span>Your CS Add-On will be removed immediately. You will no longer appear in the CS directory and your provider-as-CS capacity will return to your base plan limit.</span>
+                        </div>
+                      </template>
+                      <template #footer>
+                        <button type="button" class="btn btn-outline" @click="confirmCsAddon = false">Go Back</button>
+                        <button v-if="pendingCsAddon.enable" type="button" class="btn btn-gold" @click="doToggleCsAddon" :disabled="csAddonBusy">
+                          <AegisIcon v-if="csAddonBusy" name="refresh-cw" :size="13" class="btn-spin" />
+                          <AegisIcon v-else name="users" :size="13" />
+                          {{ csAddonBusy ? 'Adding…' : 'Add CS Add-On' }}
+                        </button>
+                        <button v-else type="button" class="btn btn-danger" @click="doToggleCsAddon" :disabled="csAddonBusy">
+                          <AegisIcon v-if="csAddonBusy" name="refresh-cw" :size="13" class="btn-spin" />
+                          <AegisIcon v-else name="trash" :size="13" />
+                          {{ csAddonBusy ? 'Removing…' : 'Remove CS Add-On' }}
+                        </button>
+                      </template>
+                    </AegisModal>
                   </div>
                 </div>
               </div>
@@ -1413,8 +1457,17 @@ const planBusy = ref(false); const maatBusy = ref(false); const pmBusy = ref(fal
 const csAddonBusy = ref(false);
 const hasCsAddonLocal = ref(props.hasCsAddon ?? false);
 const csAddonBillingAnnual = computed(() => currentBillingIsAnnual.value);
+// CS Add-On confirmation — mirrors MAAT pattern exactly
+const pendingCsAddon = reactive({ enable: false });
+const confirmCsAddon = ref(false);
 function toggleCsAddon(enable) {
-  csAddonBusy.value = true;
+  pendingCsAddon.enable = enable;
+  confirmCsAddon.value  = true;
+}
+function doToggleCsAddon() {
+  const enable = pendingCsAddon.enable;
+  confirmCsAddon.value  = false;
+  csAddonBusy.value     = true;
   router.post(route('provider.settings.subscription.cs-addon'), {
     enable,
     billing: csAddonBillingAnnual.value ? 'annual' : 'monthly',
