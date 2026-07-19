@@ -583,8 +583,8 @@
               <!-- Add-ons — MAAT + CS Add-On (both require Practice) -->
               <div class="st-included-head" id="settings-anchor-maat" style="margin-top:24px">Add-ons</div>
               <div class="st-note" style="margin-top:-4px;margin-bottom:14px">Stack on top of your base plan. Add or remove at any time.</div>
-              <div class="st-addon-card">
-                <span class="st-card-ico"><AegisIcon name="shield" :size="17" /></span>
+              <div class="st-addon-card" :class="{ 'st-addon-card--active': hasMaat }">
+                <span class="st-card-ico" :style="hasMaat ? 'background:var(--icon-bg-gold);color:var(--gold-dark)' : ''"><AegisIcon name="shield" :size="17" /></span>
                 <div class="st-addon-body">
                   <div class="st-addon-head">
                     <div class="st-addon-name">MAAT Professional CS <span class="st-addon-tag">MAAT Add-On</span></div>
