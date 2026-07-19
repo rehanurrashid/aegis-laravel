@@ -25,6 +25,16 @@ class SubscriptionService
 {
     public function subscribe(User $user, string $stripePriceId, string $paymentMethod, string $planName = 'default'): Subscription
     {
+        // If user already has an active subscription, swap it instead of creating a new one.
+        // This prevents duplicate subscriptions when onboarding is re-run (e.g. testing).
+        $existing = $user->subscription($planName);
+        if ($existing && $existing->active()) {
+            // Update default payment method in case it changed
+            $user->updateDefaultPaymentMethod($paymentMethod);
+            // Use changePlan which correctly handles upgrade/downgrade proration
+            $this->changePlan($user, $stripePriceId, $planName);
+            return $user->subscription($planName)->refresh();
+        }
         return $user->newSubscription($planName, $stripePriceId)->create($paymentMethod);
     }
 
