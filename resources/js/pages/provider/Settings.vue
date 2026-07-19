@@ -432,13 +432,7 @@
                 </div>
               </div>
               <div v-for="row in privacyToggles" :key="row.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ row.label }}</div><div class="toggle-desc">{{ row.desc }}</div></div><button type="button" class="toggle" :class="{ on: privacy[row.key] }" @click="privacy[row.key] = !privacy[row.key]" :aria-pressed="privacy[row.key]"></button></div>
-              <div class="toggle-row">
-                <div class="toggle-info">
-                  <div class="toggle-label">Available as Continuity Steward</div>
-                  <div class="toggle-desc">Allow other providers to find and designate you as their Continuity Steward. You will appear in the CS directory in Network.</div>
-                </div>
-                <button type="button" class="toggle" :class="{ on: availableAsCs }" :aria-pressed="availableAsCs" @click="availableAsCs = !availableAsCs; saveAvailableAsCs(availableAsCs)"></button>
-              </div>
+
               <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
                 <button type="button" class="btn btn-primary btn-sm" :disabled="privacySaving" @click="savePrivacySettings">
                   <AegisIcon name="check" :size="13" /> Save Privacy Settings
@@ -627,38 +621,57 @@
                   </div>
                 </div>
               </div>
+
+              <!-- CS Add-On — same st-addon-card style as MAAT, inside st-card-body -->
+              <div class="st-addon-card" style="margin-top:12px" :class="{ 'st-addon-card--active': hasCsAddonLocal }">
+                <span class="st-card-ico" :style="hasCsAddonLocal ? 'background:var(--icon-bg-gold);color:var(--gold-dark)' : ''">
+                  <AegisIcon name="users" :size="17" />
+                </span>
+                <div class="st-addon-body">
+                  <div class="st-addon-head">
+                    <div class="st-addon-name">Practice CS Add-On <span class="st-addon-tag">CS Add-On</span></div>
+                    <div class="st-addon-price">
+                      +<strong>${{ csAddonBillingAnnual ? '20.83' : 25 }}</strong>/mo
+                      <div class="st-addon-billed">{{ csAddonBillingAnnual ? 'billed $250/yr · 2 months free' : 'or $250/yr (2 months free)' }}</div>
+                    </div>
+                  </div>
+                  <div class="st-addon-desc">Expand your capacity to serve up to 43 practitioners as their Continuity Steward. Ideal for practitioners who actively take on CS roles. Serves as CS access automatically — no separate toggle needed.</div>
+                  <div class="st-addon-feats">
+                    <span><AegisIcon name="check" :size="12" /> Serve as CS for up to 43 practitioners</span>
+                    <span><AegisIcon name="check" :size="12" /> Appears in practitioner CS directory automatically</span>
+                    <span><AegisIcon name="check" :size="12" /> Full earnings via Stripe Connect</span>
+                  </div>
+                  <!-- Locked alert — Access tier -->
+                  <div v-if="currentTier !== 'practice'" class="alert alert-warning" style="margin-bottom:12px;margin-top:4px;">
+                    <div class="alert-icon"><AegisIcon name="lock" :size="16" /></div>
+                    <div class="alert-content">
+                      <div class="alert-title">Requires Continuity Practice</div>
+                      <div>The CS Add-On is only available on the Continuity Practice plan. Upgrade your plan above to unlock it.</div>
+                    </div>
+                  </div>
+                  <div class="st-addon-foot">
+                    <button v-if="hasCsAddonLocal" type="button" class="btn btn-outline" @click="toggleCsAddon(false)" :disabled="csAddonBusy">
+                      <AegisIcon v-if="csAddonBusy" name="refresh-cw" :size="13" class="btn-spin" />{{ csAddonBusy ? 'Removing…' : 'Remove CS Add-On' }}
+                    </button>
+                    <button
+                      v-else
+                      type="button"
+                      class="btn btn-gold"
+                      @click="toggleCsAddon(true)"
+                      :disabled="csAddonBusy || currentTier !== 'practice'"
+                      :data-tooltip="currentTier !== 'practice' ? 'Upgrade to Continuity Practice to add CS Add-On' : null"
+                    >
+                      <AegisIcon name="users" :size="13" /> Add CS Add-On
+                    </button>
+                    <span v-if="currentTier === 'practice'" class="st-addon-req">Available with your plan</span>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
 
           <!-- ── PLAN SWAP CONFIRMATION ──────────────────────────────────── -->
-
-              <!-- CS Add-On (requires Practice) -->
-              <div class="st-addon-row" style="margin-top:16px" :class="{ 'st-addon-active': hasCsAddonLocal }">
-                <div class="st-addon-header">
-                  <div class="st-addon-name">Practice CS Add-On <span class="st-addon-tag">CS Add-On</span></div>
-                  <div class="st-addon-price">
-                    +<strong>${{ csAddonBillingAnnual ? '20.83' : 25 }}</strong>/mo
-                    <div class="st-addon-billed">{{ csAddonBillingAnnual ? 'billed $250/yr · 2 months free' : 'or $250/yr (2 months free)' }}</div>
-                  </div>
-                </div>
-                <div class="st-addon-desc">Expand your CS capacity to serve up to 43 practitioners as a Continuity Steward. For active practitioners who serve as CS for others.</div>
-                <div v-if="currentTier !== 'practice'" class="alert alert-warning" style="margin-bottom:12px;margin-top:4px;">
-                  <div class="alert-icon"><AegisIcon name="lock" :size="14" /></div>
-                  <div class="alert-content"><div>The CS Add-On is only available on the Continuity Practice plan.</div></div>
-                </div>
-                <div class="st-addon-actions" style="margin-top:10px">
-                  <button v-if="hasCsAddonLocal" type="button" class="btn btn-outline" @click="toggleCsAddon(false)" :disabled="csAddonBusy">
-                    <AegisIcon v-if="csAddonBusy" name="refresh-cw" :size="13" class="btn-spin" />{{ csAddonBusy ? 'Removing…' : 'Remove CS Add-On' }}
-                  </button>
-                  <button v-else type="button" class="btn btn-gold"
-                    @click="toggleCsAddon(true)"
-                    :disabled="csAddonBusy || currentTier !== 'practice'"
-                    :data-tooltip="currentTier !== 'practice' ? 'Upgrade to Continuity Practice to add CS Add-On' : null">
-                    <AegisIcon name="users" :size="13" /> Add CS Add-On
-                  </button>
-                  <span v-if="currentTier === 'practice'" class="st-addon-req">Available with your plan</span>
-                </div>
-              </div>
 
           <!-- MAAT downgrade blocker -->
           <AegisModal v-model="confirmDowngradeBlocked" title="Remove MAAT Before Downgrading" size="sm">
@@ -900,7 +913,6 @@ const props = defineProps({
   activeAgreements: { type: Array,   default: () => [] },
   paymentMethods:   { type: Array,   default: () => [] },
   hasCsAddon:       { type: Boolean, default: false },
-  availableAsCs:    { type: Boolean, default: false },
 });
 
 const toast = useToast();
@@ -1307,14 +1319,7 @@ function savePrivacySettings() {
     onFinish:  () => { privacySaving.value = false; },
   });
 }
-const availableAsCs = ref(props.availableAsCs ?? false);
-function saveAvailableAsCs(val) {
-  router.post(route('provider.settings.cs-availability'), { available_as_cs: val }, {
-    preserveScroll: true,
-    onSuccess: () => toast.success('CS availability updated.'),
-    onError:   () => toast.error('Could not update CS availability.'),
-  });
-}
+
 const privacyLevels = [
   { key: 'public',  name: 'Public',  desc: 'Visible to all Aegis providers', icon: 'eye'     },
   { key: 'network', name: 'Network', desc: 'Connected providers only',        icon: 'network' },
@@ -1819,6 +1824,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 .st-included-head { font-size: 11px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; color: var(--text-4); }
 .st-note { font-size: 12.5px; color: var(--text-3); }
 .st-addon-card { display: flex; align-items: flex-start; gap: 16px; padding: 18px; border: 1px solid var(--badge-border-gold); border-radius: var(--radius-lg); background: var(--icon-bg-gold); }
+.st-addon-card--active { border-color: var(--gold-dark); background: color-mix(in srgb, var(--gold-dark) 8%, var(--surface)); }
 .st-addon-body { flex: 1; min-width: 0; }
 .st-addon-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .st-addon-name { font-family: var(--font-serif); font-size: 15px; font-weight: 700; color: var(--text); }
