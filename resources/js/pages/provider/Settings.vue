@@ -727,15 +727,6 @@
             </div>
           </div>
 
-          <!-- ── SUBSCRIPTION PLAN CARD — live summary + invoices ── -->
-          <SubscriptionPlanCard
-            :subscription="sub"
-            :invoices="subscriptionInvoices"
-            :show-manage-link="false"
-            :show-invoices="true"
-            style="margin-top:24px;"
-          />
-
           <!-- ── PLAN SWAP CONFIRMATION ──────────────────────────────────── -->
 
           <!-- MAAT downgrade blocker -->
