@@ -114,7 +114,12 @@
           <!-- Content -->
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
-              <span style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--gold-dark);">{{ fullName(s) }}</span>
+              <a
+                v-if="s.steward?.slug"
+                :href="route('public.ss', s.steward.slug)"
+                style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--gold-dark);text-decoration:none;"
+              >{{ fullName(s) }}</a>
+              <span v-else style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--gold-dark);">{{ fullName(s) }}</span>
               <span class="badge badge-gold"><AegisIcon name="shield" :size="10" style="margin-right:3px;" />{{ s.role === 'alternate' ? 'Alternate SS' : 'Primary SS' }}</span>
               <span class="badge badge-green"><span class="status-dot green"></span> Active</span>
               <span v-if="s.ss_acknowledged_at || s.signed_at" style="font-size:11px;color:var(--text-3);">SS since {{ fmtDate(s.ss_acknowledged_at ?? s.signed_at) }}</span>
@@ -529,120 +534,75 @@
 
 
     <!-- EDIT SS (unified — includes manage access) -->
-    <AegisModal :model-value="isOpen('editDsrModal').value" :title="activeSteward ? 'Edit Support Steward — ' + fullName(activeSteward) : 'Edit Support Steward'" size="lg" @update:model-value="v => !v && closeModal('editDsrModal')">
-      <div class="alert alert-info" style="margin-bottom:16px">
-        <div class="alert-icon"><AegisIcon name="info" :size="16" /></div>
-        <div>If you update contact details or role, this Support Steward will be notified by email.</div>
+    <AegisModal :model-value="isOpen('editDsrModal').value" :title="activeSteward ? 'Edit Support Steward — ' + fullName(activeSteward) : 'Edit Support Steward'" size="md" @update:model-value="v => !v && closeModal('editDsrModal')">
+      <div class="alert alert-info"><div class="alert-icon"><AegisIcon name="info" :size="14" /></div><div class="alert-content">Role changes will notify your Support Steward by email. No countersignature required.</div></div>
+
+      <!-- Role -->
+      <div class="form-group" style="margin-top:14px">
+        <label class="form-label">Role</label>
+        <select v-model="editForm.role" class="form-control form-select" :class="{ 'is-error': editFieldError('role') }" @blur="v$edit.role.$touch()">
+          <option value="support">Primary Support Steward</option>
+          <option value="alternate">Alternate Support Steward</option>
+        </select>
+        <div v-if="editFieldError('role')" class="form-error">{{ editFieldError('role') }}</div>
       </div>
 
-      <!-- Section A: Steward Details -->
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-4);margin-bottom:10px">A — Steward Details</div>
-      <div class="row-2">
-        <div class="form-group">
-          <label class="form-label">Full Name <span class="required">*</span></label>
-          <input v-model="editForm.display_name" class="form-input" :class="{ 'is-error': editFieldError('display_name') }" type="text" @blur="v$edit.display_name.$touch()">
-          <div v-if="editFieldError('display_name')" class="form-error">{{ editFieldError('display_name') }}</div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Credentials / Suffix</label>
-          <input v-model="editForm.credentials" class="form-input" type="text" placeholder="LCSW, PhD…">
-        </div>
-      </div>
-      <div class="row-2">
-        <div class="form-group">
-          <label class="form-label">Relationship</label>
-          <select v-model="editForm.relationship" class="form-select">
-            <option value="">— Select —</option>
-            <option value="colleague">Colleague</option>
-            <option value="family">Family</option>
-            <option value="attorney">Attorney</option>
-            <option value="friend">Friend</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Phone</label>
-          <input v-model="editForm.phone" class="form-input" type="tel">
-        </div>
-      </div>
-      <div class="row-2">
-        <div class="form-group">
-          <label class="form-label">Email <span style="font-size:11px;color:var(--text-4)">(read-only after acceptance)</span></label>
-          <input :value="activeSteward?.steward?.email ?? editForm.email" class="form-input" type="email" disabled style="opacity:0.6;cursor:not-allowed">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Role <span class="required">*</span></label>
-          <select v-model="editForm.role" class="form-select" :class="{ 'is-error': editFieldError('role') }" @blur="v$edit.role.$touch()">
-            <option value="support">Primary Support Steward</option>
-            <option value="alternate">Alternate Support Steward</option>
-          </select>
-          <div v-if="editFieldError('role')" class="form-error">{{ editFieldError('role') }}</div>
-        </div>
-      </div>
+      <!-- Authorized responsibilities (read-only display) -->
       <div class="form-group">
-        <label class="form-label">Personal Notes <span style="font-size:11px;color:var(--text-4)">(private — only you see this)</span></label>
-        <textarea v-model="editForm.notes" class="form-input" style="min-height:60px" placeholder="Any private context about this Support Steward…"></textarea>
-      </div>
-
-      <!-- Section B: Responsibilities -->
-      <div style="padding-top:16px;margin-top:16px;border-top:1px solid var(--border)">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-4);margin-bottom:10px">B — Responsibilities</div>
-        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;display:flex;align-items:center;gap:10px">
-          <AegisIcon name="shield-check" :size="16" style="color:var(--gold-dark);flex-shrink:0" />
-          <div style="font-size:13px;color:var(--text-2);line-height:1.5">
-            <strong>Authorized to verify incidents and trigger the Continuity Plan.</strong> The Support Steward handles non-clinical logistics — communications, coordination, and key tasks — within the scope defined in your Continuity Plan.
-          </div>
+        <label class="form-label">Authorized Responsibilities</label>
+        <div v-if="activeSteward && activeSteward.responsibilities && activeSteward.responsibilities.length" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">
+          <span v-for="r in activeSteward.responsibilities" :key="r" class="badge badge-gold" style="text-transform:capitalize">{{ typeof r === 'object' ? r.text : r }}</span>
+        </div>
+        <div v-else style="font-size:12px;color:var(--text-3);margin-bottom:6px">No specific responsibilities assigned yet.</div>
+        <div style="font-size:11px;color:var(--text-4);display:flex;align-items:center;gap:4px">
+          <AegisIcon name="info" :size="11" />
+          <span>Responsibilities are set when the Support Steward designation is created.</span>
         </div>
       </div>
 
-      <!-- Section C: Manage Access -->
-      <div style="padding-top:16px;margin-top:16px;border-top:1px solid var(--border)">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-4);margin-bottom:10px">C — Manage Access</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <label v-for="opt in [{ value: 'suspend', label: 'Suspend', desc: 'Block access temporarily — agreement stays in place, reinstate at any time.' }, { value: 'reinstate', label: 'Reinstate', desc: 'Restore all previously authorized permissions and resume paused task delegations.' }, { value: 'archive', label: 'Archive', desc: 'Remove this steward record from active view. They remain in the system for audit purposes.' }]" :key="opt.value"
-            style="display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s"
+      <!-- Notes -->
+      <div class="form-group">
+        <label class="form-label">Notes / Instructions</label>
+        <textarea v-model="editForm.notes" class="form-control" style="min-height:80px" placeholder="Any updates or context…"></textarea>
+      </div>
+
+      <!-- Manage Access -->
+      <div class="form-group">
+        <label class="form-label">Manage Access</label>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <label
+            v-for="opt in [{ value: 'suspend', label: 'Suspend temporarily', desc: 'Access revoked — reinstate anytime from the Suspended tab.' }, { value: 'archive', label: 'Archive record', desc: 'Remove from active view. Preserved for audit purposes.' }]"
+            :key="opt.value"
+            style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer"
             :style="editForm.access_action === opt.value ? 'border-color:var(--gold-dark);background:rgba(160,129,62,.04)' : ''"
           >
-            <input type="radio" :value="opt.value" v-model="editForm.access_action" style="margin-top:3px">
+            <input type="radio" :value="opt.value" v-model="editForm.access_action" style="margin-top:2px;accent-color:var(--gold-dark)">
             <div>
-              <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px">{{ opt.label }}</div>
-              <div style="font-size:12px;color:var(--text-4)">{{ opt.desc }}</div>
+              <div style="font-size:13px;font-weight:600;color:var(--text)">{{ opt.label }}</div>
+              <div style="font-size:11px;color:var(--text-4);margin-top:1px">{{ opt.desc }}</div>
             </div>
           </label>
         </div>
-        <div v-if="editForm.access_action" class="form-group" style="margin-top:12px">
-          <label class="form-label">Reason <span class="required">*</span></label>
-          <textarea v-model="editForm.access_reason" class="form-input" rows="2" placeholder="Briefly explain this action…" />
-        </div>
-        <div v-if="editForm.access_action" class="form-group">
-          <label class="form-label">Notes <span style="font-size:11px;color:var(--text-4)">(optional)</span></label>
-          <input v-model="editForm.access_notes" class="form-input" type="text" placeholder="Additional context…">
-        </div>
-      </div>
-
-      <!-- Section D: Retainer Info (read-only) -->
-      <div v-if="activeSteward" style="padding-top:16px;margin-top:16px;border-top:1px solid var(--border)">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-4);margin-bottom:10px">D — Retainer Info</div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
-          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:4px">Active Since</div>
-            <div style="font-size:13px;font-weight:600;color:var(--text)">{{ activeSteward.ss_acknowledged_at ? fmtDate(activeSteward.ss_acknowledged_at) : (activeSteward.signed_at ? fmtDate(activeSteward.signed_at) : '—') }}</div>
-          </div>
-          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:4px">Attestation Due</div>
-            <div style="font-size:13px;font-weight:600;color:var(--text)">{{ activeSteward.review_due_at ? fmtDate(activeSteward.review_due_at) : '—' }}</div>
-          </div>
-          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px">
-            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:4px">Status</div>
-            <AegisBadge :variant="activeSteward.status === 'active' ? 'green' : 'gold'">{{ capitalize(activeSteward.status ?? '—') }}</AegisBadge>
-          </div>
+        <div v-if="editForm.access_action" style="margin-top:10px">
+          <label class="form-label">Reason <span style="color:var(--red-dark)">*</span></label>
+          <select v-model="editForm.access_reason" class="form-control form-select">
+            <option value="">Select a reason…</option>
+            <option value="temporary_leave">Temporary leave</option>
+            <option value="role_no_longer_needed">Role no longer needed</option>
+            <option value="replacing">Replacing with a different SS</option>
+            <option value="practice_restructuring">Practice restructuring</option>
+            <option value="ss_requested">SS requested removal</option>
+            <option value="other">Other</option>
+          </select>
         </div>
       </div>
 
       <template #footer>
-        <button class="btn btn-outline" @click="closeModal('editDsrModal')">Cancel</button>
-        <button class="btn btn-primary" :disabled="editForm.processing" @click="submitEdit">
-          <AegisIcon name="check" :size="13" /> {{ editForm.processing ? 'Saving…' : 'Save Changes' }}
+        <button type="button" class="btn btn-outline" @click="closeModal('editDsrModal')">Cancel</button>
+        <button type="button" class="btn btn-primary" :disabled="editForm.processing" style="display:inline-flex;align-items:center;gap:6px" @click="submitEdit">
+          <AegisIcon v-if="editForm.processing" name="refresh-cw" :size="13" class="btn-spin" />
+          <AegisIcon v-else name="check" :size="13" />
+          {{ editForm.processing ? 'Saving…' : 'Save Changes' }}
         </button>
       </template>
     </AegisModal>
