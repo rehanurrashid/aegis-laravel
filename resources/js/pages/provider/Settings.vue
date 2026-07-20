@@ -913,6 +913,7 @@
             :show-manage-link="false"
             :show-invoices="true"
             :billing-interval="sub?.billing_interval ?? 'monthly'"
+            :pricing="$page.props.pricing"
           />
         </div>
 

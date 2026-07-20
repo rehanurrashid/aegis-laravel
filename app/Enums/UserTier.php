@@ -25,25 +25,27 @@ enum UserTier: string
 
     public function monthlyCents(): int
     {
-        return match ($this) {
-            self::Access           => 3900,   // $39/mo
-            self::Practice         => 7900,   // $79/mo
-            self::PracticeCsAddon  => 10400,  // $104/mo ($79+$25)
-            self::PracticeBusiness => 10400,  // $104/mo ($79+$25)
-            self::CsBusiness       => 4900,   // $49/mo
-            self::BusinessPartner  => 6900,   // $69/mo
+        $key = match ($this) {
+            self::Access           => 'practitioner.access.monthly_cents',
+            self::Practice         => 'practitioner.practice.monthly_cents',
+            self::PracticeCsAddon  => 'practitioner.practice_cs_addon.monthly_cents',
+            self::PracticeBusiness => 'practitioner.practice_business.monthly_cents',
+            self::CsBusiness       => 'continuity_steward_business.monthly_cents',
+            self::BusinessPartner  => 'business_partner.monthly_cents',
         };
+        return (int) config("aegis.pricing.{$key}", 0);
     }
 
     public function annualTotalCents(): int
     {
-        return match ($this) {
-            self::Access           => 42900,  // $429/yr
-            self::Practice         => 79000,  // $790/yr
-            self::PracticeCsAddon  => 104000, // $1,040/yr
-            self::PracticeBusiness => 104000, // $1,040/yr
-            self::CsBusiness       => 49000,  // $490/yr
-            self::BusinessPartner  => 69000,  // $690/yr
+        $key = match ($this) {
+            self::Access           => 'practitioner.access.annual_total_cents',
+            self::Practice         => 'practitioner.practice.annual_total_cents',
+            self::PracticeCsAddon  => 'practitioner.practice_cs_addon.annual_total_cents',
+            self::PracticeBusiness => 'practitioner.practice_business.annual_total_cents',
+            self::CsBusiness       => 'continuity_steward_business.annual_total_cents',
+            self::BusinessPartner  => 'business_partner.annual_total_cents',
         };
+        return (int) config("aegis.pricing.{$key}", 0);
     }
 }

@@ -70,6 +70,7 @@ const props = defineProps({
   plan:              { type: String, default: 'free' },
   invoices:          { type: Array,  default: () => [] },
   practitionerCount: { type: Number, default: 0 },
+  pricing:           { type: Object, default: () => ({}) },
 })
 
 const { openModal } = useModal()
@@ -77,5 +78,9 @@ const pricing = usePricingStore()
 
 const isFree = computed(() => props.plan === 'free')
 const planLabel = computed(() => isFree.value ? 'Free Invited Account' : 'MAAT Business CS Plan')
-const monthlyCents = computed(() => isFree.value ? 0 : 4900)
+const monthlyCents = computed(() =>
+    isFree.value
+        ? 0
+        : (props.pricing?.continuity_steward_business?.monthly_cents ?? 4900)
+)
 </script>

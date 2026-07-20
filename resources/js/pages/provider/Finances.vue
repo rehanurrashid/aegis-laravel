@@ -654,6 +654,7 @@
         :show-manage-link="true"
         :show-invoices="true"
         :billing-interval="subscription?.billing_interval ?? 'monthly'"
+        :pricing="$page.props.pricing"
       />
     </div>
 

@@ -129,6 +129,7 @@ const props = defineProps({
   showManageLink:  { type: Boolean, default: true },
   showInvoices:    { type: Boolean, default: true },
   billingInterval: { type: String,  default: 'monthly' },
+  pricing:         { type: Object,  default: () => ({}) },
 })
 
 const pricingStore = usePricingStore()
@@ -144,8 +145,16 @@ const basePriceCents = computed(() => {
   return t?.monthly ?? 0
 })
 
-const maatCents   = computed(() => isAnnual.value ? 2300 : 2900)
-const csAddonCents = computed(() => isAnnual.value ? 2083 : 2500)
+const maatCents   = computed(() =>
+    isAnnual.value
+        ? (props.pricing?.maat_addon?.annual_cents      ?? 2300)
+        : (props.pricing?.maat_addon?.monthly_cents     ?? 2900)
+)
+const csAddonCents = computed(() =>
+    isAnnual.value
+        ? (props.pricing?.practice_cs_addon?.annual_cents  ?? 2083)
+        : (props.pricing?.practice_cs_addon?.monthly_cents ?? 2500)
+)
 
 const totalCents = computed(() => {
   if (props.subscription?.next_invoice?.amount_cents) {

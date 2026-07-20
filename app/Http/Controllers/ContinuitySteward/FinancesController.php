@@ -28,6 +28,7 @@ class FinancesController extends Controller
             'invoices' => BpInvoice::where('bp_id', $user->id)->orderByDesc('issued_at')->get(),
             'payouts'  => CsPayout::where('cs_id', $user->id)->orderByDesc('created_at')->get(),
             'ytdCents' => (int) ($ytd * 100),
+            'pricing'  => config('aegis.pricing'),
         ]);
     }
 

@@ -235,8 +235,8 @@ const basePlanPriceCents = computed(() => {
 const maatPriceCents = computed(() => {
   const b = props.plan?.billing
   return b === 'annual'
-    ? (props.pricing?.maat_addon?.annual_cents      ?? 3900)
-    : (props.pricing?.maat_addon?.monthly_cents     ?? 4900)
+    ? (props.pricing?.maat_addon?.annual_cents      ?? 2300)
+    : (props.pricing?.maat_addon?.monthly_cents     ?? 2900)
 })
 
 const isAnnualTotal = computed(() => props.plan?.tier === 'annual' || (props.plan?.billing === 'annual' && props.plan?.tier === 'cs_business'))
