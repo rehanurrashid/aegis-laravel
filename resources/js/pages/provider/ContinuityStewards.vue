@@ -61,10 +61,11 @@ const modals = ref({
   editCS:         false,
   amendFee:       false,
   resend:         false,
-  remove:         false,
+  endRetainer:    false,
   cancelInvite:   false,
   upgrade:        false,
   reinstateCs:    false,
+  designateCs:    false,
 })
 
 function openModal(key, steward = null) {
@@ -87,8 +88,10 @@ function openEditModal(s) {
 
 function openRemoveModal(s) {
   activeId.value = s.id
-  modals.value.remove = true
+  endRetainerForm.reset()
+  modals.value.endRetainer = true
 }
+function openEndRetainer(s) { openRemoveModal(s) }
 function openCsReinstate(s) {
   activeId.value = s.id
   modals.value.reinstateCs = true
@@ -188,22 +191,27 @@ const reviewInProgress = computed(() => props.planStatus === 'draft')
 // ── Annual Review form ────────────────────────────────────────────────────────
 
 
-// ── Remove form ───────────────────────────────────────────────────────────────
-const busyRemove = ref(false)
+// ── End Retainer form ─────────────────────────────────────────────────────────
+const endRetainerForm = useForm({ action: '', reason: '', details: '' })
+const busyEndRetainer = ref(false)
 
-function submitRemove() {
+function submitEndRetainer() {
   if (!activeSteward.value) return
-  busyRemove.value = true
-  router.delete(route('provider.stewards.remove', { steward: activeSteward.value.id }), {
-    data: { reason: '' },
+  busyEndRetainer.value = true
+  const routeName = endRetainerForm.action === 'suspend'
+    ? 'provider.stewards.suspend'
+    : 'provider.stewards.terminate'
+  endRetainerForm.post(route(routeName, { steward: activeSteward.value.id }), {
     preserveScroll: true,
     onSuccess: () => {
-      modals.value.remove = false
-      toast.success('Continuity Steward removed.')
-      router.reload({ only: ['stewards', 'pendingInvitations', 'csCount'] })
+      modals.value.endRetainer = false
+      toast.success(endRetainerForm.action === 'suspend'
+        ? 'Retainer paused. Reinstate anytime from the Suspended tab.'
+        : 'Retainer terminated.')
+      router.reload({ only: ['stewards', 'pendingInvitations', 'suspended', 'csCount'] })
     },
-    onError:   () => toast.error('Could not remove steward.'),
-    onFinish:  () => { busyRemove.value = false },
+    onError:  () => toast.error('Could not end retainer.'),
+    onFinish: () => { busyEndRetainer.value = false },
   })
 }
 
@@ -453,7 +461,7 @@ function saveNotifyPrefs() {
             <AegisBadge :label="csRoleLabel(s.role)" variant="gold" icon="shield" />
             <span class="badge badge-green"><span class="status-dot green"></span> Active</span>
             <span v-if="s.signed_at" style="font-size:11px;color:var(--text-3);">Retainer since {{ fmtDate(s.signed_at) }}</span>
-            <span v-if="s.engagement_document?.status === 'fully_executed'" class="badge badge-green" :data-tooltip="'Agreement signed' + (s.countersigned_at ? ' — Countersigned ' + fmtDate(s.countersigned_at) : '')"><AegisIcon name="check" :size="11" /> Agreement Signed</span>
+            <span v-if="s.engagement_document?.status === 'fully_executed'" class="badge badge-green" :data-tooltip="'Retainer active since ' + fmtDate(s.signed_at)"><AegisIcon name="check" :size="11" /> Retainer Active</span>
             <span v-else-if="s.engagement_document?.status === 'countersign_pending'" class="badge badge-amber" data-tooltip="Agreement sent — awaiting countersignature"><AegisIcon name="clock" :size="11" /> Awaiting Countersignature</span>
             <span
               :class="{
@@ -498,12 +506,12 @@ function saveNotifyPrefs() {
 
           <!-- Action buttons -->
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
-            <button type="button" class="btn-icon" data-tooltip="View Agreement" @click="viewAgreementSteward = {...s, _incidentLabels: authIncidentLabels(s)}; showViewAgreement = true"><AegisIcon name="file-text" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="View Retainer" @click="viewAgreementSteward = {...s, _incidentLabels: authIncidentLabels(s)}; showViewAgreement = true"><AegisIcon name="file-text" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Edit Details"   @click="openEditModal(s)"><AegisIcon name="pencil" :size="14" /></button>
             <button type="button" class="btn-icon" data-tooltip="Message this CS" :disabled="msgLoading === s.steward_id" @click="openConversation(s.steward_id)"><AegisIcon name="message-square" :size="14" /></button>
-
-
-            <button type="button" class="btn-icon" data-tooltip="Remove" @click="openRemoveModal(s)"><AegisIcon name="trash" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="End retainer" @click="openEndRetainer(s)">
+              <AegisIcon name="x" :size="14" style="color:var(--red-dark);" />
+            </button>
           </div>
         </div>
       </div>
@@ -559,7 +567,7 @@ function saveNotifyPrefs() {
             </div>
             <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
               <button type="button" class="btn-icon" data-tooltip="Resend Invitation"  @click="openResend(inv)"><AegisIcon name="send" :size="14" /></button>
-              <button type="button" class="btn-icon" data-tooltip="Preview Agreement" @click="viewAgreementSteward = {...inv, _incidentLabels: []}; showViewAgreement = true"><AegisIcon name="eye" :size="14" /></button>
+              <button type="button" class="btn-icon" data-tooltip="Preview Retainer" @click="viewAgreementSteward = {...inv, _incidentLabels: []}; showViewAgreement = true"><AegisIcon name="eye" :size="14" /></button>
               <button type="button" class="btn-icon" data-tooltip="Cancel Invitation"  @click="openCancelInvite(inv)"><AegisIcon name="x" :size="14" /></button>
             </div>
           </div>
@@ -597,7 +605,7 @@ function saveNotifyPrefs() {
             </div>
             <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-3);">
               <span v-if="s.email" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="mail" :size="13" />{{ s.email }}</span>
-              <span v-if="s.signed_at" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="file-text" :size="13" />Agreement: {{ fmtDate(s.signed_at) }}</span>
+              <span v-if="s.signed_at" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="file-text" :size="13" />Retainer since {{ fmtDate(s.signed_at) }}</span>
               <span v-if="s.fee_cents > 0" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="dollar-sign" :size="13" />{{ formatMoney(s.fee_cents) }} — on incident close</span>
               <span v-else-if="s.fee_cents === 0" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="dollar-sign" :size="13" />Reciprocal (no payment)</span>
             </div>
@@ -630,7 +638,7 @@ function saveNotifyPrefs() {
         <AegisStatChip
           icon="users"
           :value="servingAsCSFor.filter(p => p.status === 'active').length"
-          label="Active Agreements"
+          label="Active Retainers"
         />
         <AegisStatChip
           icon="calendar"
@@ -737,7 +745,7 @@ function saveNotifyPrefs() {
           <div class="toggle-row">
             <div class="toggle-info">
               <div class="toggle-label">CS added, removed, or updated</div>
-              <div class="toggle-desc">Alert when any Continuity Steward is added, removed, or has their agreement updated</div>
+              <div class="toggle-desc">Alert when any Continuity Steward is added, removed, or has their retainer updated</div>
             </div>
             <AegisToggle v-model="notifyToggles.steward_added_removed" />
           </div>
@@ -900,26 +908,65 @@ function saveNotifyPrefs() {
 
 
 
-    <!-- REMOVE CS MODAL -->
-    <AegisModal v-model="modals.remove" title="Terminate Retainer Agreement" size="sm" @close="modals.remove=false">
-      <div class="alert alert-warning" style="margin-bottom:14px;">
+    <!-- END RETAINER MODAL -->
+    <AegisModal v-model="modals.endRetainer" title="End Retainer Agreement" size="md" @close="modals.endRetainer=false">
+      <div class="alert alert-warning" style="margin-bottom:16px;">
         <div class="alert-icon"><AegisIcon name="alert-triangle" :size="16" /></div>
         <div class="alert-content">
-          <div class="alert-title">Terminate Retainer Agreement</div>
-          <div style="font-size:12px;">Cancelling this retainer will remove {{ activeSteward?.display_name ?? stewardName(activeSteward) }} from your Continuity Plan effective immediately. Any existing invoices remain payable. You will need to sign a new retainer to reinstate them.</div>
+          <div class="alert-title">Ending Retainer with {{ activeSteward?.display_name ?? stewardName(activeSteward) }}</div>
+          <div style="font-size:12px;">Your Continuity Plan requires at least one active CS. Consider designating a replacement before ending this retainer.</div>
         </div>
       </div>
-      <div style="text-align:center;padding:4px 0 12px;">
-        <div style="font-size:13px;color:var(--text-2);line-height:1.6;">
-          Their vault access will be revoked and they will be notified by email.
+
+      <div class="form-group">
+        <label class="form-label">How do you want to end this retainer?</label>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+          <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;background:var(--surface);"
+                 :style="endRetainerForm.action === 'suspend' ? 'border-color:var(--gold-dark);background:var(--badge-bg-gold);' : ''">
+            <input type="radio" v-model="endRetainerForm.action" value="suspend" style="margin-top:2px;accent-color:var(--gold-dark);" />
+            <div>
+              <div style="font-weight:600;font-size:13px;">Pause Temporarily</div>
+              <div style="font-size:11px;color:var(--text-3);margin-top:2px;">Access revoked but retainer preserved. You can reinstate anytime from the Suspended tab.</div>
+            </div>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;background:var(--surface);"
+                 :style="endRetainerForm.action === 'terminate' ? 'border-color:var(--red-dark);background:var(--red-light);' : ''">
+            <input type="radio" v-model="endRetainerForm.action" value="terminate" style="margin-top:2px;accent-color:var(--red-dark);" />
+            <div>
+              <div style="font-weight:600;font-size:13px;">Terminate Permanently</div>
+              <div style="font-size:11px;color:var(--text-3);margin-top:2px;">Retainer archived. Historical invoices preserved. Cannot be reinstated — you would need to sign a new retainer.</div>
+            </div>
+          </label>
         </div>
       </div>
+
+      <div class="form-group" style="margin-top:14px;">
+        <label class="form-label">Reason <span style="color:var(--red-dark);">*</span></label>
+        <select v-model="endRetainerForm.reason" class="form-control form-select" :class="{ 'is-error': endRetainerForm.errors?.reason }">
+          <option value="">Select a reason…</option>
+          <option value="steward_resigned">CS resigned</option>
+          <option value="mutual">Mutual termination</option>
+          <option value="practice_closing">Practice closing</option>
+          <option value="temporary_leave">Temporary leave</option>
+          <option value="replacing">Replacing with another CS</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div v-if="endRetainerForm.reason === 'other'" class="form-group">
+        <label class="form-label">Details</label>
+        <textarea v-model="endRetainerForm.details" class="form-control" rows="3" placeholder="Provide additional context…"></textarea>
+      </div>
+
       <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.remove=false">Keep Retainer</button>
-        <button type="button" class="btn btn-danger" :disabled="busyRemove" style="display:inline-flex;align-items:center;gap:6px;" @click="submitRemove">
-          <AegisIcon v-if="busyRemove" name="refresh-cw" :size="13" class="btn-spin" />
+        <button type="button" class="btn btn-outline" @click="modals.endRetainer = false">Cancel</button>
+        <button type="button" class="btn btn-danger"
+                :disabled="!endRetainerForm.action || !endRetainerForm.reason || busyEndRetainer"
+                style="display:inline-flex;align-items:center;gap:6px;"
+                @click="submitEndRetainer">
+          <AegisIcon v-if="busyEndRetainer" name="refresh-cw" :size="13" class="btn-spin" />
           <AegisIcon v-else name="x" :size="13" />
-          {{ busyRemove ? 'Terminating…' : 'Terminate Retainer' }}
+          {{ busyEndRetainer ? 'Processing…' : endRetainerForm.action === 'suspend' ? 'Pause Retainer' : 'Terminate Retainer' }}
         </button>
       </template>
     </AegisModal>

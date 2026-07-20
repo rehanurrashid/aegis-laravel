@@ -271,7 +271,7 @@
     <div v-show="activeTab === 'executor'">
       <div class="stat-chips-row" style="margin-bottom:24px;">
         <AegisStatChip icon="shield" :value="formatMoney(csAgreedTotal / 100)" label="Agreed CS Fees"            bg-color="var(--badge-bg-gold)" icon-color="var(--gold-dark)" />
-        <AegisStatChip icon="file-text" :value="feeCs.length"                  label="CS Agreements with Fee"    bg-color="var(--badge-bg-gold)" icon-color="var(--gold-dark)" />
+        <AegisStatChip icon="file-text" :value="feeCs.length"                  label="CS Retainers with Fee"    bg-color="var(--badge-bg-gold)" icon-color="var(--gold-dark)" />
         <AegisStatChip icon="users"     :value="csStewards.length"              label="Active Stewards"           bg-color="var(--badge-bg-gold)" icon-color="var(--gold-dark)" />
       </div>
 
@@ -484,9 +484,11 @@
         </template>
 
         <template #footer>
-          <button type="button" class="btn btn-danger" @click="openCancelCs(activeCs); modals.csDetail = false">
-            <AegisIcon name="x" :size="13" /> Cancel Agreement
-          </button>
+          <div style="font-size:11px;color:var(--text-3);flex:1;">
+            <AegisIcon name="info" :size="11" />
+            Manage retainer status in <a :href="route('provider.stewards.index')" style="color:var(--gold-dark);">Continuity Stewards</a>
+          </div>
+          <button type="button" class="btn btn-outline" @click="modals.csDetail = false">Close</button>
         </template>
       </AegisModal>
     </div>
@@ -845,38 +847,6 @@
       @approve="handleReceiptApprove"
     />
 
-    <!-- Cancel CS Agreement -->
-    <AegisModal v-model="modals.cancelCsAgreement" title="Cancel Continuity Steward Agreement" size="lg">
-      <div class="alert alert-danger" style="margin-bottom:14px;">
-        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
-        <div class="alert-content">
-          <strong>Cancelling leaves your practice without succession coverage.</strong> Aegis strongly recommends at least one active Continuity Steward at all times.
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Cancellation Reason <span class="required">*</span></label>
-        <select class="form-select" v-model="cancelCsForm.reason" :class="{ 'is-error': cancelCsForm.errors.reason }">
-          <option>Replacing with another Continuity Steward</option>
-          <option>Continuity Steward resigned</option>
-          <option>Mutual termination</option>
-          <option>Practice closing</option>
-          <option>Other</option>
-        </select>
-        <div v-if="cancelCsForm.errors.reason" class="form-error">{{ cancelCsForm.errors.reason }}</div>
-      </div>
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.cancelCsAgreement = false">Keep Agreement</button>
-        <button type="button" class="btn btn-danger" :disabled="cancelCsForm.processing" @click="doCancelCsAgreement">
-          <AegisIcon name="x" :size="13" /> Cancel Agreement
-        </button>
-      </template>
-    </AegisModal>
-
-
-
-
-
-
     <!-- Export Report — with client-side validation -->
     <AegisModal v-model="modals.export" title="Export Financial Report" size="lg">
       <div class="row-2">
@@ -1152,7 +1122,7 @@ const activeCs       = computed(() => props.csStewards.find(cs => cs.id === acti
 // ── Modals ───────────────────────────────────────────────────────────────
 const modals = ref({
   viewReceipt: false,
-  cancelCsAgreement: false,
+  payArrangement: false, confirmCsPay: false, openDispute: false,
   csDetail: false,
   export: false,
   payArrangement: false, confirmCsPay: false, openDispute: false,
@@ -1299,23 +1269,8 @@ function handleReceiptApprove(inv) {
   } else if (inv.kind === 'cs_invoice') { askPayCs({ ...inv, cs_name: inv.cs_name }) }
 }
 
-// ── Form: Cancel CS Agreement ────────────────────────────────────────────
-const cancelCsForm = useForm({ reason: 'Replacing with another Continuity Steward' })
-function openCsDetail(cs) { activeCsId.value = cs.id; modals.value.csDetail = true }
-function openCancelCs(cs) { activeCsId.value = cs.id; cancelCsForm.reset(); modals.value.cancelCsAgreement = true }
-function doCancelCsAgreement() {
-  if (!activeCs.value) return
-  cancelCsForm.post(route('provider.finances.cs-steward.cancel', { steward: activeCs.value.id }), {
-    preserveScroll: true,
-    onSuccess: () => {
-      modals.value.cancelCsAgreement = false
-      toast.info('Agreement cancelled. The steward has been removed from your plan.')
-      router.visit(route('provider.stewards.index'))
-    },
-  })
-}
-
 // ── Form: CS Pay Arrangement ──────────────────────────────────────────────
+function openCsDetail(cs) { activeCsId.value = cs.id; modals.value.csDetail = true }
 function openPayArrangement(cs) { activeCsId.value = cs.id; modals.value.payArrangement = true }
 
 // ── Payment methods ──────────────────────────────────────────────────────

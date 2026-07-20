@@ -88,7 +88,7 @@ function downloadPdf() {
           </div>
         </div>
         <div v-if="steward.signed_at || steward.created_at" style="font-size:12px;color:var(--text-3);text-align:right;flex-shrink:0;">
-          <div style="font-weight:600;">Agreement Date</div>
+          <div style="font-weight:600;">Signing Date</div>
           <div>{{ fmtDate(steward.signed_at ?? steward.created_at) }}</div>
         </div>
       </div>
@@ -104,7 +104,7 @@ function downloadPdf() {
             <div style="font-size:12px;color:var(--text-3);margin-top:4px;">
               {{ paymentTermsLabel }}
               &nbsp;·&nbsp;
-              Auto-charge: {{ steward.auto_charge ? 'Yes' : 'No' }}
+              
             </div>
           </div>
           <div v-else style="font-size:13px;color:var(--text-3);">No compensation agreed</div>
@@ -144,7 +144,7 @@ function downloadPdf() {
       <div style="background:var(--surface-2);border-radius:var(--radius);padding:18px 22px;font-size:13px;line-height:1.8;color:var(--text-2);">
         <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);">Aegis CONTINUITY PLAN</div>
 
-        <p><strong>Section 1. Purpose.</strong> This agreement establishes the designated Continuity Steward for the professional practice in the event of death, incapacitation, disability, voluntary retirement, license suspension, or any other event preventing the Provider from practicing.</p>
+        <p><strong>Section 1. Purpose.</strong> This retainer establishes the designated Continuity Steward for the professional practice in the event of death, incapacitation, disability, voluntary retirement, license suspension, or any other event preventing the Provider from practicing.</p>
 
         <p v-if="steward.fee_cents">
           <strong>Section 2. Compensation.</strong>

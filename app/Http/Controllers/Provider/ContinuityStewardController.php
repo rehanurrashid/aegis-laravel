@@ -319,13 +319,24 @@ class ContinuityStewardController extends Controller
         abort_if(!$plan || $steward->plan_id !== $plan->id, 404);
         $this->authorize('update', $plan);
 
+        $data = $request->validate([
+            'reason'  => 'nullable|string|max:255',
+            'action'  => 'nullable|string|in:suspend,terminate',
+            'details' => 'nullable|string|max:1000',
+        ]);
+
+        $reasonText = $data['reason'] ?? null;
+        if ($reasonText && !empty($data['details'])) {
+            $reasonText .= ' — ' . $data['details'];
+        }
+
         try {
-            $this->stewards->remove($steward, $request->user(), $request->input('reason'));
+            $this->stewards->remove($steward, $request->user(), $reasonText);
         } catch (\RuntimeException $e) {
             return back()->withErrors(['remove' => $e->getMessage()]);
         }
 
-        return back()->with('success', 'Steward removed.');
+        return back()->with('success', 'Retainer terminated.');
     }
 
     public function csUpdateFee(Request $request, PlanSteward $steward): RedirectResponse
@@ -412,15 +423,25 @@ class ContinuityStewardController extends Controller
         abort_if(!$plan || $steward->plan_id !== $plan->id, 404);
         $this->authorize('update', $plan);
 
-        $data = $request->validate(['reason' => 'required|string|max:255']);
-        $steward->update(['status' => 'archived', 'declined_reason' => $data['reason']]);
+        $data = $request->validate([
+            'reason'  => 'required|string|max:255',
+            'action'  => 'nullable|string|in:suspend,terminate',
+            'details' => 'nullable|string|max:1000',
+        ]);
+
+        $reasonText = $data['reason'];
+        if (!empty($data['details'])) {
+            $reasonText .= ' — ' . $data['details'];
+        }
+
+        $steward->update(['status' => 'archived', 'declined_reason' => $reasonText]);
 
         $actor = $request->user();
         $this->activity->log(
             $actor->id, 'provider', 'steward',
             ActivitySeverity::Warning, 'cs_suspended',
-            'Continuity Steward access suspended',
-            'Reason: ' . $data['reason'],
+            'Continuity Steward access paused',
+            'Reason: ' . $reasonText,
             'plan_steward', $steward->id,
             $steward->steward_id,
             'log', $actor->id
@@ -428,14 +449,14 @@ class ContinuityStewardController extends Controller
         $this->activity->log(
             $steward->steward_id, 'continuity_steward', 'steward',
             ActivitySeverity::Warning, 'cs_suspended',
-            'Your Continuity Steward access has been suspended',
-            'Reason: ' . $data['reason'],
+            'Your Continuity Steward access has been paused',
+            'Reason: ' . $reasonText,
             'plan_steward', $steward->id,
             $actor->id,
             'notification', $actor->id
         );
 
-        return back()->with('success', 'Continuity Steward access suspended.');
+        return back()->with('success', 'Retainer paused. Reinstate anytime from the Suspended tab.');
     }
 
     public function csReinstate(Request $request, PlanSteward $steward): RedirectResponse

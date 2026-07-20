@@ -197,7 +197,7 @@
         <p v-if="form.relationship"><strong>Relationship:</strong> {{ form.relationship }}</p>
         <p v-if="form.fee_cents > 0"><strong>Fee per incident:</strong> ${{ (form.fee_cents / 100).toFixed(2) }}</p>
         <p v-else><strong>Fee per incident:</strong> $0 (Reciprocal / No Payment)</p>
-        <p><strong>Agreement Date:</strong> {{ new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) }}</p>
+        <p><strong>Signing Date:</strong> {{ new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) }}</p>
         <p style="font-size:11px;color:var(--text-3);margin-top:12px;line-height:1.5;">
           <AegisIcon name="info" :size="11" />
           Retainer active indefinitely from date of signing. Invoiced only when a critical incident closes and CS tasks are marked complete. Annual re-attestation required. Either party may cancel at any time.
@@ -286,7 +286,7 @@ const steps = [
   { key: 'role',       label: 'Role Step-up' },
   { key: 'incidents',  label: 'Approved Critical Incidents' },
   { key: 'responsibilities', label: 'Responsibilities' },
-  { key: 'send',       label: 'Send Agreement' },
+  { key: 'send',       label: 'Send Retainer' },
 ]
 
 const stepNextLabel = computed(() => {
