@@ -485,7 +485,7 @@
                 placeholder="Start typing a name or email…"
                 autocomplete="off"
                 @input="onSearchInput($event.target.value)"
-                @blur="v$.inviteForm.display_name.$touch(); setTimeout(() => { showDropdown = false }, 200)"
+                @blur="v$.inviteForm.display_name.$touch(); hideDropdown()"
                 @focus="showDropdown = searchResults.length > 0"
               >
               <div v-if="searchLoading" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);">
@@ -1054,6 +1054,7 @@ function selectUser(user) {
   showDropdown.value      = false
 }
 
+function hideDropdown() { setTimeout(() => { showDropdown.value = false }, 200) }
 function clearSelection() {
   searchSelected.value    = null
   inviteForm.user_id      = null

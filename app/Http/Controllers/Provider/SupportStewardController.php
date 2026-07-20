@@ -389,7 +389,6 @@ class SupportStewardController extends Controller
 
         $ssUsers = User::where('role', \App\Enums\UserRole::SupportSteward->value)
             ->where('id', '!=', $authId)
-            ->where('status', 'active')
             ->where(fn ($query) => $query
                 ->where('display_name', 'like', "%{$q}%")
                 ->orWhere('email', 'like', "%{$q}%")
@@ -399,7 +398,6 @@ class SupportStewardController extends Controller
 
         $practitionersAvailableAsSs = User::where('role', \App\Enums\UserRole::Practitioner->value)
             ->where('id', '!=', $authId)
-            ->where('status', 'active')
             ->where(fn ($query) => $query
                 ->where('display_name', 'like', "%{$q}%")
                 ->orWhere('email', 'like', "%{$q}%")
