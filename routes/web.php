@@ -23,6 +23,7 @@ use App\Http\Controllers\Provider\PractitionerSearchController;
 use App\Http\Controllers\Provider\ServicesController;
 use App\Http\Controllers\Provider\SettingsController as ProviderSettingsController;
 use App\Http\Controllers\Provider\ContinuityStewardController;
+use App\Http\Controllers\Provider\SupportStewardController;
 use App\Http\Controllers\Provider\VaultController;
 use App\Http\Controllers\ContinuitySteward\DashboardController as CsDashboardController;
 use App\Http\Controllers\ContinuitySteward\ContinuityManagementController;
@@ -218,17 +219,17 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::post('/continuity-stewards/{steward}/reinstate', [ContinuityStewardController::class, 'csReinstate'])->name('stewards.reinstate');
 
         // Support Stewards
-        Route::get('/support-stewards', [ContinuityStewardController::class, 'ssIndex'])->name('ss.index');
-        Route::post('/support-stewards/invite', [ContinuityStewardController::class, 'ssInvite'])->name('ss.invite');
-        Route::delete('/support-stewards/{steward}', [ContinuityStewardController::class, 'ssRemove'])->name('ss.remove');
-        Route::post('/support-stewards/{steward}/suspend', [ContinuityStewardController::class, 'ssSuspend'])->name('ss.suspend');
-        Route::post('/support-stewards/{steward}/reinstate', [ContinuityStewardController::class, 'ssReinstate'])->name('ss.reinstate');
-        Route::post('/support-stewards/{steward}/resend', [ContinuityStewardController::class, 'ssResend'])->name('ss.resend');
-        Route::put('/support-stewards/{steward}/role', [ContinuityStewardController::class, 'ssUpdateRole'])->name('ss.update-role');
-        Route::put('/support-stewards/{steward}/permissions', [ContinuityStewardController::class, 'ssUpdatePermissions'])->name('ss.update-permissions');
-        Route::post('/support-stewards/{steward}/archive', [ContinuityStewardController::class, 'ssArchive'])->name('ss.archive');
-        Route::put('/support-stewards/{steward}', [ContinuityStewardController::class, 'ssUpdate'])->name('ss.update');
-        Route::get('/support-stewards/{steward}/agreement/download', [ContinuityStewardController::class, 'ssDownloadAgreement'])->name('ss.agreement.download');
+        Route::get('/support-stewards', [SupportStewardController::class, 'index'])->name('ss.index');
+        Route::post('/support-stewards/invite', [SupportStewardController::class, 'invite'])->name('ss.invite');
+        Route::delete('/support-stewards/{steward}', [SupportStewardController::class, 'remove'])->name('ss.remove');
+        Route::post('/support-stewards/{steward}/suspend', [SupportStewardController::class, 'suspend'])->name('ss.suspend');
+        Route::post('/support-stewards/{steward}/reinstate', [SupportStewardController::class, 'reinstate'])->name('ss.reinstate');
+        Route::post('/support-stewards/{steward}/resend', [SupportStewardController::class, 'resend'])->name('ss.resend');
+        Route::put('/support-stewards/{steward}/role', [SupportStewardController::class, 'updateRole'])->name('ss.update-role');
+        Route::put('/support-stewards/{steward}/permissions', [SupportStewardController::class, 'updatePermissions'])->name('ss.update-permissions');
+        Route::post('/support-stewards/{steward}/archive', [SupportStewardController::class, 'archive'])->name('ss.archive');
+        Route::put('/support-stewards/{steward}', [SupportStewardController::class, 'update'])->name('ss.update');
+        Route::get('/support-stewards/{steward}/agreement/download', [SupportStewardController::class, 'downloadAgreement'])->name('ss.agreement.download');
 
         // Vault
         Route::get('/vault', [VaultController::class, 'index'])->name('vault.index');
