@@ -273,6 +273,15 @@
             <div class="card-body">
               <div class="section-label">CS Permissions</div>
               <div v-for="row in csToggles" :key="row.key" class="toggle-row"><div class="toggle-info"><div class="toggle-label">{{ row.label }}</div><div class="toggle-desc">{{ row.desc }}</div></div><button type="button" class="toggle" :class="{ on: csPrefs[row.key] }" @click="csPrefs[row.key] = !csPrefs[row.key]" :aria-pressed="csPrefs[row.key]"></button></div>
+              <div v-if="currentTier === 'access'" style="font-size:11px;color:var(--text-3);margin-top:4px;">
+                You can serve as CS for 1 practitioner on Access tier.
+              </div>
+              <div v-else-if="currentTier === 'practice' && !hasCsAddonLocal" style="font-size:11px;color:var(--text-3);margin-top:4px;">
+                You can serve as CS for up to 3 practitioners on Practice tier.
+              </div>
+              <div v-else-if="hasCsAddonLocal" style="font-size:11px;color:var(--text-3);margin-top:4px;">
+                You can serve as CS for up to 43 practitioners with the CS Add-On.
+              </div>
               <div class="alert alert-info" style="margin-top:20px;margin-bottom:0;"><div class="alert-icon"><AegisIcon name="bell" :size="14" /></div><div class="alert-content" style="font-size:12px;">CS activity notification preferences have moved to the <a :href="route('provider.stewards.index')" style="color:var(--gold-dark);font-weight:700;">Continuity Stewards → Notifications tab →</a></div></div>
               <div class="btn-group" style="justify-content:flex-end;margin-top:16px">
                 <button type="button" class="btn btn-primary btn-sm" :disabled="csSettingsSaving" @click="saveCsSettings">
@@ -632,7 +641,7 @@
               </div>
 
               <!-- CS Add-On — same st-addon-card style as MAAT, inside st-card-body -->
-              <div class="st-addon-card" style="margin-top:12px" :class="{ 'st-addon-card--active': hasCsAddonLocal }">
+              <div v-if="currentTier === 'practice'" class="st-addon-card" style="margin-top:12px" :class="{ 'st-addon-card--active': hasCsAddonLocal }">
                 <span class="st-card-ico" :style="hasCsAddonLocal ? 'background:var(--icon-bg-gold);color:var(--gold-dark)' : ''">
                   <AegisIcon name="users" :size="17" />
                 </span>
@@ -727,6 +736,29 @@
                 </div>
               </div>
 
+              <!-- CS capacity info for Access tier -->
+              <div v-else-if="currentTier === 'access'" class="st-addon-card" style="margin-top:12px;">
+                <span class="st-card-ico"><AegisIcon name="users" :size="17" /></span>
+                <div class="st-addon-body">
+                  <div class="st-addon-head">
+                    <div class="st-addon-name">Serve as Continuity Steward</div>
+                    <div class="st-addon-price"><strong>Free</strong><div class="st-addon-billed">Included with Access</div></div>
+                  </div>
+                  <div class="alert alert-info" style="margin-bottom:12px;">
+                    <div class="alert-icon"><AegisIcon name="info" :size="16" /></div>
+                    <div class="alert-content">
+                      Access tier can serve as Continuity Steward for <strong>1 practitioner</strong> at no extra cost.
+                      To serve more, upgrade to Practice + CS Add-On ($25/mo) or Business CS ($49/mo).
+                    </div>
+                  </div>
+                  <div class="st-addon-foot">
+                    <button type="button" class="btn btn-outline" style="font-size:12px;" @click="swapPlan('practice')">
+                      <AegisIcon name="arrow-up-circle" :size="13" /> Upgrade to Practice — unlock CS Add-On
+                    </button>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
 
@@ -735,21 +767,25 @@
           <!-- ── PLAN SWAP CONFIRMATION ──────────────────────────────────── -->
 
           <!-- MAAT downgrade blocker -->
-          <AegisModal v-model="confirmDowngradeBlocked" title="Remove MAAT Before Downgrading" size="sm">
+          <AegisModal v-model="confirmDowngradeBlocked" title="Remove Add-Ons Before Downgrading" size="sm">
             <div class="alert alert-gold" style="margin-bottom:16px;">
               <div class="alert-icon"><AegisIcon name="alert-triangle" :size="17" /></div>
               <div class="alert-content">
-                <div class="alert-title">MAAT Add-On Must Be Removed First</div>
-                <div>The MAAT Professional CS add-on is only available on Continuity Practice. You must remove it before downgrading to Continuity Access.</div>
+                <div class="alert-title">Add-Ons Must Be Removed First</div>
+                <div>The following add-ons are only available on Continuity Practice and must be removed before downgrading to Continuity Access:</div>
+                <ul style="margin:8px 0 0 20px;">
+                  <li v-for="a in addonsRequiringRemoval" :key="a.key">{{ a.name }}</li>
+                </ul>
               </div>
             </div>
-            <p style="font-size:13px;color:var(--text-2);line-height:1.6;">Once MAAT is removed, you can proceed with the downgrade. Your MAAT CS will be notified and the assignment removed immediately.</p>
+            <p style="font-size:13px;color:var(--text-2);line-height:1.6;">
+              Removing add-ons will notify the affected stewards and remove their assignments immediately. You can then proceed with the downgrade.
+            </p>
             <template #footer>
               <button type="button" class="btn btn-outline" @click="confirmDowngradeBlocked = false">Cancel</button>
-              <button type="button" class="btn btn-danger" :disabled="maatBusy" @click="confirmDowngradeBlocked = false; toggleMaat(false)">
-                <AegisIcon v-if="maatBusy" name="refresh-cw" :size="13" class="btn-spin" />
-                <AegisIcon v-else name="trash" :size="13" />
-                {{ maatBusy ? 'Removing…' : 'Remove MAAT Add-On' }}
+              <button type="button" class="btn btn-danger" :disabled="maatBusy || csAddonBusy" @click="removeAllAddonsAndDowngrade">
+                <AegisIcon name="trash" :size="13" />
+                Remove All Add-Ons
               </button>
             </template>
           </AegisModal>
@@ -1533,6 +1569,13 @@ const confirmDowngradeBlocked = ref(false);
 const accessFeatures   = ['1 Continuity Steward invitation','2 Support Steward invitations','Serve as CS for 1 practitioner','Continuity Plan Builder','All 7 incident types','Document Vault (4 zones)','Shadow Network (limited)'];
 const practiceFeatures = ['Up to 2 Continuity Steward invitations','Up to 4 Support Steward invitations','Serve as CS for up to 3 practitioners','Referrals · Services Mode · Job Postings','Full Integrative Network','Priority support & onboarding call'];
 const maatFeatures     = ['Licensed & insured CS, certified by MAAT','4-hour emergency response guarantee','Annual CS recertification included'];
+
+const addonsRequiringRemoval = computed(() => {
+  const list = []
+  if (hasMaat.value)         list.push({ key: 'maat',     name: 'MAAT Professional CS' })
+  if (hasCsAddonLocal.value) list.push({ key: 'cs_addon', name: 'Practice CS Add-On' })
+  return list
+})
 function swapPlan(tier) {
   const priceId = tier === 'access' ? accessPriceId.value : practicePriceId.value;
   if (!priceId) { toast.error('Price ID not configured.'); return; }
@@ -1570,8 +1613,8 @@ function swapPlan(tier) {
         ? 'Switching to annual billing saves you 20%. The change takes effect at your next billing cycle.'
         : 'Switching to monthly billing. The change takes effect at your next billing cycle.';
 
-  // Block downgrade if MAAT add-on is active — must remove MAAT first
-  if (direction === 'downgrade' && hasMaat.value) {
+  // Block downgrade if any Practice-only add-ons are active — must remove first
+  if (direction === 'downgrade' && addonsRequiringRemoval.value.length > 0) {
     confirmDowngradeBlocked.value = true;
     return;
   }
@@ -1592,6 +1635,29 @@ function doSwapPlan() {
     onError: (errors) => toast.error(errors.subscription ?? 'Could not change plan.'),
     onFinish: () => { planBusy.value = false; },
   });
+}
+
+async function removeAllAddonsAndDowngrade() {
+  confirmDowngradeBlocked.value = false
+  if (hasMaat.value) {
+    await new Promise(resolve => {
+      router.post(route('provider.settings.subscription.maat'), { enable: false }, {
+        preserveScroll: true,
+        onSuccess: resolve,
+        onError: resolve,
+      })
+    })
+  }
+  if (hasCsAddonLocal.value) {
+    await new Promise(resolve => {
+      router.post(route('provider.settings.subscription.cs-addon'), { enable: false, billing: currentBillingIsAnnual.value ? 'annual' : 'monthly' }, {
+        preserveScroll: true,
+        onSuccess: resolve,
+        onError: resolve,
+      })
+    })
+  }
+  toast.success('Add-ons removed. You can now downgrade.')
 }
 function cancelPlan() {
   planBusy.value = true;

@@ -91,6 +91,9 @@
               <button type="button" class="btn ob-plan-btn" :class="selectedTier === 'access' ? 'btn-primary' : 'btn-outline'">
                 {{ selectedTier === 'access' ? '✓ Selected' : 'Select Access' }}
               </button>
+              <div v-if="selectedTier === 'access'" class="ob-plan-note" style="font-size:11px;color:var(--gold-dark);margin-top:8px;">
+                <AegisIcon name="info" :size="11" /> Access includes serving as CS for 1 practitioner at no extra cost.
+              </div>
             </div>
 
             <!-- Practice (recommended) -->
@@ -111,6 +114,9 @@
               <button type="button" class="btn ob-plan-btn" :class="selectedTier === 'practice' ? 'btn-primary' : 'btn-outline'">
                 {{ selectedTier === 'practice' ? '✓ Selected' : 'Select Practice' }}
               </button>
+              <div v-if="selectedTier === 'practice'" class="ob-plan-note" style="font-size:11px;color:var(--gold-dark);margin-top:8px;">
+                <AegisIcon name="info" :size="11" /> Practice includes serving as CS for up to 3 practitioners at no extra cost.
+              </div>
             </div>
           </div>
 
@@ -170,6 +176,11 @@
                 <small v-else>You can remove this add-on at any time from settings</small>
               </span>
             </label>
+            <div v-if="selectedTier === 'access'" class="alert alert-warning" style="margin-top:8px;font-size:11px;">
+              <AegisIcon name="lock" :size="12" />
+              Requires Continuity Practice or higher. To serve more than 1 practitioner as CS, either
+              upgrade to Practice + this add-on, or sign up for Business CS ($49/mo) separately.
+            </div>
           </div>
 
           <!-- Combo price callout — shown after CS addon, reflects all checked addons -->

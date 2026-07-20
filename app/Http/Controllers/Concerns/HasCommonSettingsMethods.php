@@ -230,6 +230,14 @@ trait HasCommonSettingsMethods
         $data = $request->validate(['price_id' => ['required', 'string', 'starts_with:price_']]);
         $user = $request->user();
 
+        // Backend safety: block downgrade to access if Practice-only addons still active
+        $targetTier = config("aegis.stripe_price_to_tier.{$data['price_id']}");
+        if ($targetTier === 'access' && $user->tier?->value === 'practice' && ($user->maat_addon || $user->cs_addon)) {
+            return back()->withErrors([
+                'plan' => 'Remove MAAT and CS Add-On before downgrading to Access.',
+            ]);
+        }
+
         try {
             $result = $this->subscriptions->changePlan($user, $data['price_id']);
             $msg    = match ($result['direction']) {
