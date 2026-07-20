@@ -546,7 +546,7 @@
                   </span>
                   <div class="st-plan-tier-name">Continuity Access</div>
                   <div class="st-plan-tier-price">{{ pricingStore.formatCents(billingAnnualView ? (pricingStore.getTier('access')?.annual ?? 3575) : (pricingStore.getTier('access')?.monthly ?? 3900)) }}<span>/mo</span></div>
-                  <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $276/yr · save 20%' : 'or $276/yr (save 20%)' }}</div>
+                  <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $' + ((pricingStore.getTier('access')?.annualTotal ?? 42900) / 100) + '/yr · save 20%' : 'or $' + ((pricingStore.getTier('access')?.annualTotal ?? 42900) / 100) + '/yr (save 20%)' }}</div>
                   <div class="st-plan-feats">
                     <span v-for="f in accessFeatures" :key="f"><AegisIcon name="check" :size="13" /> {{ f }}</span>
                   </div>
@@ -566,7 +566,7 @@
                   </span>
                   <div class="st-plan-tier-name">Continuity Practice</div>
                   <div class="st-plan-tier-price">{{ pricingStore.formatCents(billingAnnualView ? (pricingStore.getTier('practice')?.annual ?? 6583) : (pricingStore.getTier('practice')?.monthly ?? 7900)) }}<span>/mo</span></div>
-                  <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $468/yr · save 20%' : 'or $468/yr (save 20%)' }}</div>
+                  <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $' + ((pricingStore.getTier('practice')?.annualTotal ?? 79000) / 100) + '/yr · save 20%' : 'or $' + ((pricingStore.getTier('practice')?.annualTotal ?? 79000) / 100) + '/yr (save 20%)' }}</div>
                   <div class="st-plan-feats">
                     <span v-for="f in practiceFeatures" :key="f"><AegisIcon name="check" :size="13" /> {{ f }}</span>
                   </div>
@@ -590,7 +590,7 @@
                     <div class="st-addon-name">MAAT Professional CS <span class="st-addon-tag">MAAT Add-On</span></div>
                     <div class="st-addon-price">
                       +<strong>{{ pricingStore.formatCents(maatBillingAnnual ? 2300 : 2900) }}</strong>/mo
-                      <div class="st-addon-billed">{{ maatBillingAnnual ? 'billed $276/yr' : 'or $276/yr (save 20%)' }}</div>
+                      <div class="st-addon-billed">{{ maatBillingAnnual ? 'billed $' + ((props.pricing?.maat_addon?.annual_total_cents ?? 27600) / 100) + '/yr' : 'or $' + ((props.pricing?.maat_addon?.annual_total_cents ?? 27600) / 100) + '/yr (save 20%)' }}</div>
                     </div>
                   </div>
                   <div class="st-addon-desc">A licensed, insured professional Continuity Steward — certified by MAAT — designated to your practice. Emergency response within 4 hours, annual recertification included.</div>
@@ -608,7 +608,7 @@
                   <div class="st-addon-foot" style="flex-direction:column;align-items:flex-start;gap:10px;">
                     <div v-if="!hasMaat" style="font-size:12px;color:var(--text-3);display:flex;align-items:center;gap:6px;margin-bottom:2px;">
                       <AegisIcon name="info" :size="12" style="flex-shrink:0;color:var(--gold-dark);" />
-                      Billed {{ maatBillingAnnual ? 'annually ($276/yr)' : 'monthly (+$29/mo)' }} — matches your base plan.
+                      Billed {{ maatBillingAnnual ? 'annually ($' + ((props.pricing?.maat_addon?.annual_total_cents ?? 27600) / 100) + '/yr)' : 'monthly (+$' + ((props.pricing?.maat_addon?.monthly_cents ?? 2900) / 100) + '/mo)' }} — matches your base plan.
 
                     </div>
                     <div style="display:flex;align-items:center;gap:12px;">
