@@ -444,6 +444,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::put('/settings/privacy-settings',  [ProviderSettingsController::class, 'updatePrivacySettings'])->name('settings.privacy-settings');
         // CS availability toggle (replaces removed ss-availability per Chapman decision #2)
         Route::post('/settings/cs-availability',   [ProviderSettingsController::class, 'updateCsAvailability'])->name('settings.cs-availability');
+        Route::post('/settings/ss-availability',   [ProviderSettingsController::class, 'updateSsAvailability'])->name('settings.ss-availability');
         Route::put('/settings/password', [PasswordResetController::class, 'change'])->name('settings.password');
         Route::put('/settings/account', [ProviderSettingsController::class, 'updateAccount'])->name('settings.account');
         Route::put('/settings/appearance', [ProviderSettingsController::class, 'updateAppearance'])->name('settings.appearance');

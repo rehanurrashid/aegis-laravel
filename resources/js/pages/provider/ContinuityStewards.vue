@@ -410,7 +410,7 @@ function saveNotifyPrefs() {
         <AegisIcon name="pause" :size="13" />
         Suspended <span class="badge-pill">{{ suspended.length }}</span>
       </button>
-      <button v-if="servingAsCSFor.length" class="tab-pill" :class="{ active: activeTab === 'for' }" @click="activeTab = 'for'">
+      <button class="tab-pill" :class="{ active: activeTab === 'for' }" @click="activeTab = 'for'">
         <AegisIcon name="check-circle" :size="13" />
         I'm Continuity Steward For <span class="badge-pill">{{ servingAsCSFor.length }}</span>
       </button>
@@ -665,13 +665,118 @@ function saveNotifyPrefs() {
         <div class="section-title"><AegisIcon name="users" :size="16" /> Providers I'm Stewarding</div>
       </div>
 
+      <!-- Empty state: tier-aware explanation when not serving as CS for anyone -->
+      <div v-if="!servingAsCSFor.length" style="margin-bottom:20px">
+
+        <!-- Access tier -->
+        <div v-if="userTier === 'access'" class="card" style="padding:28px 24px">
+          <div style="display:flex;align-items:flex-start;gap:16px">
+            <div style="width:44px;height:44px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <AegisIcon name="shield" :size="22" />
+            </div>
+            <div style="flex:1">
+              <div style="font-family:var(--font-serif);font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">You're not serving as CS for anyone yet</div>
+              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin:0 0 14px">
+                As a provider, you can also <em>be</em> a Continuity Steward for other practitioners. Your
+                <strong>Continuity Access</strong> tier allows you to serve as CS for
+                <strong>1 practitioner</strong> at no extra cost.
+              </p>
+              <div class="alert alert-info" style="margin-bottom:16px">
+                <div class="alert-icon"><AegisIcon name="info" :size="14" /></div>
+                <div>Access tier — you can serve as CS for 1 practitioner at no extra cost. To take on more, upgrade to Continuity Practice.</div>
+              </div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <a :href="route('provider.settings.index') + '?section=privacy'" class="btn btn-primary">
+                  <AegisIcon name="sliders" :size="13" /> Manage CS Availability in Settings
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Practice tier, no CS add-on -->
+        <div v-else-if="userTier === 'practice' && !hasCsAddon" class="card" style="padding:28px 24px">
+          <div style="display:flex;align-items:flex-start;gap:16px">
+            <div style="width:44px;height:44px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <AegisIcon name="shield" :size="22" />
+            </div>
+            <div style="flex:1">
+              <div style="font-family:var(--font-serif);font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">You're not serving as CS for anyone yet</div>
+              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin:0 0 14px">
+                Your <strong>Continuity Practice</strong> tier allows you to serve as CS for up to
+                <strong>3 practitioners</strong>. Add the CS Business Add-On to expand your caseload to
+                <strong>43 practitioners</strong>.
+              </p>
+              <div class="alert alert-info" style="margin-bottom:16px">
+                <div class="alert-icon"><AegisIcon name="info" :size="14" /></div>
+                <div>Practice tier — you can serve as CS for up to 3 practitioners. Upgrade with the CS Add-On (+$25/mo) to serve up to 43.</div>
+              </div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <a :href="route('provider.settings.index') + '?section=privacy'" class="btn btn-primary">
+                  <AegisIcon name="sliders" :size="13" /> Manage CS Availability
+                </a>
+                <a :href="route('provider.settings.index') + '?section=billing&highlight=cs_addon'" class="btn btn-outline">
+                  <AegisIcon name="plus" :size="13" /> Add CS Business Add-On (+$25/mo)
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Practice tier + CS add-on -->
+        <div v-else-if="userTier === 'practice' && hasCsAddon" class="card" style="padding:28px 24px">
+          <div style="display:flex;align-items:flex-start;gap:16px">
+            <div style="width:44px;height:44px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <AegisIcon name="shield" :size="22" />
+            </div>
+            <div style="flex:1">
+              <div style="font-family:var(--font-serif);font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">You're not serving as CS for anyone yet</div>
+              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin:0 0 14px">
+                Your <strong>Practice Business</strong> plan allows you to serve as CS for up to
+                <strong>{{ providerAsCsCap }} practitioners</strong>.
+                You currently have <strong>{{ providerAsCsCount }} of {{ providerAsCsCap }}</strong> slots filled.
+              </p>
+              <div class="alert alert-success" style="margin-bottom:16px">
+                <div class="alert-icon"><AegisIcon name="check-circle" :size="14" /></div>
+                <div>Practice Business — you can serve as CS for up to {{ providerAsCsCap }} practitioners. Make sure your CS availability is on so providers can find you.</div>
+              </div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <a :href="route('provider.settings.index') + '?section=privacy'" class="btn btn-primary">
+                  <AegisIcon name="sliders" :size="13" /> Manage CS Availability
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CS Business tier -->
+        <div v-else-if="userTier === 'cs_business'" class="card" style="padding:28px 24px">
+          <div style="display:flex;align-items:flex-start;gap:16px">
+            <div style="width:44px;height:44px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <AegisIcon name="shield" :size="22" />
+            </div>
+            <div style="flex:1">
+              <div style="font-family:var(--font-serif);font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">You're not serving as CS for anyone yet</div>
+              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin:0 0 14px">
+                Your <strong>Business CS</strong> plan allows you to serve as CS for up to
+                <strong>40 practitioners</strong>. You have <strong>{{ providerAsCsCount }} of 40</strong> slots filled.
+                Manage your profile and availability from the CS Portal.
+              </p>
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <a :href="route('cs.dashboard')" class="btn btn-primary">
+                  <AegisIcon name="shield" :size="13" /> Manage CS Profile
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fallback for any other tier -->
+        <AegisEmptyState v-else icon="shield" title="You're not serving as CS for anyone yet" description="You are not currently designated as a Continuity Steward for any provider." />
+
+      </div>
+
       <div class="list-group">
-        <AegisEmptyState
-          v-if="!servingAsCSFor.length"
-          icon="users"
-          title="Not serving as CS yet"
-          description="You are not currently serving as CS for any providers."
-        />
         <div v-for="prov in servingAsCSFor" :key="prov.id" class="list-group-item" style="background:var(--surface-white,#fff);">
           <div style="width:38px;height:38px;border-radius:var(--radius-sm);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
             {{ prov.avatar_initials || initials(prov.display_name ?? '') }}

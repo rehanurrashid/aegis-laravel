@@ -81,8 +81,8 @@
       <button v-if="suspended.length" class="tab-pill" :class="{ active: activeTab === 'suspended' }" @click="activeTab = 'suspended'">
         Suspended <span class="badge-pill">{{ suspended.length }}</span>
       </button>
-      <button v-if="servingAsSsFor?.length" class="tab-pill" :class="{ active: activeTab === 'iamdsr' }" @click="activeTab = 'iamdsr'">
-        I'm SS For <span class="badge-pill">{{ servingAsSsFor.length }}</span>
+      <button class="tab-pill" :class="{ active: activeTab === 'iamdsr' }" @click="activeTab = 'iamdsr'">
+        I'm SS For <span class="badge-pill">{{ servingAsSsFor?.length ?? 0 }}</span>
       </button>
       <button class="tab-pill" :class="{ active: activeTab === 'notifications' }" @click="activeTab = 'notifications'">
         Notifications
@@ -243,45 +243,89 @@
 
     <!-- ═══ TAB: I'M SS FOR ═══ -->
     <div v-show="activeTab === 'iamdsr'">
-      <div class="alert alert-info" style="margin-bottom:20px;">
-        <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
-        <div class="alert-content">
-          <div class="alert-title">You are a Support Steward for {{ servingAsSsFor?.length ?? 0 }} provider{{ (servingAsSsFor?.length ?? 0) !== 1 ? 's' : '' }}.</div>
-          <div>This is a summary of your active SS designations. For full SS work — daily check-ins, task list, critical-incident reporting, and agreement archive — open your Support Steward Portal.</div>
-          <div style="margin-top:10px;">
-            <a :href="route('ss.dashboard')" class="btn btn-outline">
-              <AegisIcon name="shield" :size="13" /> Open SS Portal
+
+      <!-- ── EMPTY STATE: not serving as SS for anyone ── -->
+      <template v-if="!servingAsSsFor?.length">
+        <div class="card" style="padding:28px 24px;margin-bottom:20px">
+          <div style="display:flex;align-items:flex-start;gap:16px">
+            <div style="width:44px;height:44px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <AegisIcon name="users" :size="22" />
+            </div>
+            <div style="flex:1">
+              <div style="font-family:var(--font-serif);font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">You're not serving as Support Steward for anyone yet</div>
+              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin:0 0 16px">
+                The Support Steward role is free and open to any Aegis user — but you can't apply for it.
+                Providers designate their own SS by searching for you by name and email.
+                If a provider adds you, their designation will appear here.
+              </p>
+              <div class="alert alert-info" style="margin-bottom:20px">
+                <div class="alert-icon"><AegisIcon name="info" :size="14" /></div>
+                <div>Support Stewards are designated by providers — you cannot apply or search for this role. If a provider adds you as their SS, it will appear here automatically.</div>
+              </div>
+
+              <!-- Available as SS toggle -->
+              <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:16px">
+                  <div>
+                    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">Available as Support Steward</div>
+                    <div style="font-size:12px;color:var(--text-3)">This is a private preference — not visible to other providers. Aegis uses this to help match when providers look for SS candidates.</div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+                    <span v-if="ssSaved" style="font-size:11px;color:var(--green-dark);font-weight:600">Saved</span>
+                    <AegisToggle v-model="availableAsSsToggle" @update:model-value="saveAvailableAsSs" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- ── ACTIVE LIST: serving as SS for one or more providers ── -->
+      <template v-else>
+        <div class="alert alert-info" style="margin-bottom:20px">
+          <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
+          <div class="alert-content">
+            <div class="alert-title">Your SS role is active for {{ servingAsSsFor.length }} provider{{ servingAsSsFor.length !== 1 ? 's' : '' }}.</div>
+            <div>You'll be notified if any of these providers trigger a critical incident. Open your SS Portal for task management and incident reporting.</div>
+            <div style="margin-top:10px">
+              <a :href="route('ss.dashboard')" class="btn btn-outline">
+                <AegisIcon name="shield" :size="13" /> Open SS Portal
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-bottom:10px;display:flex;align-items:center;gap:8px">
+          <AegisIcon name="users" :size="16" /> Providers I'm Supporting
+        </div>
+        <div class="list-group">
+          <div v-for="item in servingAsSsFor" :key="item.id" class="list-group-item">
+            <div class="avatar avatar-sm avatar-gold">{{ item.provider?.avatar_initials ?? '??' }}</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <a v-if="item.provider?.slug"
+                   :href="route('public.provider', item.provider.slug)"
+                   style="font-size:13px;font-weight:700;color:var(--gold-dark)">
+                  {{ item.provider?.display_name }}{{ item.provider?.credentials ? ', ' + item.provider.credentials : '' }}
+                </a>
+                <span v-else style="font-size:13px;font-weight:700">{{ item.provider?.display_name ?? '—' }}</span>
+                <AegisBadge :label="item.role === 'primary' ? 'Primary SS' : 'Alternate SS'" variant="gold" />
+                <AegisBadge :label="item.status === 'active' ? 'Active' : 'Pending'" :variant="item.status === 'active' ? 'green' : 'gold'" />
+              </div>
+              <div style="font-size:12px;color:var(--text-3);margin-top:2px">
+                {{ item.provider?.organization }}{{ item.provider?.location ? ' · ' + item.provider.location : '' }}
+                <span v-if="item.signed_at"> · SS since {{ fmtDate(item.signed_at) }}</span>
+                <span v-if="item.review_due_at"> · Review due {{ fmtDate(item.review_due_at) }}</span>
+              </div>
+            </div>
+            <a :href="route('ss.dashboard')" class="btn-icon" data-tooltip="Manage in SS Portal">
+              <AegisIcon name="arrow-right" :size="14" />
             </a>
           </div>
         </div>
-      </div>
-      <div class="section-title" style="margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-        <AegisIcon name="users" :size="16" /> Providers I'm Supporting
-      </div>
-      <div class="list-group">
-        <div v-for="item in (servingAsSsFor ?? [])" :key="item.id" class="list-group-item">
-          <div class="avatar avatar-sm avatar-gold">{{ item.provider?.avatar_initials ?? '??' }}</div>
-          <div style="flex:1;min-width:0;">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <a v-if="item.provider?.slug"
-                 :href="route('public.provider', item.provider.slug)"
-                 style="font-size:13px;font-weight:700;color:var(--gold-dark);">
-                {{ item.provider?.display_name }}{{ item.provider?.credentials ? ', ' + item.provider.credentials : '' }}
-              </a>
-              <span v-else style="font-size:13px;font-weight:700;">{{ item.provider?.display_name ?? '—' }}</span>
-              <AegisBadge :label="item.role === 'primary' ? 'Primary SS' : 'Alternate SS'" variant="gold" />
-              <AegisBadge :label="item.status === 'active' ? 'Active' : 'Pending'" :variant="item.status === 'active' ? 'green' : 'gold'" />
-            </div>
-            <div style="font-size:12px;color:var(--text-3);margin-top:2px;">
-              {{ item.provider?.organization }}{{ item.provider?.location ? ' · ' + item.provider.location : '' }}
-              <span v-if="item.review_due_at"> · Review due {{ fmtDate(item.review_due_at) }}</span>
-            </div>
-          </div>
-          <a :href="route('ss.dashboard')" class="btn-icon" data-tooltip="Manage in SS Portal">
-            <AegisIcon name="arrow-right" :size="14" />
-          </a>
-        </div>
-      </div>
+      </template>
+
     </div>
 
     <!-- ═══ TAB: NOTIFICATIONS ═══ -->
@@ -741,6 +785,7 @@ const props = defineProps({
   hasDraftInProgress: { type: Boolean, default: false },
   draftPlanVersion:   { type: Number,  default: null },
   notifyPrefs:        { type: Object,  default: () => ({}) },
+  availableAsSs:      { type: Boolean, default: false },
 })
 
 // ── Composables ──────────────────────────────────────────
@@ -763,6 +808,21 @@ const activeCount  = computed(() => props.stewards.length)
 const pendingCount = computed(() => props.pending.length + props.invited.length)
 const rosterCount  = computed(() => props.stewards.length)
 const atLimit      = computed(() => props.ssCount >= props.ssMax)
+
+// ── SS Availability (I'm SS For tab) ─────────────────────
+const availableAsSsToggle = ref(props.availableAsSs ?? false)
+const ssSaved = ref(false)
+let ssSavedTimer = null
+function saveAvailableAsSs(val) {
+  router.post(route('provider.settings.ss-availability'), { available_as_ss: val }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      ssSaved.value = true
+      clearTimeout(ssSavedTimer)
+      ssSavedTimer = setTimeout(() => { ssSaved.value = false }, 2500)
+    },
+  })
+}
 
 // ── SS Notification Preferences ──────────────────────────
 const ssNotifyToggles = ref({

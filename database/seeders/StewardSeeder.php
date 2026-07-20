@@ -173,27 +173,7 @@ class StewardSeeder extends Seeder
                 'updated_at'       => $now->copy()->subMonths(13),
             ],
 
-            // p_maria plan — primary CS p_sarah (so p_sarah sees "I'm CS For" tab with rich data)
-            [
-                'id'               => 'ps_maria_sarah',
-                'plan_id'          => 'plan_maria',
-                'steward_id'       => 'p_sarah',
-                'role'             => 'primary',
-                'steward_category' => 'continuity_steward',
-                'status'           => 'active',
-                'vault_access'     => 'full',
-                'permissions'      => json_encode(['view_plan', 'manage_incident', 'access_vault', 'issue_documents']),
-                'responsibilities' => json_encode([
-                    'Activate continuity plan upon verified incident',
-                    'Coordinate client notifications',
-                    'Manage vault access during active incidents',
-                ]),
-                'signed_at'        => $now->copy()->subMonths(8),
-                'review_due_at'    => $now->copy()->addDays(25), // upcoming review — shows in Next Review Due chip
-                'invited_at'       => $now->copy()->subMonths(9),
-                'created_at'       => $now->copy()->subMonths(9),
-                'updated_at'       => $now->copy()->subMonths(8),
-            ],
+            // ps_maria_sarah removed — sarah starts with zero I'm CS For records
 
             // ── p_david plan — no primary CS yet, pending request to cs_marcus
             [
@@ -211,49 +191,9 @@ class StewardSeeder extends Seeder
                 'updated_at'       => $now->copy()->subDays(3),
             ],
 
-            // p_david plan — p_sarah as primary SS (so sarah sees "I'm SS For" tab)
-            [
-                'id'               => 'ps_david_ss_sarah',
-                'plan_id'          => 'plan_david',
-                'steward_id'       => 'p_sarah',
-                'steward_category' => 'support_steward',
-                'role'             => 'primary',
-                'status'           => 'active',
-                'vault_access'     => 'none',
-                'permissions'      => json_encode(['report_incident', 'log_checkin', 'view_plan_summary']),
-                'responsibilities' => json_encode([
-                    ['text' => 'Verify practitioner status and confirm critical incident', 'level' => 'Full'],
-                    ['text' => 'Notify Continuity Steward within 2 hours of confirmation', 'level' => 'Full'],
-                    ['text' => 'Provide weekly status updates during active incident', 'level' => 'Limited'],
-                    ['text' => 'Coordinate access to practice building and clinical records', 'level' => 'Limited'],
-                    ['text' => 'Track outstanding invoices and flag overdue accounts', 'level' => 'Read Only'],
-                ]),
-                'signed_at'        => $now->copy()->subMonths(3),
-                'review_due_at'    => $now->copy()->addMonths(9),
-                'ss_acknowledged_at' => $now->copy()->subMonths(3),
-                'invited_at'       => $now->copy()->subMonths(3)->subDays(5),
-                'created_at'       => $now->copy()->subMonths(3),
-                'updated_at'       => $now->copy()->subMonths(3),
-            ],
+            // ps_david_ss_sarah removed — sarah starts with zero I'm SS For records
 
-            // p_maria plan — sarah also serving as SS (pending invite, so banner shows 2 providers)
-            [
-                'id'               => 'ps_maria_ss_sarah',
-                'plan_id'          => 'plan_maria',
-                'steward_id'       => 'p_sarah',
-                'steward_category' => 'support_steward',
-                'role'             => 'alternate',
-                'status'           => 'pending',
-                'vault_access'     => 'none',
-                'permissions'      => json_encode([]),
-                'responsibilities' => json_encode([]),
-                'signed_at'        => null,
-                'review_due_at'    => null,
-                'invited_at'       => $now->copy()->subDays(5),
-                'expires_at'       => $now->copy()->addDays(25),
-                'created_at'       => $now->copy()->subDays(5),
-                'updated_at'       => $now->copy()->subDays(5),
-            ],
+            // ps_maria_ss_sarah removed — sarah starts with zero I'm SS For records
 
             // p_sarah plan — suspended CS priya (archived + declined_reason = suspended)
             [

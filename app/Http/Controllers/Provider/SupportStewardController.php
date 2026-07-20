@@ -91,6 +91,10 @@ class SupportStewardController extends Controller
             }
         } catch (\Throwable $e) {}
 
+        $availableAsSs = (bool) (\App\Models\UserMeta::where('user_id', $user->id)
+            ->where('meta_key', 'available_as_ss')
+            ->value('meta_value'));
+
         return Inertia::render('Provider/SupportStewards', [
             'stewards'           => $stewards,
             'suspended'          => $suspended,
@@ -107,6 +111,7 @@ class SupportStewardController extends Controller
             'annualReviewDate'   => $plan?->annual_review_date?->toISOString() ?? null,
             'hasDraftInProgress' => ContinuityPlan::where('practitioner_id', $user->id)->where('status', 'draft')->exists(),
             'draftPlanVersion'   => ContinuityPlan::where('practitioner_id', $user->id)->where('status', 'draft')->value('plan_version'),
+            'availableAsSs'      => $availableAsSs,
         ]);
     }
 
