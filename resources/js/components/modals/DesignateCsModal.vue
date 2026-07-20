@@ -117,20 +117,10 @@
         </div>
       </div>
 
-      <div class="form-group" style="margin-top:12px;">
-        <label class="form-label">Payment Terms</label>
-        <select v-model="form.payment_terms" class="form-control form-select">
-          <option value="per_incident">Per Incident</option>
-          <option value="monthly">Monthly Retainer</option>
-          <option value="annual">Annual</option>
-          <option value="reciprocal">Reciprocal (No Payment)</option>
-        </select>
-      </div>
-
       <div class="setting-row" style="margin-top:14px;">
         <div class="setting-info">
-          <div class="setting-label">Auto-charge on incident activation</div>
-          <div class="setting-desc">Automatically invoice this CS when a continuity response is triggered</div>
+          <div class="setting-label">Auto-charge when incident closes and CS tasks complete</div>
+          <div class="setting-desc">Automatically invoice this CS when the critical incident closes and all assigned tasks are marked complete</div>
         </div>
         <button type="button" class="toggle" :class="{ on: form.auto_charge }" @click="form.auto_charge = !form.auto_charge"></button>
       </div>
@@ -195,8 +185,9 @@
         <p v-if="preselectedUser?.location"><strong>Location:</strong> {{ preselectedUser.location }}</p>
         <p><strong>Role:</strong> {{ roleLabel(form.role) }}</p>
         <p v-if="form.relationship"><strong>Relationship:</strong> {{ form.relationship }}</p>
-        <p v-if="form.fee_cents"><strong>Agreed Fee:</strong> ${{ (form.fee_cents / 100).toFixed(2) }} / {{ form.payment_terms }}</p>
-        <p v-if="form.auto_charge"><strong>Auto-charge:</strong> Enabled on incident activation</p>
+        <p v-if="form.fee_cents"><strong>Agreed Fee:</strong> ${{ (form.fee_cents / 100).toFixed(2) }} — invoiced when incident closes and CS tasks complete</p>
+        <p v-else><strong>Agreed Fee:</strong> $0 (reciprocal / no payment)</p>
+        <p v-if="form.auto_charge"><strong>Auto-charge:</strong> Enabled when incident closes and CS tasks complete</p>
         <p><strong>Agreement Date:</strong> {{ new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) }}</p>
       </div>
       <div
@@ -309,7 +300,6 @@ const form = useForm({
   display_name:     '',
   role:             'primary',
   fee_cents:        0,
-  payment_terms:    'per_incident',
   auto_charge:      false,
   relationship:     '',
   message:          '',
@@ -398,7 +388,6 @@ async function submitDesignate() {
   const payload = {
     role:          form.role,
     fee_cents:     form.fee_cents,
-    payment_terms: form.payment_terms,
     auto_charge:   form.auto_charge,
     message:       form.message,
     expires_days:  form.expires_days,

@@ -20,7 +20,7 @@ class DesignateStewardRequest extends FormRequest
             'role'                 => ['nullable', Rule::in(['primary', 'alternate', 'support'])],
             'steward_category'     => 'nullable|string|max:50',
             'fee_cents'            => 'nullable|integer|min:0',
-            'payment_terms'        => ['nullable', Rule::in(['per_incident', 'monthly', 'annual', 'reciprocal'])],
+
             'auto_charge'          => 'nullable|boolean',
             'expires_days'         => 'nullable|integer|min:1|max:90',
             'message'              => 'nullable|string|max:1000',

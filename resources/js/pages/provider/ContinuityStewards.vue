@@ -125,7 +125,7 @@ const editForm = useForm({
 const busyEdit = ref(false)
 
 // ── Amend Fee form ─────────────────────────────────────────────────────────────
-const amendFeeForm = useForm({ fee_cents_display: '', payment_terms: 'on_close' })
+const amendFeeForm = useForm({ fee_cents_display: '' })
 const busyAmendFee = ref(false)
 
 watch(() => modals.value.amendFee, (open) => {
@@ -133,8 +133,6 @@ watch(() => modals.value.amendFee, (open) => {
     amendFeeForm.fee_cents_display = activeSteward.value.fee_cents
       ? (activeSteward.value.fee_cents / 100).toFixed(2)
       : ''
-    const rawTerms = activeSteward.value.payment_terms ?? 'on_close'
-    amendFeeForm.payment_terms = rawTerms === 'per_incident' ? 'on_close' : rawTerms
   }
 })
 
@@ -144,7 +142,6 @@ function submitAmendFee() {
   const feeCents = Math.round(parseFloat(amendFeeForm.fee_cents_display || '0') * 100)
   router.post(route('provider.stewards.update-fee', { steward: activeSteward.value.id }), {
     fee_cents:     feeCents,
-    payment_terms: amendFeeForm.payment_terms,
   }, {
     preserveScroll: true,
     onSuccess: () => { modals.value.amendFee = false; toast.success('Fee amendment created. Awaiting CS countersignature.'); router.reload({ only: ['stewards'] }) },
@@ -600,7 +597,8 @@ function saveNotifyPrefs() {
             <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-3);">
               <span v-if="s.email" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="mail" :size="13" />{{ s.email }}</span>
               <span v-if="s.signed_at" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="file-text" :size="13" />Agreement: {{ fmtDate(s.signed_at) }}</span>
-              <span v-if="s.fee_cents > 0" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="dollar-sign" :size="13" />{{ formatMoney(s.fee_cents) }} · {{ s.payment_terms }}</span>
+              <span v-if="s.fee_cents > 0" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="dollar-sign" :size="13" />{{ formatMoney(s.fee_cents) }} — on incident close</span>
+              <span v-else-if="s.fee_cents === 0" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="dollar-sign" :size="13" />Reciprocal (no payment)</span>
             </div>
             <div v-if="s.declined_reason" style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:var(--red-dark);">
               <AegisIcon name="alert-circle" :size="13" />
@@ -792,16 +790,11 @@ function saveNotifyPrefs() {
 
       <!-- Fee (read-only) -->
       <div class="form-group">
-        <label class="form-label">Fee &amp; Payment Terms</label>
+        <label class="form-label">Agreed Fee</label>
         <div style="display:flex;align-items:center;gap:10px;">
           <span class="form-control" style="background:var(--surface-2);color:var(--text-2);cursor:default;flex:1;">
             {{ activeSteward ? formatMoney(activeSteward.fee_cents) : '—' }}
-            <span v-if="activeSteward?.payment_terms" style="color:var(--text-3);"> · {{
-              activeSteward.payment_terms === 'on_close' ? 'Upon incident close' :
-              activeSteward.payment_terms === 'net_30'   ? 'Net 30' :
-              activeSteward.payment_terms === 'net_60'   ? 'Net 60' :
-              activeSteward.payment_terms
-            }}</span>
+            <span style="color:var(--text-3);"> · Invoiced when the critical incident closes and CS tasks are marked complete</span>
           </span>
           <button
             v-if="!hasPendingFeeAmendment"
@@ -879,14 +872,7 @@ function saveNotifyPrefs() {
             <input v-model="amendFeeForm.fee_cents_display" type="number" min="0" step="0.01" class="form-control" placeholder="0.00" />
           </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Payment Terms</label>
-          <select v-model="amendFeeForm.payment_terms" class="form-control form-select">
-            <option value="on_close">Upon Incident Close</option>
-            <option value="net_30">Net 30</option>
-            <option value="net_60">Net 60</option>
-          </select>
-        </div>
+        <p style="font-size:12px;color:var(--text-3);margin-top:6px;">Invoiced when the critical incident closes and CS tasks are marked complete.</p>
       </template>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.amendFee=false">{{ hasPendingFeeAmendment ? 'Close' : 'Cancel' }}</button>

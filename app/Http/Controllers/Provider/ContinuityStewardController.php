@@ -233,14 +233,14 @@ class ContinuityStewardController extends Controller
             if (!empty($data['preselected_user_id'])) {
                 $csUser = User::findOrFail($data['preselected_user_id']);
                 $this->stewards->designate($plan, $csUser, 'continuity_steward', $role, [
-                    'fee_cents'     => $data['fee_cents']     ?? 0,
-                    'payment_model' => $data['payment_terms'] ?? 'per_incident',
+                    'fee_cents'     => $data['fee_cents'] ?? 0,
+                    'payment_model' => 'on_close',
                 ]);
             // Path B: existing user by user_id
             } elseif (!empty($data['user_id'])) {
                 $this->stewards->designate($plan, User::findOrFail($data['user_id']), 'continuity_steward', $role, [
-                    'fee_cents'     => $data['fee_cents']     ?? 0,
-                    'payment_model' => $data['payment_terms'] ?? 'per_incident',
+                    'fee_cents'     => $data['fee_cents'] ?? 0,
+                    'payment_model' => 'on_close',
                 ]);
             // Path C: external email invite
             } else {
@@ -335,8 +335,7 @@ class ContinuityStewardController extends Controller
         $this->authorize('update', $plan);
 
         $data = $request->validate([
-            'fee_cents'     => 'required|integer|min:0',
-            'payment_terms' => 'required|in:on_close,net_30,net_60',
+            'fee_cents' => 'required|integer|min:0',
         ]);
 
         $hasPending = \App\Models\ContinuityDocument::where('plan_id', $plan->id)
@@ -349,7 +348,7 @@ class ContinuityStewardController extends Controller
             return back()->withErrors(['fee_cents' => 'A fee amendment is already pending countersignature. Wait for your CS to sign or decline before sending another.']);
         }
 
-        $this->stewards->updateFee($steward, (int) $data['fee_cents'], $data['payment_terms'], $request->user());
+        $this->stewards->updateFee($steward, (int) $data['fee_cents'], 'on_close', $request->user());
         return back()->with('success', 'Fee amendment created. Awaiting CS countersignature.');
     }
 

@@ -454,13 +454,7 @@ class SendEmailNotificationListener
         $notes        = is_string($e->document->notes) ? json_decode($e->document->notes, true) : ($e->document->notes ?? []);
         $oldFee       = number_format((($notes['old_fee_cents'] ?? 0) / 100), 2);
         $newFee       = number_format((($notes['new_fee_cents'] ?? 0) / 100), 2);
-        $paymentTerms = $notes['payment_terms'] ?? 'on_close';
         $csUser       = \App\Models\User::find($e->steward->steward_id);
-        $termsLabel   = match ($paymentTerms) {
-            'net_30'   => 'Net 30',
-            'net_60'   => 'Net 60',
-            default    => 'Upon Incident Close',
-        };
         return [['user_id' => $e->steward->steward_id, 'gate_key' => 'notify_cs_activity',
                  'template' => 'emails.steward.24-cs-fee-amendment',
                  'data' => [
@@ -468,7 +462,7 @@ class SendEmailNotificationListener
                      'cs_name'       => $csUser?->display_name ?? 'there',
                      'old_fee'       => $oldFee,
                      'new_fee'       => $newFee,
-                     'payment_terms' => $termsLabel,
+                     'payment_terms' => 'Upon Incident Close',
                      'doc_id'        => $e->document->id,
                      'portal_url'    => rtrim(config('app.url'), '/') . '/continuity-steward/documents',
                  ]]];

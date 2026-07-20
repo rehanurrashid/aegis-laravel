@@ -459,7 +459,6 @@ class IncidentService
 
         // Attempt auto-charge if the engagement is configured for it
         $canAutoCharge = $engagement->auto_charge
-            && $engagement->payment_terms === 'on_close'
             && $payouts
             && $provider
             && $provider->stripe_id

@@ -51,7 +51,7 @@ class ContinuityManagementController extends Controller
     {
         $this->authorize('close', $incident);
         $summary = $request->validate(['summary' => 'required|string|min:10|max:2000'])['summary'];
-        $this->incidents->close($incident, $request->user(), $summary);
+        $this->incidents->closeWithInvoice($incident, $request->user(), $summary);
         return back()->with('success', 'Incident closed.');
     }
 

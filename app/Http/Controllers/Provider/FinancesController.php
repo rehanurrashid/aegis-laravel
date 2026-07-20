@@ -691,9 +691,9 @@ class FinancesController extends Controller
         $provider = $request->user();
         $plan = ContinuityPlan::where('practitioner_id', $provider->id)->firstOrFail();
         if ($steward->plan_id !== $plan->id) abort(403);
-        $data = $request->validate(['payment_model' => 'required|string|in:on_close,net_30,net_60', 'fee_cents' => 'nullable|integer|min:0']);
-        $steward->update(['payment_terms' => $data['payment_model'], 'fee_cents' => $data['fee_cents'] ?? $steward->fee_cents]);
-        $this->activity->log($provider->id, 'provider', 'finances', ActivitySeverity::Info, 'cs_payment_model_updated', 'CS payment model updated', 'Updated payment terms for CS to ' . $data['payment_model'] . '.', PlanSteward::class, $steward->id, $steward->steward_id, 'log', $provider->id);
+        $data = $request->validate(['fee_cents' => 'nullable|integer|min:0', 'auto_charge' => 'nullable|boolean']);
+        $steward->update(['payment_terms' => 'on_close', 'fee_cents' => $data['fee_cents'] ?? $steward->fee_cents, 'auto_charge' => $data['auto_charge'] ?? $steward->auto_charge]);
+        $this->activity->log($provider->id, 'provider', 'finances', ActivitySeverity::Info, 'cs_payment_model_updated', 'CS payment settings updated', 'Updated payment settings for CS.', PlanSteward::class, $steward->id, $steward->steward_id, 'log', $provider->id);
         return back()->with('success', 'Payment model updated.');
     }
 

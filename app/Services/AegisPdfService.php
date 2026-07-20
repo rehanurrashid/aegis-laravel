@@ -1202,7 +1202,7 @@ CSS;
         $signedDate   = $steward->signed_at ? $steward->signed_at->format('F j, Y') : '—';
         $feeCents     = (int) ($steward->fee_cents ?? 0);
         $feeFormatted = $feeCents ? '$' . number_format($feeCents / 100, 2) : null;
-        $payTerms     = $this->enumVal($steward->payment_terms ?? 'per_incident');
+        $payTerms     = 'incident close and completion of all assigned CS tasks';
         $vaultAccess  = $this->enumVal($steward->vault_access ?? 'none');
         $vaultLabel   = match($vaultAccess) {
             'scoped'   => 'Emergency-Only (Scoped)',
@@ -1216,7 +1216,7 @@ CSS;
         $genAt = now()->format('M d, Y H:i');
 
         $comp = $feeFormatted
-            ? "<div class=\"doc-section\"><div class=\"section-title\">Section 2. Compensation</div><p>Provider agrees to pay Continuity Steward {$feeFormatted} upon {$payTerms} following closure of each verified critical incident.</p></div>"
+            ? "<div class=\"doc-section\"><div class=\"section-title\">Section 2. Compensation</div><p>Provider agrees to pay Continuity Steward {$feeFormatted} upon {$payTerms}.</p></div>"
             : "";
 
         $creds = $csUser?->credentials ? '<div class="party-sub">' . $this->e($csUser->credentials) . '</div>' : '';
