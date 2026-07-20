@@ -1654,7 +1654,7 @@ const lastSavedLabel = computed(() => {
 .ep-money .form-input { padding-left: 24px; }
 .ep-input-prefix { display: flex; align-items: stretch; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: border-color var(--transition), box-shadow var(--transition); }
 .ep-input-prefix:focus-within { border-color: var(--gold-dark); box-shadow: 0 0 0 3px var(--badge-bg-gold); }
-.ep-input-prefix-label { padding: 9px 12px; background: var(--surface-2); border-right: 1.5px solid var(--border); font-size: 12px; color: var(--text-3); white-space: nowrap; display: flex; align-items: center; }
+.ep-input-prefix-label { padding: 9px 12px; background: var(--surface-2); border-right: 1px solid var(--border); font-size: 12px; color: var(--text-3); white-space: nowrap; display: flex; align-items: center; }
 .ep-input-prefix .form-input { border: none; border-radius: 0; flex: 1; }
 .ep-input-prefix .form-input:focus { box-shadow: none; }
 .ep-divider { height: 1px; background: var(--border); margin: 20px 0; }

@@ -516,7 +516,7 @@ const certs = [
 .pv-name { font-family:var(--font-serif); font-size:14px; font-weight:600; color:var(--text); line-height:1.2; }
 .pv-title-line { font-size:11px; color:var(--text-4); margin-top:1px; }
 .pv-chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:9px; }
-.pchip { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; padding:3px 9px; border-radius:var(--radius-full); border:1.5px solid; }
+.pchip { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; padding:3px 9px; border-radius:var(--radius-full); border:1px solid; }
 .pchip.chip-red { background:var(--red-light); border-color:rgba(160,45,34,.35); color:var(--red); }
 .pchip.chip-gold { background:var(--badge-bg-gold); border-color:rgba(160,129,62,.45); color:var(--gold-dark); }
 .pchip.chip-green { background:var(--green-light); border-color:rgba(46,138,87,.35); color:var(--green-dark); }
@@ -552,7 +552,7 @@ const certs = [
 .cs-task-item { display:flex; align-items:center; gap:12px; padding:13px 20px; border-bottom:1px solid var(--border); cursor:pointer; }
 .cs-task-item:hover { background:var(--surface-2); }
 .cs-task-item input { position:absolute; opacity:0; width:0; height:0; }
-.cs-task-check { width:18px; height:18px; border-radius:5px; border:1.5px solid var(--border-dark); display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; color:transparent; background:var(--surface); transition:all .12s ease; }
+.cs-task-check { width:18px; height:18px; border-radius:5px; border:1px solid var(--border-dark); display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; color:transparent; background:var(--surface); transition:all .12s ease; }
 .cs-task-item input:checked + .cs-task-check { background:var(--green-dark); border-color:var(--green-dark); color:var(--text-inverted); }
 .cs-task-content { flex:1; min-width:0; display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .cs-task-title { font-size:13px; color:var(--text); }

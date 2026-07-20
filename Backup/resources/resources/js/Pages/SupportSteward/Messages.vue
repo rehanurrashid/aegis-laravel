@@ -358,7 +358,7 @@ const availOptions = ['Available', 'Away', 'Busy — Do Not Disturb'];
 .ms-avail-opt { width:100%; display:flex; align-items:center; gap:12px; padding:14px 16px; border:none; border-bottom:1px solid var(--border); background:none; cursor:pointer; text-align:left; font-size:13.5px; color:var(--text); transition:background .15s ease; }
 .ms-avail-opt:last-child { border-bottom:none; }
 .ms-avail-opt:hover { background:var(--surface-2); }
-.ms-radio { width:16px; height:16px; border-radius:50%; border:1.5px solid var(--border-dark); flex-shrink:0; position:relative; transition:border-color .15s ease; }
+.ms-radio { width:16px; height:16px; border-radius:50%; border:1px solid var(--border-dark); flex-shrink:0; position:relative; transition:border-color .15s ease; }
 .ms-avail-opt.active .ms-radio { border-color:var(--gold-dark); }
 .ms-avail-opt.active .ms-radio::after { content:''; position:absolute; inset:3px; border-radius:50%; background:var(--gold-dark); }
 .ms-avail-opt.active { background:var(--badge-bg-gold); }

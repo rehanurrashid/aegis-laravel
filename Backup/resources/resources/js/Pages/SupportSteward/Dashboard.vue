@@ -379,7 +379,7 @@ const continuityStewards = [
 .ss-pv-line { font-size:12px; color:var(--text-4); margin-top:1px; }
 .ss-pv-actions { display:flex; gap:6px; flex-shrink:0; }
 .ss-pv-chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
-.pchip { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; padding:3px 9px; border-radius:var(--radius-full); border:1.5px solid; }
+.pchip { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; padding:3px 9px; border-radius:var(--radius-full); border:1px solid; }
 .pchip.chip-red { background:var(--red-light); border-color:rgba(160,45,34,.35); color:var(--red); }
 .pchip.chip-gold { background:var(--badge-bg-gold); border-color:rgba(160,129,62,.45); color:var(--gold-dark); }
 .pchip :deep(svg) { width:9px; height:9px; }
@@ -408,7 +408,7 @@ const continuityStewards = [
 /* preparation checklist */
 .ss-checklist { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-xs); overflow:hidden; margin-bottom:6px; }
 .ss-check-item { display:flex; gap:12px; padding:14px 20px; border-bottom:1px solid var(--border); }
-.ss-check-box { width:18px; height:18px; border-radius:5px; border:1.5px solid var(--border-dark); display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; color:transparent; background:var(--surface); margin-top:1px; }
+.ss-check-box { width:18px; height:18px; border-radius:5px; border:1px solid var(--border-dark); display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; color:transparent; background:var(--surface); margin-top:1px; }
 .ss-check-box.done { background:var(--green-dark); border-color:var(--green-dark); color:var(--text-inverted); }
 .ss-check-content { flex:1; min-width:0; }
 .ss-check-title { font-size:13px; color:var(--text); }

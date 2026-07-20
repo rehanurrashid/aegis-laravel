@@ -1213,7 +1213,7 @@ function goToMessages(partner) {
 @media(max-width:680px)  { .hp-board { grid-template-columns:repeat(2,1fr); } }
 
 /* ── Applications tab ── */
-.ss-filter-select { font-family:var(--font-sans); font-size:12.5px; color:var(--text); background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius-sm); padding:6px 28px 6px 10px; cursor:pointer; outline:none; appearance:none; -webkit-appearance:none; }
+.ss-filter-select { font-family:var(--font-sans); font-size:12.5px; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 28px 6px 10px; cursor:pointer; outline:none; appearance:none; -webkit-appearance:none; }
 .ss-unreviewed-notice { display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--blue-light); border:1px solid var(--soft-blue); border-radius:8px; margin-bottom:14px; font-family:var(--font-sans); font-size:13px; color:var(--blue-dark); }
 .ss-notice-link { color:var(--gold-dark); text-decoration:underline; cursor:pointer; }
 .ss-applicant-row { display:flex; align-items:center; gap:10px; }
@@ -1258,7 +1258,7 @@ function goToMessages(partner) {
 .ap-cover-text { font-family:var(--font-sans); font-size:13px; color:var(--text-2); line-height:1.7; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
 
 .ap-status-btns { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
-.ap-status-btn { display:inline-flex; align-items:center; gap:6px; padding:6px 13px; font-family:var(--font-sans); font-size:12.5px; font-weight:600; border-radius:99px; border:1.5px solid; cursor:pointer; transition:all 0.15s; }
+.ap-status-btn { display:inline-flex; align-items:center; gap:6px; padding:6px 13px; font-family:var(--font-sans); font-size:12.5px; font-weight:600; border-radius:99px; border:1px solid; cursor:pointer; transition:all 0.15s; }
 .ap-status-review   { background:rgba(160,129,62,0.08); color:var(--gold-dark); border-color:var(--fade-gold); }
 .ap-status-review:hover { background:var(--gold-dark); color:#fff; }
 .ap-status-shortlist { background:rgba(160,129,62,0.08); color:var(--gold-dark); border-color:var(--fade-gold); }
@@ -1278,7 +1278,7 @@ function goToMessages(partner) {
 
 /* Interview type buttons */
 .ap-type-btns { display:flex; gap:6px; flex-wrap:wrap; }
-.ap-type-btn { padding:6px 14px; font-family:var(--font-sans); font-size:12.5px; font-weight:500; border:1.5px solid var(--border); border-radius:99px; background:var(--surface); color:var(--text-3); cursor:pointer; transition:all 0.15s; }
+.ap-type-btn { padding:6px 14px; font-family:var(--font-sans); font-size:12.5px; font-weight:500; border:1px solid var(--border); border-radius:99px; background:var(--surface); color:var(--text-3); cursor:pointer; transition:all 0.15s; }
 .ap-type-btn:hover { border-color:var(--gold-dark); color:var(--gold-dark); }
 .ap-type-btn.active { background:var(--gold-dark); color:#fff; border-color:var(--gold-dark); }
 
@@ -1305,5 +1305,5 @@ function goToMessages(partner) {
 .contract-scope-label { font-weight:600; color:var(--text); }
 .contract-badges { display:flex; gap:8px; flex-wrap:wrap; }
 .contract-badge { display:inline-flex; align-items:center; font-family:var(--font-sans); font-size:11px; font-weight:600; padding:4px 10px; border-radius:99px; }
-.contract-badge-outline { border:1.5px solid var(--border-dark); color:var(--text-3); background:var(--surface); }
+.contract-badge-outline { border:1px solid var(--border-dark); color:var(--text-3); background:var(--surface); }
 </style>

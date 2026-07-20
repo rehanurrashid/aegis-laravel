@@ -731,7 +731,7 @@ const cpRetirement = [
 .ep-radio { display:inline-flex; align-items:center; gap:9px; padding:11px 16px; font-size:13px; font-weight:500; color:var(--text-2); border:1px solid var(--border-dark); border-radius:var(--radius); background:var(--surface); cursor:pointer; transition:all .15s ease; }
 .ep-radio:hover { border-color:var(--gold-dark); }
 .ep-radio.active { border-color:var(--gold-dark); background:var(--badge-bg-gold); color:var(--gold-dark); font-weight:600; }
-.ep-radio-dot { width:15px; height:15px; border-radius:50%; border:1.5px solid var(--border-dark); flex-shrink:0; position:relative; transition:border-color .15s ease; }
+.ep-radio-dot { width:15px; height:15px; border-radius:50%; border:1px solid var(--border-dark); flex-shrink:0; position:relative; transition:border-color .15s ease; }
 .ep-radio.active .ep-radio-dot { border-color:var(--gold-dark); }
 .ep-radio.active .ep-radio-dot::after { content:''; position:absolute; inset:3px; border-radius:50%; background:var(--gold-dark); }
 
@@ -783,7 +783,7 @@ const cpRetirement = [
 .ep-cp-items { padding:8px 16px 12px; }
 .ep-cp-item { display:flex; align-items:center; gap:10px; padding:6px 0; cursor:pointer; }
 .ep-cp-item input { position:absolute; opacity:0; width:0; height:0; }
-.ep-cp-check { width:16px; height:16px; border-radius:4px; border:1.5px solid var(--border-dark); display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; color:transparent; background:var(--surface); transition:all .12s ease; }
+.ep-cp-check { width:16px; height:16px; border-radius:4px; border:1px solid var(--border-dark); display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; color:transparent; background:var(--surface); transition:all .12s ease; }
 .ep-cp-item input:checked + .ep-cp-check { background:var(--gold-dark); border-color:var(--gold-dark); color:var(--text-inverted); }
 .ep-cp-task { font-size:12.5px; color:var(--text-2); line-height:1.4; }
 

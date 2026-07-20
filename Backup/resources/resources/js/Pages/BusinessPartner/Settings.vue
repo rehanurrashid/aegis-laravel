@@ -633,7 +633,7 @@ const showPause = ref(false);
 /* visibility cards */
 .st-vis-label { font-size:12.5px; font-weight:600; color:var(--text-2); margin-bottom:12px; }
 .st-vis-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:6px; }
-.st-vis-card { display:flex; flex-direction:column; align-items:center; text-align:center; gap:8px; padding:20px 16px; background:var(--surface); border:1.5px solid var(--border-dark); border-radius:var(--radius-lg); cursor:pointer; transition:all .15s ease; }
+.st-vis-card { display:flex; flex-direction:column; align-items:center; text-align:center; gap:8px; padding:20px 16px; background:var(--surface); border:1px solid var(--border-dark); border-radius:var(--radius-lg); cursor:pointer; transition:all .15s ease; }
 .st-vis-card:hover { border-color:var(--gold-dark); }
 .st-vis-card.active { border-color:var(--gold-dark); background:var(--badge-bg-gold); }
 .st-vis-ico { color:var(--text-3); }
@@ -649,7 +649,7 @@ const showPause = ref(false);
 
 /* theme cards */
 .st-theme-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
-.st-theme-card { display:flex; flex-direction:column; text-align:left; padding:0; background:var(--surface); border:1.5px solid var(--border-dark); border-radius:var(--radius-lg); overflow:hidden; cursor:pointer; transition:all .15s ease; }
+.st-theme-card { display:flex; flex-direction:column; text-align:left; padding:0; background:var(--surface); border:1px solid var(--border-dark); border-radius:var(--radius-lg); overflow:hidden; cursor:pointer; transition:all .15s ease; }
 .st-theme-card:hover { border-color:var(--gold-dark); }
 .st-theme-card.active { border-color:var(--gold-dark); box-shadow:0 0 0 1px var(--badge-bg-gold); }
 .st-theme-swatch { display:block; height:54px; }
@@ -672,7 +672,7 @@ const showPause = ref(false);
 .st-billing-toggle span { font-size:13px; font-weight:600; color:var(--text-4); }
 .st-billing-toggle span.on { color:var(--text); }
 .st-save-pill { font-size:10px; font-weight:700; padding:3px 9px; border-radius:var(--radius-full); background:var(--green-light); color:var(--green-dark) !important; }
-.st-plan-card { border:1.5px solid var(--gold-dark); border-radius:var(--radius-lg); padding:24px; text-align:center; background:var(--surface-2); max-width:420px; margin:0 auto; position:relative; }
+.st-plan-card { border:1px solid var(--gold-dark); border-radius:var(--radius-lg); padding:24px; text-align:center; background:var(--surface-2); max-width:420px; margin:0 auto; position:relative; }
 .st-plan-current { display:inline-flex; align-items:center; gap:6px; font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; padding:5px 14px; border-radius:var(--radius-full); background:var(--gold-dark); color:var(--text-inverted); margin-bottom:16px; }
 .st-plan-name { font-family:var(--font-serif); font-size:19px; font-weight:600; color:var(--text); }
 .st-plan-price { font-family:var(--font-serif); font-size:34px; font-weight:700; color:var(--gold-dark); margin-top:10px; }

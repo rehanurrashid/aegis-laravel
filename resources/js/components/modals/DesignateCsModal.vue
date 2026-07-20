@@ -100,7 +100,7 @@
           <label
             v-for="opt in roleOptions" :key="opt.value"
             :style="form.role === opt.value ? 'border-color:var(--gold-dark);background:var(--badge-bg-gold);' : ''"
-            style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:1.5px solid var(--border);border-radius:var(--radius);background:var(--surface);cursor:pointer;"
+            style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);cursor:pointer;"
             @click="form.role = opt.value"
           >
             <input type="radio" :value="opt.value" v-model="form.role" style="width:16px;height:16px;flex-shrink:0;accent-color:var(--gold-dark);" />

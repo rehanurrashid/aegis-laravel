@@ -702,7 +702,7 @@ const searchResults = ref([
 
 /* Sub-tabs */
 .nw-subtabs { display:flex; gap:8px; margin-bottom:18px; }
-.nw-subtab { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; font-family:var(--font-sans); font-size:12.5px; font-weight:600; color:var(--text-3); background:var(--surface-2); border:1.5px solid var(--border); border-radius:8px; cursor:pointer; transition:all .15s; }
+.nw-subtab { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; font-family:var(--font-sans); font-size:12.5px; font-weight:600; color:var(--text-3); background:var(--surface-2); border:1px solid var(--border); border-radius:8px; cursor:pointer; transition:all .15s; }
 .nw-subtab:hover { border-color:var(--gold-dark); color:var(--gold-dark); }
 .nw-subtab.active { background:var(--gold-dark); color:#fff; border-color:var(--gold-dark); }
 
@@ -721,7 +721,7 @@ const searchResults = ref([
 .nw-rec-label { font-family:var(--font-sans); font-size:13px; font-weight:700; color:var(--text); margin-bottom:3px; }
 .nw-rec-desc { font-size:11.5px; color:var(--text-4); margin-bottom:8px; }
 .nw-rec-count { font-size:11.5px; color:var(--text-3); margin-bottom:8px; }
-.nw-rec-arrow { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; border:1.5px solid var(--border); background:transparent; color:var(--text-3); cursor:pointer; transition:all .15s; }
+.nw-rec-arrow { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; border:1px solid var(--border); background:transparent; color:var(--text-3); cursor:pointer; transition:all .15s; }
 .nw-rec-arrow:hover { border-color:var(--gold-dark); color:var(--gold-dark); }
 
 /* Shadow / provider cards */
@@ -759,7 +759,7 @@ const searchResults = ref([
 .nw-results-count { font-size:12.5px; color:var(--text-3); }
 .nw-results-sort { display:flex; align-items:center; gap:6px; }
 .nw-sort-label { font-size:12px; color:var(--text-4); }
-.nw-sort-select { font-family:var(--font-sans); font-size:12px; color:var(--text); background:var(--surface); border:1.5px solid var(--border); border-radius:6px; padding:4px 8px; cursor:pointer; outline:none; }
+.nw-sort-select { font-family:var(--font-sans); font-size:12px; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:4px 8px; cursor:pointer; outline:none; }
 .nw-results-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
 .nw-result-card .nw-pcard-top { flex-direction:row; align-items:center; gap:10px; }
 .nw-result-card .nw-pcard-avatar { margin-bottom:0; width:38px; height:38px; font-size:12px; }
@@ -775,7 +775,7 @@ const searchResults = ref([
 /* ── Business Partners ──────────────────────────────────────── */
 .bp-search-bar { display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
 .bp-search-wrap { position:relative; flex:1; min-width:220px; }
-.bp-search-input { width:100%; padding:9px 12px 9px 34px; font-family:var(--font-sans); font-size:13px; color:var(--text); background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius-sm,8px); outline:none; transition:border-color .15s,box-shadow .15s; box-sizing:border-box; }
+.bp-search-input { width:100%; padding:9px 12px 9px 34px; font-family:var(--font-sans); font-size:13px; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm,8px); outline:none; transition:border-color .15s,box-shadow .15s; box-sizing:border-box; }
 .bp-search-input:focus { border-color:var(--gold-dark); box-shadow:0 0 0 3px rgba(160,129,62,.14); }
 .bp-search-input::placeholder { color:var(--text-4); }
 .bp-sort-wrap { display:flex; align-items:center; gap:6px; flex-shrink:0; }

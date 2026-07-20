@@ -6497,7 +6497,7 @@ html.theme-slate body {
   .alert-chip.green  { background:var(--green-light);  color:var(--green-dark); }
 
   /* System client search results */
-  .sys-pt-row          { display:flex; align-items:center; gap:12px; padding:10px 14px; border:1.5px solid var(--border); border-radius:var(--radius,8px); cursor:pointer; transition:all var(--transition,.15s); margin-bottom:8px; background:white; }
+  .sys-pt-row          { display:flex; align-items:center; gap:12px; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius,8px); cursor:pointer; transition:all var(--transition,.15s); margin-bottom:8px; background:white; }
   .sys-pt-row:hover    { border-color:var(--gold-dark); background:var(--badge-bg-gold); }
   .sys-pt-row.selected { border-color:var(--gold-dark); background:var(--badge-bg-gold); }
   .spr-avatar { width:38px; height:38px; border-radius:var(--radius-sm,6px); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; color:white; flex-shrink:0; }

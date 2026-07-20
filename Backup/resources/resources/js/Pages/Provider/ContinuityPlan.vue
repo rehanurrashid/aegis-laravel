@@ -497,7 +497,7 @@ const incidents = ref([
 
 /* Start options */
 .cp-start-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px; }
-.cp-start-card { background:var(--surface); border:1.5px solid var(--border); border-radius:10px; padding:16px; cursor:pointer; transition:box-shadow .15s,border-color .15s; position:relative; }
+.cp-start-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; cursor:pointer; transition:box-shadow .15s,border-color .15s; position:relative; }
 .cp-start-card:hover { box-shadow:var(--shadow-sm); border-color:var(--gold-dark); }
 .cp-start-card-active { border-color:var(--gold-dark); background:rgba(160,129,62,.04); }
 .cp-start-check { position:absolute; top:12px; right:12px; width:20px; height:20px; border-radius:50%; background:var(--gold-dark); color:#fff; display:flex; align-items:center; justify-content:center; }
@@ -557,7 +557,7 @@ const incidents = ref([
 .cp-edit-btn:hover { border-color:var(--gold-dark); color:var(--gold-dark); }
 
 /* Signed footer */
-.cp-signed-footer { background:rgba(76,175,125,.05); border:1.5px solid var(--soft-green); border-radius:var(--radius-lg,14px); padding:18px 22px; margin-bottom:14px; }
+.cp-signed-footer { background:rgba(76,175,125,.05); border:1px solid var(--soft-green); border-radius:var(--radius-lg,14px); padding:18px 22px; margin-bottom:14px; }
 .cp-signed-header { display:flex; align-items:center; gap:8px; margin-bottom:16px; }
 .cp-signed-label { font-family:var(--font-sans); font-size:13px; font-weight:700; color:var(--green-dark); }
 .cp-signed-version { font-size:12px; color:var(--text-4); margin-left:4px; }
@@ -610,7 +610,7 @@ const incidents = ref([
 
 /* Tasks section header */
 .cp-tasks-header { display:flex; align-items:center; justify-content:space-between; }
-.cp-copy-btn { font-family:var(--font-sans); font-size:11px; font-weight:600; color:var(--gold-dark); background:transparent; border:1.5px solid var(--fade-gold); border-radius:6px; padding:3px 9px; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:5px; }
+.cp-copy-btn { font-family:var(--font-sans); font-size:11px; font-weight:600; color:var(--gold-dark); background:transparent; border:1px solid var(--fade-gold); border-radius:6px; padding:3px 9px; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:5px; }
 .cp-copy-btn:hover { background:rgba(160,129,62,.08); }
 
 /* Task rows */
@@ -625,11 +625,11 @@ const incidents = ref([
 
 /* Add task bar */
 .cp-task-add-bar { display:flex; align-items:center; gap:6px; }
-.cp-task-new-input { flex:1; padding:7px 10px; font-family:var(--font-sans); font-size:12.5px; color:var(--text); background:var(--surface); border:1.5px solid var(--border); border-radius:6px; outline:none; transition:border-color .15s; }
+.cp-task-new-input { flex:1; padding:7px 10px; font-family:var(--font-sans); font-size:12.5px; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:6px; outline:none; transition:border-color .15s; }
 .cp-task-new-input:focus { border-color:var(--gold-dark); }
 .cp-task-new-input::placeholder { color:var(--text-4); }
-.cp-task-when-sel { padding:6px 8px; font-family:var(--font-sans); font-size:11.5px; color:var(--text); background:var(--surface); border:1.5px solid var(--border); border-radius:6px; outline:none; cursor:pointer; appearance:none; -webkit-appearance:none; flex-shrink:0; }
-.cp-task-add-btn { padding:6px 13px; font-family:var(--font-sans); font-size:12px; font-weight:600; color:var(--gold-dark); background:rgba(160,129,62,.08); border:1.5px solid var(--fade-gold); border-radius:6px; cursor:pointer; transition:all .15s; white-space:nowrap; }
+.cp-task-when-sel { padding:6px 8px; font-family:var(--font-sans); font-size:11.5px; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:6px; outline:none; cursor:pointer; appearance:none; -webkit-appearance:none; flex-shrink:0; }
+.cp-task-add-btn { padding:6px 13px; font-family:var(--font-sans); font-size:12px; font-weight:600; color:var(--gold-dark); background:rgba(160,129,62,.08); border:1px solid var(--fade-gold); border-radius:6px; cursor:pointer; transition:all .15s; white-space:nowrap; }
 .cp-task-add-btn:hover { background:var(--gold-dark); color:#fff; }
 
 /* Aegis suggestions row */

@@ -486,7 +486,7 @@
     <!-- ACTIVATE SUCCESSION -->
     <Modal :model-value="modal === 'activateSuccession'" @update:model-value="closeModal" size="lg"
       title="Activate Continuity Support" :header-style="{ background: 'var(--red-light)', borderBottom: '1px solid var(--red-light)' }" :title-style="{ color: 'var(--red)' }">
-      <div style="background:var(--red-light);border:1.5px solid var(--border-dark);border-radius:var(--radius-lg);padding:11px 14px;margin-bottom:14px;font-size:13px;color:var(--text-2);line-height:1.55;">
+      <div style="background:var(--red-light);border:1px solid var(--border-dark);border-radius:var(--radius-lg);padding:11px 14px;margin-bottom:14px;font-size:13px;color:var(--text-2);line-height:1.55;">
         <strong style="color:var(--red);">This notifies your Continuity &amp; Support Stewards</strong> and initiates your Continuity Plan. Activate only during a genuine critical moment.
       </div>
       <div class="row-2" style="margin-bottom:12px">

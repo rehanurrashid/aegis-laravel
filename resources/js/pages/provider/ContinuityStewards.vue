@@ -921,7 +921,7 @@ function saveNotifyPrefs() {
       <div class="form-group">
         <label class="form-label">How do you want to end this retainer?</label>
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
-          <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;background:var(--surface);"
+          <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;background:var(--surface);"
                  :style="endRetainerForm.action === 'suspend' ? 'border-color:var(--gold-dark);background:var(--badge-bg-gold);' : ''">
             <input type="radio" v-model="endRetainerForm.action" value="suspend" style="margin-top:2px;accent-color:var(--gold-dark);" />
             <div>
@@ -929,7 +929,7 @@ function saveNotifyPrefs() {
               <div style="font-size:11px;color:var(--text-3);margin-top:2px;">Access revoked but retainer preserved. You can reinstate anytime from the Suspended tab.</div>
             </div>
           </label>
-          <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius);cursor:pointer;background:var(--surface);"
+          <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;background:var(--surface);"
                  :style="endRetainerForm.action === 'terminate' ? 'border-color:var(--red-dark);background:var(--red-light);' : ''">
             <input type="radio" v-model="endRetainerForm.action" value="terminate" style="margin-top:2px;accent-color:var(--red-dark);" />
             <div>

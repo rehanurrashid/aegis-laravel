@@ -1040,7 +1040,7 @@ const notifyToggles = reactive([
 .cs-review-toggle-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 14px; background:var(--surface); border:1px solid var(--border); border-radius:6px; margin-top:4px; }
 .cs-review-toggle-label { font-family:var(--font-sans); font-size:13px; font-weight:500; color:var(--text); margin-bottom:1px; }
 .cs-review-toggle-sub { font-size:11.5px; color:var(--text-4); }
-.cs-review-textarea { width:100%; padding:10px 12px; font-family:var(--font-sans); font-size:13px; color:var(--text); background:var(--surface); border:1.5px solid var(--border); border-radius:8px; outline:none; resize:vertical; min-height:80px; line-height:1.6; box-sizing:border-box; transition:border-color .15s; }
+.cs-review-textarea { width:100%; padding:10px 12px; font-family:var(--font-sans); font-size:13px; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:8px; outline:none; resize:vertical; min-height:80px; line-height:1.6; box-sizing:border-box; transition:border-color .15s; }
 .cs-review-textarea:focus { border-color:var(--gold-dark); }
 .cs-review-textarea::placeholder { color:var(--text-4); }
 
@@ -1048,7 +1048,7 @@ const notifyToggles = reactive([
 .cs-remind-notice { display:flex; align-items:flex-start; gap:9px; padding:10px 13px; background:rgba(232,169,74,.08); border:1px solid rgba(232,169,74,.4); border-radius:8px; font-family:var(--font-sans); font-size:12.5px; color:var(--orange-dark); line-height:1.5; }
 .cs-remind-field { display:flex; flex-direction:column; gap:6px; }
 .cs-remind-label { font-family:var(--font-sans); font-size:12px; font-weight:600; color:var(--text-2); }
-.cs-remind-select { width:100%; padding:9px 12px; font-family:var(--font-sans); font-size:13.5px; color:var(--text); background:var(--surface); border:1.5px solid var(--border); border-radius:8px; outline:none; cursor:pointer; appearance:none; -webkit-appearance:none; transition:border-color .15s; }
+.cs-remind-select { width:100%; padding:9px 12px; font-family:var(--font-sans); font-size:13.5px; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:8px; outline:none; cursor:pointer; appearance:none; -webkit-appearance:none; transition:border-color .15s; }
 .cs-remind-select:focus { border-color:var(--gold-dark); }
 
 /* ── Activate Continuity Support modal ─────────────────────── */
@@ -1139,7 +1139,7 @@ const notifyToggles = reactive([
 .cs-edit-notice-gold { background:rgba(232,169,74,.08); border-color:rgba(232,169,74,.4); color:var(--orange-dark); }
 .cs-edit-field { display:flex; flex-direction:column; gap:5px; }
 .cs-edit-label { font-family:var(--font-sans); font-size:11.5px; font-weight:600; color:var(--text-2); }
-.cs-edit-input { padding:9px 12px; font-family:var(--font-sans); font-size:13.5px; color:var(--text); background:var(--surface); border:1.5px solid var(--border); border-radius:8px; outline:none; transition:border-color .15s; width:100%; box-sizing:border-box; }
+.cs-edit-input { padding:9px 12px; font-family:var(--font-sans); font-size:13.5px; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:8px; outline:none; transition:border-color .15s; width:100%; box-sizing:border-box; }
 .cs-edit-input:focus { border-color:var(--gold-dark); box-shadow:0 0 0 3px rgba(160,129,62,.14); }
 
 /* Role card */
@@ -1147,9 +1147,9 @@ const notifyToggles = reactive([
 .cs-remove-card { display:flex; align-items:center; gap:12px; padding:12px 14px; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; }
 
 /* Vault access */
-.cs-vault-option { display:flex; align-items:flex-start; gap:12px; padding:12px 14px; border:1.5px solid var(--border); border-radius:8px; cursor:pointer; transition:border-color .15s,background .15s; margin-bottom:6px; }
+.cs-vault-option { display:flex; align-items:flex-start; gap:12px; padding:12px 14px; border:1px solid var(--border); border-radius:8px; cursor:pointer; transition:border-color .15s,background .15s; margin-bottom:6px; }
 .cs-vault-option.selected { border-color:var(--gold-dark); background:rgba(160,129,62,.05); }
-.cs-vault-radio { width:16px; height:16px; border-radius:50%; border:1.5px solid var(--border-dark); display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px; }
+.cs-vault-radio { width:16px; height:16px; border-radius:50%; border:1px solid var(--border-dark); display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px; }
 .cs-vault-option.selected .cs-vault-radio { border-color:var(--gold-dark); }
 .cs-vault-dot { width:8px; height:8px; border-radius:50%; background:var(--gold-dark); }
 .cs-vault-opt-label { font-size:13px; font-weight:600; color:var(--text); margin-bottom:2px; }

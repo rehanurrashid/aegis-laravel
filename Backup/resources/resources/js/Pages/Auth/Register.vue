@@ -852,7 +852,7 @@
           </div>
 
           <!-- Founding Member Banner (practitioners only) -->
-          <div v-show="ud.role === 'practitioner'" style="background:linear-gradient(135deg, rgba(196,169,106,0.12), rgba(196,169,106,0.04)); border:1.5px solid var(--gold); border-radius:var(--radius-lg); padding:16px 18px; margin-bottom:18px; position:relative;">
+          <div v-show="ud.role === 'practitioner'" style="background:linear-gradient(135deg, rgba(196,169,106,0.12), rgba(196,169,106,0.04)); border:1px solid var(--gold); border-radius:var(--radius-lg); padding:16px 18px; margin-bottom:18px; position:relative;">
             <div style="position:absolute; top:-9px; left:16px; background:var(--gold-dark); color:#fff; font-size:9.5px; font-weight:700; padding:3px 10px; border-radius:var(--radius-sm); letter-spacing:0.8px; text-transform:uppercase;">Founding Member</div>
             <div style="display:flex; align-items:flex-start; gap:12px; margin-top:4px;">
               <div style="width:32px; height:32px; background:var(--gold); border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">

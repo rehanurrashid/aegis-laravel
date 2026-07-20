@@ -518,7 +518,7 @@
           <label class="form-label">Action <span class="required">*</span></label>
           <div style="display:flex;flex-direction:column;gap:8px;">
             <label v-for="opt in [{ value: 'suspend', label: 'Suspend', desc: 'Block access temporarily — agreement stays in place, reinstate at any time.' }, { value: 'reinstate', label: 'Reinstate', desc: 'Restore all previously authorized permissions and resume paused task delegations.' }, { value: 'archive', label: 'Archive', desc: 'Remove this steward record from active view. They remain in the system for audit purposes.' }]" :key="opt.value"
-              style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s;"
+              style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s;"
               :style="manageAccessForm.action === opt.value ? 'border-color:var(--gold-dark);background:rgba(160,129,62,.04);' : ''"
             >
               <input type="radio" :value="opt.value" v-model="manageAccessForm.action" style="margin-top:3px;" />
