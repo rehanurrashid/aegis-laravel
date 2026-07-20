@@ -572,81 +572,111 @@
 
 
 
-    <!-- VIEW AGREEMENT -->
-    <AegisModal :model-value="isOpen('viewDsrAgreementModal').value" :title="activeSteward ? 'Support Steward Agreement — ' + fullName(activeSteward) : 'Support Steward Agreement'" size="xl" @update:model-value="v => !v && closeModal('viewDsrAgreementModal')">
-      <div v-if="activeSteward?.signed_at" class="alert alert-success" style="margin-bottom:14px">
-        <div class="alert-icon"><AegisIcon name="check" :size="16" /></div>
-        <div>Active · Both parties signed · Signed {{ fmtDate(activeSteward.signed_at) }}</div>
-      </div>
-      <div v-else class="alert alert-warning" style="margin-bottom:14px">
-        <div class="alert-icon"><AegisIcon name="clock" :size="16" /></div>
-        <div>Awaiting counter-signature from Support Steward.</div>
-      </div>
+    <!-- VIEW AGREEMENT — matches CS ViewCsAgreementModal layout exactly -->
+    <AegisModal
+      :model-value="isOpen('viewDsrAgreementModal').value"
+      :title="'Support Steward Agreement' + (activeSteward ? ' — ' + fullName(activeSteward) : '')"
+      size="lg"
+      @update:model-value="v => !v && closeModal('viewDsrAgreementModal')"
+    >
+      <template v-if="activeSteward">
 
-      <!-- Retainer summary -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
-        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px">
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:4px">Signed Date</div>
-          <div style="font-size:13px;font-weight:600;color:var(--text)">{{ activeSteward?.signed_at ? fmtDate(activeSteward.signed_at) : '—' }}</div>
+        <!-- Status banner -->
+        <div
+          :class="activeSteward.status === 'active' ? 'alert alert-success' : 'alert alert-warning'"
+          style="display:flex;align-items:center;gap:8px;margin-bottom:16px;"
+        >
+          <AegisIcon :name="activeSteward.status === 'active' ? 'check-circle' : 'clock'" :size="14" />
+          <div>{{ activeSteward.status === 'active' ? 'Standing agreement active · Both parties acknowledged' : 'Pending acknowledgement from Support Steward' }}</div>
         </div>
-        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px">
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:4px">Annual Attestation Due</div>
-          <div style="font-size:13px;font-weight:600;color:var(--text)">{{ activeSteward?.review_due_at ? fmtDate(activeSteward.review_due_at) : '—' }}</div>
-        </div>
-        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px">
-          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:4px">Status</div>
-          <AegisBadge :variant="activeSteward?.status === 'active' ? 'green' : 'gold'">{{ capitalize(activeSteward?.status ?? '—') }}</AegisBadge>
-        </div>
-      </div>
 
-      <!-- Contact info -->
-      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:16px">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:8px">Support Steward</div>
-        <div style="font-size:15px;font-weight:700;font-family:var(--font-serif);color:var(--text);margin-bottom:4px">{{ activeSteward ? fullName(activeSteward) : '—' }}</div>
-        <div style="font-size:12px;color:var(--text-3);display:flex;gap:16px;flex-wrap:wrap">
-          <span v-if="activeSteward?.steward?.email"><AegisIcon name="mail" :size="12" /> {{ activeSteward.steward.email }}</span>
-          <span v-if="activeSteward?.steward?.phone"><AegisIcon name="phone" :size="12" /> {{ activeSteward.steward.phone }}</span>
-          <span v-if="activeSteward?.role"><AegisIcon name="user" :size="12" /> {{ activeSteward.role === 'alternate' ? 'Alternate Support Steward' : 'Support Steward' }}</span>
-        </div>
-      </div>
-
-      <!-- Responsibilities -->
-      <div v-if="activeSteward?.responsibilities?.length" style="margin-bottom:16px">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:8px">Authorized Responsibilities</div>
-        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
-          <div v-for="(r, i) in activeSteward.responsibilities" :key="i" style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border)">
-            <AegisIcon name="check-circle" :size="13" style="color:var(--green-dark);flex-shrink:0" />
-            <span style="font-size:13px;color:var(--text-2)">{{ r }}</span>
+        <!-- HEADER: avatar + name + role + date — mirrors CS modal exactly -->
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+          <div style="width:48px;height:48px;border-radius:var(--radius);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            {{ initials(fullName(activeSteward)) }}
+          </div>
+          <div style="flex:1;min-width:0;">
+            <component
+              :is="activeSteward.steward?.slug ? 'a' : 'span'"
+              :href="activeSteward.steward?.slug ? route('public.ss', activeSteward.steward.slug) : undefined"
+              style="font-size:15px;font-weight:700;color:var(--gold-dark);text-decoration:none;font-family:var(--font-serif);"
+            >{{ fullName(activeSteward) }}</component>
+            <div style="font-size:11px;color:var(--text-3);margin-top:4px;display:flex;align-items:center;gap:4px;">
+              <AegisIcon name="shield-check" :size="11" style="color:var(--green-dark);flex-shrink:0;" />
+              Standing agreement · Active since {{ fmtDate(activeSteward.ss_acknowledged_at ?? activeSteward.signed_at ?? activeSteward.invited_at) }}
+            </div>
+            <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;">
+              <AegisBadge :label="activeSteward.role === 'alternate' ? 'Alternate Support Steward' : 'Primary Support Steward'" variant="gold" icon="shield" />
+            </div>
+          </div>
+          <div v-if="activeSteward.ss_acknowledged_at || activeSteward.signed_at || activeSteward.invited_at" style="font-size:12px;color:var(--text-3);text-align:right;flex-shrink:0;">
+            <div style="font-weight:600;">Signing Date</div>
+            <div>{{ fmtDate(activeSteward.ss_acknowledged_at ?? activeSteward.signed_at ?? activeSteward.invited_at) }}</div>
           </div>
         </div>
-      </div>
 
-      <!-- Permissions -->
-      <div v-if="activeSteward?.permissions?.length" style="margin-bottom:16px">
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:8px">Permissions Granted</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          <AegisBadge v-for="p in activeSteward.permissions" :key="p" variant="gold">{{ p.replace(/_/g, ' ') }}</AegisBadge>
+        <!-- SUMMARY CARDS: 2-col grid — mirrors CS layout, SS-adapted -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+
+          <!-- Responsibilities summary -->
+          <div style="background:var(--surface-2);border-radius:var(--radius);padding:12px;">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:8px;">Responsibilities</div>
+            <div v-if="activeSteward.responsibilities && activeSteward.responsibilities.length">
+              <div v-for="r in activeSteward.responsibilities" :key="r" style="font-size:12px;color:var(--text-2);display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                <AegisIcon name="check" :size="10" style="color:var(--gold-dark);flex-shrink:0;" />
+                <span>{{ typeof r === 'object' ? r.text : r }}</span>
+              </div>
+            </div>
+            <div v-else style="font-size:12px;color:var(--text-3);">No responsibilities assigned</div>
+          </div>
+
+          <!-- Role -->
+          <div style="background:var(--surface-2);border-radius:var(--radius);padding:12px;">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:8px;">Role</div>
+            <span class="badge badge-gold">
+              <AegisIcon name="shield" :size="10" style="margin-right:3px;" />
+              {{ activeSteward.role === 'alternate' ? 'Alternate SS' : 'Primary SS' }}
+            </span>
+          </div>
         </div>
-      </div>
 
-      <!-- Agreement text -->
-      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;font-size:13px;line-height:1.8;color:var(--text-2)">
-        <div style="font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--gold-dark);text-align:center;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">Aegis SUPPORT STEWARD AGREEMENT</div>
-        <p><strong>Agreement Date:</strong> {{ activeSteward ? fmtDate(activeSteward.signed_at ?? activeSteward.invited_at) : '—' }} &nbsp;|&nbsp; <strong>Annual Attestation:</strong> Required</p>
-        <br>
-        <p><strong>Section 1. Purpose.</strong> This agreement authorizes the Support Steward to support the Practitioner during a critical moment, carrying out the responsibilities designated by the Provider and guided by the Continuity Plan.</p>
-        <br>
-        <p><strong>Section 2. Authorized Responsibilities.</strong> As designated across the five sections — Activation &amp; Verification, Access &amp; Resource Coordination, Oversight &amp; Coordination, Financial Responsibilities, and Completion &amp; Transition.</p>
-        <br>
-        <p><strong>Section 3. Compliance.</strong> Support Steward agrees to comply with HIPAA, maintain full confidentiality, and not exceed authorized responsibilities. All actions are logged for audit.</p>
-        <br>
-        <p><strong>Section 4. Annual Attestation.</strong> The Provider re-confirms the Support Steward's responsibilities and contact information annually.</p>
-        <br>
-        <p><strong>Section 5. Termination.</strong> Either party may end this arrangement at any time by providing written notice through the Aegis platform. Upon termination, all access is immediately revoked and this agreement is voided.</p>
-      </div>
+        <!-- Authorized Responsibilities (full list) -->
+        <div v-if="activeSteward.responsibilities && activeSteward.responsibilities.length" style="margin-bottom:16px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:8px;">Authorized Responsibilities</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            <span v-for="r in activeSteward.responsibilities" :key="r" class="badge badge-gold" style="text-transform:capitalize;">{{ typeof r === 'object' ? r.text : r }}</span>
+          </div>
+        </div>
+
+        <!-- LEGAL DOCUMENT — mirrors CS section exactly -->
+        <div style="background:var(--surface-2);border-radius:var(--radius);padding:18px 22px;font-size:13px;line-height:1.8;color:var(--text-2);">
+          <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border);">Aegis SUPPORT STEWARD PLAN</div>
+
+          <p><strong>Section 1. Purpose.</strong> This agreement authorizes the Support Steward to support the Provider during a critical moment — coordinating logistics, communication, and key tasks as designated in the Continuity Plan.</p>
+
+          <p v-if="activeSteward.responsibilities && activeSteward.responsibilities.length">
+            <strong>Section 2. Authorized Responsibilities.</strong>
+            Support Steward is authorized to carry out the following responsibilities:
+            {{ activeSteward.responsibilities.map(r => typeof r === 'object' ? r.text : r).join(', ') }}.
+          </p>
+
+          <p><strong>Section 3. Compliance.</strong> Support Steward agrees to maintain full confidentiality and not exceed authorized responsibilities. All actions are logged for audit purposes.</p>
+
+          <p><strong>Section 4. Annual Attestation.</strong> The Provider re-confirms the Support Steward's responsibilities and contact information annually.</p>
+        </div>
+
+        <div style="margin-top:16px;display:flex;align-items:flex-start;gap:6px;">
+          <span style="flex-shrink:0;"><AegisIcon name="shield" :size="14" /></span>
+          <p style="font-size:11px;margin:0;color:var(--text-3);">This agreement stays active until cancelled by either party. The Support Steward operates within the scope defined by the Provider — they cannot act beyond what has been authorized.</p>
+        </div>
+
+      </template>
+
       <template #footer>
-        <button v-if="activeSteward?.signed_at" class="btn btn-outline" @click="downloadAgreement"><AegisIcon name="download" :size="14" /> Download PDF</button>
-        <button class="btn btn-primary" @click="closeModal('viewDsrAgreementModal')">Close</button>
+        <button type="button" class="btn btn-outline" @click="closeModal('viewDsrAgreementModal')">Close</button>
+        <button type="button" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;" @click="downloadAgreement">
+          <AegisIcon name="download" :size="14" /> Download PDF
+        </button>
       </template>
     </AegisModal>
 
