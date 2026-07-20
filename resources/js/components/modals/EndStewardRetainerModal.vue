@@ -134,7 +134,7 @@ function submit() {
         close()
         emit('success')
       },
-      onError:  () => toast.error(form.errors.remove || 'Could not complete this action.'),
+      onError:  () => toast.error('Could not complete this action.'),
       onFinish: () => { busy.value = false },
     })
   }
@@ -157,15 +157,6 @@ function submit() {
         <div class="alert-content">
           <div class="alert-title">Ending {{ kind === 'cs' ? 'retainer' : 'designation' }} with {{ stewardName }}</div>
           <div style="font-size:12px;">{{ warningNote }}</div>
-        </div>
-      </div>
-
-      <!-- Backend error (e.g. outstanding invoices) -->
-      <div v-if="form.errors.remove" class="alert alert-error" style="margin-bottom:16px;">
-        <div class="alert-icon"><AegisIcon name="x-circle" :size="16" /></div>
-        <div class="alert-content">
-          <div class="alert-title">Cannot complete this action</div>
-          <div style="font-size:12px;">{{ form.errors.remove }}</div>
         </div>
       </div>
 

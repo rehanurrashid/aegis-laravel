@@ -230,6 +230,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::post('/support-stewards/{steward}/archive', [SupportStewardController::class, 'archive'])->name('ss.archive');
         Route::put('/support-stewards/{steward}', [SupportStewardController::class, 'update'])->name('ss.update');
         Route::get('/support-stewards/{steward}/agreement/download', [SupportStewardController::class, 'downloadAgreement'])->name('ss.agreement.download');
+        Route::get('/support-stewards/search-users', [SupportStewardController::class, 'searchUsers'])->name('ss.search-users');
 
         // Vault
         Route::get('/vault', [VaultController::class, 'index'])->name('vault.index');

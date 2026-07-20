@@ -377,4 +377,54 @@ class SupportStewardController extends Controller
             'Content-Disposition' => 'inline; filename="ss-agreement-' . $steward->id . '.html"',
         ]);
     }
+
+    public function searchUsers(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $q      = trim($request->get('q', ''));
+        $authId = $request->user()->id;
+
+        if (strlen($q) < 2) {
+            return response()->json([]);
+        }
+
+        $ssUsers = User::where('role', \App\Enums\UserRole::SupportSteward->value)
+            ->where('id', '!=', $authId)
+            ->where('status', 'active')
+            ->where(fn ($query) => $query
+                ->where('display_name', 'like', "%{$q}%")
+                ->orWhere('email', 'like', "%{$q}%")
+            )
+            ->limit(10)
+            ->get(['id', 'display_name', 'email', 'credentials', 'avatar_initials', 'role']);
+
+        $practitionersAvailableAsSs = User::where('role', \App\Enums\UserRole::Practitioner->value)
+            ->where('id', '!=', $authId)
+            ->where('status', 'active')
+            ->where(fn ($query) => $query
+                ->where('display_name', 'like', "%{$q}%")
+                ->orWhere('email', 'like', "%{$q}%")
+            )
+            ->whereHas('meta', fn ($m) =>
+                $m->where('meta_key', 'available_as_ss')->where('meta_value', '1')
+            )
+            ->limit(5)
+            ->get(['id', 'display_name', 'email', 'credentials', 'avatar_initials', 'role']);
+
+        $results = $ssUsers->concat($practitionersAvailableAsSs)
+            ->unique('id')
+            ->take(10)
+            ->map(fn ($u) => [
+                'id'           => $u->id,
+                'display_name' => $u->display_name,
+                'email'        => $u->email,
+                'credentials'  => $u->credentials ?? '',
+                'initials'     => $u->avatar_initials
+                    ?? collect(explode(' ', $u->display_name))->map(fn ($w) => strtoupper($w[0] ?? ''))->take(2)->implode(''),
+                'role_label'   => $u->role === \App\Enums\UserRole::SupportSteward
+                    ? 'Support Steward'
+                    : 'Practitioner (Available as SS)',
+            ]);
+
+        return response()->json($results->values());
+    }
 }

@@ -456,24 +456,80 @@
         </button>
       </div>
 
-      <!-- Flow A: existing user -->
+      <!-- Flow A: existing user — live search with auto-fill -->
       <div v-show="addSsFlow === 'existing'">
-        <div class="alert alert-info" style="margin-bottom:14px">
-          <div class="alert-icon"><AegisIcon name="info" :size="14" /></div>
-          <div>Enter the full name and email address of an existing Aegis user. Both must match exactly.</div>
+
+        <!-- Selected user confirmation banner -->
+        <div v-if="searchSelected" style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--badge-bg-gold);border:1px solid var(--gold-dark);border-radius:var(--radius);margin-bottom:16px;">
+          <div style="width:36px;height:36px;border-radius:var(--radius-sm);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            {{ searchSelected.initials }}
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:700;color:var(--text);">{{ searchSelected.display_name }}{{ searchSelected.credentials ? ', ' + searchSelected.credentials : '' }}</div>
+            <div style="font-size:11px;color:var(--text-3);">{{ searchSelected.email }} &middot; <span style="color:var(--gold-dark);font-weight:600;">{{ searchSelected.role_label }}</span></div>
+          </div>
+          <button type="button" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;" data-tooltip="Clear selection" @click="clearSelection">
+            <AegisIcon name="x" :size="14" />
+          </button>
         </div>
-        <div class="row-2">
-          <div class="form-group">
-            <label class="form-label">Full Name <span class="required">*</span></label>
-            <input v-model="inviteForm.display_name" class="form-input" :class="{ 'is-error': fieldError('display_name') }" type="text" placeholder="First Last" @blur="v$.inviteForm.display_name.$touch()">
+
+        <div v-else>
+          <div class="form-group" style="position:relative;">
+            <label class="form-label">Search by Name or Email <span class="required">*</span></label>
+            <div style="position:relative;">
+              <input
+                :value="searchQuery"
+                class="form-input"
+                :class="{ 'is-error': fieldError('display_name') }"
+                type="text"
+                placeholder="Start typing a name or email…"
+                autocomplete="off"
+                @input="onSearchInput($event.target.value)"
+                @blur="v$.inviteForm.display_name.$touch(); setTimeout(() => { showDropdown = false }, 200)"
+                @focus="showDropdown = searchResults.length > 0"
+              >
+              <div v-if="searchLoading" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);">
+                <AegisIcon name="refresh-cw" :size="14" style="color:var(--text-4);animation:spin 1s linear infinite;" />
+              </div>
+            </div>
             <div v-if="fieldError('display_name')" class="form-error">{{ fieldError('display_name') }}</div>
+
+            <!-- Dropdown results -->
+            <div v-if="showDropdown && searchResults.length"
+              style="position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);margin-top:2px;max-height:220px;overflow-y:auto;">
+              <div
+                v-for="user in searchResults"
+                :key="user.id"
+                style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);"
+                @mousedown.prevent="selectUser(user)"
+                @mouseover="$event.currentTarget.style.background='var(--surface-2)'"
+                @mouseleave="$event.currentTarget.style.background=''"
+              >
+                <div style="width:32px;height:32px;border-radius:var(--radius-sm);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  {{ user.initials }}
+                </div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:600;color:var(--text);">{{ user.display_name }}{{ user.credentials ? ', ' + user.credentials : '' }}</div>
+                  <div style="font-size:11px;color:var(--text-3);">{{ user.email }}</div>
+                </div>
+                <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:var(--gold-dark);flex-shrink:0;">{{ user.role_label }}</span>
+              </div>
+            </div>
+
+            <!-- No results -->
+            <div v-if="showDropdown && !searchResults.length && !searchLoading && searchQuery.length >= 2"
+              style="position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);margin-top:2px;padding:14px 12px;font-size:13px;color:var(--text-3);text-align:center;">
+              No Support Stewards found for "{{ searchQuery }}".<br>
+              <span style="font-size:12px;">Try the <strong>External Invite</strong> tab to invite someone new.</span>
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">Email Address <span class="required">*</span></label>
-            <input v-model="inviteForm.email" class="form-input" :class="{ 'is-error': fieldError('email') }" type="email" placeholder="email@example.com" @blur="v$.inviteForm.email.$touch()">
-            <div v-if="fieldError('email')" class="form-error">{{ fieldError('email') }}</div>
+
+          <div class="alert alert-info" style="margin-top:4px;">
+            <div class="alert-icon"><AegisIcon name="info" :size="13" /></div>
+            <div style="font-size:12px;">Search finds users with the Support Steward role, or Practitioners who have made themselves available as SS.</div>
           </div>
         </div>
+
       </div>
 
       <!-- Flow B: external invite -->
@@ -959,8 +1015,52 @@ const reinstateForm = useForm({ message: '' })
 const resendForm    = useForm({ expires_days: '30', message: '' })
 
 
-const searchQuery    = ref('')
 const addSsFlow      = ref('existing') // 'existing' | 'external'
+
+// ── User search state (Existing Aegis User flow) ──────────────────────────
+const searchQuery    = ref('')
+const searchResults  = ref([])
+const searchLoading  = ref(false)
+const searchSelected = ref(null)
+const showDropdown   = ref(false)
+let   searchTimer    = null
+
+function onSearchInput(val) {
+  searchQuery.value = val
+  searchSelected.value = null
+  inviteForm.user_id = null
+  inviteForm.display_name = val
+  inviteForm.email = ''
+  if (val.length < 2) { searchResults.value = []; showDropdown.value = false; return }
+  clearTimeout(searchTimer)
+  searchLoading.value = true
+  searchTimer = setTimeout(async () => {
+    try {
+      const res = await window.axios.get(route('provider.ss.search-users'), { params: { q: val } })
+      searchResults.value = res.data
+      showDropdown.value = res.data.length > 0
+    } catch { searchResults.value = [] }
+    finally { searchLoading.value = false }
+  }, 280)
+}
+
+function selectUser(user) {
+  searchSelected.value = user
+  inviteForm.user_id      = user.id
+  inviteForm.display_name = user.display_name
+  inviteForm.email        = user.email
+  searchQuery.value       = user.display_name
+  searchResults.value     = []
+  showDropdown.value      = false
+}
+
+function clearSelection() {
+  searchSelected.value    = null
+  inviteForm.user_id      = null
+  inviteForm.display_name = ''
+  inviteForm.email        = ''
+  searchQuery.value       = ''
+}
 
 // ── Vuelidate ─────────────────────────────────────────────
 const rules = {
@@ -1022,6 +1122,11 @@ async function submitInvite() {
       closeModal('addDsrStep1Modal')
       inviteForm.reset()
       addSsFlow.value = 'existing'
+      searchQuery.value = ''
+      searchResults.value = []
+      searchSelected.value = null
+      showDropdown.value = false
+      v$.value.$reset()
     },
     onError: (errors) => {
       if (errors.email || errors.display_name) {
@@ -1066,6 +1171,7 @@ function submitCancelInvite() {
 </script>
 
 <style scoped>
+@keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
 /* ── DSR CARD ── */
 .dsr-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:22px 22px 22px 26px; display:flex; align-items:flex-start; gap:18px; margin-bottom:14px; transition:box-shadow var(--transition),transform var(--transition); position:relative; overflow:hidden; }
 .dsr-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; }
