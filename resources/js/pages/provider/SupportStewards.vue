@@ -558,36 +558,6 @@
         <textarea v-model="editForm.notes" class="form-control" style="min-height:80px" placeholder="Any updates or context…"></textarea>
       </div>
 
-      <!-- Manage Access -->
-      <div class="form-group">
-        <label class="form-label">Manage Access</label>
-        <div style="display:flex;flex-direction:column;gap:6px">
-          <label
-            v-for="opt in [{ value: 'suspend', label: 'Suspend temporarily', desc: 'Access revoked — reinstate anytime from the Suspended tab.' }, { value: 'archive', label: 'Archive record', desc: 'Remove from active view. Preserved for audit purposes.' }]"
-            :key="opt.value"
-            style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer"
-            :style="editForm.access_action === opt.value ? 'border-color:var(--gold-dark);background:rgba(160,129,62,.04)' : ''"
-          >
-            <input type="radio" :value="opt.value" v-model="editForm.access_action" style="margin-top:2px;accent-color:var(--gold-dark)">
-            <div>
-              <div style="font-size:13px;font-weight:600;color:var(--text)">{{ opt.label }}</div>
-              <div style="font-size:11px;color:var(--text-4);margin-top:1px">{{ opt.desc }}</div>
-            </div>
-          </label>
-        </div>
-        <div v-if="editForm.access_action" style="margin-top:10px">
-          <label class="form-label">Reason <span style="color:var(--red-dark)">*</span></label>
-          <select v-model="editForm.access_reason" class="form-control form-select">
-            <option value="">Select a reason…</option>
-            <option value="temporary_leave">Temporary leave</option>
-            <option value="role_no_longer_needed">Role no longer needed</option>
-            <option value="replacing">Replacing with a different SS</option>
-            <option value="practice_restructuring">Practice restructuring</option>
-            <option value="ss_requested">SS requested removal</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-      </div>
 
       <template #footer>
         <button type="button" class="btn btn-outline" @click="closeModal('editDsrModal')">Cancel</button>
@@ -936,9 +906,6 @@ function openEdit(s) {
   editForm.role = roleVal(s?.role) || 'support'
   editForm.relationship = s?.steward?.relationship ?? ''
   editForm.notes = s?.notes ?? ''
-  editForm.access_action = ''
-  editForm.access_reason = ''
-  editForm.access_notes = ''
   v$edit.value.$reset()
   openModal('editDsrModal')
 }
@@ -962,7 +929,6 @@ const inviteForm = useForm({
 })
 const editForm = useForm({
   display_name: '', credentials: '', relationship: '', phone: '', email: '', role: 'support', notes: '',
-  access_action: '', access_reason: '', access_notes: '',
 })
 const reinstateForm = useForm({ message: '' })
 const removeForm    = useForm({ reason: '', notes: '' })
@@ -1008,18 +974,6 @@ function editFieldError(key) {
 async function submitEdit() {
   await v$edit.value.$validate()
   if (v$edit.value.$error) return
-
-  // If access action chosen, dispatch that route first then fall through
-  if (editForm.access_action) {
-    const routeMap = { suspend: 'provider.ss.suspend', reinstate: 'provider.ss.reinstate', archive: 'provider.ss.archive' }
-    const r = routeMap[editForm.access_action]
-    if (r) {
-      router.post(route(r, { steward: activeStewardId.value }), { reason: editForm.access_reason }, {
-        preserveScroll: true,
-        onError: () => toast.error('Access action failed.'),
-      })
-    }
-  }
 
   editForm.put(route('provider.ss.update', { steward: activeStewardId.value }), {
     preserveScroll: true,
