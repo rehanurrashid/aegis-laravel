@@ -115,14 +115,9 @@
           />
           <span style="font-size:12px;color:var(--text-3);">per incident</span>
         </div>
-      </div>
-
-      <div class="setting-row" style="margin-top:14px;">
-        <div class="setting-info">
-          <div class="setting-label">Auto-charge when incident closes and CS tasks complete</div>
-          <div class="setting-desc">Automatically invoice this CS when the critical incident closes and all assigned tasks are marked complete</div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.4;">
+          <AegisIcon name="info" :size="11" /> Invoiced automatically when the critical incident closes and CS tasks are marked complete. You have 7 days to pay manually before your default payment method is auto-charged.
         </div>
-        <button type="button" class="toggle" :class="{ on: form.auto_charge }" @click="form.auto_charge = !form.auto_charge"></button>
       </div>
 
       <div v-if="!preselectedUser" class="form-group" style="margin-top:14px;">
@@ -187,7 +182,6 @@
         <p v-if="form.relationship"><strong>Relationship:</strong> {{ form.relationship }}</p>
         <p v-if="form.fee_cents"><strong>Agreed Fee:</strong> ${{ (form.fee_cents / 100).toFixed(2) }} — invoiced when incident closes and CS tasks complete</p>
         <p v-else><strong>Agreed Fee:</strong> $0 (reciprocal / no payment)</p>
-        <p v-if="form.auto_charge"><strong>Auto-charge:</strong> Enabled when incident closes and CS tasks complete</p>
         <p><strong>Agreement Date:</strong> {{ new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) }}</p>
       </div>
       <div
@@ -300,7 +294,6 @@ const form = useForm({
   display_name:     '',
   role:             'primary',
   fee_cents:        0,
-  auto_charge:      false,
   relationship:     '',
   message:          '',
   notes:            '',
@@ -388,7 +381,6 @@ async function submitDesignate() {
   const payload = {
     role:          form.role,
     fee_cents:     form.fee_cents,
-    auto_charge:   form.auto_charge,
     message:       form.message,
     expires_days:  form.expires_days,
   }

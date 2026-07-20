@@ -74,3 +74,10 @@ Schedule::job(new MilestoneAutoReleaseJob)
 Schedule::job(new MilestoneReviewReminderJob)
     ->dailyAt('08:00')
     ->name('aegis.milestone_review_reminder');
+
+// Daily 06:00 UTC — auto-charge CS invoices that have passed the 7-day
+// manual-pay grace period. Runs after invoice status is confirmed stale overnight.
+Schedule::command('aegis:auto-charge-cs-invoices')
+    ->dailyAt('06:00')
+    ->name('aegis.auto_charge_cs_invoices')
+    ->withoutOverlapping();

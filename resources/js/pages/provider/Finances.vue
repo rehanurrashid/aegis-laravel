@@ -333,7 +333,7 @@
               <td class="sic-td">
                 <div style="display:flex;flex-direction:column;gap:3px;">
                   <span style="font-weight:700;font-family:var(--font-serif);font-size:15px;">{{ formatCents(cs.fee_cents) }}</span>
-                  <span style="font-size:11px;color:var(--text-4);">On incident close · {{ cs.auto_charge ? 'Auto-charge' : 'Manual' }}</span>
+                  <span style="font-size:11px;color:var(--text-4);">On incident close · Auto-charge after 7 days</span>
                 </div>
               </td>
               <td class="sic-td">
@@ -405,14 +405,14 @@
               <div class="csm-fact-value">On incident close</div>
             </div>
             <div class="csm-fact">
-              <div class="csm-fact-label">Auto-charge</div>
-              <div class="csm-fact-value">{{ activeCs.auto_charge ? 'Enabled' : 'Manual' }}</div>
+              <div class="csm-fact-label">Grace Period</div>
+              <div class="csm-fact-value">7 days</div>
             </div>
           </div>
 
           <div class="cspay-note" style="margin-bottom:0;">
             <span class="cspay-note-icon"><AegisIcon name="shield" :size="16" /></span>
-            <p>The agreed fee is charged directly to {{ activeCs.display_name }} via Stripe when the critical incident closes and all CS tasks are complete. Aegis never holds these funds.</p>
+            <p>Once the critical incident closes and CS tasks are marked complete, an invoice is generated automatically. You have <strong>7 days</strong> to pay manually via <em>Pay Now</em> — after that, your default payment method is auto-charged. Aegis never holds these funds.</p>
           </div>
 
           <div style="margin-top:20px;">
@@ -452,6 +452,7 @@
                   <td class="sic-td sic-td--actions">
                     <button v-if="inv.payable && has_valid_default_pm" type="button" class="btn btn-primary" @click="askPayCs(inv)">Pay Now</button>
                     <button v-else-if="inv.payable && !has_valid_default_pm" type="button" class="btn btn-outline" @click="modals.csDetail = false; activeTab = 'methods'">Add Card</button>
+                    <span v-if="inv.payable && inv.days_until_autocharge > 0" style="font-size:11px;color:var(--text-3);margin-left:6px;">Auto-charge in {{ inv.days_until_autocharge }} day{{ inv.days_until_autocharge !== 1 ? 's' : '' }}</span>
                     <button v-if="inv.disputed" type="button" class="btn btn-outline" @click="openDisputeDetail(inv)">View Dispute</button>
                     <button type="button" class="btn-icon btn-icon-sm" data-tooltip="View invoice" @click="viewCsInvoice(inv)">
                       <AegisIcon name="eye" :size="13" />
@@ -483,9 +484,6 @@
         </template>
 
         <template #footer>
-          <button type="button" class="btn btn-outline" @click="openChangePayModel(activeCs); modals.csDetail = false">
-            <AegisIcon name="settings" :size="13" /> Update Payment Settings
-          </button>
           <button type="button" class="btn btn-danger" @click="openCancelCs(activeCs); modals.csDetail = false">
             <AegisIcon name="x" :size="13" /> Cancel Agreement
           </button>
@@ -961,34 +959,6 @@
       </template>
     </AegisModal>
 
-    <!-- Change CS Payment Settings -->
-    <AegisModal v-model="modals.changePayModel" title="Update Payment Settings" size="md">
-      <p style="font-size:13px;color:var(--text-2);margin-bottom:16px;">
-        Update payment settings for <strong>{{ activeCs?.display_name || 'this Continuity Steward' }}</strong>. The agreed fee is invoiced when the critical incident closes and all CS tasks are marked complete.
-      </p>
-
-      <div class="form-group">
-        <label class="form-label">Agreed Fee ($)</label>
-        <input class="form-input" type="number" min="0" v-model.number="payModelFeeUsd" placeholder="e.g. 900">
-        <div class="form-hint">Fee invoiced when the incident closes and CS tasks are complete.</div>
-      </div>
-
-      <div class="setting-row" style="margin-top:14px;">
-        <div class="setting-info">
-          <div class="setting-label">Enable auto-charge</div>
-          <div class="setting-desc">Invoice auto-paid when CS closes incident</div>
-        </div>
-        <button type="button" class="toggle" :class="{ on: payModelForm.auto_charge }" @click="payModelForm.auto_charge = !payModelForm.auto_charge"></button>
-      </div>
-
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.changePayModel = false">Cancel</button>
-        <button type="button" class="btn btn-primary" :disabled="payModelForm.processing" @click="doSavePayModel">
-          <AegisIcon name="check" :size="13" /> Update Payment Settings
-        </button>
-      </template>
-    </AegisModal>
-
     <!-- CS + BP Confirm-pay modals -->
     <AegisModal v-model="modals.confirmCsPay" title="Confirm CS Payment" size="sm">
       <p v-if="csTarget">
@@ -1185,7 +1155,7 @@ const modals = ref({
   cancelCsAgreement: false,
   csDetail: false,
   export: false,
-  payArrangement: false, changePayModel: false, confirmCsPay: false, openDispute: false,
+  payArrangement: false, confirmCsPay: false, openDispute: false,
   // Wave 6 — session payment modals
   sessionPayDeposit:  false,
   sessionPayBalance:  false,
@@ -1345,25 +1315,8 @@ function doCancelCsAgreement() {
   })
 }
 
-// ── Form: CS Pay Model ────────────────────────────────────────────────────
-const payModelForm = useForm({ fee_cents: 0, auto_charge: false })
-const payModelFeeUsd = ref(0)
+// ── Form: CS Pay Arrangement ──────────────────────────────────────────────
 function openPayArrangement(cs) { activeCsId.value = cs.id; modals.value.payArrangement = true }
-function openChangePayModel(cs) {
-  activeCsId.value = cs.id
-  payModelForm.fee_cents = cs.fee_cents || 0
-  payModelForm.auto_charge = cs.auto_charge || false
-  payModelFeeUsd.value = (cs.fee_cents || 0) / 100
-  modals.value.changePayModel = true
-}
-function doSavePayModel() {
-  if (!activeCs.value) return
-  payModelForm.fee_cents = Math.round(Number(payModelFeeUsd.value) * 100)
-  payModelForm.put(route('provider.finances.cs-steward.pay-model', { steward: activeCs.value.id }), {
-    preserveScroll: true,
-    onSuccess: () => { modals.value.changePayModel = false; toast.success('Payment terms updated.') },
-  })
-}
 
 // ── Payment methods ──────────────────────────────────────────────────────
 
@@ -1593,9 +1546,9 @@ function paymentTypeLabel(t) {
 .cspay-note--warning p   { color: var(--orange-dark); }
 
 /* ── Stripe Connect pill ── */
-.connect-pill         { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; padding: 3px 9px; border-radius: var(--radius-full); white-space: nowrap; }
-.connect-pill.is-connected     { background: var(--green-light);  color: var(--green-dark); }
-.connect-pill.is-not-connected { background: var(--orange-light); color: var(--orange-dark); }
+.connect-pill         { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; padding: 3px 9px; border-radius: var(--radius-full); white-space: nowrap; border: 1px solid var(--border); }
+.connect-pill.is-connected     { background: var(--green-light);  color: var(--green-dark);  border-color: var(--green-dark); }
+.connect-pill.is-not-connected { background: var(--red-light);    color: var(--red-dark);    border-color: var(--red-dark); }
 .connect-pill .status-dot      { width: 6px; height: 6px; border-radius: var(--radius-full); flex-shrink: 0; }
 .connect-pill.is-connected .status-dot     { background: var(--green-dark); }
 .connect-pill.is-not-connected .status-dot { background: var(--orange-dark); }

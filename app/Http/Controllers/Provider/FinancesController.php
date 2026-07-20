@@ -80,21 +80,27 @@ class FinancesController extends Controller
 
         $csInvoices = $csInvCollection->map(function (CsInvoice $inv) use ($csDisputeMap) {
             $status = $inv->status instanceof InvoiceStatus ? $inv->status->value : (string) $inv->status;
+            $daysUntilAutocharge = null;
+            if ($status === InvoiceStatus::Sent->value && $inv->issued_at) {
+                $chargeDate = $inv->issued_at->copy()->addDays(7);
+                $daysUntilAutocharge = max(0, (int) now()->diffInDays($chargeDate, false));
+            }
             return [
-                'id'               => $inv->id,
-                'invoice_number'   => $inv->invoice_number ?? substr($inv->id, 0, 10),
-                'cs_name'          => $inv->cs?->display_name ?? '—',
-                'cs_slug'          => $inv->cs?->slug,
-                'cs_connected'     => (bool) ($inv->cs?->stripe_connected ?? false),
-                'total_cents'      => (int) $inv->total_cents,
-                'status'           => $status,
-                'issued_at'        => $inv->issued_at?->toDateString(),
-                'issued_month'     => $inv->issued_at?->format('F Y'),
-                'due_at'           => $inv->due_at?->format('M j, Y'),
-                'payable'          => in_array($status, [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value], true),
-                'active_dispute_id'=> $csDisputeMap[$inv->id] ?? null,
-                'pdf_url'          => route('provider.finances.cs-invoice.pdf', $inv->id),
-                'kind'             => 'cs_invoice',
+                'id'                    => $inv->id,
+                'invoice_number'        => $inv->invoice_number ?? substr($inv->id, 0, 10),
+                'cs_name'               => $inv->cs?->display_name ?? '—',
+                'cs_slug'               => $inv->cs?->slug,
+                'cs_connected'          => (bool) ($inv->cs?->stripe_connected ?? false),
+                'total_cents'           => (int) $inv->total_cents,
+                'status'                => $status,
+                'issued_at'             => $inv->issued_at?->toDateString(),
+                'issued_month'          => $inv->issued_at?->format('F Y'),
+                'due_at'                => $inv->due_at?->format('M j, Y'),
+                'payable'               => in_array($status, [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value], true),
+                'days_until_autocharge' => $daysUntilAutocharge,
+                'active_dispute_id'     => $csDisputeMap[$inv->id] ?? null,
+                'pdf_url'               => route('provider.finances.cs-invoice.pdf', $inv->id),
+                'kind'                  => 'cs_invoice',
             ];
         })->values();
 
@@ -317,7 +323,6 @@ class FinancesController extends Controller
                         ->latest()
                         ->value('notes');
 
-                    // FIX 2 — per-steward invoice list
                     $stewardInvoices = ($csInvoicesBySteward[$ps->steward_id] ?? collect())
                         ->map(function ($inv) {
                             $status = $inv->status instanceof InvoiceStatus ? $inv->status->value : (string) $inv->status;
@@ -325,16 +330,22 @@ class FinancesController extends Controller
                                 && $inv->due_date
                                 && $inv->due_date->isPast();
                             $effectiveStatus = $isOverdue ? InvoiceStatus::Overdue->value : $status;
+                            $daysUntilAutocharge = null;
+                            if ($effectiveStatus === InvoiceStatus::Sent->value && $inv->issued_at) {
+                                $chargeDate = $inv->issued_at->copy()->addDays(7);
+                                $daysUntilAutocharge = max(0, (int) now()->diffInDays($chargeDate, false));
+                            }
                             return [
-                                'id'             => $inv->id,
-                                'invoice_number' => $inv->invoice_number ?? substr($inv->id, 0, 10),
-                                'status'         => $effectiveStatus,
-                                'total_cents'    => (int) $inv->total_cents,
-                                'issued_at'      => $inv->issued_at?->toDateString(),
-                                'paid_at'        => $inv->paid_at?->toDateString(),
-                                'due_date'       => $inv->due_date?->toDateString(),
-                                'payable'        => in_array($effectiveStatus, [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value], true),
-                                'disputed'       => $effectiveStatus === InvoiceStatus::Disputed->value,
+                                'id'                    => $inv->id,
+                                'invoice_number'        => $inv->invoice_number ?? substr($inv->id, 0, 10),
+                                'status'                => $effectiveStatus,
+                                'total_cents'           => (int) $inv->total_cents,
+                                'issued_at'             => $inv->issued_at?->toDateString(),
+                                'paid_at'               => $inv->paid_at?->toDateString(),
+                                'due_date'              => $inv->due_date?->toDateString(),
+                                'payable'               => in_array($effectiveStatus, [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value], true),
+                                'disputed'              => $effectiveStatus === InvoiceStatus::Disputed->value,
+                                'days_until_autocharge' => $daysUntilAutocharge,
                             ];
                         })->values()->toArray();
 
@@ -684,17 +695,6 @@ class FinancesController extends Controller
         $cs = User::find($steward->steward_id);
         $this->activity->log($provider->id, 'provider', 'steward', ActivitySeverity::Info, 'cs_agreement_cancelled', 'CS agreement cancelled', 'Cancelled the Continuity Steward agreement with ' . ($cs?->display_name ?? 'CS') . '.', PlanSteward::class, $steward->id, $steward->steward_id, 'log', $provider->id);
         return back()->with('success', 'Continuity Steward agreement cancelled.');
-    }
-
-    public function updateCsPayModel(Request $request, PlanSteward $steward): RedirectResponse
-    {
-        $provider = $request->user();
-        $plan = ContinuityPlan::where('practitioner_id', $provider->id)->firstOrFail();
-        if ($steward->plan_id !== $plan->id) abort(403);
-        $data = $request->validate(['fee_cents' => 'nullable|integer|min:0', 'auto_charge' => 'nullable|boolean']);
-        $steward->update(['payment_terms' => 'on_close', 'fee_cents' => $data['fee_cents'] ?? $steward->fee_cents, 'auto_charge' => $data['auto_charge'] ?? $steward->auto_charge]);
-        $this->activity->log($provider->id, 'provider', 'finances', ActivitySeverity::Info, 'cs_payment_model_updated', 'CS payment settings updated', 'Updated payment settings for CS.', PlanSteward::class, $steward->id, $steward->steward_id, 'log', $provider->id);
-        return back()->with('success', 'Payment model updated.');
     }
 
     public function saveSpendingControls(Request $request): RedirectResponse

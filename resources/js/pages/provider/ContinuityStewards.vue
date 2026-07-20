@@ -792,18 +792,22 @@ function saveNotifyPrefs() {
       <div class="form-group">
         <label class="form-label">Agreed Fee</label>
         <div style="display:flex;align-items:center;gap:10px;">
-          <span class="form-control" style="background:var(--surface-2);color:var(--text-2);cursor:default;flex:1;">
-            {{ activeSteward ? formatMoney(activeSteward.fee_cents) : '—' }}
-            <span style="color:var(--text-3);"> · Invoiced when the critical incident closes and CS tasks are marked complete</span>
-          </span>
+          <div style="flex:1;">
+            <span class="form-control" style="background:var(--surface-2);color:var(--text-2);cursor:default;display:block;">
+              {{ activeSteward ? formatMoney(activeSteward.fee_cents) : '—' }}
+            </span>
+            <div style="font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.4;">
+              <AegisIcon name="info" :size="11" /> Invoiced when the critical incident closes and CS tasks are marked complete. Auto-charged 7 days after invoice if not paid manually.
+            </div>
+          </div>
           <button
             v-if="!hasPendingFeeAmendment"
             type="button"
             class="btn btn-outline"
-            style="white-space:nowrap;"
+            style="white-space:nowrap;align-self:flex-start;"
             @click="modals.editCS=false;modals.amendFee=true"
           >Amend Fee →</button>
-          <span v-else class="badge badge-amber" style="white-space:nowrap;flex-shrink:0;"><AegisIcon name="clock" :size="11" /> Pending Signature</span>
+          <span v-else class="badge badge-amber" style="white-space:nowrap;flex-shrink:0;align-self:flex-start;"><AegisIcon name="clock" :size="11" /> Pending Signature</span>
         </div>
         <div v-if="hasPendingFeeAmendment" class="alert alert-warning" style="margin-top:8px;padding:8px 12px;">
           <div class="alert-icon"><AegisIcon name="clock" :size="13" /></div>
@@ -872,7 +876,7 @@ function saveNotifyPrefs() {
             <input v-model="amendFeeForm.fee_cents_display" type="number" min="0" step="0.01" class="form-control" placeholder="0.00" />
           </div>
         </div>
-        <p style="font-size:12px;color:var(--text-3);margin-top:6px;">Invoiced when the critical incident closes and CS tasks are marked complete.</p>
+        <p style="font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.4;"><AegisIcon name="info" :size="11" /> Invoiced when the critical incident closes and CS tasks are marked complete. Auto-charged 7 days after invoice if not paid manually.</p>
       </template>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.amendFee=false">{{ hasPendingFeeAmendment ? 'Close' : 'Cancel' }}</button>
