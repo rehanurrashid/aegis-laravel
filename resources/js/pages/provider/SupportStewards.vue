@@ -98,31 +98,50 @@
       </div>
 
       <template v-if="stewards.length">
-        <!-- ACTIVE -->
-        <div v-for="s in stewards" :key="s.id" class="dsr-card active">
-          <div class="avatar avatar-lg avatar-gold">{{ initials(s) }}</div>
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
-              <span class="dsr-name">{{ fullName(s) }}</span>
-              <AegisBadge variant="gold" icon="user">Support Steward</AegisBadge>
-              <AegisBadge variant="green"><span class="status-dot green" style="display:inline-block;margin-right:4px"></span>Active</AegisBadge>
+        <!-- ACTIVE — exec-card pattern mirrors CS page -->
+        <div
+          v-for="s in stewards"
+          :key="s.id"
+          class="card exec-card"
+          :class="s.role === 'support' ? 'primary' : 'secondary'"
+          style="display:flex;align-items:flex-start;gap:18px;padding:22px;margin-bottom:14px;position:relative;overflow:hidden;"
+        >
+          <span style="position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--gold-dark);"></span>
+          <!-- Avatar -->
+          <div style="width:58px;height:58px;border-radius:var(--radius);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            {{ initials(s) }}
+          </div>
+          <!-- Content -->
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
+              <span style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--gold-dark);">{{ fullName(s) }}</span>
+              <span class="badge badge-gold"><AegisIcon name="shield" :size="10" style="margin-right:3px;" />{{ s.role === 'alternate' ? 'Alternate SS' : 'Primary SS' }}</span>
+              <span class="badge badge-green"><span class="status-dot green"></span> Active</span>
+              <span v-if="s.ss_acknowledged_at || s.signed_at" style="font-size:11px;color:var(--text-3);">SS since {{ fmtDate(s.ss_acknowledged_at ?? s.signed_at) }}</span>
             </div>
-            <div class="dsr-sub">{{ subLine(s) }}</div>
-            <div class="dsr-meta">
-              <span v-if="s.steward?.phone"><AegisIcon name="phone" :size="12" /> {{ s.steward.phone }}</span>
-              <span v-if="s.steward?.email"><AegisIcon name="mail" :size="12" /> {{ s.steward.email }}</span>
-              <span v-if="s.signed_at"><AegisIcon name="file-text" :size="12" /> Agreement: {{ fmtDate(s.signed_at) }}</span>
-              <span v-if="s.review_due_at"><AegisIcon name="refresh-cw" :size="12" /> Review Due: {{ fmtDate(s.review_due_at) }}</span>
+            <div style="font-size:12px;color:var(--text-3);margin-top:2px;">{{ subLine(s) }}</div>
+            <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--text-3);">
+              <span v-if="s.steward?.phone" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="phone" :size="13" />{{ s.steward.phone }}</span>
+              <span v-if="s.steward?.email" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="mail" :size="13" />{{ s.steward.email }}</span>
+              <span v-else style="display:flex;align-items:center;gap:5px;"><AegisIcon name="message-square" :size="13" />Via Aegis Messaging</span>
+              <span v-if="s.review_due_at" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="calendar" :size="13" />Review Due: {{ fmtDate(s.review_due_at) }}</span>
             </div>
-            <div v-if="s.status === 'active'" class="dsr-resp-line">
-              <AegisIcon name="shield-check" :size="13" style="color:var(--gold-dark);flex-shrink:0;" />
-              <span>Authorized to verify critical incidents and trigger the Continuity Plan</span>
+            <div v-if="s.responsibilities && s.responsibilities.length" style="background:var(--surface-2);border-radius:var(--radius);padding:6px 16px;margin-top:14px;border:1px solid var(--border);">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:8px;">Authorized Responsibilities</div>
+              <div v-for="r in s.responsibilities" :key="r" style="display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13px;color:var(--text-2);border-bottom:1px solid var(--border);">
+                <div style="width:24px;height:24px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--badge-bg-gold);color:var(--gold-dark);">
+                  <AegisIcon name="check" :size="12" />
+                </div>
+                <span>{{ typeof r === 'object' ? r.text : r }}</span>
+              </div>
             </div>
-            <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-              <button class="btn-icon" data-tooltip="Message steward" @click="msg(s)"><AegisIcon name="message" :size="14" /></button>
-              <button class="btn-icon" data-tooltip="Edit" @click="openEdit(s)"><AegisIcon name="pencil" :size="14" /></button>
-              <button class="btn-icon" data-tooltip="View Agreement" @click="openAgreement(s)"><AegisIcon name="file-text" :size="14" /></button>
-              <button class="btn-icon btn-icon-danger" data-tooltip="Remove Support Steward" @click="openRemove(s)"><AegisIcon name="trash" :size="14" /></button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+              <button type="button" class="btn-icon" data-tooltip="View Agreement" @click="openAgreement(s)"><AegisIcon name="file-text" :size="14" /></button>
+              <button type="button" class="btn-icon" data-tooltip="Edit Details" @click="openEdit(s)"><AegisIcon name="pencil" :size="14" /></button>
+              <button type="button" class="btn-icon" data-tooltip="Message steward" @click="msg(s)"><AegisIcon name="message-square" :size="14" /></button>
+              <button type="button" class="btn-icon" data-tooltip="Remove Support Steward" @click="openRemove(s)">
+                <AegisIcon name="x" :size="14" style="color:var(--red-dark);" />
+              </button>
             </div>
           </div>
         </div>
@@ -142,53 +161,59 @@
       <p style="font-size:13px;color:var(--text-3);margin-bottom:16px">Support Steward invitations you have sent that are awaiting acceptance.</p>
       <AegisEmptyState v-if="!pending.length && !invited.length && !declined.length && !archived.length" icon="mail" title="No Pending Invitations" description="Support Steward invitations you send will appear here until accepted." />
 
-      <!-- PENDING / INVITED -->
-      <div v-for="s in [...pending, ...invited]" :key="s.id" class="dsr-card pending" style="align-items:center">
-        <div class="avatar avatar-lg avatar-dark">{{ initials(s) }}</div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
-            <span class="dsr-name">{{ fullName(s) }}</span>
-            <AegisBadge variant="gold" icon="check-circle">Awaiting Response</AegisBadge>
-            <AegisBadge variant="gold" icon="user">Support Steward</AegisBadge>
-          </div>
-          <div class="dsr-sub">{{ subLine(s) }}</div>
-          <div class="dsr-meta">
-            <span v-if="s.steward?.email"><AegisIcon name="mail" :size="12" /> {{ s.steward.email }}</span>
-            <span v-if="s.invited_at"><AegisIcon name="calendar" :size="12" /> Invited: {{ fmtDate(s.invited_at) }}</span>
-            <span v-if="s.expires_at"><AegisIcon name="check-circle" :size="12" /> Expires: {{ fmtDate(s.expires_at) }}</span>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-            <button class="btn-icon" data-tooltip="Resend Invitation" @click="openResend(s)"><AegisIcon name="send" :size="14" /></button>
-            <button class="btn-icon" data-tooltip="Preview Agreement" @click="openAgreement(s)"><AegisIcon name="file-text" :size="14" /></button>
-            <button class="btn btn-danger" @click="openCancelInvite(s)"><AegisIcon name="x" :size="13" /> Cancel Invitation</button>
-          </div>
+      <!-- PENDING / INVITED — exec-card pending pattern -->
+      <div
+        v-for="s in [...pending, ...invited]"
+        :key="s.id"
+        class="card exec-card pending"
+        style="display:flex;align-items:flex-start;gap:18px;padding:20px 22px;margin-bottom:8px;position:relative;overflow:hidden;"
+      >
+        <span style="position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--orange-dark);"></span>
+        <div style="width:48px;height:48px;border-radius:var(--radius);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:17px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          {{ initials(s) }}
         </div>
-        <div v-if="s.invited_at" style="text-align:center;flex-shrink:0;padding-left:8px">
-          <div style="width:44px;height:44px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark);display:flex;align-items:center;justify-content:center"><AegisIcon name="activity" :size="24" /></div>
-          <div style="display:flex;align-items:center;justify-content:center;gap:4px;font-size:11px;color:var(--text-3);margin-top:4px"><AegisIcon name="clock" :size="12" /> Sent {{ daysSince(s.invited_at) }}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
+            <span style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--gold-dark);">{{ fullName(s) }}</span>
+            <span class="badge badge-orange"><AegisIcon name="clock" :size="12" /> Pending Response</span>
+            <span v-if="s.role" class="badge badge-gold"><AegisIcon name="shield" :size="10" /> {{ s.role === 'alternate' ? 'Alternate SS' : 'Primary SS' }}</span>
+          </div>
+          <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-3);">
+            <span v-if="s.steward?.email || s.email" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="mail" :size="13" />{{ s.steward?.email ?? s.email }}</span>
+            <span v-if="s.invited_at" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="calendar" :size="13" />Invited: {{ fmtDate(s.invited_at) }}</span>
+            <span v-if="s.expires_at" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="clock" :size="13" />Expires: {{ fmtDate(s.expires_at) }}</span>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button type="button" class="btn-icon" data-tooltip="Resend Invitation" @click="openResend(s)"><AegisIcon name="send" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="Preview Agreement" @click="openAgreement(s)"><AegisIcon name="file-text" :size="14" /></button>
+            <button type="button" class="btn-icon" data-tooltip="Cancel Invitation" @click="openCancelInvite(s)"><AegisIcon name="x" :size="14" /></button>
+          </div>
         </div>
       </div>
 
       <!-- DECLINED -->
-      <div v-for="s in declined" :key="s.id" class="dsr-card declined" style="align-items:center">
-        <div class="avatar avatar-lg avatar-dark">{{ initials(s) }}</div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
-            <span class="dsr-name">{{ fullName(s) }}</span>
-            <AegisBadge variant="red" icon="x">Declined</AegisBadge>
+      <div
+        v-for="s in declined"
+        :key="s.id"
+        class="card"
+        style="display:flex;align-items:flex-start;gap:18px;padding:16px 20px;margin-bottom:8px;position:relative;overflow:hidden;border-left:4px solid var(--red-dark);background:var(--red-light);"
+      >
+        <div style="width:42px;height:42px;border-radius:var(--radius);background:var(--text-4);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          {{ initials(s) }}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
+            <span style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--text);">{{ fullName(s) }}</span>
+            <span class="badge badge-red"><AegisIcon name="x" :size="12" /> Declined</span>
           </div>
-          <div class="dsr-sub">{{ subLine(s) }}</div>
-          <div class="dsr-meta">
-            <span v-if="s.steward?.email"><AegisIcon name="mail" :size="12" /> {{ s.steward.email }}</span>
-            <span v-if="s.declined_at"><AegisIcon name="calendar" :size="12" /> Declined: {{ fmtDate(s.declined_at) }}</span>
+          <div v-if="s.declined_reason" style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:var(--red-dark);">
+            <AegisIcon name="alert-circle" :size="13" />
+            <span>{{ s.declined_reason }}</span>
           </div>
-          <div v-if="s.declined_reason" style="margin-top:10px;padding:10px 12px;background:var(--surface);border-radius:var(--radius-sm);border-left:3px solid var(--red-dark)">
-            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);font-weight:700;margin-bottom:3px">Declination note</div>
-            <div style="font-size:13px;color:var(--text-2);font-style:italic">&ldquo;{{ s.declined_reason }}&rdquo;</div>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-            <button class="btn btn-primary" @click="handleAddSS"><AegisIcon name="plus" :size="13" /> Invite Someone Else</button>
-            <button class="btn-icon" data-tooltip="Archive this record" @click="confirmAction('Archive this declined invitation?', () => submitArchiveSteward(s), { title: 'Archive Record', btnLabel: 'Archive', type: 'danger' })"><AegisIcon name="trash" :size="14" /></button>
+          <div style="margin-top:10px;display:flex;gap:8px;">
+            <button type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;" @click="handleAddSS">
+              <AegisIcon name="plus" :size="13" /> Invite Someone Else
+            </button>
           </div>
         </div>
       </div>
@@ -217,24 +242,34 @@
     <div v-show="activeTab === 'suspended'">
       <p style="font-size:13px;color:var(--text-3);margin-bottom:16px">Support Stewards with temporarily suspended access.</p>
       <AegisEmptyState v-if="!suspended.length" icon="pause" title="No Suspended Stewards" description="Any suspended Support Stewards will appear here." />
-      <div v-for="s in suspended" :key="s.id" class="dsr-card suspended">
-        <div class="avatar avatar-lg avatar-dark">{{ initials(s) }}</div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
-            <span class="dsr-name">{{ fullName(s) }}</span>
-            <AegisBadge variant="gold" icon="user">Support Steward</AegisBadge>
-            <AegisBadge variant="red"><AegisIcon name="pause" :size="11" /> Suspended</AegisBadge>
+      <div
+        v-for="s in suspended"
+        :key="s.id"
+        class="card exec-card suspended"
+        style="display:flex;align-items:flex-start;gap:18px;padding:20px 22px;margin-bottom:8px;position:relative;overflow:hidden;"
+      >
+        <span style="position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--red-dark);"></span>
+        <div style="width:48px;height:48px;border-radius:var(--radius);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:17px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          {{ initials(s) }}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
+            <span style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--gold-dark);">{{ fullName(s) }}</span>
+            <span class="badge badge-red"><AegisIcon name="lock" :size="12" /> Suspended</span>
+            <span v-if="s.role" class="badge badge-gold"><AegisIcon name="shield" :size="10" /> {{ s.role === 'alternate' ? 'Alternate SS' : 'Primary SS' }}</span>
           </div>
-          <div class="dsr-sub">{{ subLine(s) }}</div>
-          <div class="dsr-meta">
-            <span v-if="s.signed_at"><AegisIcon name="file-text" :size="12" /> Agreement: {{ fmtDate(s.signed_at) }}</span>
+          <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-3);">
+            <span v-if="s.steward?.email || s.email" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="mail" :size="13" />{{ s.steward?.email ?? s.email }}</span>
+            <span v-if="s.signed_at" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="file-text" :size="13" />SS since {{ fmtDate(s.signed_at) }}</span>
           </div>
-          <div class="alert alert-danger" style="margin-top:12px">
-            <div class="alert-icon"><AegisIcon name="lock" :size="16" /></div>
-            <div class="alert-content"><strong>Access suspended:</strong> {{ s.declined_reason || 'Access suspended. All task delegation paused.' }}</div>
+          <div v-if="s.declined_reason" style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:var(--red-dark);">
+            <AegisIcon name="alert-circle" :size="13" />
+            <span>{{ s.declined_reason }}</span>
           </div>
-          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-            <button class="btn btn-outline" @click="openReinstate(s)"><AegisIcon name="check" :size="14" /> Reinstate</button>
+          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button type="button" class="btn" @click="openReinstate(s)" style="display:inline-flex;align-items:center;gap:6px;background:var(--black,#000);color:var(--white,#fff);border-color:var(--black,#000);">
+              <AegisIcon name="check" :size="13" /> Reinstate
+            </button>
           </div>
         </div>
       </div>
@@ -495,10 +530,13 @@
 
     <!-- EDIT SS (unified — includes manage access) -->
     <AegisModal :model-value="isOpen('editDsrModal').value" :title="activeSteward ? 'Edit Support Steward — ' + fullName(activeSteward) : 'Edit Support Steward'" size="lg" @update:model-value="v => !v && closeModal('editDsrModal')">
-      <div class="alert alert-info" style="margin-bottom:14px">
+      <div class="alert alert-info" style="margin-bottom:16px">
         <div class="alert-icon"><AegisIcon name="info" :size="16" /></div>
-        <div>If you update this Support Steward's details, they'll be notified so your shared records stay in sync.</div>
+        <div>If you update contact details or role, this Support Steward will be notified by email.</div>
       </div>
+
+      <!-- Section A: Steward Details -->
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-4);margin-bottom:10px">A — Steward Details</div>
       <div class="row-2">
         <div class="form-group">
           <label class="form-label">Full Name <span class="required">*</span></label>
@@ -506,51 +544,98 @@
           <div v-if="editFieldError('display_name')" class="form-error">{{ editFieldError('display_name') }}</div>
         </div>
         <div class="form-group">
+          <label class="form-label">Credentials / Suffix</label>
+          <input v-model="editForm.credentials" class="form-input" type="text" placeholder="LCSW, PhD…">
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="form-group">
           <label class="form-label">Relationship</label>
           <select v-model="editForm.relationship" class="form-select">
             <option value="">— Select —</option>
             <option value="colleague">Colleague</option>
             <option value="family">Family</option>
             <option value="attorney">Attorney</option>
+            <option value="friend">Friend</option>
             <option value="other">Other</option>
           </select>
         </div>
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input v-model="editForm.phone" class="form-input" type="tel">
+        </div>
       </div>
       <div class="row-2">
-        <div class="form-group"><label class="form-label">Phone</label><input v-model="editForm.phone" class="form-input" type="tel"></div>
         <div class="form-group">
-          <label class="form-label">Email <span style="font-size:11px;color:var(--text-4)">(read-only)</span></label>
-          <input :value="activeSteward?.steward?.email ?? editForm.email" class="form-input" type="email" disabled style="opacity:0.6">
+          <label class="form-label">Email <span style="font-size:11px;color:var(--text-4)">(read-only after acceptance)</span></label>
+          <input :value="activeSteward?.steward?.email ?? editForm.email" class="form-input" type="email" disabled style="opacity:0.6;cursor:not-allowed">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Role <span class="required">*</span></label>
+          <select v-model="editForm.role" class="form-select" :class="{ 'is-error': editFieldError('role') }" @blur="v$edit.role.$touch()">
+            <option value="support">Primary Support Steward</option>
+            <option value="alternate">Alternate Support Steward</option>
+          </select>
+          <div v-if="editFieldError('role')" class="form-error">{{ editFieldError('role') }}</div>
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Role <span class="required">*</span></label>
-        <select v-model="editForm.role" class="form-select" :class="{ 'is-error': editFieldError('role') }" @blur="v$edit.role.$touch()">
-          <option value="support">Support Steward</option>
-          <option value="alternate">Alternate Support Steward</option>
-        </select>
-        <div v-if="editFieldError('role')" class="form-error">{{ editFieldError('role') }}</div>
+        <label class="form-label">Personal Notes <span style="font-size:11px;color:var(--text-4)">(private — only you see this)</span></label>
+        <textarea v-model="editForm.notes" class="form-input" style="min-height:60px" placeholder="Any private context about this Support Steward…"></textarea>
       </div>
-      <div class="form-group"><label class="form-label">Notes</label><textarea v-model="editForm.notes" class="form-input" style="min-height:60px"></textarea></div>
 
-      <!-- Manage Access section -->
-      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
-        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:12px">Manage Access</div>
-        <div style="display:flex;flex-direction:column;gap:8px;">
+      <!-- Section B: Responsibilities -->
+      <div style="padding-top:16px;margin-top:16px;border-top:1px solid var(--border)">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-4);margin-bottom:10px">B — Responsibilities</div>
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;display:flex;align-items:center;gap:10px">
+          <AegisIcon name="shield-check" :size="16" style="color:var(--gold-dark);flex-shrink:0" />
+          <div style="font-size:13px;color:var(--text-2);line-height:1.5">
+            <strong>Authorized to verify incidents and trigger the Continuity Plan.</strong> The Support Steward handles non-clinical logistics — communications, coordination, and key tasks — within the scope defined in your Continuity Plan.
+          </div>
+        </div>
+      </div>
+
+      <!-- Section C: Manage Access -->
+      <div style="padding-top:16px;margin-top:16px;border-top:1px solid var(--border)">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-4);margin-bottom:10px">C — Manage Access</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
           <label v-for="opt in [{ value: 'suspend', label: 'Suspend', desc: 'Block access temporarily — agreement stays in place, reinstate at any time.' }, { value: 'reinstate', label: 'Reinstate', desc: 'Restore all previously authorized permissions and resume paused task delegations.' }, { value: 'archive', label: 'Archive', desc: 'Remove this steward record from active view. They remain in the system for audit purposes.' }]" :key="opt.value"
-            style="display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s;"
-            :style="editForm.access_action === opt.value ? 'border-color:var(--gold-dark);background:rgba(160,129,62,.04);' : ''"
+            style="display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s"
+            :style="editForm.access_action === opt.value ? 'border-color:var(--gold-dark);background:rgba(160,129,62,.04)' : ''"
           >
-            <input type="radio" :value="opt.value" v-model="editForm.access_action" style="margin-top:3px;">
+            <input type="radio" :value="opt.value" v-model="editForm.access_action" style="margin-top:3px">
             <div>
-              <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">{{ opt.label }}</div>
-              <div style="font-size:12px;color:var(--text-4);">{{ opt.desc }}</div>
+              <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px">{{ opt.label }}</div>
+              <div style="font-size:12px;color:var(--text-4)">{{ opt.desc }}</div>
             </div>
           </label>
         </div>
         <div v-if="editForm.access_action" class="form-group" style="margin-top:12px">
           <label class="form-label">Reason <span class="required">*</span></label>
           <textarea v-model="editForm.access_reason" class="form-input" rows="2" placeholder="Briefly explain this action…" />
+        </div>
+        <div v-if="editForm.access_action" class="form-group">
+          <label class="form-label">Notes <span style="font-size:11px;color:var(--text-4)">(optional)</span></label>
+          <input v-model="editForm.access_notes" class="form-input" type="text" placeholder="Additional context…">
+        </div>
+      </div>
+
+      <!-- Section D: Retainer Info (read-only) -->
+      <div v-if="activeSteward" style="padding-top:16px;margin-top:16px;border-top:1px solid var(--border)">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-4);margin-bottom:10px">D — Retainer Info</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:4px">Active Since</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">{{ activeSteward.ss_acknowledged_at ? fmtDate(activeSteward.ss_acknowledged_at) : (activeSteward.signed_at ? fmtDate(activeSteward.signed_at) : '—') }}</div>
+          </div>
+          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:4px">Attestation Due</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text)">{{ activeSteward.review_due_at ? fmtDate(activeSteward.review_due_at) : '—' }}</div>
+          </div>
+          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:4px">Status</div>
+            <AegisBadge :variant="activeSteward.status === 'active' ? 'green' : 'gold'">{{ capitalize(activeSteward.status ?? '—') }}</AegisBadge>
+          </div>
         </div>
       </div>
 
@@ -765,6 +850,7 @@ import AegisToggle from '@/components/ui/AegisToggle.vue'
 import { useModal } from '@/composables/useModal'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
+import { useMessageButton } from '@/composables/useMessageButton'
 import PlanReviewAlert from '@/components/PlanReviewAlert.vue'
 
 // ── Props ────────────────────────────────────────────────
@@ -791,6 +877,7 @@ const props = defineProps({
 const { openModal, closeModal, isOpen } = useModal()
 const toast = useToast()
 const { confirmAction } = useConfirm()
+const { openConversation: msgSteward } = useMessageButton()
 
 // ── Tab ──────────────────────────────────────────────────
 const activeTab = ref('mydsr')
@@ -891,6 +978,7 @@ function openAgreement(s) { activeStewardId.value = s?.id; openModal('viewDsrAgr
 function openEdit(s) {
   activeStewardId.value = s?.id
   editForm.display_name = fullName(s)
+  editForm.credentials = s?.steward?.credentials ?? s?.credentials ?? ''
   editForm.phone = s?.steward?.phone ?? ''
   editForm.email = s?.steward?.email ?? ''
   editForm.role = roleVal(s?.role) || 'support'
@@ -898,6 +986,7 @@ function openEdit(s) {
   editForm.notes = s?.notes ?? ''
   editForm.access_action = ''
   editForm.access_reason = ''
+  editForm.access_notes = ''
   v$edit.value.$reset()
   openModal('editDsrModal')
 }
@@ -905,6 +994,7 @@ function openReinstate(s)   { activeStewardId.value = s.id; openModal('reinstate
 function openRemove(s)      { activeStewardId.value = s.id; removeConfirm.value = ''; openModal('removeDsrModal') }
 function openResend(s)      { activeStewardId.value = s.id; openModal('resendInviteModal') }
 function openCancelInvite(s){ activeStewardId.value = s.id; openModal('cancelInviteModal') }
+function msg(s) { msgSteward(s?.steward_id ?? s?.steward?.id ?? s?.id) }
 
 
 
@@ -919,8 +1009,8 @@ const inviteForm = useForm({
   external: false, expires_days: '30', message: '',
 })
 const editForm = useForm({
-  display_name: '', relationship: '', phone: '', email: '', role: 'support', notes: '',
-  access_action: '', access_reason: '',
+  display_name: '', credentials: '', relationship: '', phone: '', email: '', role: 'support', notes: '',
+  access_action: '', access_reason: '', access_notes: '',
 })
 const reinstateForm = useForm({ message: '' })
 const removeForm    = useForm({ reason: '', notes: '' })
