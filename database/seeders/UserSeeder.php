@@ -19,7 +19,7 @@ class UserSeeder extends Seeder
                 'role'             => 'practitioner',
                 'display_name'     => 'Sarah Johnson',
                 'credentials'      => 'LPC, LMFT',
-                'email'            => 'sarah_johnson@demo.aegis',
+                'email'            => 'sarah_' . time() . '@demo.aegis',
                 'phone'            => '555-201-0001',
                 'location'         => 'Austin, TX',
                 'organization'     => 'Clarity Counseling Group',
