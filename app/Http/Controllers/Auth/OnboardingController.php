@@ -265,10 +265,15 @@ class OnboardingController extends Controller
             // Standard single-price subscription
             $this->subscriptionService->subscribe($user, $priceId, $pmId);
 
+            // Refresh user model so Cashier's subscription() relation cache reflects
+            // the newly created subscription before addon toggles query it.
+            $user->refresh();
+
             foreach ($data['addons'] ?? [] as $addon) {
+                $resolvedTier = config("aegis.stripe_price_to_tier.{$priceId}");
                 match ($addon) {
                     'maat'     => $this->subscriptionService->toggleMaatAddon($user, true, $billing),
-                    'cs_addon' => $user->tier === 'practice'
+                    'cs_addon' => $resolvedTier === 'practice'
                         ? $this->subscriptionService->toggleCsAddon($user, true, $billing)
                         : null,
                     default    => null,
