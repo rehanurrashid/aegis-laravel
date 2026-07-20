@@ -80,8 +80,8 @@ function downloadPdf() {
             :href="(steward.steward?.slug || steward.slug) ? '/cs/' + (steward.steward?.slug ?? steward.slug) : undefined"
             style="font-size:15px;font-weight:700;color:var(--gold-dark);text-decoration:none;font-family:var(--font-serif);"
           >{{ stewardName(steward) }}</component>
-          <div style="font-size:11px;color:var(--text-3);margin-top:4px;">
-            <AegisIcon name="shield-check" :size="11" style="color:var(--green-dark);" /> Standing retainer · Active since {{ fmtDate(steward?.signed_at) }}
+          <div style="font-size:11px;color:var(--text-3);margin-top:4px;display:flex;align-items:center;gap:4px;">
+            <AegisIcon name="shield-check" :size="11" style="color:var(--green-dark);flex-shrink:0;" /> Standing retainer · Active since {{ fmtDate(steward?.signed_at) }}
           </div>
           <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;">
             <AegisBadge :label="csRoleLabel(steward.role)" variant="gold" icon="shield" />
@@ -168,9 +168,9 @@ function downloadPdf() {
         </p>
       </div>
 
-      <div class="cspay-note" style="margin-top:16px;">
-        <span class="cspay-note-icon"><AegisIcon name="shield" :size="14" /></span>
-        <p style="font-size:11px;">This retainer stays active until cancelled by either party. Invoices are generated only when a critical incident closes and CS tasks are marked complete. Fees are charged directly via Stripe — Aegis never holds funds.</p>
+      <div class="cspay-note" style="margin-top:16px;display:flex;align-items:flex-start;gap:6px;">
+        <span class="cspay-note-icon" style="flex-shrink:0;"><AegisIcon name="shield" :size="14" /></span>
+        <p style="font-size:11px;margin:0;">This retainer stays active until cancelled by either party. Invoices are generated only when a critical incident closes and CS tasks are marked complete. Fees are charged directly via Stripe — Aegis never holds funds.</p>
       </div>
 
     </template>

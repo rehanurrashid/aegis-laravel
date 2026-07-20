@@ -550,6 +550,7 @@
           <AegisIcon name="info" :size="11" />
           <span>Responsibilities are set when the Support Steward designation is created.</span>
         </div>
+        <a :href="route('provider.plan.index') + '#incident-grid'" style="font-size:12px;color:var(--gold-dark);text-decoration:none;display:inline-block;margin-top:6px">Configure on Plan →</a>
       </div>
 
       <!-- Notes -->
