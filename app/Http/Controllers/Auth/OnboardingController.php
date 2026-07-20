@@ -268,7 +268,9 @@ class OnboardingController extends Controller
             foreach ($data['addons'] ?? [] as $addon) {
                 match ($addon) {
                     'maat'     => $this->subscriptionService->toggleMaatAddon($user, true, $billing),
-                    'cs_addon' => $this->subscriptionService->toggleCsAddon($user, true, $billing),
+                    'cs_addon' => $user->tier === 'practice'
+                        ? $this->subscriptionService->toggleCsAddon($user, true, $billing)
+                        : null,
                     default    => null,
                 };
             }
@@ -452,6 +454,18 @@ class OnboardingController extends Controller
                 'name'        => 'MAAT Professional Continuity Steward Service',
                 'description' => 'Designated licensed & insured CS · emergency response within 4 hrs',
                 'price'       => $toD($maatCents) . ($tier === 'annual' ? '/yr' : '/mo'),
+            ];
+        }
+
+        if (in_array('cs_addon', $addons, true)) {
+            $csCents = $isAnnual
+                ? ($pricing['practice_cs_addon']['annual_cents']  ?? 2100)
+                : ($pricing['practice_cs_addon']['monthly_cents'] ?? 2500);
+            $addonTotal += $csCents;
+            $addonLines[] = [
+                'name'        => 'Practice CS Add-On',
+                'description' => 'Serve as CS for up to 43 practitioners',
+                'price'       => '+$' . $toD($csCents) . ($tier === 'annual' ? '/yr' : '/mo'),
             ];
         }
 

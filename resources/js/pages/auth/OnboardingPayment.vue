@@ -33,6 +33,7 @@
           <div class="ob-psp-label">Your plan</div>
           <div class="ob-psp-name">{{ planDisplayName }}</div>
           <div v-if="hasMaat" class="ob-psp-addon">+ MAAT Professional CS</div>
+          <div v-if="hasCsAddon" class="ob-psp-addon">+ Practice CS Add-On</div>
           <div class="ob-psp-price">{{ planDisplayPrice }}</div>
           <button type="button" class="ob-psp-change" @click="goBack">Change plan</button>
         </div>
@@ -84,6 +85,18 @@
               <div class="ob-order-line-detail">Designated continuity steward</div>
             </div>
             <div class="ob-order-line-price">{{ maatAddonPrice }}</div>
+          </div>
+
+          <!-- Practice CS Add-On line (only when selected) -->
+          <div v-if="hasCsAddon" class="ob-order-line ob-order-line--addon">
+            <div class="ob-order-line-left">
+              <div class="ob-order-line-name">
+                <AegisIcon name="users" :size="11" style="display:inline;vertical-align:middle;margin-right:4px;" />
+                Practice CS Add-On
+              </div>
+              <div class="ob-order-line-detail">Serve as CS for up to 43 practitioners</div>
+            </div>
+            <div class="ob-order-line-price">{{ csAddonPrice }}</div>
           </div>
 
           <!-- Divider + total -->
@@ -216,7 +229,8 @@ const tierLabels = {
 
 const planDisplayName = computed(() => tierLabels[props.plan?.tier] ?? 'Aegis Subscription')
 
-const hasMaat = computed(() => (props.plan?.addons ?? []).includes('maat'))
+const hasMaat    = computed(() => (props.plan?.addons ?? []).includes('maat'))
+const hasCsAddon = computed(() => (props.plan?.addons ?? []).includes('cs_addon'))
 
 // Pricing cents → dollars helpers
 const toD = (c) => Math.round((c ?? 0) / 100)
@@ -239,6 +253,18 @@ const maatPriceCents = computed(() => {
     : (props.pricing?.maat_addon?.monthly_cents     ?? 2900)
 })
 
+const csAddonPriceCents = computed(() => {
+  if (!hasCsAddon.value) return 0
+  return props.plan?.billing === 'annual'
+    ? (props.pricing?.practice_cs_addon?.annual_cents  ?? 2100)
+    : (props.pricing?.practice_cs_addon?.monthly_cents ?? 2500)
+})
+
+const csAddonPrice = computed(() => {
+  const dollars = toD(csAddonPriceCents.value)
+  return `+$${dollars}/mo`
+})
+
 const isAnnualTotal = computed(() => props.plan?.tier === 'annual' || (props.plan?.billing === 'annual' && props.plan?.tier === 'cs_business'))
 
 const basePlanPrice = computed(() => {
@@ -254,7 +280,7 @@ const maatAddonPrice = computed(() => {
 
 const planDisplayPrice = computed(() => {
   const base  = basePlanPriceCents.value
-  const addon = hasMaat.value ? maatPriceCents.value : 0
+  const addon = (hasMaat.value ? maatPriceCents.value : 0) + (hasCsAddon.value ? csAddonPriceCents.value : 0)
   const total = toD(base + addon)
   if (isAnnualTotal.value) return `$${total}/yr`
   return `$${total}/mo`
