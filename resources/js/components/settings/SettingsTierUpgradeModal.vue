@@ -42,8 +42,8 @@
 
     <!-- Price -->
     <div class="tum-price">
-      <span class="tum-price-main">$49<span class="tum-price-unit">/month</span></span>
-      <span class="tum-price-alt">or $39/mo billed annually</span>
+      <span class="tum-price-main">{{ pricingStore.formatCents(pricingStore.getTier('practice')?.monthly ?? 7900) }}<span class="tum-price-unit">/month</span></span>
+      <span class="tum-price-alt">or {{ pricingStore.formatCents(pricingStore.getTier('practice')?.annual ?? 6600) }}/mo billed annually</span>
     </div>
 
     <!-- Footer -->
@@ -57,6 +57,9 @@
 
 <script setup>
 import { computed } from 'vue'
+import { usePricingStore } from '@/stores/pricing'
+
+const pricingStore = usePricingStore()
 
 const props = defineProps({
   show:              { type: Boolean, default: false },
