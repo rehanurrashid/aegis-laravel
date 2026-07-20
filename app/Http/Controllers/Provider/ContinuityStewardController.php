@@ -777,6 +777,72 @@ class ContinuityStewardController extends Controller
         return back()->with('success', 'Permissions updated.');
     }
 
+    public function ssUpdate(Request $request, PlanSteward $steward): RedirectResponse
+    {
+        $plan = $this->plans->getForPractitioner($request->user()->id);
+        abort_if(!$plan || $steward->plan_id !== $plan->id, 404);
+        $this->authorize('update', $plan);
+
+        $data = $request->validate([
+            'display_name' => 'required|string|max:100',
+            'relationship' => 'nullable|string|max:100',
+            'phone'        => 'nullable|string|max:30',
+            'role'         => 'nullable|in:primary,alternate,support',
+            'notes'        => 'nullable|string|max:1000',
+        ]);
+
+        // Update plan_steward role/notes
+        $steward->update([
+            'role'  => $data['role']  ?? $steward->role,
+            'notes' => $data['notes'] ?? $steward->notes,
+        ]);
+
+        // Update the steward user's profile data if they exist
+        if ($steward->steward) {
+            $steward->steward->update(array_filter([
+                'display_name' => $data['display_name'],
+                'phone'        => $data['phone'] ?? null,
+            ]));
+        }
+
+        $actor = $request->user();
+        $this->activity->log(
+            $actor->id, 'provider', 'steward',
+            \App\Enums\ActivitySeverity::Info, 'ss_updated',
+            'Support Steward details updated',
+            'Contact information and role updated.',
+            'plan_steward', $steward->id,
+            $steward->steward_id,
+            'log', $actor->id
+        );
+        $this->activity->log(
+            $steward->steward_id, 'support_steward', 'steward',
+            \App\Enums\ActivitySeverity::Info, 'ss_updated',
+            'Your Support Steward details have been updated',
+            'The practitioner has updated your support steward record.',
+            'plan_steward', $steward->id,
+            $actor->id,
+            'notification', $actor->id
+        );
+
+        return back()->with('success', 'Support Steward details updated.');
+    }
+
+    public function ssDownloadAgreement(Request $request, PlanSteward $steward): \Symfony\Component\HttpFoundation\Response
+    {
+        $plan = $this->plans->getForPractitioner($request->user()->id);
+        abort_if(!$plan || $steward->plan_id !== $plan->id, 404);
+        $this->authorize('update', $plan);
+
+        // If a PDF path is stored, stream it; otherwise return a stub response
+        if ($steward->agreement_path && \Storage::exists($steward->agreement_path)) {
+            return \Storage::download($steward->agreement_path, 'ss-agreement.pdf');
+        }
+
+        // Fallback: generate a basic PDF via AegisPdfService if it supports agreements
+        abort(404, 'Agreement PDF not yet generated.');
+    }
+
     public function ssArchive(Request $request, PlanSteward $steward): RedirectResponse
     {
         $plan = $this->plans->getForPractitioner($request->user()->id);

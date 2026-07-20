@@ -35,8 +35,9 @@
 
       <AegisStatChip
         icon="calendar"
-        :value="nextReviewLabel"
-        label="Annual Attestation Due"
+        :value="annualReviewDate ? fmtDate(annualReviewDate) : '—'"
+        :label="planStatus === 'annual_review_due' ? 'Review OVERDUE' : 'Annual Attestation Due'"
+        :style="planStatus === 'annual_review_due' ? 'border-color:var(--red-dark);color:var(--red-dark);' : ''"
       />
     </div>
 
@@ -121,10 +122,7 @@
             <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
               <button class="btn-icon" data-tooltip="Edit" @click="openEdit(s)"><AegisIcon name="pencil" :size="14" /></button>
               <button class="btn-icon" data-tooltip="View Agreement" @click="openAgreement(s)"><AegisIcon name="file-text" :size="14" /></button>
-              <button class="btn-icon" data-tooltip="Manage Access" @click="openManageAccess(s)"><AegisIcon name="sliders" :size="14" /></button>
-              <a :href="route('activity.index') + '?module=support_stewards'" class="btn-icon" data-tooltip="View activity">
-                <AegisIcon name="clock" :size="14" />
-              </a>
+              <button class="btn-icon" data-tooltip="Manage Access" @click="openEdit(s)"><AegisIcon name="sliders" :size="14" /></button>
               <button class="btn-icon btn-icon-danger" data-tooltip="Remove Support Steward" @click="openRemove(s)"><AegisIcon name="trash" :size="14" /></button>
             </div>
           </div>
@@ -452,50 +450,138 @@
 
 
 
-    <!-- EDIT SS -->
-    <AegisModal :model-value="isOpen('editDsrModal').value" :title="activeSteward ? 'Edit Support Steward — ' + fullName(activeSteward) : 'Edit Support Steward'" size="md" @update:model-value="v => !v && closeModal('editDsrModal')">
+    <!-- EDIT SS (unified — includes manage access) -->
+    <AegisModal :model-value="isOpen('editDsrModal').value" :title="activeSteward ? 'Edit Support Steward — ' + fullName(activeSteward) : 'Edit Support Steward'" size="lg" @update:model-value="v => !v && closeModal('editDsrModal')">
       <div class="alert alert-info" style="margin-bottom:14px">
         <div class="alert-icon"><AegisIcon name="info" :size="16" /></div>
         <div>If you update this Support Steward's details, they'll be notified so your shared records stay in sync.</div>
       </div>
       <div class="row-2">
-        <div class="form-group"><label class="form-label">Full Name</label><input v-model="editForm.display_name" class="form-input" type="text"></div>
-        <div class="form-group"><label class="form-label">Relationship</label><input v-model="editForm.relationship" class="form-input" type="text" placeholder="e.g., Office Manager, Colleague"></div>
+        <div class="form-group">
+          <label class="form-label">Full Name <span class="required">*</span></label>
+          <input v-model="editForm.display_name" class="form-input" :class="{ 'is-error': editFieldError('display_name') }" type="text" @blur="v$edit.display_name.$touch()">
+          <div v-if="editFieldError('display_name')" class="form-error">{{ editFieldError('display_name') }}</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Relationship</label>
+          <select v-model="editForm.relationship" class="form-select">
+            <option value="">— Select —</option>
+            <option value="colleague">Colleague</option>
+            <option value="family">Family</option>
+            <option value="attorney">Attorney</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
       </div>
       <div class="row-2">
         <div class="form-group"><label class="form-label">Phone</label><input v-model="editForm.phone" class="form-input" type="tel"></div>
-        <div class="form-group"><label class="form-label">Email</label><input v-model="editForm.email" class="form-input" type="email"></div>
+        <div class="form-group">
+          <label class="form-label">Email <span style="font-size:11px;color:var(--text-4)">(read-only)</span></label>
+          <input :value="activeSteward?.steward?.email ?? editForm.email" class="form-input" type="email" disabled style="opacity:0.6">
+        </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Role</label>
-        <select v-model="editForm.role" class="form-select">
-          <option value="primary">Support Steward</option>
-          <option value="alternate">Alternative Support Steward</option>
+        <label class="form-label">Role <span class="required">*</span></label>
+        <select v-model="editForm.role" class="form-select" :class="{ 'is-error': editFieldError('role') }" @blur="v$edit.role.$touch()">
+          <option value="support">Support Steward</option>
+          <option value="alternate">Alternate Support Steward</option>
         </select>
+        <div v-if="editFieldError('role')" class="form-error">{{ editFieldError('role') }}</div>
       </div>
       <div class="form-group"><label class="form-label">Notes</label><textarea v-model="editForm.notes" class="form-input" style="min-height:60px"></textarea></div>
+
+      <!-- Manage Access section -->
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:12px">Manage Access</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <label v-for="opt in [{ value: 'suspend', label: 'Suspend', desc: 'Block access temporarily — agreement stays in place, reinstate at any time.' }, { value: 'reinstate', label: 'Reinstate', desc: 'Restore all previously authorized permissions and resume paused task delegations.' }, { value: 'archive', label: 'Archive', desc: 'Remove this steward record from active view. They remain in the system for audit purposes.' }]" :key="opt.value"
+            style="display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s;"
+            :style="editForm.access_action === opt.value ? 'border-color:var(--gold-dark);background:rgba(160,129,62,.04);' : ''"
+          >
+            <input type="radio" :value="opt.value" v-model="editForm.access_action" style="margin-top:3px;">
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">{{ opt.label }}</div>
+              <div style="font-size:12px;color:var(--text-4);">{{ opt.desc }}</div>
+            </div>
+          </label>
+        </div>
+        <div v-if="editForm.access_action" class="form-group" style="margin-top:12px">
+          <label class="form-label">Reason <span class="required">*</span></label>
+          <textarea v-model="editForm.access_reason" class="form-input" rows="2" placeholder="Briefly explain this action…" />
+        </div>
+      </div>
+
       <template #footer>
         <button class="btn btn-outline" @click="closeModal('editDsrModal')">Cancel</button>
-        <button class="btn btn-primary" @click="toast.success('Details updated.'); closeModal('editDsrModal')">Save Changes</button>
+        <button class="btn btn-primary" :disabled="editForm.processing" @click="submitEdit">
+          <AegisIcon name="check" :size="13" /> {{ editForm.processing ? 'Saving…' : 'Save Changes' }}
+        </button>
       </template>
     </AegisModal>
 
 
 
     <!-- VIEW AGREEMENT -->
-    <AegisModal :model-value="isOpen('viewDsrAgreementModal').value" :title="activeSteward ? 'Support Steward Agreement — ' + fullName(activeSteward) : 'Support Steward Agreement'" size="lg" @update:model-value="v => !v && closeModal('viewDsrAgreementModal')">
+    <AegisModal :model-value="isOpen('viewDsrAgreementModal').value" :title="activeSteward ? 'Support Steward Agreement — ' + fullName(activeSteward) : 'Support Steward Agreement'" size="xl" @update:model-value="v => !v && closeModal('viewDsrAgreementModal')">
       <div v-if="activeSteward?.signed_at" class="alert alert-success" style="margin-bottom:14px">
         <div class="alert-icon"><AegisIcon name="check" :size="16" /></div>
-        <div>Active · Both parties signed · Last reviewed {{ fmtDate(activeSteward.signed_at) }}</div>
+        <div>Active · Both parties signed · Signed {{ fmtDate(activeSteward.signed_at) }}</div>
       </div>
       <div v-else class="alert alert-warning" style="margin-bottom:14px">
         <div class="alert-icon"><AegisIcon name="clock" :size="16" /></div>
         <div>Awaiting counter-signature from Support Steward.</div>
       </div>
+
+      <!-- Retainer summary -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:4px">Signed Date</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text)">{{ activeSteward?.signed_at ? fmtDate(activeSteward.signed_at) : '—' }}</div>
+        </div>
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:4px">Annual Attestation Due</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text)">{{ activeSteward?.review_due_at ? fmtDate(activeSteward.review_due_at) : '—' }}</div>
+        </div>
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:12px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:4px">Status</div>
+          <AegisBadge :variant="activeSteward?.status === 'active' ? 'green' : 'gold'">{{ capitalize(activeSteward?.status ?? '—') }}</AegisBadge>
+        </div>
+      </div>
+
+      <!-- Contact info -->
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:16px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:8px">Support Steward</div>
+        <div style="font-size:15px;font-weight:700;font-family:var(--font-serif);color:var(--text);margin-bottom:4px">{{ activeSteward ? fullName(activeSteward) : '—' }}</div>
+        <div style="font-size:12px;color:var(--text-3);display:flex;gap:16px;flex-wrap:wrap">
+          <span v-if="activeSteward?.steward?.email"><AegisIcon name="mail" :size="12" /> {{ activeSteward.steward.email }}</span>
+          <span v-if="activeSteward?.steward?.phone"><AegisIcon name="phone" :size="12" /> {{ activeSteward.steward.phone }}</span>
+          <span v-if="activeSteward?.role"><AegisIcon name="user" :size="12" /> {{ activeSteward.role === 'alternate' ? 'Alternate Support Steward' : 'Support Steward' }}</span>
+        </div>
+      </div>
+
+      <!-- Responsibilities -->
+      <div v-if="activeSteward?.responsibilities?.length" style="margin-bottom:16px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:8px">Authorized Responsibilities</div>
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+          <div v-for="(r, i) in activeSteward.responsibilities" :key="i" style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border)">
+            <AegisIcon name="check-circle" :size="13" style="color:var(--green-dark);flex-shrink:0" />
+            <span style="font-size:13px;color:var(--text-2)">{{ r }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Permissions -->
+      <div v-if="activeSteward?.permissions?.length" style="margin-bottom:16px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:8px">Permissions Granted</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <AegisBadge v-for="p in activeSteward.permissions" :key="p" variant="gold">{{ p.replace(/_/g, ' ') }}</AegisBadge>
+        </div>
+      </div>
+
+      <!-- Agreement text -->
       <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;font-size:13px;line-height:1.8;color:var(--text-2)">
         <div style="font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--gold-dark);text-align:center;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)">Aegis SUPPORT STEWARD AGREEMENT</div>
-        <p><strong>Support Steward:</strong> {{ activeSteward ? fullName(activeSteward) : '—' }}</p>
-        <p><strong>Agreement Date:</strong> {{ activeSteward ? fmtDate(activeSteward.signed_at ?? activeSteward.invited_at) : '—' }} | <strong>Annual Attestation:</strong> Required</p>
+        <p><strong>Agreement Date:</strong> {{ activeSteward ? fmtDate(activeSteward.signed_at ?? activeSteward.invited_at) : '—' }} &nbsp;|&nbsp; <strong>Annual Attestation:</strong> Required</p>
         <br>
         <p><strong>Section 1. Purpose.</strong> This agreement authorizes the Support Steward to support the Practitioner during a critical moment, carrying out the responsibilities designated by the Provider and guided by the Continuity Plan.</p>
         <br>
@@ -504,43 +590,15 @@
         <p><strong>Section 3. Compliance.</strong> Support Steward agrees to comply with HIPAA, maintain full confidentiality, and not exceed authorized responsibilities. All actions are logged for audit.</p>
         <br>
         <p><strong>Section 4. Annual Attestation.</strong> The Provider re-confirms the Support Steward's responsibilities and contact information annually.</p>
+        <br>
+        <p><strong>Section 5. Termination.</strong> Either party may end this arrangement at any time by providing written notice through the Aegis platform. Upon termination, all access is immediately revoked and this agreement is voided.</p>
       </div>
       <template #footer>
-        <button class="btn btn-outline" @click="toast.success('Agreement downloaded')"><AegisIcon name="download" :size="14" /> Download PDF</button>
+        <button v-if="activeSteward?.signed_at" class="btn btn-outline" @click="downloadAgreement"><AegisIcon name="download" :size="14" /> Download PDF</button>
         <button class="btn btn-primary" @click="closeModal('viewDsrAgreementModal')">Close</button>
       </template>
     </AegisModal>
 
-    <!-- MANAGE ACCESS -->
-    <AegisModal :model-value="isOpen('manageAccessModal').value" :title="activeSteward ? 'Manage Access — ' + fullName(activeSteward) : 'Manage Access'" size="md" @update:model-value="v => !v && closeModal('manageAccessModal')">
-      <div style="display:flex;flex-direction:column;gap:14px;padding-top:4px;">
-        <div class="form-group">
-          <label class="form-label">Action <span class="required">*</span></label>
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            <label v-for="opt in [{ value: 'suspend', label: 'Suspend', desc: 'Block access temporarily — agreement stays in place, reinstate at any time.' }, { value: 'reinstate', label: 'Reinstate', desc: 'Restore all previously authorized permissions and resume paused task delegations.' }, { value: 'archive', label: 'Archive', desc: 'Remove this steward record from active view. They remain in the system for audit purposes.' }]" :key="opt.value"
-              style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s;"
-              :style="manageAccessForm.action === opt.value ? 'border-color:var(--gold-dark);background:rgba(160,129,62,.04);' : ''"
-            >
-              <input type="radio" :value="opt.value" v-model="manageAccessForm.action" style="margin-top:3px;" />
-              <div>
-                <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">{{ opt.label }}</div>
-                <div style="font-size:12px;color:var(--text-4);">{{ opt.desc }}</div>
-              </div>
-            </label>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Reason <span class="required">*</span></label>
-          <textarea v-model="manageAccessForm.reason" class="form-input" rows="2" placeholder="Briefly explain this action…" />
-        </div>
-      </div>
-      <template #footer>
-        <button class="btn btn-outline" @click="closeModal('manageAccessModal')">Cancel</button>
-        <button class="btn btn-primary" :disabled="!manageAccessForm.action || suspendForm.processing" @click="submitManageAccess">
-          <AegisIcon name="check" :size="13" /> Apply
-        </button>
-      </template>
-    </AegisModal>
 
 
     <!-- REMOVE -->
@@ -655,7 +713,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive } from 'vue'
+import { ref, computed } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import { useVuelidate } from '@vuelidate/core'
 import { required, email as emailRule, helpers } from '@vuelidate/validators'
@@ -705,12 +763,6 @@ const activeCount  = computed(() => props.stewards.length)
 const pendingCount = computed(() => props.pending.length + props.invited.length)
 const rosterCount  = computed(() => props.stewards.length)
 const atLimit      = computed(() => props.ssCount >= props.ssMax)
-
-const nextReviewLabel = computed(() => {
-  const dates = props.stewards.filter(s => s.review_due_at).map(s => s.review_due_at).sort()
-  if (!dates.length) return '—'
-  return fmtDate(dates[0])
-})
 
 // ── SS Notification Preferences ──────────────────────────
 const ssNotifyToggles = ref({
@@ -782,34 +834,15 @@ function openEdit(s) {
   editForm.display_name = fullName(s)
   editForm.phone = s?.steward?.phone ?? ''
   editForm.email = s?.steward?.email ?? ''
-  editForm.role = roleVal(s?.role) || 'primary'
+  editForm.role = roleVal(s?.role) || 'support'
   editForm.relationship = s?.steward?.relationship ?? ''
   editForm.notes = s?.notes ?? ''
+  editForm.access_action = ''
+  editForm.access_reason = ''
+  v$edit.value.$reset()
   openModal('editDsrModal')
 }
-function openSuspend(s)     { activeStewardId.value = s.id; openModal('suspendDsrModal') }
 function openReinstate(s)   { activeStewardId.value = s.id; openModal('reinstateModal') }
-function openManageAccess(s) {
-  activeStewardId.value = s.id
-  manageAccessForm.action = s.status === 'archived' ? 'reinstate' : 'suspend'
-  manageAccessForm.reason = ''
-  openModal('manageAccessModal')
-}
-function submitManageAccess() {
-  if (!manageAccessForm.action) return
-  const routeMap = { suspend: 'provider.ss.suspend', reinstate: 'provider.ss.reinstate', archive: 'provider.ss.archive' }
-  const r = routeMap[manageAccessForm.action]
-  const method = manageAccessForm.action === 'archive' ? 'post' : 'post'
-  router.post(route(r, { steward: activeStewardId.value }), { reason: manageAccessForm.reason }, {
-    preserveScroll: true,
-    onSuccess: () => {
-      const msgs = { suspend: 'Access suspended.', reinstate: 'Steward reinstated.', archive: 'Record archived.' }
-      toast.success(msgs[manageAccessForm.action] ?? 'Done.')
-      closeModal('manageAccessModal')
-    },
-    onError: () => toast.error('Action failed.'),
-  })
-}
 function openRemove(s)      { activeStewardId.value = s.id; removeConfirm.value = ''; openModal('removeDsrModal') }
 function openResend(s)      { activeStewardId.value = s.id; openModal('resendInviteModal') }
 function openCancelInvite(s){ activeStewardId.value = s.id; openModal('cancelInviteModal') }
@@ -827,11 +860,10 @@ const inviteForm = useForm({
   external: false, expires_days: '30', message: '',
 })
 const editForm = useForm({
-  display_name: '', relationship: '', phone: '', email: '', role: 'primary', notes: '',
+  display_name: '', relationship: '', phone: '', email: '', role: 'support', notes: '',
+  access_action: '', access_reason: '',
 })
-const suspendForm   = useForm({ reason: '', start_date: '', end_date: '', message: '' })
 const reinstateForm = useForm({ message: '' })
-const manageAccessForm = reactive({ action: '', reason: '' })
 const removeForm    = useForm({ reason: '', notes: '' })
 const resendForm    = useForm({ expires_days: '30', message: '' })
 
@@ -846,29 +878,68 @@ const rules = {
     email: { email: helpers.withMessage('A valid email is required.', emailRule) },
     display_name: { required: helpers.withMessage('Full name is required.', required) },
   },
-  suspendForm: { reason: { required: helpers.withMessage('Please select a reason.', required) } },
   removeForm:  { reason: { required: helpers.withMessage('Please select a reason.', required) } },
 }
-const v$ = useVuelidate(rules, { inviteForm, suspendForm, removeForm })
+const v$ = useVuelidate(rules, { inviteForm, removeForm })
+
+const editRules = {
+  display_name: { required: helpers.withMessage('Full name is required.', required) },
+  role: { required: helpers.withMessage('Role is required.', required) },
+}
+const v$edit = useVuelidate(editRules, editForm)
 
 function fieldError(key) {
   const map = {
     email:        v$.value.inviteForm?.email,
     display_name: v$.value.inviteForm?.display_name,
-    reason:       v$.value.suspendForm?.reason,
     removeReason: v$.value.removeForm?.reason,
   }
   const node = map[key]
   return node?.$dirty && node?.$errors?.[0]?.$message ? node.$errors[0].$message : null
 }
 
+function editFieldError(key) {
+  const node = v$edit.value[key]
+  return node?.$dirty && node?.$errors?.[0]?.$message ? node.$errors[0].$message : null
+}
+
 // ── Submit actions ────────────────────────────────────────
+async function submitEdit() {
+  await v$edit.value.$validate()
+  if (v$edit.value.$error) return
+
+  // If access action chosen, dispatch that route first then fall through
+  if (editForm.access_action) {
+    const routeMap = { suspend: 'provider.ss.suspend', reinstate: 'provider.ss.reinstate', archive: 'provider.ss.archive' }
+    const r = routeMap[editForm.access_action]
+    if (r) {
+      router.post(route(r, { steward: activeStewardId.value }), { reason: editForm.access_reason }, {
+        preserveScroll: true,
+        onError: () => toast.error('Access action failed.'),
+      })
+    }
+  }
+
+  editForm.put(route('provider.ss.update', { steward: activeStewardId.value }), {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success('Support Steward details updated.')
+      closeModal('editDsrModal')
+    },
+    onError: () => toast.error('Could not save changes.'),
+  })
+}
+
+function downloadAgreement() {
+  window.open(route('provider.ss.agreement.download', { steward: activeStewardId.value }), '_blank')
+}
+
 async function submitInvite() {
   const ok = await v$.value.$validate()
   if (!ok) return
   // Set external flag based on active flow tab
   inviteForm.external = addSsFlow.value === 'external'
-  inviteForm.post(route('provider.ss.designate'), {
+  inviteForm.post(route('provider.ss.invite'), {
     preserveScroll: true,
     onSuccess: () => {
       toast.success(addSsFlow.value === 'external' ? 'Invitation sent.' : 'Support Steward designated.')
@@ -891,18 +962,9 @@ function submitArchiveSteward(s) {
   })
 }
 
-async function submitSuspend() {
-  v$.value.suspendForm.$touch()
-  const ok = await v$.value.suspendForm.$validate()
-  if (!ok) return
-  suspendForm.post(route('provider.ss.suspend', { steward: activeStewardId.value }), {
-    preserveScroll: true,
-    onSuccess: () => { toast.warning('Support Steward access suspended.'); closeModal('suspendDsrModal'); suspendForm.reset() },
-  })
-}
 
 function submitReinstate() {
-  reinstateForm.post(route('ss.reinstate', { steward: activeStewardId.value }), {
+  reinstateForm.post(route('provider.ss.reinstate', { steward: activeStewardId.value }), {
     preserveScroll: true,
     onSuccess: () => { toast.success('Support Steward reinstated.'); closeModal('reinstateModal'); reinstateForm.reset() },
     onError: () => toast.error('Could not reinstate steward.'),
@@ -914,7 +976,7 @@ async function submitRemove() {
   const ok = await v$.value.removeForm.$validate()
   if (!ok) return
   const reason = removeForm.reason + (removeForm.notes ? ' — ' + removeForm.notes : '')
-  router.delete(route('provider.ss.remove', { steward: activeStewardId.value }), {
+  router.delete(route('provider.ss.remove', { steward: activeStewardId.value, _method: 'DELETE' }), {
     data: { reason },
     preserveScroll: true,
     onSuccess: () => { toast.warning('Support Steward removed.'); closeModal('removeDsrModal'); removeForm.reset(); removeConfirm.value = '' },
@@ -932,6 +994,7 @@ function submitCancelInvite() {
   router.post(route('provider.ss.archive', { steward: activeStewardId.value }), {}, {
     preserveScroll: true,
     onSuccess: () => { toast.warning('Invitation cancelled.'); closeModal('cancelInviteModal') },
+    onError: () => toast.error('Could not cancel invitation.'),
   })
 }
 

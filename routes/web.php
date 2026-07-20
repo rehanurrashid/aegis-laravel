@@ -227,6 +227,8 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::put('/support-stewards/{steward}/role', [ContinuityStewardController::class, 'ssUpdateRole'])->name('ss.update-role');
         Route::put('/support-stewards/{steward}/permissions', [ContinuityStewardController::class, 'ssUpdatePermissions'])->name('ss.update-permissions');
         Route::post('/support-stewards/{steward}/archive', [ContinuityStewardController::class, 'ssArchive'])->name('ss.archive');
+        Route::put('/support-stewards/{steward}', [ContinuityStewardController::class, 'ssUpdate'])->name('ss.update');
+        Route::get('/support-stewards/{steward}/agreement/download', [ContinuityStewardController::class, 'ssDownloadAgreement'])->name('ss.agreement.download');
 
         // Vault
         Route::get('/vault', [VaultController::class, 'index'])->name('vault.index');

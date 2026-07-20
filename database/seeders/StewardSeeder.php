@@ -98,40 +98,6 @@ class StewardSeeder extends Seeder
                 'updated_at'       => $now->copy()->subMonths(6),
             ],
 
-            // p_sarah plan — pending SS invite (ss_james, invited not yet accepted)
-            [
-                'id'               => 'ps_sarah_james_pending',
-                'plan_id'          => 'plan_sarah',
-                'steward_id'       => 'ss_james',
-                'role'             => 'alternate',
-                'steward_category' => 'support_steward',
-                'status'           => 'pending',
-                'vault_access'     => 'none',
-                'permissions'      => json_encode([]),
-                'responsibilities' => json_encode([]),
-                'invited_at'       => $now->copy()->subDays(8),
-                'expires_at'       => $now->copy()->addDays(22),
-                'created_at'       => $now->copy()->subDays(8),
-                'updated_at'       => $now->copy()->subDays(8),
-            ],
-
-            // p_sarah plan — suspended SS (archived + signed_at set)
-            [
-                'id'               => 'ps_sarah_ss_suspended',
-                'plan_id'          => 'plan_sarah',
-                'steward_id'       => 'ss_linda',   // using linda as a second entry (suspended)
-                'role'             => 'support',
-                'steward_category' => 'support_steward',
-                'status'           => 'archived',
-                'vault_access'     => 'none',
-                'permissions'      => json_encode([]),
-                'responsibilities' => json_encode(['Track practice expenses during the transition']),
-                'signed_at'        => $now->copy()->subMonths(4),
-                'declined_reason'  => 'Temporary medical leave — access paused until return.',
-                'invited_at'       => $now->copy()->subMonths(5),
-                'created_at'       => $now->copy()->subMonths(5),
-                'updated_at'       => $now->copy()->subDays(14),
-            ],
 
             // p_sarah plan — declined SS external invite
             [
