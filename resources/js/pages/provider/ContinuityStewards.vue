@@ -11,6 +11,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useMessageButton } from '@/composables/useMessageButton'
 import PlanReviewAlert from '@/components/PlanReviewAlert.vue'
 import ViewCsAgreementModal from '@/components/modals/ViewCsAgreementModal.vue'
+import EndStewardRetainerModal from '@/components/modals/EndStewardRetainerModal.vue'
 
 const props = defineProps({
   stewards:           { type: Array,  default: () => [] },
@@ -41,6 +42,7 @@ const { openConversation, loading: msgLoading } = useMessageButton()
 
 // ── Tab state ──────────────────────────────────────────────────────────────────
 const activeTab = ref('myexec')
+const showRemoveModal = ref(false)
 
 // ── Active record refs ──────────────────────────────────────────────────────────
 const activeId      = ref(null)
@@ -90,7 +92,7 @@ function openEditModal(s) {
 function openRemoveModal(s) {
   activeId.value = s.id
   endRetainerForm.reset()
-  modals.value.endRetainer = true
+  showRemoveModal.value = true
 }
 function openEndRetainer(s) { openRemoveModal(s) }
 function openCsReinstate(s) {
@@ -1042,68 +1044,13 @@ function saveNotifyPrefs() {
 
 
 
-    <!-- END RETAINER MODAL -->
-    <AegisModal v-model="modals.endRetainer" title="End Retainer Agreement" size="md" @close="modals.endRetainer=false">
-      <div class="alert alert-warning" style="margin-bottom:16px;">
-        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="16" /></div>
-        <div class="alert-content">
-          <div class="alert-title">Ending Retainer with {{ activeSteward?.display_name ?? stewardName(activeSteward) }}</div>
-          <div style="font-size:12px;">Your Continuity Plan requires at least one active CS. Consider designating a replacement before ending this retainer.</div>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">How do you want to end this retainer?</label>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
-          <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;background:var(--surface);"
-                 :style="endRetainerForm.action === 'suspend' ? 'border-color:var(--gold-dark);background:var(--badge-bg-gold);' : ''">
-            <input type="radio" v-model="endRetainerForm.action" value="suspend" style="margin-top:2px;accent-color:var(--gold-dark);" />
-            <div>
-              <div style="font-weight:600;font-size:13px;">Pause Temporarily</div>
-              <div style="font-size:11px;color:var(--text-3);margin-top:2px;">Access revoked but retainer preserved. You can reinstate anytime from the Suspended tab.</div>
-            </div>
-          </label>
-          <label style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;background:var(--surface);"
-                 :style="endRetainerForm.action === 'terminate' ? 'border-color:var(--red-dark);background:var(--red-light);' : ''">
-            <input type="radio" v-model="endRetainerForm.action" value="terminate" style="margin-top:2px;accent-color:var(--red-dark);" />
-            <div>
-              <div style="font-weight:600;font-size:13px;">Terminate Permanently</div>
-              <div style="font-size:11px;color:var(--text-3);margin-top:2px;">Retainer archived. Historical invoices preserved. Cannot be reinstated — you would need to sign a new retainer.</div>
-            </div>
-          </label>
-        </div>
-      </div>
-
-      <div class="form-group" style="margin-top:14px;">
-        <label class="form-label">Reason <span style="color:var(--red-dark);">*</span></label>
-        <select v-model="endRetainerForm.reason" class="form-control form-select" :class="{ 'is-error': endRetainerForm.errors?.reason }">
-          <option value="">Select a reason…</option>
-          <option value="steward_resigned">CS resigned</option>
-          <option value="mutual">Mutual termination</option>
-          <option value="practice_closing">Practice closing</option>
-          <option value="temporary_leave">Temporary leave</option>
-          <option value="replacing">Replacing with another CS</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
-
-      <div v-if="endRetainerForm.reason === 'other'" class="form-group">
-        <label class="form-label">Details</label>
-        <textarea v-model="endRetainerForm.details" class="form-control" rows="3" placeholder="Provide additional context…"></textarea>
-      </div>
-
-      <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.endRetainer = false">Cancel</button>
-        <button type="button" class="btn btn-danger"
-                :disabled="!endRetainerForm.action || !endRetainerForm.reason || busyEndRetainer"
-                style="display:inline-flex;align-items:center;gap:6px;"
-                @click="submitEndRetainer">
-          <AegisIcon v-if="busyEndRetainer" name="refresh-cw" :size="13" class="btn-spin" />
-          <AegisIcon v-else name="x" :size="13" />
-          {{ busyEndRetainer ? 'Processing…' : endRetainerForm.action === 'suspend' ? 'Pause Retainer' : 'Terminate Retainer' }}
-        </button>
-      </template>
-    </AegisModal>
+    <!-- END RETAINER — centralized EndStewardRetainerModal -->
+    <EndStewardRetainerModal
+      v-model="showRemoveModal"
+      :steward="activeSteward"
+      kind="cs"
+      @success="router.reload({ only: ['stewards', 'pendingInvitations', 'suspended', 'csCount'] })"
+    />
 
     <!-- RESEND INVITE MODAL -->
     <AegisModal v-model="modals.resend" title="Resend Invitation" size="sm" @close="modals.resend=false">

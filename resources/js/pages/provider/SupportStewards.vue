@@ -682,38 +682,13 @@
 
 
 
-    <!-- REMOVE -->
-    <AegisModal :model-value="isOpen('removeDsrModal').value" title="Remove Support Steward" size="md" @update:model-value="v => !v && closeModal('removeDsrModal')">
-      <div class="alert alert-danger" style="margin-bottom:14px">
-        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="16" /></div>
-        <div><strong>Warning:</strong> Removing a Support Steward permanently voids the agreement and revokes all access. This cannot be undone.</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Reason for Removal <span class="required">*</span></label>
-        <select v-model="removeForm.reason" class="form-select" :class="{ 'is-error': fieldError('removeReason') }" @blur="v$.removeForm.reason.$touch()">
-          <option value="">— Select Reason —</option>
-          <option>Staff member left the organization</option>
-          <option>Role no longer needed</option>
-          <option>Access violation or policy breach</option>
-          <option>Replacing with a different Support Steward</option>
-          <option>Practice restructuring</option>
-          <option>Support Steward requested removal</option>
-          <option>Other</option>
-        </select>
-        <div v-if="fieldError('removeReason')" class="form-error">{{ fieldError('removeReason') }}</div>
-      </div>
-      <div class="form-group"><label class="form-label">Additional Notes</label><textarea v-model="removeForm.notes" class="form-input" style="min-height:60px" placeholder="Optional context about this removal…"></textarea></div>
-      <div class="form-group">
-        <label class="form-label">Confirm by typing &ldquo;REMOVE&rdquo;</label>
-        <input v-model="removeConfirm" class="form-input" type="text" placeholder="Type REMOVE to confirm" style="border-color:var(--red-dark)">
-      </div>
-      <template #footer>
-        <button class="btn btn-outline" @click="closeModal('removeDsrModal')">Cancel</button>
-        <button class="btn btn-danger" :class="{ 'btn-spin': removeForm.processing }" :disabled="removeConfirm !== 'REMOVE' || removeForm.processing" @click="submitRemove">
-          {{ removeForm.processing ? 'Removing…' : 'Remove Support Steward' }}
-        </button>
-      </template>
-    </AegisModal>
+    <!-- REMOVE — centralized EndStewardRetainerModal -->
+    <EndStewardRetainerModal
+      v-model="showRemoveModal"
+      :steward="activeSteward"
+      kind="ss"
+      @success="router.reload({ only: ['stewards', 'suspended', 'ssCount'] })"
+    />
 
     <!-- RESEND INVITE -->
     <AegisModal :model-value="isOpen('resendInviteModal').value" title="Resend Support Steward Invitation" size="md" @update:model-value="v => !v && closeModal('resendInviteModal')">
@@ -805,6 +780,7 @@ import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useMessageButton } from '@/composables/useMessageButton'
 import PlanReviewAlert from '@/components/PlanReviewAlert.vue'
+import EndStewardRetainerModal from '@/components/modals/EndStewardRetainerModal.vue'
 
 // ── Props ────────────────────────────────────────────────
 const props = defineProps({
@@ -834,6 +810,7 @@ const { openConversation: msgSteward } = useMessageButton()
 
 // ── Tab ──────────────────────────────────────────────────
 const activeTab = ref('mydsr')
+const showRemoveModal = ref(false)
 
 // ── Active record ─────────────────────────────────────────
 const activeStewardId = ref(null)
@@ -941,7 +918,7 @@ function openEdit(s) {
   openModal('editDsrModal')
 }
 function openReinstate(s)   { activeStewardId.value = s.id; openModal('reinstateModal') }
-function openRemove(s)      { activeStewardId.value = s.id; removeConfirm.value = ''; openModal('removeDsrModal') }
+function openRemove(s)      { activeStewardId.value = s.id; showRemoveModal.value = true }
 function openResend(s)      { activeStewardId.value = s.id; openModal('resendInviteModal') }
 function openCancelInvite(s){ activeStewardId.value = s.id; openModal('cancelInviteModal') }
 function msg(s) { msgSteward(s?.steward_id ?? s?.steward?.id ?? s?.id) }
@@ -962,11 +939,9 @@ const editForm = useForm({
   display_name: '', credentials: '', relationship: '', phone: '', email: '', role: 'support', notes: '',
 })
 const reinstateForm = useForm({ message: '' })
-const removeForm    = useForm({ reason: '', notes: '' })
 const resendForm    = useForm({ expires_days: '30', message: '' })
 
 
-const removeConfirm  = ref('')
 const searchQuery    = ref('')
 const addSsFlow      = ref('existing') // 'existing' | 'external'
 
@@ -976,9 +951,8 @@ const rules = {
     email: { email: helpers.withMessage('A valid email is required.', emailRule) },
     display_name: { required: helpers.withMessage('Full name is required.', required) },
   },
-  removeForm:  { reason: { required: helpers.withMessage('Please select a reason.', required) } },
 }
-const v$ = useVuelidate(rules, { inviteForm, removeForm })
+const v$ = useVuelidate(rules, { inviteForm })
 
 const editRules = {
   display_name: { required: helpers.withMessage('Full name is required.', required) },
@@ -990,7 +964,6 @@ function fieldError(key) {
   const map = {
     email:        v$.value.inviteForm?.email,
     display_name: v$.value.inviteForm?.display_name,
-    removeReason: v$.value.removeForm?.reason,
   }
   const node = map[key]
   return node?.$dirty && node?.$errors?.[0]?.$message ? node.$errors[0].$message : null
@@ -1054,18 +1027,6 @@ function submitReinstate() {
     preserveScroll: true,
     onSuccess: () => { toast.success('Support Steward reinstated.'); closeModal('reinstateModal'); reinstateForm.reset() },
     onError: () => toast.error('Could not reinstate steward.'),
-  })
-}
-
-async function submitRemove() {
-  v$.value.removeForm.$touch()
-  const ok = await v$.value.removeForm.$validate()
-  if (!ok) return
-  const reason = removeForm.reason + (removeForm.notes ? ' — ' + removeForm.notes : '')
-  router.delete(route('provider.ss.remove', { steward: activeStewardId.value, _method: 'DELETE' }), {
-    data: { reason },
-    preserveScroll: true,
-    onSuccess: () => { toast.warning('Support Steward removed.'); closeModal('removeDsrModal'); removeForm.reset(); removeConfirm.value = '' },
   })
 }
 
