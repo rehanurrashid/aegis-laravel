@@ -98,7 +98,7 @@ function openCsReinstate(s) {
 }
 function submitCsReinstate() {
   if (!activeSteward.value) return
-  router.post(route('stewards.reinstate', { steward: activeSteward.value.id }), {}, {
+  router.post(route('provider.stewards.reinstate', { steward: activeSteward.value.id }), {}, {
     preserveScroll: true,
     onSuccess: () => {
       modals.value.reinstateCs = false
