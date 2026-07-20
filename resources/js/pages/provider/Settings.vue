@@ -545,7 +545,7 @@
                     <AegisIcon name="check" :size="11" /> Current Plan
                   </span>
                   <div class="st-plan-tier-name">Continuity Access</div>
-                  <div class="st-plan-tier-price">{{ pricingStore.formatCents(billingAnnualView ? (pricingStore.getTier('access')?.annual ?? 3575) : (pricingStore.getTier('access')?.monthly ?? 3900)) }}<span>/mo</span></div>
+                  <div class="st-plan-tier-price">{{ pricingStore.formatCents(billingAnnualView ? (pricingStore.getTier('access')?.annual ?? 3600) : (pricingStore.getTier('access')?.monthly ?? 3900)) }}<span>/mo</span></div>
                   <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $' + ((pricingStore.getTier('access')?.annualTotal ?? 42900) / 100) + '/yr · save 20%' : 'or $' + ((pricingStore.getTier('access')?.annualTotal ?? 42900) / 100) + '/yr (save 20%)' }}</div>
                   <div class="st-plan-feats">
                     <span v-for="f in accessFeatures" :key="f"><AegisIcon name="check" :size="13" /> {{ f }}</span>
@@ -565,7 +565,7 @@
                     <AegisIcon name="check" :size="11" /> Current Plan
                   </span>
                   <div class="st-plan-tier-name">Continuity Practice</div>
-                  <div class="st-plan-tier-price">{{ pricingStore.formatCents(billingAnnualView ? (pricingStore.getTier('practice')?.annual ?? 6583) : (pricingStore.getTier('practice')?.monthly ?? 7900)) }}<span>/mo</span></div>
+                  <div class="st-plan-tier-price">{{ pricingStore.formatCents(billingAnnualView ? (pricingStore.getTier('practice')?.annual ?? 6600) : (pricingStore.getTier('practice')?.monthly ?? 7900)) }}<span>/mo</span></div>
                   <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $' + ((pricingStore.getTier('practice')?.annualTotal ?? 79000) / 100) + '/yr · save 20%' : 'or $' + ((pricingStore.getTier('practice')?.annualTotal ?? 79000) / 100) + '/yr (save 20%)' }}</div>
                   <div class="st-plan-feats">
                     <span v-for="f in practiceFeatures" :key="f"><AegisIcon name="check" :size="13" /> {{ f }}</span>
@@ -1484,8 +1484,12 @@ const maatBillingAnnual  = computed(() => currentBillingIsAnnual.value);
 const currentTierLabel  = computed(() => ({ access: 'Continuity Access', practice: 'Continuity Practice' }[currentTier.value] || 'No active plan'));
 const currentPlanLine   = computed(() => {
   if (subStatus.value === 'none') return 'No active subscription';
-  const monthly = currentTier.value === 'access' ? 39 : 79;
-  const annualMo = currentTier.value === 'access' ? 35.75 : 65.83;
+  const monthly  = currentTier.value === 'access'
+    ? (pricingStore.getTier('access')?.monthly   ?? 3900) / 100
+    : (pricingStore.getTier('practice')?.monthly ?? 7900) / 100;
+  const annualMo = currentTier.value === 'access'
+    ? Math.round((pricingStore.getTier('access')?.annual   ?? 3600) / 100)
+    : Math.round((pricingStore.getTier('practice')?.annual ?? 6600) / 100);
   const rate = currentBillingIsAnnual.value ? annualMo : monthly;
   return `${currentTierLabel.value} — $${rate}/mo (${currentBillingIsAnnual.value ? 'annual' : 'monthly'})`;
 });
@@ -1494,7 +1498,7 @@ const billingMetaLine = computed(() => {
   const period = sub.value.current_period, next = sub.value.next_invoice;
   const parts = [];
   if (period?.start && period?.end) parts.push(`Billing cycle: ${formatDate(period.start)} – ${formatDate(period.end)}`);
-  if (next?.amount_cents != null && next?.date) parts.push(`Next invoice: $${(next.amount_cents / 100).toFixed(2)} on ${formatDate(next.date)}`);
+  if (next?.amount_cents != null && next?.date) parts.push(`Next invoice: $${Math.round(next.amount_cents / 100)} on ${formatDate(next.date)}`);
   return parts.join(' · ') || (subStatus.value !== 'active' ? 'Billing details will appear after your first cycle.' : '');
 });
 const isSwapAllowed = (tier) => tier !== currentTier.value || billingAnnualView.value !== currentBillingIsAnnual.value;
@@ -1555,8 +1559,8 @@ function swapPlan(tier) {
 
   const tierLabels = { access: 'Continuity Access', practice: 'Continuity Practice' };
   const tierPrices = {
-    access:   (billingAnnualView.value ? (pricingStore.getTier('access')?.annual   ?? 3575) : (pricingStore.getTier('access')?.monthly   ?? 3900)) / 100,
-    practice: (billingAnnualView.value ? (pricingStore.getTier('practice')?.annual ?? 6583) : (pricingStore.getTier('practice')?.monthly  ?? 7900)) / 100,
+    access:   (billingAnnualView.value ? (pricingStore.getTier('access')?.annual   ?? 3600) : (pricingStore.getTier('access')?.monthly   ?? 3900)) / 100,
+    practice: (billingAnnualView.value ? (pricingStore.getTier('practice')?.annual ?? 6600) : (pricingStore.getTier('practice')?.monthly  ?? 7900)) / 100,
   };
   const billingLabel = billingAnnualView.value ? 'billed annually' : 'billed monthly';
 

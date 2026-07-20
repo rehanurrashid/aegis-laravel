@@ -168,7 +168,7 @@ return [
             'practice_maat' => [
                 'label'              => 'Continuity Practice + MAAT',
                 'monthly_cents'      => 10800,   // $108/mo ($79 + $29)
-                'annual_cents'       => 8883,    // $88.83/mo annual ($790 + $276 = $1,066/yr ÷ 12)
+                'annual_cents'       => 8900,    // $89/mo annual ($790 + $276 = $1,066/yr ÷ 12, rounded)
                 'annual_total_cents' => 106600,  // $1,066/yr
             ],
             'practice_cs_addon' => [
