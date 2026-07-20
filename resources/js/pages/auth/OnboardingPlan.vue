@@ -2,8 +2,8 @@
   pages/auth/OnboardingPlan.vue — post-email-verification plan selection.
 
   Shown to paid roles after email verification:
-    · Practitioner       → Access ($29) vs Practice ($49), monthly or annual, optional MAAT add-on
-    · Business CS        → Single plan ($49/mo or $429/yr)
+    · Practitioner       → Access ($39) vs Practice ($79) vs Practice Business ($104), monthly or annual, optional MAAT add-on
+    · Business CS        → Single plan ($49/mo or $490/yr)
     · Business Partner   → Monthly ($69) vs Annual ($690/yr)
 
   Free roles (Invited CS, SS) are never routed here — VerifyEmailController
@@ -110,6 +110,28 @@
               </ul>
               <button type="button" class="btn ob-plan-btn" :class="selectedTier === 'practice' ? 'btn-primary' : 'btn-outline'">
                 {{ selectedTier === 'practice' ? '✓ Selected' : 'Select Practice' }}
+              </button>
+            </div>
+            <!-- Practice Business -->
+            <div class="ob-plan-card" :class="{ selected: selectedTier === 'practice_business' }"
+                 @click="selectedTier = 'practice_business'">
+              <div class="ob-plan-card-name">Continuity Practice Business</div>
+              <div class="ob-plan-card-price">
+                <span class="ob-price-amount">${{ billing === 'annual' ? p.practitioner.practice_business.annual_monthly : p.practitioner.practice_business.monthly }}</span>
+                <span class="ob-price-period">/mo</span>
+              </div>
+              <div v-if="billing === 'annual'" class="ob-plan-card-note">
+                Billed ${{ p.practitioner.practice_business.annual_total }}/year
+              </div>
+              <div class="ob-plan-card-desc">Practice + Business Partner in one account</div>
+              <ul class="ob-plan-features">
+                <li v-for="f in p.practitioner.practice_business.features" :key="f">
+                  <AegisIcon name="check" :size="11" />{{ f }}
+                </li>
+              </ul>
+              <button type="button" class="btn ob-plan-btn"
+                      :class="selectedTier === 'practice_business' ? 'btn-primary' : 'btn-outline'">
+                {{ selectedTier === 'practice_business' ? '✓ Selected' : 'Select Practice Business' }}
               </button>
             </div>
           </div>
@@ -294,6 +316,13 @@ const p = computed(() => {
         annual_monthly:toDF(pricing?.practitioner?.practice?.annual_cents),
         annual_total:  toD(pricing?.practitioner?.practice?.annual_total_cents),
         features:      pricing?.practitioner?.practice?.features ?? [],
+        locked:        [],
+      },
+      practice_business: {
+        monthly:       toD(pricing?.practitioner?.practice_business?.monthly_cents),
+        annual_monthly:toDF(pricing?.practitioner?.practice_business?.annual_cents),
+        annual_total:  toD(pricing?.practitioner?.practice_business?.annual_total_cents),
+        features:      pricing?.practitioner?.practice_business?.features ?? [],
         locked:        [],
       },
     },

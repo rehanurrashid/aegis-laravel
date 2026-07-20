@@ -40,6 +40,7 @@ return [
                     'Document Vault (4 zones)',
                     '1 Continuity Steward invitation',
                     '2 Support Steward invitations',
+                    'Option to add up to 2 additional CS at $70/yr each',
                     'Serve as CS for 1 practitioner',
                     'Shadow Network (limited)',
                     'Secure messaging · Activity log',
@@ -63,14 +64,13 @@ return [
                 'features'           => [
                     'Everything in Continuity Access, plus:',
                     'Up to 2 Continuity Steward invitations',
-                    'Up to 4 Support Steward invitations',
+                    'Up to 2 Support Steward invitations',
+                    'Additional CS slots at $30/yr each',
                     'Serve as CS for up to 3 practitioners',
                     'Referrals — send & receive',
                     'Full Integrative Network search',
                     'Integrative Services Mode (offer services to peers)',
                     'Business Partner directory & Job Postings',
-                    'Message templates + pinning',
-                    'Activity log export',
                     'Priority support & onboarding call',
                 ],
                 'locked'             => [],
@@ -102,6 +102,32 @@ return [
                 'Multi-practitioner dashboard',
                 'Aegis Verified CS badge eligible',
             ],
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Practice Business (Practice base + CS Add-On bundled)
+        | $104/mo · $86.67/mo annual ($1,040/yr)
+        |----------------------------------------------------------------------
+        */
+        'practice_business' => [
+            'name'               => 'Continuity Practice Business',
+            'tagline'            => 'Full practitioner + Business Partner access in one account.',
+            'monthly_cents'      => 10400,   // $104/mo ($79 + $25)
+            'annual_cents'       => 8667,    // $1,040/yr ÷ 12 = $86.67
+            'annual_total_cents' => 104000,  // $1,040/yr
+            'save_label'         => '',
+            'is_popular'         => false,
+            'includes_bp'        => true,
+            'features'           => [
+                'Everything in Continuity Practice, plus:',
+                'Business Partner profile & searchable service listing',
+                'Serve as CS for up to 43 practitioners',
+                'Respond to practitioner service requests',
+                'Service agreements, contracts & payment tools',
+                'Founding Practitioner + Founding BP benefits',
+            ],
+            'locked' => [],
         ],
 
         /*
@@ -321,6 +347,8 @@ return [
         // Listed here for completeness; handled separately in webhook logic.
         env('STRIPE_PRICE_PRACTICE_CS_ADDON_MONTHLY')   => 'practice_cs_addon',
         env('STRIPE_PRICE_PRACTICE_CS_ADDON_ANNUAL')    => 'practice_cs_addon',
+        // Practice Business: practice base price ID maps to practice_business tier
+        // (cs_addon price ID above is also present — webhook sets cs_addon = 1)
     ],
 
     /*
@@ -334,6 +362,7 @@ return [
         'access'              => (int) env('PROVIDER_AS_CS_MAX_ACCESS', 1),
         'practice'            => (int) env('PROVIDER_AS_CS_MAX_PRACTICE', 3),
         'practice_cs_addon'   => (int) env('PROVIDER_AS_CS_MAX_PRACTICE_CS_ADDON', 43),
+        'practice_business'   => (int) env('PROVIDER_AS_CS_MAX_PRACTICE_CS_ADDON', 43),
     ],
 
     /*
@@ -363,11 +392,20 @@ return [
         ],
         'practice' => [
             'max_continuity_stewards' => (int) env('TIER_PRACTICE_MAX_CS', 2),
-            'max_support_stewards'    => (int) env('TIER_PRACTICE_MAX_SS', 4),
+            'max_support_stewards'    => (int) env('TIER_PRACTICE_MAX_SS', 2),
             'referrals'               => true,
             'services_mode'           => true,
             'network_search'          => 'full',
             'job_postings'            => true,
+        ],
+        'practice_business' => [
+            'max_continuity_stewards' => 2,
+            'max_support_stewards'    => 2,
+            'referrals'               => true,
+            'services_mode'           => true,
+            'network_search'          => 'full',
+            'job_postings'            => true,
+            'business_partner_role'   => true,
         ],
     ],
 
