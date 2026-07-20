@@ -772,16 +772,18 @@
                       <div class="toggle-label">Available as Continuity Steward</div>
                       <div class="toggle-desc">Show in the CS directory so practitioners can invite you</div>
                     </div>
-                    <button
-                      type="button"
-                      class="toggle"
-                      :class="{ on: availableAsCsLocal, saving: csAvailSaving }"
-                      :disabled="csAvailSaving"
-                      :style="csAvailSaving ? 'opacity:0.5;cursor:not-allowed;' : ''"
-                      @click="saveAvailableAsCs(!availableAsCsLocal)"
-                      :aria-pressed="availableAsCsLocal"
-                    ></button>
-                    <AegisIcon v-if="csAvailSaving" name="refresh-cw" :size="13" class="btn-spin" style="color:var(--text-3);margin-left:6px;" />
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      <span v-if="csAvailSaving" style="font-size:11px;color:var(--text-3);white-space:nowrap;">Saving…</span>
+                      <button
+                        type="button"
+                        class="toggle"
+                        :class="{ on: availableAsCsLocal }"
+                        :disabled="csAvailSaving"
+                        :style="csAvailSaving ? 'opacity:0.45;cursor:not-allowed;pointer-events:none;' : ''"
+                        @click="saveAvailableAsCs(!availableAsCsLocal)"
+                        :aria-pressed="availableAsCsLocal"
+                      ></button>
+                    </div>
                   </div>
                   <div class="st-addon-foot">
                     <button type="button" class="btn btn-outline" style="font-size:12px;" @click="openTierModal('Practice CS Add-On')">

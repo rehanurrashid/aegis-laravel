@@ -357,7 +357,7 @@ class SettingsController extends Controller
     public function updateCsAvailability(Request $request): RedirectResponse
     {
         $available = $request->boolean('available_as_cs');
-        $this->profiles->saveMeta($request->user(), 'available_as_cs', $available ? '1' : '0', 'bool');
+        $this->profiles->saveMeta($request->user(), 'available_as_cs', $available ? '1' : '0', 'boolean');
         return back()->with('success', 'CS availability updated.');
     }
 
