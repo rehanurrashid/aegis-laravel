@@ -131,15 +131,7 @@
               <span v-else style="display:flex;align-items:center;gap:5px;"><AegisIcon name="message-square" :size="13" />Via Aegis Messaging</span>
               <span v-if="s.review_due_at" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="calendar" :size="13" />Review Due: {{ fmtDate(s.review_due_at) }}</span>
             </div>
-            <div v-if="s.responsibilities && s.responsibilities.length" style="background:var(--surface-2);border-radius:var(--radius);padding:6px 16px;margin-top:14px;border:1px solid var(--border);">
-              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-3);margin-bottom:8px;">Authorized Responsibilities</div>
-              <div v-for="r in s.responsibilities" :key="r" style="display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13px;color:var(--text-2);border-bottom:1px solid var(--border);">
-                <div style="width:24px;height:24px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--badge-bg-gold);color:var(--gold-dark);">
-                  <AegisIcon name="check" :size="12" />
-                </div>
-                <span>{{ typeof r === 'object' ? r.text : r }}</span>
-              </div>
-            </div>
+
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
               <button type="button" class="btn-icon" data-tooltip="View Agreement" @click="openAgreement(s)"><AegisIcon name="file-text" :size="14" /></button>
               <button type="button" class="btn-icon" data-tooltip="Edit Details" @click="openEdit(s)"><AegisIcon name="pencil" :size="14" /></button>
