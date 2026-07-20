@@ -214,6 +214,7 @@ class ContinuityStewardController extends Controller
             'providerAsCsCount'  => $providerAsCsCount,
             'providerAsCsCap'    => $providerAsCsCap,
             'userTier'           => $tier,
+            'availableAsCs'      => (bool) $this->profiles->getMeta($user, 'available_as_cs', false),
         ]);
     }
 

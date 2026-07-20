@@ -32,6 +32,7 @@ const props = defineProps({
   providerAsCsCount:  { type: Number,  default: 0 },
   providerAsCsCap:    { type: Number,  default: 1 },
   userTier:           { type: String,  default: 'access' },
+  availableAsCs:      { type: Boolean, default: false },
 })
 
 const toast = useToast()
@@ -300,6 +301,19 @@ function authIncidentLabels(steward) {
     .map(c => c.incident_type.replace(/_/g, ' '))
 }
 
+// ── Available as CS toggle ─────────────────────────────────────────────────────
+const availableAsCsLocal = ref(props.availableAsCs ?? false)
+const csAvailSaving = ref(false)
+function saveAvailableAsCs(val) {
+  availableAsCsLocal.value = val
+  csAvailSaving.value = true
+  router.post(route('provider.settings.cs-availability'), { available_as_cs: val }, {
+    preserveScroll: true,
+    onError:   () => { availableAsCsLocal.value = !val; toast.error('Could not update CS availability.') },
+    onFinish:  () => { csAvailSaving.value = false },
+  })
+}
+
 // ── Tier gate ──────────────────────────────────────────────────────────────────
 const atLimit = computed(() => props.csCount >= props.csMax)
 const hasAlternate = computed(() => props.stewards.some(s => s.role === 'alternate'))
@@ -399,23 +413,18 @@ function saveNotifyPrefs() {
     <!-- TABS -->
     <div class="tabs-segmented" style="margin-bottom:14px;">
       <button class="tab-pill" :class="{ active: activeTab === 'myexec' }" @click="activeTab = 'myexec'">
-        <AegisIcon name="users" :size="13" />
         My Continuity Stewards <span class="badge-pill">{{ stewards.length }}</span>
       </button>
       <button class="tab-pill" :class="{ active: activeTab === 'pending' }" @click="activeTab = 'pending'">
-        <AegisIcon name="mail" :size="13" />
         Pending <span class="badge-pill">{{ pendingInvitations.length }}</span>
       </button>
       <button v-if="suspended?.length" class="tab-pill" :class="{ active: activeTab === 'suspended' }" @click="activeTab = 'suspended'">
-        <AegisIcon name="pause" :size="13" />
         Suspended <span class="badge-pill">{{ suspended.length }}</span>
       </button>
       <button class="tab-pill" :class="{ active: activeTab === 'for' }" @click="activeTab = 'for'">
-        <AegisIcon name="check-circle" :size="13" />
         I'm Continuity Steward For <span class="badge-pill">{{ servingAsCSFor.length }}</span>
       </button>
       <button class="tab-pill" :class="{ active: activeTab === 'notifications' }" @click="activeTab = 'notifications'">
-        <AegisIcon name="bell" :size="13" />
         Notifications
       </button>
     </div>
@@ -660,120 +669,137 @@ function saveNotifyPrefs() {
         />
       </div>
 
-      <!-- Provider list -->
-      <div class="section-header" style="margin-bottom:10px;">
-        <div class="section-title"><AegisIcon name="users" :size="16" /> Providers I'm Stewarding</div>
-      </div>
-
-      <!-- Empty state: tier-aware explanation when not serving as CS for anyone -->
+      <!-- Empty state: tier-aware card when not serving as CS for anyone -->
       <div v-if="!servingAsCSFor.length" style="margin-bottom:20px">
 
-        <!-- Access tier -->
-        <div v-if="userTier === 'access'" class="card" style="padding:28px 24px">
-          <div style="display:flex;align-items:flex-start;gap:16px">
-            <div style="width:44px;height:44px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-              <AegisIcon name="shield" :size="22" />
-            </div>
-            <div style="flex:1">
-              <div style="font-family:var(--font-serif);font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">You're not serving as CS for anyone yet</div>
-              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin:0 0 14px">
-                As a provider, you can also <em>be</em> a Continuity Steward for other practitioners. Your
-                <strong>Continuity Access</strong> tier allows you to serve as CS for
-                <strong>1 practitioner</strong> at no extra cost.
-              </p>
-              <div class="alert alert-info" style="margin-bottom:16px">
-                <div class="alert-icon"><AegisIcon name="info" :size="14" /></div>
-                <div>Access tier — you can serve as CS for 1 practitioner at no extra cost. To take on more, upgrade to Continuity Practice.</div>
-              </div>
-              <div style="display:flex;gap:10px;flex-wrap:wrap">
-                <a :href="route('provider.settings.index') + '?section=privacy'" class="btn btn-primary">
-                  <AegisIcon name="sliders" :size="13" /> Manage CS Availability in Settings
-                </a>
-              </div>
+        <!-- Practice + CS Add-On active: success alert + toggle only -->
+        <div v-if="userTier === 'practice' && hasCsAddon">
+          <div class="alert alert-success" style="margin-bottom:16px">
+            <div class="alert-icon"><AegisIcon name="check-circle" :size="18" /></div>
+            <div class="alert-content">
+              <div class="alert-title">Your CS Add-On is active</div>
+              <div>You can serve as Continuity Steward for up to <strong>{{ providerAsCsCap }} practitioners</strong>. Enable the toggle below to appear in the CS directory.</div>
             </div>
           </div>
-        </div>
-
-        <!-- Practice tier, no CS add-on -->
-        <div v-else-if="userTier === 'practice' && !hasCsAddon" class="card" style="padding:28px 24px">
-          <div style="display:flex;align-items:flex-start;gap:16px">
-            <div style="width:44px;height:44px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-              <AegisIcon name="shield" :size="22" />
-            </div>
-            <div style="flex:1">
-              <div style="font-family:var(--font-serif);font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">You're not serving as CS for anyone yet</div>
-              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin:0 0 14px">
-                Your <strong>Continuity Practice</strong> tier allows you to serve as CS for up to
-                <strong>3 practitioners</strong>. Add the CS Business Add-On to expand your caseload to
-                <strong>43 practitioners</strong>.
-              </p>
-              <div class="alert alert-info" style="margin-bottom:16px">
-                <div class="alert-icon"><AegisIcon name="info" :size="14" /></div>
-                <div>Practice tier — you can serve as CS for up to 3 practitioners. Upgrade with the CS Add-On (+$25/mo) to serve up to 43.</div>
+          <div class="card" style="padding:18px 20px">
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Available as Continuity Steward</div>
+                <div class="toggle-desc">Show in the CS directory so practitioners can invite you</div>
               </div>
-              <div style="display:flex;gap:10px;flex-wrap:wrap">
-                <a :href="route('provider.settings.index') + '?section=privacy'" class="btn btn-primary">
-                  <AegisIcon name="sliders" :size="13" /> Manage CS Availability
-                </a>
-                <a :href="route('provider.settings.index') + '?section=billing&highlight=cs_addon'" class="btn btn-outline">
-                  <AegisIcon name="plus" :size="13" /> Add CS Business Add-On (+$25/mo)
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Practice tier + CS add-on -->
-        <div v-else-if="userTier === 'practice' && hasCsAddon" class="card" style="padding:28px 24px">
-          <div style="display:flex;align-items:flex-start;gap:16px">
-            <div style="width:44px;height:44px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-              <AegisIcon name="shield" :size="22" />
-            </div>
-            <div style="flex:1">
-              <div style="font-family:var(--font-serif);font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">You're not serving as CS for anyone yet</div>
-              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin:0 0 14px">
-                Your <strong>Practice Business</strong> plan allows you to serve as CS for up to
-                <strong>{{ providerAsCsCap }} practitioners</strong>.
-                You currently have <strong>{{ providerAsCsCount }} of {{ providerAsCsCap }}</strong> slots filled.
-              </p>
-              <div class="alert alert-success" style="margin-bottom:16px">
-                <div class="alert-icon"><AegisIcon name="check-circle" :size="14" /></div>
-                <div>Practice Business — you can serve as CS for up to {{ providerAsCsCap }} practitioners. Make sure your CS availability is on so providers can find you.</div>
-              </div>
-              <div style="display:flex;gap:10px;flex-wrap:wrap">
-                <a :href="route('provider.settings.index') + '?section=privacy'" class="btn btn-primary">
-                  <AegisIcon name="sliders" :size="13" /> Manage CS Availability
-                </a>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span v-if="csAvailSaving" style="font-size:11px;color:var(--text-3);white-space:nowrap;">Saving…</span>
+                <button
+                  type="button"
+                  class="toggle"
+                  :class="{ on: availableAsCsLocal }"
+                  :disabled="csAvailSaving"
+                  :style="csAvailSaving ? 'opacity:0.45;cursor:not-allowed;pointer-events:none;' : ''"
+                  @click="saveAvailableAsCs(!availableAsCsLocal)"
+                  :aria-pressed="availableAsCsLocal"
+                ></button>
               </div>
             </div>
           </div>
         </div>
 
         <!-- CS Business tier -->
-        <div v-else-if="userTier === 'cs_business'" class="card" style="padding:28px 24px">
-          <div style="display:flex;align-items:flex-start;gap:16px">
-            <div style="width:44px;height:44px;border-radius:var(--radius);background:var(--icon-bg-gold);color:var(--gold-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-              <AegisIcon name="shield" :size="22" />
+        <div v-else-if="userTier === 'cs_business'">
+          <div class="alert alert-info" style="margin-bottom:16px">
+            <div class="alert-icon"><AegisIcon name="info" :size="18" /></div>
+            <div class="alert-content">
+              <div class="alert-title">Business CS account</div>
+              <div>You can serve as Continuity Steward for up to <strong>40 practitioners</strong>. You have <strong>{{ providerAsCsCount }} of 40</strong> slots filled.</div>
             </div>
-            <div style="flex:1">
-              <div style="font-family:var(--font-serif);font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">You're not serving as CS for anyone yet</div>
-              <p style="font-size:13px;color:var(--text-2);line-height:1.6;margin:0 0 14px">
-                Your <strong>Business CS</strong> plan allows you to serve as CS for up to
-                <strong>40 practitioners</strong>. You have <strong>{{ providerAsCsCount }} of 40</strong> slots filled.
-                Manage your profile and availability from the CS Portal.
-              </p>
-              <div style="display:flex;gap:10px;flex-wrap:wrap">
-                <a :href="route('cs.dashboard')" class="btn btn-primary">
-                  <AegisIcon name="shield" :size="13" /> Manage CS Profile
-                </a>
+          </div>
+          <div class="card" style="padding:18px 20px">
+            <div class="toggle-row" style="margin-bottom:14px">
+              <div class="toggle-info">
+                <div class="toggle-label">Available as Continuity Steward</div>
+                <div class="toggle-desc">Show in the CS directory so practitioners can invite you</div>
               </div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span v-if="csAvailSaving" style="font-size:11px;color:var(--text-3);white-space:nowrap;">Saving…</span>
+                <button
+                  type="button"
+                  class="toggle"
+                  :class="{ on: availableAsCsLocal }"
+                  :disabled="csAvailSaving"
+                  :style="csAvailSaving ? 'opacity:0.45;cursor:not-allowed;pointer-events:none;' : ''"
+                  @click="saveAvailableAsCs(!availableAsCsLocal)"
+                  :aria-pressed="availableAsCsLocal"
+                ></button>
+              </div>
+            </div>
+            <a :href="route('cs.dashboard')" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;">
+              <AegisIcon name="arrow-right" :size="13" /> Open CS Portal
+            </a>
+          </div>
+        </div>
+
+        <!-- Access, Practice no-addon, or fallback: full add-on card -->
+        <div v-else style="border:1px solid var(--badge-border-gold);border-radius:var(--radius-lg);background:var(--icon-bg-gold);padding:18px;display:flex;align-items:flex-start;gap:16px;">
+          <span style="width:36px;height:36px;border-radius:var(--radius);background:var(--badge-border-gold);color:var(--gold-dark);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <AegisIcon name="users" :size="17" />
+          </span>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+              <div style="font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--text);">Serve as Continuity Steward</div>
+              <div style="font-size:13px;font-weight:700;color:var(--gold-dark);">
+                <template v-if="userTier === 'access'"><strong>Free</strong><span style="font-size:11px;font-weight:400;color:var(--text-3);display:block;">Included with Access</span></template>
+                <template v-else-if="userTier === 'practice'">+<strong>$25</strong>/mo<span style="font-size:11px;font-weight:400;color:var(--text-3);display:block;">CS Add-On</span></template>
+              </div>
+            </div>
+
+            <!-- Tier-specific alert -->
+            <div v-if="userTier === 'access'" class="alert alert-info" style="margin-bottom:14px;">
+              <div class="alert-icon"><AegisIcon name="info" :size="14" /></div>
+              <div class="alert-content">Access tier can serve as Continuity Steward for <strong>1 practitioner</strong> at no extra cost. To serve more, upgrade to Practice + CS Add-On ($25/mo) or Business CS ($49/mo).</div>
+            </div>
+            <div v-else-if="userTier === 'practice'" class="alert alert-info" style="margin-bottom:14px;">
+              <div class="alert-icon"><AegisIcon name="info" :size="14" /></div>
+              <div class="alert-content">Practice tier can serve as CS for up to <strong>3 practitioners</strong>. Add CS Add-On (+$25/mo) to serve up to <strong>43</strong>.</div>
+            </div>
+
+            <!-- Available as CS toggle -->
+            <div class="toggle-row" style="margin-bottom:14px;">
+              <div class="toggle-info">
+                <div class="toggle-label">Available as Continuity Steward</div>
+                <div class="toggle-desc">Show in the CS directory so practitioners can invite you</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span v-if="csAvailSaving" style="font-size:11px;color:var(--text-3);white-space:nowrap;">Saving…</span>
+                <button
+                  type="button"
+                  class="toggle"
+                  :class="{ on: availableAsCsLocal }"
+                  :disabled="csAvailSaving"
+                  :style="csAvailSaving ? 'opacity:0.45;cursor:not-allowed;pointer-events:none;' : ''"
+                  @click="saveAvailableAsCs(!availableAsCsLocal)"
+                  :aria-pressed="availableAsCsLocal"
+                ></button>
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <a v-if="userTier === 'access'" :href="route('provider.settings.index') + '?section=billing'" class="btn btn-outline" style="font-size:12px;display:inline-flex;align-items:center;gap:6px;">
+                <AegisIcon name="trending-up" :size="13" /> Upgrade to Practice — unlock CS Add-On
+              </a>
+              <a v-else-if="userTier === 'practice'" :href="route('provider.settings.index') + '?section=billing&highlight=cs_addon'" class="btn btn-gold" style="font-size:12px;display:inline-flex;align-items:center;gap:6px;">
+                <AegisIcon name="plus" :size="13" /> Add CS Add-On (+$25/mo)
+              </a>
+              <a :href="route('provider.settings.index') + '?section=billing'" style="font-size:12px;color:var(--gold-dark);text-decoration:none;">Manage in Settings →</a>
             </div>
           </div>
         </div>
 
-        <!-- Fallback for any other tier -->
-        <AegisEmptyState v-else icon="shield" title="You're not serving as CS for anyone yet" description="You are not currently designated as a Continuity Steward for any provider." />
+      </div>
 
+      <!-- Serving status line when has active assignments -->
+      <div v-if="servingAsCSFor.length" style="font-size:12px;color:var(--text-3);margin-bottom:12px;display:flex;align-items:center;gap:6px;">
+        <AegisIcon name="check-circle" :size="13" style="color:var(--green-dark);" />
+        Serving as CS for <strong style="color:var(--text);margin:0 2px;">{{ servingAsCSFor.length }}</strong> of <strong style="color:var(--text);margin:0 2px;">{{ providerAsCsCap }}</strong> practitioner{{ providerAsCsCap !== 1 ? 's' : '' }} (based on your plan)
       </div>
 
       <div class="list-group">
