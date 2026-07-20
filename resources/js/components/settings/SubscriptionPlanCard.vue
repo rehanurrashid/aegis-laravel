@@ -13,6 +13,8 @@
 -->
 <template>
   <div>
+    <MaatServicesBanner style="margin-bottom:16px;" />
+
     <!-- ── Cart-style plan card ── -->
     <div class="sub-cart" style="margin-bottom:18px;">
 
@@ -120,6 +122,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import MaatServicesBanner from '@/components/MaatServicesBanner.vue'
 import SettingsSubscriptionInvoices from '@/components/settings/SettingsSubscriptionInvoices.vue'
 import { usePricingStore } from '@/stores/pricing'
 
