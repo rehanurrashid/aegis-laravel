@@ -248,48 +248,35 @@ class OnboardingController extends Controller
         // Handle add-ons — pick MAAT price matching the base plan's billing period
         $plan    = $request->session()->get('onboarding_plan', []);
         $billing = $plan['billing'] ?? 'monthly';
-
-        // practice_business: subscribe with two SubscriptionItems (practice base + CS add-on)
         $planTier = $plan['tier'] ?? null;
-        if ($planTier === 'practice_business') {
-            $practiceBasePrice = $billing === 'annual'
-                ? env('STRIPE_PRICE_PRACTICE_ANNUAL')
-                : env('STRIPE_PRICE_PRACTICE_MONTHLY');
-            $csAddonPrice = $billing === 'annual'
-                ? env('STRIPE_PRICE_PRACTICE_CS_ADDON_ANNUAL')
-                : env('STRIPE_PRICE_PRACTICE_CS_ADDON_MONTHLY');
 
-            $this->subscriptionService->subscribe($user, $practiceBasePrice, $pmId, $csAddonPrice);
-            $user->forceFill(['tier' => 'practice_business', 'cs_addon' => 1])->save();
-        } else {
-            // Standard single-price subscription
-            $this->subscriptionService->subscribe($user, $priceId, $pmId);
+        // Standard single-price subscription (practice_business tier no longer exists —
+        // CS Add-On is an addon flag on a practice subscription, same as maat_addon)
+        $this->subscriptionService->subscribe($user, $priceId, $pmId);
 
-            // Refresh user model so Cashier's subscription() relation cache reflects
-            // the newly created subscription before addon toggles query it.
-            $user->refresh();
+        // Refresh user model so Cashier's subscription() relation cache reflects
+        // the newly created subscription before addon toggles query it.
+        $user->refresh();
 
-            foreach ($data['addons'] ?? [] as $addon) {
-                $resolvedTier = config("aegis.stripe_price_to_tier.{$priceId}");
-                match ($addon) {
-                    'maat'     => $this->subscriptionService->toggleMaatAddon($user, true, $billing),
-                    'cs_addon' => $resolvedTier === 'practice'
-                        ? $this->subscriptionService->toggleCsAddon($user, true, $billing)
-                        : null,
-                    default    => null,
-                };
-            }
+        foreach ($data['addons'] ?? [] as $addon) {
+            $resolvedTier = config("aegis.stripe_price_to_tier.{$priceId}");
+            match ($addon) {
+                'maat'     => $this->subscriptionService->toggleMaatAddon($user, true, $billing),
+                'cs_addon' => $resolvedTier === 'practice'
+                    ? $this->subscriptionService->toggleCsAddon($user, true, $billing)
+                    : null,
+                default    => null,
+            };
+        }
 
-            // Update tier on user record from the price ID mapping
-            $tier = config("aegis.stripe_price_to_tier.{$priceId}");
-            if ($tier && in_array($tier, ['access', 'practice'], true)) {
-                // If cs_addon was added, promote tier to practice_business
-                $hasCs = in_array('cs_addon', $data['addons'] ?? [], true);
-                $user->forceFill([
-                    'tier'     => ($tier === 'practice' && $hasCs) ? 'practice_business' : $tier,
-                    'cs_addon' => $hasCs ? 1 : 0,
-                ])->save();
-            }
+        // Write tier from price ID — cs_addon is a boolean flag, not a tier value
+        $tier = config("aegis.stripe_price_to_tier.{$priceId}");
+        if ($tier && in_array($tier, ['access', 'practice'], true)) {
+            $hasCs = in_array('cs_addon', $data['addons'] ?? [], true);
+            $user->forceFill([
+                'tier'     => $tier,        // always 'access' or 'practice' — never 'practice_business'
+                'cs_addon' => $hasCs ? 1 : 0,
+            ])->save();
         }
 
         // Clear onboarding session
@@ -419,26 +406,20 @@ class OnboardingController extends Controller
             $tier === 'practice'          => $isAnnual
                 ? ($pricing['practitioner']['practice']['annual_cents']          ?? 6583)
                 : ($pricing['practitioner']['practice']['monthly_cents']         ?? 7900),
-            $tier === 'practice_business' => $isAnnual
-                ? (($pricing['practitioner']['practice']['annual_cents']          ?? 6583)
-                 + ($pricing['practitioner']['practice_business']['annual_cents'] ?? 2083))
-                : (($pricing['practitioner']['practice']['monthly_cents']          ?? 7900)
-                 + ($pricing['practitioner']['practice_business']['monthly_cents'] ?? 2500)),
             $tier === 'monthly'           => $pricing['business_partner']['monthly_cents']      ?? 6900,
             $tier === 'annual'            => $pricing['business_partner']['annual_total_cents'] ?? 69000,
             $tier === 'cs_business'       => $isAnnual
-                ? ($pricing['continuity_steward_business']['annual_cents']       ?? 4083)
+                ? ($pricing['continuity_steward_business']['annual_cents']       ?? 4100)
                 : ($pricing['continuity_steward_business']['monthly_cents']      ?? 4900),
             default => 0,
         };
 
         $planLabels = [
-            'access'            => 'Continuity Access',
-            'practice'          => 'Continuity Practice',
-            'practice_business' => 'Continuity Practice Business',
-            'monthly'           => 'Business Partner — Monthly',
-            'annual'            => 'Business Partner — Annual',
-            'cs_business'       => 'Business CS',
+            'access'      => 'Continuity Access',
+            'practice'    => 'Continuity Practice',
+            'monthly'     => 'Business Partner — Monthly',
+            'annual'      => 'Business Partner — Annual',
+            'cs_business' => 'Business CS',
         ];
 
         $planName = $planLabels[$tier] ?? 'Aegis Subscription';
