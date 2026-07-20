@@ -37,7 +37,6 @@
         icon="calendar"
         :value="annualReviewDate ? fmtDate(annualReviewDate) : '—'"
         :label="planStatus === 'annual_review_due' ? 'Review OVERDUE' : 'Annual Attestation Due'"
-        :style="planStatus === 'annual_review_due' ? 'border-color:var(--red-dark);color:var(--red-dark);' : ''"
       />
     </div>
 
