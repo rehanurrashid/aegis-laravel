@@ -97,7 +97,8 @@ function openCsReinstate(s) {
   modals.value.reinstateCs = true
 }
 function submitCsReinstate() {
-  if (!activeSteward.value) return
+  if (!activeSteward.value || busyReinstate.value) return
+  busyReinstate.value = true
   router.post(route('provider.stewards.reinstate', { steward: activeSteward.value.id }), {}, {
     preserveScroll: true,
     onSuccess: () => {
@@ -105,7 +106,8 @@ function submitCsReinstate() {
       toast.success('Continuity Steward reinstated.')
       router.reload({ only: ['stewards', 'suspended'] })
     },
-    onError: () => toast.error('Could not reinstate steward.'),
+    onError:  () => toast.error('Could not reinstate steward.'),
+    onFinish: () => { busyReinstate.value = false },
   })
 }
 function openResend(inv) {
@@ -194,6 +196,7 @@ const reviewInProgress = computed(() => props.planStatus === 'draft')
 // ── End Retainer form ─────────────────────────────────────────────────────────
 const endRetainerForm = useForm({ action: '', reason: '', details: '' })
 const busyEndRetainer = ref(false)
+const busyReinstate   = ref(false)
 
 function submitEndRetainer() {
   if (!activeSteward.value) return
@@ -1067,8 +1070,10 @@ function saveNotifyPrefs() {
       <p style="font-size:12px;color:var(--text-3);margin-top:8px;">Their access will be restored. They will be notified by email.</p>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.reinstateCs=false">Cancel</button>
-        <button type="button" class="btn btn-primary" @click="submitCsReinstate">
-          <AegisIcon name="check" :size="13" /> Reinstate
+        <button type="button" class="btn btn-primary" :disabled="busyReinstate" style="display:inline-flex;align-items:center;gap:6px;" @click="submitCsReinstate">
+          <AegisIcon v-if="busyReinstate" name="refresh-cw" :size="13" class="btn-spin" />
+          <AegisIcon v-else name="check" :size="13" />
+          {{ busyReinstate ? 'Reinstating…' : 'Reinstate' }}
         </button>
       </template>
     </AegisModal>
