@@ -29,9 +29,9 @@ return [
             'access' => [
                 'name'               => 'Continuity Access',
                 'tagline'            => 'Foundational continuity infrastructure.',
-                'monthly_cents'      => 2900,    // $29/mo
-                'annual_cents'       => 2300,    // $23/mo billed annually ($276/yr ÷ 12)
-                'annual_total_cents' => 27600,   // $276/yr
+                'monthly_cents'      => 3900,    // $39/mo
+                'annual_cents'       => 3575,    // $35.75/mo billed annually ($429/yr ÷ 12)
+                'annual_total_cents' => 42900,   // $429/yr
                 'save_label'         => 'save ~21%',
                 'is_popular'         => false,
                 'features'           => [
@@ -56,9 +56,9 @@ return [
             'practice' => [
                 'name'               => 'Continuity Practice',
                 'tagline'            => 'Full toolkit. The standard for active practices.',
-                'monthly_cents'      => 4900,    // $49/mo
-                'annual_cents'       => 3900,    // $39/mo billed annually ($468/yr ÷ 12)
-                'annual_total_cents' => 46800,   // $468/yr
+                'monthly_cents'      => 7900,    // $79/mo
+                'annual_cents'       => 6583,    // $65.83/mo billed annually ($790/yr ÷ 12)
+                'annual_total_cents' => 79000,   // $790/yr
                 'save_label'         => 'save ~20%',
                 'is_popular'         => true,
                 'features'           => [
@@ -164,15 +164,15 @@ return [
         'practitioner_combos' => [
             'practice_maat' => [
                 'label'              => 'Continuity Practice + MAAT',
-                'monthly_cents'      => 7800,    // $78/mo ($49 + $29)
-                'annual_cents'       => 6200,    // $62/mo annual ($468 + $276 = $744/yr ÷ 12)
-                'annual_total_cents' => 74400,   // $744/yr
+                'monthly_cents'      => 10800,   // $108/mo ($79 + $29)
+                'annual_cents'       => 8883,    // $88.83/mo annual ($790 + $276 = $1,066/yr ÷ 12)
+                'annual_total_cents' => 106600,  // $1,066/yr
             ],
             'practice_cs_addon' => [
                 'label'              => 'Continuity Practice + CS Add-On',
-                'monthly_cents'      => 7400,    // $74/mo ($49 + $25)
-                'annual_cents'       => 5983,    // $59.83/mo annual ($468 + $250 = $718/yr ÷ 12)
-                'annual_total_cents' => 71800,   // $718/yr
+                'monthly_cents'      => 10400,   // $104/mo ($79 + $25)
+                'annual_cents'       => 8667,    // $86.67/mo annual ($790 + $250 = $1,040/yr ÷ 12)
+                'annual_total_cents' => 104000,  // $1,040/yr
             ],
         ],
 

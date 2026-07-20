@@ -138,7 +138,7 @@ const isAnnual = computed(() => props.billingInterval === 'annual')
 const basePriceCents = computed(() => {
   const tier = props.subscription?.tier
   if (tier === 'practice_business' || tier === 'practice_cs_addon') {
-    return isAnnual.value ? 7400 : 7400  // $49 + $25 addon combined
+    return isAnnual.value ? 8667 : 10400  // $104/mo · $86.67/mo annual
   }
   const t = pricingStore.getTier(tier)
   return t?.monthly ?? 0

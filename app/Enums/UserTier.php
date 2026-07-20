@@ -26,24 +26,24 @@ enum UserTier: string
     public function monthlyCents(): int
     {
         return match ($this) {
-            self::Access           => 2900,
-            self::Practice         => 4900,
-            self::PracticeCsAddon  => 7400,
-            self::PracticeBusiness => 7400,
-            self::CsBusiness       => 4900,
-            self::BusinessPartner  => 6900,
+            self::Access           => 3900,   // $39/mo
+            self::Practice         => 7900,   // $79/mo
+            self::PracticeCsAddon  => 10400,  // $104/mo ($79+$25)
+            self::PracticeBusiness => 10400,  // $104/mo ($79+$25)
+            self::CsBusiness       => 4900,   // $49/mo
+            self::BusinessPartner  => 6900,   // $69/mo
         };
     }
 
     public function annualTotalCents(): int
     {
         return match ($this) {
-            self::Access           => 27600,
-            self::Practice         => 46800,
-            self::PracticeCsAddon  => 71800,
-            self::PracticeBusiness => 71800,
-            self::CsBusiness       => 42900,
-            self::BusinessPartner  => 69000,
+            self::Access           => 42900,  // $429/yr
+            self::Practice         => 79000,  // $790/yr
+            self::PracticeCsAddon  => 104000, // $1,040/yr
+            self::PracticeBusiness => 104000, // $1,040/yr
+            self::CsBusiness       => 49000,  // $490/yr
+            self::BusinessPartner  => 69000,  // $690/yr
         };
     }
 }
