@@ -484,7 +484,7 @@
         </template>
 
         <template #footer>
-          <div style="font-size:11px;color:var(--text-3);flex:1;">
+          <div style="font-size:11px;color:var(--text-3);flex:1;display:flex;align-items:center;gap:4px;white-space:nowrap;">
             <AegisIcon name="info" :size="11" />
             Manage retainer status in <a :href="route('provider.stewards.index')" style="color:var(--gold-dark);">Continuity Stewards</a>
           </div>
