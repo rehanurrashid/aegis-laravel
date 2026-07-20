@@ -1289,6 +1289,110 @@ CSS;
 HTML;
     }
 
+
+    public function ssAgreement(\App\Models\PlanSteward $steward): string
+    {
+        $steward->load(['steward:id,display_name,email,credentials,organization', 'plan.practitioner:id,display_name,email,organization']);
+
+        $ssUser       = $steward->steward;
+        $plan         = $steward->plan;
+        $provider     = $plan?->practitioner;
+
+        $ssName       = $this->e($ssUser?->display_name ?? 'Support Steward');
+        $providerName = $this->e($provider?->display_name ?? 'Provider');
+        $role         = $this->enumVal($steward->role) === 'alternate' ? 'Alternate' : 'Primary';
+        $activeDate   = $steward->ss_acknowledged_at ?? $steward->signed_at ?? $steward->invited_at;
+        $signedDate   = $activeDate ? $activeDate->format('F j, Y') : '—';
+
+        $responsibilities = is_string($steward->responsibilities)
+            ? json_decode($steward->responsibilities, true)
+            : ($steward->responsibilities ?? []);
+        $responsibilities = is_array($responsibilities) ? $responsibilities : [];
+        $respItems = '';
+        foreach ($responsibilities as $r) {
+            $text = is_array($r) ? ($r['text'] ?? '') : $r;
+            $respItems .= '<li>' . $this->e($text) . '</li>';
+        }
+        $respSection = $respItems
+            ? "<div class=\"doc-section\"><div class=\"section-title\">Section 2. Authorized Responsibilities</div><ul style=\"margin:0;padding-left:18px;line-height:2;\">{$respItems}</ul></div>"
+            : '';
+
+        $creds = $ssUser?->credentials ? '<div class="party-sub">' . $this->e($ssUser->credentials) . '</div>' : '';
+        $css   = $this->css();
+        $docId = 'SS-AGR-' . strtoupper(substr($steward->id, 0, 8));
+        $genAt = now()->format('M d, Y H:i');
+
+        return <<<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SS Agreement &#8212; {$ssName}</title>
+<style>{$css}</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Print bar -->
+  <div class="print-bar no-print" style="display:flex;gap:10px;margin-bottom:24px;">
+    <button class="btn-print" onclick="window.print()">&darr; &nbsp;Print / Save as PDF</button>
+    <button class="btn-print btn-print--secondary" onclick="window.close()">Close</button>
+  </div>
+
+  <!-- Header -->
+  <header class="doc-header">
+    <div>
+      <div class="aegis-logo">Aegis</div>
+      <div class="doc-type">Support Steward Agreement</div>
+    </div>
+  </header>
+
+  <!-- Title -->
+  <div class="doc-title-block" style="margin:20px 0 16px;">
+    <div class="doc-title" style="font-size:22px;font-weight:700;color:#2d2a26;font-family:'Georgia',serif;">SS Agreement &#8212; {$ssName}</div>
+    <div class="doc-subtitle" style="font-size:13px;color:#6b6460;margin-top:4px;">Continuity Plan &#183; {$providerName}</div>
+  </div>
+
+  <!-- Date chips -->
+  <div class="date-chips" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+    <div class="date-chip"><span class="chip-label">Agreement Date</span><span class="chip-value">{$signedDate}</span></div>
+    <div class="date-chip"><span class="chip-label">Role</span><span class="chip-value">{$role} Support Steward</span></div>
+  </div>
+
+  <!-- Party grid -->
+  <div class="party-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;padding:16px;background:#f9f6f0;border-radius:6px;">
+    <div class="party-col"><div class="party-label" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#6b6460;margin-bottom:4px;">Provider</div><div class="party-name" style="font-size:15px;font-weight:700;color:#2d2a26;">{$providerName}</div></div>
+    <div class="party-col"><div class="party-label" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#6b6460;margin-bottom:4px;">Support Steward</div><div class="party-name" style="font-size:15px;font-weight:700;color:#2d2a26;">{$ssName}</div>{$creds}</div>
+  </div>
+
+  <!-- Legal sections -->
+  <div class="doc-section">
+    <div class="section-title">Section 1. Purpose</div>
+    <p>This agreement authorizes the Support Steward to support the Provider during a critical moment — coordinating logistics, communication, and key tasks as designated in the Continuity Plan.</p>
+  </div>
+  {$respSection}
+  <div class="doc-section">
+    <div class="section-title">Section 3. Compliance</div>
+    <p>Support Steward agrees to maintain full confidentiality and not exceed authorized responsibilities. All actions are logged for audit purposes.</p>
+  </div>
+  <div class="doc-section">
+    <div class="section-title">Section 4. Annual Attestation</div>
+    <p>The Provider re-confirms the Support Steward's responsibilities and contact information annually.</p>
+  </div>
+
+  <!-- Footer -->
+  <footer class="doc-footer" style="margin-top:40px;padding-top:12px;border-top:1px solid #e0d8cc;text-align:center;font-size:11px;color:#b0a890;">
+    <div>{$docId}</div>
+    <div>Generated by Aegis &middot; {$genAt}</div>
+  </footer>
+
+</div>
+</body>
+</html>
+HTML;
+    }
+
     // ─────────────────────────────────────────────────────────────────────
     // Utility helpers
     // ─────────────────────────────────────────────────────────────────────

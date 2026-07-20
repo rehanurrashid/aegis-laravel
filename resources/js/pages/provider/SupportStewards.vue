@@ -90,12 +90,7 @@
 
     <!-- ═══ TAB: MY SUPPORT STEWARDS ═══ -->
     <div v-show="activeTab === 'mydsr'">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-        <p style="font-size:13px;color:var(--text-3);margin:0">Staff authorized to act on your behalf within defined permission boundaries.</p>
-        <button class="btn btn-primary" @click="handleAddSS">
-          <AegisIcon name="plus" :size="13" /> Add Support Steward
-        </button>
-      </div>
+      <p style="font-size:13px;font-weight:600;color:var(--text-2);margin:0 0 16px">Staff authorized to act on your behalf within defined permission boundaries.</p>
 
       <template v-if="stewards.length">
         <!-- ACTIVE — exec-card pattern mirrors CS page -->
@@ -251,7 +246,12 @@
         </div>
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
-            <span style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--gold-dark);">{{ fullName(s) }}</span>
+            <a
+                v-if="s.steward?.slug"
+                :href="route('public.ss', s.steward.slug)"
+                style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--gold-dark);text-decoration:none;"
+              >{{ fullName(s) }}</a>
+              <span v-else style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--gold-dark);">{{ fullName(s) }}</span>
             <span class="badge badge-red"><AegisIcon name="lock" :size="12" /> Suspended</span>
             <span v-if="s.role" class="badge badge-gold"><AegisIcon name="shield" :size="10" /> {{ s.role === 'alternate' ? 'Alternate SS' : 'Primary SS' }}</span>
           </div>

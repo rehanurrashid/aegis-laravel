@@ -354,16 +354,19 @@ class SupportStewardController extends Controller
         return back()->with('success', 'Record archived.');
     }
 
-    public function downloadAgreement(Request $request, PlanSteward $steward): \Symfony\Component\HttpFoundation\Response
+    public function downloadAgreement(Request $request, PlanSteward $steward): \Illuminate\Http\Response
     {
         $plan = $this->plans->getForPractitioner($request->user()->id);
         abort_if(!$plan || $steward->plan_id !== $plan->id, 404);
-        $this->authorize('update', $plan);
+        $this->authorize('view', $plan);
 
-        if ($steward->agreement_path && \Storage::exists($steward->agreement_path)) {
-            return \Storage::download($steward->agreement_path, 'ss-agreement.pdf');
-        }
+        $steward->load(['steward:id,display_name,email,credentials,organization']);
+        $pdf  = app(\App\Services\AegisPdfService::class);
+        $html = $pdf->ssAgreement($steward);
 
-        abort(404, 'Agreement PDF not yet generated.');
+        return response($html, 200, [
+            'Content-Type'        => 'text/html; charset=UTF-8',
+            'Content-Disposition' => 'inline; filename="ss-agreement-' . $steward->id . '.html"',
+        ]);
     }
 }
