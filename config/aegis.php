@@ -84,11 +84,14 @@ return [
             |------------------------------------------------------------------
             */
             'practice_business' => [
+                // NOT a standalone plan — Practice ($79) + CS Add-On ($25) as two Stripe SubscriptionItems.
+                // monthly_cents/annual_cents here represent the CS Add-On portion ONLY.
+                // Base Practice price is always sourced from practitioner.practice.* separately.
                 'name'               => 'Continuity Practice Business',
                 'tagline'            => 'Full practitioner + Business Partner access in one account.',
-                'monthly_cents'      => 10400,   // $104/mo ($79 + $25)
-                'annual_cents'       => 8667,    // $1,040/yr ÷ 12 = $86.67
-                'annual_total_cents' => 104000,  // $1,040/yr
+                'monthly_cents'      => 2500,    // CS Add-On only — +$25/mo
+                'annual_cents'       => 2083,    // CS Add-On only — +$20.83/mo ($250/yr ÷ 12)
+                'annual_total_cents' => 25000,   // CS Add-On only — +$250/yr
                 'save_label'         => '',
                 'is_popular'         => false,
                 'includes_bp'        => true,

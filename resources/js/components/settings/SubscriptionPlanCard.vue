@@ -139,7 +139,14 @@ const isAnnual = computed(() => props.billingInterval === 'annual')
 const basePriceCents = computed(() => {
   const tier = props.subscription?.tier
   if (tier === 'practice_business' || tier === 'practice_cs_addon') {
-    return isAnnual.value ? 8667 : 10400  // $104/mo · $86.67/mo annual
+    // Practice base + CS Add-On as two separate amounts — never a bundled figure
+    const practiceBase = isAnnual.value
+      ? (pricingStore.getTier('practice')?.annual ?? 6583)
+      : (pricingStore.getTier('practice')?.monthly ?? 7900)
+    const csAddon = isAnnual.value
+      ? (props.pricing?.practitioner?.practice_business?.annual_cents ?? 2083)
+      : (props.pricing?.practitioner?.practice_business?.monthly_cents ?? 2500)
+    return practiceBase + csAddon
   }
   const t = pricingStore.getTier(tier)
   return t?.monthly ?? 0
@@ -160,9 +167,13 @@ const totalCents = computed(() => {
   if (props.subscription?.next_invoice?.amount_cents) {
     return props.subscription.next_invoice.amount_cents
   }
+  const tier = props.subscription?.tier
   let total = basePriceCents.value
   if (props.subscription?.has_maat_addon) total += maatCents.value
-  if (props.subscription?.has_cs_addon)   total += csAddonCents.value
+  // cs_addon already baked into basePriceCents for practice_business/practice_cs_addon
+  if (props.subscription?.has_cs_addon && tier !== 'practice_business' && tier !== 'practice_cs_addon') {
+    total += csAddonCents.value
+  }
   return total
 })
 

@@ -413,8 +413,10 @@ class OnboardingController extends Controller
                 ? ($pricing['practitioner']['practice']['annual_cents']          ?? 6583)
                 : ($pricing['practitioner']['practice']['monthly_cents']         ?? 7900),
             $tier === 'practice_business' => $isAnnual
-                ? ($pricing['practitioner']['practice_business']['annual_cents'] ?? 8667)
-                : ($pricing['practitioner']['practice_business']['monthly_cents']?? 10400),
+                ? (($pricing['practitioner']['practice']['annual_cents']          ?? 6583)
+                 + ($pricing['practitioner']['practice_business']['annual_cents'] ?? 2083))
+                : (($pricing['practitioner']['practice']['monthly_cents']          ?? 7900)
+                 + ($pricing['practitioner']['practice_business']['monthly_cents'] ?? 2500)),
             $tier === 'monthly'           => $pricing['business_partner']['monthly_cents']      ?? 6900,
             $tier === 'annual'            => $pricing['business_partner']['annual_total_cents'] ?? 69000,
             $tier === 'cs_business'       => $isAnnual
