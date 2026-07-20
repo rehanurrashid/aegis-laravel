@@ -775,11 +775,13 @@
                     <button
                       type="button"
                       class="toggle"
-                      :class="{ on: availableAsCsLocal }"
+                      :class="{ on: availableAsCsLocal, saving: csAvailSaving }"
                       :disabled="csAvailSaving"
+                      :style="csAvailSaving ? 'opacity:0.5;cursor:not-allowed;' : ''"
                       @click="saveAvailableAsCs(!availableAsCsLocal)"
                       :aria-pressed="availableAsCsLocal"
                     ></button>
+                    <AegisIcon v-if="csAvailSaving" name="refresh-cw" :size="13" class="btn-spin" style="color:var(--text-3);margin-left:6px;" />
                   </div>
                   <div class="st-addon-foot">
                     <button type="button" class="btn btn-outline" style="font-size:12px;" @click="openTierModal('Practice CS Add-On')">
