@@ -54,11 +54,11 @@ class SupportStewardController extends Controller
 
         $stewards  = collect($allStewards)->whereIn('status', ['active'])->values();
         $suspended = collect($allStewards)->where('status', 'archived')
-            ->filter(fn ($s) => !empty($s['declined_reason']))->values();
+            ->filter(fn ($s) => !empty($s['declined_reason']) && !str_starts_with($s['declined_reason'] ?? '', 'terminated:'))->values()
+            ->map(fn ($s) => $s); // suspended (with declined_reason, not terminated)
         $pending   = collect($allStewards)->whereIn('status', ['invited', 'pending'])->values();
         $declined  = collect($allStewards)->where('status', 'declined')->values();
-        $archived  = collect($allStewards)->where('status', 'archived')
-            ->filter(fn ($s) => empty($s['declined_reason']))->values();
+        $archived  = collect([])->values(); // terminated records hidden from UI (audit trail only)
 
         $ssMax   = (int) (config('aegis.tier_limits.' . $tier . '.max_support_stewards', 2));
         $ssCount = $stewards->count() + $pending->count();
@@ -350,8 +350,16 @@ class SupportStewardController extends Controller
         abort_if(!$plan || $steward->plan_id !== $plan->id, 404);
         $this->authorize('update', $plan);
 
-        $steward->update(['status' => 'archived']);
-        return back()->with('success', 'Record archived.');
+        $reason = $request->input('reason');
+        $details = $request->input('details');
+        $note = $reason ? ($details ? $reason . ' — ' . $details : $reason) : null;
+
+        // Prefix with 'terminated:' so index can distinguish from suspension
+        $steward->update([
+            'status'         => 'archived',
+            'declined_reason' => $note ? 'terminated:' . $note : 'terminated',
+        ]);
+        return back()->with('success', 'Support Steward removed.');
     }
 
     public function downloadAgreement(Request $request, PlanSteward $steward): \Illuminate\Http\Response

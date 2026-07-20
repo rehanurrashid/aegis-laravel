@@ -200,7 +200,7 @@
           </div>
           <div v-if="s.declined_reason" style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:var(--red-dark);">
             <AegisIcon name="alert-circle" :size="13" />
-            <span>{{ s.declined_reason }}</span>
+            <span>{{ reasonLabel(s.declined_reason) }}</span>
           </div>
           <div style="margin-top:10px;display:flex;gap:8px;">
             <button type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;" @click="handleAddSS">
@@ -261,7 +261,7 @@
           </div>
           <div v-if="s.declined_reason" style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:var(--red-dark);">
             <AegisIcon name="alert-circle" :size="13" />
-            <span>{{ s.declined_reason }}</span>
+            <span>{{ reasonLabel(s.declined_reason) }}</span>
           </div>
           <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
             <button type="button" class="btn" @click="openReinstate(s)" style="display:inline-flex;align-items:center;gap:6px;background:var(--black,#000);color:var(--white,#fff);border-color:var(--black,#000);">
@@ -302,7 +302,7 @@
                     <div style="font-size:12px;color:var(--text-3)">This is a private preference — not visible to other providers. Aegis uses this to help match when providers look for SS candidates.</div>
                   </div>
                   <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
-                    <span v-if="ssSaved" style="font-size:11px;color:var(--green-dark);font-weight:600">Saved</span>
+                    <span :style="{fontSize:'11px',color:'var(--green-dark)',fontWeight:'600',opacity:ssSaved?1:0,transition:'opacity 0.3s'}">Saved ✓</span>
                     <AegisToggle v-model="availableAsSsToggle" @update:model-value="saveAvailableAsSs" />
                   </div>
                 </div>
@@ -874,6 +874,23 @@ function initials(s) {
 }
 function subLine(s) {
   return [s?.steward?.title, s?.steward?.organization, s?.steward?.location].filter(Boolean).join(' · ')
+}
+function reasonLabel(key) {
+  if (!key) return ''
+  // Strip 'terminated:' prefix if present
+  const raw = key.startsWith('terminated:') ? key.slice(11) : key
+  const map = {
+    role_no_longer_needed:  'Role no longer needed',
+    temporary_leave:        'Temporary leave',
+    replacing:              'Replacing with a different SS',
+    practice_restructuring: 'Practice restructuring',
+    ss_requested:           'SS requested removal',
+    other:                  'Other',
+    steward_resigned:       'Steward resigned',
+    mutual:                 'Mutual termination',
+    practice_closing:       'Practice closing',
+  }
+  return map[raw] ?? raw.replace(/_/g, ' ')
 }
 function fmtDate(v) {
   if (!v) return ''
