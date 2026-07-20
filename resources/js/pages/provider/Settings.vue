@@ -782,10 +782,11 @@
               Removing add-ons will notify the affected stewards and remove their assignments immediately. You can then proceed with the downgrade.
             </p>
             <template #footer>
-              <button type="button" class="btn btn-outline" @click="confirmDowngradeBlocked = false">Cancel</button>
-              <button type="button" class="btn btn-danger" :disabled="maatBusy || csAddonBusy" @click="removeAllAddonsAndDowngrade">
-                <AegisIcon name="trash" :size="13" />
-                Remove All Add-Ons
+              <button type="button" class="btn btn-outline" :disabled="removingAddonsBusy" @click="confirmDowngradeBlocked = false">Cancel</button>
+              <button type="button" class="btn btn-danger" :disabled="removingAddonsBusy || maatBusy || csAddonBusy" @click="removeAllAddonsAndDowngrade">
+                <AegisIcon v-if="removingAddonsBusy || maatBusy || csAddonBusy" name="refresh-cw" :size="13" class="btn-spin" />
+                <AegisIcon v-else name="trash" :size="13" />
+                {{ removingAddonsBusy ? 'Removing…' : maatBusy ? 'Removing MAAT…' : csAddonBusy ? 'Removing CS Add-On…' : 'Remove All Add-Ons & Downgrade' }}
               </button>
             </template>
           </AegisModal>
@@ -1526,6 +1527,7 @@ const swapButtonLabel = (tier) => {
 };
 const planBusy = ref(false); const maatBusy = ref(false); const pmBusy = ref(false);
 const csAddonBusy = ref(false);
+const removingAddonsBusy = ref(false);
 // Read cs_addon state from subscription data (live Stripe) falling back to prop
 // This keeps it in sync with the webhook-confirmed state on page load
 const hasCsAddon     = computed(() => !!sub.value.has_cs_addon);
@@ -1638,26 +1640,50 @@ function doSwapPlan() {
 }
 
 async function removeAllAddonsAndDowngrade() {
-  confirmDowngradeBlocked.value = false
-  if (hasMaat.value) {
-    await new Promise(resolve => {
-      router.post(route('provider.settings.subscription.maat'), { enable: false }, {
-        preserveScroll: true,
-        onSuccess: resolve,
-        onError: resolve,
+  // Keep modal open — close only after work is done
+  removingAddonsBusy.value = true
+
+  try {
+    if (hasMaat.value) {
+      maatBusy.value = true
+      await new Promise((resolve, reject) => {
+        router.post(route('provider.settings.subscription.maat'), {
+          enable: false,
+          billing: maatBillingAnnual.value ? 'annual' : 'monthly',
+        }, {
+          preserveScroll: true,
+          onSuccess: resolve,
+          onError: (e) => reject(e),
+          onFinish: () => { maatBusy.value = false },
+        })
       })
-    })
-  }
-  if (hasCsAddonLocal.value) {
-    await new Promise(resolve => {
-      router.post(route('provider.settings.subscription.cs-addon'), { enable: false, billing: currentBillingIsAnnual.value ? 'annual' : 'monthly' }, {
-        preserveScroll: true,
-        onSuccess: resolve,
-        onError: resolve,
+    }
+
+    if (hasCsAddonLocal.value) {
+      csAddonBusy.value = true
+      await new Promise((resolve, reject) => {
+        router.post(route('provider.settings.subscription.cs-addon'), {
+          enable: false,
+          billing: csAddonBillingAnnual.value ? 'annual' : 'monthly',
+        }, {
+          preserveScroll: true,
+          onSuccess: () => { hasCsAddonLocal.value = false; resolve() },
+          onError: (e) => reject(e),
+          onFinish: () => { csAddonBusy.value = false },
+        })
       })
-    })
+    }
+
+    // All addons removed — close modal and immediately trigger the downgrade
+    confirmDowngradeBlocked.value = false
+    toast.success('Add-ons removed — processing downgrade…')
+    doSwapPlan()
+  } catch (e) {
+    toast.error('Could not remove all add-ons. Please try again.')
+    // Leave modal open so user can retry
+  } finally {
+    removingAddonsBusy.value = false
   }
-  toast.success('Add-ons removed. You can now downgrade.')
 }
 function cancelPlan() {
   planBusy.value = true;
