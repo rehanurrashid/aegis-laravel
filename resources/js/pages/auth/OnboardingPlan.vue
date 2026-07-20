@@ -137,7 +137,7 @@
           </div>
 
           <!-- MAAT add-on (Practice only) -->
-          <div class="ob-maat-addon" :class="{ 'ob-maat-addon--locked': selectedTier !== 'practice' }">
+          <div class="ob-maat-addon" :class="{ 'ob-maat-addon--locked': selectedTier !== 'practice' && selectedTier !== 'practice_business' }">
             <div class="ob-maat-header">
               <div class="ob-maat-icon"><AegisIcon name="shield" :size="18" /></div>
               <div>
@@ -150,23 +150,23 @@
               </div>
             </div>
             <p class="ob-maat-desc">A MAAT-certified, licensed, and insured CS designated to your practice. Emergency response within 4 hours of incident trigger.</p>
-            <label class="ob-checkbox-row" :class="{ 'ob-checkbox-row--disabled': selectedTier !== 'practice' }">
+            <label class="ob-checkbox-row" :class="{ 'ob-checkbox-row--disabled': selectedTier !== 'practice' && selectedTier !== 'practice_business' }">
               <input
                 v-model="addMaat"
                 type="checkbox"
                 class="ob-checkbox"
-                :disabled="selectedTier !== 'practice'"
+                :disabled="selectedTier !== 'practice' && selectedTier !== 'practice_business'"
               />
               <span class="ob-checkbox-label">
                 Add MAAT Professional CS to my plan
-                <small v-if="selectedTier !== 'practice'">Available with Continuity Practice</small>
+                <small v-if="selectedTier !== 'practice' && selectedTier !== 'practice_business'">Available with Continuity Practice or Practice Business</small>
                 <small v-else>You can remove this add-on at any time from settings</small>
               </span>
             </label>
           </div>
 
           <!-- Combo price callout when both selected -->
-          <div v-if="selectedTier === 'practice' && addMaat" class="ob-combo-callout">
+          <div v-if="(selectedTier === 'practice' || selectedTier === 'practice_business') && addMaat" class="ob-combo-callout">
             <AegisIcon name="dollar-sign" :size="13" />
             <span>
               Practice + MAAT:
@@ -418,7 +418,7 @@ function submit() {
 
   const tier   = isBusinessCS.value ? 'cs_business' : selectedTier.value
   const addons = []
-  if (addMaat.value && selectedTier.value === 'practice') addons.push('maat')
+  if (addMaat.value && (selectedTier.value === 'practice' || selectedTier.value === 'practice_business')) addons.push('maat')
 
   form.tier    = tier
   form.billing = billing.value
