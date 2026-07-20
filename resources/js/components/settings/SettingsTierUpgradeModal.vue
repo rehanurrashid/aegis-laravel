@@ -49,7 +49,7 @@
     <!-- Footer -->
     <template #footer>
       <button type="button" class="btn btn-gold" @click="goToBilling">
-        <AegisIcon name="arrow-right" :size="13" /> Upgrade Now
+        <AegisIcon name="trending-up" :size="13" /> Upgrade to Practice
       </button>
     </template>
   </AegisModal>
@@ -66,7 +66,7 @@ const props = defineProps({
   lockedFeatureNote: { type: String,  default: '' },
 })
 
-const emit = defineEmits(['update:show', 'upgrade'])
+const emit = defineEmits(['update:show', 'upgrade', 'confirm-upgrade'])
 
 const localShow = computed({
   get: () => props.show,
@@ -75,7 +75,7 @@ const localShow = computed({
 
 function goToBilling() {
   emit('update:show', false)
-  emit('upgrade')
+  emit('confirm-upgrade')
 }
 </script>
 

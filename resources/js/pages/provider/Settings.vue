@@ -1006,6 +1006,7 @@
     v-model:show="showTierModal"
     :locked-feature-note="tierModalFeature"
     @upgrade="section = 'billing'"
+    @confirm-upgrade="showTierModal = false; swapPlan('practice')"
   />
 
   </AppLayout>
