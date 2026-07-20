@@ -939,8 +939,8 @@ function saveNotifyPrefs() {
             <span class="form-control" style="background:var(--surface-2);color:var(--text-2);cursor:default;display:block;">
               {{ activeSteward ? formatMoney(activeSteward.fee_cents) : '—' }}
             </span>
-            <div style="font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.4;">
-              <AegisIcon name="info" :size="11" /> Invoiced when the critical incident closes and CS tasks are marked complete. Auto-charged 7 days after invoice if not paid manually.
+            <div style="font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.4;display:flex;align-items:flex-start;gap:4px;">
+              <AegisIcon name="info" :size="11" style="flex-shrink:0;margin-top:1px;" /><span>Invoiced when the critical incident closes and CS tasks are marked complete. Auto-charged 7 days after invoice if not paid manually.</span>
             </div>
           </div>
           <button
@@ -1019,7 +1019,7 @@ function saveNotifyPrefs() {
             <input v-model="amendFeeForm.fee_cents_display" type="number" min="0" step="0.01" class="form-control" placeholder="0.00" />
           </div>
         </div>
-        <p style="font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.4;"><AegisIcon name="info" :size="11" /> Invoiced when the critical incident closes and CS tasks are marked complete. Auto-charged 7 days after invoice if not paid manually.</p>
+        <p style="font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.4;display:flex;align-items:flex-start;gap:4px;"><AegisIcon name="info" :size="11" style="flex-shrink:0;margin-top:1px;" /><span>Invoiced when the critical incident closes and CS tasks are marked complete. Auto-charged 7 days after invoice if not paid manually.</span></p>
       </template>
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.amendFee=false">{{ hasPendingFeeAmendment ? 'Close' : 'Cancel' }}</button>
