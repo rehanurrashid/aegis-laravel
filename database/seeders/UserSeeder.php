@@ -11,6 +11,7 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         $now = now();
+        $sarahEmail = 'sarah_' . time() . '@demo.aegis';
 
         $users = [
             // ── Practitioners ──────────────────────────────────────────────
@@ -19,7 +20,7 @@ class UserSeeder extends Seeder
                 'role'             => 'practitioner',
                 'display_name'     => 'Sarah Johnson',
                 'credentials'      => 'LPC, LMFT',
-                'email'            => 'sarah_' . time() . '@demo.aegis',
+                'email'            => $sarahEmail,
                 'phone'            => '555-201-0001',
                 'location'         => 'Austin, TX',
                 'organization'     => 'Clarity Counseling Group',
@@ -475,6 +476,10 @@ class UserSeeder extends Seeder
             ], $user);
 
             DB::table('users')->updateOrInsert(['id' => $user['id']], $user);
+        }
+
+        if (isset($this->command)) {
+            $this->command->info('✔ p_sarah email: ' . $sarahEmail);
         }
 
         // Recompute profile + security completion for all practitioners
