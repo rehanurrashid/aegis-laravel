@@ -91,7 +91,7 @@
               <button type="button" class="btn ob-plan-btn" :class="selectedTier === 'access' ? 'btn-primary' : 'btn-outline'">
                 {{ selectedTier === 'access' ? '✓ Selected' : 'Select Access' }}
               </button>
-              <div v-if="selectedTier === 'access'" class="ob-plan-note" style="font-size:11px;color:var(--gold-dark);margin-top:8px;">
+              <div v-if="selectedTier === 'access'" class="ob-plan-note" style="font-size:11px;color:var(--gold-dark);margin-top:8px;display:flex;align-items:center;gap:4px;">
                 <AegisIcon name="info" :size="11" /> Access includes serving as CS for 1 practitioner at no extra cost.
               </div>
             </div>
@@ -114,7 +114,7 @@
               <button type="button" class="btn ob-plan-btn" :class="selectedTier === 'practice' ? 'btn-primary' : 'btn-outline'">
                 {{ selectedTier === 'practice' ? '✓ Selected' : 'Select Practice' }}
               </button>
-              <div v-if="selectedTier === 'practice'" class="ob-plan-note" style="font-size:11px;color:var(--gold-dark);margin-top:8px;">
+              <div v-if="selectedTier === 'practice'" class="ob-plan-note" style="font-size:11px;color:var(--gold-dark);margin-top:8px;display:flex;align-items:center;gap:4px;">
                 <AegisIcon name="info" :size="11" /> Practice includes serving as CS for up to 3 practitioners at no extra cost.
               </div>
             </div>
