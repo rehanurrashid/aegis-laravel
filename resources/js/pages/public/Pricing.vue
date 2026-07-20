@@ -4,10 +4,10 @@
   Layout: PublicLayout (no auth required)
 
   Pricing source (pricing.php / AEGIS-PROJECT-CONTEXT.md §8):
-    Continuity Access:   $29/mo · $23/mo annual ($276/yr · save 20%)
-    Continuity Practice: $49/mo · $39/mo annual ($468/yr · save 20%) ← Most Popular
+    Continuity Access:   $39/mo · $35.75/mo annual ($429/yr · save ~8%)
+    Continuity Practice: $79/mo · $65.83/mo annual ($790/yr · save ~13%) ← Most Popular
     MAAT add-on:        +$29/mo · +$23/mo annual ($276/yr · save 20%) (requires Practice)
-    Business CS (2–40):  $49/mo · $429/yr (save ~27%)
+    Business CS (2–40):  $49/mo · $490/yr (save ~16%)
     Enterprise CS (41+): Custom quote
     Invited CS / SS:     Free (covered by practitioner's subscription)
     Business Partner:    $69/mo · $690/yr (save 2 months)
@@ -314,36 +314,54 @@ const plans = [
     key:          'access',
     name:         'Continuity Access',
     tagline:      'Everything you need to protect your practice and your clients.',
-    monthly:      29,
-    annual:       23,
-    billedAnnual: 276,
+    monthly:      39,
+    annual:       35.75,
+    billedAnnual: 429,
     featured:     false,
     features: [
-      '1 Continuity Steward',
-      '2 Support Stewards',
+      '1 Continuity Steward invitation',
+      '2 Support Steward invitations',
+      'Serve as CS for 1 practitioner',
       'Continuity Plan (all 7 incident types)',
-      'Document Vault',
-      'Secure messaging',
-      'Network & Referrals',
-      'Activity log',
+      'Document Vault (4 zones)',
+      'Shadow Network (limited)',
+      'Secure messaging · Activity log',
     ],
   },
   {
     key:          'practice',
     name:         'Continuity Practice',
     tagline:      'Full continuity + integrative business services for growing practices.',
-    monthly:      49,
-    annual:       39,
-    billedAnnual: 468,
+    monthly:      79,
+    annual:       65.83,
+    billedAnnual: 790,
     featured:     true,
     features: [
-      '2 Continuity Stewards',
-      '4 Support Stewards',
-      'Everything in Access',
-      'Integrative Business Services',
-      'My Services marketplace listing',
-      'Job board & BP marketplace',
-      'Priority support',
+      'Up to 2 Continuity Steward invitations',
+      'Up to 2 Support Steward invitations',
+      'Serve as CS for up to 3 practitioners',
+      'Everything in Access, plus:',
+      'Referrals — send & receive',
+      'Full Integrative Network',
+      'Integrative Services Mode',
+      'Business Partner directory & Job Postings',
+      'Priority support & onboarding call',
+    ],
+  },
+  {
+    key:          'practice_business',
+    name:         'Continuity Practice Business',
+    tagline:      'Practice + Business Partner access in one account.',
+    monthly:      104,
+    annual:       86.67,
+    billedAnnual: 1040,
+    featured:     false,
+    features: [
+      'Everything in Practice, plus:',
+      'Business Partner profile & service listing',
+      'Serve as CS for up to 43 practitioners',
+      'Respond to practitioner service requests',
+      'Service agreements, contracts & payment tools',
     ],
   },
 ]
@@ -353,7 +371,7 @@ const stewardPlans = [
     key:     'business-cs',
     name:    'Business Continuity Steward',
     price:   '$49',
-    billing: 'per month · or $429/yr (save ~27%)',
+    billing: 'per month · or $490/yr (save ~16%)',
     desc:    'Independent licensed CS serving 2–40 practitioners. Your own portal, your own roster. Subscription covers your practitioner relationships.',
     cta:     'Register as CS',
   },

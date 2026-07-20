@@ -545,7 +545,7 @@
                     <AegisIcon name="check" :size="11" /> Current Plan
                   </span>
                   <div class="st-plan-tier-name">Continuity Access</div>
-                  <div class="st-plan-tier-price">{{ pricingStore.formatCents(billingAnnualView ? (pricingStore.getTier('access')?.annual ?? 2300) : (pricingStore.getTier('access')?.monthly ?? 2900)) }}<span>/mo</span></div>
+                  <div class="st-plan-tier-price">{{ pricingStore.formatCents(billingAnnualView ? (pricingStore.getTier('access')?.annual ?? 3575) : (pricingStore.getTier('access')?.monthly ?? 3900)) }}<span>/mo</span></div>
                   <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $276/yr · save 20%' : 'or $276/yr (save 20%)' }}</div>
                   <div class="st-plan-feats">
                     <span v-for="f in accessFeatures" :key="f"><AegisIcon name="check" :size="13" /> {{ f }}</span>
@@ -565,7 +565,7 @@
                     <AegisIcon name="check" :size="11" /> Current Plan
                   </span>
                   <div class="st-plan-tier-name">Continuity Practice</div>
-                  <div class="st-plan-tier-price">{{ pricingStore.formatCents(billingAnnualView ? (pricingStore.getTier('practice')?.annual ?? 3900) : (pricingStore.getTier('practice')?.monthly ?? 4900)) }}<span>/mo</span></div>
+                  <div class="st-plan-tier-price">{{ pricingStore.formatCents(billingAnnualView ? (pricingStore.getTier('practice')?.annual ?? 6583) : (pricingStore.getTier('practice')?.monthly ?? 7900)) }}<span>/mo</span></div>
                   <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $468/yr · save 20%' : 'or $468/yr (save 20%)' }}</div>
                   <div class="st-plan-feats">
                     <span v-for="f in practiceFeatures" :key="f"><AegisIcon name="check" :size="13" /> {{ f }}</span>
@@ -1554,8 +1554,8 @@ function swapPlan(tier) {
 
   const tierLabels = { access: 'Continuity Access', practice: 'Continuity Practice' };
   const tierPrices = {
-    access:   (billingAnnualView.value ? (pricingStore.getTier('access')?.annual   ?? 2300) : (pricingStore.getTier('access')?.monthly   ?? 2900)) / 100,
-    practice: (billingAnnualView.value ? (pricingStore.getTier('practice')?.annual ?? 3900) : (pricingStore.getTier('practice')?.monthly  ?? 4900)) / 100,
+    access:   (billingAnnualView.value ? (pricingStore.getTier('access')?.annual   ?? 3575) : (pricingStore.getTier('access')?.monthly   ?? 3900)) / 100,
+    practice: (billingAnnualView.value ? (pricingStore.getTier('practice')?.annual ?? 6583) : (pricingStore.getTier('practice')?.monthly  ?? 7900)) / 100,
   };
   const billingLabel = billingAnnualView.value ? 'billed annually' : 'billed monthly';
 
