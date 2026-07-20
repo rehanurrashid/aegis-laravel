@@ -16,7 +16,7 @@ class OnboardingSubscribeRequest extends FormRequest
             'payment_method_id' => ['required', 'string', 'starts_with:pm_'],
             'price_id'          => ['required', 'string', 'starts_with:price_'],
             'addons'            => ['nullable', 'array'],
-            'addons.*'          => ['string', 'in:maat'],
+            'addons.*'          => ['string', 'in:maat,cs_addon'],
         ];
     }
 
