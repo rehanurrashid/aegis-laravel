@@ -1496,7 +1496,7 @@ function paymentTypeLabel(t) {
 .sic-row--warning > td:first-child { border-left: 3px solid var(--orange-dark); }
 
 /* sic-party layout (mirrors Services.vue — scoped here for CS wallet) */
-.sic-row   { border-bottom: 1px solid var(--border); }
+.sic-row   { border-bottom: 1px solid var(--border); background: #fff; }
 .sic-row:last-child { border-bottom: none; }
 .sic-td    { padding: 12px 14px; vertical-align: middle; font-size: 13px; }
 .sic-td--party  { width: 42%; }
