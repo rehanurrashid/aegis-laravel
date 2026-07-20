@@ -321,7 +321,7 @@ const plans = computed(() => {
       name:         p.access?.name ?? 'Continuity Access',
       tagline:      p.access?.tagline ?? 'Everything you need to protect your practice and your clients.',
       monthly:      (p.access?.monthly_cents      ?? 3900) / 100,
-      annual:       (p.access?.annual_cents        ?? 3575) / 100,
+      annual:       (p.access?.annual_cents        ?? 3600) / 100,
       billedAnnual: (p.access?.annual_total_cents  ?? 42900) / 100,
       featured:     false,
       features:     p.access?.features ?? [
@@ -339,7 +339,7 @@ const plans = computed(() => {
       name:         p.practice?.name ?? 'Continuity Practice',
       tagline:      p.practice?.tagline ?? 'Full continuity + integrative business services for growing practices.',
       monthly:      (p.practice?.monthly_cents      ?? 7900) / 100,
-      annual:       (p.practice?.annual_cents        ?? 6583) / 100,
+      annual:       (p.practice?.annual_cents        ?? 6600) / 100,
       billedAnnual: (p.practice?.annual_total_cents  ?? 79000) / 100,
       featured:     true,
       features:     p.practice?.features ?? [
@@ -359,7 +359,7 @@ const plans = computed(() => {
       name:         p.practice_business?.name ?? 'Continuity Practice Business',
       tagline:      p.practice_business?.tagline ?? 'Practice + Business Partner access in one account.',
       monthly:      ((p.practice?.monthly_cents ?? 7900) + (p.practice_business?.monthly_cents ?? 2500)) / 100,
-      annual:       ((p.practice?.annual_cents ?? 6583) + (p.practice_business?.annual_cents ?? 2083)) / 100,
+      annual:       ((p.practice?.annual_cents ?? 6600) + (p.practice_business?.annual_cents ?? 2100)) / 100,
       billedAnnual: ((p.practice?.annual_total_cents ?? 79000) + (p.practice_business?.annual_total_cents ?? 25000)) / 100,
       featured:     false,
       features:     p.practice_business?.features ?? [

@@ -30,7 +30,7 @@ return [
                 'name'               => 'Continuity Access',
                 'tagline'            => 'Foundational continuity infrastructure.',
                 'monthly_cents'      => 3900,    // $39/mo
-                'annual_cents'       => 3575,    // $35.75/mo billed annually ($429/yr ÷ 12)
+                'annual_cents'       => 3600,    // $36/mo billed annually ($429/yr ÷ 12, rounded)
                 'annual_total_cents' => 42900,   // $429/yr
                 'save_label'         => 'save ~21%',
                 'is_popular'         => false,
@@ -57,7 +57,7 @@ return [
                 'name'               => 'Continuity Practice',
                 'tagline'            => 'Full toolkit. The standard for active practices.',
                 'monthly_cents'      => 7900,    // $79/mo
-                'annual_cents'       => 6583,    // $65.83/mo billed annually ($790/yr ÷ 12)
+                'annual_cents'       => 6600,    // $66/mo billed annually ($790/yr ÷ 12, rounded)
                 'annual_total_cents' => 79000,   // $790/yr
                 'save_label'         => 'save ~20%',
                 'is_popular'         => true,
@@ -90,7 +90,7 @@ return [
                 'name'               => 'Continuity Practice Business',
                 'tagline'            => 'Full practitioner + Business Partner access in one account.',
                 'monthly_cents'      => 2500,    // CS Add-On only — +$25/mo
-                'annual_cents'       => 2083,    // CS Add-On only — +$20.83/mo ($250/yr ÷ 12)
+                'annual_cents'       => 2100,    // CS Add-On only — +$21/mo ($250/yr ÷ 12, rounded)
                 'annual_total_cents' => 25000,   // CS Add-On only — +$250/yr
                 'save_label'         => '',
                 'is_popular'         => false,
@@ -122,7 +122,7 @@ return [
             'tagline'           => 'Serve as Continuity Steward for up to 43 practitioners.',
             'requires_tier'     => 'practice',
             'monthly_cents'     => 2500,    // +$25/mo
-            'annual_cents'      => 2083,    // +$20.83/mo annual ($250/yr ÷ 12)
+            'annual_cents'      => 2100,    // +$21/mo annual ($250/yr ÷ 12, rounded)
             'annual_total_cents'=> 25000,   // +$250/yr
             'save_label'        => '2 months free',
             'features'          => [
@@ -174,7 +174,7 @@ return [
             'practice_cs_addon' => [
                 'label'              => 'Continuity Practice + CS Add-On',
                 'monthly_cents'      => 10400,   // $104/mo ($79 + $25)
-                'annual_cents'       => 8667,    // $86.67/mo annual ($790 + $250 = $1,040/yr ÷ 12)
+                'annual_cents'       => 8700,    // $87/mo annual ($790 + $250 = $1,040/yr ÷ 12, rounded)
                 'annual_total_cents' => 104000,  // $1,040/yr
             ],
         ],
@@ -189,7 +189,7 @@ return [
             'name'              => 'Business Partner',
             'tagline'           => 'For billing, legal, IT, marketing, compliance, and other professionals.',
             'monthly_cents'     => 6900,    // $69/mo
-            'annual_cents'      => 5750,    // $57.50/mo equivalent
+            'annual_cents'      => 5800,    // $58/mo equivalent (rounded)
             'annual_total_cents'=> 69000,   // $690/yr
             'save_label'        => 'save 2 months',
             'note'              => 'Covers both Agency and Freelancer account types.',
@@ -215,7 +215,7 @@ return [
             'name'              => 'Business CS',
             'tagline'           => 'Independent paid CS account. Serve 2–40 practitioners.',
             'monthly_cents'     => 4900,    // $49/mo
-            'annual_cents'      => 4083,    // $490/yr ÷ 12 ≈ $40.83
+            'annual_cents'      => 4100,    // $41/mo ($490/yr ÷ 12, rounded)
             'annual_total_cents'=> 49000,   // $490/yr
             'save_label'        => '2 months free',
             'scope'             => '2–40 practitioners',

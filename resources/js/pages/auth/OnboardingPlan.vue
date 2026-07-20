@@ -314,31 +314,25 @@ const addCsAddon   = ref(false)
 const p = computed(() => {
   const pricing = props.pricing
   const toD  = (c) => Math.round((c ?? 0) / 100)
-  // For annual monthly display — show exact decimal (e.g. $35.75, $65.83)
-  const toDF = (c) => {
-    const v = (c ?? 0) / 100
-    return v % 1 === 0 ? v.toString() : v.toFixed(2)
-  }
-
   return {
     practitioner: {
       access: {
         monthly:       toD(pricing?.practitioner?.access?.monthly_cents),
-        annual_monthly:toDF(pricing?.practitioner?.access?.annual_cents),
+        annual_monthly:toD(pricing?.practitioner?.access?.annual_cents),
         annual_total:  toD(pricing?.practitioner?.access?.annual_total_cents),
         features:      pricing?.practitioner?.access?.features ?? [],
         locked:        pricing?.practitioner?.access?.locked ?? [],
       },
       practice: {
         monthly:       toD(pricing?.practitioner?.practice?.monthly_cents),
-        annual_monthly:toDF(pricing?.practitioner?.practice?.annual_cents),
+        annual_monthly:toD(pricing?.practitioner?.practice?.annual_cents),
         annual_total:  toD(pricing?.practitioner?.practice?.annual_total_cents),
         features:      pricing?.practitioner?.practice?.features ?? [],
         locked:        [],
       },
       practice_business: {
         monthly:       toD(pricing?.practitioner?.practice_business?.monthly_cents),
-        annual_monthly:toDF(pricing?.practitioner?.practice_business?.annual_cents),
+        annual_monthly:toD(pricing?.practitioner?.practice_business?.annual_cents),
         annual_total:  toD(pricing?.practitioner?.practice_business?.annual_total_cents),
         features:      pricing?.practitioner?.practice_business?.features ?? [],
         locked:        [],
@@ -353,10 +347,10 @@ const p = computed(() => {
     combo_annual_monthly:  toD((pricing?.practitioner?.practice?.annual_cents ?? 0) + (pricing?.maat_addon?.annual_cents ?? 0)),
     combo_annual_total:    toD((pricing?.practitioner?.practice?.annual_total_cents ?? 0) + (pricing?.maat_addon?.annual_total_cents ?? 0)),
     combo_cs_monthly:      toD((pricing?.practitioner?.practice?.monthly_cents ?? 0) + (pricing?.practice_cs_addon?.monthly_cents ?? 0)),
-    combo_cs_annual_monthly: toDF((pricing?.practitioner?.practice?.annual_cents ?? 0) + (pricing?.practice_cs_addon?.annual_cents ?? 0)),
+    combo_cs_annual_monthly: toD((pricing?.practitioner?.practice?.annual_cents ?? 0) + (pricing?.practice_cs_addon?.annual_cents ?? 0)),
     combo_cs_annual_total: toD((pricing?.practitioner?.practice?.annual_total_cents ?? 0) + (pricing?.practice_cs_addon?.annual_total_cents ?? 0)),
     combo_all_monthly:     toD((pricing?.practitioner?.practice?.monthly_cents ?? 0) + (pricing?.maat_addon?.monthly_cents ?? 0) + (pricing?.practice_cs_addon?.monthly_cents ?? 0)),
-    combo_all_annual_monthly: toDF((pricing?.practitioner?.practice?.annual_cents ?? 0) + (pricing?.maat_addon?.annual_cents ?? 0) + (pricing?.practice_cs_addon?.annual_cents ?? 0)),
+    combo_all_annual_monthly: toD((pricing?.practitioner?.practice?.annual_cents ?? 0) + (pricing?.maat_addon?.annual_cents ?? 0) + (pricing?.practice_cs_addon?.annual_cents ?? 0)),
     combo_all_annual_total: toD((pricing?.practitioner?.practice?.annual_total_cents ?? 0) + (pricing?.maat_addon?.annual_total_cents ?? 0) + (pricing?.practice_cs_addon?.annual_total_cents ?? 0)),
     bp: {
       monthly:           toD(pricing?.business_partner?.monthly_cents),
@@ -373,7 +367,7 @@ const p = computed(() => {
     },
     cs_addon: {
       monthly:        toD(pricing?.practice_cs_addon?.monthly_cents),
-      annual_monthly: toDF(pricing?.practice_cs_addon?.annual_cents),
+      annual_monthly: toD(pricing?.practice_cs_addon?.annual_cents),
       annual_total:   toD(pricing?.practice_cs_addon?.annual_total_cents),
     },
   }
