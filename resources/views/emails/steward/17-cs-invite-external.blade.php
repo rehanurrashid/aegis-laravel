@@ -1,16 +1,16 @@
-@include('emails._partials.head', ['email_title' => 'You have been invited to serve as a Continuity Steward'])
+@include('emails._partials.head', ['email_title' => 'Retainer Agreement — Continuity Steward for ' . ($practitioner_name ?? 'Your Practitioner')])
 
               <h1 style="margin:0 0 16px;font-family:'Georgia','Times New Roman',serif;
                          font-size:22px;font-weight:700;color:#2d2a26;line-height:1.3;">
-                You've been named as a Continuity Steward
+                Standing Retainer Agreement — Continuity Steward
               </h1>
 
               <p style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;
                         font-size:14px;line-height:1.6;color:#4a4741;">
                 <strong>{{ $practitioner_name ?? 'A healthcare practitioner' }}</strong> has invited you to
-                serve as their <strong>{{ $role_label ?? 'Continuity Steward' }}</strong> on Aegis — a platform
-                for healthcare practice continuity planning. As a Continuity Steward, you would be
-                responsible for supporting their practice during unexpected absences or a critical incident.
+                serve as their <strong>{{ $role_label ?? 'Continuity Steward' }}</strong> on Aegis.
+                This is a standing retainer agreement — active from your signature until either party cancels.
+                No fees are charged until a critical incident closes and your CS tasks are complete.
               </p>
 
               <!-- Details box -->
@@ -23,12 +23,14 @@
                               font-size:13px;color:#4a4741;line-height:1.5;">
                       <strong>Role:</strong> {{ $role_label ?? 'Continuity Steward' }}<br>
                       @if(!empty($fee_display))
-                      <strong>Compensation:</strong> {{ $fee_display }}<br>
+                      <strong>Fee per incident:</strong> {{ $fee_display }}<br>
                       @endif
-                      <strong>Expires:</strong> {{ ($expires_days ?? '14') }} days from today
+                      <strong>Retainer active:</strong> From signing until cancelled by either party<br>
+                      <strong>Invitation expires:</strong> {{ ($expires_days ?? '14') }} days from today
                     </p>
                     <p style="margin:6px 0 0;font-family:Arial,Helvetica,sans-serif;
                               font-size:12px;color:#6b6560;">
+                      Annual re-attestation required to keep the retainer in effect.
                       To accept, create a free Aegis account. You are under no obligation to accept.
                     </p>
                   </td>
@@ -44,7 +46,7 @@
                        style="display:inline-block;padding:12px 28px;
                               font-family:Arial,Helvetica,sans-serif;font-size:14px;
                               font-weight:600;color:#ffffff;text-decoration:none;">
-                      Accept Invitation &amp; Create Account →
+                      Review &amp; Sign Retainer Agreement →
                     </a>
                   </td>
                 </tr>

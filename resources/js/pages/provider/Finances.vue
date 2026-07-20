@@ -278,8 +278,8 @@
       <div class="alert alert-info" style="margin-bottom:20px;">
         <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
         <div class="alert-content">
-          <div class="alert-title">Direct Payments — Aegis Holds No Funds</div>
-          <div>Continuity Steward fees are collected directly through your saved payment method via Stripe when a critical incident is verified. Aegis never holds, escrows, or processes the funds.</div>
+          <div class="alert-title">Standing Retainers · Invoiced Per Incident</div>
+          <div>Your CS agreements are standing retainers — active from signing until cancelled. Invoices generate automatically when a critical incident closes and CS tasks are marked complete. You have 7 days to pay manually before your default card is auto-charged. Aegis never holds these funds.</div>
         </div>
       </div>
 
@@ -412,7 +412,7 @@
 
           <div class="cspay-note" style="margin-bottom:0;">
             <span class="cspay-note-icon"><AegisIcon name="shield" :size="16" /></span>
-            <p>Once the critical incident closes and CS tasks are marked complete, an invoice is generated automatically. You have <strong>7 days</strong> to pay manually via <em>Pay Now</em> — after that, your default payment method is auto-charged. Aegis never holds these funds.</p>
+            <p>Once the critical incident closes and CS tasks are marked complete, an invoice is generated automatically against this retainer. You have <strong>7 days</strong> to pay manually via <em>Pay Now</em> — after that, your default payment method is auto-charged. Aegis never holds these funds.</p>
           </div>
 
           <div style="margin-top:20px;">

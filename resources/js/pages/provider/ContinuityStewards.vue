@@ -335,7 +335,7 @@ function saveNotifyPrefs() {
     <AegisHeroBanner
       eyebrow="Continuity Planning"
       title="Continuity Stewards"
-      subtitle="Identify and support the trusted individuals who will carry out your Continuity Plan. Keeping agreements current helps maintain alignment and readiness over time."
+      subtitle="Designate trusted stewards to execute your practice continuity plan. Retainer agreements remain active until cancelled — invoices are generated only when a critical incident closes and steward tasks are completed."
       quiet
     >
       <template #actions>
@@ -346,7 +346,7 @@ function saveNotifyPrefs() {
           <AegisIcon name="search" :size="14" /> Browse CS Directory
         </a>
         <button type="button" class="btn-hero-solid is-on-light" style="display:inline-flex;align-items:center;gap:6px;" @click="handleAddCS">
-          <AegisIcon name="plus" :size="14" /> Add Continuity Steward
+          <AegisIcon name="plus" :size="14" /> Sign Retainer Agreement
         </button>
       </template>
     </AegisHeroBanner>
@@ -452,6 +452,7 @@ function saveNotifyPrefs() {
             <span style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--gold-dark);cursor:pointer;" class="exec-name is-link">{{ stewardName(s) }}</span>
             <AegisBadge :label="csRoleLabel(s.role)" variant="gold" icon="shield" />
             <span class="badge badge-green"><span class="status-dot green"></span> Active</span>
+            <span v-if="s.signed_at" style="font-size:11px;color:var(--text-3);">Retainer since {{ fmtDate(s.signed_at) }}</span>
             <span v-if="s.engagement_document?.status === 'fully_executed'" class="badge badge-green" :data-tooltip="'Agreement signed' + (s.countersigned_at ? ' — Countersigned ' + fmtDate(s.countersigned_at) : '')"><AegisIcon name="check" :size="11" /> Agreement Signed</span>
             <span v-else-if="s.engagement_document?.status === 'countersign_pending'" class="badge badge-amber" data-tooltip="Agreement sent — awaiting countersignature"><AegisIcon name="clock" :size="11" /> Awaiting Countersignature</span>
             <span
@@ -900,22 +901,25 @@ function saveNotifyPrefs() {
 
 
     <!-- REMOVE CS MODAL -->
-    <AegisModal v-model="modals.remove" title="Remove Continuity Steward" size="sm" @close="modals.remove=false">
-      <div style="text-align:center;padding:12px 0;">
-        <div style="width:52px;height:52px;border-radius:50%;background:var(--red-light,#fee2e2);color:var(--red-dark);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
-          <AegisIcon name="user" :size="22" />
+    <AegisModal v-model="modals.remove" title="Terminate Retainer Agreement" size="sm" @close="modals.remove=false">
+      <div class="alert alert-warning" style="margin-bottom:14px;">
+        <div class="alert-icon"><AegisIcon name="alert-triangle" :size="16" /></div>
+        <div class="alert-content">
+          <div class="alert-title">Terminate Retainer Agreement</div>
+          <div style="font-size:12px;">Cancelling this retainer will remove {{ activeSteward?.display_name ?? stewardName(activeSteward) }} from your Continuity Plan effective immediately. Any existing invoices remain payable. You will need to sign a new retainer to reinstate them.</div>
         </div>
-        <div v-if="activeSteward" style="font-family:var(--font-serif);font-size:15px;font-weight:700;margin-bottom:8px;">Remove {{ stewardName(activeSteward) }}?</div>
+      </div>
+      <div style="text-align:center;padding:4px 0 12px;">
         <div style="font-size:13px;color:var(--text-2);line-height:1.6;">
-          Removing <strong>{{ activeSteward ? stewardName(activeSteward) : 'this steward' }}</strong> as your Continuity Steward will deactivate their access and notify them by email. Any active engagement agreements will be marked as terminated.
+          Their vault access will be revoked and they will be notified by email.
         </div>
       </div>
       <template #footer>
-        <button type="button" class="btn btn-outline" @click="modals.remove=false">Keep Steward</button>
+        <button type="button" class="btn btn-outline" @click="modals.remove=false">Keep Retainer</button>
         <button type="button" class="btn btn-danger" :disabled="busyRemove" style="display:inline-flex;align-items:center;gap:6px;" @click="submitRemove">
           <AegisIcon v-if="busyRemove" name="refresh-cw" :size="13" class="btn-spin" />
-          <AegisIcon v-else name="trash" :size="13" />
-          {{ busyRemove ? 'Removing…' : 'Remove Steward' }}
+          <AegisIcon v-else name="x" :size="13" />
+          {{ busyRemove ? 'Terminating…' : 'Terminate Retainer' }}
         </button>
       </template>
     </AegisModal>

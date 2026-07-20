@@ -38,6 +38,13 @@
 
     <!-- ══ STEP 1 / MODE A: Find Person ══ -->
     <div v-if="!preselectedUser && step === 1" style="margin-top:16px;">
+      <div class="alert alert-info" style="margin-bottom:16px;">
+        <div class="alert-icon"><AegisIcon name="info" :size="16" /></div>
+        <div class="alert-content">
+          <div class="alert-title">Standing Retainer Agreement</div>
+          <div style="font-size:12px;">This is a persistent agreement — active from signing until cancelled by either party. No charges occur until a critical incident is verified and CS tasks are completed. Requires annual re-attestation to remain in effect.</div>
+        </div>
+      </div>
       <div class="form-group">
         <label class="form-label">Email Address <span style="color:var(--red-dark);">*</span></label>
         <input
@@ -80,6 +87,13 @@
 
     <!-- ══ STEP 2: Role + Fee ══ -->
     <div v-if="step === 2" style="margin-top:16px;">
+      <div v-if="preselectedUser" class="alert alert-info" style="margin-bottom:16px;">
+        <div class="alert-icon"><AegisIcon name="info" :size="16" /></div>
+        <div class="alert-content">
+          <div class="alert-title">Standing Retainer Agreement</div>
+          <div style="font-size:12px;">This is a persistent agreement — active from signing until cancelled by either party. No charges occur until a critical incident is verified and CS tasks are completed. Requires annual re-attestation to remain in effect.</div>
+        </div>
+      </div>
       <div class="form-group">
         <label class="form-label">Continuity Steward Role <span style="color:var(--red-dark);">*</span></label>
         <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">
@@ -172,17 +186,22 @@
 
     <!-- ══ STEP 5: Review & Send ══ -->
     <div v-if="step === 5" style="margin-top:16px;">
-      <div class="alert alert-success"><AegisIcon name="check" :size="14" /><div>Review the summary below, apply your digital signature, then send.</div></div>
+      <div class="alert alert-success"><AegisIcon name="check" :size="14" /><div>Review the retainer terms below, apply your digital signature, then send.</div></div>
       <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;font-size:13px;line-height:1.75;color:var(--text-2);margin:14px 0;">
-        <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:10px;">Aegis Continuity Plan</div>
+        <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:10px;">Aegis Continuity Steward Retainer Agreement</div>
+        <h4 style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text);">Retainer Terms</h4>
         <p><strong>Continuity Steward:</strong> {{ preselectedUser?.display_name || form.display_name || '—' }}<span v-if="preselectedUser?.credentials" style="color:var(--text-3);font-weight:400;">, {{ preselectedUser.credentials }}</span></p>
         <p v-if="!preselectedUser"><strong>Email:</strong> <span :style="!form.email ? 'color:var(--text-4);font-style:italic;' : ''">{{ form.email || 'Not entered' }}</span></p>
         <p v-if="preselectedUser?.location"><strong>Location:</strong> {{ preselectedUser.location }}</p>
         <p><strong>Role:</strong> {{ roleLabel(form.role) }}</p>
         <p v-if="form.relationship"><strong>Relationship:</strong> {{ form.relationship }}</p>
-        <p v-if="form.fee_cents"><strong>Agreed Fee:</strong> ${{ (form.fee_cents / 100).toFixed(2) }} — invoiced when incident closes and CS tasks complete</p>
-        <p v-else><strong>Agreed Fee:</strong> $0 (reciprocal / no payment)</p>
+        <p v-if="form.fee_cents > 0"><strong>Fee per incident:</strong> ${{ (form.fee_cents / 100).toFixed(2) }}</p>
+        <p v-else><strong>Fee per incident:</strong> $0 (Reciprocal / No Payment)</p>
         <p><strong>Agreement Date:</strong> {{ new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) }}</p>
+        <p style="font-size:11px;color:var(--text-3);margin-top:12px;line-height:1.5;">
+          <AegisIcon name="info" :size="11" />
+          Retainer active indefinitely from date of signing. Invoiced only when a critical incident closes and CS tasks are marked complete. Annual re-attestation required. Either party may cancel at any time.
+        </p>
       </div>
       <div
         class="upload-zone"
@@ -227,7 +246,7 @@
         <button type="button" class="btn btn-primary" :disabled="busy || !signed" style="display:inline-flex;align-items:center;gap:6px;" @click="submitDesignate">
           <AegisIcon v-if="busy" name="refresh-cw" :size="14" class="btn-spin" />
           <AegisIcon v-else name="send" :size="14" />
-          {{ busy ? 'Sending…' : (preselectedUser ? 'Designate & Send Agreement' : 'Send Agreement for Signature') }}
+          {{ busy ? 'Sending…' : 'Send Retainer Agreement' }}
         </button>
       </span>
     </template>
@@ -276,13 +295,13 @@ const stepNextLabel = computed(() => {
 })
 
 const modalTitle = computed(() => {
-  const prefix = props.preselectedUser ? 'Designate Continuity Steward' : 'Add Continuity Steward'
+  const prefix = props.preselectedUser ? 'Sign CS Retainer Agreement' : 'Sign CS Retainer Agreement'
   const titles = {
-    1: prefix + ' — Find Person',
-    2: prefix + ' — Role Step-up',
-    3: prefix + ' — Approved Critical Incidents',
-    4: prefix + ' — Responsibilities',
-    5: prefix + ' — Review & Send',
+    1: 'Retainer Agreement — Find Person',
+    2: 'Retainer Agreement — Role',
+    3: 'Retainer Agreement — Approved Incidents',
+    4: 'Retainer Agreement — Responsibilities',
+    5: 'Retainer Agreement — Review & Sign',
   }
   return titles[step.value] ?? prefix
 })
