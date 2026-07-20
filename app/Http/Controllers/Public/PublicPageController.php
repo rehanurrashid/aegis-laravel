@@ -20,7 +20,9 @@ class PublicPageController extends Controller
 
     public function pricing(): Response
     {
-        return Inertia::render('public/Pricing');
+        return Inertia::render('public/Pricing', [
+            'pricing' => config('aegis.pricing'),
+        ]);
     }
 
     public function contact(): Response

@@ -125,10 +125,10 @@
           </div>
           <div class="pricing-addon-price">
             <div class="pricing-addon-amount">
-              +$<span>{{ billing === 'annual' ? 23 : 29 }}</span><span class="pricing-period">/mo</span>
+              +$<span>{{ billing === 'annual' ? ((props.pricing?.maat_addon?.annual_cents ?? 2300) / 100) : ((props.pricing?.maat_addon?.monthly_cents ?? 2900) / 100) }}</span><span class="pricing-period">/mo</span>
             </div>
             <div class="pricing-addon-billed">
-              {{ billing === 'annual' ? 'Billed $276/yr' : 'Billed monthly' }}
+              {{ billing === 'annual' ? 'Billed $' + ((props.pricing?.maat_addon?.annual_total_cents ?? 27600) / 100) + '/yr' : 'Billed monthly' }}
             </div>
             <a :href="route('register')" class="btn btn-primary btn-sm">Add MAAT Service</a>
             <div class="pricing-addon-req">Requires Continuity Practice</div>
@@ -211,11 +211,11 @@
               </div>
               <div class="pricing-bp-side">
                 <div class="pricing-card-price">
-                  <span class="pricing-amount">${{ billing === 'annual' ? 58 : 69 }}</span>
+                  <span class="pricing-amount">${{ billing === 'annual' ? ((props.pricing?.business_partner?.annual_cents ?? 5750) / 100) : ((props.pricing?.business_partner?.monthly_cents ?? 6900) / 100) }}</span>
                   <span class="pricing-period">/mo</span>
                 </div>
                 <div class="pricing-billed-note">
-                  {{ billing === 'annual' ? 'Billed $690/yr · save 2 months' : 'Billed monthly' }}
+                  {{ billing === 'annual' ? 'Billed $' + ((props.pricing?.business_partner?.annual_total_cents ?? 69000) / 100) + '/yr · save 2 months' : 'Billed monthly' }}
                 </div>
                 <a :href="route('register')" class="btn btn-primary" style="width: 100%; margin-top: 16px;">
                   Get started
@@ -275,9 +275,13 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Head } from '@inertiajs/vue3'
 import PublicLayout from '@/layouts/PublicLayout.vue'
+
+const props = defineProps({
+  pricing: { type: Object, default: () => ({}) },
+})
 
 const billing   = ref('monthly')
 const activeFaq = ref(null)
@@ -309,69 +313,72 @@ const howSteps = [
   },
 ]
 
-const plans = [
-  {
-    key:          'access',
-    name:         'Continuity Access',
-    tagline:      'Everything you need to protect your practice and your clients.',
-    monthly:      39,
-    annual:       35.75,
-    billedAnnual: 429,
-    featured:     false,
-    features: [
-      '1 Continuity Steward invitation',
-      '2 Support Steward invitations',
-      'Serve as CS for 1 practitioner',
-      'Continuity Plan (all 7 incident types)',
-      'Document Vault (4 zones)',
-      'Shadow Network (limited)',
-      'Secure messaging · Activity log',
-    ],
-  },
-  {
-    key:          'practice',
-    name:         'Continuity Practice',
-    tagline:      'Full continuity + integrative business services for growing practices.',
-    monthly:      79,
-    annual:       65.83,
-    billedAnnual: 790,
-    featured:     true,
-    features: [
-      'Up to 2 Continuity Steward invitations',
-      'Up to 2 Support Steward invitations',
-      'Serve as CS for up to 3 practitioners',
-      'Everything in Access, plus:',
-      'Referrals — send & receive',
-      'Full Integrative Network',
-      'Integrative Services Mode',
-      'Business Partner directory & Job Postings',
-      'Priority support & onboarding call',
-    ],
-  },
-  {
-    key:          'practice_business',
-    name:         'Continuity Practice Business',
-    tagline:      'Practice + Business Partner access in one account.',
-    monthly:      104,
-    annual:       86.67,
-    billedAnnual: 1040,
-    featured:     false,
-    features: [
-      'Everything in Practice, plus:',
-      'Business Partner profile & service listing',
-      'Serve as CS for up to 43 practitioners',
-      'Respond to practitioner service requests',
-      'Service agreements, contracts & payment tools',
-    ],
-  },
-]
+const plans = computed(() => {
+  const p = props.pricing?.practitioner ?? {}
+  return [
+    {
+      key:          'access',
+      name:         p.access?.name ?? 'Continuity Access',
+      tagline:      p.access?.tagline ?? 'Everything you need to protect your practice and your clients.',
+      monthly:      (p.access?.monthly_cents      ?? 3900) / 100,
+      annual:       (p.access?.annual_cents        ?? 3575) / 100,
+      billedAnnual: (p.access?.annual_total_cents  ?? 42900) / 100,
+      featured:     false,
+      features:     p.access?.features ?? [
+        '1 Continuity Steward invitation',
+        '2 Support Steward invitations',
+        'Serve as CS for 1 practitioner',
+        'Continuity Plan (all 7 incident types)',
+        'Document Vault (4 zones)',
+        'Shadow Network (limited)',
+        'Secure messaging · Activity log',
+      ],
+    },
+    {
+      key:          'practice',
+      name:         p.practice?.name ?? 'Continuity Practice',
+      tagline:      p.practice?.tagline ?? 'Full continuity + integrative business services for growing practices.',
+      monthly:      (p.practice?.monthly_cents      ?? 7900) / 100,
+      annual:       (p.practice?.annual_cents        ?? 6583) / 100,
+      billedAnnual: (p.practice?.annual_total_cents  ?? 79000) / 100,
+      featured:     true,
+      features:     p.practice?.features ?? [
+        'Up to 2 Continuity Steward invitations',
+        'Up to 2 Support Steward invitations',
+        'Serve as CS for up to 3 practitioners',
+        'Everything in Access, plus:',
+        'Referrals — send & receive',
+        'Full Integrative Network',
+        'Integrative Services Mode',
+        'Business Partner directory & Job Postings',
+        'Priority support & onboarding call',
+      ],
+    },
+    {
+      key:          'practice_business',
+      name:         p.practice_business?.name ?? 'Continuity Practice Business',
+      tagline:      p.practice_business?.tagline ?? 'Practice + Business Partner access in one account.',
+      monthly:      (p.practice_business?.monthly_cents      ?? 10400) / 100,
+      annual:       (p.practice_business?.annual_cents        ?? 8667) / 100,
+      billedAnnual: (p.practice_business?.annual_total_cents  ?? 104000) / 100,
+      featured:     false,
+      features:     p.practice_business?.features ?? [
+        'Everything in Practice, plus:',
+        'Business Partner profile & service listing',
+        'Serve as CS for up to 43 practitioners',
+        'Respond to practitioner service requests',
+        'Service agreements, contracts & payment tools',
+      ],
+    },
+  ]
+})
 
-const stewardPlans = [
+const stewardPlans = computed(() => [
   {
     key:     'business-cs',
     name:    'Business Continuity Steward',
-    price:   '$49',
-    billing: 'per month · or $490/yr (save ~16%)',
+    price:   '$' + ((props.pricing?.continuity_steward_business?.monthly_cents ?? 4900) / 100),
+    billing: 'per month · or $' + ((props.pricing?.continuity_steward_business?.annual_total_cents ?? 49000) / 100) + '/yr (save ~16%)',
     desc:    'Independent licensed CS serving 2–40 practitioners. Your own portal, your own roster. Subscription covers your practitioner relationships.',
     cta:     'Register as CS',
   },
@@ -391,7 +398,7 @@ const stewardPlans = [
     desc:    'Family member or staff monitoring the practitioner. Monitors check-in status, triggers incident alerts, and coordinates with the CS. Always free.',
     cta:     null,
   },
-]
+])
 
 const bpFeatures = [
   'Browse and apply to practitioner job postings',
