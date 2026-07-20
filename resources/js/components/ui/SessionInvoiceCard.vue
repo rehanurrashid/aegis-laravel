@@ -382,7 +382,7 @@ a.sic-modal-party-name:hover { text-decoration: underline; }
 
 .sic-modal-meta { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 14px; }
 .sic-modal-meta-item { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--text-3); }
-.sic-connect-pill { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 100px; border: 1px solid var(--border); background: var(--surface-2); }
+.sic-connect-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; padding: 0px 7px; border-radius: var(--radius-full); border: 1px solid var(--border); background: var(--surface-2); line-height: 1.6; letter-spacing: 0.4px; text-transform: uppercase; white-space: nowrap; }
 .sic-connect-pill.is-connected { color: var(--green-dark, #2e7d32); border-color: var(--green); background: rgba(34,197,94,.07); }
 .sic-connect-pill.is-not-connected { color: var(--gold-dark); border-color: var(--gold); }
 .sic-connect-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }

@@ -1546,7 +1546,7 @@ function paymentTypeLabel(t) {
 .cspay-note--warning p   { color: var(--orange-dark); }
 
 /* ── Stripe Connect pill ── */
-.connect-pill         { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; padding: 3px 9px; border-radius: var(--radius-full); white-space: nowrap; border: 1px solid var(--border); }
+.connect-pill         { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; padding: 0px 7px; border-radius: var(--radius-full); white-space: nowrap; border: 1px solid var(--border); line-height: 1.6; }
 .connect-pill.is-connected     { background: var(--green-light);  color: var(--green-dark);  border-color: var(--green-dark); }
 .connect-pill.is-not-connected { background: var(--red-light);    color: var(--red-dark);    border-color: var(--red-dark); }
 .connect-pill .status-dot      { width: 6px; height: 6px; border-radius: var(--radius-full); flex-shrink: 0; }
