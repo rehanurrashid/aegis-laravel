@@ -57,11 +57,7 @@
             </div>
           </div>
           <div class="sub-cart-item-price">
-            {{ subscription?.tier === 'practice'
-                ? (billingInterval === 'annual' ? '$65.83' : '$79')
-                : subscription?.tier === 'access'
-                  ? (billingInterval === 'annual' ? '$35.75' : '$39')
-                  : '—' }}<span class="sub-cart-item-per">/mo</span>
+            {{ pricingStore.formatCents(basePriceCents) }}<span class="sub-cart-item-per">/mo</span>
           </div>
           <AegisBadge
             :label="subscription?.status || 'inactive'"
@@ -76,7 +72,7 @@
             <div class="sub-cart-item-name">MAAT Professional CS Add-on</div>
             <div class="sub-cart-item-desc">Certified Continuity Steward · 4-hr emergency response</div>
           </div>
-          <div class="sub-cart-item-price">+${{ billingInterval === 'annual' ? '23' : '29' }}<span class="sub-cart-item-per">/mo</span></div>
+          <div class="sub-cart-item-price">+{{ pricingStore.formatCents(maatCents) }}<span class="sub-cart-item-per">/mo</span></div>
           <AegisBadge label="Active" variant="gold" />
         </div>
 
@@ -87,7 +83,7 @@
             <div class="sub-cart-item-name">Practice CS Add-On</div>
             <div class="sub-cart-item-desc">Serve as CS for up to 43 practitioners</div>
           </div>
-          <div class="sub-cart-item-price">+${{ billingInterval === 'annual' ? '20.83' : '25' }}<span class="sub-cart-item-per">/mo</span></div>
+          <div class="sub-cart-item-price">+{{ pricingStore.formatCents(csAddonCents) }}<span class="sub-cart-item-per">/mo</span></div>
           <AegisBadge label="Active" variant="gold" />
         </div>
 
@@ -100,27 +96,7 @@
           {{ billingInterval === 'annual' ? 'Billed annually to your default card' : 'Billed monthly to your default card' }}
         </div>
         <div class="sub-cart-total-amount">
-          <template v-if="subscription?.next_invoice?.amount_cents">
-            ${{ (subscription.next_invoice.amount_cents / 100).toFixed(2) }}
-          </template>
-          <template v-else>
-            {{
-              subscription?.tier === 'practice'
-                ? billingInterval === 'annual'
-                  ? (subscription?.has_maat_addon && subscription?.has_cs_addon ? '$109.66'
-                     : subscription?.has_maat_addon ? '$88.83'
-                     : subscription?.has_cs_addon   ? '$86.66'
-                     : '$65.83')
-                  : (subscription?.has_maat_addon && subscription?.has_cs_addon ? '$133'
-                     : subscription?.has_maat_addon ? '$108'
-                     : subscription?.has_cs_addon   ? '$104'
-                     : '$79')
-                : subscription?.tier === 'access'
-                  ? (billingInterval === 'annual' ? '$35.75' : '$39')
-                  : '—'
-            }}
-          </template>
-          <span class="sub-cart-item-per">/mo</span>
+          {{ pricingStore.formatCents(totalCents) }}<span class="sub-cart-item-per">/mo</span>
         </div>
       </div>
 
@@ -143,14 +119,42 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import SettingsSubscriptionInvoices from '@/components/settings/SettingsSubscriptionInvoices.vue'
+import { usePricingStore } from '@/stores/pricing'
 
-defineProps({
+const props = defineProps({
   subscription:    { type: Object,  default: () => ({}) },
   invoices:        { type: Array,   default: () => [] },
   showManageLink:  { type: Boolean, default: true },
   showInvoices:    { type: Boolean, default: true },
   billingInterval: { type: String,  default: 'monthly' },
+})
+
+const pricingStore = usePricingStore()
+
+const isAnnual = computed(() => props.billingInterval === 'annual')
+
+const basePriceCents = computed(() => {
+  const tier = props.subscription?.tier
+  if (tier === 'practice_business' || tier === 'practice_cs_addon') {
+    return isAnnual.value ? 7400 : 7400  // $49 + $25 addon combined
+  }
+  const t = pricingStore.getTier(tier)
+  return t?.monthly ?? 0
+})
+
+const maatCents   = computed(() => isAnnual.value ? 2300 : 2900)
+const csAddonCents = computed(() => isAnnual.value ? 2083 : 2500)
+
+const totalCents = computed(() => {
+  if (props.subscription?.next_invoice?.amount_cents) {
+    return props.subscription.next_invoice.amount_cents
+  }
+  let total = basePriceCents.value
+  if (props.subscription?.has_maat_addon) total += maatCents.value
+  if (props.subscription?.has_cs_addon)   total += csAddonCents.value
+  return total
 })
 
 function formatSubscriptionDate(val) {

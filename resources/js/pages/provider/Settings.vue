@@ -545,8 +545,8 @@
                     <AegisIcon name="check" :size="11" /> Current Plan
                   </span>
                   <div class="st-plan-tier-name">Continuity Access</div>
-                  <div class="st-plan-tier-price">${{ billingAnnualView ? '35.75' : 39 }}<span>/mo</span></div>
-                  <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $429/yr · 1 month free' : 'or $429/yr (1 month free)' }}</div>
+                  <div class="st-plan-tier-price">{{ pricingStore.formatCents(billingAnnualView ? (pricingStore.getTier('access')?.annual ?? 2300) : (pricingStore.getTier('access')?.monthly ?? 2900)) }}<span>/mo</span></div>
+                  <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $276/yr · save 20%' : 'or $276/yr (save 20%)' }}</div>
                   <div class="st-plan-feats">
                     <span v-for="f in accessFeatures" :key="f"><AegisIcon name="check" :size="13" /> {{ f }}</span>
                   </div>
@@ -565,8 +565,8 @@
                     <AegisIcon name="check" :size="11" /> Current Plan
                   </span>
                   <div class="st-plan-tier-name">Continuity Practice</div>
-                  <div class="st-plan-tier-price">${{ billingAnnualView ? '65.83' : 79 }}<span>/mo</span></div>
-                  <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $790/yr · 2 months free' : 'or $790/yr (2 months free)' }}</div>
+                  <div class="st-plan-tier-price">{{ pricingStore.formatCents(billingAnnualView ? (pricingStore.getTier('practice')?.annual ?? 3900) : (pricingStore.getTier('practice')?.monthly ?? 4900)) }}<span>/mo</span></div>
+                  <div class="st-plan-tier-alt">{{ billingAnnualView ? 'billed $468/yr · save 20%' : 'or $468/yr (save 20%)' }}</div>
                   <div class="st-plan-feats">
                     <span v-for="f in practiceFeatures" :key="f"><AegisIcon name="check" :size="13" /> {{ f }}</span>
                   </div>
@@ -589,7 +589,7 @@
                   <div class="st-addon-head">
                     <div class="st-addon-name">MAAT Professional CS <span class="st-addon-tag">MAAT Add-On</span></div>
                     <div class="st-addon-price">
-                      +<strong>${{ maatBillingAnnual ? 23 : 29 }}</strong>/mo
+                      +<strong>{{ pricingStore.formatCents(maatBillingAnnual ? 2300 : 2900) }}</strong>/mo
                       <div class="st-addon-billed">{{ maatBillingAnnual ? 'billed $276/yr' : 'or $276/yr (save 20%)' }}</div>
                     </div>
                   </div>
@@ -609,6 +609,7 @@
                     <div v-if="!hasMaat" style="font-size:12px;color:var(--text-3);display:flex;align-items:center;gap:6px;margin-bottom:2px;">
                       <AegisIcon name="info" :size="12" style="flex-shrink:0;color:var(--gold-dark);" />
                       Billed {{ maatBillingAnnual ? 'annually ($276/yr)' : 'monthly (+$29/mo)' }} — matches your base plan.
+
                     </div>
                     <div style="display:flex;align-items:center;gap:12px;">
                       <button v-if="hasMaat" type="button" class="btn btn-outline" @click="toggleMaat(false)" :disabled="maatBusy"><AegisIcon v-if="maatBusy" name="refresh-cw" :size="13" class="btn-spin" />{{ maatBusy ? 'Removing…' : 'Remove MAAT' }}</button>
@@ -637,7 +638,7 @@
                   <div class="st-addon-head">
                     <div class="st-addon-name">Practice CS Add-On <span class="st-addon-tag">CS Add-On</span></div>
                     <div class="st-addon-price">
-                      +<strong>${{ csAddonBillingAnnual ? '20.83' : 25 }}</strong>/mo
+                      +<strong>{{ pricingStore.formatCents(csAddonBillingAnnual ? 2083 : 2500) }}</strong>/mo
                       <div class="st-addon-billed">{{ csAddonBillingAnnual ? 'billed $250/yr · 2 months free' : 'or $250/yr (2 months free)' }}</div>
                     </div>
                   </div>
@@ -685,7 +686,7 @@
                             <AegisIcon name="users" :size="20" style="color:var(--gold-dark);flex-shrink:0" />
                             <div>
                               <div style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--text)">Practice CS Add-On</div>
-                              <div style="font-size:12px;color:var(--text-3)">+${{ csAddonBillingAnnual ? '20.83' : 25 }}/mo added to your subscription</div>
+                              <div style="font-size:12px;color:var(--text-3)">+{{ pricingStore.formatCents(csAddonBillingAnnual ? 2083 : 2500) }}/mo added to your subscription</div>
                             </div>
                           </div>
                           <ul style="margin:0 0 0 14px;font-size:13px;color:var(--text-2);line-height:1.8">
@@ -841,7 +842,7 @@
                   <AegisIcon name="shield" :size="20" style="color:var(--gold-dark);flex-shrink:0" />
                   <div>
                     <div style="font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--text)">MAAT Professional CS Service</div>
-                    <div style="font-size:12px;color:var(--text-3)">+${{ maatBillingAnnual ? 23 : 29 }}/mo added to your subscription</div>
+                    <div style="font-size:12px;color:var(--text-3)">+{{ pricingStore.formatCents(maatBillingAnnual ? 2300 : 2900) }}/mo added to your subscription</div>
                   </div>
                 </div>
                 <ul style="margin:0 0 0 14px;font-size:13px;color:var(--text-2);line-height:1.8">
@@ -970,6 +971,7 @@ import { useVuelidate } from '@vuelidate/core';
 import { required, email, minLength, sameAs, helpers } from '@vuelidate/validators';
 import { useToast }   from '@/composables/useToast';
 import { useConfirm } from '@/composables/useConfirm';
+import { usePricingStore } from '@/stores/pricing';
 import AddCardModal   from '@/components/modals/AddCardModal.vue';
 import AppLayout           from '@/layouts/AppLayout.vue';
 import SettingsAccount      from '@/components/settings/SettingsAccount.vue';
@@ -1053,6 +1055,7 @@ const section = ref('profile');
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
 const _inertiaPage    = usePage();
+const pricingStore    = usePricingStore();
 const isAccountPaused = computed(() => _inertiaPage.props.auth?.user?.is_paused ?? false);
 const currentPortal   = computed(() => _inertiaPage.props.auth?.portal ?? 'provider');
 const displayName = computed(() => props.user?.display_name || 'Dr. Sarah Johnson');
@@ -1550,7 +1553,10 @@ function swapPlan(tier) {
   if (!priceId) { toast.error('Price ID not configured.'); return; }
 
   const tierLabels = { access: 'Continuity Access', practice: 'Continuity Practice' };
-  const tierPrices = { access: billingAnnualView.value ? 35.75 : 39, practice: billingAnnualView.value ? 65.83 : 79 };
+  const tierPrices = {
+    access:   (billingAnnualView.value ? (pricingStore.getTier('access')?.annual   ?? 2300) : (pricingStore.getTier('access')?.monthly   ?? 2900)) / 100,
+    practice: (billingAnnualView.value ? (pricingStore.getTier('practice')?.annual ?? 3900) : (pricingStore.getTier('practice')?.monthly  ?? 4900)) / 100,
+  };
   const billingLabel = billingAnnualView.value ? 'billed annually' : 'billed monthly';
 
   // Detect direction
