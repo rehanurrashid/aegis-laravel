@@ -143,16 +143,6 @@
             </label>
           </div>
 
-          <!-- Combo price callout when both selected -->
-          <div v-if="(selectedTier === 'practice' || selectedTier === 'practice_business') && addMaat" class="ob-combo-callout">
-            <AegisIcon name="dollar-sign" :size="13" />
-            <span>
-              Practice + MAAT:
-              <strong>${{ billing === 'annual' ? p.combo_annual_monthly : p.combo_monthly }}/mo</strong>
-              <span v-if="billing === 'annual'"> (billed ${{ p.combo_annual_total }}/yr)</span>
-            </span>
-          </div>
-
           <!-- Practice CS Add-On -->
           <div class="ob-maat-addon" :class="{ 'ob-maat-addon--locked': selectedTier !== 'practice' }">
             <div class="ob-maat-header">
@@ -180,6 +170,26 @@
                 <small v-else>You can remove this add-on at any time from settings</small>
               </span>
             </label>
+          </div>
+
+          <!-- Combo price callout — shown after CS addon, reflects all checked addons -->
+          <div v-if="(selectedTier === 'practice') && (addMaat || addCsAddon)" class="ob-combo-callout">
+            <AegisIcon name="dollar-sign" :size="13" />
+            <span v-if="addMaat && addCsAddon">
+              Practice + MAAT + CS Add-On:
+              <strong>${{ billing === 'annual' ? p.combo_all_annual_monthly : p.combo_all_monthly }}/mo</strong>
+              <span v-if="billing === 'annual'"> (billed ${{ p.combo_all_annual_total }}/yr)</span>
+            </span>
+            <span v-else-if="addMaat">
+              Practice + MAAT:
+              <strong>${{ billing === 'annual' ? p.combo_annual_monthly : p.combo_monthly }}/mo</strong>
+              <span v-if="billing === 'annual'"> (billed ${{ p.combo_annual_total }}/yr)</span>
+            </span>
+            <span v-else-if="addCsAddon">
+              Practice + CS Add-On:
+              <strong>${{ billing === 'annual' ? p.combo_cs_annual_monthly : p.combo_cs_monthly }}/mo</strong>
+              <span v-if="billing === 'annual'"> (billed ${{ p.combo_cs_annual_total }}/yr)</span>
+            </span>
           </div>
 
         </template>
@@ -342,6 +352,12 @@ const p = computed(() => {
     combo_monthly:         toD((pricing?.practitioner?.practice?.monthly_cents ?? 0) + (pricing?.maat_addon?.monthly_cents ?? 0)),
     combo_annual_monthly:  toD((pricing?.practitioner?.practice?.annual_cents ?? 0) + (pricing?.maat_addon?.annual_cents ?? 0)),
     combo_annual_total:    toD((pricing?.practitioner?.practice?.annual_total_cents ?? 0) + (pricing?.maat_addon?.annual_total_cents ?? 0)),
+    combo_cs_monthly:      toD((pricing?.practitioner?.practice?.monthly_cents ?? 0) + (pricing?.practice_cs_addon?.monthly_cents ?? 0)),
+    combo_cs_annual_monthly: toDF((pricing?.practitioner?.practice?.annual_cents ?? 0) + (pricing?.practice_cs_addon?.annual_cents ?? 0)),
+    combo_cs_annual_total: toD((pricing?.practitioner?.practice?.annual_total_cents ?? 0) + (pricing?.practice_cs_addon?.annual_total_cents ?? 0)),
+    combo_all_monthly:     toD((pricing?.practitioner?.practice?.monthly_cents ?? 0) + (pricing?.maat_addon?.monthly_cents ?? 0) + (pricing?.practice_cs_addon?.monthly_cents ?? 0)),
+    combo_all_annual_monthly: toDF((pricing?.practitioner?.practice?.annual_cents ?? 0) + (pricing?.maat_addon?.annual_cents ?? 0) + (pricing?.practice_cs_addon?.annual_cents ?? 0)),
+    combo_all_annual_total: toD((pricing?.practitioner?.practice?.annual_total_cents ?? 0) + (pricing?.maat_addon?.annual_total_cents ?? 0) + (pricing?.practice_cs_addon?.annual_total_cents ?? 0)),
     bp: {
       monthly:           toD(pricing?.business_partner?.monthly_cents),
       annual_monthly:    toD(pricing?.business_partner?.annual_cents),
