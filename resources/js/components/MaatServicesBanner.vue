@@ -1,5 +1,5 @@
 <template>
-  <div class="alert alert-info" style="border-left:4px solid var(--gold-dark);">
+  <div class="alert alert-info" style="border-left:4px solid var(--blue, #3b82f6);">
     <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
     <div class="alert-content">
       <div class="alert-title" style="font-weight:700;margin-bottom:4px;">MA'AT Professional Continuity Services</div>
