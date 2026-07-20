@@ -321,16 +321,20 @@ class FinancesController extends Controller
                     $stewardInvoices = ($csInvoicesBySteward[$ps->steward_id] ?? collect())
                         ->map(function ($inv) {
                             $status = $inv->status instanceof InvoiceStatus ? $inv->status->value : (string) $inv->status;
+                            $isOverdue = $status === InvoiceStatus::Sent->value
+                                && $inv->due_date
+                                && $inv->due_date->isPast();
+                            $effectiveStatus = $isOverdue ? InvoiceStatus::Overdue->value : $status;
                             return [
                                 'id'             => $inv->id,
                                 'invoice_number' => $inv->invoice_number ?? substr($inv->id, 0, 10),
-                                'status'         => $status,
+                                'status'         => $effectiveStatus,
                                 'total_cents'    => (int) $inv->total_cents,
                                 'issued_at'      => $inv->issued_at?->toDateString(),
                                 'paid_at'        => $inv->paid_at?->toDateString(),
                                 'due_date'       => $inv->due_date?->toDateString(),
-                                'payable'        => in_array($status, [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value], true),
-                                'disputed'       => $status === InvoiceStatus::Disputed->value,
+                                'payable'        => in_array($effectiveStatus, [InvoiceStatus::Sent->value, InvoiceStatus::Overdue->value], true),
+                                'disputed'       => $effectiveStatus === InvoiceStatus::Disputed->value,
                             ];
                         })->values()->toArray();
 

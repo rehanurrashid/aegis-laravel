@@ -126,7 +126,7 @@ class FinancesSeeder extends Seeder
             [
                 'id' => 'csinv_marcus_sarah_annual',
                 'cs_id' => 'cs_marcus', 'practitioner_id' => 'p_sarah',
-                'invoice_number' => 'MWCS-2024-001', 'status' => 'paid',
+                'invoice_number' => 'MWCS-2026-001', 'status' => 'paid',
                 'total_cents' => 90000, 'currency' => 'USD',
                 'issued_at' => $now->copy()->subMonths(6),
                 'due_at'    => $now->copy()->subMonths(5)->subDays(15),
@@ -160,7 +160,7 @@ class FinancesSeeder extends Seeder
                 'id' => 'pp_sarah_csfee_1', 'practitioner_id' => 'p_sarah',
                 'kind' => 'cs_fee', 'amount_cents' => 90000, 'currency' => 'USD',
                 'status' => 'paid',
-                'payment_method_label' => 'CS Invoice MWCS-2024-001 · Marcus Webb',
+                'payment_method_label' => 'CS Invoice MWCS-2026-001 · Marcus Webb',
                 'stripe_charge_id' => 'ch_demo_cs_marcus_1',
                 'paid_at' => $now->copy()->subMonths(5)->subDays(20),
                 'created_at' => $now->copy()->subMonths(5)->subDays(20),

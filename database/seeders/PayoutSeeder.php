@@ -51,7 +51,7 @@ class PayoutSeeder extends Seeder
             'amount_cents'   => 85500,
             'currency'       => 'USD',
             'status'         => 'paid',
-            'description'    => 'Payout for invoice MWCS-2024-001 (net of 5% platform fee)',
+            'description'    => 'Payout for invoice MWCS-2026-001 (net of 5% platform fee)',
             'stripe_payout_id' => 'tr_demo_marcus_001',
             'paid_at'        => $now->copy()->subMonths(5)->subDays(18)->toDateTimeString(),
             'created_at'     => $now->copy()->subMonths(5)->subDays(18)->toDateTimeString(),
