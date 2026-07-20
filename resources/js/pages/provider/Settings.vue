@@ -625,14 +625,22 @@
                     <div style="display:flex;align-items:center;gap:12px;">
                       <button v-if="hasMaat" type="button" class="btn btn-outline" @click="toggleMaat(false)" :disabled="maatBusy"><AegisIcon v-if="maatBusy" name="refresh-cw" :size="13" class="btn-spin" />{{ maatBusy ? 'Removing…' : 'Remove MAAT' }}</button>
                       <button
-                        v-else
+                        v-else-if="currentTier === 'practice'"
                         type="button"
                         class="btn btn-gold"
                         @click="toggleMaat(true)"
-                        :disabled="maatBusy || currentTier !== 'practice'"
-                        :data-tooltip="currentTier !== 'practice' ? 'Upgrade to Continuity Practice to add MAAT' : null"
+                        :disabled="maatBusy"
                       >
                         <AegisIcon name="shield" :size="13" /> Add MAAT Service
+                      </button>
+                      <button
+                        v-else
+                        type="button"
+                        class="btn btn-outline"
+                        style="font-size:12px;"
+                        @click="openTierModal('MAAT Professional CS Service')"
+                      >
+                        <AegisIcon name="trending-up" :size="13" /> Upgrade to Practice — unlock MAAT
                       </button>
                       <span v-if="currentTier === 'practice'" class="st-addon-req">Available with your plan</span>
                     </div>
@@ -677,14 +685,22 @@
                         <AegisIcon v-if="csAddonBusy" name="refresh-cw" :size="13" class="btn-spin" />{{ csAddonBusy ? 'Removing…' : 'Remove CS Add-On' }}
                       </button>
                       <button
-                        v-else
+                        v-else-if="currentTier === 'practice'"
                         type="button"
                         class="btn btn-gold"
                         @click="toggleCsAddon(true)"
-                        :disabled="csAddonBusy || currentTier !== 'practice'"
-                        :data-tooltip="currentTier !== 'practice' ? 'Upgrade to Continuity Practice to add CS Add-On' : null"
+                        :disabled="csAddonBusy"
                       >
                         <AegisIcon name="users" :size="13" /> Add CS Add-On
+                      </button>
+                      <button
+                        v-else
+                        type="button"
+                        class="btn btn-outline"
+                        style="font-size:12px;"
+                        @click="openTierModal('Practice CS Add-On')"
+                      >
+                        <AegisIcon name="trending-up" :size="13" /> Upgrade to Practice — unlock CS Add-On
                       </button>
                       <span v-if="currentTier === 'practice'" class="st-addon-req">Available with your plan</span>
                     </div>
@@ -751,9 +767,23 @@
                       To serve more, upgrade to Practice + CS Add-On ($25/mo) or Business CS ($49/mo).
                     </div>
                   </div>
+                  <div class="toggle-row" style="margin-bottom:12px;">
+                    <div class="toggle-info">
+                      <div class="toggle-label">Available as Continuity Steward</div>
+                      <div class="toggle-desc">Show in the CS directory so practitioners can invite you</div>
+                    </div>
+                    <button
+                      type="button"
+                      class="toggle"
+                      :class="{ on: availableAsCsLocal }"
+                      :disabled="csAvailSaving"
+                      @click="saveAvailableAsCs(!availableAsCsLocal)"
+                      :aria-pressed="availableAsCsLocal"
+                    ></button>
+                  </div>
                   <div class="st-addon-foot">
-                    <button type="button" class="btn btn-outline" style="font-size:12px;" @click="swapPlan('practice')">
-                      <AegisIcon name="arrow-up-circle" :size="13" /> Upgrade to Practice — unlock CS Add-On
+                    <button type="button" class="btn btn-outline" style="font-size:12px;" @click="openTierModal('Practice CS Add-On')">
+                      <AegisIcon name="trending-up" :size="13" /> Upgrade to Practice — unlock CS Add-On
                     </button>
                   </div>
                 </div>
@@ -1018,6 +1048,7 @@ const props = defineProps({
   activeAgreements: { type: Array,   default: () => [] },
   paymentMethods:   { type: Array,   default: () => [] },
   hasCsAddon:       { type: Boolean, default: false },
+  availableAsCs:    { type: Boolean, default: false },
 });
 
 const toast = useToast();
@@ -1532,6 +1563,19 @@ const removingAddonsBusy = ref(false);
 // This keeps it in sync with the webhook-confirmed state on page load
 const hasCsAddon     = computed(() => !!sub.value.has_cs_addon);
 const hasCsAddonLocal = ref(props.hasCsAddon ?? false);
+
+const availableAsCsLocal = ref(props.availableAsCs ?? false);
+const csAvailSaving = ref(false);
+function saveAvailableAsCs(val) {
+  availableAsCsLocal.value = val;
+  csAvailSaving.value = true;
+  router.post(route('provider.settings.cs-availability'), { available_as_cs: val }, {
+    preserveScroll: true,
+    onSuccess: () => toast.success(val ? 'You are now available as a Continuity Steward.' : 'CS availability turned off.'),
+    onError:   () => { availableAsCsLocal.value = !val; toast.error('Could not update CS availability.'); },
+    onFinish:  () => { csAvailSaving.value = false; },
+  });
+}
 // Sync local ref when subscription data updates (e.g. after page reload)
 watch(hasCsAddon, (v) => { hasCsAddonLocal.value = v; }, { immediate: true });
 const csAddonBillingAnnual = computed(() => currentBillingIsAnnual.value);
