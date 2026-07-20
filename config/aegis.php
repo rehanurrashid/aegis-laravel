@@ -76,6 +76,32 @@ return [
                 'locked'             => [],
                 'hidden'             => [],
             ],
+
+            /*
+            |------------------------------------------------------------------
+            | Practice Business (Practice base + CS Add-On bundled)
+            | $104/mo · $86.67/mo annual ($1,040/yr)
+            |------------------------------------------------------------------
+            */
+            'practice_business' => [
+                'name'               => 'Continuity Practice Business',
+                'tagline'            => 'Full practitioner + Business Partner access in one account.',
+                'monthly_cents'      => 10400,   // $104/mo ($79 + $25)
+                'annual_cents'       => 8667,    // $1,040/yr ÷ 12 = $86.67
+                'annual_total_cents' => 104000,  // $1,040/yr
+                'save_label'         => '',
+                'is_popular'         => false,
+                'includes_bp'        => true,
+                'features'           => [
+                    'Everything in Continuity Practice, plus:',
+                    'Business Partner profile & searchable service listing',
+                    'Serve as CS for up to 43 practitioners',
+                    'Respond to practitioner service requests',
+                    'Service agreements, contracts & payment tools',
+                    'Founding Practitioner + Founding BP benefits',
+                ],
+                'locked' => [],
+            ],
         ],
 
         /*
@@ -102,32 +128,6 @@ return [
                 'Multi-practitioner dashboard',
                 'Aegis Verified CS badge eligible',
             ],
-        ],
-
-        /*
-        |----------------------------------------------------------------------
-        | Practice Business (Practice base + CS Add-On bundled)
-        | $104/mo · $86.67/mo annual ($1,040/yr)
-        |----------------------------------------------------------------------
-        */
-        'practice_business' => [
-            'name'               => 'Continuity Practice Business',
-            'tagline'            => 'Full practitioner + Business Partner access in one account.',
-            'monthly_cents'      => 10400,   // $104/mo ($79 + $25)
-            'annual_cents'       => 8667,    // $1,040/yr ÷ 12 = $86.67
-            'annual_total_cents' => 104000,  // $1,040/yr
-            'save_label'         => '',
-            'is_popular'         => false,
-            'includes_bp'        => true,
-            'features'           => [
-                'Everything in Continuity Practice, plus:',
-                'Business Partner profile & searchable service listing',
-                'Serve as CS for up to 43 practitioners',
-                'Respond to practitioner service requests',
-                'Service agreements, contracts & payment tools',
-                'Founding Practitioner + Founding BP benefits',
-            ],
-            'locked' => [],
         ],
 
         /*

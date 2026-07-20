@@ -94,7 +94,7 @@ class OnboardingController extends Controller
             'tier'    => ['required', 'string'],
             'billing' => ['required', 'string', 'in:monthly,annual'],
             'addons'  => ['nullable', 'array'],
-            'addons.*'=> ['string', 'in:maat'],
+            'addons.*'=> ['string', 'in:maat,cs_addon'],
         ]);
 
         $request->session()->put('onboarding_plan', [
@@ -267,15 +267,21 @@ class OnboardingController extends Controller
 
             foreach ($data['addons'] ?? [] as $addon) {
                 match ($addon) {
-                    'maat' => $this->subscriptionService->toggleMaatAddon($user, true, $billing),
-                    default => null,
+                    'maat'     => $this->subscriptionService->toggleMaatAddon($user, true, $billing),
+                    'cs_addon' => $this->subscriptionService->toggleCsAddon($user, true, $billing),
+                    default    => null,
                 };
             }
 
             // Update tier on user record from the price ID mapping
             $tier = config("aegis.stripe_price_to_tier.{$priceId}");
             if ($tier && in_array($tier, ['access', 'practice'], true)) {
-                $user->forceFill(['tier' => $tier])->save();
+                // If cs_addon was added, promote tier to practice_business
+                $hasCs = in_array('cs_addon', $data['addons'] ?? [], true);
+                $user->forceFill([
+                    'tier'     => ($tier === 'practice' && $hasCs) ? 'practice_business' : $tier,
+                    'cs_addon' => $hasCs ? 1 : 0,
+                ])->save();
             }
         }
 

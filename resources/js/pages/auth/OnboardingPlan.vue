@@ -112,28 +112,6 @@
                 {{ selectedTier === 'practice' ? '✓ Selected' : 'Select Practice' }}
               </button>
             </div>
-            <!-- Practice Business -->
-            <div class="ob-plan-card" :class="{ selected: selectedTier === 'practice_business' }"
-                 @click="selectedTier = 'practice_business'">
-              <div class="ob-plan-card-name">Continuity Practice Business</div>
-              <div class="ob-plan-card-price">
-                <span class="ob-price-amount">${{ billing === 'annual' ? p.practitioner.practice_business.annual_monthly : p.practitioner.practice_business.monthly }}</span>
-                <span class="ob-price-period">/mo</span>
-              </div>
-              <div v-if="billing === 'annual'" class="ob-plan-card-note">
-                Billed ${{ p.practitioner.practice_business.annual_total }}/year
-              </div>
-              <div class="ob-plan-card-desc">Practice + Business Partner in one account</div>
-              <ul class="ob-plan-features">
-                <li v-for="f in p.practitioner.practice_business.features" :key="f">
-                  <AegisIcon name="check" :size="11" />{{ f }}
-                </li>
-              </ul>
-              <button type="button" class="btn ob-plan-btn"
-                      :class="selectedTier === 'practice_business' ? 'btn-primary' : 'btn-outline'">
-                {{ selectedTier === 'practice_business' ? '✓ Selected' : 'Select Practice Business' }}
-              </button>
-            </div>
           </div>
 
           <!-- MAAT add-on (Practice only) -->
@@ -173,6 +151,35 @@
               <strong>${{ billing === 'annual' ? p.combo_annual_monthly : p.combo_monthly }}/mo</strong>
               <span v-if="billing === 'annual'"> (billed ${{ p.combo_annual_total }}/yr)</span>
             </span>
+          </div>
+
+          <!-- Practice CS Add-On -->
+          <div class="ob-maat-addon" :class="{ 'ob-maat-addon--locked': selectedTier !== 'practice' }">
+            <div class="ob-maat-header">
+              <div class="ob-maat-icon"><AegisIcon name="users" :size="18" /></div>
+              <div>
+                <div class="ob-maat-title">Practice CS Add-On</div>
+                <div class="ob-maat-price">
+                  +${{ billing === 'annual' ? p.cs_addon.annual_monthly : p.cs_addon.monthly }}/mo
+                  <span v-if="billing === 'annual'"> · Billed +${{ p.cs_addon.annual_total }}/yr</span>
+                  <span v-else> · Save 2 months with annual</span>
+                </div>
+              </div>
+            </div>
+            <p class="ob-maat-desc">Expand your CS capacity to serve up to 43 practitioners. Includes Business Partner profile, searchable service listing, and service agreements.</p>
+            <label class="ob-checkbox-row" :class="{ 'ob-checkbox-row--disabled': selectedTier !== 'practice' }">
+              <input
+                v-model="addCsAddon"
+                type="checkbox"
+                class="ob-checkbox"
+                :disabled="selectedTier !== 'practice'"
+              />
+              <span class="ob-checkbox-label">
+                Add Practice CS Add-On to my plan
+                <small v-if="selectedTier !== 'practice'">Available with Continuity Practice</small>
+                <small v-else>You can remove this add-on at any time from settings</small>
+              </span>
+            </label>
           </div>
 
         </template>
@@ -291,6 +298,7 @@ const isBusinessCS   = computed(() => props.role === 'continuity_steward' && pro
 const selectedTier = ref(isPractitioner.value ? 'practice' : (isBP.value ? 'monthly' : 'business_cs'))
 const billing      = ref('monthly')
 const addMaat      = ref(false)
+const addCsAddon   = ref(false)
 
 // ── Pricing helpers (cents → dollars) ─────────────────────────────────
 const p = computed(() => {
@@ -346,6 +354,11 @@ const p = computed(() => {
       annual_total:  toD(pricing?.continuity_steward_business?.annual_total_cents),
       tagline:       pricing?.continuity_steward_business?.tagline ?? '',
       features:      pricing?.continuity_steward_business?.features ?? [],
+    },
+    cs_addon: {
+      monthly:        toD(pricing?.practice_cs_addon?.monthly_cents),
+      annual_monthly: toDF(pricing?.practice_cs_addon?.annual_cents),
+      annual_total:   toD(pricing?.practice_cs_addon?.annual_total_cents),
     },
   }
 })
@@ -419,6 +432,7 @@ function submit() {
   const tier   = isBusinessCS.value ? 'cs_business' : selectedTier.value
   const addons = []
   if (addMaat.value && (selectedTier.value === 'practice' || selectedTier.value === 'practice_business')) addons.push('maat')
+  if (addCsAddon.value && selectedTier.value === 'practice') addons.push('cs_addon')
 
   form.tier    = tier
   form.billing = billing.value
