@@ -77,7 +77,7 @@
         Pending
         <span class="badge-pill">{{ pendingCount }}</span>
       </button>
-      <button v-if="suspended.length" class="tab-pill" :class="{ active: activeTab === 'suspended' }" @click="activeTab = 'suspended'">
+      <button class="tab-pill" :class="{ active: activeTab === 'suspended' }" @click="activeTab = 'suspended'">
         Suspended <span class="badge-pill">{{ suspended.length }}</span>
       </button>
       <button class="tab-pill" :class="{ active: activeTab === 'iamdsr' }" @click="activeTab = 'iamdsr'">
@@ -119,9 +119,9 @@
               <span>Authorized to verify critical incidents and trigger the Continuity Plan</span>
             </div>
             <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+              <button class="btn-icon" data-tooltip="Message steward" @click="msg(s)"><AegisIcon name="message" :size="14" /></button>
               <button class="btn-icon" data-tooltip="Edit" @click="openEdit(s)"><AegisIcon name="pencil" :size="14" /></button>
               <button class="btn-icon" data-tooltip="View Agreement" @click="openAgreement(s)"><AegisIcon name="file-text" :size="14" /></button>
-              <button class="btn-icon" data-tooltip="Manage Access" @click="openEdit(s)"><AegisIcon name="sliders" :size="14" /></button>
               <button class="btn-icon btn-icon-danger" data-tooltip="Remove Support Steward" @click="openRemove(s)"><AegisIcon name="trash" :size="14" /></button>
             </div>
           </div>

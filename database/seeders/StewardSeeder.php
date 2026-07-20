@@ -99,6 +99,27 @@ class StewardSeeder extends Seeder
             ],
 
 
+            // p_sarah plan — suspended SS (status=archived + declined_reason populated)
+            [
+                'id'               => 'ps_sarah_ss_suspended',
+                'plan_id'          => 'plan_sarah',
+                'steward_id'       => 'bp_jamal',
+                'role'             => 'support',
+                'steward_category' => 'support_steward',
+                'status'           => 'archived',
+                'vault_access'     => 'none',
+                'permissions'      => json_encode(['report_incident', 'log_checkin']),
+                'responsibilities' => json_encode(['Monitor practitioner wellbeing', 'Report critical incidents when observed']),
+                'signed_at'        => $now->copy()->subMonths(4),
+                'review_due_at'    => $now->copy()->addMonths(8),
+                'invited_at'       => $now->copy()->subMonths(5),
+                'declined_at'      => null,
+                'declined_reason'  => 'Temporary leave — on personal sabbatical until further notice.',
+                'ss_acknowledged_at' => $now->copy()->subMonths(4),
+                'created_at'       => $now->copy()->subMonths(5),
+                'updated_at'       => $now->copy()->subDays(7),
+            ],
+
             // p_sarah plan — declined SS external invite
             [
                 'id'               => 'ps_sarah_ss_declined',
