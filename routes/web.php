@@ -309,6 +309,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
             Route::put('/services/{service}', [ServicesController::class, 'update'])->name('services.update');
             Route::delete('/services/{service}', [ServicesController::class, 'destroy'])->name('services.destroy');
             Route::post('/services/{service}/requests/{serviceRequest}/accept', [ServicesController::class, 'acceptRequest'])->name('services.request.accept');
+            Route::post('/services/{service}/requests/{serviceRequest}/counter', [ServicesController::class, 'counterRequest'])->name('services.request.counter');
             Route::post('/services/{service}/requests/{serviceRequest}/decline', [ServicesController::class, 'declineRequest'])->name('services.request.decline');
             Route::delete('/services/requests/{serviceRequest}/withdraw', [ServicesController::class, 'withdrawRequest'])->name('services.request.withdraw');
             Route::post('/services/sessions/{session}/cancel', [ServicesController::class, 'cancelSession'])->name('services.session.cancel');

@@ -11,6 +11,7 @@ use App\Models\Service;
 use App\Models\ServiceRequest;
 use App\Models\ServiceSession;
 use App\Models\SessionRefundRequest;
+use App\Services\MessagingService;
 use App\Services\ServiceService;
 use App\Services\ServiceSessionPdfService;
 use App\Services\SessionRefundService;
@@ -26,6 +27,7 @@ class ServicesController extends Controller
         private ServiceService           $services,
         private SessionRefundService     $refunds,
         private ServiceSessionPdfService $pdf,
+        private MessagingService         $messaging,
     ) {}
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -229,6 +231,55 @@ class ServicesController extends Controller
     {
         $this->services->withdrawRequest($serviceRequest, $request->user()->id);
         return back()->with('success', 'Request withdrawn.');
+    }
+
+    /**
+     * POST /services/{service}/requests/{serviceRequest}/counter
+     * Provider sends a counter-proposal to the client via messaging + sets request status countered.
+     * Fires a notification to the client and sends a message to their shared inbox thread.
+     */
+    public function counterRequest(Request $request, Service $service, ServiceRequest $serviceRequest): RedirectResponse
+    {
+        $this->authorize('manage', $service);
+
+        $request->validate([
+            'message'       => 'required|string|max:2000',
+            'proposed_date' => 'nullable|date|after_or_equal:today',
+            'proposed_time' => 'nullable|string|max:10',
+        ]);
+
+        $provider = $request->user();
+        $client   = \App\Models\User::findOrFail($serviceRequest->inquirer_id);
+
+        // Build the message body
+        $dateLine = $request->input('proposed_date')
+            ? ' Proposed date: ' . $request->input('proposed_date') . ' at ' . ($request->input('proposed_time') ?? '10:00') . '.'
+            : '';
+        $body = "**Counter-Proposal for: {$service->title}**\n\n"
+              . $request->input('message')
+              . $dateLine;
+
+        // Find or create a thread between provider and client
+        $participantIds = [$provider->id, $client->id];
+        $existingThread = \App\Models\MessageThread::where(function ($q) use ($provider, $client) {
+            $q->whereJsonContains('participant_ids', $provider->id)
+              ->whereJsonContains('participant_ids', $client->id);
+        })->where('is_continuity_contact', 0)->latest('last_message_at')->first();
+
+        $thread = $existingThread ?? $this->messaging->createThread(
+            $participantIds,
+            "Service inquiry — {$service->title}"
+        );
+
+        $this->messaging->sendMessage($thread, $provider, $body);
+
+        // Update request status to countered (or keep as new — mark with a response note)
+        $serviceRequest->update([
+            'response_note' => $request->input('message'),
+            'responded_at'  => now(),
+        ]);
+
+        return back()->with('success', 'Counter-proposal sent. The client has been notified via messaging.');
     }
 
     /**

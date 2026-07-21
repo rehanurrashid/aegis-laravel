@@ -15,6 +15,15 @@
   >
     <template v-if="session">
 
+      <!-- Provider-countered terms alert ────────────────────────── -->
+      <div v-if="session.terms_source === 'provider_countered'" class="alert alert-warning" style="margin-bottom:16px">
+        <AegisIcon name="alert-triangle" :size="16" />
+        <div>
+          <strong>Payment terms were updated by the provider.</strong>
+          Please review the terms below carefully before paying.
+        </div>
+      </div>
+
       <!-- Connect status alert ───────────────────────────────────── -->
       <div
         v-if="session.practitioner_stripe_connected"
@@ -74,11 +83,16 @@
       <label class="upfront-agree">
         <input v-model="form.agree_terms" type="checkbox" class="upfront-check" />
         <span>
-          I understand this payment routes directly to the provider via Stripe Connect.
-          Aegis does not hold or escrow funds on my behalf.
+          <template v-if="session.terms_source === 'provider_countered'">
+            I have reviewed the provider's updated payment terms and agree to pay under these terms.
+          </template>
+          <template v-else>
+            I understand this payment routes directly to the provider via Stripe Connect.
+            Aegis does not hold or escrow funds on my behalf.
+          </template>
           {{ isFullUpfront
-            ? 'This is the full session payment.'
-            : 'The remaining balance will be collected after the session is confirmed complete.' }}
+            ? ' This is the full session payment.'
+            : ' The remaining balance will be collected after the session is confirmed complete.' }}
         </span>
       </label>
       <div v-if="form.errors.agree_terms" class="form-error" style="margin-top:4px">
@@ -123,6 +137,7 @@ const toast = useToast()
 const form = useForm({ agree_terms: false })
 
 const structure     = computed(() => props.session?.payment_structure ?? 'split')
+const termsSource   = computed(() => props.session?.terms_source ?? 'provider_default')
 const isFullUpfront = computed(() => structure.value === 'full_upfront')
 const pct           = computed(() => props.session?.upfront_percentage ?? 30)
 

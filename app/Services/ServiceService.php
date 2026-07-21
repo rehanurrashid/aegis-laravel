@@ -174,6 +174,11 @@ class ServiceService
             'preferred_timezone'   => $r->preferred_timezone ?? '',
             'preferred_date'       => $r->preferred_date ?? '',
             'preferred_time'       => $r->preferred_time ?? '',
+            // ── Rev 4: proposed payment terms ──────────────────────────────
+            'proposed_payment_structure'  => $r->proposed_payment_structure?->value ?? $service?->default_payment_structure?->value ?? 'split',
+            'proposed_upfront_percentage' => $r->proposed_upfront_percentage ?? $service?->default_upfront_percentage ?? 30,
+            'proposed_terms_note'         => $r->proposed_terms_note ?? $service?->default_terms_note,
+            'terms_source'                => $r->terms_source ?? 'provider_default',
         ];
     }
 
@@ -303,6 +308,14 @@ class ServiceService
             'expected_deposit_label'        => $this->formatMoney($expectedDeposit),
             'expected_balance_cents'        => $expectedBalance,
             'expected_balance_label'        => $this->formatMoney($expectedBalance),
+            // ── Rev 4: committed payment terms ──────────────────────────────
+            'payment_structure'             => $s->payment_structure?->value ?? 'split',
+            'upfront_percentage'            => $s->upfront_percentage ?? 30,
+            'upfront_cents'                 => $s->upfront_cents ?? $expectedDeposit,
+            'completion_cents'              => $s->completion_cents ?? $expectedBalance,
+            'terms_source'                  => $s->terms_source ?? 'provider_default',
+            'terms_note'                    => $s->terms_note,
+            'terms_summary'                 => $s->terms_summary,
             // Refund tracking
             'total_refunded_cents'          => $s->total_refunded_cents ?? 0,
             'total_refunded_label'          => $this->formatMoney($s->total_refunded_cents ?? 0),

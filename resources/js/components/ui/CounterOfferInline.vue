@@ -20,7 +20,7 @@
     <!-- Toggle row ──────────────────────────────────────────────── -->
     <div class="setting-row" style="padding:8px 0">
       <div class="setting-info">
-        <div class="setting-label">
+        <div class="setting-label" style="display:flex;align-items:center;gap:6px;">
           <AegisIcon name="tag" :size="14" />
           Offer a different price
         </div>

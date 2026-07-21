@@ -481,12 +481,12 @@
                 <div class="sic-date-sub" style="margin-top:4px">{{ r.request_type }} · {{ r.service_price }}</div>
               </td>
               <!-- Col 3: Chevron -->
-              <td class="sic-td req-td--actions" @click.stop>
+              <td class="sic-td req-td--actions">
                 <button
                   type="button"
                   class="btn-icon"
                   data-tooltip="View request & take action"
-                  @click="setActiveRequest(r); modals.requestDetail = true"
+                  @click.stop="setActiveRequest(r); modals.requestDetail = true"
                 >
                   <AegisIcon name="chevron-right" :size="15" />
                 </button>
@@ -590,12 +590,12 @@
                     <AegisBadge :label="statusLabel(r.status)" :variant="statusVariant(r.status)" />
                   </td>
                   <!-- Action -->
-                  <td class="sic-td orq-td--actions" @click.stop>
+                  <td class="sic-td orq-td--actions">
                     <button
                       type="button"
                       class="btn-icon"
                       data-tooltip="View details"
-                      @click="activeOutgoingRequest = r; modals.outgoingDetail = true"
+                      @click.stop="activeOutgoingRequest = r; modals.outgoingDetail = true"
                     >
                       <AegisIcon name="chevron-right" :size="15" />
                     </button>
@@ -1138,7 +1138,7 @@
       </template>
     </AegisModal>
 
-    <AegisModal v-model="modals.accept" title="Accept Service Request" size="sm">
+    <AegisModal v-model="modals.accept" title="Accept Service Request" size="lg">
       <div class="alert alert-success" style="margin-bottom:18px">
         <AegisIcon name="check" :size="16" />
         <span>Accepting will schedule the session. The client will be notified to pay their upfront portion to confirm the booking.</span>
@@ -1178,8 +1178,12 @@
         }"
       />
       <template #footer>
-        <button class="btn btn-outline" @click="modals.accept = false">Cancel</button>
-        <button class="btn btn-primary" @click="submitAccept"><AegisIcon name="check" :size="14" /> Accept Request</button>
+        <button class="btn btn-outline" :disabled="acceptBusy" @click="modals.accept = false">Cancel</button>
+        <button class="btn btn-primary" :disabled="acceptBusy" @click="submitAccept">
+          <span v-if="acceptBusy" class="spinner spinner-sm" />
+          <AegisIcon v-else name="check" :size="14" />
+          {{ acceptBusy ? 'Accepting…' : 'Accept Request' }}
+        </button>
       </template>
     </AegisModal>
 
@@ -1195,8 +1199,12 @@
         <div v-if="counterV$.message.$error" class="form-error">{{ counterFieldError('message') }}</div>
       </div>
       <template #footer>
-        <button class="btn btn-outline" @click="modals.counter = false">Cancel</button>
-        <button class="btn btn-primary" @click="submitCounter"><AegisIcon name="send" :size="14" /> Send Counter Proposal</button>
+        <button class="btn btn-outline" :disabled="counterBusy" @click="modals.counter = false">Cancel</button>
+        <button class="btn btn-primary" :disabled="counterBusy" @click="submitCounter">
+          <span v-if="counterBusy" class="spinner spinner-sm" />
+          <AegisIcon v-else name="send" :size="14" />
+          {{ counterBusy ? 'Sending…' : 'Send Counter Proposal' }}
+        </button>
       </template>
     </AegisModal>
 
@@ -1630,6 +1638,7 @@ function resumeService() {
 }
 
 // ── Accept form (Wave 5: adds negotiated_amount_cents) ────────────────────────
+const acceptBusy  = ref(false)
 const acceptForm = reactive({
   session_date:              '',
   session_time:              '10:00',
@@ -1649,6 +1658,7 @@ const todayDate  = new Date().toISOString().split('T')[0]
 function submitAccept() {
   if (!activeRequest.value?.service_id || !activeRequest.value?.id) { toast.error('No request selected.'); return }
   if (!acceptForm.session_date) { toast.error('Please select a session date.'); return }
+  acceptBusy.value = true
   router.post(route('provider.services.request.accept', { service: activeRequest.value.service_id, serviceRequest: activeRequest.value.id }), {
     session_date:             acceptForm.session_date,
     session_time:             acceptForm.session_time,
@@ -1668,6 +1678,8 @@ function submitAccept() {
       modals.accept = false
       toast.success('Request accepted. The client will be notified to pay their upfront portion.')
     },
+    onError: () => toast.error('Failed to accept request. Please try again.'),
+    onFinish: () => { acceptBusy.value = false },
   })
 }
 
@@ -1702,17 +1714,30 @@ function submitDismiss() {
 }
 
 const counterForm = reactive({ proposed_date: '', proposed_time: '10:00', message: '' })
-const counterV$   = useVuelidate({ message: { required } }, counterForm)
-function counterFieldError(field) { return counterV$.value[field].$errors[0]?.$message ?? '' }
+const counterV$   = useVuelidate({ message: { required: helpers.withMessage('A message is required.', required) } }, counterForm)
+const counterBusy = ref(false)
+function counterFieldError(field) { return counterV$.value[field]?.$errors[0]?.$message ?? '' }
 async function submitCounter() {
   const ok = await counterV$.value.$validate()
   if (!ok) return
   if (!activeRequest.value?.service_id || !activeRequest.value?.id) { toast.error('No request selected.'); return }
-  router.post(route('provider.services.request.decline', { service: activeRequest.value.service_id, serviceRequest: activeRequest.value.id }), {
-    reason: `Counter proposal for ${counterForm.proposed_date} at ${counterForm.proposed_time} — ${counterForm.message}`,
+  counterBusy.value = true
+  router.post(route('provider.services.request.counter', { service: activeRequest.value.service_id, serviceRequest: activeRequest.value.id }), {
+    message:       counterForm.message,
+    proposed_date: counterForm.proposed_date,
+    proposed_time: counterForm.proposed_time,
   }, {
     preserveScroll: true,
-    onSuccess: () => { modals.counter = false; toast.success('Counter proposal sent.'); counterForm.proposed_date = ''; counterForm.proposed_time = '10:00'; counterForm.message = ''; counterV$.value.$reset() },
+    onSuccess: () => {
+      modals.counter = false
+      toast.success('Counter-proposal sent. The client has been notified in their message inbox.')
+      counterForm.proposed_date = ''
+      counterForm.proposed_time = '10:00'
+      counterForm.message = ''
+      counterV$.value.$reset()
+    },
+    onError: () => toast.error('Failed to send counter-proposal. Please try again.'),
+    onFinish: () => { counterBusy.value = false },
   })
 }
 
