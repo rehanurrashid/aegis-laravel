@@ -714,7 +714,7 @@
             <button type="button" class="btn btn-outline" @click="modals.howItWorksClient = false; activeTab = 'outgoing-requests'">
               <AegisIcon name="send" :size="13" /> My Requests
             </button>
-            <a :href="route('provider.support-services.index')" class="btn btn-primary">
+            <a :href="route('provider.jobs.index')" class="btn btn-primary">
               <AegisIcon name="search" :size="13" /> Browse Services
             </a>
           </template>
