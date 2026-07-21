@@ -663,7 +663,7 @@
       <template #footer>
         <button class="btn btn-outline" @click="closeUploadModal">Cancel</button>
         <button class="btn btn-primary" :disabled="uploadBusy" @click="submitUpload">
-          <AegisIcon v-if="uploadBusy" name="refresh-cw" :size="13" class="btn-spin" />
+          <span v-if="uploadBusy" class="spinner spinner-sm" />
           <AegisIcon v-else name="upload" :size="13" />
           {{ uploadBusy ? 'Uploading...' : 'Upload & Save' }}
         </button>
@@ -723,7 +723,7 @@
       <template #footer>
         <button class="btn btn-outline" @click="closeCredentialModal">Cancel</button>
         <button class="btn btn-primary" :disabled="credBusy" @click="submitCredential">
-          <AegisIcon v-if="credBusy" name="refresh-cw" :size="13" class="btn-spin" />
+          <span v-if="credBusy" class="spinner spinner-sm" />
           <AegisIcon v-else name="key" :size="13" />
           {{ credBusy ? 'Saving...' : 'Save Credential' }}
         </button>
@@ -781,7 +781,7 @@
       <template #footer>
         <button class="btn btn-outline" @click="closeClientModal">Cancel</button>
         <button class="btn btn-primary" :disabled="clientBusy" @click="submitClient">
-          <AegisIcon v-if="clientBusy" name="refresh-cw" :size="13" class="btn-spin" />
+          <span v-if="clientBusy" class="spinner spinner-sm" />
           <AegisIcon v-else name="check" :size="13" />
           {{ clientBusy ? 'Saving...' : 'Save to Roster' }}
         </button>
@@ -855,7 +855,7 @@
         <button class="btn btn-outline" @click="closeEditClientModal">Close</button>
         <button v-if="editClientMode === 'view'" class="btn btn-primary" @click="editClientMode = 'edit'">Edit Client</button>
         <button v-else class="btn btn-primary" :disabled="editClientBusy" @click="submitEditClient">
-          <AegisIcon v-if="editClientBusy" name="refresh-cw" :size="13" class="btn-spin" />
+          <span v-if="editClientBusy" class="spinner spinner-sm" />
           <AegisIcon v-else name="check" :size="13" />
           {{ editClientBusy ? 'Saving...' : 'Save Changes' }}
         </button>
@@ -948,13 +948,13 @@
       </div>
       <template #footer>
         <button v-if="attestedAt" class="btn btn-outline" :disabled="attestBusy" @click="clearAttest">
-          <AegisIcon v-if="attestBusy" name="refresh-cw" :size="13" class="btn-spin" />
+          <span v-if="attestBusy" class="spinner spinner-sm" />
           <AegisIcon v-else name="x" :size="13" />
           {{ attestBusy ? 'Clearing...' : 'Clear Attestation' }}
         </button>
         <button class="btn btn-outline" @click="closeAttestModal">Cancel</button>
         <button class="btn btn-primary" :disabled="attestBusy" @click="submitAttest">
-          <AegisIcon v-if="attestBusy" name="refresh-cw" :size="13" class="btn-spin" />
+          <span v-if="attestBusy" class="spinner spinner-sm" />
           <AegisIcon v-else name="shield-check" :size="13" />
           {{ attestBusy ? 'Attesting...' : (attestedAt ? 'Re-Attest' : 'Attest Vault is Complete') }}
         </button>
@@ -1045,7 +1045,7 @@
       <template #footer>
         <button class="btn btn-outline" @click="closeAddPermModal">Cancel</button>
         <button class="btn btn-primary" :disabled="permBusy" @click="submitPermission">
-          <AegisIcon v-if="permBusy" name="refresh-cw" :size="13" class="btn-spin" />
+          <span v-if="permBusy" class="spinner spinner-sm" />
           <AegisIcon v-else name="check" :size="13" />
           {{ permBusy ? 'Granting...' : 'Grant Access' }}
         </button>
@@ -1080,7 +1080,7 @@
       <template #footer>
         <button class="btn btn-outline" @click="closeEditPermModal">Cancel</button>
         <button class="btn btn-primary" :disabled="editPermBusy" @click="submitEditPerm">
-          <AegisIcon v-if="editPermBusy" name="refresh-cw" :size="13" class="btn-spin" />
+          <span v-if="editPermBusy" class="spinner spinner-sm" />
           <AegisIcon v-else name="check" :size="13" />
           {{ editPermBusy ? 'Saving...' : 'Save Changes' }}
         </button>

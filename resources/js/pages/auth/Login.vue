@@ -172,7 +172,10 @@
               type="submit"
               class="btn btn-primary btn-block"
               :disabled="loginForm.processing"
-            >{{ loginForm.processing ? 'Signing in…' : 'Sign In' }}</button>
+            >
+              <span v-if="loginForm.processing" class="spinner spinner-sm" />
+              {{ loginForm.processing ? 'Signing in…' : 'Sign In' }}
+            </button>
 
           </form>
 
@@ -252,7 +255,10 @@
                 type="submit"
                 class="btn btn-primary btn-block"
                 :disabled="resetForm.processing"
-              >{{ resetForm.processing ? 'Sending…' : 'Send Reset Link' }}</button>
+              >
+                <span v-if="resetForm.processing" class="spinner spinner-sm" />
+                {{ resetForm.processing ? 'Sending…' : 'Send Reset Link' }}
+              </button>
 
               <p class="signin-reset-hint">
                 We'll send a password reset link to your registered email address. Check your spam folder if you don't see it.

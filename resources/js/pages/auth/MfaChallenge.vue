@@ -64,6 +64,7 @@
             <div v-if="fieldError('code')" class="form-error">{{ fieldError('code') }}</div>
           </div>
           <button type="submit" class="btn btn-primary ob-btn-full" :disabled="form.processing">
+            <span v-if="form.processing" class="spinner spinner-sm" />
             {{ form.processing ? 'Verifying…' : 'Verify Code' }}
           </button>
         </form>

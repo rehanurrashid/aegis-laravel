@@ -144,7 +144,7 @@
           :disabled="busy"
           @click="isMilestoneContract ? goToStep2() : confirm()"
         >
-          <AegisIcon v-if="busy && !isMilestoneContract" name="refresh-cw" :size="13" class="spin" />
+          <span v-if="busy && !isMilestoneContract" class="spinner spinner-sm" />
           {{ isMilestoneContract ? 'Next: Define Milestones →' : (busy ? 'Sending…' : 'Send Offer') }}
         </button>
       </template>
@@ -155,11 +155,11 @@
         <button
           type="button"
           class="btn btn-success"
-          :class="{ 'btn-spin': busy }"
+          
           :disabled="busy"
           @click="confirm"
         >
-          <AegisIcon v-if="busy" name="refresh-cw" :size="13" class="spin" />
+          <span v-if="busy" class="spinner spinner-sm" />
           {{ busy ? 'Sending Offer…' : 'Send Offer & Create Contract' }}
         </button>
       </template>

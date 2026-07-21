@@ -430,7 +430,7 @@
           </div>
           <div class="btn-group" style="justify-content:flex-end;margin-top:20px;">
             <button type="button" class="btn btn-primary" :disabled="ssNotifySaving" style="display:inline-flex;align-items:center;gap:6px;" @click="saveSsNotifyPrefs">
-              <AegisIcon v-if="ssNotifySaving" name="refresh-cw" :size="13" class="btn-spin" />
+              <span v-if="ssNotifySaving" class="spinner spinner-sm" />
               <AegisIcon v-else name="check" :size="13" />
               {{ ssNotifySaving ? 'Saving…' : 'Save Preferences' }}
             </button>
@@ -489,7 +489,7 @@
                 @focus="showDropdown = searchResults.length > 0"
               >
               <div v-if="searchLoading" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);">
-                <AegisIcon name="refresh-cw" :size="14" style="color:var(--text-4);animation:spin 1s linear infinite;" />
+                <span class="spinner spinner-sm" />
               </div>
             </div>
             <div v-if="fieldError('display_name')" class="form-error">{{ fieldError('display_name') }}</div>
@@ -619,7 +619,7 @@
       <template #footer>
         <button type="button" class="btn btn-outline" @click="closeModal('editDsrModal')">Cancel</button>
         <button type="button" class="btn btn-primary" :disabled="editForm.processing" style="display:inline-flex;align-items:center;gap:6px" @click="submitEdit">
-          <AegisIcon v-if="editForm.processing" name="refresh-cw" :size="13" class="btn-spin" />
+          <span v-if="editForm.processing" class="spinner spinner-sm" />
           <AegisIcon v-else name="check" :size="13" />
           {{ editForm.processing ? 'Saving…' : 'Save Changes' }}
         </button>

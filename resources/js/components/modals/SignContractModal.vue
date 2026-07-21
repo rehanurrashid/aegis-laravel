@@ -121,7 +121,7 @@
           :disabled="form.processing || !canSign"
           @click="sign"
         >
-          <AegisIcon v-if="form.processing" name="refresh-cw" :size="13" class="btn-spin" />
+          <span v-if="form.processing" class="spinner spinner-sm" />
           {{ form.processing ? 'Signing…' : 'Sign contract' }}
         </button>
       </template>

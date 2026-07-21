@@ -276,6 +276,7 @@
           :disabled="!canProceed || form.processing"
           @click="submit"
         >
+          <span v-if="form.processing" class="spinner spinner-sm" />
           <span v-if="form.processing">Saving…</span>
           <span v-else style="display:inline-flex;align-items:center;gap:6px;">Continue to Payment <AegisIcon name="arrow-right" :size="13" /></span>
         </button>

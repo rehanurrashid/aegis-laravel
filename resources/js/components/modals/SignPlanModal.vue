@@ -74,11 +74,11 @@
 
     <template #footer>
       <button type="button" class="btn btn-outline" @click="closeModal">Cancel</button>
-      <button type="button" class="btn btn-primary" :class="{ 'btn-spin': submitting }"
+      <button type="button" class="btn btn-primary" 
         :disabled="submitting || !form.confirmed || !canSign"
         :data-tooltip="!canSign ? 'Complete all required sections first' : undefined"
         @click="submit">
-        <AegisIcon v-if="submitting" name="refresh-cw" :size="14" class="spin" />
+        <span v-if="submitting" class="spinner spinner-sm" />
         <AegisIcon v-else name="edit" :size="14" />
         {{ submitting ? 'Signing plan…' : 'Sign & Activate Plan' }}
       </button>
@@ -151,6 +151,4 @@ async function submit() {
 
 <style scoped>
 .m-section-title { display:flex;align-items:center;justify-content:space-between;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text-3);padding-bottom:6px;border-bottom:1px solid var(--border); }
-@keyframes spin { to { transform: rotate(360deg); } }
-.spin { animation: spin .7s linear infinite; }
 </style>

@@ -217,7 +217,7 @@ function submit() {
         style="display:inline-flex;align-items:center;gap:6px;"
         @click="submit"
       >
-        <AegisIcon v-if="busy" name="refresh-cw" :size="13" class="btn-spin" />
+        <span v-if="busy" class="spinner spinner-sm" />
         <AegisIcon v-else name="x" :size="13" />
         {{ ctaLabel }}
       </button>

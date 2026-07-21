@@ -440,7 +440,10 @@
               type="submit"
               class="btn btn-primary ob-btn-full"
               :disabled="form.processing || !agreeTerms"
-            >{{ form.processing ? 'Creating Account…' : 'Create Account' }}</button>
+            >
+              <span v-if="form.processing" class="spinner spinner-sm" />
+              {{ form.processing ? 'Creating Account…' : 'Create Account' }}
+            </button>
 
           </form>
 

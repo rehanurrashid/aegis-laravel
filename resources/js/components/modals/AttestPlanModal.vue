@@ -16,8 +16,8 @@
 
     <template #footer>
       <button type="button" class="btn btn-outline" @click="$emit('update:modelValue', false)">Cancel</button>
-      <button type="button" class="btn btn-primary" :class="{ 'btn-spin': submitting }" :disabled="submitting" @click="submit">
-        <AegisIcon v-if="submitting" name="refresh-cw" :size="14" class="spin" />
+      <button type="button" class="btn btn-primary"  :disabled="submitting" @click="submit">
+        <span v-if="submitting" class="spinner spinner-sm" />
         <AegisIcon v-else name="check-circle" :size="14" />
         {{ submitting ? 'Attesting…' : 'Attest Vault' }}
       </button>
@@ -56,6 +56,4 @@ function submit() {
 </script>
 
 <style scoped>
-@keyframes spin { to { transform: rotate(360deg); } }
-.spin { animation: spin .7s linear infinite; }
 </style>

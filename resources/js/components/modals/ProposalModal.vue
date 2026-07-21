@@ -169,7 +169,7 @@
         :disabled="form.processing || !canSubmit"
         @click="submit"
       >
-        <AegisIcon v-if="form.processing" name="refresh-cw" :size="13" class="btn-spin" />
+        <span v-if="form.processing" class="spinner spinner-sm" />
         {{ form.processing ? 'Submitting…' : 'Submit proposal' }}
       </button>
     </template>

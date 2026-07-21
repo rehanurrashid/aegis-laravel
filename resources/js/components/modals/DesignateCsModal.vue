@@ -244,7 +244,7 @@
       </button>
       <span v-else :data-tooltip="!signed ? 'Apply your digital signature first' : null" style="display:inline-flex;">
         <button type="button" class="btn btn-primary" :disabled="busy || !signed" style="display:inline-flex;align-items:center;gap:6px;" @click="submitDesignate">
-          <AegisIcon v-if="busy" name="refresh-cw" :size="14" class="btn-spin" />
+          <span v-if="busy" class="spinner spinner-sm" />
           <AegisIcon v-else name="send" :size="14" />
           {{ busy ? 'Sending…' : 'Send Retainer Agreement' }}
         </button>

@@ -411,15 +411,20 @@ function doAction() {
 ```
 
 **Universal rules (apply to both patterns):**
-- `<span class="spinner spinner-sm" />` appears BEFORE the label span when processing. Use `spinner-sm` (16px) for standard buttons (`btn`, `btn-lg`), `spinner` (20px) for `btn-xl` only.
-- `:disabled="form.processing"` or `:disabled="busy"` — the `.btn:disabled` rule in `_shared.css` automatically applies `opacity: 0.5; cursor: not-allowed`. No extra CSS needed.
-- Label switches to present-continuous verb: `Saving…` / `Submitting…` / `Sending…` / `Deleting…` / `Cancelling…` / `Applying…` / `Paying…` / `Uploading…` / `Removing…` / `Processing…` — match the specific verb of the action.
+- `<span class="spinner spinner-sm" />` appears BEFORE the label span when processing. Sizes defined in `_shared.css` — use exactly as named, no custom CSS needed:
+  - `spinner-xs` (12px) — tiny inline contexts only
+  - `spinner-sm` (16px) — **default for all buttons** (modals, forms, auth, onboarding)
+  - `spinner` (20px) — standalone page-level loading
+  - `spinner-lg` (28px) — full-page loading overlays
+  - Add `spinner-ob` on dark/gold onboarding backgrounds: `class="spinner spinner-sm spinner-ob"`
+- `:disabled="form.processing"` or `:disabled="busy"` — `.btn:disabled` in `_shared.css` auto-applies `opacity: 0.5; cursor: not-allowed`. No extra CSS needed.
+- Label switches to present-continuous verb: `Saving…` / `Submitting…` / `Sending…` / `Deleting…` / `Cancelling…` / `Paying…` / `Verifying…` / `Signing in…` / `Creating…` / `Processing…` — match the action verb.
 - Never replace the label with the spinner alone — text stays visible alongside the spinner.
 - The `<AegisIcon v-else …>` (the normal icon) is hidden while the spinner is shown via `v-if`/`v-else`. Never show both at once.
-- **Cancel / Back / outline secondary buttons** that are disabled during processing use `:disabled="form.processing"` only — no spinner on secondary buttons.
-- **Multi-step modal navigation buttons** ("Continue" / "Next" / "Back") do NOT get spinners — only the final submit/pay/confirm button on the last step does.
-- **`confirmAction` callbacks** — the trigger button has no spinner. The submit button inside the confirm modal (if it posts) does.
-- `btn-spin` (spinning `AegisIcon` via CSS animation) is the OLD pattern — replace with `<span class="spinner spinner-sm" />` for all new builds. The `spinner` CSS class is already in `_shared.css`.
+- **Cancel / Back / outline secondary buttons** — `:disabled="form.processing"` only, no spinner.
+- **Multi-step modal nav buttons** ("Continue" / "Next" / "Back") — no spinner. Only the final submit button gets one.
+- **`confirmAction` callbacks** — the trigger button has no spinner. The submit button inside the confirm modal does.
+- **BANNED — never use in new code:** `btn-spin`, `ob-spin`, `spin` classes on `<AegisIcon>`. Inline `@keyframes spin` / `.spin` / `.btn-spin` / `.ob-spin` scoped CSS blocks. All replaced by `<span class="spinner spinner-sm" />` globally.
 
 **Scope — this applies to EVERY write button on EVERY page and modal:**
 create · update · delete · cancel · submit · approve · reject · pay · upload · invite · remove · activate · deactivate · reactivate — no exceptions.

@@ -92,7 +92,7 @@
         :disabled="form.processing || !canSubmit || !canRefund"
         @click="refund"
       >
-        <AegisIcon v-if="form.processing" name="refresh-cw" :size="13" class="btn-spin" />
+        <span v-if="form.processing" class="spinner spinner-sm" />
         {{ form.processing ? 'Processing…' : milestone?.funded_cents > 0 ? `Refund ${pricing.formatCents(milestone.funded_cents)}` : 'Reset milestone' }}
       </button>
     </template>

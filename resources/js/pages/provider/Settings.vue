@@ -516,14 +516,14 @@
                 </template>
                 <template v-else-if="subOnGracePeriod">
                   <button type="button" class="btn btn-gold" @click="resumePlan" :disabled="planBusy">
-                  <AegisIcon v-if="planBusy" name="refresh-cw" :size="13" class="btn-spin" />
+                  <span v-if="planBusy" class="spinner spinner-sm" />
                   <AegisIcon v-else name="refresh" :size="13" />
                   {{ planBusy ? 'Reactivating…' : 'Reactivate' }}
                 </button>
                 </template>
                 <template v-else>
                   <button type="button" class="btn btn-outline" @click="confirmCancel = true" :disabled="planBusy">
-                  <AegisIcon v-if="planBusy" name="refresh-cw" :size="13" class="btn-spin" />
+                  <span v-if="planBusy" class="spinner spinner-sm" />
                   {{ planBusy ? 'Processing…' : 'Cancel Plan' }}
                 </button>
                 </template>
@@ -565,7 +565,7 @@
                     Your current plan
                   </button>
                   <button v-else type="button" class="btn btn-outline st-plan-cta" @click="swapPlan('access')" :disabled="planBusy || !accessPriceId">
-                      <AegisIcon v-if="planBusy" name="refresh-cw" :size="12" class="btn-spin" />
+                      <span v-if="planBusy" class="spinner spinner-sm" />
                     {{ currentTier === 'practice' ? 'Downgrade to Access' : swapButtonLabel('access') }}
                   </button>
                 </div>
@@ -585,7 +585,7 @@
                     Your current plan
                   </button>
                   <button v-else type="button" class="btn btn-gold st-plan-cta" @click="swapPlan('practice')" :disabled="planBusy || !practicePriceId">
-                      <AegisIcon v-if="planBusy" name="refresh-cw" :size="12" class="btn-spin" />
+                      <span v-if="planBusy" class="spinner spinner-sm" />
                     {{ currentTier === 'access' ? 'Upgrade to Practice' : swapButtonLabel('practice') }}
                   </button>
                 </div>
@@ -623,7 +623,7 @@
 
                     </div>
                     <div style="display:flex;align-items:center;gap:12px;">
-                      <button v-if="hasMaat" type="button" class="btn btn-outline" @click="toggleMaat(false)" :disabled="maatBusy"><AegisIcon v-if="maatBusy" name="refresh-cw" :size="13" class="btn-spin" />{{ maatBusy ? 'Removing…' : 'Remove MAAT' }}</button>
+                      <button v-if="hasMaat" type="button" class="btn btn-outline" @click="toggleMaat(false)" :disabled="maatBusy"><span v-if="maatBusy" class="spinner spinner-sm" />{{ maatBusy ? 'Removing…' : 'Remove MAAT' }}</button>
                       <button
                         v-else-if="currentTier === 'practice'"
                         type="button"
@@ -682,7 +682,7 @@
                     </div>
                     <div style="display:flex;align-items:center;gap:12px;">
                       <button v-if="hasCsAddonLocal" type="button" class="btn btn-outline" @click="toggleCsAddon(false)" :disabled="csAddonBusy">
-                        <AegisIcon v-if="csAddonBusy" name="refresh-cw" :size="13" class="btn-spin" />{{ csAddonBusy ? 'Removing…' : 'Remove CS Add-On' }}
+                        <span v-if="csAddonBusy" class="spinner spinner-sm" />{{ csAddonBusy ? 'Removing…' : 'Remove CS Add-On' }}
                       </button>
                       <button
                         v-else-if="currentTier === 'practice'"
@@ -737,12 +737,12 @@
                       <template #footer>
                         <button type="button" class="btn btn-outline" @click="confirmCsAddon = false">Go Back</button>
                         <button v-if="pendingCsAddon.enable" type="button" class="btn btn-gold" @click="doToggleCsAddon" :disabled="csAddonBusy">
-                          <AegisIcon v-if="csAddonBusy" name="refresh-cw" :size="13" class="btn-spin" />
+                          <span v-if="csAddonBusy" class="spinner spinner-sm" />
                           <AegisIcon v-else name="users" :size="13" />
                           {{ csAddonBusy ? 'Adding…' : 'Add CS Add-On' }}
                         </button>
                         <button v-else type="button" class="btn btn-danger" @click="doToggleCsAddon" :disabled="csAddonBusy">
-                          <AegisIcon v-if="csAddonBusy" name="refresh-cw" :size="13" class="btn-spin" />
+                          <span v-if="csAddonBusy" class="spinner spinner-sm" />
                           <AegisIcon v-else name="trash" :size="13" />
                           {{ csAddonBusy ? 'Removing…' : 'Remove CS Add-On' }}
                         </button>
@@ -818,7 +818,7 @@
             <template #footer>
               <button type="button" class="btn btn-outline" :disabled="removingAddonsBusy" @click="confirmDowngradeBlocked = false">Cancel</button>
               <button type="button" class="btn btn-danger" :disabled="removingAddonsBusy || maatBusy || csAddonBusy" @click="removeAllAddonsAndDowngrade">
-                <AegisIcon v-if="removingAddonsBusy || maatBusy || csAddonBusy" name="refresh-cw" :size="13" class="btn-spin" />
+                <span v-if="removingAddonsBusy || maatBusy || csAddonBusy" class="spinner spinner-sm" />
                 <AegisIcon v-else name="trash" :size="13" />
                 {{ removingAddonsBusy ? 'Removing…' : maatBusy ? 'Removing MAAT…' : csAddonBusy ? 'Removing CS Add-On…' : 'Remove All Add-Ons & Downgrade' }}
               </button>
@@ -858,7 +858,7 @@
             <template #footer>
               <button type="button" class="btn btn-outline" @click="confirmSwap = false">Go Back</button>
               <button type="button" :class="pendingSwap.direction === 'downgrade' ? 'btn btn-outline' : 'btn btn-gold'" @click="doSwapPlan" :disabled="planBusy">
-                <AegisIcon v-if="planBusy" name="refresh-cw" :size="13" class="btn-spin" />
+                <span v-if="planBusy" class="spinner spinner-sm" />
                 <AegisIcon v-else :name="pendingSwap.direction === 'downgrade' ? 'chevron-down' : 'check'" :size="13" />
                 {{ planBusy ? 'Applying…' : (pendingSwap.direction === 'downgrade' ? 'Confirm Downgrade' : 'Confirm Change') }}
               </button>
@@ -877,7 +877,7 @@
             <template #footer>
               <button type="button" class="btn btn-outline" @click="confirmResume = false">Cancel</button>
               <button type="button" class="btn btn-gold" @click="doResumePlan" :disabled="planBusy">
-                <AegisIcon v-if="planBusy" name="refresh-cw" :size="13" class="btn-spin" />
+                <span v-if="planBusy" class="spinner spinner-sm" />
                 <AegisIcon v-else name="refresh" :size="13" />
                 {{ planBusy ? 'Reactivating…' : 'Reactivate' }}
               </button>
@@ -914,12 +914,12 @@
             <template #footer>
               <button type="button" class="btn btn-outline" @click="confirmMaat = false">Go Back</button>
               <button v-if="pendingMaat.enable" type="button" class="btn btn-gold" @click="doToggleMaat" :disabled="maatBusy">
-                <AegisIcon v-if="maatBusy" name="refresh-cw" :size="13" class="btn-spin" />
+                <span v-if="maatBusy" class="spinner spinner-sm" />
                 <AegisIcon v-else name="shield" :size="13" />
                 {{ maatBusy ? 'Adding…' : 'Add MAAT Service' }}
               </button>
               <button v-else type="button" class="btn btn-danger" @click="doToggleMaat" :disabled="maatBusy">
-                <AegisIcon v-if="maatBusy" name="refresh-cw" :size="13" class="btn-spin" />
+                <span v-if="maatBusy" class="spinner spinner-sm" />
                 <AegisIcon v-else name="trash" :size="13" />
                 {{ maatBusy ? 'Removing…' : 'Remove MAAT' }}
               </button>
@@ -933,7 +933,7 @@
             <template #footer>
               <button type="button" class="btn btn-outline" @click="confirmCancel = false">Keep Subscription</button>
               <button type="button" class="btn btn-danger" @click="cancelPlan" :disabled="planBusy">
-              <AegisIcon v-if="planBusy" name="refresh-cw" :size="13" class="btn-spin" />
+              <span v-if="planBusy" class="spinner spinner-sm" />
               {{ planBusy ? 'Cancelling…' : 'Cancel Subscription' }}
             </button>
             </template>

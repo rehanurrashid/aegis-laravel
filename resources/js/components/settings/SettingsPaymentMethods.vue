@@ -85,7 +85,7 @@
     <template #footer>
       <button type="button" class="btn btn-outline" :disabled="settingDefault" @click="showDefault = false">Cancel</button>
       <button type="button" class="btn btn-primary" :disabled="settingDefault" @click="doSetDefault">
-        <AegisIcon v-if="settingDefault" name="refresh-cw" :size="13" class="spm-spin" />
+        <span v-if="settingDefault" class="spinner spinner-sm" />
         <AegisIcon v-else name="check" :size="13" />
         {{ settingDefault ? 'Saving…' : 'Confirm' }}
       </button>
@@ -107,7 +107,7 @@
     <template #footer>
       <button type="button" class="btn btn-outline" :disabled="removing" @click="showRemove = false">Cancel</button>
       <button type="button" class="btn btn-danger" :disabled="removing" @click="doRemove">
-        <AegisIcon v-if="removing" name="refresh-cw" :size="13" class="spm-spin" />
+        <span v-if="removing" class="spinner spinner-sm" />
         <AegisIcon v-else name="trash" :size="13" />
         {{ removing ? 'Removing…' : 'Remove' }}
       </button>

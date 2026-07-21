@@ -87,7 +87,7 @@
         :disabled="form.processing || !canFund"
         @click="fund"
       >
-        <AegisIcon v-if="form.processing" name="refresh-cw" :size="13" class="btn-spin" />
+        <span v-if="form.processing" class="spinner spinner-sm" />
         {{ form.processing ? 'Processing…' : `Fund ${pricing.formatCents(remainingCents)} in escrow` }}
       </button>
     </template>

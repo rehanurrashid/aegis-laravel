@@ -101,11 +101,11 @@
       <button
         type="button"
         class="btn btn-primary"
-        :class="{ 'btn-spin': form.processing }"
+        
         :disabled="!canSubmit || form.processing"
         @click="submit"
       >
-        <AegisIcon v-if="form.processing" name="refresh-cw" :size="14" class="spin" />
+        <span v-if="form.processing" class="spinner spinner-sm" />
         Submit review
       </button>
     </template>

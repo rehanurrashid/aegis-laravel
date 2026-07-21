@@ -199,7 +199,7 @@
               <template v-if="sub.on_grace_period">
                 <div class="st-perks-band" style="border-color:var(--orange);background:var(--orange-light);">
                   <AegisIcon name="alert-triangle" :size="16" style="color:var(--gold-dark)" />
-                  <div style="font-size:13px;color:var(--text-2)">Subscription cancelled — access ends { formatDate(sub.ends_at) }. <button type="button" class="btn btn-gold" @click="resumeCsPlan" :disabled="planBusy"><AegisIcon v-if="planBusy" name="refresh-cw" :size="13" class="btn-spin" /><AegisIcon v-else name="refresh" :size="13" />{{ planBusy ? 'Reactivating…' : 'Reactivate' }}</button></div>
+                  <div style="font-size:13px;color:var(--text-2)">Subscription cancelled — access ends { formatDate(sub.ends_at) }. <button type="button" class="btn btn-gold" @click="resumeCsPlan" :disabled="planBusy"><span v-if="planBusy" class="spinner spinner-sm" /><AegisIcon v-else name="refresh" :size="13" />{{ planBusy ? 'Reactivating…' : 'Reactivate' }}</button></div>
                 </div>
               </template>
               <template v-else-if="subStatus === 'past_due'">
@@ -218,13 +218,13 @@
                 <span :class="{ active: billingAnnual }">Annual <span class="st-save-pill">Save ~27%</span></span>
               </div>
               <div v-if="subStatus !== 'none'" style="margin:12px 0">
-                <button v-if="billingAnnual !== (sub.current_billing === 'annual')" type="button" class="btn btn-gold" @click="swapCsPlan" :disabled="planBusy || !csPriceId"><AegisIcon v-if="planBusy" name="refresh-cw" :size="13" class="btn-spin" />
+                <button v-if="billingAnnual !== (sub.current_billing === 'annual')" type="button" class="btn btn-gold" @click="swapCsPlan" :disabled="planBusy || !csPriceId"><span v-if="planBusy" class="spinner spinner-sm" />
                   Switch to { billingAnnual ? 'Annual' : 'Monthly' } billing
                 </button>
               </div>
               <div v-if="(subStatus === 'active' || subStatus === 'trialing')" style="display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border);margin-top:8px">
                 <div style="font-size:13px;color:var(--text-3)">Need to cancel your Business CS plan?</div>
-                <button type="button" class="btn btn-outline" style="color:var(--red);border-color:var(--red)" @click="confirmCsCancel = true" :disabled="planBusy"><AegisIcon v-if="planBusy" name="refresh-cw" :size="13" class="btn-spin" />{{ planBusy ? 'Processing…' : 'Cancel Plan' }}</button>
+                <button type="button" class="btn btn-outline" style="color:var(--red);border-color:var(--red)" @click="confirmCsCancel = true" :disabled="planBusy"><span v-if="planBusy" class="spinner spinner-sm" />{{ planBusy ? 'Processing…' : 'Cancel Plan' }}</button>
               </div>
               <div v-if="stripeInvoices.length > 0">
                 <div class="st-divider"></div>
@@ -289,7 +289,7 @@
             <template #footer>
               <button type="button" class="btn btn-outline" @click="confirmCsSwap = false">Go Back</button>
               <button type="button" class="btn btn-gold" @click="doCsSwap" :disabled="planBusy">
-                <AegisIcon v-if="planBusy" name="refresh-cw" :size="13" class="btn-spin" />
+                <span v-if="planBusy" class="spinner spinner-sm" />
                 <AegisIcon v-else name="check" :size="13" />
                 {{ planBusy ? 'Applying…' : 'Confirm Change' }}
               </button>
@@ -305,7 +305,7 @@
             <template #footer>
               <button type="button" class="btn btn-outline" @click="confirmCsResume = false">Cancel</button>
               <button type="button" class="btn btn-gold" @click="doCsResume" :disabled="planBusy">
-                <AegisIcon v-if="planBusy" name="refresh-cw" :size="13" class="btn-spin" />
+                <span v-if="planBusy" class="spinner spinner-sm" />
                 <AegisIcon v-else name="refresh" :size="13" />
                 {{ planBusy ? 'Reactivating…' : 'Reactivate' }}
               </button>
@@ -316,7 +316,7 @@
             <p style="font-size:14px;color:var(--text);margin-bottom:12px">Your Business CS subscription will end <strong>{{ formatDate(sub.current_period?.end) || 'at the end of the current period' }}</strong>.</p>
             <template #footer>
               <button type="button" class="btn btn-outline" @click="confirmCsCancel = false">Keep Subscription</button>
-              <button type="button" class="btn btn-danger" @click="cancelCsPlan" :disabled="planBusy"><AegisIcon v-if="planBusy" name="refresh-cw" :size="13" class="btn-spin" />{{ planBusy ? 'Cancelling…' : 'Cancel Subscription' }}</button>
+              <button type="button" class="btn btn-danger" @click="cancelCsPlan" :disabled="planBusy"><span v-if="planBusy" class="spinner spinner-sm" />{{ planBusy ? 'Cancelling…' : 'Cancel Subscription' }}</button>
             </template>
           </AegisModal>
         </div>

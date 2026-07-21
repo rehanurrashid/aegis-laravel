@@ -901,7 +901,7 @@ function saveNotifyPrefs() {
           </div>
           <div class="btn-group" style="justify-content:flex-end;margin-top:20px;">
             <button type="button" class="btn btn-primary" :disabled="notifySaving" style="display:inline-flex;align-items:center;gap:6px;" @click="saveNotifyPrefs">
-              <AegisIcon v-if="notifySaving" name="refresh-cw" :size="13" class="btn-spin" />
+              <span v-if="notifySaving" class="spinner spinner-sm" />
               <AegisIcon v-else name="check" :size="13" />
               {{ notifySaving ? 'Saving…' : 'Save Preferences' }}
             </button>
@@ -990,7 +990,7 @@ function saveNotifyPrefs() {
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.editCS=false">Cancel</button>
         <button type="button" class="btn btn-primary" :disabled="busyEdit" style="display:inline-flex;align-items:center;gap:6px;" @click="submitEdit">
-          <AegisIcon v-if="busyEdit" name="refresh-cw" :size="13" class="btn-spin" />
+          <span v-if="busyEdit" class="spinner spinner-sm" />
           <AegisIcon v-else name="check" :size="13" />
           {{ busyEdit ? 'Saving…' : 'Save Changes' }}
         </button>
@@ -1026,7 +1026,7 @@ function saveNotifyPrefs() {
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.amendFee=false">{{ hasPendingFeeAmendment ? 'Close' : 'Cancel' }}</button>
         <button v-if="!hasPendingFeeAmendment" type="button" class="btn btn-primary" :disabled="busyAmendFee" style="display:inline-flex;align-items:center;gap:6px;" @click="submitAmendFee">
-          <AegisIcon v-if="busyAmendFee" name="refresh-cw" :size="13" class="btn-spin" />
+          <span v-if="busyAmendFee" class="spinner spinner-sm" />
           <AegisIcon v-else name="send" :size="13" />
           {{ busyAmendFee ? 'Sending…' : 'Send Amendment' }}
         </button>
@@ -1073,7 +1073,7 @@ function saveNotifyPrefs() {
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.resend=false">Cancel</button>
         <button type="button" class="btn btn-primary" :disabled="busyResend" style="display:inline-flex;align-items:center;gap:6px;" @click="submitResend">
-          <AegisIcon v-if="busyResend" name="refresh-cw" :size="13" class="btn-spin" />
+          <span v-if="busyResend" class="spinner spinner-sm" />
           <AegisIcon v-else name="send" :size="13" />
           {{ busyResend ? 'Sending…' : 'Resend Invitation' }}
         </button>
@@ -1090,7 +1090,7 @@ function saveNotifyPrefs() {
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.cancelInvite=false">Keep Invitation</button>
         <button type="button" class="btn btn-danger" :disabled="busyCancel" style="display:inline-flex;align-items:center;gap:6px;" @click="submitCancelInvite">
-          <AegisIcon v-if="busyCancel" name="refresh-cw" :size="13" class="btn-spin" />
+          <span v-if="busyCancel" class="spinner spinner-sm" />
           <AegisIcon v-else name="x" :size="13" />
           {{ busyCancel ? 'Cancelling…' : 'Cancel Invitation' }}
         </button>
@@ -1149,7 +1149,7 @@ function saveNotifyPrefs() {
       <template #footer>
         <button type="button" class="btn btn-outline" @click="modals.reinstateCs=false">Cancel</button>
         <button type="button" class="btn btn-primary" :disabled="busyReinstate" style="display:inline-flex;align-items:center;gap:6px;" @click="submitCsReinstate">
-          <AegisIcon v-if="busyReinstate" name="refresh-cw" :size="13" class="btn-spin" />
+          <span v-if="busyReinstate" class="spinner spinner-sm" />
           <AegisIcon v-else name="check" :size="13" />
           {{ busyReinstate ? 'Reinstating…' : 'Reinstate' }}
         </button>

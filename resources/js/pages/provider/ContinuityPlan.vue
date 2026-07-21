@@ -486,7 +486,7 @@
       <template #footer>
         <button type="button" class="btn btn-outline" @click="showAnnualReview = false">Cancel</button>
         <button type="button" class="btn btn-primary" :class="{ 'btn-spin': reviewSubmitting }" :disabled="reviewSubmitting" @click="submitAnnualReview">
-          <AegisIcon v-if="reviewSubmitting" name="refresh-cw" :size="14" class="spin" />
+          <span v-if="reviewSubmitting" class="spinner spinner-sm" />
           <AegisIcon v-else name="refresh-cw" :size="14" />
           {{ reviewSubmitting ? 'Starting review…' : 'Begin Review' }}
         </button>
@@ -779,6 +779,4 @@ function formatDate(iso) {
 .stat-chip-btn .stat-chip { width: 100%; }
 
 /* Spin */
-@keyframes spin { to { transform: rotate(360deg); } }
-.spin { animation: spin .7s linear infinite; }
 </style>

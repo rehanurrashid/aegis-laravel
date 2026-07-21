@@ -3822,12 +3822,22 @@ input[type="week"].form-input::-webkit-calendar-picker-indicator {
   50%       { opacity: 0.45; }
 }
 
-.spinner { width: 20px; height: 20px; border: 2.5px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.65s linear infinite; flex-shrink: 0; }
-.spinner-sm { width: 16px; height: 16px; border-width: 1px; }
+/* ─── Spinner — global loading indicator ────────────────────────────────────
+ * Usage: <span class="spinner spinner-sm" />
+ * Sizes: spinner-xs (12px) · spinner-sm (16px) · spinner (20px, default) · spinner-lg (28px)
+ * Always pair with :disabled on the button and v-if/v-else on the icon.
+ * NEVER use btn-spin or ob-spin — those are the old pattern.
+ * ─────────────────────────────────────────────────────────────────────────── */
+.spinner    { display: inline-block; width: 20px; height: 20px; border: 2.5px solid rgba(var(--border-rgb, 0,0,0), 0.2); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.65s linear infinite; flex-shrink: 0; vertical-align: middle; }
+.spinner-xs { width: 12px; height: 12px; border-width: 1.5px; }
+.spinner-sm { width: 16px; height: 16px; border-width: 2px; }
 .spinner-lg { width: 28px; height: 28px; border-width: 3px; }
-
+/* Onboarding flows use a lighter border to show on dark/gold backgrounds */
+.spinner-ob { border-color: rgba(255,255,255,0.3); border-top-color: #fff; }
 @keyframes spin { to { transform: rotate(360deg); } }
+/* Legacy — kept for one-cycle BC, do not use in new code */
 .btn-spin { animation: spin 0.7s linear infinite; display: inline-block; flex-shrink: 0; }
+
 
 /* ═══════════════════════════════════════════════════════════════
    GRID & FLEX UTILITIES

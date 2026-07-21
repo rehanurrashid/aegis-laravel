@@ -129,7 +129,7 @@
                 class="btn btn-primary ob-btn-full"
                 :disabled="form.processing"
               >
-                <AegisIcon v-if="form.processing" name="refresh-cw" :size="13" class="ob-spin" />
+                <span v-if="form.processing" class="spinner spinner-sm" />
                 {{ form.processing ? 'Saving…' : 'Continue to Registration' }}
               </button>
 
@@ -364,8 +364,7 @@ function submit() {
 .ob-btn-full.btn-primary { background:var(--primary); border:1px solid var(--primary); color:var(--text-inverted); border-radius:var(--radius-full); padding:12px 22px; font-size:13px; font-weight:700; width:100%; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
 .ob-btn-full.btn-primary:hover:not(:disabled) { background:var(--primary-mid); border-color:var(--primary-mid); }
 .ob-btn-full.btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
-.ob-spin { animation:ob-spin 0.8s linear infinite; }
-@keyframes ob-spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+ to { transform:rotate(360deg); } }
 
 /* ── Alt line ── */
 .ob-altline { text-align:center; margin-top:20px; font-size:12px; color:var(--text-2); }
