@@ -109,7 +109,7 @@
             type="button" role="tab"
             class="page-sidebar-item"
             :class="{ active: activeTab === 'bookings' }"
-            data-tooltip="Sessions you are running for other practitioners — track deposits, balances and refund requests"
+            data-tooltip="Sessions you are running for other practitioners — track payments, refund requests and completion confirmations"
             @click="activeTab = 'bookings'"
           >
             <span class="page-sidebar-icon"><AegisIcon name="calendar" :size="15" /></span>
@@ -135,7 +135,7 @@
             type="button" role="tab"
             class="page-sidebar-item"
             :class="{ active: activeTab === 'outgoing-bookings' }"
-            data-tooltip="Sessions you have booked with other practitioners — pay deposit to confirm, pay balance after your session"
+            data-tooltip="Sessions you have booked with other practitioners — pay your upfront portion to confirm, pay the completion amount after your session"
             @click="activeTab = 'outgoing-bookings'"
           >
             <span class="page-sidebar-icon"><AegisIcon name="credit-card" :size="15" /></span>
@@ -166,7 +166,7 @@
           <button
             type="button"
             class="page-sidebar-item"
-            data-tooltip="Learn how booking sessions, paying deposits and requesting refunds works"
+            data-tooltip="Learn how booking sessions, negotiating payment terms and requesting refunds works"
             @click="modals.howItWorksClient = true"
           >
             <span class="page-sidebar-icon"><AegisIcon name="info" :size="15" /></span>
@@ -632,22 +632,22 @@
             <div class="hiw-step">
               <div class="hiw-step-icon hiw-step-icon--3"><AegisIcon name="credit-card" :size="16" /></div>
               <div class="hiw-step-body">
-                <div class="hiw-step-title">3 · Client pays a 30% deposit</div>
-                <div class="hiw-step-desc">Once you accept, the client is prompted to pay a <strong>30% deposit</strong> to confirm the session. Funds transfer directly to your connected Stripe account via Stripe Connect — Aegis never holds your money.</div>
+                <div class="hiw-step-title">3 · Client pays the agreed upfront amount</div>
+                <div class="hiw-step-desc">Once you accept, the client pays the upfront portion you both agreed on — full payment, a split percentage, or nothing until after the session. Funds transfer <strong>directly to your Stripe Connect account</strong>. Aegis never holds your money.</div>
               </div>
             </div>
             <div class="hiw-step">
               <div class="hiw-step-icon hiw-step-icon--4"><AegisIcon name="check-circle" :size="16" /></div>
               <div class="hiw-step-body">
-                <div class="hiw-step-title">4 · Client pays completion portion after session</div>
-                <div class="hiw-step-desc">After the session takes place, the client confirms it complete and pays the remaining completion portion (based on agreed payment terms). You receive this directly to your Stripe account. Track all sessions under <strong>My Sessions</strong>.</div>
+                <div class="hiw-step-title">4 · Client confirms complete — final payment collects</div>
+                <div class="hiw-step-desc">The client confirms the session took place from <strong>My Bookings</strong>. Depending on the agreed terms, this either triggers the completion portion charge, or completes the record if you were already paid in full. Funds go straight to your Stripe account.</div>
               </div>
             </div>
             <div class="hiw-step">
               <div class="hiw-step-icon hiw-step-icon--5"><AegisIcon name="alert-circle" :size="16" /></div>
               <div class="hiw-step-body">
-                <div class="hiw-step-title">5 · Handle refund requests</div>
-                <div class="hiw-step-desc">If a client requests a refund, you have <strong>5 days</strong> to approve or deny it. Approving issues a Stripe refund immediately (pulled from your Connect account). Denying lets the client escalate to a formal dispute reviewed by Aegis admin.</div>
+                <div class="hiw-step-title">5 · Approve or deny refund requests</div>
+                <div class="hiw-step-desc">If a client requests a refund, you have <strong>5 days</strong> to respond. Approving issues a Stripe refund immediately — funds are pulled from your Connect account back to their card. Denying lets the client escalate to a formal dispute reviewed by an Aegis admin.</div>
               </div>
             </div>
             <div class="hiw-step">
@@ -669,51 +669,54 @@
         <!-- How It Works — Client -->
         <AegisModal v-model="modals.howItWorksClient" title="How It Works — As a Client" size="md">
           <div class="hiw-intro">
-            You can book clinical services from other practitioners on Aegis — supervision, consultation, training, coaching and more.
+            You can book clinical services from other practitioners on Aegis — supervision, consultation, training and coaching. You and the provider agree on payment terms upfront; all payments go directly to the provider via Stripe. Aegis does not hold your funds.
           </div>
 
           <div class="hiw-steps">
             <div class="hiw-step">
               <div class="hiw-step-icon hiw-step-icon--1"><AegisIcon name="search" :size="16" /></div>
               <div class="hiw-step-body">
-                <div class="hiw-step-title">1 · Browse & request a service</div>
-                <div class="hiw-step-desc">Go to <strong>Browse Services</strong> to find practitioners offering supervision, consultation, training and coaching. Click <em>Request</em> on any listing, choose a preferred date and time, and send a message.</div>
+                <div class="hiw-step-title">1 · Find & request a service</div>
+                <div class="hiw-step-desc">Go to <strong>Support Services</strong> in your sidebar to browse practitioners offering supervision, consultation, training and coaching. Click <em>Request</em> on any listing, choose a preferred date and time, review the payment terms, and send your request.</div>
               </div>
             </div>
             <div class="hiw-step">
               <div class="hiw-step-icon hiw-step-icon--2"><AegisIcon name="clock" :size="16" /></div>
               <div class="hiw-step-body">
                 <div class="hiw-step-title">2 · Wait for the provider to respond</div>
-                <div class="hiw-step-desc">Track your pending requests in <strong>My Requests</strong>. The provider typically responds within 72 hours — they may accept, decline, or propose a different date or price.</div>
+                <div class="hiw-step-desc">Track your requests in <strong>My Requests</strong>. The provider typically responds within 72 hours — they may accept, counter-propose different terms or a different date, or decline.</div>
               </div>
             </div>
             <div class="hiw-step">
               <div class="hiw-step-icon hiw-step-icon--3"><AegisIcon name="credit-card" :size="16" /></div>
               <div class="hiw-step-body">
-                <div class="hiw-step-title">3 · Pay upfront portion to confirm</div>
-                <div class="hiw-step-desc">Once accepted, pay the <strong>upfront portion</strong> based on the agreed payment terms to secure your slot. This confirms the session and notifies the provider. You need a saved payment method in <strong>Settings → Billing</strong> before you can pay.</div>
+                <div class="hiw-step-title">3 · Pay to confirm the session</div>
+                <div class="hiw-step-desc">Once accepted, you'll be prompted to pay based on the agreed terms — the full amount, a split upfront portion, or nothing until after the session (if the provider allows it). Payment goes <strong>directly to the provider's Stripe account</strong>. Add a payment method under <strong>Settings → Billing</strong> first.</div>
               </div>
             </div>
             <div class="hiw-step">
               <div class="hiw-step-icon hiw-step-icon--4"><AegisIcon name="check" :size="16" /></div>
               <div class="hiw-step-body">
-                <div class="hiw-step-title">4 · Confirm complete & pay completion portion</div>
-                <div class="hiw-step-desc">After your session, return to <strong>My Bookings</strong> and confirm the session is complete. This triggers the completion payment based on your agreed terms. You won't be charged until you confirm.</div>
+                <div class="hiw-step-title">4 · Confirm the session is complete</div>
+                <div class="hiw-step-desc">After your session, go to <strong>My Bookings</strong> and confirm it took place. Depending on your agreed terms: if you split the payment, the completion portion charges now; if you agreed to pay in full after, the full amount charges now; if you already paid in full, nothing further is due.</div>
               </div>
             </div>
             <div class="hiw-step">
               <div class="hiw-step-icon hiw-step-icon--5"><AegisIcon name="arrow-left" :size="16" /></div>
               <div class="hiw-step-body">
                 <div class="hiw-step-title">5 · Request a refund if needed</div>
-                <div class="hiw-step-desc">If the session didn't happen or there was an issue, open the session from <strong>My Bookings</strong> and request a refund. The provider has 5 days to approve or deny. If denied, you can escalate to a formal dispute.</div>
+                <div class="hiw-step-desc">If there was an issue, open the session from <strong>My Bookings</strong> and request a refund — for the upfront portion, the completion portion, or the full amount. The provider has <strong>5 days</strong> to respond. If denied, you can escalate to a formal dispute reviewed by Aegis admin.</div>
               </div>
             </div>
           </div>
 
           <template #footer>
-            <button type="button" class="btn btn-primary" @click="modals.howItWorksClient = false; activeTab = 'explore'">
-              <AegisIcon name="search" :size="13" /> Browse Services
+            <button type="button" class="btn btn-outline" @click="modals.howItWorksClient = false; activeTab = 'outgoing-requests'">
+              <AegisIcon name="send" :size="13" /> My Requests
             </button>
+            <a :href="route('provider.support-services.index')" class="btn btn-primary">
+              <AegisIcon name="search" :size="13" /> Browse Services
+            </a>
           </template>
         </AegisModal>
 
