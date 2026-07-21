@@ -197,6 +197,7 @@ function submitApprove() {
 
 async function submitDeny() {
   const ok = await v$.value.$validate()
+  v$.value.$touch()
   if (!ok) return
   denyForm.post(route('provider.services.refund.deny', { refund: props.refundRequest.id }), {
     preserveScroll: true,

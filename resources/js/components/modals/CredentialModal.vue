@@ -313,6 +313,7 @@
       <template v-else>
         <button class="btn btn-outline" @click="$emit('update:modelValue', false)">Cancel</button>
         <button class="btn btn-primary" :disabled="form.processing" @click="submit">
+          <span v-if="form.processing" class="spinner spinner-sm" />
           {{ form.processing ? 'Saving…' : submitLabel }}
         </button>
       </template>

@@ -75,6 +75,7 @@
       <button class="btn btn-outline" :disabled="form.processing" @click="close">Cancel</button>
       <button class="btn btn-primary" :disabled="form.processing || !form.service" @click="submit">
         <span class="btn-ico"><AegisIcon name="send" :size="13" /></span>
+        <span v-if="form.processing" class="spinner spinner-sm" />
         {{ form.processing ? 'Sending…' : 'Send Request' }}
       </button>
     </template>

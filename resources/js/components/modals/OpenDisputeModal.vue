@@ -20,7 +20,7 @@
     <div class="form-stack">
       <div class="form-group">
         <label class="form-label">Reason</label>
-        <select v-model="form.reason" class="form-input">
+        <select v-model="form.reason" class="form-input" :class="{ 'is-error': !form.reason && submitted }" @change="submitted = false">
           <option value="">— Select a reason —</option>
           <option value="non_delivery">Work not delivered</option>
           <option value="quality_issue">Quality issue</option>
@@ -29,7 +29,8 @@
           <option value="wrong_amount">Wrong amount</option>
           <option value="other">Other</option>
         </select>
-        <div v-if="form.errors.reason" class="form-error">{{ form.errors.reason }}</div>
+        <div v-if="!form.reason && submitted" class="form-error">Please select a reason.</div>
+        <div v-else-if="form.errors.reason" class="form-error">{{ form.errors.reason }}</div>
       </div>
 
       <div class="form-group">
@@ -44,12 +45,14 @@
         <textarea
           v-model="form.description"
           class="form-input"
+          :class="{ 'is-error': form.description.length < 20 && submitted }"
           rows="5"
           maxlength="5000"
           placeholder="Explain the issue in your own words. Be specific — the other party and (if escalated) an Aegis admin will read this."
         ></textarea>
         <div class="form-hint">{{ form.description.length }} / 5000 characters · minimum 20</div>
-        <div v-if="form.errors.description" class="form-error">{{ form.errors.description }}</div>
+        <div v-if="form.description.length < 20 && submitted" class="form-error">Please describe what happened (minimum 20 characters).</div>
+        <div v-else-if="form.errors.description" class="form-error">{{ form.errors.description }}</div>
       </div>
 
       <div class="dispute-notice">
@@ -74,6 +77,7 @@
         :disabled="form.processing || !canSubmit"
         @click="submit"
       >
+        <span v-if="form.processing" class="spinner spinner-sm" />
         {{ form.processing ? 'Opening…' : 'Open dispute' }}
       </button>
     </template>
@@ -103,6 +107,7 @@ const form = useForm({
 })
 
 const amountDollars = ref(null)
+const submitted = ref(false)
 const maxDollars    = computed(() => ((props.subject?.amount_cents ?? 0) / 100).toFixed(2))
 
 watch(() => amountDollars.value, (v) => {
@@ -130,6 +135,8 @@ function formatCents(c) {
 }
 
 function submit() {
+  submitted.value = true
+  if (!canSubmit.value) return
   form.post(route(props.postRoute), {
     preserveScroll: true,
     onSuccess: () => {

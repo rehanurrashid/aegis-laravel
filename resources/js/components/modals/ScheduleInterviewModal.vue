@@ -19,6 +19,7 @@
       <div class="form-group">
         <label class="form-label" for="siDate">Date</label>
         <input id="siDate" v-model="date" type="date" class="form-input" :class="{ 'is-error': touched && !date }" />
+      <div v-if="touched && !date" class="form-error">Please select a date.</div>
       </div>
       <div class="form-group">
         <label class="form-label" for="siTime">Time</label>
@@ -61,6 +62,7 @@
       <button type="button" class="btn btn-outline" :disabled="busy" @click="close">Cancel</button>
       <button type="button" class="btn btn-primary" :disabled="busy" @click="confirm">
         <AegisIcon name="send" :size="13" />
+        <span v-if="busy" class="spinner spinner-sm" />
         {{ busy ? 'Sending…' : 'Send Invite' }}
       </button>
     </template>

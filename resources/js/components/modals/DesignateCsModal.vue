@@ -392,8 +392,9 @@ function handleClose() {
 
 // ── Submit ────────────────────────────────────────────────────────────────────
 async function submitDesignate() {
+  v$.value.$touch()
   const valid = await v$.value.$validate()
-  if (!valid) { toast.error('Please fix highlighted fields.'); return }
+  if (!valid) return
 
   busy.value = true
 

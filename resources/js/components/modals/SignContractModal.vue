@@ -198,6 +198,7 @@ function onClose() {
 
 async function sign() {
   const valid = await v$.value.$validate()
+  v$.value.$touch()
   if (!valid) return
 
   const routeName = props.portal === 'provider'

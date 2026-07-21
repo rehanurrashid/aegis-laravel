@@ -150,9 +150,7 @@
         type="button"
         class="btn btn-primary"
         :class="{
-          'btn-danger':    form.action === 'rejected',
-          'btn-spin':      form.processing,
-        }"
+          'btn-danger':    form.action === 'rejected',        }"
         :disabled="form.processing || !canSubmit"
         @click="submit"
       >
@@ -293,6 +291,7 @@ function onClose() {
 // ── Submit ────────────────────────────────────────────────────────────────────
 async function submit() {
   const valid = await v$.value.$validate()
+  v$.value.$touch()
   if (!valid) return
 
   // "rejected" opens the dispute modal with milestone pre-filled

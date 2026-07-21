@@ -195,6 +195,7 @@
         Next <AegisIcon name="chevron-right" :size="13" />
       </button>
       <button v-if="step === 4" type="button" class="btn btn-primary" :disabled="busy" @click="submit">
+        <span v-if="busy" class="spinner spinner-sm" />
         <AegisIcon name="check" :size="13" />
         {{ busy ? 'Sending…' : 'Confirm Engagement' }}
       </button>

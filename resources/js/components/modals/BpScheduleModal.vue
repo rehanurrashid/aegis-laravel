@@ -106,6 +106,7 @@
       <button class="btn btn-outline" :disabled="form.processing" @click="close">Cancel</button>
       <button class="btn btn-primary" :disabled="form.processing || !form.date" @click="submit">
         <span class="btn-ico"><AegisIcon name="calendar" :size="13" /></span>
+        <span v-if="form.processing" class="spinner spinner-sm" />
         {{ form.processing ? 'Sending…' : 'Book Consultation' }}
       </button>
     </template>

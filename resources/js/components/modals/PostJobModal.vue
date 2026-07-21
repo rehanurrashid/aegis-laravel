@@ -430,13 +430,14 @@ function saveDraft() {
 async function publish() {
   syncTags()
   const valid = await v$.value.$validate()
+  v$.value.$touch()
   if (!valid) { step.value = firstInvalidStep(); return }
   form.status = 'open'
   form.post(route('provider.jobs.store'), {
     preserveScroll: true,
     onSuccess: () => { toast.success('Support request posted.'); resetAll(); close() },
     onError:   (errors) => {
-      toast.error('Could not post request — check the highlighted fields.')
+      // server error renders via form.errors inline
       const firstErrorField = Object.keys(errors)[0]
       if (firstErrorField) jumpToFieldStep(firstErrorField)
     },

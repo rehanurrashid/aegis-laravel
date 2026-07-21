@@ -116,6 +116,7 @@
         @click="submit"
       >
         <AegisIcon name="arrow-left" :size="13" />
+        <span v-if="form.processing" class="spinner spinner-sm" />
         {{ form.processing ? 'Submitting…' : 'Submit Refund Request' }}
       </button>
     </template>
@@ -222,6 +223,7 @@ function close() {
 
 async function submit() {
   const ok = await v$.value.$validate()
+  v$.value.$touch()
   if (!ok) return
 
   form.post(route('provider.services.session.refund.store', { session: props.session.id }), {

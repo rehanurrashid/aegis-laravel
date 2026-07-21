@@ -95,6 +95,7 @@
         @click="submit"
       >
         <AegisIcon name="check" :size="13" />
+        <span v-if="form.processing" class="spinner spinner-sm" />
         {{ form.processing ? 'Processing…' : `Confirm & Pay ${session?.expected_balance_label ?? 'Balance'}` }}
       </button>
     </template>

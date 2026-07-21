@@ -346,7 +346,10 @@
         class="btn btn-primary"
         :disabled="form.processing || !form.client_consents"
         @click="submit"
-      >{{ form.processing ? 'Sending…' : 'Send Referral' }}</button>
+>
+          <span v-if="form.processing" class="spinner spinner-sm" />
+          {{ form.processing ? 'Sending…' : 'Send Referral' }}
+        </button>
     </template>
   </AegisModal>
 </template>

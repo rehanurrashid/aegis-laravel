@@ -88,6 +88,7 @@
         @click="submit"
       >
         <AegisIcon name="credit-card" :size="13" />
+        <span v-if="form.processing" class="spinner spinner-sm" />
         {{ form.processing ? 'Processing…' : `Pay ${session?.expected_deposit_label ?? 'Deposit'}` }}
       </button>
     </template>

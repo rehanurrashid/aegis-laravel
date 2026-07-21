@@ -272,7 +272,7 @@ function confirm() {
 
   // Validate milestones on step 2
   if (isMilestoneContract.value && step.value === 2) {
-    if (!validateMilestones()) return
+    if (!validateMilestones()) return  // inline errors shown via milestone error refs
   }
 
   busy.value = true

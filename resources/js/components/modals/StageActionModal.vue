@@ -18,6 +18,7 @@
       <button type="button" class="btn btn-outline" :disabled="busy" @click="close">Cancel</button>
       <button type="button" :class="copy.confirmBtnClass" :disabled="busy" @click="confirm">
         <AegisIcon :name="copy.icon" :size="13" />
+        <span v-if="busy" class="spinner spinner-sm" />
         {{ busy ? 'Saving…' : copy.confirmLabel }}
       </button>
     </template>

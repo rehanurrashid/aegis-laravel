@@ -171,6 +171,7 @@ function onClose() {
 
 async function submit() {
   const valid = await v$.value.$validate()
+  v$.value.$touch()
   if (!valid) return
 
   form.post(route('bp.milestones.submit', { milestone: props.milestone.id }), {

@@ -166,7 +166,10 @@
         class="btn btn-primary"
         :disabled="form.processing || !canSubmit"
         @click="submit"
-      >{{ form.processing ? 'Processing…' : 'Pay $49 & upgrade' }}</button>
+      >
+          <span v-if="form.processing" class="spinner spinner-sm" />
+          {{ form.processing ? 'Processing…' : 'Pay $49 & upgrade' }}
+        </button>
     </template>
   </AegisModal>
 </template>

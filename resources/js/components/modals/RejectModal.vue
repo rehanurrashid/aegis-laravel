@@ -25,6 +25,7 @@
       <button type="button" class="btn btn-outline" :disabled="busy" @click="close">Cancel</button>
       <button type="button" class="btn btn-danger" :disabled="busy" @click="confirm">
         <AegisIcon name="x" :size="13" />
+        <span v-if="busy" class="spinner spinner-sm" />
         {{ busy ? 'Rejecting…' : 'Reject Application' }}
       </button>
     </template>

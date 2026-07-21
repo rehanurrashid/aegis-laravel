@@ -140,6 +140,7 @@ function paymentTermLabel(term) {
 
 async function submit() {
   const valid = await v$.value.$validate()
+  v$.value.$touch()
   if (!valid) return
   submitting.value = true
   form.post(route('provider.plan.sign'), {

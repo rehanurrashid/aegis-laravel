@@ -30,6 +30,7 @@
       <button type="button" class="btn btn-outline" :disabled="form.processing" @click="closeModal('connectionRequestModal')">Cancel</button>
       <button type="button" class="btn btn-primary" :disabled="form.processing || !recipientId" @click="submit">
         <AegisIcon name="send" :size="14" />
+        <span v-if="form.processing" class="spinner spinner-sm" />
         {{ form.processing ? 'Sending…' : 'Send Request' }}
       </button>
     </template>

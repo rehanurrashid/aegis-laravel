@@ -494,12 +494,13 @@ function confirmResume() {
 async function save() {
   syncTags()
   const valid = await v$.value.$validate()
+  v$.value.$touch()
   if (!valid) { step.value = firstInvalidStep(); return }
   form.put(route('provider.jobs.update', props.job.id), {
     preserveScroll: true,
     onSuccess: () => { toast.success('Changes saved.'); close() },
     onError:   (errors) => {
-      toast.error('Could not save changes — check the highlighted fields.')
+      // server error — form.errors will render inline
       const firstErrorField = Object.keys(errors)[0]
       if (firstErrorField) jumpToFieldStep(firstErrorField)
     },
