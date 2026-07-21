@@ -9,6 +9,11 @@ use App\Enums\PractitionerPaymentKind;
 use App\Enums\PractitionerPaymentStatus;
 use App\Enums\ServiceSessionPaymentStatus;
 use App\Events\Business\ContractCompleted;
+use App\Events\Business\ContractUpfrontCharged;
+use App\Events\Business\ContractCompletionCharged;
+use App\Events\Business\ContractUpfrontRefunded;
+use App\Events\Business\MilestonePaid;
+use App\Events\Business\MilestonePaymentFailed;
 use App\Events\Business\PayoutReleased;
 use App\Models\BpContract;
 use App\Models\BpMilestone;
@@ -844,6 +849,8 @@ class PayoutService
             'paid_cents'               => ($contract->paid_cents ?? 0) + $contract->upfront_cents,
         ]);
 
+        event(new ContractUpfrontCharged($contract->fresh()));
+
         $this->activity->log(
             $contract->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
             'contract_upfront_paid',
@@ -913,6 +920,8 @@ class PayoutService
             'completion_charged_at'       => now(),
             'paid_cents'                  => $contract->total_value_cents, // fully paid
         ]);
+
+        event(new ContractCompletionCharged($contract->fresh()));
 
         $this->activity->log(
             $contract->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
@@ -984,6 +993,8 @@ class PayoutService
 
         // Update contract paid_cents running total
         $contract->increment('paid_cents', $milestone->amount_cents);
+
+        event(new MilestonePaid($milestone->fresh()));
 
         $this->activity->log(
             $contract->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
@@ -1066,6 +1077,8 @@ class PayoutService
             'status'       => \App\Enums\ContractStatus::Cancelled->value,
             'cancelled_at' => now(),
         ]);
+
+        event(new ContractUpfrontRefunded($contract));
 
         $this->activity->log(
             $actor->id, $actor->role === 'business_partner' ? 'business_partner' : 'provider',

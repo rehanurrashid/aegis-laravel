@@ -182,6 +182,21 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Events\Business\MilestoneAutoReleased::class,      Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Business\MilestoneAutoReleased::class,      Listeners\ActivityFanoutListener::class);
 
+        // ── Support Services Rev 2 — direct-charge events ────────────────────────
+        Event::listen(Events\Business\ContractUpfrontCharged::class,   Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\ContractUpfrontCharged::class,   Listeners\ActivityFanoutListener::class);
+        Event::listen(Events\Business\ContractCompletionCharged::class, Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\ContractCompletionCharged::class, Listeners\ActivityFanoutListener::class);
+        Event::listen(Events\Business\ContractUpfrontRefunded::class,  Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\ContractUpfrontRefunded::class,  Listeners\ActivityFanoutListener::class);
+        Event::listen(Events\Business\MilestonePaid::class,            Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\MilestonePaid::class,            Listeners\ActivityFanoutListener::class);
+        Event::listen(Events\Business\MilestoneAutoApproved::class,    Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\MilestoneAutoApproved::class,    Listeners\ActivityFanoutListener::class);
+        Event::listen(Events\Business\MilestoneAutoApproveFailed::class, Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\MilestonePaymentFailed::class,   Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Business\MilestonePaymentFailed::class,   Listeners\ActivityFanoutListener::class);
+
         // Service request response
         Event::listen(Events\Service\ServiceRequestResponded::class, Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Service\SessionCancelled::class,        Listeners\SendEmailNotificationListener::class);

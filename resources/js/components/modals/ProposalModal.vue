@@ -159,6 +159,39 @@
       </form>
     </div>
 
+    <!-- Rev 2: Payment terms selection + disclosure -->
+    <div v-if="job" style="padding: 0 20px 16px">
+      <PaymentTermsInline
+        :provider-defaults="{
+          structure:         job.default_payment_structure ?? 'per_milestone',
+          upfrontPercentage: job.default_upfront_percentage ?? 30,
+          termsNote:         job.default_terms_note,
+          allowCompletionOnly: job.allow_on_completion ?? false,
+        }"
+        :model-value="{
+          structure:         form.proposed_payment_structure,
+          upfrontPercentage: form.proposed_upfront_percentage,
+          termsNote:         form.proposed_terms_note,
+          termsSource:       form.terms_source,
+        }"
+        :allowed-structures="job.allow_on_completion
+          ? ['full_upfront','split','per_milestone','on_completion']
+          : ['full_upfront','split','per_milestone']"
+        @update:model-value="v => {
+          form.proposed_payment_structure  = v.structure
+          form.proposed_upfront_percentage = v.upfrontPercentage
+          form.proposed_terms_note         = v.termsNote
+          form.terms_source                = v.termsSource
+        }"
+      />
+
+      <!-- Agreement checkbox -->
+      <label class="proposal-agree-check">
+        <input v-model="form.agree_terms" type="checkbox" />
+        I agree to these payment terms. Payment routes directly from the provider to my Stripe Connect account. Aegis is not the paymaster.
+      </label>
+    </div>
+
     <template #footer>
       <button type="button" class="btn btn-outline" :disabled="form.processing" @click="onClose">
         Cancel
@@ -181,6 +214,8 @@ import { ref, computed, watch } from 'vue'
 import { useForm }  from '@inertiajs/vue3'
 import useVuelidate from '@vuelidate/core'
 import { required, minLength, maxLength, minValue, url } from '@vuelidate/validators'
+import PaymentTermsInline from '@/components/ui/PaymentTermsInline.vue'
+import AegisDropzone      from '@/components/ui/AegisDropzone.vue'
 import { useModal } from '@/composables/useModal'
 import { useToast } from '@/composables/useToast'
 import AegisBadge   from '@/components/ui/AegisBadge.vue'
@@ -203,10 +238,25 @@ const form = useForm({
   portfolio_url:       '',
   cover_letter:        '',
   attachments:         [],
+  // Rev 2 — payment terms
+  proposed_payment_structure:  '',
+  proposed_upfront_percentage: 30,
+  proposed_terms_note:         '',
+  terms_source:                'provider_default',
+  agree_terms:                 false,
 })
 
 // Sync job_id when parent updates job prop
 watch(() => props.job?.id, (id) => { form.job_id = id ?? null }, { immediate: true })
+
+// Sync payment terms defaults from job when job changes (Rev 2)
+watch(() => props.job, (j) => {
+  if (!j) return
+  form.proposed_payment_structure  = j.default_payment_structure ?? 'per_milestone'
+  form.proposed_upfront_percentage = j.default_upfront_percentage ?? 30
+  form.proposed_terms_note         = j.default_terms_note ?? ''
+  form.terms_source                = 'provider_default'
+}, { immediate: true })
 
 // Dollar → cents
 watch(bidInput, (v) => {
@@ -231,7 +281,8 @@ const canSubmit = computed(() =>
   (form.proposed_rate_cents ?? 0) > 0 &&
   form.timeline_days != null &&
   form.cover_letter.trim().length >= 50 &&
-  form.cover_letter.length <= 3000,
+  form.cover_letter.length <= 3000 &&
+  form.agree_terms === true,
 )
 
 // ── Attachments ─────────────────────────────────────────────────────────────
@@ -267,3 +318,13 @@ async function submit() {
   })
 }
 </script>
+
+<style scoped>
+.proposal-agree-check {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin-top: 12px;
+  font-size: 12px; color: var(--text-3);
+  cursor: pointer; line-height: 1.5;
+}
+.proposal-agree-check input { flex-shrink: 0; margin-top: 2px; }
+</style>

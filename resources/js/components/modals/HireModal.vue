@@ -51,6 +51,36 @@
         <AegisIcon name="layers" :size="14" />
         <span>This is a <strong>milestone-based contract</strong>. You'll define deliverables and payment schedule in the next step.</span>
       </div>
+
+      <!-- Rev 2: BP's proposed payment terms + counter offer -->
+      <div v-if="proposal?.proposed_payment_structure" style="margin-top:14px">
+        <CounterTermsInline
+          :requested-terms="{
+            structure:         proposal.proposed_payment_structure,
+            upfrontPercentage: proposal.proposed_upfront_percentage ?? 30,
+            termsNote:         proposal.proposed_terms_note,
+            termsSource:       proposal.terms_source ?? 'provider_default',
+          }"
+          :model-value="counterTerms"
+          :allowed-structures="['full_upfront','split','per_milestone','on_completion']"
+          @update:model-value="v => counterTerms = v"
+        />
+      </div>
+
+      <!-- Payment preview -->
+      <div v-if="rateDisplay > 0" class="hire-payment-preview">
+        <AegisIcon name="credit-card" :size="12" />
+        <span v-if="!counterTerms.countered && proposal?.proposed_payment_structure === 'full_upfront'">
+          Full <strong>${{ Number(rateDisplay).toFixed(2) }}</strong> charged to your card at signing.
+        </span>
+        <span v-else-if="(!counterTerms.countered && proposal?.proposed_payment_structure === 'split') || (counterTerms.countered && counterTerms.structure === 'split')">
+          <strong>${{ upfrontPreviewAmount }}</strong> charged at signing ·
+          <strong>${{ completionPreviewAmount }}</strong> on completion.
+        </span>
+        <span v-else>
+          Payment fires per milestone approval. Aegis does not hold funds.
+        </span>
+      </div>
     </template>
 
     <!-- ── Step 2: Add Milestones ── -->
@@ -172,6 +202,7 @@
 import { ref, computed, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 import { useToast } from '@/composables/useToast'
+import CounterTermsInline from '@/components/ui/CounterTermsInline.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -191,6 +222,14 @@ const message     = ref('')
 const busy        = ref(false)
 const milestones  = ref([{ title: '', amount_dollars: '', due_at: '' }])
 const msErrors    = ref([])
+
+// Rev 2 — counter terms state
+const counterTerms = ref({
+  countered:              false,
+  structure:              null,
+  upfront_percentage:     30,
+  terms_note:             '',
+})
 
 // ── Computed ──────────────────────────────────────────────────────────────────
 const isOpen = computed(() => props.modelValue)
@@ -216,6 +255,20 @@ const avatarStyle = computed(() => {
   return url ? { backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}
 })
 const rateUnit = computed(() => ({ hourly: '/hr', retainer: '/mo', fixed: ' total' }[props.proposal?.proposed_rate_type] || ''))
+
+// Rev 2 payment preview
+const effectivePct = computed(() => {
+  if (counterTerms.value.countered) return counterTerms.value.upfront_percentage ?? 30
+  return props.proposal?.proposed_upfront_percentage ?? 30
+})
+const upfrontPreviewAmount = computed(() => {
+  const total = Number(rateDisplay.value) || 0
+  return ((total * effectivePct.value) / 100).toFixed(2)
+})
+const completionPreviewAmount = computed(() => {
+  const total = Number(rateDisplay.value) || 0
+  return (total - ((total * effectivePct.value) / 100)).toFixed(2)
+})
 
 const totalCents = computed(() =>
   milestones.value.reduce((sum, ms) => sum + Math.round((parseFloat(ms.amount_dollars) || 0) * 100), 0)
@@ -281,7 +334,14 @@ function confirm() {
     ? Math.round(Number(rateDisplay.value) * 100)
     : null
 
-  const payload = { final_rate_cents: finalRateCents }
+  const payload = {
+    final_rate_cents:              finalRateCents,
+    // Rev 2 — counter terms
+    terms_countered:               counterTerms.value.countered,
+    committed_payment_structure:   counterTerms.value.countered ? counterTerms.value.structure : null,
+    committed_upfront_percentage:  counterTerms.value.countered ? counterTerms.value.upfront_percentage : null,
+    committed_terms_note:          counterTerms.value.countered ? counterTerms.value.terms_note : null,
+  }
 
   // Include initial milestones for milestone contracts
   if (isMilestoneContract.value) {
@@ -355,4 +415,12 @@ function confirm() {
   font-size: 13px; font-weight: 600; color: var(--text-3);
 }
 .hire-ms-total-val { font-family: var(--font-serif, serif); font-size: 16px; font-weight: 700; color: var(--text); }
+.hire-payment-preview {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; margin-top: 12px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px; color: var(--text-3);
+}
+.hire-payment-preview strong { color: var(--text); }
 </style>

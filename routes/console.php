@@ -6,6 +6,7 @@ use App\Jobs\AnnualReviewReminderJob;
 use App\Jobs\DigestEmailJob;
 use App\Jobs\ExpireMutedThreadsJob;
 use App\Jobs\IncidentAutoCloseCheckJob;
+use App\Jobs\MilestoneAutoApproveJob;
 use App\Jobs\MilestoneAutoReleaseJob;
 use App\Jobs\MilestoneReviewReminderJob;
 use App\Jobs\StaleIncidentAlertJob;
@@ -66,6 +67,13 @@ Schedule::job(new IncidentAutoCloseCheckJob)->hourly()->name('aegis.incident_aut
 Schedule::job(new MilestoneAutoReleaseJob)
     ->hourly()
     ->name('aegis.milestone_auto_release')
+    ->withoutOverlapping();
+
+// Rev 2 — auto-approve direct-charge milestones (payment_structure IS NOT NULL)
+// Runs parallel to auto-release; each job gates on its own contract type.
+Schedule::job(new MilestoneAutoApproveJob)
+    ->hourly()
+    ->name('aegis.milestone_auto_approve')
     ->withoutOverlapping();
 
 // Daily 08:00 UTC — send "review reminder" email to provider when a submitted

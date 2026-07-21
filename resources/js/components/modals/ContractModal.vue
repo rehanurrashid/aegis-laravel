@@ -75,55 +75,52 @@
 
       <!-- Pending funding banner -->
       <div v-if="statusVal === 'pending_funding'" class="contract-fund-banner">
-        <AegisIcon name="shield-check" :size="14" />
+        <!-- Rev 2: upfront payment failure alert -->
+        <AegisIcon name="alert-triangle" :size="14" />
         <div>
-          <div class="contract-fund-banner-title">Contract signed — ready to fund</div>
+          <div class="contract-fund-banner-title">Contract signed — payment pending</div>
           <div class="contract-fund-banner-desc">
-            Fund escrow to activate the contract and unlock milestones for the Business Partner.
+            Awaiting the other party's signature before payment is authorized.
           </div>
         </div>
-        <button class="btn btn-primary" @click="openFundContract">
-          <AegisIcon name="dollar" :size="13" />
-          Fund escrow
-        </button>
       </div>
 
-      <!-- Escrow balance bar (active milestone contracts) -->
-      <div v-if="statusVal === 'active' && paymentType === 'milestone'" class="contract-escrow-bar-wrap">
+      <!-- Rev 2: payment failed alert -->
+      <div v-if="contract?.payment_failed_at" class="alert-banner alert-banner-danger" style="margin:0 0 12px">
+        <AegisIcon name="alert-triangle" :size="14" />
+        <div style="flex:1">
+          <strong>Upfront payment failed.</strong>
+          <span> The charge to your card was declined. Please retry or update your payment method.</span>
+        </div>
+        <button class="btn btn-outline btn-xs" @click="retryUpfront">Retry payment</button>
+      </div>
+
+      <!-- Rev 2: Committed terms panel -->
+      <div v-if="contract?.payment_structure" class="contract-terms-panel">
+        <div class="contract-terms-header">
+          <AegisIcon name="credit-card" :size="13" />
+          <span>Committed payment terms</span>
+          <AegisBadge :label="termsSummary" variant="gold" />
+        </div>
+        <div v-if="contract?.terms_note" class="contract-terms-note">{{ contract.terms_note }}</div>
+      </div>
+
+      <!-- Rev 2: Payment progress bar -->
+      <div v-if="contract?.payment_structure && ['active','completed'].includes(statusVal)" class="contract-escrow-bar-wrap">
         <div class="contract-escrow-bar-header">
           <div class="contract-escrow-bar-title">
-            <AegisIcon name="shield-check" :size="13" />
-            Escrow balance
+            <AegisIcon name="dollar" :size="13" />
+            Payment progress
           </div>
           <div class="contract-escrow-bar-stats">
-            <span class="escrow-stat-held">{{ formatMoney(escrowHeld) }} held</span>
+            <span class="escrow-stat-released">{{ formatMoney(contract.paid_cents ?? 0) }} paid</span>
             <span>·</span>
-            <span class="escrow-stat-released">{{ formatMoney(escrowReleased) }} released</span>
-            <span>·</span>
-            <span>{{ formatMoney(escrowUnfunded) }} unfunded</span>
+            <span>{{ formatMoney((contract.total_value_cents ?? 0) - (contract.paid_cents ?? 0)) }} remaining</span>
           </div>
         </div>
-
-        <!-- Three amount chips -->
-        <div class="contract-escrow-amounts">
-          <div class="contract-escrow-chip is-held">
-            <div class="contract-escrow-chip-label">In escrow</div>
-            <div class="contract-escrow-chip-value">{{ formatMoney(escrowHeld) }}</div>
-          </div>
-          <div class="contract-escrow-chip is-released">
-            <div class="contract-escrow-chip-label">Released</div>
-            <div class="contract-escrow-chip-value">{{ formatMoney(escrowReleased) }}</div>
-          </div>
-          <div class="contract-escrow-chip is-unfunded">
-            <div class="contract-escrow-chip-label">Unfunded</div>
-            <div class="contract-escrow-chip-value">{{ formatMoney(escrowUnfunded) }}</div>
-          </div>
-        </div>
-
-        <!-- Progress bar -->
         <div class="contract-escrow-progress">
-          <div class="contract-escrow-progress-released" :style="{ width: escrowPct(escrowReleased) }" />
-          <div class="contract-escrow-progress-held"     :style="{ width: escrowPct(escrowHeld) }" />
+          <div class="contract-escrow-progress-released"
+               :style="{ width: paidPct + '%' }" />
         </div>
         <div class="contract-escrow-progress-label">
           <span>0%</span>
@@ -200,28 +197,11 @@
               </div>
             </div>
             <div class="milestone-row-right">
-              <AegisBadge :label="milestoneBadgeLabel(m.status)" :variant="milestoneBadgeVariant(m.status)" />
-              <!-- Fund (pending / pending_funding) — escrow charge -->
-              <button
-                v-if="['pending', 'pending_funding'].includes(milestoneStatusVal(m)) && isActive"
-                class="btn btn-primary"
-                :disabled="busyMilestone === m.id"
-                @click="openFundMilestone(m)"
-              >
-                <AegisIcon name="dollar" :size="12" />
-                Fund
-              </button>
-              <!-- Refund (funded / in_progress — before BP submits) -->
-              <button
-                v-if="['funded', 'in_progress'].includes(milestoneStatusVal(m)) && isActive"
-                class="btn btn-ghost btn-danger-ghost"
-                :disabled="busyMilestone === m.id"
-                data-tooltip="Refund escrow before BP submits"
-                @click.stop="openRefundMilestone(m)"
-              >
-                <AegisIcon name="arrow-left" :size="12" />
-                Refund
-              </button>
+              <!-- Rev 2 status badge using new lifecycle labels -->
+              <AegisBadge
+                :label="milestoneStatusLabel(milestoneStatusVal(m))"
+                :variant="milestoneStatusVariant(milestoneStatusVal(m))"
+              />
               <!-- Review (submitted) — approve / revise / reject -->
               <button
                 v-if="milestoneStatusVal(m) === 'submitted'"
@@ -231,6 +211,28 @@
               >
                 <AegisIcon name="check" :size="12" />
                 Review
+              </button>
+              <!-- Retry payment (payment_failed) -->
+              <button
+                v-if="milestoneStatusVal(m) === 'payment_failed' && isActive"
+                class="btn btn-warning"
+                :disabled="busyMilestone === m.id"
+                data-tooltip="Retry the direct charge to your card"
+                @click.stop="retryMilestonePayment(m)"
+              >
+                <AegisIcon name="refresh-cw" :size="12" />
+                Retry payment
+              </button>
+              <!-- Cancel (pre-payment only) -->
+              <button
+                v-if="['pending','pending_funding','in_progress'].includes(milestoneStatusVal(m)) && isActive"
+                class="btn btn-ghost btn-danger-ghost"
+                :disabled="busyMilestone === m.id"
+                data-tooltip="Cancel this milestone (no payment was made)"
+                @click.stop="openRefundMilestone(m)"
+              >
+                <AegisIcon name="x" :size="12" />
+                Cancel
               </button>
               <!-- Auto-release countdown chip -->
               <span
@@ -426,27 +428,18 @@
     :contract="contract"
     portal="provider"
   />
-  <FundContractModal
-    :contract="showFundContract ? contract : null"
-    :has-payment-method="hasPaymentMethod"
-    @update:model-value="showFundContract = false"
-  />
-  <FundMilestoneModal
-    :contract="showFundMilestone ? contract : null"
-    :milestone="activeMilestone"
-    :has-payment-method="hasPaymentMethod"
-    @update:model-value="showFundMilestone = false"
-  />
+  <!-- FundContractModal removed Rev 2 — payment fires at signing -->
+  <!-- FundMilestoneModal removed Rev 2 — payment fires on approval -->
   <MilestoneReviewModal
     :contract="showReview ? contract : null"
     :milestone="activeMilestone"
     :submission="activeSubmission"
     @update:model-value="showReview = false"
   />
-  <MilestoneRefundModal
-    :contract="showRefund ? contract : null"
+  <MilestoneCancelModal
+    :contract="showCancel ? contract : null"
     :milestone="activeMilestone"
-    @update:model-value="showRefund = false"
+    @update:model-value="showCancel = false"
   />
   <!-- Centralized invoice modal — same component used on Finances.vue -->
   <ViewInvoiceModal
@@ -462,11 +455,9 @@ import { ref, computed, watch } from 'vue'
 import { router, useForm, usePage } from '@inertiajs/vue3'
 import { useToast }   from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
-import FundContractModal    from '@/components/modals/FundContractModal.vue'
-import FundMilestoneModal   from '@/components/modals/FundMilestoneModal.vue'
-import SignContractModal    from '@/components/modals/SignContractModal.vue'
+import SignContractModal     from '@/components/modals/SignContractModal.vue'
 import MilestoneReviewModal  from '@/components/modals/MilestoneReviewModal.vue'
-import MilestoneRefundModal   from '@/components/modals/MilestoneRefundModal.vue'
+import MilestoneCancelModal  from '@/components/modals/MilestoneCancelModal.vue'
 import ViewInvoiceModal      from '@/components/modals/ViewInvoiceModal.vue'
 
 const props = defineProps({
@@ -516,13 +507,73 @@ const statusVariant = computed(() => ({
   completed: 'grey', cancelled: 'red', draft: 'grey', closed: 'grey', disputed: 'red',
 }[statusVal.value] ?? 'grey'))
 
-// ── Escrow computed ───────────────────────────────────────────────────────────
+// ── Escrow computed (legacy — kept for read-only display of legacy contracts) ──
 const escrowFunded   = computed(() => props.contract?.escrow_funded_cents ?? 0)
 const escrowReleased = computed(() => props.contract?.escrow_released_cents ?? 0)
 const escrowRefunded = computed(() => props.contract?.escrow_refunded_cents ?? 0)
 const escrowHeld     = computed(() => Math.max(0, escrowFunded.value - escrowReleased.value - escrowRefunded.value))
 const escrowUnfunded = computed(() => Math.max(0, (props.contract?.total_value_cents ?? 0) - escrowFunded.value))
 const hasPaymentMethod = computed(() => !!(page.props.auth?.user?.stripe_payment_method_id))
+
+// ── Rev 2 payment progress ─────────────────────────────────────────────────────
+const paidCents  = computed(() => props.contract?.paid_cents ?? 0)
+const totalCents = computed(() => props.contract?.total_value_cents ?? 0)
+const paidPct    = computed(() => {
+  if (!totalCents.value) return 0
+  return Math.min(100, Math.round((paidCents.value / totalCents.value) * 100))
+})
+
+const termsSummary = computed(() => {
+  const s = props.contract?.payment_structure
+  const pct = props.contract?.upfront_percentage ?? 0
+  if (!s) return 'Legacy escrow'
+  const labels = {
+    full_upfront:  '100% upfront',
+    split:         `${pct}% upfront + ${100 - pct}% completion`,
+    per_milestone: 'Per milestone',
+    on_completion: 'Pay on completion',
+  }
+  return labels[s] ?? s
+})
+
+function retryUpfront() {
+  router.post(
+    route('provider.jobs.contract.retry-upfront', { contract: props.contract?.id }),
+    {},
+    { preserveScroll: true,
+      onSuccess: () => toast.success('Payment retried successfully.'),
+      onError: (e) => toast.error(e.contract ?? 'Retry failed.') }
+  )
+}
+
+function milestoneStatusLabel(status) {
+  const map = {
+    pending:             'Awaiting work',
+    pending_funding:     'Awaiting funding',
+    funded:              'Funded',
+    in_progress:         'In progress',
+    submitted:           'Awaiting review',
+    revision_requested:  'Revision requested',
+    approved:            'Approved — payment fired',
+    released:            'Paid',
+    paid:                'Paid',
+    prepaid:             'Pre-paid',
+    payment_failed:      'Payment failed',
+    disputed:            'Disputed',
+    refunded:            'Refunded',
+    cancelled:           'Cancelled',
+  }
+  return map[status] ?? status
+}
+
+function milestoneStatusVariant(status) {
+  if (['paid','released','prepaid'].includes(status)) return 'success'
+  if (['submitted'].includes(status)) return 'warning'
+  if (['payment_failed','disputed'].includes(status)) return 'danger'
+  if (['cancelled','refunded'].includes(status)) return 'neutral'
+  if (['approved'].includes(status)) return 'blue'
+  return 'neutral'
+}
 
 function escrowPct(cents) {
   const total = props.contract?.total_value_cents ?? 0
@@ -549,10 +600,25 @@ const activeSubmission  = ref(null)   // for review
 function openFundContract() { showFundContract.value = true }
 function openFundMilestone(m) { activeMilestone.value = m; showFundMilestone.value = true }
 function openSignModal()    { showSign.value = true }
-const showRefund        = ref(false)
+const showCancel        = ref(false)
 function openRefundMilestone(m) {
   activeMilestone.value = m
-  showRefund.value = true
+  showCancel.value = true
+}
+
+function retryMilestonePayment(m) {
+  router.post(
+    route('provider.jobs.contract.milestones.retry-payment', {
+      contract:  props.contract?.id,
+      milestone: m.id,
+    }),
+    {},
+    {
+      preserveScroll: true,
+      onSuccess: () => toast.success('Payment retried.'),
+      onError:   (e) => toast.error(e.milestone ?? 'Retry failed.'),
+    }
+  )
 }
 
 // ── Invoice modal state ───────────────────────────────────────────────────────

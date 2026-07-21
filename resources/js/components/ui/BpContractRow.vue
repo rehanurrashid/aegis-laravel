@@ -25,7 +25,7 @@
         </div>
       </div>
 
-      <!-- Col 2: Status + review badge + amount + escrow line -->
+      <!-- Col 2: Status + review badge + amount + Rev 2 terms chip -->
       <div class="bpcr-td bpcr-td--status" @click="$emit('open', contract)">
         <div class="bpcr-badges">
           <AegisBadge :label="statusLabel" :variant="statusVariant" />
@@ -34,15 +34,17 @@
           </span>
         </div>
         <div class="bpcr-amount-sub">{{ formatCents(contract.total_value_cents) }}</div>
-        <div v-if="isMilestoneDriven && statusVal === 'active'" class="bpcr-escrow-line">
-          <span class="bpcr-escrow-held">
-            <AegisIcon name="shield-check" :size="10" />
-            {{ formatCents(contract.escrow_held_cents ?? 0) }} held
-          </span>
-          <template v-if="(contract.unfunded_cents ?? 0) > 0">
-            <span class="bpcr-escrow-sep">·</span>
-            <span class="bpcr-escrow-unfunded">{{ formatCents(contract.unfunded_cents) }} unfunded</span>
-          </template>
+        <!-- Rev 2: terms chip -->
+        <div v-if="contract.payment_structure" class="bpcr-terms-chip">
+          <AegisIcon name="credit-card" :size="10" />
+          {{ termsSummary }}
+        </div>
+        <!-- Rev 2: payment progress (active/completed) -->
+        <div v-if="contract.payment_structure && ['active','completed'].includes(statusVal) && (contract.paid_cents ?? 0) > 0" class="bpcr-payment-progress">
+          <div class="bpcr-payment-progress-bar">
+            <div class="bpcr-payment-progress-fill" :style="{ width: paidPct + '%' }" />
+          </div>
+          <span class="bpcr-payment-progress-label">{{ formatCents(contract.paid_cents) }} paid</span>
         </div>
       </div>
 
@@ -101,10 +103,31 @@ const submittedMilestoneCount = computed(() =>
   milestones.value.filter(m => sv(m.status) === 'submitted').length
 )
 
+// Rev 2: payment terms summary
+const termsSummary = computed(() => {
+  const s = props.contract.payment_structure
+  const pct = props.contract.upfront_percentage ?? 0
+  const map = {
+    full_upfront:  '100% upfront',
+    split:         `${pct}% upfront + ${100 - pct}% completion`,
+    per_milestone: 'Per milestone',
+    on_completion: 'Pay on completion',
+  }
+  return s ? (map[s] ?? s) : null
+})
+
+// Rev 2: payment progress percentage
+const paidPct = computed(() => {
+  const total = props.contract.total_value_cents ?? 0
+  const paid  = props.contract.paid_cents ?? 0
+  if (!total) return 0
+  return Math.min(100, Math.round((paid / total) * 100))
+})
+
 const statusLabel = computed(() => ({
   active:            'Active',
   pending_signature: 'Awaiting Signature',
-  pending_funding:   'Awaiting Funding',
+  pending_funding:   'Awaiting Signature',  // Rev 2: no funding step
   completed:         'Completed',
   cancelled:         'Cancelled',
   disputed:          'Disputed',
@@ -173,10 +196,21 @@ function initials(name) {
 
 .bpcr-badges    { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 3px; }
 .bpcr-amount-sub { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
-.bpcr-escrow-line { display: flex; align-items: center; gap: 4px; font-size: 10px; flex-wrap: wrap; }
-.bpcr-escrow-held     { color: var(--blue-dark, #1d4ed8); font-weight: 600; display: flex; align-items: center; gap: 3px; }
-.bpcr-escrow-sep      { color: var(--border-dark); }
-.bpcr-escrow-unfunded { color: var(--text-4); }
+.bpcr-terms-chip {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 10px; color: var(--text-4); margin-top: 3px;
+}
+.bpcr-payment-progress { margin-top: 6px; }
+.bpcr-payment-progress-bar {
+  height: 3px; background: var(--border); border-radius: 2px; overflow: hidden;
+}
+.bpcr-payment-progress-fill {
+  height: 100%; background: var(--green); border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.bpcr-payment-progress-label {
+  font-size: 10px; color: var(--text-4); margin-top: 3px; display: block;
+}
 
 .bpcr-review-badge {
   display: inline-flex; align-items: center; gap: 4px;

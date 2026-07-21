@@ -25,7 +25,7 @@
                     <p style="margin:0;font-family:Arial,Helvetica,sans-serif;
                               font-size:13px;color:#1e5c3b;line-height:1.5;">
                       @if($recipient_role === 'provider')
-                        <strong>Next step:</strong> Log in to fund the escrow. Milestones unlock
+                        <strong>Next step:</strong> Log in to the committed payment terms take effect. Milestones unlock
                         for the Business Partner once each is funded.
                       @else
                         <strong>Next step:</strong> The provider must now fund escrow. You will

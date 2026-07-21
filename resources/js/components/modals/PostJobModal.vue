@@ -181,6 +181,52 @@
         <label class="form-label" for="pjPerks">Additional Perks / Incentives (optional)</label>
         <input id="pjPerks" v-model="form.perks" class="form-input" placeholder="e.g., performance bonuses, long-term contract guarantee, flexible hours..." />
       </div>
+
+      <!-- Rev 2: Default Payment Terms panel -->
+      <div class="form-group form-section-divider">
+        <div class="form-section-label">
+          <AegisIcon name="credit-card" :size="13" />
+          Default Payment Terms
+        </div>
+        <div class="form-row form-row-2">
+          <div class="form-group">
+            <label class="form-label">Payment Structure</label>
+            <select v-model="form.default_payment_structure" class="form-select">
+              <option value="per_milestone">Per Milestone</option>
+              <option value="full_upfront">100% Upfront</option>
+              <option value="split">Split (upfront + completion)</option>
+              <option value="on_completion">Pay on Completion</option>
+            </select>
+          </div>
+          <div v-if="form.default_payment_structure === 'split'" class="form-group">
+            <label class="form-label">Upfront Percentage</label>
+            <div class="form-input-suffix-wrap">
+              <input
+                v-model.number="form.default_upfront_percentage"
+                type="number" min="1" max="99" class="form-input"
+                placeholder="30"
+              />
+              <span class="form-input-suffix">%</span>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Payment Terms Note (optional)</label>
+          <textarea
+            v-model="form.default_terms_note"
+            class="form-textarea" rows="2"
+            placeholder="Any payment conditions, timelines, or special agreements BPs should know…"
+            maxlength="5000"
+          />
+        </div>
+        <div v-if="form.default_payment_structure !== 'per_milestone'" class="setting-row" style="padding:8px 0">
+          <div class="setting-info">
+            <div class="setting-label">Allow BPs to propose "pay on completion"</div>
+            <div class="setting-desc">Enables BPs to counter your structure with payment only after all work is complete. You bear more risk — nothing is owed until you approve.</div>
+          </div>
+          <AegisToggle v-model="form.allow_on_completion" />
+        </div>
+      </div>
       <div class="form-group">
         <label class="form-label">Visibility / Boost</label>
         <div class="form-row form-row-3">
@@ -260,6 +306,7 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
 import { useForm, usePage } from '@inertiajs/vue3'
+import AegisToggle from '@/components/ui/AegisToggle.vue'
 import useVuelidate from '@vuelidate/core'
 import { required, minLength, maxLength, integer, minValue, helpers } from '@vuelidate/validators'
 import AegisIcon from '@/components/ui/AegisIcon.vue'
@@ -310,6 +357,11 @@ function blankForm() {
     budget_type: 'hourly', budget_amount_cents: null, payment_method: 'Direct Bank Transfer',
     billing_frequency: 'Monthly', perks: '', is_featured: false, is_urgent: false,
     internal_notes: '', status: 'open',
+    // Rev 2 — default payment terms
+    default_payment_structure:  'per_milestone',
+    default_upfront_percentage: 30,
+    default_terms_note:         '',
+    allow_on_completion:        false,
   }
 }
 

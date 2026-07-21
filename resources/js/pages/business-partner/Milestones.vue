@@ -137,13 +137,13 @@
 
           <!-- Right: actions -->
           <div class="milestone-card-actions">
-            <!-- Awaiting funding — locked -->
-            <div v-if="m.status === 'pending_funding'" class="milestone-locked">
-              <AegisIcon name="lock" :size="13" />
-              <span>Awaiting provider funding</span>
+            <!-- Rev 2: payment_failed notice -->
+            <div v-if="m.status === 'payment_failed'" class="milestone-locked milestone-failed">
+              <AegisIcon name="alert-triangle" :size="13" />
+              <span>Payment failed — provider must retry</span>
             </div>
 
-            <!-- Submit (pending / funded / in_progress) -->
+            <!-- Submit (pending / in_progress) -->
             <button
               v-else-if="canSubmit(m)"
               type="button"
@@ -201,13 +201,13 @@ const pricing = usePricingStore()
 const activeMilestone = ref(null)
 
 // ── Computed ──────────────────────────────────────────────────────────────────
-const pendingCount   = computed(() => props.milestones.filter((m) => ['pending', 'funded', 'in_progress'].includes(m.status)).length)
+const pendingCount   = computed(() => props.milestones.filter((m) => ['pending', 'in_progress'].includes(m.status)).length)
 const submittedCount = computed(() => props.milestones.filter((m) => ['submitted', 'approved'].includes(m.status)).length)
 const releasedCount  = computed(() => props.milestones.filter((m) => ['released', 'paid'].includes(m.status)).length)
 const overdueCount   = computed(() => props.milestones.filter((m) => isOverdue(m)).length)
 const pendingValue   = computed(() =>
   props.milestones
-    .filter((m) => ['pending', 'funded', 'in_progress'].includes(m.status))
+    .filter((m) => ['pending', 'in_progress', 'prepaid'].includes(m.status))
     .reduce((s, m) => s + (m.amount_cents || 0), 0),
 )
 const revisionNeeded = computed(() => props.milestones.filter((m) => m.status === 'revision_requested'))
@@ -225,35 +225,41 @@ function isOverdue(m) {
 // ── Status labels ─────────────────────────────────────────────────────────────
 function statusLabel(s) {
   return {
-    pending:            'Pending',
-    pending_funding:    'Awaiting Funding',
-    funded:             'Funded',
-    in_progress:        'In Progress',
-    submitted:          'Under Review',
-    revision_requested: 'Revision Requested',
-    approved:           'Approved',
+    pending:            'Awaiting work',
+    pending_funding:    'Awaiting work',
+    funded:             'In progress',
+    in_progress:        'In progress',
+    submitted:          'Awaiting review',
+    revision_requested: 'Revision requested',
+    approved:           'Approved — payment fired',
     released:           'Paid',
     paid:               'Paid',
+    prepaid:            'Pre-paid',
+    payment_failed:     'Payment failed',
     disputed:           'Disputed',
     refunded:           'Refunded',
     rejected:           'Rejected',
+    cancelled:          'Cancelled',
   }[s] ?? s
 }
 
 function statusVariant(s) {
   return {
-    pending:            'gold',
+    pending:            'neutral',
     pending_funding:    'neutral',
     funded:             'blue',
     in_progress:        'blue',
-    submitted:          'blue',
-    revision_requested: 'gold',
-    approved:           'green',
-    released:           'green',
-    paid:               'green',
-    disputed:           'red',
+    submitted:          'warning',
+    revision_requested: 'warning',
+    approved:           'blue',
+    released:           'success',
+    paid:               'success',
+    prepaid:            'success',
+    payment_failed:     'danger',
+    disputed:           'danger',
     refunded:           'neutral',
-    rejected:           'red',
+    rejected:           'danger',
+    cancelled:          'neutral',
   }[s] ?? 'neutral'
 }
 

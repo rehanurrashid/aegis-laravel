@@ -28,6 +28,40 @@
         <div class="sign-modal-terms-scroll-hint">Scroll to read all terms before signing</div>
       </div>
 
+      <!-- Rev 2: Committed payment terms panel -->
+      <div v-if="contract.payment_structure" class="sign-committed-terms">
+        <div class="sign-committed-terms-header">
+          <AegisIcon name="credit-card" :size="13" />
+          <span>Committed payment terms</span>
+          <AegisBadge :label="termsSummary" variant="gold" />
+        </div>
+        <div class="sign-committed-terms-grid">
+          <div class="sign-ct-row">
+            <span class="sign-ct-label">Structure</span>
+            <span class="sign-ct-value">{{ termsSummary }}</span>
+          </div>
+          <div v-if="contract.upfront_cents > 0" class="sign-ct-row">
+            <span class="sign-ct-label">Upfront charge at signing</span>
+            <span class="sign-ct-value sign-ct-amount">{{ formatCents(contract.upfront_cents) }}</span>
+          </div>
+          <div v-if="contract.remaining_cents > 0" class="sign-ct-row">
+            <span class="sign-ct-label">Remaining</span>
+            <span class="sign-ct-value">{{ formatCents(contract.remaining_cents) }}</span>
+          </div>
+          <div class="sign-ct-row sign-ct-row-total">
+            <span class="sign-ct-label">Contract total</span>
+            <span class="sign-ct-value sign-ct-total">{{ formatCents(contract.total_value_cents) }}</span>
+          </div>
+        </div>
+        <div v-if="contract.terms_note" class="sign-ct-note">{{ contract.terms_note }}</div>
+        <div v-if="isSecondSigner && contract.upfront_cents > 0" class="sign-ct-auth-notice">
+          <AegisIcon name="alert-triangle" :size="13" />
+          By signing as the second party, you authorize an immediate charge of
+          <strong>{{ formatCents(contract.upfront_cents) }}</strong> to your payment method.
+          This payment routes directly to the other party's Stripe account — Aegis does not hold funds.
+        </div>
+      </div>
+
       <!-- Signature fields -->
       <div class="section-divider">Electronic signature</div>
 
@@ -89,7 +123,7 @@
       <div class="sign-success-title">You've signed the contract.</div>
       <div class="sign-success-desc">
         {{ bothSigned
-          ? 'Both parties have signed. The contract is now fully executed. The provider must fund escrow to activate.'
+          ? 'Both parties have signed. The contract is now fully executed and active. Payment has been initiated per committed terms.'
           : 'Awaiting the other party\u2019s signature.' }}
       </div>
     </div>
@@ -161,6 +195,33 @@ const alreadySigned = computed(() => {
     : props.contract.bp_has_signed
 })
 
+// Rev 2 — payment terms helpers
+const termsSummary = computed(() => {
+  const s = props.contract?.payment_structure
+  const pct = props.contract?.upfront_percentage ?? 0
+  if (!s) return 'Legacy escrow contract'
+  const labels = {
+    full_upfront:  '100% upfront',
+    split:         `${pct}% upfront + ${100 - pct}% completion`,
+    per_milestone: 'Per milestone',
+    on_completion: 'Pay on completion',
+  }
+  return labels[s] ?? s
+})
+
+// True if the current user would be the second signer (triggering payment)
+const isSecondSigner = computed(() => {
+  const c = props.contract
+  if (!c) return false
+  if (props.portal === 'provider') return !c.provider_has_signed && c.bp_has_signed
+  return !c.bp_has_signed && c.provider_has_signed
+})
+
+function formatCents(cents) {
+  if (!cents) return '$0.00'
+  return '$' + Number(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 // ── Vuelidate ─────────────────────────────────────────────────────────────────
 const rules = {
   name:   { required, minLength: minLength(2) },
@@ -219,3 +280,59 @@ async function sign() {
   })
 }
 </script>
+
+<style scoped>
+/* ── Committed terms panel (Rev 2) ─────────────────────────────── */
+.sign-committed-terms {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.sign-committed-terms-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--surface-3);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+.sign-committed-terms-grid { padding: 2px 0; }
+.sign-ct-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.sign-ct-row:last-child { border-bottom: none; }
+.sign-ct-row-total { background: var(--surface-3); }
+.sign-ct-label  { font-size: 12px; color: var(--text-4); flex-shrink: 0; }
+.sign-ct-value  { font-size: 13px; font-weight: 500; color: var(--text); text-align: right; }
+.sign-ct-amount { color: var(--gold-dark); font-weight: 700; }
+.sign-ct-total  { font-size: 15px; font-weight: 700; color: var(--text); }
+.sign-ct-note {
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--text-3);
+  border-top: 1px solid var(--border);
+  font-style: italic;
+}
+.sign-ct-auth-notice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  background: rgba(160,129,62,0.06);
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--gold-dark);
+  line-height: 1.5;
+}
+.sign-ct-auth-notice strong { color: var(--text); }
+</style>

@@ -125,26 +125,21 @@
           </div>
         </div>
 
-        <!-- Escrow strip (active milestone contracts) -->
+        <!-- Rev 2: Payment progress (replaces escrow strip) -->
         <div
-          v-if="c.status === 'active' && c.payment_type === 'milestone' && c.amount_cents > 0"
+          v-if="c.status === 'active' && (c.paid_cents ?? 0) > 0"
           class="contract-escrow-strip"
           @click.stop
         >
           <div class="contract-escrow-label">
-            <AegisIcon name="shield-check" :size="12" />
-            Escrow:
-            <strong>{{ pricing.formatCents(escrowHeld(c)) }} held</strong>
-            · {{ pricing.formatCents(c.escrow_released_cents ?? 0) }} released
+            <AegisIcon name="dollar" :size="12" />
+            <strong>{{ pricing.formatCents(c.paid_cents ?? 0) }} paid</strong>
+            · {{ pricing.formatCents((c.amount_cents ?? 0) - (c.paid_cents ?? 0)) }} remaining
           </div>
           <div class="contract-escrow-bar">
             <div
               class="contract-escrow-bar-released"
-              :style="{ width: escrowPct(c.escrow_released_cents, c.amount_cents) }"
-            />
-            <div
-              class="contract-escrow-bar-held"
-              :style="{ width: escrowPct(escrowHeld(c), c.amount_cents) }"
+              :style="{ width: escrowPct(c.paid_cents ?? 0, c.amount_cents) }"
             />
           </div>
         </div>
@@ -244,7 +239,7 @@ const tabs = [
 
 // ── Computed ──────────────────────────────────────────────────────────────────
 const activeCount    = computed(() => props.contracts.filter((c) => c.status === 'active').length)
-const pendingCount   = computed(() => props.contracts.filter((c) => ['pending_signature', 'pending_funding'].includes(c.status)).length)
+const pendingCount   = computed(() => props.contracts.filter((c) => ['pending_signature'].includes(c.status)).length)
 const completedCount = computed(() => props.contracts.filter((c) => c.status === 'completed').length)
 const signatureNeeded = computed(() => props.contracts.filter((c) => c.status === 'pending_signature' && !c.bp_has_signed))
 
@@ -262,7 +257,7 @@ function countForTab(v) {
 }
 
 const visible = computed(() => {
-  if (tab.value === 'pending') return props.contracts.filter((c) => ['pending_signature', 'pending_funding'].includes(c.status))
+  if (tab.value === 'pending') return props.contracts.filter((c) => ['pending_signature'].includes(c.status))
   return props.contracts.filter((c) => c.status === tab.value)
 })
 

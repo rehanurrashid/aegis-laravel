@@ -355,7 +355,7 @@
         <div class="help-intro-icon"><AegisIcon name="shield" :size="28" /></div>
         <div>
           <div class="help-intro-title">Support Services — How Requests Work</div>
-          <div class="help-intro-sub">Support Services connects you with vetted Business Partners for billing, compliance, IT, marketing, legal, and operations. Funds are held securely in escrow — you only pay when work is approved.</div>
+          <div class="help-intro-sub">Support Services connects you with vetted Business Partners for billing, compliance, IT, marketing, legal, and operations. Payment goes directly to Business Partners — you only pay when work is approved.</div>
         </div>
       </div>
 
@@ -371,7 +371,7 @@
             <div class="help-step-desc">Go to <strong>My Postings</strong> and click <em>Request Support</em>. Give the request a title, choose a category (Billing, IT, Marketing, etc.), set your budget, and pick a payment type.</div>
             <div class="help-callout help-callout-gold">
               <AegisIcon name="info" :size="13" style="flex-shrink:0;margin-top:2px" />
-              <div><strong>Payment type matters.</strong> <em>One-time</em> means a single fixed payment at completion. <em>Milestone</em> breaks the project into funded checkpoints — safer for longer engagements.</div>
+              <div><strong>Payment type matters.</strong> <em>One-time</em> means a single fixed payment at completion. <em>Milestone</em> breaks the project into paid checkpoints — safer for longer engagements.</div>
             </div>
             <div class="help-tags">
               <span class="help-tag"><AegisIcon name="briefcase" :size="11" /> My Postings tab</span>
@@ -448,8 +448,8 @@
         <div class="help-step">
           <div class="help-step-num">5</div>
           <div class="help-step-body">
-            <div class="help-step-title">Fund Escrow — Your Payment Is Held Securely</div>
-            <div class="help-step-desc">Once both parties sign, you fund the escrow. Your card is charged immediately, but the Business Partner does not receive any money yet — funds sit in Aegis-held escrow until you approve the work.</div>
+            <div class="help-step-title">Sign &amp; Pay — Direct to Business Partner</div>
+            <div class="help-step-desc">Once both parties sign, payment fires automatically based on your committed terms. Funds route directly to the Business Partner's Stripe account — Aegis does not hold funds.</div>
 
             <div class="help-escrow-diagram">
               <div class="help-escrow-node help-escrow-node-provider">
@@ -462,8 +462,8 @@
               </div>
               <div class="help-escrow-node help-escrow-node-aegis">
                 <AegisIcon name="shield" :size="16" />
-                <span>Aegis Escrow</span>
-                <span class="help-escrow-sub">Funds held securely</span>
+                <span>Stripe Connect</span>
+                <span class="help-escrow-sub">Direct to BP</span>
               </div>
               <div class="help-escrow-arrow">
                 <div class="help-escrow-arrow-line"></div>
@@ -501,21 +501,21 @@
                 <AegisIcon name="check-circle" :size="15" style="flex-shrink:0" />
                 <div>
                   <div class="help-review-label">Approve &amp; Release Payment</div>
-                  <div class="help-review-detail">Triggers an immediate Stripe transfer from escrow to the Business Partner's account. The milestone is marked complete.</div>
+                  <div class="help-review-detail">Triggers an immediate direct payment to the Business Partner's Stripe account. The milestone is marked complete.</div>
                 </div>
               </div>
               <div class="help-review-row help-review-revision">
                 <AegisIcon name="refresh-cw" :size="15" style="flex-shrink:0" />
                 <div>
                   <div class="help-review-label">Request Revision</div>
-                  <div class="help-review-detail">Send the milestone back with written feedback. The Business Partner can revise and resubmit. Escrow remains held — no charge until you approve.</div>
+                  <div class="help-review-detail">Send the milestone back with written feedback. The Business Partner can revise and resubmit. No payment is made until you approve.</div>
                 </div>
               </div>
               <div class="help-review-row help-review-dispute">
                 <AegisIcon name="alert-triangle" :size="15" style="flex-shrink:0" />
                 <div>
                   <div class="help-review-label">Reject &amp; Open Dispute</div>
-                  <div class="help-review-detail">If the work cannot be resolved through revision, open a dispute. Escrow is frozen and Aegis mediates. The admin team can release, refund, or split the held funds.</div>
+                  <div class="help-review-detail">If the work cannot be resolved through revision, open a dispute. Aegis mediates and can facilitate refunds or partial payments.</div>
                 </div>
               </div>
             </div>
@@ -528,7 +528,7 @@
           <div class="help-step-num">7</div>
           <div class="help-step-body">
             <div class="help-step-title">Auto-Release &amp; Timers</div>
-            <div class="help-step-desc">If you don't review a submission within <strong>7 days</strong>, Aegis automatically releases the escrow funds to the Business Partner. You'll receive a reminder at the 48-hour mark.</div>
+            <div class="help-step-desc">If you don't review a submission within <strong>7 days</strong>, Aegis automatically approves the milestone and payment fires directly to the Business Partner. You'll receive a reminder at the 48-hour mark.</div>
             <div class="help-callout help-callout-orange">
               <AegisIcon name="clock" :size="13" style="flex-shrink:0;margin-top:2px" />
               <div><strong>Why auto-release?</strong> It protects Business Partners from indefinite payment holds after completing legitimate work. Review submissions promptly to maintain full control over release decisions.</div>

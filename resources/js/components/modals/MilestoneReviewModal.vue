@@ -120,15 +120,30 @@
         <div class="form-hint">{{ form.notes.length }} / 1000 characters</div>
       </div>
 
-      <!-- Approve confirmation detail -->
-      <div v-if="form.action === 'approved'" class="alert-banner alert-banner-green">
-        <AegisIcon name="check-circle" :size="14" />
-        <span>
-          Approving will immediately transfer
-          <strong>{{ pricing.formatCents(milestone.amount_cents) }}</strong>
-          from Aegis escrow to {{ contract.bp?.display_name }}'s Stripe Connect account.
-          This cannot be undone.
-        </span>
+      <!-- Rev 2: Approve confirmation — direct charge, not escrow release -->
+      <div v-if="form.action === 'approved'" class="ms-review-approve-confirm">
+        <div class="ms-review-approve-header">
+          <AegisIcon name="credit-card" :size="14" />
+          <strong>Approving will trigger an immediate payment</strong>
+        </div>
+        <div class="ms-review-approve-breakdown">
+          <div class="ms-review-approve-row">
+            <span>Charge to your card</span>
+            <strong>{{ pricing.formatCents(milestone.amount_cents) }}</strong>
+          </div>
+          <div class="ms-review-approve-row">
+            <span>Sent direct to</span>
+            <strong>{{ contract.bp?.display_name }}'s Stripe account</strong>
+          </div>
+          <div class="ms-review-approve-row ms-review-approve-notice">
+            <AegisIcon name="info" :size="12" />
+            <span>Aegis does not hold these funds. This cannot be undone.</span>
+          </div>
+        </div>
+        <label class="ms-review-auth-check">
+          <input v-model="form.payment_authorized" type="checkbox" @change="v$.payment_authorized?.$touch()" />
+          I authorize this payment of {{ pricing.formatCents(milestone.amount_cents) }} to {{ contract.bp?.display_name }}.
+        </label>
       </div>
 
       <!-- Reject info -->
@@ -207,16 +222,17 @@ const toast   = useToast()
 const pricing = usePricingStore()
 
 const form = useForm({
-  action: '',   // 'approved' | 'revision_requested' | 'rejected'
-  notes:  '',
+  action:               '',   // 'approved' | 'revision_requested' | 'rejected'
+  notes:                '',
+  payment_authorized:   false, // Rev 2: must check before approving
 })
 
 // ── Config ───────────────────────────────────────────────────────────────────
 const actionOptions = [
   {
     value: 'approved',
-    label: 'Approve & release payment',
-    desc:  'Work is complete. Transfer escrow funds to Business Partner immediately.',
+    label: 'Approve & pay',
+    desc:  'Work is complete. Payment fires directly to the Business Partner\'s Stripe account.',
     icon:  'check-circle',
     color: 'green',
   },
@@ -255,13 +271,14 @@ function fieldError(f) {
 const canSubmit = computed(() => {
   if (!form.action) return false
   if (form.action === 'revision_requested' && form.notes.trim().length < 10) return false
+  if (form.action === 'approved' && !form.payment_authorized) return false
   return !form.processing
 })
 
 const submitLabel = computed(() => {
   if (form.processing) return 'Submitting…'
   return {
-    approved:           'Approve & release payment',
+    approved:           'Approve & pay',
     revision_requested: 'Send revision request',
     rejected:           'Reject & open dispute',
   }[form.action] ?? 'Submit review'
@@ -542,4 +559,40 @@ async function submit() {
 /* ── Notes textarea ──────────────────────────────────────────────── */
 .ms-review-notes-field { margin-top: 4px; }
 .req { color: var(--red); margin-left: 2px; }
+
+/* ── Rev 2: Approve confirmation ──────────────────────────────────── */
+.ms-review-approve-confirm {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.ms-review-approve-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px;
+  background: rgba(34,139,34,0.06);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px; color: var(--green-dark);
+}
+.ms-review-approve-breakdown { padding: 2px 0; }
+.ms-review-approve-row {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px; color: var(--text-3);
+}
+.ms-review-approve-row strong { color: var(--text); font-weight: 600; }
+.ms-review-approve-row:last-child { border-bottom: none; }
+.ms-review-approve-notice {
+  justify-content: flex-start; gap: 8px;
+  font-size: 12px; color: var(--text-4);
+}
+.ms-review-auth-check {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 13px; color: var(--text);
+  cursor: pointer; line-height: 1.4;
+}
+.ms-review-auth-check input { flex-shrink: 0; margin-top: 2px; }
 </style>

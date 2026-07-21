@@ -42,7 +42,10 @@ class MilestoneAutoReleaseJob implements ShouldQueue
 
     public function handle(EscrowService $escrow): void
     {
+        // Rev 2 guard: only process legacy escrow contracts (payment_structure IS NULL)
+        // Rev 2 contracts are handled by MilestoneAutoApproveJob
         $candidates = BpMilestone::scopeAutoReleaseDue(BpMilestone::query())
+            ->whereHas('contract', fn ($q) => $q->whereNull('payment_structure'))
             ->with(['contract:id,bp_id,practitioner_id,title'])
             ->limit(50)
             ->get();

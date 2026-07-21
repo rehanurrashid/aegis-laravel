@@ -63,28 +63,17 @@
         </button>
       </div>
 
-      <!-- Both signed but awaiting provider to fund -->
-      <div v-else-if="contract.status === 'pending_funding'" class="bpcd-action-banner bpcd-banner-blue">
-        <AegisIcon name="hourglass" :size="16" />
-        <div>
-          <div class="bpcd-banner-title">Contract signed — awaiting funding by provider</div>
-          <div class="bpcd-banner-desc">
-            Both parties have signed. The provider must fund the escrow before milestones are unlocked.
-          </div>
-        </div>
-      </div>
-
-      <!-- Both signed; provider hasn't signed yet but BP has -->
+      <!-- Awaiting provider signature -->
       <div v-else-if="contract.status === 'pending_signature' && contract.bp_has_signed && !contract.provider_has_signed" class="bpcd-action-banner bpcd-banner-gold">
         <AegisIcon name="hourglass" :size="16" />
         <div>
           <div class="bpcd-banner-title">Awaiting provider signature</div>
-          <div class="bpcd-banner-desc">You have signed. Waiting for the provider to sign.</div>
+          <div class="bpcd-banner-desc">You have signed. Waiting for the provider to sign. Payment fires once both parties have signed.</div>
         </div>
       </div>
 
       <!-- Signature status row -->
-      <div v-if="['pending_signature', 'pending_funding'].includes(contract.status)" class="bpcd-sig-row">
+      <div v-if="contract.status === 'pending_signature'" class="bpcd-sig-row">
         <div class="bpcd-sig-item" :class="{ 'is-signed': contract.provider_has_signed }">
           <AegisIcon :name="contract.provider_has_signed ? 'check-circle' : 'circle'" :size="13" />
           Provider: {{ contract.provider_has_signed ? 'Signed' : 'Not signed' }}
@@ -95,37 +84,32 @@
         </div>
       </div>
 
-      <!-- ── Escrow summary (active contracts) ─────────────────── -->
-      <div v-if="['active', 'pending_funding'].includes(contract.status)" class="bpcd-escrow">
+      <!-- ── Rev 2: Payment summary (active contracts) ─────────────────── -->
+      <div v-if="contract.status === 'active'" class="bpcd-escrow">
         <div class="bpcd-escrow-title">
-          <AegisIcon name="shield-check" :size="13" />
-          Escrow balance
+          <AegisIcon name="credit-card" :size="13" />
+          Payment progress
         </div>
         <div class="bpcd-escrow-grid">
           <div class="bpcd-escrow-item">
-            <div class="bpcd-escrow-label">Contract value</div>
+            <div class="bpcd-escrow-label">Contract total</div>
             <div class="bpcd-escrow-val">{{ pricing.formatCents(contract.amount_cents) }}</div>
           </div>
           <div class="bpcd-escrow-item">
-            <div class="bpcd-escrow-label">Funded in escrow</div>
-            <div class="bpcd-escrow-val is-funded">{{ pricing.formatCents(contract.escrow_funded_cents ?? 0) }}</div>
+            <div class="bpcd-escrow-label">Paid to you</div>
+            <div class="bpcd-escrow-val is-released">{{ pricing.formatCents(contract.paid_cents ?? 0) }}</div>
           </div>
           <div class="bpcd-escrow-item">
-            <div class="bpcd-escrow-label">Released to you</div>
-            <div class="bpcd-escrow-val is-released">{{ pricing.formatCents(contract.escrow_released_cents ?? 0) }}</div>
-          </div>
-          <div class="bpcd-escrow-item">
-            <div class="bpcd-escrow-label">Still held</div>
-            <div class="bpcd-escrow-val">{{ pricing.formatCents(escrowHeld) }}</div>
+            <div class="bpcd-escrow-label">Remaining</div>
+            <div class="bpcd-escrow-val">{{ pricing.formatCents((contract.amount_cents ?? 0) - (contract.paid_cents ?? 0)) }}</div>
           </div>
         </div>
         <div class="bpcd-escrow-bar">
-          <div class="bpcd-escrow-bar-released" :style="{ width: escrowPct(contract.escrow_released_cents) }" />
-          <div class="bpcd-escrow-bar-held"     :style="{ width: escrowPct(escrowHeld) }" />
+          <div class="bpcd-escrow-bar-released" :style="{ width: paidPct + '%' }" />
         </div>
         <div class="bpcd-escrow-desc">
-          Funds held by Aegis are released to you after provider approval, or automatically after
-          {{ autoReleaseDays }} days if provider does not respond.
+          Payments route directly to your Stripe Connect account. Aegis does not hold funds.
+          Payment fires per milestone approval, or per committed contract terms.
         </div>
       </div>
 
@@ -248,6 +232,14 @@ const escrowHeld = computed(() =>
     - (props.contract?.escrow_refunded_cents ?? 0),
   ),
 )
+
+// Rev 2: payment progress percentage
+const paidPct = computed(() => {
+  const total = props.contract?.amount_cents ?? 0
+  const paid  = props.contract?.paid_cents ?? 0
+  if (!total) return 0
+  return Math.min(100, Math.round((paid / total) * 100))
+})
 
 function escrowPct(cents) {
   const total = props.contract?.amount_cents ?? 0

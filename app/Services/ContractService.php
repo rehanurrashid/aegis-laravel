@@ -14,6 +14,7 @@ use App\Enums\ContractStatus;
 use App\Enums\MilestoneStatus;
 use App\Enums\PaymentStructure;
 use App\Events\Business\ContractSigned;
+use App\Events\Business\MilestonePaymentFailed;
 use App\Models\BpContract;
 use App\Models\BpContractTerms;
 use App\Models\BpMilestone;
@@ -306,6 +307,7 @@ class ContractService
                 'status'            => MilestoneStatus::Approved->value,
                 'payment_failed_at' => now(),
             ]);
+            event(new MilestonePaymentFailed($milestone->fresh(), $e->getMessage()));
             $this->activity->log(
                 $contract->practitioner_id, 'provider', 'job_postings',
                 ActivitySeverity::Critical, 'milestone_payment_failed',

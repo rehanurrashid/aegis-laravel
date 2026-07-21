@@ -50,6 +50,13 @@ use App\Events\Business\MilestoneRevisionRequested;
 use App\Events\Business\MilestoneReleased;
 use App\Events\Business\MilestoneRefunded;
 use App\Events\Business\MilestoneAutoReleased;
+use App\Events\Business\ContractUpfrontCharged;
+use App\Events\Business\ContractCompletionCharged;
+use App\Events\Business\ContractUpfrontRefunded;
+use App\Events\Business\MilestonePaid;
+use App\Events\Business\MilestoneAutoApproved;
+use App\Events\Business\MilestoneAutoApproveFailed;
+use App\Events\Business\MilestonePaymentFailed;
 use App\Events\Service\ServiceRequestResponded;
 use App\Events\Service\SessionCancelled;
 use App\Events\Service\SessionCompleted;
@@ -204,6 +211,14 @@ class SendEmailNotificationListener
             $event instanceof MilestoneReleased           => $this->milestoneReleased($event),
             $event instanceof MilestoneRefunded           => $this->milestoneRefunded($event),
             $event instanceof MilestoneAutoReleased       => $this->milestoneAutoReleased($event),
+            // Rev 2 — direct-charge events
+            $event instanceof ContractUpfrontCharged      => $this->contractUpfrontCharged($event),
+            $event instanceof ContractCompletionCharged   => $this->contractCompletionCharged($event),
+            $event instanceof ContractUpfrontRefunded     => $this->contractUpfrontRefunded($event),
+            $event instanceof MilestonePaid               => $this->milestonePaid($event),
+            $event instanceof MilestoneAutoApproved       => $this->milestoneAutoApproved($event),
+            $event instanceof MilestoneAutoApproveFailed  => $this->milestoneAutoApproveFailed($event),
+            $event instanceof MilestonePaymentFailed      => $this->milestonePaymentFailed($event),
             $event instanceof ProposalSubmitted       => $this->proposalSubmittedBp($event),
             $event instanceof ProposalWithdrawn       => $this->proposalWithdrawnBp($event),
             $event instanceof ServiceRequestResponded => $this->serviceRequestResponded($event),
@@ -2164,6 +2179,95 @@ class SendEmailNotificationListener
                 'docs_url'          => $base . '/continuity-steward/important-documents',
             ],
         ]];
+    }
+
+
+    // ── Rev 2: Support Services direct-charge notifications ─────────────────
+
+    private function contractUpfrontCharged(ContractUpfrontCharged $e): array
+    {
+        $contract = $e->subject;
+        return [
+            ['user_id' => $contract->practitioner_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.business.52-contract-upfront-paid',
+             'data' => ['contract_id' => $contract->id, 'role' => 'provider']],
+            ['user_id' => $contract->bp_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.business.52-contract-upfront-paid',
+             'data' => ['contract_id' => $contract->id, 'role' => 'bp']],
+        ];
+    }
+
+    private function contractCompletionCharged(ContractCompletionCharged $e): array
+    {
+        $contract = $e->subject;
+        return [
+            ['user_id' => $contract->practitioner_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.business.55-milestone-approved-and-paid',
+             'data' => ['contract_id' => $contract->id, 'type' => 'completion']],
+            ['user_id' => $contract->bp_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.business.55-milestone-approved-and-paid',
+             'data' => ['contract_id' => $contract->id, 'type' => 'completion']],
+        ];
+    }
+
+    private function contractUpfrontRefunded(ContractUpfrontRefunded $e): array
+    {
+        $contract = $e->subject;
+        return [
+            ['user_id' => $contract->practitioner_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.business.60-contract-cancelled-with-refund',
+             'data' => ['contract_id' => $contract->id]],
+        ];
+    }
+
+    private function milestonePaid(MilestonePaid $e): array
+    {
+        $milestone = $e->subject;
+        $contract  = $milestone->contract;
+        return [
+            ['user_id' => $contract->practitioner_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.business.55-milestone-approved-and-paid',
+             'data' => ['milestone_id' => $milestone->id, 'type' => 'milestone']],
+            ['user_id' => $contract->bp_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.business.55-milestone-approved-and-paid',
+             'data' => ['milestone_id' => $milestone->id, 'type' => 'milestone']],
+        ];
+    }
+
+    private function milestoneAutoApproved(MilestoneAutoApproved $e): array
+    {
+        $milestone = $e->subject;
+        $contract  = $milestone->contract;
+        return [
+            ['user_id' => $contract->practitioner_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.business.57-milestone-auto-approved',
+             'data' => ['milestone_id' => $milestone->id]],
+            ['user_id' => $contract->bp_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.business.57-milestone-auto-approved',
+             'data' => ['milestone_id' => $milestone->id]],
+        ];
+    }
+
+    private function milestoneAutoApproveFailed(MilestoneAutoApproveFailed $e): array
+    {
+        $milestone = $e->subject;
+        $contract  = $milestone->contract;
+        return [
+            ['user_id' => $contract->practitioner_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.business.58-milestone-auto-approve-failed',
+             'data' => ['milestone_id' => $milestone->id, 'error' => $e->message]],
+        ];
+    }
+
+    private function milestonePaymentFailed(MilestonePaymentFailed $e): array
+    {
+        $milestone = $e->subject;
+        $contract  = $milestone->contract;
+        return [
+            ['user_id' => $contract->practitioner_id, 'gate_key' => 'notify_payment',
+             'template' => 'emails.business.58-milestone-auto-approve-failed',
+             'data' => ['milestone_id' => $milestone->id, 'error' => $e->message ?? 'Payment failed']],
+        ];
     }
 
 }

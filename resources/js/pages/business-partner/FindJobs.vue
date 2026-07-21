@@ -22,6 +22,13 @@
         <option value="budget_high">Budget high → low</option>
         <option value="budget_low">Budget low → high</option>
       </select>
+      <select v-model="filters.structure" class="form-input" @change="apply">
+        <option value="">Any payment structure</option>
+        <option value="per_milestone">Per milestone</option>
+        <option value="full_upfront">100% upfront</option>
+        <option value="split">Split</option>
+        <option value="on_completion">Pay on completion</option>
+      </select>
     </div>
 
     <div v-if="jobs.length" class="job-results-list">
@@ -36,10 +43,17 @@
             <div class="job-result-title">{{ j.title }}</div>
             <div class="job-result-poster">{{ j.poster_name }} · {{ j.poster_role }}</div>
           </div>
-          <AegisBadge
-            :label="j.engagement === 'fixed' ? 'Fixed' : 'Hourly'"
-            variant="gold"
-          />
+          <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
+            <AegisBadge
+              :label="j.engagement === 'fixed' ? 'Fixed' : 'Hourly'"
+              variant="gold"
+            />
+            <AegisBadge
+              v-if="j.default_payment_structure"
+              :label="structureChip(j)"
+              variant="neutral"
+            />
+          </div>
         </header>
         <p class="job-result-snippet">{{ j.snippet }}</p>
         <footer class="job-result-foot">
@@ -78,7 +92,7 @@ const { openModal } = useModal()
 const activity = useActivity()
 const pricing = usePricingStore()
 
-const filters = reactive({ ...props.filters })
+const filters = reactive({ structure: '', ...props.filters })
 const selectedJob = ref(null)
 
 function rateLine(j) {
@@ -86,6 +100,18 @@ function rateLine(j) {
   return j.rate_min_cents && j.rate_max_cents
     ? `${pricing.formatCents(j.rate_min_cents)}–${pricing.formatCents(j.rate_max_cents)}/hr`
     : 'Hourly'
+}
+
+function structureChip(j) {
+  const s = j.default_payment_structure
+  const pct = j.default_upfront_percentage ?? 30
+  const map = {
+    full_upfront:  '100% upfront',
+    split:         `${pct}% upfront`,
+    per_milestone: 'Per milestone',
+    on_completion: 'Pay on completion',
+  }
+  return map[s] ?? s
 }
 
 function apply() {

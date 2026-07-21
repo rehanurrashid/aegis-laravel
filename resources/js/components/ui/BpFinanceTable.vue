@@ -21,36 +21,36 @@
 <template>
   <div class="bpft-root">
 
-    <!-- ── Escrow summary strip (only when funds are held or unfunded) ── -->
+    <!-- ── Rev 2: Payment summary strip ── -->
     <div
-      v-if="escrowSummary.total_held_cents > 0 || escrowSummary.total_unfunded_cents > 0"
+      v-if="paymentSummary.total_upfront_charged_cents > 0 || paymentSummary.total_milestones_paid_cents > 0 || paymentSummary.active_contract_count > 0"
       class="bpft-escrow-strip"
     >
-      <div v-if="escrowSummary.total_held_cents > 0" class="stat-chip bpft-escrow-chip">
+      <div v-if="paymentSummary.total_upfront_charged_cents > 0" class="stat-chip bpft-escrow-chip">
         <div class="stat-chip-icon" style="background:var(--icon-bg-gold);color:var(--gold-dark)">
-          <AegisIcon name="shield-check" :size="18" />
+          <AegisIcon name="credit-card" :size="18" />
         </div>
         <div>
-          <div class="stat-chip-value">{{ formatCents(escrowSummary.total_held_cents) }}</div>
-          <div class="stat-chip-label">Held in Escrow</div>
+          <div class="stat-chip-value">{{ formatCents(paymentSummary.total_upfront_charged_cents) }}</div>
+          <div class="stat-chip-label">Upfront Paid</div>
         </div>
       </div>
-      <div v-if="escrowSummary.total_unfunded_cents > 0" class="stat-chip bpft-escrow-chip">
-        <div class="stat-chip-icon" style="background:var(--icon-bg-gold);color:var(--gold-dark)">
-          <AegisIcon name="alert-circle" :size="18" />
-        </div>
-        <div>
-          <div class="stat-chip-value">{{ formatCents(escrowSummary.total_unfunded_cents) }}</div>
-          <div class="stat-chip-label">Unfunded Milestones</div>
-        </div>
-      </div>
-      <div v-if="escrowSummary.funded_count > 0" class="stat-chip bpft-escrow-chip">
-        <div class="stat-chip-icon" style="background:var(--icon-bg-gold);color:var(--gold-dark)">
+      <div v-if="paymentSummary.total_milestones_paid_cents > 0" class="stat-chip bpft-escrow-chip">
+        <div class="stat-chip-icon" style="background:var(--icon-bg-green);color:var(--green-dark)">
           <AegisIcon name="check-circle" :size="18" />
         </div>
         <div>
-          <div class="stat-chip-value">{{ escrowSummary.funded_count }}</div>
-          <div class="stat-chip-label">Milestone{{ escrowSummary.funded_count !== 1 ? 's' : '' }} Funded</div>
+          <div class="stat-chip-value">{{ formatCents(paymentSummary.total_milestones_paid_cents) }}</div>
+          <div class="stat-chip-label">Milestones Paid</div>
+        </div>
+      </div>
+      <div v-if="paymentSummary.total_pending_cents > 0" class="stat-chip bpft-escrow-chip">
+        <div class="stat-chip-icon" style="background:rgba(239,68,68,0.1);color:var(--red)">
+          <AegisIcon name="alert-triangle" :size="18" />
+        </div>
+        <div>
+          <div class="stat-chip-value">{{ formatCents(paymentSummary.total_pending_cents) }}</div>
+          <div class="stat-chip-label">Payment Failed</div>
         </div>
       </div>
     </div>
@@ -368,7 +368,7 @@ const props = defineProps({
   invoices:             { type: Array,   default: () => [] },
   contracts:            { type: Array,   default: () => [] },
   invoicesByContract:   { type: Object,  default: () => ({}) },
-  escrowSummary:        { type: Object,  default: () => ({ total_held_cents: 0, total_unfunded_cents: 0, funded_count: 0, contracts_needing_funding: 0 }) },
+  paymentSummary:       { type: Object,  default: () => ({ total_upfront_charged_cents: 0, total_milestones_paid_cents: 0, total_pending_cents: 0, active_contract_count: 0 }) },
   hasPaymentMethod:     { type: Boolean, default: false },
   has_valid_default_pm: { type: Boolean, default: false },
 })
