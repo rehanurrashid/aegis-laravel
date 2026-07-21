@@ -519,4 +519,38 @@ async function publish() {
 
 .boost-option { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px; cursor: pointer; text-align: center; transition: all var(--transition); }
 .boost-option.selected { border-color: var(--gold-dark); background: var(--badge-bg-gold); }
+
+/* ── Rev 2: Default Payment Terms panel ─────────────────────────── */
+.form-section-divider {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 4px;
+}
+.form-section-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+.form-input-suffix-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.form-input-suffix-wrap .form-input {
+  padding-right: 32px;
+}
+.form-input-suffix {
+  position: absolute;
+  right: 10px;
+  font-size: 13px;
+  color: var(--text-4);
+  pointer-events: none;
+}
 </style>

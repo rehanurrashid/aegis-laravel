@@ -186,6 +186,8 @@ export const ICONS = {
   'user-2': `<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/>`,
   'home-2': `<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>`,
   'layers-2': `<path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>`,
+  'layers': `<path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>`,
+  'message-circle': `<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>`,
   'disc-filled': `<circle cx="12" cy="12" r="5" fill="currentColor"/>`,
   'badge-id': `<rect x="4" y="2" width="16" height="20" rx="2"/><rect x="9" y="12" width="3" height="3" rx="1"/><path d="M9 6h1"/><path d="M14 6h1"/><path d="M9 10h1"/><path d="M14 10h1"/><path d="M14 16h1"/>`,
   'flame': `<path d="m10.5 20-7.5-7.5 7-7 7.5 7.5a5.3 5.3 0 0 1-7 7z"/><path d="m8 12 4 4"/>`,
