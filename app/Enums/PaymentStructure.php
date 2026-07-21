@@ -14,6 +14,9 @@ enum PaymentStructure: string
     case FullUpfront      = 'full_upfront';
     case Split            = 'split';
     case FullOnCompletion = 'full_on_completion';
+    // BP Support Services structures
+    case PerMilestone  = 'per_milestone';
+    case OnCompletion  = 'on_completion';
 
     /** Human-readable label for UI display. */
     public function label(): string
@@ -22,6 +25,8 @@ enum PaymentStructure: string
             self::FullUpfront      => 'Full Payment Upfront',
             self::Split            => 'Split Payment',
             self::FullOnCompletion => 'Pay After Session',
+            self::PerMilestone     => 'Per Milestone',
+            self::OnCompletion     => 'Pay on Completion',
         };
     }
 
@@ -36,6 +41,8 @@ enum PaymentStructure: string
             self::FullUpfront      => '100% upfront',
             self::Split            => "{$pct}% upfront + " . (100 - $pct) . '% completion',
             self::FullOnCompletion => 'Pay after session',
+            self::PerMilestone     => 'Per milestone',
+            self::OnCompletion     => 'Pay on completion',
         };
     }
 
@@ -46,6 +53,8 @@ enum PaymentStructure: string
             self::FullUpfront      => 'Full payment is due before the session begins. Payment routes directly to the provider.',
             self::Split            => "{$pct}% is due now to confirm your session. The remaining " . (100 - $pct) . '% is charged after the session is confirmed complete.',
             self::FullOnCompletion => 'No payment is collected until the session is confirmed complete by both parties.',
+            self::PerMilestone     => 'Payment is charged per milestone as each is approved. Funds route directly to the Business Partner.',
+            self::OnCompletion     => 'No payment is collected until the contract is marked complete by the provider.',
         };
     }
 
@@ -58,6 +67,6 @@ enum PaymentStructure: string
     /** True when a completion charge applies. */
     public function hasCompletionCharge(): bool
     {
-        return in_array($this, [self::Split, self::FullOnCompletion], true);
+        return in_array($this, [self::Split, self::FullOnCompletion, self::OnCompletion], true);
     }
 }

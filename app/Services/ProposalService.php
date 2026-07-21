@@ -35,6 +35,12 @@ class ProposalService
             throw new RuntimeException('You have already submitted a proposal for this job.');
         }
 
+        // Rev 2: on_completion guard
+        if (($data['proposed_payment_structure'] ?? null) === 'on_completion'
+            && !($job->allow_on_completion ?? false)) {
+            throw new RuntimeException('This posting does not accept "pay on completion" terms.');
+        }
+
         $proposal = BpProposal::create([
             'id'                  => 'bpr_' . Str::lower(Str::random(12)),
             'job_id'              => $job->id,
@@ -45,6 +51,13 @@ class ProposalService
             'status'              => 'pending',
             'pipeline_stage'      => 'new',
             'submitted_at'        => now(),
+            // Rev 2 — proposed payment terms
+            'proposed_payment_structure'  => $data['proposed_payment_structure']
+                ?? $job->default_payment_structure?->value ?? 'per_milestone',
+            'proposed_upfront_percentage' => $data['proposed_upfront_percentage']
+                ?? $job->default_upfront_percentage ?? 30,
+            'proposed_terms_note'         => $data['proposed_terms_note'] ?? $job->default_terms_note,
+            'terms_source'                => $data['terms_source'] ?? 'provider_default',
         ]);
 
         // Actor log — BP's own history ("I submitted a proposal")
@@ -75,19 +88,19 @@ class ProposalService
     /**
      * Accept proposal → decline others on same job → create contract.
      */
-    public function accept(BpProposal $proposal, ?int $finalRateCents = null): BpContract
+    /**
+     * @param array $termData  Rev 2 counter-terms from HireModal:
+     *   terms_countered, committed_payment_structure,
+     *   committed_upfront_percentage, committed_terms_note
+     */
+    public function accept(BpProposal $proposal, ?int $finalRateCents = null, array $termData = []): BpContract
     {
-        return DB::transaction(function () use ($proposal, $finalRateCents) {
-            // Build the proposal update regardless — ensures status and pipeline_stage
-            // are always correct even when re-calling accept() on an already-hired proposal.
+        return DB::transaction(function () use ($proposal, $finalRateCents, $termData) {
             $update = ['status' => 'accepted', 'pipeline_stage' => 'hired', 'responded_at' => now()];
             if ($finalRateCents !== null) {
                 $update['proposed_rate_cents'] = $finalRateCents;
             }
 
-            // Idempotency guard: if a contract already exists, still sync the proposal
-            // fields (they may have been left stale by a previous partial call) but
-            // return the existing contract instead of creating a duplicate.
             $existing = BpContract::where('proposal_id', $proposal->id)->first();
             if ($existing) {
                 $proposal->update($update);
@@ -96,7 +109,6 @@ class ProposalService
 
             $proposal->update($update);
 
-            // Decline all other proposals on the same job
             BpProposal::where('job_id', $proposal->job_id)
                 ->where('id', '!=', $proposal->id)
                 ->where('status', 'pending')
@@ -107,6 +119,29 @@ class ProposalService
             $contractId    = 'bc_' . Str::lower(Str::random(12));
             $transferGroup = 'aegis_contract_' . $contractId;
 
+            // Rev 2 — compute committed payment terms
+            $countered = (bool) ($termData['terms_countered'] ?? false);
+            $structure = $countered
+                ? ($termData['committed_payment_structure'] ?? $proposal->proposed_payment_structure?->value ?? 'per_milestone')
+                : ($proposal->proposed_payment_structure?->value ?? 'per_milestone');
+            $pct = $countered
+                ? (int) ($termData['committed_upfront_percentage'] ?? $proposal->proposed_upfront_percentage ?? 30)
+                : (int) ($proposal->proposed_upfront_percentage ?? 30);
+            $termsNote = $countered
+                ? ($termData['committed_terms_note'] ?? $proposal->proposed_terms_note)
+                : $proposal->proposed_terms_note;
+            $termsSrc = $countered ? 'provider_countered' : ($proposal->terms_source ?? 'provider_default');
+
+            $total = $finalRateCents ?? $proposal->proposed_rate_cents;
+            $upfrontCents = match ($structure) {
+                'full_upfront'  => $total,
+                'on_completion' => 0,
+                'per_milestone' => 0,
+                'split'         => (int) floor($total * $pct / 100),
+                default         => 0,
+            };
+            $remainingCents = $total - $upfrontCents;
+
             $contract = BpContract::create([
                 'id'                => $contractId,
                 'job_id'            => $job->id,
@@ -114,13 +149,20 @@ class ProposalService
                 'practitioner_id'   => $job->practitioner_id,
                 'bp_id'             => $proposal->bp_id,
                 'title'             => $job->title,
-                'total_value_cents' => $proposal->proposed_rate_cents,
+                'total_value_cents' => $total,
                 'payment_type'      => $job->budget_type?->value === 'fixed' ? 'one_time' : 'milestone',
-                'funding_mode'      => 'per_milestone',
-                // Escrow-backed: born in pending_signature, not active
+                'funding_mode'      => 'per_milestone', // legacy compat
                 'status'            => 'pending_signature',
                 'transfer_group'    => $transferGroup,
                 'terms'             => $this->generateTerms($job, $proposal),
+                // Rev 2 committed terms
+                'payment_structure'  => $structure,
+                'upfront_percentage' => $pct,
+                'upfront_cents'      => $upfrontCents,
+                'remaining_cents'    => $remainingCents,
+                'terms_note'         => $termsNote,
+                'terms_source'       => $termsSrc,
+                'terms_agreed_at'    => now(),
             ]);
 
             $job->update(['status' => 'filled']);

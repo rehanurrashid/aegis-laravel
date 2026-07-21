@@ -35,10 +35,28 @@ use Stripe\StripeClient;
  *
  * Every operation writes to bp_escrow_ledger for immutable audit trail.
  * All Stripe calls include idempotency keys to prevent double-charges.
+ *
+ * @deprecated Rev 2 — retained for legacy contract reconciliation ONLY.
+ *   New contracts (payment_structure IS NOT NULL) MUST use PayoutService direct-charge methods.
+ *   Do NOT call this service for any contract created after Support Services Rev 2 ships.
  */
 class EscrowService
 {
     public function __construct(private ActivityService $activity) {}
+
+    /**
+     * Guard — throws if contract is a Rev 2 direct-charge contract.
+     * Call at the top of every public method.
+     */
+    private function guardLegacyOnly(BpContract $contract): void
+    {
+        if ($contract->payment_structure !== null) {
+            throw new \LogicException(
+                'EscrowService is deprecated for Rev 2 contracts (payment_structure is set). ' .
+                'Use PayoutService::chargeContractUpfront / chargeContractCompletion / chargeMilestone instead.'
+            );
+        }
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // FUND
@@ -52,6 +70,7 @@ class EscrowService
     public function fundMilestone(BpMilestone $milestone, User $provider): BpPayout
     {
         $contract = $milestone->contract()->with(['bp:id,display_name,stripe_account_id'])->firstOrFail();
+        $this->guardLegacyOnly($contract);
 
         $this->guardProviderPaymentMethod($provider);
         $this->guardBpConnectAccount($contract->bp);
@@ -126,6 +145,7 @@ class EscrowService
      */
     public function fundContract(BpContract $contract, User $provider): BpPayout
     {
+        $this->guardLegacyOnly($contract);
         $contract->load(['bp:id,display_name,stripe_account_id', 'milestones']);
 
         $this->guardProviderPaymentMethod($provider);
@@ -215,6 +235,7 @@ class EscrowService
      */
     public function releaseMilestone(BpMilestone $milestone, ?User $approver = null): BpPayout
     {
+        $this->guardLegacyOnly($milestone->contract);
         $contract = $milestone->contract()->with(['bp:id,display_name,stripe_account_id', 'practitioner:id,display_name'])->firstOrFail();
         $bp       = $contract->bp;
 
@@ -315,6 +336,7 @@ class EscrowService
      */
     public function refundMilestone(BpMilestone $milestone, int $cents, User $actor, string $reason): void
     {
+        $this->guardLegacyOnly($milestone->contract);
         $contract = $milestone->contract()->with(['practitioner:id,display_name', 'bp:id,display_name'])->firstOrFail();
 
         if (!$milestone->escrow_intent_id) {
@@ -373,7 +395,8 @@ class EscrowService
      * Split resolution: partially release to BP + partially refund to provider.
      * Used by admin when resolving disputes with a compromise outcome.
      */
-    public function splitResolution(
+    public function splitResolution( // @deprecated Rev 2
+
         BpMilestone $milestone,
         int $releaseCents,
         int $refundCents,
@@ -406,6 +429,7 @@ class EscrowService
      */
     public function cancelContractEscrow(BpContract $contract, User $actor, string $reason): void
     {
+        $this->guardLegacyOnly($contract);
         $milestones = $contract->milestones()
             ->whereIn('status', [
                 MilestoneStatus::Funded->value,

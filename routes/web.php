@@ -331,17 +331,23 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::post('/support-services/contracts/{contract}/release-payment', [ProviderJobPostingsController::class, 'releasePayment'])->name('jobs.contract.release-payment');
         // Wave 3: Escrow + signing
         Route::post('/support-services/contracts/{contract}/sign', [ProviderJobPostingsController::class, 'signContract'])->name('jobs.contract.sign');
+        // Rev 1 escrow routes — kept but controllers return 410 error for Rev 2 contracts
         Route::post('/support-services/contracts/{contract}/fund', [ProviderJobPostingsController::class, 'fundContract'])->name('jobs.contract.fund');
+        Route::post('/support-services/contracts/{contract}/milestones/{milestone}/fund', [ProviderJobPostingsController::class, 'fundMilestone'])->name('jobs.contract.milestones.fund');
+        // Rev 2 direct-charge routes
+        Route::post('/support-services/contracts/{contract}/complete', [ProviderJobPostingsController::class, 'completeContract'])->name('jobs.contract.complete');
+        Route::post('/support-services/contracts/{contract}/retry-upfront', [ProviderJobPostingsController::class, 'retryContractUpfront'])->name('jobs.contract.retry-upfront');
+        Route::post('/support-services/contracts/{contract}/milestones/{milestone}/cancel', [ProviderJobPostingsController::class, 'cancelMilestone'])->name('jobs.contract.milestones.cancel');
+        Route::post('/support-services/contracts/{contract}/milestones/{milestone}/retry-payment', [ProviderJobPostingsController::class, 'retryMilestonePayment'])->name('jobs.contract.milestones.retry-payment');
         Route::post('/support-services/contracts/{contract}/milestones', [ProviderJobPostingsController::class, 'storeMilestone'])->name('jobs.contract.milestones.store');
         Route::put('/support-services/contracts/{contract}/milestones/{milestone}', [ProviderJobPostingsController::class, 'updateMilestone'])->name('jobs.contract.milestones.update');
         Route::delete('/support-services/contracts/{contract}/milestones/{milestone}', [ProviderJobPostingsController::class, 'destroyMilestone'])->name('jobs.contract.milestones.destroy');
-        Route::post('/support-services/contracts/{contract}/milestones/{milestone}/fund', [ProviderJobPostingsController::class, 'fundMilestone'])->name('jobs.contract.milestones.fund');
         Route::post('/support-services/contracts/{contract}/milestones/{milestone}/review', [ProviderJobPostingsController::class, 'reviewMilestone'])->name('jobs.contract.milestones.review');
         Route::post('/support-services/contracts/{contract}/milestones/{milestone}/approve', [ProviderJobPostingsController::class, 'approveMilestone'])->name('jobs.contract.milestones.approve');
         Route::post('/support-services/contracts/{contract}/milestones/{milestone}/request-revision', [ProviderJobPostingsController::class, 'requestMilestoneRevision'])->name('jobs.contract.milestones.revision');
         Route::post('/support-services/contracts/{contract}/milestones/{milestone}/pay', [ProviderJobPostingsController::class, 'payMilestone'])->name('jobs.contract.milestones.pay');
-        // Wave 5: Self-service refund
-        Route::post('/support-services/contracts/{contract}/milestones/{milestone}/refund', [ProviderJobPostingsController::class, 'refundMilestone'])->name('jobs.contract.milestones.refund');
+        // Wave 5: Self-service refund (Rev 1) — now routes to cancelMilestone
+        Route::post('/support-services/contracts/{contract}/milestones/{milestone}/refund', [ProviderJobPostingsController::class, 'cancelMilestone'])->name('jobs.contract.milestones.refund');
         // Wave 6: Contract PDF
         Route::get('/support-services/contracts/{contract}/pdf', [\App\Http\Controllers\Provider\ContractPdfController::class, 'show'])->name('jobs.contract.pdf');
         Route::post('/support-services/bp-invoices/{invoice}/pay', [ProviderJobPostingsController::class, 'payBPInvoice'])->name('jobs.bp-invoice.pay');

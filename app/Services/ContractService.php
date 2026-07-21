@@ -10,17 +10,24 @@ use App\Events\Business\MilestoneApproved;
 use App\Events\Business\MilestoneRevisionRequested;
 use App\Events\Business\MilestoneSubmitted;
 use App\Enums\ActivitySeverity;
+use App\Enums\ContractStatus;
 use App\Enums\MilestoneStatus;
+use App\Enums\PaymentStructure;
 use App\Events\Business\ContractSigned;
 use App\Models\BpContract;
+use App\Models\BpContractTerms;
 use App\Models\BpMilestone;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class ContractService
 {
-    public function __construct(private ActivityService $activity) {}
+    public function __construct(
+        private ActivityService $activity,
+        private PayoutService   $payouts,
+    ) {}
 
     public function create(string $jobId, string $proposalId, string $practitionerId, string $bpId, int $totalCents, string $paymentType = 'one_time', string $fundingMode = 'per_milestone'): BpContract
     {
@@ -45,102 +52,177 @@ class ContractService
     public function sign(BpContract $contract, User $signer, array $signature): BpContract
     {
         $isPractitioner = $contract->practitioner_id === $signer->id;
-        $isBp = $contract->bp_id === $signer->id;
+        $isBp           = $contract->bp_id === $signer->id;
+
+        if (!$isPractitioner && !$isBp) {
+            abort(403, 'You are not a party to this contract.');
+        }
 
         $update = [];
         if ($isPractitioner) {
-            $update['practitioner_signed_at'] = now();
+            $update['practitioner_signed_at']      = now();
             $update['practitioner_signature_name'] = $signature['name'] ?? $signer->display_name;
-        } elseif ($isBp) {
-            $update['bp_signed_at'] = now();
+        } else {
+            $update['bp_signed_at']      = now();
             $update['bp_signature_name'] = $signature['name'] ?? $signer->display_name;
         }
         $contract->update($update);
-
-        // Both signed → mark fully executed
-        $fresh = $contract->fresh();
-        if ($fresh->practitioner_signed_at && $fresh->bp_signed_at) {
-            $fresh->update(['fully_executed_at' => now()]);
-            event(new ContractSigned($fresh));
-        }
+        $contract->refresh();
 
         $otherId     = $isPractitioner ? $contract->bp_id : $contract->practitioner_id;
         $otherPortal = $isPractitioner ? 'business_partner' : 'provider';
-        $fullyExecuted = (bool) $fresh->fully_executed_at;
 
-        // Actor log — signer's own history ("I signed the contract")
-        $this->activity->log(
-            $signer->id,
-            $isPractitioner ? 'provider' : 'business_partner',
-            'job_postings', ActivitySeverity::Info,
-            'contract_signed',
-            'You signed the contract: ' . $contract->title,
-            $fullyExecuted ? 'Contract is now fully executed.' : 'Awaiting the other party\'s signature.',
-            'bp_contract', $contract->id, null,
-            'log', $signer->id
-        );
-
-        // Notification → other party ("Party X signed the contract")
-        $this->activity->log(
-            $otherId, $otherPortal, 'job_postings', ActivitySeverity::Info,
-            'contract_signed',
-            "{$signer->display_name} signed the contract",
-            $fullyExecuted ? 'Contract is now fully executed.' : 'Awaiting your signature.',
-            'bp_contract', $contract->id, $signer->id,
-            'notification', $signer->id
-        );
-
-        // Email the other party on every signature (first sign + fully executed)
-        // ContractSigned is only fired when both sign; use SendEmailJob directly for mid-sign
-        if (!$fullyExecuted) {
+        // Not both signed yet
+        if (!$contract->practitioner_signed_at || !$contract->bp_signed_at) {
+            $this->activity->log(
+                $signer->id, $isPractitioner ? 'provider' : 'business_partner',
+                'job_postings', ActivitySeverity::Info,
+                'contract_signed', 'You signed the contract: ' . $contract->title,
+                "Awaiting the other party's signature.",
+                'bp_contract', $contract->id, null, 'log', $signer->id
+            );
+            $this->activity->log(
+                $otherId, $otherPortal,
+                'job_postings', ActivitySeverity::Info,
+                'contract_pending_signature', $signer->display_name . ' signed the contract',
+                'Your signature is needed to activate the contract.',
+                'bp_contract', $contract->id, $signer->id, 'notification', $signer->id
+            );
             \App\Jobs\SendEmailJob::dispatch(
                 'emails.gaps.66-contract-signed',
                 ['contract_id' => $contract->id, 'user_id' => $otherId],
                 $otherId
             )->onQueue('email');
+            return $contract;
         }
-        // When fully executed, ContractSigned event already fires above and handles both parties
 
-        return $fresh;
+        // Both signed
+        return DB::transaction(function () use ($contract, $signer, $isPractitioner, $otherId, $otherPortal) {
+            // 1. Snapshot terms
+            if ($contract->payment_structure && !BpContractTerms::where('contract_id', $contract->id)->exists()) {
+                BpContractTerms::create([
+                    'id'                 => 'bct_' . Str::lower(Str::random(12)),
+                    'contract_id'        => $contract->id,
+                    'payment_structure'  => $contract->payment_structure,
+                    'upfront_percentage' => $contract->upfront_percentage ?? 0,
+                    'upfront_cents'      => $contract->upfront_cents ?? 0,
+                    'remaining_cents'    => $contract->remaining_cents ?? $contract->total_value_cents,
+                    'total_value_cents'  => $contract->total_value_cents,
+                    'terms_note'         => $contract->terms_note,
+                    'terms_source'       => $contract->terms_source ?? 'provider_default',
+                    'snapshotted_at'     => now(),
+                ]);
+            }
+
+            // 2. Mark active
+            $contract->update([
+                'fully_executed_at' => now(),
+                'status'            => ContractStatus::Active->value,
+            ]);
+            $contract->refresh();
+
+            // 3. Upfront charge for full_upfront or split
+            $structure = $contract->payment_structure;
+            if ($structure && $structure->hasUpfrontCharge() && ($contract->upfront_cents ?? 0) > 0) {
+                try {
+                    $this->payouts->chargeContractUpfront($contract);
+                    $contract->refresh();
+                } catch (\Throwable $e) {
+                    $contract->update(['payment_failed_at' => now()]);
+                    $this->activity->log(
+                        $contract->practitioner_id, 'provider', 'job_postings',
+                        ActivitySeverity::Critical, 'contract_upfront_payment_failed',
+                        'Upfront charge failed — ' . $contract->title, $e->getMessage(),
+                        'bp_contract', $contract->id, $contract->bp_id,
+                        'notification', $contract->practitioner_id
+                    );
+                }
+            }
+
+            // 4. full_upfront + no failure → prepay milestones + complete
+            $contract->refresh();
+            if ($structure === PaymentStructure::FullUpfront && !$contract->payment_failed_at) {
+                BpMilestone::where('contract_id', $contract->id)->update([
+                    'status'     => MilestoneStatus::Prepaid->value,
+                    'paid_at'    => now(),
+                    'paid_cents' => DB::raw('amount_cents'),
+                ]);
+                $contract->update([
+                    'status'       => ContractStatus::Completed->value,
+                    'completed_at' => now(),
+                ]);
+                $contract->refresh();
+            }
+
+            // 5. Activity + event
+            $this->activity->log(
+                $signer->id, $isPractitioner ? 'provider' : 'business_partner',
+                'job_postings', ActivitySeverity::Info,
+                'contract_signed', 'You signed the contract: ' . $contract->title,
+                'Contract is now fully executed and active.',
+                'bp_contract', $contract->id, null, 'log', $signer->id
+            );
+            $this->activity->log(
+                $otherId, $otherPortal, 'job_postings', ActivitySeverity::Info,
+                'contract_signed', $signer->display_name . ' signed the contract',
+                'Contract is now fully executed and active.',
+                'bp_contract', $contract->id, $signer->id, 'notification', $signer->id
+            );
+
+            event(new ContractSigned($contract->fresh()));
+            return $contract->fresh();
+        });
     }
 
     public function cancel(BpContract $contract, User $actor, ?string $reason = null): BpContract
     {
+        if (in_array($contract->status?->value, ['completed', 'cancelled'], true)) {
+            throw new \RuntimeException('Contract is already ' . $contract->status?->value . '.');
+        }
+
+        // Rev 2 — refund upfront charge if one was made
+        if (($contract->paid_cents ?? 0) > 0 && $contract->upfront_charge_intent_id) {
+            try {
+                $this->payouts->refundContractUpfront(
+                    $contract, $actor, 'Contract cancelled: ' . ($reason ?? 'no reason given')
+                );
+                $contract->refresh();
+            } catch (\Throwable $e) {
+                // Log failure but proceed with cancellation — admin will reconcile
+                $this->activity->log(
+                    $actor->id, $actor->id === $contract->practitioner_id ? 'provider' : 'business_partner',
+                    'job_postings', ActivitySeverity::Critical, 'contract_refund_failed',
+                    'Refund failed on cancel — ' . $contract->title, $e->getMessage(),
+                    'bp_contract', $contract->id, null, 'log', $actor->id
+                );
+            }
+        }
+
         $contract->update([
-            'status'      => 'cancelled',
-            'cancelled_at'=> now(),
-            'cancel_reason'=> $reason,
+            'status'        => ContractStatus::Cancelled->value,
+            'cancelled_at'  => now(),
+            'cancel_reason' => $reason,
         ]);
 
-        $otherId  = $contract->practitioner_id === $actor->id
-            ? $contract->bp_id
-            : $contract->practitioner_id;
+        $otherId     = $contract->practitioner_id === $actor->id ? $contract->bp_id : $contract->practitioner_id;
         $otherUser   = User::find($otherId);
         $otherPortal = $otherUser?->role === 'business_partner' ? 'business_partner' : 'provider';
         $actorPortal = $actor->id === $contract->practitioner_id ? 'provider' : 'business_partner';
 
-        // Actor log — who cancelled ("I ended this contract")
         $this->activity->log(
             $actor->id, $actorPortal, 'job_postings', ActivitySeverity::Warning,
-            'contract_cancelled',
-            'You cancelled the contract: ' . $contract->title,
+            'contract_cancelled', 'You cancelled the contract: ' . $contract->title,
             $reason ?? 'No reason recorded.',
-            'bp_contract', $contract->id, null,
-            'log', $actor->id
+            'bp_contract', $contract->id, null, 'log', $actor->id
         );
-
-        // Notification → other party ("Party X cancelled the contract")
         $this->activity->log(
             $otherId, $otherPortal, 'job_postings', ActivitySeverity::Warning,
-            'contract_cancelled',
-            "{$actor->display_name} cancelled the contract",
+            'contract_cancelled', $actor->display_name . ' cancelled the contract',
             $reason ?? 'No reason given.',
-            'bp_contract', $contract->id, $actor->id,
-            'notification', $actor->id
+            'bp_contract', $contract->id, $actor->id, 'notification', $actor->id
         );
 
         event(new ContractCancelled($contract->fresh(), $actor, $reason));
-
         return $contract->fresh();
     }
 
@@ -197,7 +279,7 @@ class ContractService
         return $milestone->fresh();
     }
 
-    public function approveMilestone(BpMilestone $milestone, User $approver): BpMilestone
+    public function approveMilestone(BpMilestone $milestone, ?User $approver): BpMilestone
     {
         $milestone->update([
             'status'      => MilestoneStatus::Approved->value,
@@ -206,27 +288,124 @@ class ContractService
 
         $contract = $milestone->contract;
 
-        // Actor log — provider's own history ("I approved milestone X")
-        $this->activity->log(
-            $approver->id, 'provider', 'job_postings', ActivitySeverity::Info,
-            'milestone_approved',
-            "Milestone approved: {$milestone->title}",
-            'Payout will be processed within 3 business days.',
-            'bp_milestone', $milestone->id, null,
-            'log', $approver->id
-        );
+        try {
+            // Fire direct charge synchronously (Rev 2 contracts only)
+            $this->payouts->chargeMilestone($milestone->fresh());
+            $milestone->refresh();
 
-        // Notification → BP ("Milestone approved — payout coming")
-        $this->activity->log(
-            $contract->bp_id, 'business_partner', 'job_postings', ActivitySeverity::Info,
-            'milestone_approved',
-            "{$approver->display_name} approved milestone: {$milestone->title}",
-            'Payout will be processed shortly.',
-            'bp_milestone', $milestone->id, $approver->id,
-            'notification', $approver->id
-        );
+            // Auto-complete contract if all milestones paid
+            if ($this->allMilestonesPaid($contract)) {
+                $contract->update([
+                    'status'       => ContractStatus::Completed->value,
+                    'completed_at' => now(),
+                ]);
+                event(new ContractCompleted($contract->fresh()));
+            }
+        } catch (\Throwable $e) {
+            $milestone->update([
+                'status'            => MilestoneStatus::Approved->value,
+                'payment_failed_at' => now(),
+            ]);
+            $this->activity->log(
+                $contract->practitioner_id, 'provider', 'job_postings',
+                ActivitySeverity::Critical, 'milestone_payment_failed',
+                'Milestone payment failed — ' . $milestone->title, $e->getMessage(),
+                'bp_milestone', $milestone->id, $contract->bp_id,
+                'notification', $contract->practitioner_id
+            );
+        }
+
+        if ($approver) {
+            $this->activity->log(
+                $approver->id, 'provider', 'job_postings', ActivitySeverity::Info,
+                'milestone_approved', 'Milestone approved: ' . $milestone->title,
+                'Direct payment sent to Business Partner.',
+                'bp_milestone', $milestone->id, null, 'log', $approver->id
+            );
+        }
 
         event(new MilestoneApproved($milestone->fresh()));
+        return $milestone->fresh();
+    }
+
+    /**
+     * Checks if all non-cancelled milestones on a contract are paid.
+     */
+    private function allMilestonesPaid(BpContract $contract): bool
+    {
+        return !BpMilestone::where('contract_id', $contract->id)
+            ->whereNotIn('status', [
+                MilestoneStatus::Paid->value,
+                MilestoneStatus::Prepaid->value,
+                MilestoneStatus::Cancelled->value,
+                MilestoneStatus::Released->value,
+            ])
+            ->exists();
+    }
+
+    /**
+     * Complete a contract and fire completion charge for on_completion / split-remainder.
+     * For per_milestone contracts, all milestones must be paid first.
+     *
+     * @throws \RuntimeException if not authorized or already completed
+     */
+    public function completeContract(BpContract $contract, User $actor): BpContract
+    {
+        if ($contract->practitioner_id !== $actor->id) {
+            abort(403, 'Only the practitioner can mark a contract complete.');
+        }
+
+        if (in_array($contract->status?->value, ['completed', 'cancelled'], true)) {
+            throw new \RuntimeException('Contract is already ' . $contract->status?->value . '.');
+        }
+
+        // Fire completion charge if there is an outstanding balance
+        $remaining = ($contract->total_value_cents ?? 0) - ($contract->paid_cents ?? 0);
+        if ($remaining > 0 && $contract->payment_structure) {
+            $this->payouts->chargeContractCompletion($contract);
+            $contract->refresh();
+        }
+
+        $contract->update([
+            'status'       => ContractStatus::Completed->value,
+            'completed_at' => now(),
+        ]);
+
+        $this->activity->log(
+            $actor->id, 'provider', 'job_postings', ActivitySeverity::Info,
+            'contract_completed', 'Contract marked complete — ' . $contract->title,
+            'All payments have been settled.',
+            'bp_contract', $contract->id, $contract->bp_id, 'log', $actor->id
+        );
+        $this->activity->log(
+            $contract->bp_id, 'business_partner', 'job_postings', ActivitySeverity::Info,
+            'contract_completed', $actor->display_name . ' marked the contract complete',
+            'All payments have been settled.',
+            'bp_contract', $contract->id, $actor->id, 'notification', $actor->id
+        );
+
+        event(new ContractCompleted($contract->fresh()));
+        return $contract->fresh();
+    }
+
+    /**
+     * Cancel a milestone pre-payment. Throws if already paid.
+     */
+    public function cancelMilestone(BpMilestone $milestone, User $actor): BpMilestone
+    {
+        $statusVal = $milestone->status instanceof \BackedEnum
+            ? $milestone->status->value
+            : (string) $milestone->status;
+
+        if (in_array($statusVal, ['paid', 'released', 'prepaid'], true)) {
+            throw new \RuntimeException('Milestone already paid. Open a dispute to seek a refund.');
+        }
+
+        $milestone->update([
+            'status'       => MilestoneStatus::Cancelled->value,
+            'cancelled_at' => now(),
+        ]);
+
         return $milestone->fresh();
     }
 

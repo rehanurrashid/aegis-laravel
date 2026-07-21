@@ -16,7 +16,11 @@ enum MilestoneStatus: string
     case Released           = 'released';          // Stripe transfer sent to BP Connect
     case Disputed           = 'disputed';          // dispute opened; funds frozen
     case Refunded           = 'refunded';          // escrow refunded to provider
-    case Paid               = 'paid';              // legacy alias of released
+    case Paid               = 'paid';              // legacy alias of released / Rev 2 direct-charge paid
+    // Rev 2 direct-charge states
+    case Prepaid        = 'prepaid';        // full_upfront — paid at signing, work not yet delivered
+    case PaymentFailed  = 'payment_failed'; // direct charge failed; retry needed
+    case Cancelled      = 'cancelled';      // milestone cancelled pre-payment
 
     public function label(): string
     {
@@ -32,6 +36,9 @@ enum MilestoneStatus: string
             self::Disputed          => 'Disputed',
             self::Refunded          => 'Refunded',
             self::Paid              => 'Paid',
+            self::Prepaid           => 'Pre-paid',
+            self::PaymentFailed     => 'Payment Failed',
+            self::Cancelled         => 'Cancelled',
         };
     }
 
@@ -49,6 +56,9 @@ enum MilestoneStatus: string
             self::Disputed          => 'red',
             self::Refunded          => 'gray',
             self::Paid              => 'green',
+            self::Prepaid           => 'teal',
+            self::PaymentFailed     => 'red',
+            self::Cancelled         => 'gray',
         };
     }
 

@@ -306,9 +306,21 @@ class JobPostingsController extends Controller
             'milestones.*.amount_cents' => 'required_with:milestones|integer|min:1',
             'milestones.*.due_at'     => 'nullable|date',
             'milestones.*.sort_order' => 'nullable|integer',
+            // Rev 2 — counter-terms
+            'terms_countered'              => 'nullable|boolean',
+            'committed_payment_structure'  => 'nullable|in:full_upfront,split,per_milestone,on_completion',
+            'committed_upfront_percentage' => 'nullable|integer|min:1|max:99',
+            'committed_terms_note'         => 'nullable|string|max:5000',
         ]);
 
-        $contract = $this->proposals->accept($proposal, $validated['final_rate_cents'] ?? null);
+        $termData = [
+            'terms_countered'              => $validated['terms_countered'] ?? false,
+            'committed_payment_structure'  => $validated['committed_payment_structure'] ?? null,
+            'committed_upfront_percentage' => $validated['committed_upfront_percentage'] ?? null,
+            'committed_terms_note'         => $validated['committed_terms_note'] ?? null,
+        ];
+
+        $contract = $this->proposals->accept($proposal, $validated['final_rate_cents'] ?? null, $termData);
 
         // Create initial milestones if provided (milestone-based contracts)
         if (!empty($validated['milestones']) && $contract) {
@@ -455,45 +467,57 @@ class JobPostingsController extends Controller
      * Provider funds entire contract upfront (full_upfront funding mode).
      * Charges provider's saved PM via Stripe; funds held in Aegis escrow balance.
      */
+    /**
+     * @deprecated Rev 2 — escrow funding removed. Returns 410.
+     */
     public function fundContract(Request $request, BpContract $contract): RedirectResponse
     {
+        return back()->withErrors(['contract' =>
+            'Escrow funding is no longer used. Payment fires automatically based on committed contract terms at signing.'
+        ]);
+    }
+
+    /**
+     * @deprecated Rev 2 — escrow funding removed. Returns 410.
+     */
+    public function fundMilestone(Request $request, BpContract $contract, BpMilestone $milestone): RedirectResponse
+    {
+        return back()->withErrors(['milestone' =>
+            'Escrow funding is no longer used. Milestone payment fires automatically on approval.'
+        ]);
+    }
+
+    /**
+     * Rev 2 — provider marks contract complete + fires completion charge.
+     */
+    public function completeContract(Request $request, BpContract $contract): RedirectResponse
+    {
         $this->authorize('cancel', $contract);
-
-        $statusVal = $contract->status instanceof \BackedEnum ? $contract->status->value : (string) $contract->status;
-        if (!in_array($statusVal, ['pending_funding', 'active'], true)) {
-            return back()->withErrors(['contract' => "Contract cannot be funded in status: {$statusVal}."]);
-        }
-
         try {
-            $payout = $this->escrow->fundContract($contract, $request->user());
-            $amount = number_format($payout->amount_cents / 100, 2);
-            return back()->with('success', "Contract funded. \${$amount} held in Aegis escrow. Business Partner can now begin work.");
+            $this->contracts->completeContract($contract, $request->user());
+            return back()->with('success', 'Contract marked complete. Completion payment sent to Business Partner.');
         } catch (\Throwable $e) {
             return back()->withErrors(['contract' => $e->getMessage()]);
         }
     }
 
     /**
-     * Provider funds a single milestone into escrow (per_milestone funding mode).
-     * Charges provider's saved PM; milestone status → funded; BP can begin work.
+     * Rev 2 — retry a failed upfront charge.
      */
-    public function fundMilestone(Request $request, BpContract $contract, BpMilestone $milestone): RedirectResponse
+    public function retryContractUpfront(Request $request, BpContract $contract): RedirectResponse
     {
         $this->authorize('cancel', $contract);
-        abort_if($milestone->contract_id !== $contract->id, 404);
-
-        $statusVal = $milestone->status instanceof \BackedEnum ? $milestone->status->value : (string) $milestone->status;
-        $fundable  = ['pending', 'pending_funding'];
-        if (!in_array($statusVal, $fundable, true)) {
-            return back()->withErrors(['milestone' => "Milestone cannot be funded in status: {$statusVal}."]);
+        if (!$contract->payment_failed_at) {
+            return back()->withErrors(['contract' => 'No failed payment to retry.']);
         }
-
         try {
-            $payout = $this->escrow->fundMilestone($milestone, $request->user());
-            $amount = number_format($payout->amount_cents / 100, 2);
-            return back()->with('success', "Milestone funded. \${$amount} held in escrow. Business Partner has been notified to begin work.");
+            // Reset failure flag, attempt charge
+            $contract->update(['payment_failed_at' => null]);
+            $this->payouts->chargeContractUpfront($contract->fresh());
+            return back()->with('success', 'Upfront payment retried successfully.');
         } catch (\Throwable $e) {
-            return back()->withErrors(['milestone' => $e->getMessage()]);
+            $contract->update(['payment_failed_at' => now()]);
+            return back()->withErrors(['contract' => $e->getMessage()]);
         }
     }
 
@@ -642,34 +666,45 @@ class JobPostingsController extends Controller
         }
     }
     /**
-     * Wave 5: Provider requests refund on an unfunded/pre-submission milestone.
-     * Only allowed when milestone is pending/funded (not yet submitted).
-     * Calls EscrowService::refundMilestone() directly — no dispute needed.
+     * Rev 2 — cancel a milestone (pre-payment only).
+     * For paid milestones, use the dispute system.
      */
-    public function refundMilestone(Request $request, BpContract $contract, BpMilestone $milestone): RedirectResponse
+    public function cancelMilestone(Request $request, BpContract $contract, BpMilestone $milestone): RedirectResponse
     {
         $this->authorize('cancel', $contract);
         abort_if($milestone->contract_id !== $contract->id, 404);
 
         $statusVal = $milestone->status instanceof \BackedEnum ? $milestone->status->value : (string) $milestone->status;
-        $refundable = ['pending', 'funded', 'in_progress'];
-        if (!in_array($statusVal, $refundable, true)) {
-            return back()->withErrors(['milestone' => "Milestone cannot be self-refunded in status: {$statusVal}. For submitted milestones, use the dispute system."]);
+        if (in_array($statusVal, ['paid', 'released', 'prepaid'], true)) {
+            return back()->withErrors(['milestone' => 'Milestone already paid. Open a dispute to seek a refund.']);
         }
 
-        $data = $request->validate(['reason' => 'required|string|min:5|max:500']);
+        try {
+            $this->contracts->cancelMilestone($milestone, $request->user());
+            return back()->with('success', 'Milestone cancelled.');
+        } catch (\Throwable $e) {
+            return back()->withErrors(['milestone' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Rev 2 — retry a failed direct charge on an approved milestone.
+     */
+    public function retryMilestonePayment(Request $request, BpContract $contract, BpMilestone $milestone): RedirectResponse
+    {
+        $this->authorize('cancel', $contract);
+        abort_if($milestone->contract_id !== $contract->id, 404);
+
+        if (!$milestone->payment_failed_at) {
+            return back()->withErrors(['milestone' => 'No failed payment to retry.']);
+        }
 
         try {
-            $refundCents = (int) $milestone->funded_cents ?: 0;
-            if ($refundCents > 0 && $milestone->escrow_intent_id) {
-                $this->escrow->refundMilestone($milestone, $refundCents, $request->user(), $data['reason']);
-                $amount = number_format($refundCents / 100, 2);
-                return back()->with('success', "\${$amount} refunded. Milestone reset.");
-            }
-            // Not yet funded — just reset status
-            $milestone->update(['status' => MilestoneStatus::Pending->value]);
-            return back()->with('success', 'Milestone reset. No funds to refund (not yet funded).');
+            $milestone->update(['payment_failed_at' => null]);
+            $this->payouts->chargeMilestone($milestone->fresh());
+            return back()->with('success', 'Milestone payment retried successfully.');
         } catch (\Throwable $e) {
+            $milestone->update(['payment_failed_at' => now()]);
             return back()->withErrors(['milestone' => $e->getMessage()]);
         }
     }

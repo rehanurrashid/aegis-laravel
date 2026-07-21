@@ -46,6 +46,11 @@ class BpJobService
             'status'                => $data['status'] ?? 'open',
             'posted_at'             => now(),
             'closes_at'             => $data['application_deadline'] ?? null,
+            // Rev 2 — default payment terms
+            'default_payment_structure'  => $data['default_payment_structure'] ?? 'per_milestone',
+            'default_upfront_percentage' => $data['default_upfront_percentage'] ?? 30,
+            'default_terms_note'         => $data['default_terms_note'] ?? null,
+            'allow_on_completion'        => $data['allow_on_completion'] ?? false,
         ]);
 
         // Actor log — provider's history ("I posted a new job")
@@ -90,6 +95,11 @@ class BpJobService
             'is_urgent'             => $data['is_urgent'] ?? $job->is_urgent,
             'internal_notes'        => $data['internal_notes'] ?? $job->internal_notes,
             'status'                => $data['status'],
+            // Rev 2 — default payment terms
+            'default_payment_structure'  => $data['default_payment_structure'] ?? $job->default_payment_structure?->value ?? 'per_milestone',
+            'default_upfront_percentage' => $data['default_upfront_percentage'] ?? $job->default_upfront_percentage ?? 30,
+            'default_terms_note'         => $data['default_terms_note'] ?? $job->default_terms_note,
+            'allow_on_completion'        => $data['allow_on_completion'] ?? $job->allow_on_completion ?? false,
         ]);
 
         $this->activity->log(

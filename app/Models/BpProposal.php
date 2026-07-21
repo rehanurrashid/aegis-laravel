@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\BpBudgetType;
+use App\Enums\PaymentStructure;
 use App\Enums\ProposalStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -25,6 +26,8 @@ class BpProposal extends Model
         'proposed_rate_cents', 'proposed_rate_type', 'status',
         'submitted_at', 'responded_at', 'pipeline_stage', 'decline_reason',
         'internal_notes', 'interview_type', 'interview_at',
+        // Rev 2 — proposed payment terms
+        'proposed_payment_structure', 'proposed_upfront_percentage', 'proposed_terms_note', 'terms_source',
     ];
 
     protected $casts = [
@@ -33,7 +36,9 @@ class BpProposal extends Model
         'proposed_rate_cents' => 'integer',
         'submitted_at'        => 'datetime',
         'responded_at'        => 'datetime',
-        'interview_at'        => 'datetime',
+        'interview_at'                 => 'datetime',
+        'proposed_payment_structure'   => PaymentStructure::class,
+        'proposed_upfront_percentage'  => 'integer',
     ];
 
     public function job(): BelongsTo { return $this->belongsTo(BpJob::class, 'job_id'); }

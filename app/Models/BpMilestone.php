@@ -32,6 +32,8 @@ class BpMilestone extends Model
         'auto_release_at', 'revision_count',
         'rejection_reason', 'revision_notes',
         'reminder_sent_at',   // Wave 7: tracks when review reminder email was sent
+        // Rev 2 — direct-charge tracking
+        'payment_intent_id', 'paid_cents', 'auto_approve_at', 'payment_failed_at', 'cancelled_at',
     ];
 
     protected $casts = [
@@ -50,7 +52,12 @@ class BpMilestone extends Model
         'released_at'    => 'datetime',
         'refunded_at'    => 'datetime',
         'auto_release_at'=> 'datetime',
-        'reminder_sent_at'=> 'datetime',
+        'reminder_sent_at'   => 'datetime',
+        // Rev 2
+        'paid_cents'         => 'integer',
+        'auto_approve_at'    => 'datetime',
+        'payment_failed_at'  => 'datetime',
+        'cancelled_at'       => 'datetime',
     ];
 
     // ── Relationships ────────────────────────────────────────────────────────

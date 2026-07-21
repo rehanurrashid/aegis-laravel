@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\BpBudgetType;
 use App\Enums\BpJobStatus;
+use App\Enums\PaymentStructure;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -28,6 +29,8 @@ class BpJob extends Model
         'requires_hipaa', 'requires_nda', 'requires_baa', 'application_deadline',
         'max_applicants', 'payment_method', 'billing_frequency', 'perks',
         'is_featured', 'internal_notes', 'start_date',
+        // Rev 2 — default payment terms
+        'default_payment_structure', 'default_upfront_percentage', 'default_terms_note', 'allow_on_completion',
     ];
 
     protected $casts = [
@@ -44,8 +47,11 @@ class BpJob extends Model
         'requires_baa'         => 'boolean',
         'application_deadline' => 'date',
         'max_applicants'       => 'integer',
-        'is_featured'          => 'boolean',
-        'start_date'           => 'date',
+        'is_featured'                 => 'boolean',
+        'start_date'                  => 'date',
+        'default_payment_structure'   => PaymentStructure::class,
+        'default_upfront_percentage'  => 'integer',
+        'allow_on_completion'         => 'boolean',
     ];
 
     public function practitioner(): BelongsTo

@@ -788,6 +788,296 @@ class PayoutService
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // BP SUPPORT SERVICES — DIRECT DESTINATION CHARGES (Rev 2)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Charge the upfront portion (full_upfront or split) at contract signing.
+     * Idempotent: no-op if upfront_charge_intent_id already set.
+     *
+     * @throws \RuntimeException on failure; caller sets payment_failed_at
+     */
+    public function chargeContractUpfront(BpContract $contract): BpPayout
+    {
+        if ($contract->upfront_cents <= 0) {
+            throw new \RuntimeException('Contract has no upfront charge amount.');
+        }
+        if ($contract->upfront_charge_intent_id !== null) {
+            // Already charged — return existing payout record if present
+            $existing = BpPayout::where('contract_id', $contract->id)
+                ->where('description', 'LIKE', '%upfront%')
+                ->latest()->first();
+            if ($existing) return $existing;
+        }
+
+        $provider = User::findOrFail($contract->practitioner_id);
+        $bp       = User::findOrFail($contract->bp_id);
+
+        $result = $this->chargeProviderToBp(
+            $provider, $bp, $contract->upfront_cents, 'usd',
+            [
+                'contract_id'        => $contract->id,
+                'portion'            => 'upfront',
+                'payment_structure'  => $contract->payment_structure?->value ?? 'split',
+                'upfront_percentage' => $contract->upfront_percentage ?? 0,
+            ],
+            'Contract upfront (' . ($contract->upfront_percentage ?? 0) . '%) — ' . $contract->title
+        );
+
+        $payout = BpPayout::create([
+            'id'                       => 'bpo_' . Str::lower(Str::random(12)),
+            'bp_id'                    => $contract->bp_id,
+            'provider_id'              => $contract->practitioner_id,
+            'contract_id'              => $contract->id,
+            'amount_cents'             => $contract->upfront_cents,
+            'currency'                 => 'USD',
+            'status'                   => $result['status'],
+            'stripe_payment_intent_id' => $result['stripe_payment_intent_id'],
+            'stripe_transfer_id'       => $result['stripe_transfer_id'] ?? null,
+            'released_at'              => now(),
+            'description'              => 'Contract upfront — ' . $contract->title,
+        ]);
+
+        $contract->update([
+            'upfront_charge_intent_id' => $result['stripe_payment_intent_id'],
+            'upfront_charged_at'       => now(),
+            'paid_cents'               => ($contract->paid_cents ?? 0) + $contract->upfront_cents,
+        ]);
+
+        $this->activity->log(
+            $contract->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
+            'contract_upfront_paid',
+            'Upfront payment sent — ' . $contract->title,
+            '$' . number_format($contract->upfront_cents / 100, 2) . ' sent direct to ' . $bp->display_name . '\'s Stripe account.',
+            'bp_contract', $contract->id, $contract->bp_id, 'log', $contract->practitioner_id
+        );
+        $this->activity->log(
+            $contract->bp_id, 'business_partner', 'job_postings', ActivitySeverity::Info,
+            'contract_upfront_received',
+            'Upfront payment received — ' . $contract->title,
+            '$' . number_format($contract->upfront_cents / 100, 2) . ' deposited to your Stripe Connect account.',
+            'bp_contract', $contract->id, $contract->practitioner_id, 'notification', $contract->practitioner_id
+        );
+
+        return $payout;
+    }
+
+    /**
+     * Charge the completion portion (split remainder or full on_completion).
+     * Amount = total_value_cents - paid_cents.
+     *
+     * @throws \RuntimeException on failure
+     */
+    public function chargeContractCompletion(BpContract $contract): BpPayout
+    {
+        $remainingCents = $contract->total_value_cents - ($contract->paid_cents ?? 0);
+        if ($remainingCents <= 0) {
+            throw new \RuntimeException('Contract balance is already fully paid.');
+        }
+        if ($contract->completion_charge_intent_id !== null) {
+            $existing = BpPayout::where('contract_id', $contract->id)
+                ->where('description', 'LIKE', '%completion%')
+                ->latest()->first();
+            if ($existing) return $existing;
+        }
+
+        $provider = User::findOrFail($contract->practitioner_id);
+        $bp       = User::findOrFail($contract->bp_id);
+
+        $result = $this->chargeProviderToBp(
+            $provider, $bp, $remainingCents, 'usd',
+            [
+                'contract_id'       => $contract->id,
+                'portion'           => 'completion',
+                'payment_structure' => $contract->payment_structure?->value ?? 'on_completion',
+            ],
+            'Contract completion — ' . $contract->title
+        );
+
+        $payout = BpPayout::create([
+            'id'                       => 'bpo_' . Str::lower(Str::random(12)),
+            'bp_id'                    => $contract->bp_id,
+            'provider_id'              => $contract->practitioner_id,
+            'contract_id'              => $contract->id,
+            'amount_cents'             => $remainingCents,
+            'currency'                 => 'USD',
+            'status'                   => $result['status'],
+            'stripe_payment_intent_id' => $result['stripe_payment_intent_id'],
+            'stripe_transfer_id'       => $result['stripe_transfer_id'] ?? null,
+            'released_at'              => now(),
+            'description'              => 'Contract completion — ' . $contract->title,
+        ]);
+
+        $contract->update([
+            'completion_charge_intent_id' => $result['stripe_payment_intent_id'],
+            'completion_charged_at'       => now(),
+            'paid_cents'                  => $contract->total_value_cents, // fully paid
+        ]);
+
+        $this->activity->log(
+            $contract->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
+            'contract_completion_paid',
+            'Completion payment sent — ' . $contract->title,
+            '$' . number_format($remainingCents / 100, 2) . ' sent direct to ' . $bp->display_name . '\'s Stripe account.',
+            'bp_contract', $contract->id, $contract->bp_id, 'log', $contract->practitioner_id
+        );
+        $this->activity->log(
+            $contract->bp_id, 'business_partner', 'job_postings', ActivitySeverity::Info,
+            'contract_completion_received',
+            'Completion payment received — ' . $contract->title,
+            '$' . number_format($remainingCents / 100, 2) . ' deposited to your Stripe Connect account.',
+            'bp_contract', $contract->id, $contract->practitioner_id, 'notification', $contract->practitioner_id
+        );
+
+        return $payout;
+    }
+
+    /**
+     * Direct-charge a single milestone. Idempotent: no-op if payment_intent_id set.
+     * Replaces EscrowService milestone flow for Rev 2 contracts.
+     *
+     * @throws \RuntimeException on failure
+     */
+    public function chargeMilestone(BpMilestone $milestone): BpPayout
+    {
+        if ($milestone->payment_intent_id !== null) {
+            $existing = BpPayout::where('milestone_id', $milestone->id)->latest()->first();
+            if ($existing) return $existing;
+        }
+
+        $contract = $milestone->contract;
+        $provider = User::findOrFail($contract->practitioner_id);
+        $bp       = User::findOrFail($contract->bp_id);
+
+        $result = $this->chargeProviderToBp(
+            $provider, $bp, $milestone->amount_cents, 'usd',
+            [
+                'contract_id'  => $contract->id,
+                'milestone_id' => $milestone->id,
+                'portion'      => 'milestone',
+            ],
+            'Milestone — ' . $milestone->title
+        );
+
+        $payout = BpPayout::create([
+            'id'                       => 'bpo_' . Str::lower(Str::random(12)),
+            'bp_id'                    => $contract->bp_id,
+            'provider_id'              => $contract->practitioner_id,
+            'contract_id'              => $contract->id,
+            'milestone_id'             => $milestone->id,
+            'amount_cents'             => $milestone->amount_cents,
+            'currency'                 => 'USD',
+            'status'                   => $result['status'],
+            'stripe_payment_intent_id' => $result['stripe_payment_intent_id'],
+            'stripe_transfer_id'       => $result['stripe_transfer_id'] ?? null,
+            'released_at'              => now(),
+            'description'              => 'Milestone — ' . $milestone->title,
+        ]);
+
+        $milestone->update([
+            'status'             => \App\Enums\MilestoneStatus::Paid->value,
+            'payment_intent_id'  => $result['stripe_payment_intent_id'],
+            'paid_at'            => now(),
+            'paid_cents'         => $milestone->amount_cents,
+            'payout_id'          => $payout->id,
+        ]);
+
+        // Update contract paid_cents running total
+        $contract->increment('paid_cents', $milestone->amount_cents);
+
+        $this->activity->log(
+            $contract->practitioner_id, 'provider', 'job_postings', ActivitySeverity::Info,
+            'milestone_paid',
+            'Milestone paid — ' . $milestone->title,
+            '$' . number_format($milestone->amount_cents / 100, 2) . ' sent direct to ' . $bp->display_name . '.',
+            'bp_milestone', $milestone->id, $contract->bp_id, 'log', $contract->practitioner_id
+        );
+        $this->activity->log(
+            $contract->bp_id, 'business_partner', 'job_postings', ActivitySeverity::Info,
+            'milestone_payment_received',
+            'Milestone payment received — ' . $milestone->title,
+            '$' . number_format($milestone->amount_cents / 100, 2) . ' deposited to your Stripe Connect account.',
+            'bp_milestone', $milestone->id, $contract->practitioner_id, 'notification', $contract->practitioner_id
+        );
+
+        return $payout;
+    }
+
+    /**
+     * Issue a refund against any BP direct charge (upfront, completion, or milestone).
+     * Uses reverse_transfer: true so funds pull from BP's Connect account.
+     *
+     * @return array Stripe refund object array
+     * @throws \RuntimeException on Stripe failure
+     */
+    public function refundBpCharge(string $paymentIntentId, int $cents, string $reason): array
+    {
+        if (str_starts_with($paymentIntentId, 'pi_demo_') || str_starts_with($paymentIntentId, 'pi_stub_')) {
+            return ['id' => 're_demo_' . Str::lower(Str::random(12)), 'status' => 'succeeded', 'stub' => true];
+        }
+
+        if (!config('services.stripe.secret')) {
+            return ['id' => 're_stub_' . Str::lower(Str::random(12)), 'status' => 'succeeded', 'stub' => true];
+        }
+
+        try {
+            $stripe = new StripeClient(config('services.stripe.secret'));
+            $refund = $stripe->refunds->create([
+                'payment_intent'   => $paymentIntentId,
+                'amount'           => $cents,
+                'reason'           => 'requested_by_customer',
+                'reverse_transfer' => true,
+                'metadata'         => ['aegis_reason' => $reason],
+            ]);
+            return $refund->toArray();
+        } catch (\Throwable $e) {
+            Log::error('[PayoutService] BP refund failed', [
+                'pi'    => $paymentIntentId,
+                'cents' => $cents,
+                'error' => $e->getMessage(),
+            ]);
+            throw new \RuntimeException('Refund failed: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Refund the contract upfront charge and mark contract cancelled.
+     * Guards against double-refund via paid_cents === 0.
+     *
+     * @throws \RuntimeException on failure
+     */
+    public function refundContractUpfront(BpContract $contract, User $actor, string $reason): void
+    {
+        if (!$contract->upfront_charge_intent_id) {
+            throw new \RuntimeException('No upfront charge found to refund.');
+        }
+        if (($contract->paid_cents ?? 0) === 0) {
+            throw new \RuntimeException('Contract has already been refunded.');
+        }
+
+        $this->refundBpCharge(
+            $contract->upfront_charge_intent_id,
+            (int) $contract->paid_cents,
+            $reason
+        );
+
+        $contract->update([
+            'paid_cents'   => 0,
+            'status'       => \App\Enums\ContractStatus::Cancelled->value,
+            'cancelled_at' => now(),
+        ]);
+
+        $this->activity->log(
+            $actor->id, $actor->role === 'business_partner' ? 'business_partner' : 'provider',
+            'job_postings', ActivitySeverity::Warning,
+            'contract_upfront_refunded',
+            'Contract upfront refunded — ' . $contract->title,
+            'Upfront payment of $' . number_format(($contract->paid_cents ?? 0) / 100, 2) . ' refunded. Reason: ' . $reason,
+            'bp_contract', $contract->id, null, 'log', $actor->id
+        );
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // PRIVATE HELPERS
     // ═══════════════════════════════════════════════════════════════════════════
 
