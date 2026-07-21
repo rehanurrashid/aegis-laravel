@@ -330,7 +330,7 @@ const loginRules = computed(() => ({
     min:      helpers.withMessage('Password must be at least 8 characters.', minLength(8)),
   },
 }))
-const v$login = useVuelidate(loginRules, loginForm)
+const v$login = useVuelidate(loginRules, loginForm, { $scope: false })
 
 // ── Client-side validation — reset form ──────────────────────────────
 const resetRules = computed(() => ({
@@ -339,7 +339,7 @@ const resetRules = computed(() => ({
     email:    helpers.withMessage('Enter a valid email address.', email),
   },
 }))
-const v$reset = useVuelidate(resetRules, resetForm)
+const v$reset = useVuelidate(resetRules, resetForm, { $scope: false })
 
 // ── Unified error helper ──────────────────────────────────────────────
 function loginFieldError(field) {

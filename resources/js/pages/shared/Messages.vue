@@ -1013,7 +1013,7 @@ const composeRules = computed(() => ({
     minLen:   helpers.withMessage('Message must be at least 2 characters.', minLength(2)),
   },
 }))
-const v$ = useVuelidate(composeRules, composeForm)
+const v$ = useVuelidate(composeRules, composeForm, { $scope: false })
 
 function composeFieldError(field) {
   if (v$.value[field]?.$error) return v$.value[field].$errors[0]?.$message

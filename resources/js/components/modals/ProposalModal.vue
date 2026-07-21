@@ -220,7 +220,7 @@ const rules = {
   portfolio_url:       {},
   cover_letter:        { required, minLength: minLength(50), maxLength: maxLength(3000) },
 }
-const v$ = useVuelidate(rules, form)
+const v$ = useVuelidate(rules, form, { $scope: false })
 
 function fieldError(f) {
   const e = v$.value[f]?.$errors

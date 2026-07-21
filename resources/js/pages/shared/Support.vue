@@ -398,7 +398,7 @@ const ticketRules = computed(() => ({
     minLen:   helpers.withMessage('Please provide more detail (min 10 characters).', minLength(10)),
   },
 }))
-const v$ticket = useVuelidate(ticketRules, ticketForm)
+const v$ticket = useVuelidate(ticketRules, ticketForm, { $scope: false })
 
 function ticketFieldError(field) {
   if (v$ticket.value[field]?.$error) return v$ticket.value[field].$errors[0]?.$message
@@ -434,7 +434,7 @@ const replyRules = computed(() => ({
     minLen:   helpers.withMessage('Minimum 5 characters.',  minLength(5)),
   },
 }))
-const v$reply = useVuelidate(replyRules, replyForm)
+const v$reply = useVuelidate(replyRules, replyForm, { $scope: false })
 
 function replyFieldError(field) {
   if (v$reply.value[field]?.$error) return v$reply.value[field].$errors[0]?.$message
@@ -514,7 +514,7 @@ const feedbackRules = computed(() => ({
     minLen:   helpers.withMessage('Please provide at least 5 characters.', minLength(5)),
   },
 }))
-const v$feedback = useVuelidate(feedbackRules, feedbackForm)
+const v$feedback = useVuelidate(feedbackRules, feedbackForm, { $scope: false })
 
 function feedbackFieldError(field) {
   if (v$feedback.value[field]?.$error) return v$feedback.value[field].$errors[0]?.$message

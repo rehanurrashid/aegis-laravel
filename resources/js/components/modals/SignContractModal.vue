@@ -166,7 +166,7 @@ const rules = {
   name:   { required, minLength: minLength(2) },
   agreed: { required, mustBeTrue: (v) => v === true },
 }
-const v$ = useVuelidate(rules, form)
+const v$ = useVuelidate(rules, form, { $scope: false })
 
 function fieldError(f) {
   const e = v$.value[f]?.$errors

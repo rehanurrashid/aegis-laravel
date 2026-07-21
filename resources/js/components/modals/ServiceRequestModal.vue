@@ -239,7 +239,7 @@ function onTermsUpdate(terms) {
   form.terms_source                = terms.termsSource
 }
 
-const v$ = useVuelidate(rules, form)
+const v$ = useVuelidate(rules, form, { $scope: false })
 
 function fieldError(field) {
   if (v$.value[field]?.$error) return v$.value[field].$errors[0]?.$message ?? ''

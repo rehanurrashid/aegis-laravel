@@ -1224,7 +1224,7 @@ const editRules = {
     (v) => editForm.post_type !== 'question' || (v && v.trim().length > 0)
   )},
 }
-const vEdit = useVuelidate(editRules, editForm)
+const vEdit = useVuelidate(editRules, editForm, { $scope: false })
 
 // Normalize legacy 'poll' type → 'question' for the unified quiz/poll type
 function normalizePostType(t) {
@@ -1349,7 +1349,7 @@ const createRules = {
     (v) => createForm.post_type !== 'question' || (v && v.trim().length > 0)
   )},
 }
-const vCreate = useVuelidate(createRules, createForm)
+const vCreate = useVuelidate(createRules, createForm, { $scope: false })
 
 
 async function submitCreatePost() {

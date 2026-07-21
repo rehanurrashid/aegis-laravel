@@ -246,7 +246,7 @@ const rules = {
     maxLength: maxLength(1000),
   },
 }
-const v$ = useVuelidate(rules, form)
+const v$ = useVuelidate(rules, form, { $scope: false })
 
 function fieldError(f) {
   const e = v$.value[f]?.$errors

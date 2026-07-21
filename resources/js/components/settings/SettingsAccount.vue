@@ -324,7 +324,7 @@ const rules = computed(() => ({
   },
 }));
 
-const v$ = useVuelidate(rules, pwForm);
+const v$ = useVuelidate(rules, pwForm, { $scope: false });
 
 function fieldError(field) {
   if (v$.value[field]?.$error) return v$.value[field].$errors[0]?.$message;

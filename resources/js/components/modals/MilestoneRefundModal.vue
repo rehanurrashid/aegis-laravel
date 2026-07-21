@@ -122,7 +122,7 @@ const form = useForm({ reason: '' })
 const rules = {
   reason: { required, minLength: minLength(5), maxLength: maxLength(500) },
 }
-const v$ = useVuelidate(rules, form)
+const v$ = useVuelidate(rules, form, { $scope: false })
 
 function fieldError(f) {
   const e = v$.value[f]?.$errors

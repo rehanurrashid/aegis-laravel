@@ -227,7 +227,7 @@ const form = useForm({
 const rules = computed(() => ({
   intent: { required: helpers.withMessage('Select a role to continue.', required) },
 }))
-const v$ = useVuelidate(rules, form)
+const v$ = useVuelidate(rules, form, { $scope: false })
 
 function fieldError(field) {
   if (v$.value[field]?.$error) return v$.value[field].$errors[0]?.$message

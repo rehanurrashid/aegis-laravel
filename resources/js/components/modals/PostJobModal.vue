@@ -338,7 +338,7 @@ const rules = {
                           minValue:    helpers.withMessage('Budget cannot be negative.', minValue(0)) },
   application_deadline: { future:      helpers.withMessage('Deadline must be a future date.', (v) => !v || new Date(v) > new Date()) },
 }
-const v$ = useVuelidate(rules, form)
+const v$ = useVuelidate(rules, form, { $scope: false })
 
 function fieldError(field) {
   return form.errors[field] || (v$.value[field]?.$error ? v$.value[field].$errors[0]?.$message : null)

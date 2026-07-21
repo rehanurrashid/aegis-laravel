@@ -1148,7 +1148,7 @@ const rules  = computed(() => ({
   newpw:     { minLength: helpers.withMessage('Minimum 12 characters.', minLength(12)) },
   confirmpw: { sameAs: helpers.withMessage('Passwords must match.', sameAs(computed(() => acct.newpw))) },
 }));
-const v$ = useVuelidate(rules, acct);
+const v$ = useVuelidate(rules, acct, { $scope: false });
 function fieldError(field) {
   if (v$.value[field]?.$error) return v$.value[field].$errors[0]?.$message;
   return null;

@@ -150,7 +150,8 @@ const denyForm    = useForm({ note: '' })
 
 const v$ = useVuelidate(
   { note: { required: helpers.withMessage('Please provide a response to the client.', required) } },
-  denyForm
+  denyForm,
+  { $scope: false }
 )
 function fieldError(field) {
   if (v$.value[field]?.$error) return v$.value[field].$errors[0]?.$message ?? ''

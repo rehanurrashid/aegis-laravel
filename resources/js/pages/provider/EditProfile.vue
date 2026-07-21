@@ -1049,7 +1049,7 @@ const basicRules = computed(() => ({
   },
 }))
 const basicState = computed(() => ({ firstName, lastName, basicForm }))
-const vBasic = useVuelidate(basicRules, basicState)
+const vBasic = useVuelidate(basicRules, basicState, { $scope: false })
 
 // Website / contact rules
 const websiteRules = computed(() => ({
@@ -1063,7 +1063,7 @@ const websiteRules = computed(() => ({
   },
 }))
 const websiteState = computed(() => ({ websiteForm }))
-const vWebsite = useVuelidate(websiteRules, websiteState)
+const vWebsite = useVuelidate(websiteRules, websiteState, { $scope: false })
 
 // Helper: get field error message for display
 function fieldError(v$obj, ...path) {

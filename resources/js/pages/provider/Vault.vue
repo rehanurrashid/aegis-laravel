@@ -1384,7 +1384,7 @@ const uploadRules = computed(() => ({
   title:    { required: helpers.withMessage('Document name is required.', required) },
   category: { required: helpers.withMessage('Category is required.', required) },
 }))
-const vUpload$ = useVuelidate(uploadRules, uploadForm)
+const vUpload$ = useVuelidate(uploadRules, uploadForm, { $scope: false })
 
 function fieldError(field) {
   if (vUpload$.value[field]?.$error) return vUpload$.value[field].$errors[0]?.$message
@@ -1430,7 +1430,7 @@ const credRules = computed(() => ({
   credential_username: { required: helpers.withMessage('Username is required.', required) },
   credential_password: { required: helpers.withMessage('Password is required.', required) },
 }))
-const vCred$ = useVuelidate(credRules, credForm)
+const vCred$ = useVuelidate(credRules, credForm, { $scope: false })
 
 function fieldErrorCred(field) {
   if (vCred$.value[field]?.$error) return vCred$.value[field].$errors[0]?.$message
@@ -1472,7 +1472,7 @@ const clientRules = computed(() => ({
   client_state:   { required: helpers.withMessage('State is required.', required) },
   client_service: { required: helpers.withMessage('Service type is required.', required) },
 }))
-const vClient$ = useVuelidate(clientRules, clientForm)
+const vClient$ = useVuelidate(clientRules, clientForm, { $scope: false })
 
 function fieldErrorClient(field) {
   if (vClient$.value[field]?.$error) return vClient$.value[field].$errors[0]?.$message
@@ -1514,7 +1514,7 @@ const editClientRules = computed(() => ({
   client_state:   { required: helpers.withMessage('State is required.', required) },
   client_service: { required: helpers.withMessage('Service type is required.', required) },
 }))
-const vEditClient$ = useVuelidate(editClientRules, editClientForm)
+const vEditClient$ = useVuelidate(editClientRules, editClientForm, { $scope: false })
 
 function fieldErrorEditClient(field) {
   if (vEditClient$.value[field]?.$error) return vEditClient$.value[field].$errors[0]?.$message
@@ -1579,7 +1579,7 @@ const permRules = computed(() => ({
   steward_id: { required: helpers.withMessage('Please select a person.', required) },
   level:      { required: helpers.withMessage('Please select an access level.', required) },
 }))
-const vPerm$ = useVuelidate(permRules, permForm)
+const vPerm$ = useVuelidate(permRules, permForm, { $scope: false })
 
 function fieldErrorPerm(field) {
   if (vPerm$.value[field]?.$error) return vPerm$.value[field].$errors[0]?.$message

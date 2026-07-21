@@ -702,7 +702,7 @@ const submitRules = computed(() => ({
   price_cents: { min: helpers.withMessage('Price cannot be negative.', minValue(0)) },
 }))
 
-const v$ = useVuelidate(submitRules, submitForm)
+const v$ = useVuelidate(submitRules, submitForm, { $scope: false })
 
 // Unified error helper — client error wins while editing
 function fieldError(field) {
@@ -885,7 +885,7 @@ const ceuLogRules = computed(() => ({
   completed_on: { required: helpers.withMessage('Completion date is required.', required) },
 }))
 
-const vCeu$ = useVuelidate(ceuLogRules, ceuLogForm)
+const vCeu$ = useVuelidate(ceuLogRules, ceuLogForm, { $scope: false })
 
 function ceuFieldError(field) {
   if (vCeu$.value[field]?.$error) return vCeu$.value[field].$errors[0]?.$message

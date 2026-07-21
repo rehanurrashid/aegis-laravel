@@ -1377,7 +1377,7 @@ const vModel = reactive({
   addDoc_name:    computed({ get: () => addDocForm.name,        set: v => { addDocForm.name = v } }),
 })
 
-const v$ = useVuelidate(rules, vModel)
+const v$ = useVuelidate(rules, vModel, { $scope: false })
 function fieldError(field) {
   if (v$.value[field]?.$error) return v$.value[field].$errors[0]?.$message
   return null

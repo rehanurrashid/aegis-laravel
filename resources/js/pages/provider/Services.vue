@@ -1591,7 +1591,7 @@ const createRules = computed(() => {
     price_cents: isPublish ? { requiredIfPaid: helpers.withMessage('Enter a rate, or set pricing to "Contact for pricing".', helpers.withParams({ type: 'requiredIfPaid' }, (v) => createForm.price_type === 'inquiry' || (v !== null && v >= 0))) } : {},
   }
 })
-const createV$ = useVuelidate(createRules, createForm)
+const createV$ = useVuelidate(createRules, createForm, { $scope: false })
 const createServerErrors = ref({})
 function createFieldError(field) {
   if (createV$.value[field]?.$error) return createV$.value[field].$errors[0]?.$message ?? ''
@@ -1618,7 +1618,7 @@ async function submitCreate(status) {
 const editDollars = ref(null)
 const editForm = reactive({ title: '', description: '', category: 'supervision', price_cents: null, price_type: 'session', duration_min: null, format: 'telehealth', availability: 'open', availability_label: '', status: 'active' })
 watch(editDollars, (v) => { editForm.price_cents = v != null ? Math.round(Number(v) * 100) : null })
-const editV$ = useVuelidate({ title: { required } }, editForm)
+const editV$ = useVuelidate({ title: { required } }, editForm, { $scope: false })
 function editFieldError(field) { return editV$.value[field].$errors[0]?.$message ?? '' }
 async function submitEdit() {
   const ok = await editV$.value.$validate()
@@ -1723,7 +1723,8 @@ const counterForm   = reactive({ proposed_date: '', proposed_time: '10:00', mess
 const counterBusy   = ref(false)
 const counterV$     = useVuelidate(
   { message: { required: helpers.withMessage('Please write a message for the client.', required) } },
-  counterForm
+  counterForm,
+  { $scope: false }
 )
 function counterFieldError(field) {
   if (counterV$.value[field]?.$error) return counterV$.value[field].$errors[0]?.$message ?? ''
@@ -1731,20 +1732,57 @@ function counterFieldError(field) {
 }
 
 async function submitCounter() {
-  counterV$.value.$touch()
-  const ok = await counterV$.value.$validate()
-  if (!ok) return
-  if (!activeRequest.value?.service_id || !activeRequest.value?.id) { toast.error('No request selected.'); return }
+  console.log('[Counter] 1. submitCounter called')
+  console.log('[Counter] 2. counterForm.message =', JSON.stringify(counterForm.message))
+  console.log('[Counter] 3. counterV$.value =', counterV$.value)
+
+  try {
+    counterV$.value.$touch()
+    console.log('[Counter] 4. $touch() done')
+  } catch(e) {
+    console.error('[Counter] $touch() threw:', e)
+    return
+  }
+
+  let ok
+  try {
+    ok = await counterV$.value.$validate()
+    console.log('[Counter] 5. $validate() result =', ok)
+    console.log('[Counter] 6. $errors count =', counterV$.value.$errors.length)
+    counterV$.value.$errors.forEach((e, i) => {
+      console.log(`[Counter] 6.${i} error:`, JSON.stringify({ $property: e.$property, $message: e.$message, $validator: e.$validator }))
+    })
+  } catch(e) {
+    console.error('[Counter] $validate() threw:', e)
+    return
+  }
+
+  if (!ok) {
+    console.log('[Counter] 7. Validation failed — stopping')
+    return
+  }
+
+  console.log('[Counter] 8. activeRequest =', JSON.stringify(activeRequest.value))
+  if (!activeRequest.value?.service_id || !activeRequest.value?.id) {
+    console.error('[Counter] 9. No activeRequest — aborting')
+    toast.error('No request selected.')
+    return
+  }
+
   counterBusy.value = true
   const svcId = activeRequest.value.service_id
   const reqId = activeRequest.value.id
-  router.post(`/provider/services/${svcId}/requests/${reqId}/counter`, {
+  const url = `/provider/services/${svcId}/requests/${reqId}/counter`
+  console.log('[Counter] 10. POSTing to', url)
+
+  router.post(url, {
     message:       counterForm.message,
     proposed_date: counterForm.proposed_date,
     proposed_time: counterForm.proposed_time,
   }, {
     preserveScroll: true,
     onSuccess: () => {
+      console.log('[Counter] 11. onSuccess fired')
       modals.counter = false
       toast.success('Counter-proposal sent. The client has been notified in their message inbox.')
       counterForm.proposed_date = ''
@@ -1752,8 +1790,14 @@ async function submitCounter() {
       counterForm.message = ''
       counterV$.value.$reset()
     },
-    onError:  () => toast.error('Failed to send counter-proposal. Please try again.'),
-    onFinish: () => { counterBusy.value = false },
+    onError: (errors) => {
+      console.error('[Counter] 12. onError fired', errors)
+      toast.error('Failed to send counter-proposal. Please try again.')
+    },
+    onFinish: () => {
+      console.log('[Counter] 13. onFinish fired')
+      counterBusy.value = false
+    },
   })
 }
 
@@ -1779,7 +1823,7 @@ function submitPause() {
 
 // ── Cancel session (provider side) ────────────────────────────────────────────
 const cancelSessionForm = reactive({ reason: '', note: '', offer_reschedule: true })
-const cancelV$  = useVuelidate({ reason: { required } }, cancelSessionForm)
+const cancelV$  = useVuelidate({ reason: { required } }, cancelSessionForm, { $scope: false })
 function cancelFieldError(field) { return cancelV$.value[field].$errors[0]?.$message ?? '' }
 async function submitCancelSession() {
   const ok = await cancelV$.value.$validate()

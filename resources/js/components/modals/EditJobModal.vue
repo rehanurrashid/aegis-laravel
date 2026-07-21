@@ -426,7 +426,7 @@ const rules = {
                  minLength: helpers.withMessage('Description must be at least 20 characters.', minLength(20)),
                  maxLength: helpers.withMessage('Description must be 5,000 characters or fewer.', maxLength(5000)) },
 }
-const v$ = useVuelidate(rules, form)
+const v$ = useVuelidate(rules, form, { $scope: false })
 
 function fieldError(field) {
   return form.errors[field] || (v$.value[field]?.$error ? v$.value[field].$errors[0]?.$message : null)

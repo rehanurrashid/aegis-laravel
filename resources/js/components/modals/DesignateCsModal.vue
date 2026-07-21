@@ -341,7 +341,7 @@ const rules = computed(() => ({
   },
 }))
 
-const v$ = useVuelidate(rules, form)
+const v$ = useVuelidate(rules, form, { $scope: false })
 
 function fieldError(field) {
   const f = v$.value[field]

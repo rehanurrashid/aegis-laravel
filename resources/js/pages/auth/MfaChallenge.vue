@@ -99,7 +99,7 @@ const rules = computed(() => ({
     numeric:   helpers.withMessage('Code must contain only digits.', numeric),
   },
 }))
-const v$ = useVuelidate(rules, form)
+const v$ = useVuelidate(rules, form, { $scope: false })
 
 function fieldError(field) {
   if (v$.value[field]?.$error) return v$.value[field].$errors[0]?.$message

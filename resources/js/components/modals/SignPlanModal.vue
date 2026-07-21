@@ -122,7 +122,7 @@ const rules = computed(() => ({
   title:     { required: helpers.withMessage('Professional title is required.', required) },
   confirmed: { accepted: helpers.withMessage('You must confirm before signing.', v => v === true) },
 }))
-const v$ = useVuelidate(rules, form)
+const v$ = useVuelidate(rules, form, { $scope: false })
 const submitting = ref(false)
 
 function fieldError(field) {

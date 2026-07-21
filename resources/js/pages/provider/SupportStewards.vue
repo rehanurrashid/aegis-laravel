@@ -1070,13 +1070,13 @@ const rules = {
     display_name: { required: helpers.withMessage('Full name is required.', required) },
   },
 }
-const v$ = useVuelidate(rules, { inviteForm })
+const v$ = useVuelidate(rules, { inviteForm }, { $scope: false })
 
 const editRules = {
   display_name: { required: helpers.withMessage('Full name is required.', required) },
   role: { required: helpers.withMessage('Role is required.', required) },
 }
-const v$edit = useVuelidate(editRules, editForm)
+const v$edit = useVuelidate(editRules, editForm, { $scope: false })
 
 function fieldError(key) {
   const map = {

@@ -150,7 +150,7 @@ const rules = {
   notes:        { required, minLength: minLength(10), maxLength: maxLength(2000) },
   hours_logged: {},
 }
-const v$ = useVuelidate(rules, form)
+const v$ = useVuelidate(rules, form, { $scope: false })
 
 function fieldError(f) {
   const e = v$.value[f]?.$errors
