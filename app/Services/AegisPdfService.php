@@ -219,13 +219,16 @@ class AegisPdfService
         $sessionStatus = $this->enumVal($session->status);
 
         // Overall doc status — uses payment lifecycle, since this is an invoice
-        $statusLabel = [
-            'unpaid'             => 'Deposit Due',
-            'deposit_paid'       => 'Balance Due',
+        // Rev 4: dynamic label based on payment_structure
+        $sessStructure = $session->payment_structure?->value ?? 'split';
+        $statusLabel = match ($paymentStatus) {
+            'unpaid'             => $sessStructure === 'full_on_completion' ? 'Due at Completion' : 'Upfront Due',
+            'deposit_paid'       => 'Completion Due',
             'paid'               => 'Paid',
             'refunded'           => 'Refunded',
             'partially_refunded' => 'Partially Refunded',
-        ][$paymentStatus] ?? ucfirst($paymentStatus);
+            default              => ucfirst($paymentStatus),
+        };
 
         // Money
         $agreedCents   = (int) ($session->agreed_amount_cents ?? $session->amount_cents ?? 0);
@@ -259,37 +262,66 @@ class AegisPdfService
         // Line items — deposit + balance rows so both charges are itemized
         $rows = '';
 
-        // Deposit row
-        $depositAmt = '$' . number_format($depositCents / 100, 2);
-        if ($depositPaid && $session->deposit_paid_at) {
+        // Rev 4: use upfront_cents/completion_cents with percentage labels
+        $upfrontCents    = (int) ($session->upfront_cents ?? $depositCents);
+        $completionCents = (int) ($session->completion_cents ?? $balanceCents);
+        $upfrontPct      = (int) ($session->upfront_percentage ?? 30);
+        $completionPct   = 100 - $upfrontPct;
+        $termsLabel      = $session->terms_summary ?? ($upfrontPct . '% upfront + ' . $completionPct . '% completion');
+        $termsSrc        = $session->terms_source ?? 'provider_default';
+        $termsSrcLabel   = match ($termsSrc) {
+            'client_proposed'    => 'Client proposed',
+            'provider_countered' => 'Provider countered',
+            default              => 'Provider default',
+        };
+
+        // Terms block — shown before line items
+        $termsBlock = '<div style="background:#f5f5f5;border-radius:4px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:#555;">'
+            . '<strong>Payment Terms:</strong> ' . htmlspecialchars($termsLabel)
+            . ' &nbsp;·&nbsp; <span style="color:#888;">' . $termsSrcLabel . '</span>'
+            . (!empty($session->terms_note) ? '<br><em>' . htmlspecialchars($session->terms_note) . '</em>' : '')
+            . '</div>';
+        $rows = $termsBlock;
+
+        // Upfront row
+        $upfrontAmt = '$' . number_format($upfrontCents / 100, 2);
+        if ($sessStructure === 'full_on_completion') {
+            // No upfront row for full_on_completion
+        } elseif ($depositPaid && $session->deposit_paid_at) {
             $paidDate = $session->deposit_paid_at->format('M j, Y');
+            $upfrontLabel = $sessStructure === 'full_upfront' ? 'Full Payment' : "Upfront ({$upfrontPct}%)";
             $rows .= $this->lineItemRow(
-                "Deposit (30%) &nbsp;<span style=\"color:var(--c-green);font-size:11px;\">paid {$paidDate}</span>",
+                "{$upfrontLabel} &nbsp;<span style="color:var(--c-green);font-size:11px;">paid {$paidDate}</span>",
                 '',
-                $depositAmt,
+                $upfrontAmt,
             );
         } else {
+            $upfrontLabel = $sessStructure === 'full_upfront' ? 'Full Payment' : "Upfront ({$upfrontPct}%)";
             $rows .= $this->lineItemRow(
-                "Deposit (30%) &nbsp;<span style=\"color:var(--c-red);font-size:11px;\">unpaid</span>",
+                "{$upfrontLabel} &nbsp;<span style="color:var(--c-red);font-size:11px;">unpaid</span>",
                 '',
-                $depositAmt,
+                $upfrontAmt,
             );
         }
 
-        // Balance row
-        $balanceAmt = '$' . number_format($balanceCents / 100, 2);
-        if ($balancePaid && $session->balance_paid_at) {
+        // Completion row
+        $completionAmt = '$' . number_format($completionCents / 100, 2);
+        if ($sessStructure === 'full_upfront') {
+            // No completion row — already captured in full upfront
+        } elseif ($balancePaid && $session->balance_paid_at) {
             $paidDate = $session->balance_paid_at->format('M j, Y');
+            $completionLabel = $sessStructure === 'full_on_completion' ? "Full Payment ({$completionPct}%)" : "Completion ({$completionPct}%)";
             $rows .= $this->lineItemRow(
-                "Balance (70%) &nbsp;<span style=\"color:var(--c-green);font-size:11px;\">paid {$paidDate}</span>",
+                "{$completionLabel} &nbsp;<span style="color:var(--c-green);font-size:11px;">paid {$paidDate}</span>",
                 '',
-                $balanceAmt,
+                $completionAmt,
             );
         } else {
+            $completionLabel = $sessStructure === 'full_on_completion' ? 'Full Payment' : "Completion ({$completionPct}%)";
             $rows .= $this->lineItemRow(
-                "Balance (70%) &nbsp;<span style=\"color:var(--c-text-light);font-size:11px;\">due after session</span>",
+                "{$completionLabel} &nbsp;<span style="color:var(--c-text-light);font-size:11px;">due at completion</span>",
                 '',
-                $balanceAmt,
+                $completionAmt,
             );
         }
 

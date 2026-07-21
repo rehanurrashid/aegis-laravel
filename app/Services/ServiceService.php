@@ -403,8 +403,13 @@ class ServiceService
             'availability'       => $data['availability'] ?? 'open',
             'availability_label' => $data['availability_label'] ?? null,
             'is_public'          => $data['is_public'] ?? true,
-            'status'             => $data['status'] ?? 'active',
-            'created_at'         => now(),
+            'status'                     => $data['status'] ?? 'active',
+            // Rev 4 — payment terms
+            'default_payment_structure'  => $data['default_payment_structure'] ?? 'split',
+            'default_upfront_percentage' => isset($data['default_upfront_percentage']) ? (int) $data['default_upfront_percentage'] : 30,
+            'default_terms_note'         => $data['default_terms_note'] ?? null,
+            'allow_completion_only'      => $data['allow_completion_only'] ?? false,
+            'created_at'                 => now(),
         ]);
 
         $this->activity->log(
@@ -419,7 +424,7 @@ class ServiceService
 
     public function update(Service $service, array $data): Service
     {
-        $allowed = ['title','description','category','price_cents','price_type','duration_min','format','availability','availability_label','status','is_public'];
+        $allowed = ['title','description','category','price_cents','price_type','duration_min','format','availability','availability_label','status','is_public','default_payment_structure','default_upfront_percentage','default_terms_note','allow_completion_only'];
         $service->update(array_intersect_key($data, array_flip($allowed)));
         $actorId = request()->user()?->id ?? $service->practitioner_id;
         $this->activity->log($actorId, 'provider', 'services', ActivitySeverity::Info, 'service_updated', "Service updated: {$service->title}", 'Service listing details updated.', 'service', $service->id, null, 'log', $actorId);
@@ -446,14 +451,30 @@ class ServiceService
         if ($svcStatus !== 'active') throw new RuntimeException('This service is not currently available.');
         if ($service->practitioner_id === $requester->id) throw new RuntimeException('Cannot request your own service.');
 
+        // Rev 4: guard full_on_completion if provider doesn't allow it
+        if (($data['proposed_payment_structure'] ?? null) === 'full_on_completion'
+            && !$service->allow_completion_only) {
+            throw new RuntimeException('This service does not accept pay-after-session terms.');
+        }
+
+        // Rev 4: resolve proposed terms (default to service defaults if client accepted them)
+        $proposedStructure = $data['proposed_payment_structure'] ?? $service->default_payment_structure?->value ?? 'split';
+        $proposedPct       = isset($data['proposed_upfront_percentage']) ? (int) $data['proposed_upfront_percentage'] : ($service->default_upfront_percentage ?? 30);
+        $termsSource       = $data['terms_source'] ?? 'provider_default';
+
         $req = ServiceRequest::create([
-            'id'              => 'sr_' . Str::lower(Str::random(12)),
-            'service_id'      => $service->id,
-            'inquirer_id'     => $requester->id,
-            'practitioner_id' => $service->practitioner_id,
-            'message'         => $data['message'] ?? null,
-            'status'          => 'new',
-            'created_at'      => now(),
+            'id'                          => 'sr_' . Str::lower(Str::random(12)),
+            'service_id'                  => $service->id,
+            'inquirer_id'                 => $requester->id,
+            'practitioner_id'             => $service->practitioner_id,
+            'message'                     => $data['message'] ?? null,
+            'status'                      => 'new',
+            // Rev 4 — proposed payment terms
+            'proposed_payment_structure'  => $proposedStructure,
+            'proposed_upfront_percentage' => $proposedPct,
+            'proposed_terms_note'         => $data['proposed_terms_note'] ?? $service->default_terms_note,
+            'terms_source'                => $termsSource,
+            'created_at'                  => now(),
         ]);
 
         $practitionerName = $service->practitioner?->display_name ?? 'the practitioner';
@@ -486,11 +507,16 @@ class ServiceService
         $req->update(['status' => 'accepted', 'responded_at' => now()]);
 
         $this->bookSession($req, [
-            'scheduled_at'           => $scheduledAt,
-            'timezone'               => $data['timezone'] ?? 'America/New_York',
-            'negotiated_amount_cents' => isset($data['negotiated_amount_cents'])
+            'scheduled_at'                 => $scheduledAt,
+            'timezone'                     => $data['timezone'] ?? 'America/New_York',
+            'negotiated_amount_cents'       => isset($data['negotiated_amount_cents'])
                 ? (int) $data['negotiated_amount_cents']
                 : null,
+            // Rev 4 — committed payment terms (provider may counter at accept time)
+            'terms_countered'              => $data['terms_countered'] ?? false,
+            'committed_payment_structure'  => $data['committed_payment_structure'] ?? null,
+            'committed_upfront_percentage' => isset($data['committed_upfront_percentage']) ? (int) $data['committed_upfront_percentage'] : null,
+            'committed_terms_note'         => $data['committed_terms_note'] ?? null,
         ]);
 
         $service = Service::find($req->service_id);
@@ -522,6 +548,28 @@ class ServiceService
             : null;
         $agreedAmount   = $negotiated ?? $listingPrice;
 
+        // Rev 4 — compute committed payment terms
+        // Priority: provider counter > request proposed > service default
+        $termsSrc = 'provider_default';
+        if ($data['terms_countered'] ?? false) {
+            $structure  = $data['committed_payment_structure']  ?? $req->proposed_payment_structure?->value ?? 'split';
+            $pct        = $data['committed_upfront_percentage'] ?? $req->proposed_upfront_percentage ?? 30;
+            $termsNote  = $data['committed_terms_note']         ?? $req->proposed_terms_note;
+            $termsSrc   = 'provider_countered';
+        } else {
+            $structure  = $req->proposed_payment_structure?->value ?? 'split';
+            $pct        = $req->proposed_upfront_percentage ?? 30;
+            $termsNote  = $req->proposed_terms_note;
+            $termsSrc   = $req->terms_source ?? 'provider_default';
+        }
+
+        $upfrontCents = match ($structure) {
+            'full_upfront'       => $agreedAmount,
+            'full_on_completion' => 0,
+            default              => (int) floor($agreedAmount * ($pct / 100)),
+        };
+        $completionCents = $agreedAmount - $upfrontCents;
+
         return ServiceSession::create([
             'id'                      => 'ss_' . Str::lower(Str::random(12)),
             'service_request_id'      => $req->id,
@@ -531,27 +579,35 @@ class ServiceService
             'scheduled_at'            => $data['session_at'] ?? $data['scheduled_at'] ?? null,
             'timezone'                => $data['timezone'] ?? 'America/New_York',
             'status'                  => 'scheduled',
-            // ── Wave 1 pricing columns ────────────────────────────────────
-            'amount_cents'            => $agreedAmount,     // agreed total (for backwards compat)
-            'original_amount_cents'   => $listingPrice,     // locked listing price
-            'negotiated_amount_cents' => $negotiated,        // null if using listing price
-            // ── Deposit/balance initialised to 0 — filled on payment ─────
+            // ── Pricing columns ───────────────────────────────────────────
+            'amount_cents'            => $agreedAmount,
+            'original_amount_cents'   => $listingPrice,
+            'negotiated_amount_cents' => $negotiated,
+            // ── Legacy deposit/balance (filled on charge) ─────────────────
             'deposit_cents'           => 0,
             'balance_cents'           => 0,
             'total_refunded_cents'    => 0,
             'payment_status'          => ServiceSessionPaymentStatus::Unpaid->value,
+            // ── Rev 4: committed payment terms ────────────────────────────
+            'payment_structure'       => $structure,
+            'upfront_percentage'      => $pct,
+            'upfront_cents'           => $upfrontCents,
+            'completion_cents'        => $completionCents,
+            'terms_note'              => $termsNote ?? null,
+            'terms_source'            => $termsSrc,
+            'terms_agreed_at'         => now(),
             'created_at'              => now(),
         ]);
     }
 
     /**
-     * Client pays the 30% deposit.
+     * Rev 4: Client pays the upfront portion (full_upfront = 100%, split = configured %, full_on_completion = 0%).
      * Validates session is in the right state, then delegates to PayoutService.
      */
-    public function payDeposit(ServiceSession $session, User $client): \App\Models\PractitionerPayment
+    public function payUpfront(ServiceSession $session, User $client): \App\Models\PractitionerPayment
     {
         if ($session->client_id !== $client->id) {
-            abort(403, 'Only the booking client can pay the deposit.');
+            abort(403, 'Only the booking client can pay the upfront portion.');
         }
 
         $paymentStatus = ServiceSessionPaymentStatus::tryFrom(($session->payment_status instanceof \App\Enums\ServiceSessionPaymentStatus ? $session->payment_status->value : (string) $session->payment_status))
@@ -560,9 +616,14 @@ class ServiceService
         if ($paymentStatus !== ServiceSessionPaymentStatus::Unpaid) {
             throw new RuntimeException(
                 $paymentStatus === ServiceSessionPaymentStatus::DepositPaid
-                    ? 'Deposit has already been paid for this session.'
-                    : 'Session is not in a state that allows deposit payment.'
+                    ? 'Upfront payment has already been made for this session.'
+                    : 'Session is not in a state that allows upfront payment.'
             );
+        }
+
+        $structure = $session->payment_structure?->value ?? 'split';
+        if ($structure === 'full_on_completion') {
+            throw new RuntimeException('This session uses pay-after-session terms. No upfront payment required.');
         }
 
         if ($session->status !== ServiceSessionStatus::Scheduled && !($session->status instanceof ServiceSessionStatus && $session->status === ServiceSessionStatus::Scheduled)) {
@@ -570,13 +631,23 @@ class ServiceService
         }
 
         $provider = User::findOrFail($session->practitioner_id);
-        $payment  = $this->payouts->chargeSessionDeposit($session, $provider, $client);
+        $payment  = $this->payouts->chargeSessionPortion($session, 'upfront');
 
+        // Fire new Rev 4 event + legacy event for BC
+        event(new \App\Events\Service\SessionUpfrontPaid(
+            $session->fresh(), $client, $provider, $payment, $session->fresh()->upfront_cents ?? 0
+        ));
         event(new \App\Events\Service\SessionDepositPaid(
             $session->fresh(), $client, $provider, $payment, $session->fresh()->deposit_cents ?? 0
         ));
 
         return $payment;
+    }
+
+    /** @deprecated Rev 4 — use payUpfront() */
+    public function payDeposit(ServiceSession $session, User $client): \App\Models\PractitionerPayment
+    {
+        return $this->payUpfront($session, $client);
     }
 
     /**
@@ -613,19 +684,43 @@ class ServiceService
         $paymentStatus = ServiceSessionPaymentStatus::tryFrom(($session->payment_status instanceof \App\Enums\ServiceSessionPaymentStatus ? $session->payment_status->value : (string) $session->payment_status))
             ?? ServiceSessionPaymentStatus::Unpaid;
 
-        // ── Two-charge path (new sessions) ────────────────────────────────────
-        if ($paymentStatus === ServiceSessionPaymentStatus::DepositPaid) {
+        $structure = $session->payment_structure?->value ?? 'split';
+
+        // ── Rev 4: branch on payment_structure ────────────────────────────────
+        if ($structure === 'full_upfront' && $paymentStatus === ServiceSessionPaymentStatus::Paid) {
+            // Already fully paid at booking — no charge needed at completion
+        } elseif ($structure === 'full_on_completion' && $paymentStatus === ServiceSessionPaymentStatus::Unpaid) {
+            // Full amount due now at completion
             try {
-                $payment = $this->payouts->chargeSessionBalance($session->fresh(), $practitioner, $client);
+                $payment = $this->payouts->chargeSessionPortion($session->fresh(), 'completion');
+                event(new \App\Events\Service\SessionCompletionPaid(
+                    $session->fresh(), $client, $practitioner, $payment, $session->fresh()->completion_cents ?? 0
+                ));
                 event(new \App\Events\Service\SessionBalancePaid(
                     $session->fresh(), $client, $practitioner, $payment, $session->fresh()->balance_cents ?? 0
                 ));
             } catch (\Throwable $e) {
-                // Balance charge failed — session still marked complete; admin can retry
                 $this->activity->log(
                     $practitioner->id, 'provider', 'payment', ActivitySeverity::Critical,
-                    'session_balance_failed',
-                    'Session balance charge failed',
+                    'session_completion_failed', 'Session completion charge failed',
+                    $e->getMessage(),
+                    'service_session', $session->id, $client->id, 'notification', $client->id
+                );
+            }
+        } elseif ($paymentStatus === ServiceSessionPaymentStatus::DepositPaid) {
+            // split: upfront already paid, now charge completion
+            try {
+                $payment = $this->payouts->chargeSessionPortion($session->fresh(), 'completion');
+                event(new \App\Events\Service\SessionCompletionPaid(
+                    $session->fresh(), $client, $practitioner, $payment, $session->fresh()->completion_cents ?? 0
+                ));
+                event(new \App\Events\Service\SessionBalancePaid(
+                    $session->fresh(), $client, $practitioner, $payment, $session->fresh()->balance_cents ?? 0
+                ));
+            } catch (\Throwable $e) {
+                $this->activity->log(
+                    $practitioner->id, 'provider', 'payment', ActivitySeverity::Critical,
+                    'session_completion_failed', 'Session completion charge failed',
                     $e->getMessage(),
                     'service_session', $session->id, $client->id, 'notification', $client->id
                 );

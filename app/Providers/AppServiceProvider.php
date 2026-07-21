@@ -203,6 +203,9 @@ class AppServiceProvider extends ServiceProvider
         // ── Wave 2: Session deposit / balance / refund events ─────────────────
         Event::listen(Events\Service\SessionDepositPaid::class,      Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Service\SessionBalancePaid::class,      Listeners\SendEmailNotificationListener::class);
+        // Rev 4 — replaces Deposit/Balance events for new payment terms system
+        Event::listen(Events\Service\SessionUpfrontPaid::class,      Listeners\SendEmailNotificationListener::class);
+        Event::listen(Events\Service\SessionCompletionPaid::class,   Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Service\SessionRefundRequested::class,  Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Service\SessionRefundApproved::class,   Listeners\SendEmailNotificationListener::class);
         Event::listen(Events\Service\SessionRefundDenied::class,     Listeners\SendEmailNotificationListener::class);

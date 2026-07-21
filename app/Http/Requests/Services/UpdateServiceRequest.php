@@ -16,13 +16,20 @@ class UpdateServiceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title' => ['sometimes', 'string', 'max:191'],
-            'description' => ['nullable', 'string', 'max:5000'],
-            'category' => ['nullable', 'string', 'max:64'],
-            'price_cents' => ['nullable', 'integer', 'min:0'],
-            'price_type' => ['nullable', 'string', 'in:fixed,hourly,session,inquiry'],
-            'status' => ['nullable', 'string', 'in:active,inactive'],
-            'is_public' => ['nullable', 'boolean'],
+            'title'                      => ['sometimes', 'string', 'max:191'],
+            'description'                => ['nullable', 'string', 'max:5000'],
+            'category'                   => ['nullable', 'string', 'max:64'],
+            'price_cents'                => ['nullable', 'integer', 'min:0'],
+            'price_type'                 => ['nullable', 'string', 'in:fixed,hourly,session,inquiry'],
+            'duration_min'               => ['nullable', 'integer', 'min:1'],
+            'format'                     => ['nullable', 'string', 'in:telehealth,in_person,both'],
+            'status'                     => ['nullable', 'string', 'in:active,inactive'],
+            'is_public'                  => ['nullable', 'boolean'],
+            // Rev 4 — default payment terms
+            'default_payment_structure'  => ['nullable', 'in:full_upfront,split,full_on_completion'],
+            'default_upfront_percentage' => ['nullable', 'integer', 'min:1', 'max:99'],
+            'default_terms_note'         => ['nullable', 'string', 'max:2000'],
+            'allow_completion_only'      => ['nullable', 'boolean'],
         ];
     }
 }

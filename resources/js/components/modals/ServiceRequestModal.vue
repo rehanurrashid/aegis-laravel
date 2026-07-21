@@ -115,6 +115,37 @@
       ></textarea>
     </div>
 
+    <!-- Rev 4: Payment Terms -->
+    <PaymentTermsInline
+      :provider-defaults="providerDefaults"
+      :model-value="{
+        structure: form.proposed_payment_structure,
+        upfrontPercentage: form.proposed_upfront_percentage,
+        termsNote: form.proposed_terms_note,
+        termsSource: form.terms_source,
+      }"
+      @update:model-value="onTermsUpdate"
+    />
+
+    <!-- Agree checkbox -->
+    <div class="form-group" style="margin-top:12px">
+      <label class="srm-agree">
+        <input
+          v-model="form.agree_terms"
+          type="checkbox"
+          class="srm-check"
+          @change="v$.agree_terms.$touch()"
+        />
+        <span>
+          I agree to the payment terms shown above and understand that payment
+          routes directly to the provider's Stripe account.
+        </span>
+      </label>
+      <div v-if="fieldError('agree_terms')" class="form-error" style="margin-top:4px">
+        {{ fieldError('agree_terms') }}
+      </div>
+    </div>
+
     <template #footer>
       <button type="button" class="btn btn-outline" @click="onClose">Cancel</button>
       <button
@@ -135,15 +166,21 @@ import { computed, watch } from 'vue'
 import { useForm } from '@inertiajs/vue3'
 import { route }   from 'ziggy-js'
 import useVuelidate from '@vuelidate/core'
-import { required, helpers } from '@vuelidate/validators'
+import { required, helpers, sameAs } from '@vuelidate/validators'
 import { useModal } from '@/composables/useModal'
 import { useToast }  from '@/composables/useToast'
+import PaymentTermsInline from '@/components/ui/PaymentTermsInline.vue'
 
 const props = defineProps({
-  providerId:    { type: String, default: '' },
-  providerLabel: { type: String, default: '' },
-  serviceId:     { type: String, default: '' },
-  serviceTitle:  { type: String, default: '' },
+  providerId:                   { type: String,  default: '' },
+  providerLabel:                { type: String,  default: '' },
+  serviceId:                    { type: String,  default: '' },
+  serviceTitle:                 { type: String,  default: '' },
+  // Rev 4 — payment terms from provider's service listing
+  providerDefaultStructure:     { type: String,  default: 'split' },
+  providerDefaultUpfrontPct:    { type: Number,  default: 30 },
+  providerDefaultTermsNote:     { type: String,  default: null },
+  providerAllowCompletionOnly:  { type: Boolean, default: false },
 })
 
 const { isOpen, closeModal } = useModal()
@@ -164,6 +201,12 @@ const form = useForm({
   message:            '',
   notes:              '',
   timezone:           Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
+  // Rev 4 — payment terms
+  proposed_payment_structure:   'split',
+  proposed_upfront_percentage:  30,
+  proposed_terms_note:          null,
+  terms_source:                 'provider_default',
+  agree_terms:                  false,
 })
 
 const todayDate = new Date().toISOString().split('T')[0]
@@ -176,7 +219,25 @@ const rules = computed(() => ({
   service: hasService.value ? {} : {
     required: helpers.withMessage('Please describe the service you need.', required),
   },
+  agree_terms: {
+    accepted: helpers.withMessage('You must agree to the payment terms before sending.', sameAs(true)),
+  },
 }))
+
+// Rev 4 — computed provider defaults object for PaymentTermsInline
+const providerDefaults = computed(() => ({
+  structure:           props.providerDefaultStructure,
+  upfrontPercentage:   props.providerDefaultUpfrontPct,
+  termsNote:           props.providerDefaultTermsNote,
+  allowCompletionOnly: props.providerAllowCompletionOnly,
+}))
+
+function onTermsUpdate(terms) {
+  form.proposed_payment_structure  = terms.structure
+  form.proposed_upfront_percentage = terms.upfrontPercentage
+  form.proposed_terms_note         = terms.termsNote
+  form.terms_source                = terms.termsSource
+}
 
 const v$ = useVuelidate(rules, form)
 
@@ -262,3 +323,12 @@ async function submit() {
 
 defineExpose({ preselect })
 </script>
+
+
+<style scoped>
+.srm-agree {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 12px; color: var(--text-2); line-height: 1.55; cursor: pointer;
+}
+.srm-check { margin-top: 2px; flex-shrink: 0; cursor: pointer; }
+</style>

@@ -22,11 +22,18 @@ class ServiceRequest extends Model
         'inquirer_name', 'inquirer_email', 'message',
         'preferred_timezone', 'preferred_date', 'preferred_time',
         'status', 'response_note', 'responded_at',
+        // Rev 4 — payment terms
+        'proposed_payment_structure',
+        'proposed_upfront_percentage',
+        'proposed_terms_note',
+        'terms_source',
     ];
 
     protected $casts = [
-        'status'       => ServiceRequestStatus::class,
-        'responded_at' => 'datetime',
+        'status'                      => ServiceRequestStatus::class,
+        'responded_at'                => 'datetime',
+        'proposed_payment_structure'  => \App\Enums\PaymentStructure::class,
+        'proposed_upfront_percentage' => 'integer',
     ];
 
     public function service(): BelongsTo      { return $this->belongsTo(Service::class, 'service_id'); }

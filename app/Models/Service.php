@@ -24,13 +24,21 @@ class Service extends Model
         'id', 'practitioner_id', 'title', 'description', 'category',
         'price_cents', 'price_type', 'duration_min', 'format',
         'availability', 'availability_label', 'status', 'is_public',
+        // Rev 4 — payment terms
+        'default_payment_structure',
+        'default_upfront_percentage',
+        'default_terms_note',
+        'allow_completion_only',
     ];
 
     protected $casts = [
-        'price_type'  => ServicePriceType::class,
-        'status'      => ServiceStatus::class,
-        'price_cents' => 'integer',
-        'is_public'   => 'boolean',
+        'price_type'                 => ServicePriceType::class,
+        'status'                     => ServiceStatus::class,
+        'price_cents'                => 'integer',
+        'is_public'                  => 'boolean',
+        'default_payment_structure'  => \App\Enums\PaymentStructure::class,
+        'default_upfront_percentage' => 'integer',
+        'allow_completion_only'      => 'boolean',
     ];
 
     public function practitioner(): BelongsTo

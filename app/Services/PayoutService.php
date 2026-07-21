@@ -178,6 +178,184 @@ class PayoutService
         return $payment->fresh();
     }
 
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CLINICAL SESSION — UNIFIED PORTION CHARGE (Rev 4)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Rev 4: Unified session payment method.
+     * Replaces the separate chargeSessionDeposit / chargeSessionBalance pattern.
+     *
+     * @param  string  $portion  'upfront' | 'completion'
+     * @throws \RuntimeException on guard failure or Stripe error
+     */
+    public function chargeSessionPortion(ServiceSession $session, string $portion): PractitionerPayment
+    {
+        if (!in_array($portion, ['upfront', 'completion'], true)) {
+            throw new \RuntimeException("Invalid portion '{$portion}'. Must be 'upfront' or 'completion'.");
+        }
+
+        $provider = $session->practitioner;
+        $client   = $session->client;
+
+        if ($portion === 'upfront') {
+            $cents        = $session->upfront_cents ?? $session->expected_deposit_cents;
+            $kindValue    = 'service_session_upfront';
+            $demoPrefix   = 'pi_demo_up_';
+            $stubPrefix   = 'pi_stub_up_';
+            $description  = 'Session upfront payment — Aegis';
+            $chargeType   = 'session_upfront';
+            $legacyColumn = 'deposit';
+        } else {
+            $cents        = $session->completion_cents ?? $session->expected_balance_cents;
+            $kindValue    = 'service_session_completion';
+            $demoPrefix   = 'pi_demo_comp_';
+            $stubPrefix   = 'pi_stub_comp_';
+            $description  = 'Session completion payment — Aegis';
+            $chargeType   = 'session_completion';
+            $legacyColumn = 'balance';
+        }
+
+        if ($cents <= 0) {
+            throw new \RuntimeException('Session has no chargeable amount for this portion.');
+        }
+
+        $clientPm = PractitionerPaymentMethod::where('practitioner_id', $client->id)
+            ->where('is_default', 1)
+            ->first();
+
+        $payment = PractitionerPayment::create([
+            'id'                   => 'pp_' . Str::lower(Str::random(12)),
+            'session_id'           => $session->id,
+            'practitioner_id'      => $provider->id,
+            'payment_method_id'    => $clientPm?->id,
+            'kind'                 => $kindValue,
+            'amount_cents'         => $cents,
+            'currency'             => 'USD',
+            'status'               => PractitionerPaymentStatus::Pending->value,
+            'payment_method_label' => $clientPm?->label ?? ($client->display_name . ' — saved card'),
+            'stripe_charge_id'     => null,
+            'paid_at'              => null,
+        ]);
+
+        // Determine next payment_status
+        $nextPaymentStatus = $portion === 'upfront'
+            ? ($session->payment_structure?->value === 'full_upfront'
+                ? ServiceSessionPaymentStatus::Paid->value
+                : ServiceSessionPaymentStatus::DepositPaid->value)
+            : ServiceSessionPaymentStatus::Paid->value;
+
+        $sessionUpdates = [
+            "{$legacyColumn}_cents"     => $cents,
+            "{$legacyColumn}_charge_id" => null,
+            "{$legacyColumn}_paid_at"   => null,
+        ];
+
+        // ── Demo / stub detection ─────────────────────────────────────────────
+        if ($this->isDemo($client, $provider)) {
+            $demoId = $demoPrefix . Str::lower(Str::random(12));
+            $payment->update([
+                'status'                   => PractitionerPaymentStatus::Paid->value,
+                'stripe_payment_intent_id' => $demoId,
+                'paid_at'                  => now(),
+            ]);
+            $sessionUpdates["{$legacyColumn}_charge_id"] = $demoId;
+            $sessionUpdates["{$legacyColumn}_paid_at"]   = now();
+            $sessionUpdates['payment_status']            = $nextPaymentStatus;
+            $session->update($sessionUpdates);
+            $this->logPortionActivity($payment->fresh(), $session, $provider, $client, $portion, stub: true);
+            return $payment->fresh();
+        }
+
+        // ── Guards ────────────────────────────────────────────────────────────
+        $this->guardClientPaymentMethod($client);
+        $this->guardProviderConnectAccount($provider);
+
+        // ── Stub if Stripe not configured ─────────────────────────────────────
+        if (!config('services.stripe.secret')) {
+            $stubId = $stubPrefix . Str::lower(Str::random(12));
+            $payment->update([
+                'status'                   => PractitionerPaymentStatus::Pending->value,
+                'stripe_payment_intent_id' => $stubId,
+            ]);
+            $sessionUpdates["{$legacyColumn}_charge_id"] = $stubId;
+            $sessionUpdates["{$legacyColumn}_paid_at"]   = now();
+            $sessionUpdates['payment_status']            = $nextPaymentStatus;
+            $session->update($sessionUpdates);
+            $this->logPortionActivity($payment->fresh(), $session, $provider, $client, $portion, stub: true);
+            return $payment->fresh();
+        }
+
+        // ── Live Stripe destination charge ────────────────────────────────────
+        try {
+            $stripe = new StripeClient(config('services.stripe.secret'));
+            $intent = $stripe->paymentIntents->create([
+                'amount'               => $cents,
+                'currency'             => 'usd',
+                'customer'             => $client->stripe_id,
+                'payment_method'       => $client->stripe_payment_method_id,
+                'confirm'              => true,
+                'automatic_payment_methods' => ['enabled' => true, 'allow_redirects' => 'never'],
+                'transfer_data'        => ['destination' => $provider->stripe_account_id],
+                'on_behalf_of'         => $provider->stripe_account_id,
+                'description'          => $description,
+                'metadata'             => [
+                    'payment_id'         => $payment->id,
+                    'session_id'         => $session->id,
+                    'charge_type'        => $chargeType,
+                    'portion'            => $portion,
+                    'payment_structure'  => $session->payment_structure?->value ?? 'split',
+                    'upfront_percentage' => $session->upfront_percentage ?? 30,
+                    'terms_source'       => $session->terms_source ?? 'provider_default',
+                    'practitioner_id'    => $provider->id,
+                    'client_id'          => $client->id,
+                    'agreed_total'       => $session->agreed_amount_cents,
+                ],
+            ]);
+
+            $isPaid = $intent->status === 'succeeded';
+            $payment->update([
+                'status'                   => $isPaid ? PractitionerPaymentStatus::Paid->value : PractitionerPaymentStatus::Pending->value,
+                'stripe_payment_intent_id' => $intent->id,
+                'paid_at'                  => $isPaid ? now() : null,
+            ]);
+            $sessionUpdates["{$legacyColumn}_charge_id"] = $intent->id;
+            $sessionUpdates["{$legacyColumn}_paid_at"]   = $isPaid ? now() : null;
+            $sessionUpdates['payment_status']            = $isPaid
+                ? $nextPaymentStatus
+                : ($portion === 'upfront' ? ServiceSessionPaymentStatus::Unpaid->value : ServiceSessionPaymentStatus::DepositPaid->value);
+            $session->update($sessionUpdates);
+
+        } catch (\Stripe\Exception\CardException $e) {
+            $payment->update(['status' => PractitionerPaymentStatus::Failed->value]);
+            throw new \RuntimeException('Card declined: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            $payment->update(['status' => PractitionerPaymentStatus::Failed->value]);
+            Log::error('[PayoutService] Session portion charge failed', [
+                'session_id' => $session->id,
+                'portion'    => $portion,
+                'error'      => $e->getMessage(),
+            ]);
+            throw new \RuntimeException('Payment failed: ' . $e->getMessage());
+        }
+
+        $this->logPortionActivity($payment->fresh(), $session, $provider, $client, $portion, stub: false);
+        return $payment->fresh();
+    }
+
+    /** @deprecated Rev 4 — use chargeSessionPortion($session, 'upfront') */
+    public function chargeSessionDeposit(ServiceSession $session, User $provider, User $client): PractitionerPayment
+    {
+        return $this->chargeSessionPortion($session, 'upfront');
+    }
+
+    /** @deprecated Rev 4 — use chargeSessionPortion($session, 'completion') */
+    public function chargeSessionBalanceV4Wrapper(ServiceSession $session, User $provider, User $client): PractitionerPayment
+    {
+        return $this->chargeSessionPortion($session, 'completion');
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // CLINICAL SESSION — BALANCE (70%)
     // ═══════════════════════════════════════════════════════════════════════════
@@ -649,6 +827,45 @@ class PayoutService
         if (!$account || !preg_match('/^acct_[a-zA-Z0-9]{16,}$/', $account)) {
             throw new \RuntimeException(
                 'Provider has not connected a Stripe account. Payment will be held until they complete setup.'
+            );
+        }
+    }
+
+    private function logPortionActivity(PractitionerPayment $payment, ServiceSession $session, User $provider, User $client, string $portion, bool $stub): void
+    {
+        $amount   = '$' . number_format($payment->amount_cents / 100, 2);
+        $note     = $stub ? ' (demo)' : ' via Stripe';
+        $svcTitle = $session->service?->title ?? 'session';
+
+        if ($portion === 'upfront') {
+            $this->activity->log(
+                $provider->id, 'provider', 'payment', ActivitySeverity::Info,
+                'upfront_paid',
+                'Upfront payment received — ' . $svcTitle,
+                $amount . ' upfront payment from ' . $client->display_name . $note . '.',
+                'service_session', $session->id, $client->id, 'notification', $client->id
+            );
+            $this->activity->log(
+                $client->id, 'provider', 'payment', ActivitySeverity::Info,
+                'upfront_paid',
+                'Upfront payment sent — ' . $svcTitle,
+                $amount . ' sent to ' . $provider->display_name . $note . '.',
+                'service_session', $session->id, $provider->id, 'log', $client->id
+            );
+        } else {
+            $this->activity->log(
+                $provider->id, 'provider', 'payment', ActivitySeverity::Info,
+                'completion_paid',
+                'Session fully paid — ' . $svcTitle,
+                $amount . ' completion payment from ' . $client->display_name . $note . '.',
+                'service_session', $session->id, $client->id, 'notification', $client->id
+            );
+            $this->activity->log(
+                $client->id, 'provider', 'payment', ActivitySeverity::Info,
+                'completion_paid',
+                'Session payment complete — ' . $svcTitle,
+                $amount . ' sent to ' . $provider->display_name . $note . '. Session payment complete.',
+                'service_session', $session->id, $provider->id, 'log', $client->id
             );
         }
     }

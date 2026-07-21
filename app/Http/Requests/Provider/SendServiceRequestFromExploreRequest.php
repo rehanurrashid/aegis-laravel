@@ -39,12 +39,18 @@ class SendServiceRequestFromExploreRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'service_id'         => 'required|string|exists:services,id',
-            'message'            => 'nullable|string|max:2000',
-            'preferred_date'     => 'nullable|date|after_or_equal:today',
-            'preferred_time'     => 'nullable|string|max:10',
-            'preferred_timezone' => 'nullable|string|max:64',
-            'format'             => 'nullable|string|in:telehealth,in_person,both',
+            'service_id'                   => 'required|string|exists:services,id',
+            'message'                      => 'nullable|string|max:2000',
+            'preferred_date'               => 'nullable|date|after_or_equal:today',
+            'preferred_time'               => 'nullable|string|max:10',
+            'preferred_timezone'           => 'nullable|string|max:64',
+            'format'                       => 'nullable|string|in:telehealth,in_person,both',
+            // Rev 4 — proposed payment terms
+            'proposed_payment_structure'   => 'required|in:full_upfront,split,full_on_completion',
+            'proposed_upfront_percentage'  => 'required_if:proposed_payment_structure,split|nullable|integer|min:1|max:99',
+            'proposed_terms_note'          => 'nullable|string|max:2000',
+            'terms_source'                 => 'required|in:provider_default,client_proposed',
+            'agree_terms'                  => 'required|accepted',
         ];
     }
 

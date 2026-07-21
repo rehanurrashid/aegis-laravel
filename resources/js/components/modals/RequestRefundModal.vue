@@ -179,16 +179,16 @@ const availableTypes = computed(() => {
   const all = [
     {
       value:  'deposit_only',
-      label:  'Deposit only (30%)',
+      label:  `Upfront only (${s.upfront_percentage ?? 30}%)`,
       amount: depositAmt,
-      desc:   'Refund only the booking deposit.',
+      desc:   'Refund only the upfront portion paid at booking.',
       statuses: ['deposit_paid', 'paid', 'partially_refunded'],
     },
     {
       value:  'balance_only',
-      label:  'Balance only (70%)',
+      label:  `Completion only (${100 - (s.upfront_percentage ?? 30)}%)`,
       amount: balanceAmt,
-      desc:   'Refund only the session balance.',
+      desc:   'Refund only the completion payment.',
       statuses: ['paid', 'partially_refunded'],
     },
     {

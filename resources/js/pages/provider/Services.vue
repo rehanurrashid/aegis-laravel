@@ -638,8 +638,8 @@
             <div class="hiw-step">
               <div class="hiw-step-icon hiw-step-icon--4"><AegisIcon name="check-circle" :size="16" /></div>
               <div class="hiw-step-body">
-                <div class="hiw-step-title">4 · Client pays 70% balance after session</div>
-                <div class="hiw-step-desc">After the session takes place, the client confirms it complete and pays the remaining <strong>70% balance</strong>. You receive this directly to your Stripe account. Track all sessions under <strong>My Sessions</strong>.</div>
+                <div class="hiw-step-title">4 · Client pays completion portion after session</div>
+                <div class="hiw-step-desc">After the session takes place, the client confirms it complete and pays the remaining completion portion (based on agreed payment terms). You receive this directly to your Stripe account. Track all sessions under <strong>My Sessions</strong>.</div>
               </div>
             </div>
             <div class="hiw-step">
@@ -689,15 +689,15 @@
             <div class="hiw-step">
               <div class="hiw-step-icon hiw-step-icon--3"><AegisIcon name="credit-card" :size="16" /></div>
               <div class="hiw-step-body">
-                <div class="hiw-step-title">3 · Pay 30% deposit to confirm</div>
-                <div class="hiw-step-desc">Once accepted, pay a <strong>30% deposit</strong> to secure your slot. This confirms the session and notifies the provider. You need a saved payment method in <strong>Settings → Billing</strong> before you can pay.</div>
+                <div class="hiw-step-title">3 · Pay upfront portion to confirm</div>
+                <div class="hiw-step-desc">Once accepted, pay the <strong>upfront portion</strong> based on the agreed payment terms to secure your slot. This confirms the session and notifies the provider. You need a saved payment method in <strong>Settings → Billing</strong> before you can pay.</div>
               </div>
             </div>
             <div class="hiw-step">
               <div class="hiw-step-icon hiw-step-icon--4"><AegisIcon name="check" :size="16" /></div>
               <div class="hiw-step-body">
-                <div class="hiw-step-title">4 · Confirm complete & pay 70% balance</div>
-                <div class="hiw-step-desc">After your session, return to <strong>My Bookings</strong> and confirm the session is complete. This triggers the remaining <strong>70% balance</strong> payment. You won't be charged until you confirm.</div>
+                <div class="hiw-step-title">4 · Confirm complete & pay completion portion</div>
+                <div class="hiw-step-desc">After your session, return to <strong>My Bookings</strong> and confirm the session is complete. This triggers the completion payment based on your agreed terms. You won't be charged until you confirm.</div>
               </div>
             </div>
             <div class="hiw-step">
@@ -907,7 +907,18 @@
          MODALS
     ══════════════════════════════════════════════════════════════════ -->
 
-    <!-- Wave 4 new modals ──────────────────────────────────────────────── -->
+    <!-- Rev 4 payment modals (replaces PayDepositModal/PayBalanceModal) -->
+    <PayUpfrontModal
+      v-model="modals.payUpfront"
+      :session="activeClientSession"
+      @success="activeClientSession = null"
+    />
+    <PayCompletionModal
+      v-model="modals.payCompletion"
+      :session="activeClientSession"
+      @success="activeClientSession = null"
+    />
+    <!-- Legacy (keep for one cycle) -->
     <PayDepositModal
       v-model="modals.payDeposit"
       :session="activeClientSession"
@@ -1130,7 +1141,7 @@
     <AegisModal v-model="modals.accept" title="Accept Service Request" size="sm">
       <div class="alert alert-success" style="margin-bottom:18px">
         <AegisIcon name="check" :size="16" />
-        <span>Accepting will schedule the session. The client will be notified to pay their 30% deposit to confirm the booking.</span>
+        <span>Accepting will schedule the session. The client will be notified to pay their upfront portion to confirm the booking.</span>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Session Date <span style="color:var(--red)">*</span></label><input v-model="acceptForm.session_date" class="form-input" type="date" :min="todayDate"></div>
@@ -1144,6 +1155,27 @@
         :listing-price-cents="activeRequest?.service_price_cents ?? 0"
         :model-value="acceptForm.negotiated_amount_cents"
         @update:model-value="acceptForm.negotiated_amount_cents = $event"
+      />
+      <!-- Rev 4: Payment terms counter -->
+      <CounterTermsInline
+        :requested-terms="{
+          structure: activeRequest?.proposed_payment_structure ?? 'split',
+          upfrontPercentage: activeRequest?.proposed_upfront_percentage ?? 30,
+          termsNote: activeRequest?.proposed_terms_note ?? null,
+          termsSource: activeRequest?.terms_source ?? 'provider_default',
+        }"
+        :model-value="{
+          countered: acceptForm.terms_countered,
+          structure: acceptForm.committed_payment_structure ?? activeRequest?.proposed_payment_structure ?? 'split',
+          upfrontPercentage: acceptForm.committed_upfront_percentage ?? activeRequest?.proposed_upfront_percentage ?? 30,
+          termsNote: acceptForm.committed_terms_note,
+        }"
+        @update:model-value="v => {
+          acceptForm.terms_countered = v.countered
+          acceptForm.committed_payment_structure = v.countered ? v.structure : null
+          acceptForm.committed_upfront_percentage = v.countered ? v.upfrontPercentage : null
+          acceptForm.committed_terms_note = v.countered ? v.termsNote : null
+        }"
       />
       <template #footer>
         <button class="btn btn-outline" @click="modals.accept = false">Cancel</button>
@@ -1255,8 +1287,11 @@ import BookedSessionTable        from '@/components/ui/BookedSessionTable.vue'
 import SessionTable              from '@/components/ui/SessionTable.vue'
 import ServiceExploreCard        from '@/components/ui/ServiceExploreCard.vue'
 import CounterOfferInline        from '@/components/ui/CounterOfferInline.vue'
-import PayDepositModal           from '@/components/modals/PayDepositModal.vue'
-import PayBalanceModal           from '@/components/modals/PayBalanceModal.vue'
+import CounterTermsInline        from '@/components/ui/CounterTermsInline.vue'
+import PayDepositModal           from '@/components/modals/PayDepositModal.vue'   // @deprecated Rev 4
+import PayBalanceModal           from '@/components/modals/PayBalanceModal.vue'   // @deprecated Rev 4
+import PayUpfrontModal           from '@/components/modals/PayUpfrontModal.vue'
+import PayCompletionModal        from '@/components/modals/PayCompletionModal.vue'
 import RequestRefundModal        from '@/components/modals/RequestRefundModal.vue'
 import ReviewRefundRequestModal  from '@/components/modals/ReviewRefundRequestModal.vue'
 import ServiceRequestModal       from '@/components/modals/ServiceRequestModal.vue'
@@ -1321,7 +1356,7 @@ const modals = reactive({
   cancelSession: false, cancelClientSession: false,
   sessionNotes: false, dismiss: false,
   // Wave 4 new
-  payDeposit: false, payBalance: false, requestRefund: false,
+  payUpfront: false, payCompletion: false, payDeposit: false, payBalance: false, requestRefund: false,
   clientInvoice: false, providerInvoice: false, reviewRefund: false,
   // Outgoing request detail
   outgoingDetail: false,
@@ -1358,7 +1393,11 @@ function setActiveRequest(r) {
   acceptForm.session_date = r?.preferred_date ?? ''
   if (r?.preferred_time)     acceptForm.session_time = r.preferred_time
   if (r?.preferred_timezone) acceptForm.timezone     = r.preferred_timezone
-  acceptForm.negotiated_amount_cents = null
+  acceptForm.negotiated_amount_cents        = null
+  acceptForm.terms_countered                = false
+  acceptForm.committed_payment_structure    = null
+  acceptForm.committed_upfront_percentage   = null
+  acceptForm.committed_terms_note           = null
 }
 function setActiveBooking(b) { activeBooking.value = b }
 
@@ -1591,7 +1630,20 @@ function resumeService() {
 }
 
 // ── Accept form (Wave 5: adds negotiated_amount_cents) ────────────────────────
-const acceptForm = reactive({ session_date: '', session_time: '10:00', timezone: 'America/New_York', format: 'Virtual (Telehealth)', note: '', recurring: true, negotiated_amount_cents: null })
+const acceptForm = reactive({
+  session_date:              '',
+  session_time:              '10:00',
+  timezone:                  'America/New_York',
+  format:                    'Virtual (Telehealth)',
+  note:                      '',
+  recurring:                 true,
+  negotiated_amount_cents:   null,
+  // Rev 4 — payment terms counter
+  terms_countered:           false,
+  committed_payment_structure:  null,
+  committed_upfront_percentage: null,
+  committed_terms_note:         null,
+})
 const todayDate  = new Date().toISOString().split('T')[0]
 
 function submitAccept() {
@@ -1605,11 +1657,16 @@ function submitAccept() {
     note:                     acceptForm.note,
     recurring:                acceptForm.recurring,
     negotiated_amount_cents:  acceptForm.negotiated_amount_cents,
+    // Rev 4 — payment terms counter
+    terms_countered:              acceptForm.terms_countered,
+    committed_payment_structure:  acceptForm.committed_payment_structure,
+    committed_upfront_percentage: acceptForm.committed_upfront_percentage,
+    committed_terms_note:         acceptForm.committed_terms_note,
   }, {
     preserveScroll: true,
     onSuccess: () => {
       modals.accept = false
-      toast.success('Request accepted. The client will be notified to pay their deposit.')
+      toast.success('Request accepted. The client will be notified to pay their upfront portion.')
     },
   })
 }

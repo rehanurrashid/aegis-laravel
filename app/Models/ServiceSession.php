@@ -60,6 +60,15 @@ class ServiceSession extends Model
         'session_action_items',
         'share_notes_with_client',
         'cancel_reason',
+
+        // ── Rev 4: committed payment terms ────────────────────────────────
+        'payment_structure',
+        'upfront_percentage',
+        'upfront_cents',
+        'completion_cents',
+        'terms_note',
+        'terms_source',
+        'terms_agreed_at',
     ];
 
     protected $casts = [
@@ -77,6 +86,12 @@ class ServiceSession extends Model
         'balance_cents'           => 'integer',
         'total_refunded_cents'    => 'integer',
         'share_notes_with_client' => 'boolean',
+        // Rev 4
+        'payment_structure'       => \App\Enums\PaymentStructure::class,
+        'upfront_percentage'      => 'integer',
+        'upfront_cents'           => 'integer',
+        'completion_cents'        => 'integer',
+        'terms_agreed_at'         => 'datetime',
     ];
 
     // ── Relationships ─────────────────────────────────────────────────────────
@@ -159,20 +174,42 @@ class ServiceSession extends Model
     }
 
     /**
-     * What a 30% deposit should be, calculated from agreed amount.
-     * Rounded down to nearest cent to avoid overcharging.
+     * Rev 4: Expected upfront amount.
+     * Prefers stored upfront_cents (set at bookSession time).
+     * Falls back to legacy percentage calculation for pre-Rev-4 rows.
      */
     public function getExpectedDepositCentsAttribute(): int
     {
-        return (int) floor($this->agreed_amount_cents * 0.30);
+        // Prefer stored value (Rev 4 sessions)
+        if (($this->upfront_cents ?? 0) > 0) {
+            return $this->upfront_cents;
+        }
+        // Legacy fallback: derive from upfront_percentage or hardcoded 30%
+        $pct = $this->upfront_percentage ?? 30;
+        return (int) floor($this->agreed_amount_cents * ($pct / 100));
     }
 
     /**
-     * Remaining balance after deposit.
+     * Rev 4: Expected completion amount.
+     * Prefers stored completion_cents. Falls back to agreed − upfront.
      */
     public function getExpectedBalanceCentsAttribute(): int
     {
+        if (($this->completion_cents ?? 0) > 0) {
+            return $this->completion_cents;
+        }
         return $this->agreed_amount_cents - $this->expected_deposit_cents;
+    }
+
+    /**
+     * Rev 4: One-line payment terms summary for display.
+     * e.g. "30% upfront + 70% completion" or "Full payment upfront" or "Pay after session"
+     */
+    public function getTermsSummaryAttribute(): string
+    {
+        $structure = $this->payment_structure ?? \App\Enums\PaymentStructure::Split;
+        $pct       = $this->upfront_percentage ?? 30;
+        return $structure->chipLabel($pct);
     }
 
     /**

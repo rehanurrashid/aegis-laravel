@@ -270,6 +270,8 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         //
         // (A) — No services.mode required ──────────────────────────────────────
         // Deposit + completion: the CLIENT (inquirer) pays, they don't need services_mode
+        Route::post('/services/sessions/{session}/upfront', [ServicesController::class, 'payUpfront'])
+            ->name('services.session.upfront');
         Route::post('/services/sessions/{session}/deposit', [ServicesController::class, 'payDeposit'])
             ->name('services.session.deposit');
         Route::post('/services/sessions/{session}/complete', [ServicesController::class, 'completeSession'])

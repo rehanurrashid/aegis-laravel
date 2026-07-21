@@ -16,9 +16,11 @@ enum PractitionerPaymentKind: string
     case BpInvoice              = 'bp_invoice';
     case Refund                 = 'refund';
     case ServiceSession         = 'service_session';         // legacy — single-charge sessions
-    case ServiceSessionDeposit  = 'service_session_deposit'; // 30% upfront charge
-    case ServiceSessionBalance  = 'service_session_balance'; // 70% balance on completion
-    case ServiceSessionRefund   = 'service_session_refund';  // refund record (negative)
+    case ServiceSessionDeposit    = 'service_session_deposit';    // @deprecated Rev 4 — use ServiceSessionUpfront
+    case ServiceSessionBalance    = 'service_session_balance';    // @deprecated Rev 4 — use ServiceSessionCompletion
+    case ServiceSessionUpfront    = 'service_session_upfront';    // Rev 4: upfront portion (any %)
+    case ServiceSessionCompletion = 'service_session_completion'; // Rev 4: completion portion
+    case ServiceSessionRefund     = 'service_session_refund';     // refund record (negative)
 
     public function label(): string
     {
@@ -29,9 +31,11 @@ enum PractitionerPaymentKind: string
             self::BpInvoice             => 'BP Invoice',
             self::Refund                => 'Refund',
             self::ServiceSession        => 'Service Session',
-            self::ServiceSessionDeposit => 'Session Deposit (30%)',
-            self::ServiceSessionBalance => 'Session Balance (70%)',
-            self::ServiceSessionRefund  => 'Session Refund',
+            self::ServiceSessionDeposit    => 'Session Deposit (30%)',        // legacy
+            self::ServiceSessionBalance    => 'Session Balance (70%)',        // legacy
+            self::ServiceSessionUpfront    => 'Session Upfront Payment',
+            self::ServiceSessionCompletion => 'Session Completion Payment',
+            self::ServiceSessionRefund     => 'Session Refund',
         };
     }
 
@@ -42,6 +46,8 @@ enum PractitionerPaymentKind: string
             self::ServiceSession,
             self::ServiceSessionDeposit,
             self::ServiceSessionBalance,
+            self::ServiceSessionUpfront,
+            self::ServiceSessionCompletion,
             self::ServiceSessionRefund,
         ], true);
     }
@@ -53,6 +59,8 @@ enum PractitionerPaymentKind: string
             self::ServiceSession,
             self::ServiceSessionDeposit,
             self::ServiceSessionBalance,
+            self::ServiceSessionUpfront,
+            self::ServiceSessionCompletion,
         ], true);
     }
 }

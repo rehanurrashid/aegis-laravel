@@ -571,7 +571,7 @@
       <!-- ── SECTION A: Sessions I've Booked ───────────────────────── -->
       <div v-show="sessionSubTab === 'booked'">
         <p class="sessions-section-desc" style="margin-bottom:12px">
-          Payments you owe — 30% deposit due at booking, 70% balance after the session.
+          Payments you owe — upfront portion due at booking, completion payment after the session.
         </p>
         <BookedSessionTable
           ref="clientTableRef"
@@ -579,8 +579,8 @@
           :show-invoice="true"
           empty-title="No clinical sessions booked"
           empty-subtitle="Browse other practitioners' services to book supervision, consultation, training, and more."
-          @pay-deposit="activeClientSession = $event; modals.sessionPayDeposit = true"
-          @pay-balance="activeClientSession = $event; modals.sessionPayBalance = true"
+          @pay-deposit="activeClientSession = $event; modals.sessionPayUpfront = true"
+          @pay-balance="activeClientSession = $event; modals.sessionPayCompletion = true"
           @request-refund="activeClientSession = $event; modals.sessionRequestRefund = true"
           @escalate-refund="escalateSessionRefund($event)"
           @open-invoice="activeClientSession = $event; modals.sessionClientInvoice = true"
@@ -596,7 +596,7 @@
       <!-- ── SECTION B: Sessions I'm Providing ─────────────────────── -->
       <div v-show="sessionSubTab === 'providing'">
         <p class="sessions-section-desc" style="margin-bottom:12px">
-          Payments coming to you — deposit received when client books, balance when they confirm.
+          Payments coming to you — upfront portion received when client books, completion payment when they confirm.
         </p>
         <SessionTable
           ref="providerTableRef"
@@ -612,7 +612,18 @@
         />
       </div>
 
-      <!-- Wave 6 session payment modals ─────────────────────────────── -->
+      <!-- Rev 4 session payment modals -->
+      <PayUpfrontModal
+        v-model="modals.sessionPayUpfront"
+        :session="activeClientSession"
+        @success="activeClientSession = null"
+      />
+      <PayCompletionModal
+        v-model="modals.sessionPayCompletion"
+        :session="activeClientSession"
+        @success="activeClientSession = null"
+      />
+      <!-- Legacy (one-cycle BC) -->
       <PayDepositModal
         v-model="modals.sessionPayDeposit"
         :session="activeClientSession"
@@ -973,8 +984,10 @@ import SessionInvoiceCard           from '@/components/ui/SessionInvoiceCard.vue
 import SessionTable                 from '@/components/ui/SessionTable.vue'
 import BookedSessionTable           from '@/components/ui/BookedSessionTable.vue'
 import SessionInvoiceModal          from '@/components/modals/SessionInvoiceModal.vue'
-import PayDepositModal              from '@/components/modals/PayDepositModal.vue'
-import PayBalanceModal              from '@/components/modals/PayBalanceModal.vue'
+import PayDepositModal              from '@/components/modals/PayDepositModal.vue'   // @deprecated Rev 4
+import PayBalanceModal              from '@/components/modals/PayBalanceModal.vue'   // @deprecated Rev 4
+import PayUpfrontModal              from '@/components/modals/PayUpfrontModal.vue'
+import PayCompletionModal           from '@/components/modals/PayCompletionModal.vue'
 import RequestRefundModal           from '@/components/modals/RequestRefundModal.vue'
 import ReviewRefundRequestModal     from '@/components/modals/ReviewRefundRequestModal.vue'
 import { useToast }                 from '@/composables/useToast'
@@ -1127,8 +1140,10 @@ const modals = ref({
   export: false,
   payArrangement: false, confirmCsPay: false, openDispute: false,
   // Wave 6 — session payment modals
-  sessionPayDeposit:  false,
-  sessionPayBalance:  false,
+  sessionPayUpfront:    false,
+  sessionPayCompletion: false,
+  sessionPayDeposit:    false,
+  sessionPayBalance:    false,
   sessionRequestRefund: false,
   sessionClientInvoice: false,
   sessionProviderInvoice: false,

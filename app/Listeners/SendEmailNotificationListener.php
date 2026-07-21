@@ -55,6 +55,8 @@ use App\Events\Service\SessionCancelled;
 use App\Events\Service\SessionCompleted;
 use App\Events\Service\SessionDepositPaid;
 use App\Events\Service\SessionBalancePaid;
+use App\Events\Service\SessionUpfrontPaid;
+use App\Events\Service\SessionCompletionPaid;
 use App\Events\Service\SessionRefundRequested;
 use App\Events\Service\SessionRefundApproved;
 use App\Events\Service\SessionRefundDenied;
@@ -207,6 +209,9 @@ class SendEmailNotificationListener
             $event instanceof ServiceRequestResponded => $this->serviceRequestResponded($event),
             $event instanceof SessionDepositPaid      => $this->sessionDepositPaid($event),
             $event instanceof SessionBalancePaid      => $this->sessionBalancePaid($event),
+            // Rev 4 — replaces Deposit/Balance for new payment terms system
+            $event instanceof SessionUpfrontPaid      => $this->sessionUpfrontPaid($event),
+            $event instanceof SessionCompletionPaid   => $this->sessionCompletionPaid($event),
             $event instanceof SessionRefundRequested  => $this->sessionRefundRequested($event),
             $event instanceof SessionRefundApproved   => $this->sessionRefundApproved($event),
             $event instanceof SessionRefundDenied     => $this->sessionRefundDenied($event),
@@ -1654,6 +1659,115 @@ class SendEmailNotificationListener
                 'services_url'     => $url,
             ],
         ]];
+    }
+
+    // ── Rev 4: Session upfront paid ───────────────────────────────────────────
+    // Notifies provider (upfront received) + client (upfront sent)
+    private function sessionUpfrontPaid(SessionUpfrontPaid $e): array {
+        $structure   = $e->session->payment_structure?->value ?? 'split';
+        $pct         = $e->session->upfront_percentage ?? 30;
+        $upfront     = '$' . number_format($e->upfrontCents / 100, 2);
+        $remaining   = '$' . number_format(($e->session->completion_cents ?? 0) / 100, 2);
+        $date        = $e->session->scheduled_at?->format('M j, Y g:i A T') ?? null;
+        $termsLabel  = $e->session->terms_summary ?? ($pct . '% upfront + ' . (100 - $pct) . '% completion');
+        $payNote     = $e->practitioner->stripe_connected
+            ? 'Funds will be transferred to your connected Stripe account.'
+            : 'Funds will be released once you connect your Stripe account in Settings.';
+        $url = rtrim(config('app.url'), '/') . '/provider/services';
+
+        $clientNote = $structure === 'full_upfront'
+            ? 'Full payment complete. Your session is confirmed.'
+            : 'The remaining ' . $remaining . ' will be collected when you confirm the session complete.';
+
+        return [
+            // Provider — upfront received
+            [
+                'user_id'  => $e->practitioner->id,
+                'gate_key' => 'notify_email',
+                'template' => 'emails.services.62-session-upfront-paid',
+                'data'     => [
+                    'recipient_name'   => $e->practitioner->display_name ?? 'there',
+                    'other_party_name' => $e->client->display_name ?? 'Your client',
+                    'service_title'    => $e->session->service?->title ?? 'your service',
+                    'upfront_amount'   => $upfront,
+                    'remaining_due'    => $structure === 'full_upfront' ? null : $remaining,
+                    'payment_terms'    => $termsLabel,
+                    'session_date'     => $date,
+                    'payout_note'      => $payNote,
+                    'services_url'     => $url,
+                ],
+            ],
+            // Client — receipt confirmation
+            [
+                'user_id'  => $e->client->id,
+                'gate_key' => 'notify_email',
+                'template' => 'emails.services.62-session-upfront-paid',
+                'data'     => [
+                    'recipient_name'   => $e->client->display_name ?? 'there',
+                    'other_party_name' => null,
+                    'service_title'    => $e->session->service?->title ?? 'your session',
+                    'upfront_amount'   => $upfront,
+                    'remaining_due'    => $structure === 'full_upfront' ? null : $remaining,
+                    'payment_terms'    => $termsLabel,
+                    'session_date'     => $date,
+                    'payout_note'      => $clientNote,
+                    'services_url'     => $url,
+                ],
+            ],
+        ];
+    }
+
+    // ── Rev 4: Session completion paid ────────────────────────────────────────
+    // Notifies provider (full payment received) + client (payment complete)
+    private function sessionCompletionPaid(SessionCompletionPaid $e): array {
+        $structure   = $e->session->payment_structure?->value ?? 'split';
+        $total       = '$' . number_format($e->session->agreed_amount_cents / 100, 2);
+        $upfront     = '$' . number_format(($e->session->upfront_cents ?? 0) / 100, 2);
+        $completion  = '$' . number_format($e->completionCents / 100, 2);
+        $termsLabel  = $e->session->terms_summary ?? 'Payment complete';
+        $payNote     = $e->practitioner->stripe_connected
+            ? 'Full transfer underway to your connected Stripe account.'
+            : 'Payment will be released once you connect your Stripe account in Settings.';
+        $url = rtrim(config('app.url'), '/') . '/provider/services';
+
+        $providerTitle = $structure === 'full_on_completion'
+            ? 'Session payment received — ' . ($e->session->service?->title ?? 'your service')
+            : 'Session fully paid — ' . ($e->session->service?->title ?? 'your service');
+
+        return [
+            [
+                'user_id'  => $e->practitioner->id,
+                'gate_key' => 'notify_email',
+                'template' => 'emails.services.63-session-completion-paid',
+                'data'     => [
+                    'recipient_name'    => $e->practitioner->display_name ?? 'there',
+                    'other_party_name'  => $e->client->display_name ?? 'Your client',
+                    'service_title'     => $e->session->service?->title ?? 'your service',
+                    'total_amount'      => $total,
+                    'upfront_amount'    => $structure !== 'full_on_completion' ? $upfront : null,
+                    'completion_amount' => $completion,
+                    'payment_terms'     => $termsLabel,
+                    'payout_note'       => $payNote,
+                    'services_url'      => $url,
+                ],
+            ],
+            [
+                'user_id'  => $e->client->id,
+                'gate_key' => 'notify_email',
+                'template' => 'emails.services.63-session-completion-paid',
+                'data'     => [
+                    'recipient_name'    => $e->client->display_name ?? 'there',
+                    'other_party_name'  => null,
+                    'service_title'     => $e->session->service?->title ?? 'your session',
+                    'total_amount'      => $total,
+                    'upfront_amount'    => $structure !== 'full_on_completion' ? $upfront : null,
+                    'completion_amount' => $completion,
+                    'payment_terms'     => $termsLabel,
+                    'payout_note'       => 'Session payment complete. Thank you.',
+                    'services_url'      => $url,
+                ],
+            ],
+        ];
     }
 
     // ── Session refund requested ──────────────────────────────────────────────

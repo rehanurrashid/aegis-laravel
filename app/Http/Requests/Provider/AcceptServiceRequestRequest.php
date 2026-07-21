@@ -31,7 +31,12 @@ class AcceptServiceRequestRequest extends FormRequest
             'recurring'               => 'nullable|boolean',
             // Wave 3 addition: price negotiation
             // null = use listing price; 0 = free session; positive int = custom price
-            'negotiated_amount_cents' => 'nullable|integer|min:0|max:9999999',
+            'negotiated_amount_cents'    => 'nullable|integer|min:0|max:9999999',
+            // Rev 4: provider may counter the client's proposed terms at accept time
+            'terms_countered'              => 'nullable|boolean',
+            'committed_payment_structure'  => 'nullable|in:full_upfront,split,full_on_completion',
+            'committed_upfront_percentage' => 'nullable|integer|min:1|max:99',
+            'committed_terms_note'         => 'nullable|string|max:2000',
         ];
     }
 

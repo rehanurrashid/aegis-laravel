@@ -248,22 +248,35 @@ class ServicesController extends Controller
     // ═══════════════════════════════════════════════════════════════════════
 
     /**
-     * POST /provider/services/sessions/{session}/deposit
-     * Client pays the 30% deposit to confirm the booking.
-     * Outside services.mode middleware — any authenticated provider-as-client can pay.
+     * POST /provider/services/sessions/{session}/upfront
+     * Rev 4: Client pays the upfront portion (100%, split %, or 0% for full_on_completion).
+     * Also handles /deposit route via alias in web.php for BC.
      */
-    public function payDeposit(Request $request, ServiceSession $session): RedirectResponse
+    public function payUpfront(Request $request, ServiceSession $session): RedirectResponse
     {
         $request->validate([
             'agree_terms' => 'required|accepted',
         ]);
 
         try {
-            $this->services->payDeposit($session, $request->user());
-            return back()->with('success', 'Deposit paid. Your session is confirmed.');
+            $this->services->payUpfront($session, $request->user());
+            $structure = $session->payment_structure?->value ?? 'split';
+            $msg = $structure === 'full_upfront'
+                ? 'Payment complete. Your session is confirmed.'
+                : 'Upfront payment sent. Balance will be due after the session.';
+            return back()->with('success', $msg);
         } catch (\RuntimeException $e) {
-            return back()->withErrors(['deposit' => $e->getMessage()]);
+            return back()->withErrors(['upfront' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * POST /provider/services/sessions/{session}/deposit
+     * @deprecated Rev 4 — delegates to payUpfront. Kept for BC.
+     */
+    public function payDeposit(Request $request, ServiceSession $session): RedirectResponse
+    {
+        return $this->payUpfront($request, $session);
     }
 
     /**
