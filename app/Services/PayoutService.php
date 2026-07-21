@@ -344,18 +344,6 @@ class PayoutService
         return $payment->fresh();
     }
 
-    /** @deprecated Rev 4 — use chargeSessionPortion($session, 'upfront') */
-    public function chargeSessionDeposit(ServiceSession $session, User $provider, User $client): PractitionerPayment
-    {
-        return $this->chargeSessionPortion($session, 'upfront');
-    }
-
-    /** @deprecated Rev 4 — use chargeSessionPortion($session, 'completion') */
-    public function chargeSessionBalanceV4Wrapper(ServiceSession $session, User $provider, User $client): PractitionerPayment
-    {
-        return $this->chargeSessionPortion($session, 'completion');
-    }
-
     // ═══════════════════════════════════════════════════════════════════════════
     // CLINICAL SESSION — BALANCE (70%)
     // ═══════════════════════════════════════════════════════════════════════════

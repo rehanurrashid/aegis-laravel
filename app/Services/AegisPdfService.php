@@ -291,14 +291,14 @@ class AegisPdfService
             $paidDate = $session->deposit_paid_at->format('M j, Y');
             $upfrontLabel = $sessStructure === 'full_upfront' ? 'Full Payment' : "Upfront ({$upfrontPct}%)";
             $rows .= $this->lineItemRow(
-                "{$upfrontLabel} &nbsp;<span style="color:var(--c-green);font-size:11px;">paid {$paidDate}</span>",
+                "{$upfrontLabel} &nbsp;<span style=\"color:var(--c-green);font-size:11px;\">paid {$paidDate}</span>",
                 '',
                 $upfrontAmt,
             );
         } else {
             $upfrontLabel = $sessStructure === 'full_upfront' ? 'Full Payment' : "Upfront ({$upfrontPct}%)";
             $rows .= $this->lineItemRow(
-                "{$upfrontLabel} &nbsp;<span style="color:var(--c-red);font-size:11px;">unpaid</span>",
+                "{$upfrontLabel} &nbsp;<span style=\"color:var(--c-red);font-size:11px;\">unpaid</span>",
                 '',
                 $upfrontAmt,
             );
@@ -312,14 +312,14 @@ class AegisPdfService
             $paidDate = $session->balance_paid_at->format('M j, Y');
             $completionLabel = $sessStructure === 'full_on_completion' ? "Full Payment ({$completionPct}%)" : "Completion ({$completionPct}%)";
             $rows .= $this->lineItemRow(
-                "{$completionLabel} &nbsp;<span style="color:var(--c-green);font-size:11px;">paid {$paidDate}</span>",
+                "{$completionLabel} &nbsp;<span style=\"color:var(--c-green);font-size:11px;\">paid {$paidDate}</span>",
                 '',
                 $completionAmt,
             );
         } else {
             $completionLabel = $sessStructure === 'full_on_completion' ? 'Full Payment' : "Completion ({$completionPct}%)";
             $rows .= $this->lineItemRow(
-                "{$completionLabel} &nbsp;<span style="color:var(--c-text-light);font-size:11px;">due at completion</span>",
+                "{$completionLabel} &nbsp;<span style=\"color:var(--c-text-light);font-size:11px;\">due at completion</span>",
                 '',
                 $completionAmt,
             );
