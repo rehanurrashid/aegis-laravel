@@ -19,7 +19,7 @@ Convert one legacy PHP page into a Vue 3 + Inertia component with 100% design pa
 - **Ziggy:** `route()` is a global (ZiggyVue). Import in app.js is `from 'ziggy-js'`.
 - **Composables:** `useToast()`, `useConfirm()` (callback: `confirmAction(msg, fn)`), `useActivity()` (`timeAgo`, `severityClass`, `iconForEventType`), `useMessageButton()` (`openConversation(id)`, `loading`), `useProfileRoute()` (`viewProfile(slug, kind)`, `profileHref(slug, kind)` where kind ∈ provider|cs|ss|business).
 - **String interpolation safety (PHP):** Never put `?->` + `??` inside a double-quoted string interpolation `"{$obj?->prop ?? 'fallback'}"` — this is a PHP 8.2 parse error. Always extract to a variable first: `$val = $obj?->prop ?? 'fallback'; "…{$val}…"`
-- **Client-side validation (MANDATORY):** Every form with a submit action must use Vuelidate (`@vuelidate/core` + `@vuelidate/validators`). See AEGIS_VUE_RULES.md Section 14 for the full pattern. Required fields emit `@blur` → `v$.field.$touch()`. Submit handler calls `await v$.value.$validate()` and returns early if invalid. Errors render via `fieldError(field)` helper (client error beats server error). Same `.form-error` class for both. Error state class on inputs is `is-error` (never `is-invalid`). Never rely on browser native validation alone. Never submit without `v$.$validate()` first.
+- **Client-side validation (MANDATORY):** Every form with a submit action must use Vuelidate (`@vuelidate/core` + `@vuelidate/validators`). See AEGIS_VUE_RULES.md Section 14 for the full pattern. Required fields emit `@blur` → `v$.field.$touch()`. Submit handler calls `v$.value.$touch()` then `await v$.value.$validate()` and returns early if invalid. Errors render via `fieldError(field)` helper (client error beats server error). Same `.form-error` class for both. Error state class on inputs is `is-error` (never `is-invalid`). Never rely on browser native validation alone. Never submit without `v$.$validate()` first. **ALWAYS pass `{ $scope: false }` as the third arg: `useVuelidate(rules, form, { $scope: false })` — without it, all validators on the page merge into one scope and `$validate()` validates every form at once.**
 
 ---
 
@@ -283,8 +283,27 @@ const modals = reactive({ /* one key per modal */ })
         // mirror every FormRequest rule here
       },
     }))
+    const v$ = useVuelidate(rules, form, { $scope: false })
+    ```
+
+    **CRITICAL — Always pass `{ $scope: false }` as the third argument to `useVuelidate()`.**
+    Vuelidate v2 uses Vue's `provide/inject` to collect validators into a parent scope tree.
+    Without `{ $scope: false }`, every `useVuelidate()` call on the page — including those in
+    child modal components — gets merged into a single root scope. Calling `$validate()` on
+    any one form will then validate ALL forms on the page, causing false failures when other
+    forms have empty required fields.
+
+    ```js
+    // ✅ CORRECT — isolated scope, only validates THIS form
+    const v$ = useVuelidate(rules, form, { $scope: false })
+
+    // ❌ WRONG — merges with every other validator on the page tree
     const v$ = useVuelidate(rules, form)
     ```
+
+    This applies to EVERY `useVuelidate()` call everywhere in the codebase:
+    page components, modal components, settings components, auth pages — no exceptions.
+    The `{ $scope: false }` must be the literal third argument, never nested inside the rules object.
 
     **Submit handler — validate before every post:**
     ```js
@@ -476,6 +495,9 @@ grep -c "<template>"     $PAGE  # 1
 grep -c "</template>"    $PAGE  # 1
 # Client-side validation gate — every form with a submit must use Vuelidate
 grep -c "useVuelidate"   $PAGE   # ≥ 1 if page has any write form
+# CRITICAL: every useVuelidate call must have { $scope: false } as 3rd arg
+grep -c "useVuelidate(" $PAGE   # count of calls
+grep -c "\$scope: false" $PAGE  # must equal count above — VIOLATION if lower
 grep -c 'v\$\.\|v\$\.value\.' $PAGE  # ≥ 1 (vuelidate used in template/script)
 grep -c 'fieldError\|form-error' $PAGE  # ≥ 1 per required field
 grep -c '\$touch'        $PAGE   # ≥ 1 (blur handlers present)
