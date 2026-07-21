@@ -476,7 +476,8 @@
               <!-- Col 2: Type badge + price -->
               <td class="sic-td req-td--meta">
                 <div class="sic-badges">
-                  <AegisBadge label="New Request" variant="gold" />
+                  <AegisBadge v-if="r.status === 'countered'" label="Counter Sent" variant="blue" />
+                  <AegisBadge v-else label="New Request" variant="gold" />
                 </div>
                 <div class="sic-date-sub" style="margin-top:4px">{{ r.request_type }} · {{ r.service_price }}</div>
               </td>
@@ -1121,10 +1122,15 @@
       </template>
       <template #footer>
         <button
+          v-if="activeRequest?.status !== 'countered'"
           type="button"
           class="btn btn-outline"
           @click="modals.requestDetail = false; modals.counter = true"
         ><AegisIcon name="refresh" :size="13" /> Counter Propose</button>
+        <div v-else class="req-counter-sent">
+          <AegisIcon name="check-circle" :size="13" />
+          Counter sent — awaiting client response
+        </div>
         <button
           type="button"
           class="btn btn-outline"
@@ -1411,7 +1417,7 @@ function setActiveRequest(r) {
 function setActiveBooking(b) { activeBooking.value = b }
 
 // ── Computed counts ───────────────────────────────────────────────────────────
-const newRequests = computed(() => props.serviceRequests.filter(r => r.status === 'new'))
+const newRequests = computed(() => props.serviceRequests.filter(r => r.status === 'new' || r.status === 'countered'))
 const pendingOutgoing = computed(() => props.outgoingRequests.filter(r => r.status === 'new'))
 
 // Badge: Incoming Requests = new requests + actionable refund requests
@@ -1861,8 +1867,8 @@ function openPreview(s) { setActiveService(s); /* Preview removed from Wave 5 �
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function initials(name) { return (name || '').split(' ').slice(0, 2).map(p => p[0] ?? '').join('').toUpperCase() || '?' }
-function statusLabel(s)   { return { completed: 'Completed', upcoming: 'Upcoming', cancelled: 'Cancelled', accepted: 'Accepted', declined: 'Declined', pending: 'Pending', new: 'New', scheduled: 'Scheduled', withdrawn: 'Withdrawn' }[s] ?? s }
-function statusVariant(s) { return { completed: 'green', upcoming: 'blue', cancelled: 'neutral', accepted: 'green', declined: 'neutral', pending: 'gold', new: 'gold', scheduled: 'blue', withdrawn: 'neutral' }[s] ?? 'neutral' }
+function statusLabel(s)   { return { completed: 'Completed', upcoming: 'Upcoming', cancelled: 'Cancelled', accepted: 'Accepted', declined: 'Declined', countered: 'Counter Sent', pending: 'Pending', new: 'New', scheduled: 'Scheduled', withdrawn: 'Withdrawn' }[s] ?? s }
+function statusVariant(s) { return { completed: 'green', upcoming: 'blue', cancelled: 'neutral', accepted: 'green', declined: 'neutral', countered: 'blue', pending: 'gold', new: 'gold', scheduled: 'blue', withdrawn: 'neutral' }[s] ?? 'neutral' }
 
 const serviceTypeOptions = [
   { key: 'supervision',         label: 'Supervision',         icon: 'graduation-cap', desc: 'Individual or group' },
@@ -2135,6 +2141,10 @@ const serviceTypeOptions = [
 .req-td--requester { width: 58%; }
 .req-td--meta      { width: 34%; }
 .req-td--actions   { width: 8%; text-align: right; }
+.req-counter-sent {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; color: var(--text-3); font-style: italic;
+}
 
 /* ── HOW IT WORKS MODAL ── */
 .hiw-intro {

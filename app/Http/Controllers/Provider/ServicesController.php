@@ -273,8 +273,9 @@ class ServicesController extends Controller
 
         $this->messaging->sendMessage($thread, $provider, $body);
 
-        // Update request status to countered (or keep as new — mark with a response note)
+        // Update request: mark as countered
         $serviceRequest->update([
+            'status'        => \App\Enums\ServiceRequestStatus::Countered->value,
             'response_note' => $request->input('message'),
             'responded_at'  => now(),
         ]);
