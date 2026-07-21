@@ -1073,7 +1073,11 @@
             <div v-else class="orq-modal-name">{{ activeRequest.requester_name }}</div>
             <div class="orq-modal-cred">{{ activeRequest.requester_detail }}</div>
           </div>
-          <AegisBadge label="New Request" variant="gold" style="margin-left:auto;flex-shrink:0" />
+          <AegisBadge
+            :label="activeRequest.status === 'countered' ? 'Counter Sent' : 'New Request'"
+            :variant="activeRequest.status === 'countered' ? 'blue' : 'gold'"
+            style="margin-left:auto;flex-shrink:0"
+          />
           <button
             type="button"
             class="btn-icon"
@@ -1119,15 +1123,23 @@
           <div class="orq-modal-block-body">{{ activeRequest.message }}</div>
         </div>
 
+        <!-- Counter notice -->
+        <div v-if="activeRequest.status === 'countered'" class="alert alert-info" style="margin-top:12px;margin-bottom:0">
+          <AegisIcon name="check-circle" :size="15" />
+          <div>
+            <strong>Counter-proposal sent.</strong>
+            Your message is in the client's inbox. You can still accept or dismiss this request.
+          </div>
+        </div>
+
       </template>
       <template #footer>
         <button
-          v-if="activeRequest?.status !== 'countered'"
           type="button"
           class="btn btn-outline"
+          :disabled="activeRequest?.status === 'countered'"
           @click="modals.requestDetail = false; modals.counter = true"
-        ><AegisIcon name="refresh" :size="13" /> Counter Propose</button>
-        <AegisBadge v-else label="Counter sent — awaiting response" variant="blue" />
+        ><AegisIcon name="refresh" :size="13" /> {{ activeRequest?.status === 'countered' ? 'Counter Sent' : 'Counter Propose' }}</button>
         <button
           type="button"
           class="btn btn-outline"
@@ -1135,7 +1147,7 @@
         ><AegisIcon name="x" :size="13" /> Dismiss</button>
         <button
           type="button"
-          class="btn btn-primary"
+          :class="activeRequest?.status === 'countered' ? 'btn btn-outline' : 'btn btn-primary'"
           @click="modals.requestDetail = false; modals.accept = true"
         ><AegisIcon name="check" :size="13" /> Accept Request</button>
       </template>
