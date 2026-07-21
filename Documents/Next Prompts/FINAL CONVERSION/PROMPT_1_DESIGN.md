@@ -331,27 +331,35 @@ const modals = reactive({ /* one key per modal */ })
 | hire / contract / quote / schedule | open the matching centralized BP modal |
 | destructive (remove/cancel/delete) | `confirmAction('…', () => router.delete(route(...)))` |
 
-### Busy state on async buttons (MANDATORY for every write action)
+### Submit button loading state (MANDATORY — every form, every write action, no exceptions)
 
-Every button that triggers a server write must show a spinning icon + descriptive busy label while in flight. Never leave the button looking locked/frozen with no feedback.
+Every button that triggers a form post, mutation, or async action must go grey + show a spinner the instant it is clicked. This matches the onboarding payment button behavior exactly: button dims to 50% opacity, cursor becomes `not-allowed`, a spinner appears before the label, and label text changes to present-continuous. Never leave any submit button looking frozen or unresponsive.
 
-**Pattern — always use this exact structure:**
+**Two patterns — use the correct one for the context:**
+
+**Pattern A — `useForm()` forms** (modal forms, page forms, Inertia `form.post/put/delete`):
+```vue
+<button
+  type="button"
+  class="btn btn-primary"
+  :disabled="form.processing"
+  @click="submit"
+>
+  <span v-if="form.processing" class="spinner spinner-sm" />
+  <AegisIcon v-else name="check" :size="13" />
+  {{ form.processing ? 'Saving…' : 'Save' }}
+</button>
+```
+`form.processing` is set automatically by Inertia's `useForm()` during the request lifecycle — no manual `busy` ref needed.
+
+**Pattern B — `router.visit/post/put/delete` without `useForm()`** (one-click actions, confirm callbacks, icon-button triggers):
 ```vue
 <button type="button" class="btn btn-gold" :disabled="busy" @click="doAction">
-  <AegisIcon v-if="busy" name="refresh-cw" :size="13" class="btn-spin" />
+  <span v-if="busy" class="spinner spinner-sm" />
   <AegisIcon v-else name="check" :size="13" />
   {{ busy ? 'Saving…' : 'Save' }}
 </button>
 ```
-
-**Rules:**
-- `v-if="busy"` shows `refresh-cw` spinning — `v-else` shows the normal icon. Never show both.
-- Label switches to present-continuous: `Saving…` / `Deleting…` / `Cancelling…` / `Submitting…` / `Sending…` / `Applying…` / `Reactivating…` / `Removing…` — match the verb of the action.
-- `:disabled="busy"` — button is non-interactive while in flight.
-- Use the global `.btn-spin` class from `_shared.css` (reuses `@keyframes spin`). Never write a local keyframe.
-- `busy` ref is set `true` before the router call and reset `false` in `onFinish`.
-- This applies to ALL write buttons: create, update, delete, cancel, submit, approve, pay — no exceptions.
-
 ```js
 const busy = ref(false)
 
@@ -365,6 +373,20 @@ function doAction() {
   })
 }
 ```
+
+**Universal rules (apply to both patterns):**
+- `<span class="spinner spinner-sm" />` appears BEFORE the label span when processing. Use `spinner-sm` (16px) for standard buttons (`btn`, `btn-lg`), `spinner` (20px) for `btn-xl` only.
+- `:disabled="form.processing"` or `:disabled="busy"` — the `.btn:disabled` rule in `_shared.css` automatically applies `opacity: 0.5; cursor: not-allowed`. No extra CSS needed.
+- Label switches to present-continuous verb: `Saving…` / `Submitting…` / `Sending…` / `Deleting…` / `Cancelling…` / `Applying…` / `Paying…` / `Uploading…` / `Removing…` / `Processing…` — match the specific verb of the action.
+- Never replace the label with the spinner alone — text stays visible alongside the spinner.
+- The `<AegisIcon v-else …>` (the normal icon) is hidden while the spinner is shown via `v-if`/`v-else`. Never show both at once.
+- **Cancel / Back / outline secondary buttons** that are disabled during processing use `:disabled="form.processing"` only — no spinner on secondary buttons.
+- **Multi-step modal navigation buttons** ("Continue" / "Next" / "Back") do NOT get spinners — only the final submit/pay/confirm button on the last step does.
+- **`confirmAction` callbacks** — the trigger button has no spinner. The submit button inside the confirm modal (if it posts) does.
+- `btn-spin` (spinning `AegisIcon` via CSS animation) is the OLD pattern — replace with `<span class="spinner spinner-sm" />` for all new builds. The `spinner` CSS class is already in `_shared.css`.
+
+**Scope — this applies to EVERY write button on EVERY page and modal:**
+create · update · delete · cancel · submit · approve · reject · pay · upload · invite · remove · activate · deactivate · reactivate — no exceptions.
 
 ### Icon + text inline alignment (MANDATORY)
 
@@ -445,8 +467,10 @@ grep -c 'is-error'       $PAGE   # ≥ 1 per validated field (never is-invalid)
 grep -c '\$reset'        $PAGE   # ≥ 1 (reset called on modal close)
 # Critical: is-error binding must use fieldError(), never form.errors directly
 grep -c "is-error.*form\.errors" $PAGE  # 0 — VIOLATION if non-zero
-# Busy state: every router.post/put/delete must have a busy ref + btn-spin
-grep -c "btn-spin"              $PAGE   # ≥ 1 if page has any write buttons
+# Submit loading state: every primary/danger/gold submit button must have spinner + disabled binding
+grep -c "spinner spinner-sm\|spinner spinner\b" $PAGE  # ≥ 1 if page has any write buttons
+grep -c "form\.processing\|:disabled.*busy"     $PAGE  # ≥ 1 if page has any write buttons
+grep -c "btn-spin"              $PAGE   # 0 — btn-spin is the OLD pattern; use spinner-sm instead
 grep -c "vertical-align.*middle" $PAGE  # 0 — use flex+gap, never vertical-align:middle
 grep -c "margin-right.*4px"     $PAGE   # 0 — use gap on flex parent, never margin-right on icons
 # Every input with @blur must have matching :class is-error and form-error div
