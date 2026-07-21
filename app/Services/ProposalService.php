@@ -35,11 +35,6 @@ class ProposalService
             throw new RuntimeException('You have already submitted a proposal for this job.');
         }
 
-        // Rev 2: on_completion guard
-        if (($data['proposed_payment_structure'] ?? null) === 'on_completion'
-            && !($job->allow_on_completion ?? false)) {
-            throw new RuntimeException('This posting does not accept "pay on completion" terms.');
-        }
 
         $proposal = BpProposal::create([
             'id'                  => 'bpr_' . Str::lower(Str::random(12)),

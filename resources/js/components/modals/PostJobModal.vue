@@ -210,7 +210,7 @@
             </div>
           </div>
         </div>
-        <div class="form-group">
+        <div class="form-group" style="margin-bottom:0;padding-bottom:0">
           <label class="form-label">Payment Terms Note (optional)</label>
           <textarea
             v-model="form.default_terms_note"
@@ -219,34 +219,9 @@
             maxlength="5000"
           />
         </div>
-        <div v-if="form.default_payment_structure !== 'per_milestone'" class="setting-row" style="padding:8px 0">
-          <div class="setting-info">
-            <div class="setting-label">Allow BPs to propose "pay on completion"</div>
-            <div class="setting-desc">Enables BPs to counter your structure with payment only after all work is complete. You bear more risk — nothing is owed until you approve.</div>
-          </div>
-          <AegisToggle v-model="form.allow_on_completion" />
-        </div>
+
       </div>
-      <div class="form-group">
-        <label class="form-label">Visibility / Boost</label>
-        <div class="form-row form-row-3">
-          <div class="boost-option" :class="{ selected: boost === 'standard' }" @click="selectBoost('standard')">
-            <div style="display:flex;justify-content:center;margin-bottom:3px"><AegisIcon name="briefcase" :size="18" /></div>
-            <div style="font-size:12px;font-weight:700">Standard</div>
-            <div style="font-size:10.5px;color:var(--text-3)">Included</div>
-          </div>
-          <div class="boost-option" :class="{ selected: boost === 'featured' }" @click="selectBoost('featured')">
-            <div style="display:flex;justify-content:center;margin-bottom:3px"><AegisIcon name="star" :size="18" /></div>
-            <div style="font-size:12px;font-weight:700">Featured</div>
-            <div style="font-size:10.5px;color:var(--text-3)">Boosted placement</div>
-          </div>
-          <div class="boost-option" :class="{ selected: boost === 'urgent' }" @click="selectBoost('urgent')">
-            <div style="display:flex;justify-content:center;margin-bottom:3px"><AegisIcon name="zap" :size="18" /></div>
-            <div style="font-size:12px;font-weight:700">Urgent Hire</div>
-            <div style="font-size:10.5px;color:var(--text-3)">Flagged urgent</div>
-          </div>
-        </div>
-      </div>
+
     </div>
 
     <!-- STEP 4 — Preview -->
@@ -306,7 +281,6 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
 import { useForm, usePage } from '@inertiajs/vue3'
-import AegisToggle from '@/components/ui/AegisToggle.vue'
 import useVuelidate from '@vuelidate/core'
 import { required, minLength, maxLength, integer, minValue, helpers } from '@vuelidate/validators'
 import AegisIcon from '@/components/ui/AegisIcon.vue'
@@ -331,7 +305,6 @@ watch(isOpen, async (val) => {
   if (val) { await nextTick(); scanAndEnhance() }
 })
 watch(step, async () => { await nextTick(); scanAndEnhance(); syncFormEnhancements() })
-const boost = ref('standard')
 const tagsInput = ref('')
 const budgetDisplay = ref(null)
 
@@ -361,7 +334,6 @@ function blankForm() {
     default_payment_structure:  'per_milestone',
     default_upfront_percentage: 30,
     default_terms_note:         '',
-    allow_on_completion:        false,
   }
 }
 
@@ -445,11 +417,7 @@ const budgetPreview = computed(() => {
   return '$' + (form.budget_amount_cents / 100).toLocaleString() + budgetUnit.value
 })
 
-function selectBoost(b) {
-  boost.value = b
-  form.is_featured = b === 'featured'
-  form.is_urgent = b === 'urgent'
-}
+
 
 function syncTags() {
   form.tags = tagsInput.value.split(',').map(s => s.trim()).filter(Boolean)
@@ -460,7 +428,6 @@ function resetAll() {
   form.clearErrors()
   v$.value.$reset()
   step.value = 0
-  boost.value = 'standard'
   tagsInput.value = ''
   budgetDisplay.value = null
 }
@@ -517,8 +484,6 @@ async function publish() {
 .jpl-selected-orange { border-color: var(--orange); background: var(--orange-light); }
 .jpl-selected-blue   { border-color: var(--blue-dark); background: var(--blue-light); }
 
-.boost-option { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px; cursor: pointer; text-align: center; transition: all var(--transition); }
-.boost-option.selected { border-color: var(--gold-dark); background: var(--badge-bg-gold); }
 
 /* ── Rev 2: Default Payment Terms panel ─────────────────────────── */
 .form-section-divider {

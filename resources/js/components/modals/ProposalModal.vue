@@ -166,7 +166,7 @@
           structure:         job.default_payment_structure ?? 'per_milestone',
           upfrontPercentage: job.default_upfront_percentage ?? 30,
           termsNote:         job.default_terms_note,
-          allowCompletionOnly: job.allow_on_completion ?? false,
+          allowCompletionOnly: false,
         }"
         :model-value="{
           structure:         form.proposed_payment_structure,
@@ -174,9 +174,7 @@
           termsNote:         form.proposed_terms_note,
           termsSource:       form.terms_source,
         }"
-        :allowed-structures="job.allow_on_completion
-          ? ['full_upfront','split','per_milestone','on_completion']
-          : ['full_upfront','split','per_milestone']"
+        :allowed-structures="['full_upfront','split','per_milestone','on_completion']"
         @update:model-value="v => {
           form.proposed_payment_structure  = v.structure
           form.proposed_upfront_percentage = v.upfrontPercentage
