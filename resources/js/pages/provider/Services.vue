@@ -1127,10 +1127,7 @@
           class="btn btn-outline"
           @click="modals.requestDetail = false; modals.counter = true"
         ><AegisIcon name="refresh" :size="13" /> Counter Propose</button>
-        <div v-else class="req-counter-sent">
-          <AegisIcon name="check-circle" :size="13" />
-          Counter sent — awaiting client response
-        </div>
+        <AegisBadge v-else label="Counter sent — awaiting response" variant="blue" />
         <button
           type="button"
           class="btn btn-outline"
@@ -2141,10 +2138,6 @@ const serviceTypeOptions = [
 .req-td--requester { width: 58%; }
 .req-td--meta      { width: 34%; }
 .req-td--actions   { width: 8%; text-align: right; }
-.req-counter-sent {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 12px; color: var(--text-3); font-style: italic;
-}
 
 /* ── HOW IT WORKS MODAL ── */
 .hiw-intro {
