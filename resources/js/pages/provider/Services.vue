@@ -1722,7 +1722,8 @@ async function submitCounter() {
   if (!ok) return
   if (!activeRequest.value?.service_id || !activeRequest.value?.id) { toast.error('No request selected.'); return }
   counterBusy.value = true
-  router.post(route('provider.services.request.counter', { service: activeRequest.value.service_id, serviceRequest: activeRequest.value.id }), {
+  const counterUrl = `/provider/services/${activeRequest.value.service_id}/requests/${activeRequest.value.id}/counter`
+  router.post(counterUrl, {
     message:       counterForm.message,
     proposed_date: counterForm.proposed_date,
     proposed_time: counterForm.proposed_time,
