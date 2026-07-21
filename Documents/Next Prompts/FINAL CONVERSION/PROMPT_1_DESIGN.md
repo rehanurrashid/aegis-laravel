@@ -289,14 +289,31 @@ const modals = reactive({ /* one key per modal */ })
     **Submit handler — validate before every post:**
     ```js
     async function submit() {
+      v$.value.$touch()                        // mark all fields dirty so errors render immediately
       const valid = await v$.value.$validate()
-      if (!valid) { toast.error('Please fix the highlighted fields.'); return }
+      if (!valid) return                       // ← NEVER toast here. Inline field errors already visible.
       form.post(route('route.name'), {
         onError: () => toast.error('Server error message.'),
         onFinish: () => { form.reset('password'); v$.value.$reset() },
       })
     }
     ```
+
+    **CRITICAL — Validation failure UX rule (NEVER break this):**
+    - **NEVER call `toast.error()` when client-side Vuelidate validation fails.**
+    - The inline `<div class="form-error">` below each field IS the error feedback. It appears the moment `$validate()` runs.
+    - A toast on validation failure is redundant, annoying, and wrong — the user is already looking at the form.
+    - `$touch()` before `$validate()` ensures errors are visible immediately without waiting for blur.
+    - `toast.error()` is ONLY for **server-side** errors (inside `onError:` callbacks) — never for client validation.
+
+    **When to use toast vs inline error:**
+    | Situation | Correct feedback |
+    |---|---|
+    | Required field left empty | Inline `form-error` div below the field |
+    | Field fails Vuelidate rule | Inline `form-error` div below the field |
+    | Server 422/500 response | `toast.error(...)` inside `onError:` |
+    | Network/unexpected error | `toast.error(...)` inside `onError:` |
+    | Missing data / guard check (e.g. no record selected) | `toast.error(...)` — guard, not form validation |
 
     **Reset on modal close or form clear:**
     ```js
@@ -467,6 +484,8 @@ grep -c 'is-error'       $PAGE   # ≥ 1 per validated field (never is-invalid)
 grep -c '\$reset'        $PAGE   # ≥ 1 (reset called on modal close)
 # Critical: is-error binding must use fieldError(), never form.errors directly
 grep -c "is-error.*form\.errors" $PAGE  # 0 — VIOLATION if non-zero
+# CRITICAL: toast.error() NEVER on client-side validation failure (only onError: server or guard checks)
+grep -cP "if \(!ok\).*toast\.error|if \(!valid\).*toast\.error" $PAGE  # 0 — VIOLATION if non-zero
 # Submit loading state: every primary/danger/gold submit button must have spinner + disabled binding
 grep -c "spinner spinner-sm\|spinner spinner\b" $PAGE  # ≥ 1 if page has any write buttons
 grep -c "form\.processing\|:disabled.*busy"     $PAGE  # ≥ 1 if page has any write buttons

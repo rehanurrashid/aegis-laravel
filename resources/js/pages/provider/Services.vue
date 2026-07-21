@@ -1144,7 +1144,7 @@
         <span>Accepting will schedule the session. The client will be notified to pay their upfront portion to confirm the booking.</span>
       </div>
       <div class="form-row">
-        <div class="form-group"><label class="form-label">Session Date <span style="color:var(--red)">*</span></label><input v-model="acceptForm.session_date" class="form-input" type="date" :min="todayDate"></div>
+        <div class="form-group"><label class="form-label">Session Date <span style="color:var(--red)">*</span></label><input v-model="acceptForm.session_date" class="form-input" type="date" :min="todayDate" :class="{ 'is-error': acceptDateError }" @change="acceptDateError = ''"><div v-if="acceptDateError" class="form-error">{{ acceptDateError }}</div></div>
         <div class="form-group"><label class="form-label">Session Time</label><select v-model="acceptForm.session_time" class="form-select"><option value="09:00">9:00 AM</option><option value="10:00">10:00 AM</option><option value="11:00">11:00 AM</option><option value="12:00">12:00 PM</option><option value="13:00">1:00 PM</option><option value="14:00">2:00 PM</option><option value="15:00">3:00 PM</option><option value="16:00">4:00 PM</option><option value="17:00">5:00 PM</option></select></div>
       </div>
       <div class="form-group"><label class="form-label">Timezone</label><select v-model="acceptForm.timezone" class="form-select"><option value="America/New_York">Eastern (ET)</option><option value="America/Chicago">Central (CT)</option><option value="America/Denver">Mountain (MT)</option><option value="America/Los_Angeles">Pacific (PT)</option></select></div>
@@ -1398,6 +1398,7 @@ function setActiveService(s) {
 }
 function setActiveRequest(r) {
   activeRequest.value = r
+  acceptDateError.value = ''
   acceptForm.session_date = r?.preferred_date ?? ''
   if (r?.preferred_time)     acceptForm.session_time = r.preferred_time
   if (r?.preferred_timezone) acceptForm.timezone     = r.preferred_timezone
@@ -1605,11 +1606,11 @@ async function submitCreate(status) {
   createSubmitIntent.value = status
   await nextTick()
   const ok = await createV$.value.$validate()
-  if (!ok) { toast.error(status === 'active' ? 'Please fix the highlighted fields before publishing.' : 'Service name is required.'); return }
+  if (!ok) return  // inline field errors already visible — no toast needed
   router.post(route('provider.services.store'), { title: createForm.title, description: createForm.description, category: createForm.category, price_cents: createForm.price_cents, price_type: createForm.price_type, duration_min: createForm.duration_min, format: createForm.format, availability: createForm.availability, availability_label: createForm.availability_label, is_public: createForm.is_public, status }, {
     preserveScroll: true,
     onSuccess: () => { resetCreateModal(); toast.success(status === 'active' ? 'Listing published!' : 'Saved as draft.') },
-    onError: (errors) => { createServerErrors.value = errors; toast.error('Please fix the highlighted fields.') },
+    onError: (errors) => { createServerErrors.value = errors },
   })
 }
 
@@ -1638,7 +1639,8 @@ function resumeService() {
 }
 
 // ── Accept form (Wave 5: adds negotiated_amount_cents) ────────────────────────
-const acceptBusy  = ref(false)
+const acceptBusy       = ref(false)
+const acceptDateError  = ref('')
 const acceptForm = reactive({
   session_date:              '',
   session_time:              '10:00',
@@ -1657,7 +1659,11 @@ const todayDate  = new Date().toISOString().split('T')[0]
 
 function submitAccept() {
   if (!activeRequest.value?.service_id || !activeRequest.value?.id) { toast.error('No request selected.'); return }
-  if (!acceptForm.session_date) { toast.error('Please select a session date.'); return }
+  if (!acceptForm.session_date) {
+    acceptDateError.value = 'Please select a session date.'
+    return
+  }
+  acceptDateError.value = ''
   acceptBusy.value = true
   router.post(route('provider.services.request.accept', { service: activeRequest.value.service_id, serviceRequest: activeRequest.value.id }), {
     session_date:             acceptForm.session_date,
@@ -1721,10 +1727,7 @@ async function submitCounter() {
   // Touch all fields so errors show immediately on submit attempt
   counterV$.value.$touch()
   const ok = await counterV$.value.$validate()
-  if (!ok) {
-    toast.error('Please write a message for your counter-proposal.')
-    return
-  }
+  if (!ok) return  // inline form-error below textarea already visible
   if (!activeRequest.value?.service_id || !activeRequest.value?.id) { toast.error('No request selected.'); return }
   counterBusy.value = true
   const counterUrl = `/provider/services/${activeRequest.value.service_id}/requests/${activeRequest.value.id}/counter`
