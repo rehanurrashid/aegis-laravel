@@ -571,7 +571,8 @@
       <!-- ── SECTION A: Sessions I've Booked ───────────────────────── -->
       <div v-show="sessionSubTab === 'booked'">
         <p class="sessions-section-desc" style="margin-bottom:12px">
-          Payments you owe — upfront portion due at booking, completion payment after the session.
+          <AegisIcon name="info" :size="14" />
+          Payments you owe for booked sessions. Depending on the agreed payment terms: full amount at booking (full upfront), a split portion now and the remainder after the session, or the full amount only after you confirm the session is complete.
         </p>
         <BookedSessionTable
           ref="clientTableRef"
@@ -596,7 +597,8 @@
       <!-- ── SECTION B: Sessions I'm Providing ─────────────────────── -->
       <div v-show="sessionSubTab === 'providing'">
         <p class="sessions-section-desc" style="margin-bottom:12px">
-          Payments coming to you — upfront portion received when client books, completion payment when they confirm.
+          <AegisIcon name="info" :size="14" />
+          Incoming payments from clients for your sessions. Payment timing depends on agreed terms: full amount at booking, split between booking and session confirmation, or full amount collected when the client confirms the session is complete.
         </p>
         <SessionTable
           ref="providerTableRef"
