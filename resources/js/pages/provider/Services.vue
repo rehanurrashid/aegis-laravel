@@ -1718,8 +1718,13 @@ const counterV$   = useVuelidate({ message: { required: helpers.withMessage('A m
 const counterBusy = ref(false)
 function counterFieldError(field) { return counterV$.value[field]?.$errors[0]?.$message ?? '' }
 async function submitCounter() {
+  // Touch all fields so errors show immediately on submit attempt
+  counterV$.value.$touch()
   const ok = await counterV$.value.$validate()
-  if (!ok) return
+  if (!ok) {
+    toast.error('Please write a message for your counter-proposal.')
+    return
+  }
   if (!activeRequest.value?.service_id || !activeRequest.value?.id) { toast.error('No request selected.'); return }
   counterBusy.value = true
   const counterUrl = `/provider/services/${activeRequest.value.service_id}/requests/${activeRequest.value.id}/counter`
