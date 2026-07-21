@@ -1199,11 +1199,11 @@
         <div v-if="counterV$.message.$error" class="form-error">{{ counterFieldError('message') }}</div>
       </div>
       <template #footer>
-        <button class="btn btn-outline" :disabled="counterForm.processing" @click="modals.counter = false">Cancel</button>
-        <button class="btn btn-primary" :disabled="counterForm.processing" @click="submitCounter">
-          <span v-if="counterForm.processing" class="spinner spinner-sm" />
+        <button class="btn btn-outline" :disabled="counterBusy" @click="modals.counter = false">Cancel</button>
+        <button class="btn btn-primary" :disabled="counterBusy" @click="submitCounter">
+          <span v-if="counterBusy" class="spinner spinner-sm" />
           <AegisIcon v-else name="send" :size="14" />
-          {{ counterForm.processing ? 'Sending…' : 'Send Counter Proposal' }}
+          {{ counterBusy ? 'Sending…' : 'Send Counter Proposal' }}
         </button>
       </template>
     </AegisModal>
@@ -1284,7 +1284,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted, nextTick, onUnmounted } from 'vue'
-import { Head, useForm } from '@inertiajs/vue3'
+import { Head } from '@inertiajs/vue3'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AegisToggle from '@/components/ui/AegisToggle.vue'
@@ -1719,15 +1719,15 @@ function submitDismiss() {
   router.post(route('provider.services.request.decline', { service: req.service_id, serviceRequest: req.id }), { reason }, { preserveScroll: true, onSuccess: () => { modals.dismiss = false; toast.info('Request dismissed.') } })
 }
 
-const counterForm = useForm({ proposed_date: '', proposed_time: '10:00', message: '' })
-
-const counterRules = computed(() => ({
-  message: { required: helpers.withMessage('Please write a message for the client.', required) },
-}))
-const counterV$ = useVuelidate(counterRules, counterForm)
+const counterForm   = reactive({ proposed_date: '', proposed_time: '10:00', message: '' })
+const counterBusy   = ref(false)
+const counterV$     = useVuelidate(
+  { message: { required: helpers.withMessage('Please write a message for the client.', required) } },
+  counterForm
+)
 function counterFieldError(field) {
   if (counterV$.value[field]?.$error) return counterV$.value[field].$errors[0]?.$message ?? ''
-  return counterForm.errors[field] ?? ''
+  return ''
 }
 
 async function submitCounter() {
@@ -1735,17 +1735,25 @@ async function submitCounter() {
   const ok = await counterV$.value.$validate()
   if (!ok) return
   if (!activeRequest.value?.service_id || !activeRequest.value?.id) { toast.error('No request selected.'); return }
+  counterBusy.value = true
   const svcId = activeRequest.value.service_id
   const reqId = activeRequest.value.id
-  counterForm.post(`/provider/services/${svcId}/requests/${reqId}/counter`, {
+  router.post(`/provider/services/${svcId}/requests/${reqId}/counter`, {
+    message:       counterForm.message,
+    proposed_date: counterForm.proposed_date,
+    proposed_time: counterForm.proposed_time,
+  }, {
     preserveScroll: true,
     onSuccess: () => {
       modals.counter = false
       toast.success('Counter-proposal sent. The client has been notified in their message inbox.')
-      counterForm.reset()
+      counterForm.proposed_date = ''
+      counterForm.proposed_time = '10:00'
+      counterForm.message = ''
       counterV$.value.$reset()
     },
-    onError: () => { /* inline errors via counterForm.errors */ },
+    onError:  () => toast.error('Failed to send counter-proposal. Please try again.'),
+    onFinish: () => { counterBusy.value = false },
   })
 }
 
