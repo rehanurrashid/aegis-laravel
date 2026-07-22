@@ -369,9 +369,6 @@ function saveNotifyPrefs() {
         <a :href="route('provider.activity') + '?module=continuity_stewards'" class="btn-hero-ghost is-on-light" style="display:inline-flex;align-items:center;gap:6px;">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
-        <a :href="route('provider.network.index') + '?tab=cs'" class="btn-hero-ghost is-on-light" style="display:inline-flex;align-items:center;gap:6px;">
-          <AegisIcon name="search" :size="14" /> Browse CS Directory
-        </a>
         <button type="button" class="btn-hero-solid is-on-light" style="display:inline-flex;align-items:center;gap:6px;" @click="handleAddCS">
           <AegisIcon name="plus" :size="14" /> Sign Retainer Agreement
         </button>
@@ -445,9 +442,6 @@ function saveNotifyPrefs() {
           <button type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;" @click="handleAddCS">
             <AegisIcon name="user-plus" :size="14" /> Add Continuity Steward
           </button>
-          <a :href="route('provider.network.index') + '?tab=cs'" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;">
-            <AegisIcon name="search" :size="14" /> Browse CS Directory
-          </a>
         </div>
       </AegisEmptyState>
 
