@@ -78,12 +78,6 @@
     ════════════════════════════════════════════════════════════════════ -->
     <div v-show="section === 'bp'">
 
-    <div class="stat-chip">
-        <div class="stat-chip-icon" style="background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="check" :size="18" /></div>
-        <div><div class="stat-chip-value">{{ stats.hired }}</div><div class="stat-chip-label">Hired</div></div>
-      </div>
-    </div>
-
     <!-- TABS -->
     <div class="tabs-primary" role="tablist" style="margin-bottom:24px">
       <button class="tab-primary" :class="{ active: tab === 'my-postings' }" role="tab" :aria-selected="tab === 'my-postings'" @click="tab = 'my-postings'">
@@ -1543,35 +1537,44 @@ function onUseTemplate(t) {
   display: flex;
   gap: 10px;
   margin-bottom: 24px;
-  flex-wrap: wrap;
+  width: 100%;
 }
 .ss-section-btn {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
-  border: 2px solid var(--border);
-  border-radius: var(--radius-lg);
+  gap: 14px;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   background: var(--surface);
   cursor: pointer;
-  transition: border-color var(--transition), background var(--transition);
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
   flex: 1;
-  min-width: 240px;
   text-align: left;
+  min-width: 0;
+}
+.ss-section-btn:hover {
+  border-color: var(--gold);
+  background: var(--surface-2);
 }
 .ss-section-btn.active {
   border-color: var(--gold);
   background: var(--badge-bg-gold);
+  box-shadow: 0 0 0 1px var(--gold);
 }
 .ss-section-btn--locked {
-  opacity: .55;
+  opacity: .5;
   cursor: default;
+  pointer-events: none;
 }
 .ss-section-title {
   font-size: 14px;
   font-weight: 700;
   color: var(--text);
-  margin-bottom: 2px;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .ss-section-sub {
   font-size: 11px;
