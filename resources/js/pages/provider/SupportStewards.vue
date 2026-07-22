@@ -562,7 +562,7 @@
         <div class="role-option" :class="{ selected: inviteForm.role === 'support' }" @click="inviteForm.role = 'support'">
           <input type="radio" name="dsrRole" value="support" :checked="inviteForm.role === 'support'" style="accent-color:var(--gold-dark)">
           <div>
-            <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text)"><AegisIcon name="user" :size="14" /> Support Steward</div>
+            <div style="font-size:13px;font-weight:700;color:var(--text)">Support Steward</div>
             <div style="font-size:12px;color:var(--text-3);margin-top:3px">Supports communication, coordination, and key tasks during a critical moment, guided by your Continuity Plan.</div>
           </div>
         </div>
