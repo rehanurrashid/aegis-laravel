@@ -371,7 +371,7 @@
             <div class="help-step-desc">Go to <strong>My Postings</strong> and click <em>Request Support</em>. Give the request a title, choose a category (Billing, IT, Marketing, etc.), set your budget, and pick a payment type.</div>
             <div class="help-callout help-callout-gold">
               <AegisIcon name="info" :size="13" style="flex-shrink:0;margin-top:2px" />
-              <div><strong>Payment type matters.</strong> <em>One-time</em> means a single fixed payment at completion. <em>Milestone</em> breaks the project into paid checkpoints — safer for longer engagements.</div>
+              <div><strong>Payment type matters.</strong> <em>One-time</em> means a single fixed payment at completion. <em>Milestone</em> breaks the project into paid checkpoints — safer for longer engagements. You also set default payment terms (upfront %, split, or per milestone) that Business Partners will see when applying.</div>
             </div>
             <div class="help-tags">
               <span class="help-tag"><AegisIcon name="briefcase" :size="11" /> My Postings tab</span>
@@ -461,9 +461,9 @@
                 <AegisIcon name="chevron-right" :size="14" />
               </div>
               <div class="help-escrow-node help-escrow-node-aegis">
-                <AegisIcon name="shield" :size="16" />
+                <AegisIcon name="shield-check" :size="16" />
                 <span>Stripe Connect</span>
-                <span class="help-escrow-sub">Direct to BP</span>
+                <span class="help-escrow-sub">Pass-through</span>
               </div>
               <div class="help-escrow-arrow">
                 <div class="help-escrow-arrow-line"></div>
@@ -472,18 +472,26 @@
               <div class="help-escrow-node help-escrow-node-bp">
                 <AegisIcon name="user" :size="16" />
                 <span>Business Partner</span>
-                <span class="help-escrow-sub">Paid on approval</span>
+                <span class="help-escrow-sub">Direct to their account</span>
               </div>
             </div>
 
             <div class="help-grid-2" style="margin-top:16px">
               <div class="help-mini-card">
                 <div class="help-mini-icon" style="background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="layers" :size="14" /></div>
-                <div><strong>Per Milestone</strong><br>Fund each milestone individually just before work begins. Lower upfront risk.</div>
+                <div><strong>Per Milestone</strong><br>Payment fires automatically each time you approve a deliverable. You only pay for completed work.</div>
               </div>
               <div class="help-mini-card">
-                <div class="help-mini-icon" style="background:var(--icon-bg-green);color:var(--green-dark)"><AegisIcon name="dollar-sign" :size="14" /></div>
-                <div><strong>Full Upfront</strong><br>Charge the entire contract value at once. Gives the Business Partner maximum confidence to start.</div>
+                <div class="help-mini-icon" style="background:var(--icon-bg-green);color:var(--green-dark)"><AegisIcon name="dollar" :size="14" /></div>
+                <div><strong>Full Upfront</strong><br>Entire contract value charges at signing. Milestones are pre-paid — the Business Partner starts immediately.</div>
+              </div>
+              <div class="help-mini-card">
+                <div class="help-mini-icon" style="background:var(--icon-bg-blue);color:var(--blue-dark)"><AegisIcon name="credit-card" :size="14" /></div>
+                <div><strong>Split</strong><br>A percentage charges at signing, the remainder at completion. Balances risk for both parties.</div>
+              </div>
+              <div class="help-mini-card">
+                <div class="help-mini-icon" style="background:var(--icon-bg-red);color:var(--red-dark)"><AegisIcon name="clock" :size="14" /></div>
+                <div><strong>Pay on Completion</strong><br>Nothing charges until you mark the contract complete. Maximum provider control, higher BP trust required.</div>
               </div>
             </div>
           </div>
@@ -527,11 +535,11 @@
         <div class="help-step">
           <div class="help-step-num">7</div>
           <div class="help-step-body">
-            <div class="help-step-title">Auto-Release &amp; Timers</div>
-            <div class="help-step-desc">If you don't review a submission within <strong>7 days</strong>, Aegis automatically approves the milestone and payment fires directly to the Business Partner. You'll receive a reminder at the 48-hour mark.</div>
+            <div class="help-step-title">Auto-Approve &amp; Timers</div>
+            <div class="help-step-desc">If you don't review a submission within <strong>7 days</strong>, Aegis automatically approves the milestone and payment fires directly to the Business Partner's account. You'll receive a reminder at the 48-hour mark.</div>
             <div class="help-callout help-callout-orange">
               <AegisIcon name="clock" :size="13" style="flex-shrink:0;margin-top:2px" />
-              <div><strong>Why auto-release?</strong> It protects Business Partners from indefinite payment holds after completing legitimate work. Review submissions promptly to maintain full control over release decisions.</div>
+              <div><strong>Why auto-approve?</strong> It protects Business Partners from indefinite payment holds after completing legitimate work. Review submissions promptly to maintain full control over payment decisions.</div>
             </div>
           </div>
         </div>
@@ -542,7 +550,7 @@
           <div class="help-step-num">8</div>
           <div class="help-step-body">
             <div class="help-step-title">Contract Completion &amp; Ratings</div>
-            <div class="help-step-desc">Once all milestones are released, the contract is marked <em>Completed</em>. You'll be prompted to leave a rating for the Business Partner — and they can rate you. Ratings are visible on public profiles and help the community identify top partners.</div>
+            <div class="help-step-desc">Once all milestones are paid, the contract is marked <em>Completed</em>. You'll be prompted to leave a rating for the Business Partner — and they can rate you. Ratings are visible on public profiles and help the community identify top partners.</div>
             <div class="help-tags">
               <span class="help-tag help-tag-green"><AegisIcon name="star" :size="11" /> 1–5 star rating</span>
               <span class="help-tag help-tag-green"><AegisIcon name="check" :size="11" /> Communication, Quality, Timeliness</span>
@@ -590,7 +598,7 @@
         <div class="help-safety-icon"><AegisIcon name="shield" :size="24" /></div>
         <div>
           <div class="help-safety-title">Your Money is Protected at Every Stage</div>
-          <div class="help-safety-body">Aegis never holds funds indefinitely. You can self-refund any funded milestone that hasn't been submitted yet. Once work is submitted, disputes trigger admin mediation — ensuring fair resolution for both parties without either side being left without recourse.</div>
+          <div class="help-safety-body">Payments route directly to the Business Partner's Stripe account at the moment you approve — Aegis is never a holding party. If a dispute arises before payment, you can cancel the milestone at no charge. Once work is submitted and you're not satisfied, the dispute system triggers Aegis mediation to ensure fair resolution for both parties.</div>
         </div>
       </div>
 
