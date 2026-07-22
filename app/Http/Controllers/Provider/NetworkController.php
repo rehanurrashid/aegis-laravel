@@ -356,95 +356,7 @@ class NetworkController extends Controller
                 ];
             })->values();
 
-        // ── CS Steward directory ──────────────────────────────────────────────
-        // Practitioners can browse CS Business users and designate them.
-        // Load existing plan_steward relationships for this practitioner so cards show status.
-        $plan = \App\Models\ContinuityPlan::where('practitioner_id', $user->id)->first();
-        $existingDesignations = collect();
-        if ($plan) {
-            $existingDesignations = \App\Models\PlanSteward::where('plan_id', $plan->id)
-                ->where('steward_category', 'continuity_steward')
-                ->whereNotIn('status', ['archived', 'declined'])
-                ->get()
-                ->keyBy('steward_id');
-        }
-
-        $csStewards = User::where('role', 'continuity_steward')
-            ->where('cs_account_type', 'business')
-            ->where('verified', 1)
-            ->get()
-            ->map(function (User $cs) use ($existingDesignations) {
-                // Load meta for CS-specific fields
-                $meta = $cs->meta->pluck('meta_value', 'meta_key')->all();
-                $specialty = [];
-                if ($cs->specialty) {
-                    $dec = json_decode($cs->specialty, true);
-                    $specialty = is_array($dec)
-                        ? $dec
-                        : array_values(array_filter(array_map('trim', explode(',', $cs->specialty))));
-                }
-                $rateMin = (int) ($meta['rate_min_cents'] ?? $meta['rate_per_session'] ?? 0) * 100;
-                $rateMax = (int) ($meta['rate_max_cents'] ?? $rateMin);
-
-                // Designation status for this practitioner: none | pending | invited | active
-                $ps = $existingDesignations->get($cs->id);
-                $designationStatus = $ps ? ($ps->status instanceof \BackedEnum ? $ps->status->value : (string) $ps->status) : 'none';
-
-                return [
-                    'id'                 => $cs->id,
-                    'display_name'       => $cs->display_name,
-                    'slug'               => $cs->slug ?? '',
-                    'avatar_initials'    => $cs->avatar_initials ?? strtoupper(substr($cs->display_name, 0, 2)),
-                    'credentials'        => $cs->credentials ?? '',
-                    // license_state omitted — Chapman decision: no clinical info on CS cards
-                    'specialties'        => $specialty,
-                    'bio'                => $meta['bio'] ?? $cs->bio ?? '',
-                    'rate_min_cents'     => $rateMin,
-                    'rate_max_cents'     => $rateMax,
-                    'cs_availability'    => (bool) ($meta['cs_availability'] ?? true),
-                    'location'           => $cs->location ?? '',
-                    'designation_status' => $designationStatus, // none | pending | invited | active
-                ];
-            })->values();
-
-        $csSpecialties = ['Trauma','Couples','EMDR','Grief','Anxiety','ADHD','Addiction','Family Systems','Other'];
-        // $csStates removed — License State filter removed per Chapman decision (no clinical info on CS cards)
-
-        // Practitioners available to serve as CS for others (available_as_cs meta = '1').
-        // Chapman decision #1: show tier badge. Decision #3: no license/clinical info.
-        // Chapman decision #4: ssDirectory removed entirely.
-        $csDirectory = User::where('role', 'practitioner')
-            ->whereNull('deactivated_at')
-            ->whereHas('meta', fn ($q) => $q->where('meta_key', 'available_as_cs')->where('meta_value', '1'))
-            ->where('id', '!=', $user->id)
-            ->with('meta')
-            ->orderBy('display_name')
-            ->limit(60)
-            ->get()
-            ->map(function (User $u) use ($plan, $existingDesignations) {
-                $ps = $existingDesignations->get($u->id);
-                $designationStatus = $ps
-                    ? ($ps->status instanceof \BackedEnum ? $ps->status->value : (string) $ps->status)
-                    : 'none';
-                $tierVal = $u->tier instanceof \BackedEnum ? $u->tier->value : (string) ($u->tier ?? '');
-                return [
-                    'id'               => $u->id,
-                    'display_name'     => $u->display_name,
-                    'credentials'      => $u->credentials ?? '',
-                    'specialty'        => $u->specialty ?? '',
-                    'location'         => $u->location ?? '',
-                    'avatar_initials'  => $u->avatar_initials ?? strtoupper(substr($u->display_name, 0, 2)),
-                    'avatar_path'      => $u->avatar_path,
-                    'slug'             => $u->slug ?? '',
-                    // Tier badge per Chapman decision #1 — no clinical license info
-                    'cs_tier_badge'    => match($tierVal) {
-                        'practice' => 'Practice',
-                        'access'   => 'Access',
-                        default    => null,
-                    },
-                    'designation_status' => $designationStatus,
-                ];
-            })->values();
+        // CS directory removed per Chapman decision — not searchable from Network
 
         return Inertia::render('provider/Network', [
             'clinicalConnections'          => $clinical,
@@ -472,9 +384,7 @@ class NetworkController extends Controller
                 'active_shadows'   => $shadows->count(),
             ],
             'networkConfig'                => $this->loadNetworkConfig($user),
-            'csStewards'                   => $csStewards,
-            'csFilters'                    => ['specialties' => $csSpecialties],
-            'csDirectory'                  => $csDirectory,
+            // csStewards/csFilters/csDirectory removed per Chapman decision
             // ssDirectory intentionally omitted — removed per Chapman decision #4
             'initialScope'                 => $request->query('tab', $request->query('scope', 'clinical')),
         ]);

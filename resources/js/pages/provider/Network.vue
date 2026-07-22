@@ -86,10 +86,7 @@
         <button type="button" id="nw-tab-tools" class="tab-primary" :class="{ active: scope === 'tools' }" @click="scope = 'tools'">
           <AegisIcon name="cpu" :size="15" /> Referrals &amp; Tools
         </button>
-        <button type="button" id="nw-tab-cs" class="tab-primary" :class="{ active: scope === 'cs' }" @click="scope = 'cs'">
-          <AegisIcon name="shield" :size="15" /> Continuity Stewards
-        </button>
-        <!-- SS tab removed per Chapman decision #4 -->
+        <!-- CS tab removed per Chapman decision — SS tab removed per Chapman decision #4 -->
       </div>
 
       <!-- Sub-tabs: Integrative Care Network -->
@@ -1702,274 +1699,7 @@
       </div>
     </div><!-- /config -->
 
-    <!-- ══════════ CONTINUITY STEWARDS ══════════ -->
-    <div v-show="scope === 'cs'">
-
-      <div class="alert alert-info" style="margin-bottom:20px;">
-        <div class="alert-icon"><AegisIcon name="shield" :size="18" /></div>
-        <div class="alert-content">
-          <div class="alert-title">Find a Continuity Steward</div>
-          <div>Browse licensed clinicians registered as Business CS on Aegis. Designate one and they receive a formal invitation to accept and countersign your plan.</div>
-        </div>
-      </div>
-
-      <div class="sbp-layout">
-
-        <!-- ── CS FILTER SIDEBAR — mirrors sbpFilterSidebar exactly ── -->
-        <aside class="filter-sidebar" id="csSidebar">
-          <div class="filter-sidebar-header">
-            <div class="filter-sidebar-title"><AegisIcon name="filter" :size="14" /> Filters</div>
-            <button type="button" class="filter-clear-btn" @click="csClearAll">Clear All</button>
-          </div>
-
-          <!-- Availability toggle -->
-          <div class="filter-group nw-sbp-clinical-toggle">
-            <label class="nw-sbp-clinical-label">
-              <span class="nw-sbp-clinical-text">
-                <AegisIcon name="check-circle" :size="14" />
-                Accepting new CS roles
-                <span class="sbp-info-tip" data-tooltip="Show only Continuity Stewards currently accepting new agreements."><AegisIcon name="info" :size="12" /></span>
-              </span>
-              <button type="button" class="toggle" :class="{ on: csAvailOnly }" @click="csAvailOnly = !csAvailOnly" aria-label="Show available only"></button>
-            </label>
-          </div>
-
-          <!-- 1. Specialty -->
-          <div class="filter-group" :class="{ open: csGroups.specialty }">
-            <div class="filter-group-header" @click="csGroups.specialty = !csGroups.specialty">
-              <span class="filter-group-label">
-                <AegisIcon name="star" :size="16" /> Specialty
-                <span v-if="csSpecialty" class="filter-group-count visible">1</span>
-              </span>
-              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
-            </div>
-            <div class="filter-group-body">
-              <span
-                v-for="s in (csFilters?.specialties ?? [])" :key="s"
-                class="ftag"
-                :class="{ selected: csSpecialty === s }"
-                @click="csSpecialty = csSpecialty === s ? '' : s"
-              >{{ s }}</span>
-            </div>
-          </div>
-
-          <!-- 3. Rate Range -->
-          <div class="filter-group" :class="{ open: csGroups.rate }">
-            <div class="filter-group-header" @click="csGroups.rate = !csGroups.rate">
-              <span class="filter-group-label">
-                <AegisIcon name="dollar" :size="16" /> Rate / Incident
-                <span v-if="csRateMax > 0" class="filter-group-count visible">1</span>
-              </span>
-              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
-            </div>
-            <div class="filter-group-body">
-              <div class="filter-subcat">Quick range</div>
-              <span class="ftag" :class="{ selected: csRateMax===0 }"   @click="csRateMax=0">Any</span>
-              <span class="ftag" :class="{ selected: csRateMax===100 }" @click="csRateMax=100">Under $100</span>
-              <span class="ftag" :class="{ selected: csRateMax===200 }" @click="csRateMax=200">Under $200</span>
-              <span class="ftag" :class="{ selected: csRateMax===300 }" @click="csRateMax=300">Under $300</span>
-              <span class="ftag" :class="{ selected: csRateMax===500 }" @click="csRateMax=500">Under $500</span>
-              <div class="filter-subcat">Custom max ($/incident)</div>
-              <div class="sbp-range-row">
-                <input v-model.number="csRateCustom" class="filter-inner-search" type="number" placeholder="e.g. 250" min="0" @change="csRateMax = csRateCustom || 0" />
-              </div>
-            </div>
-          </div>
-
-          <!-- 4. Sort -->
-          <div class="filter-group" :class="{ open: csGroups.sort }">
-            <div class="filter-group-header" @click="csGroups.sort = !csGroups.sort">
-              <span class="filter-group-label">
-                <AegisIcon name="trending-up" :size="16" /> Sort By
-              </span>
-              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
-            </div>
-            <div class="filter-group-body">
-              <label v-for="opt in csSortOptions" :key="opt.val" class="sbp-radio-row" @click="csSort = opt.val">
-                <div class="sbp-radio" :class="{ active: csSort === opt.val }"></div>
-                <div>
-                  <div class="sbp-radio-label">{{ opt.label }}</div>
-                  <div v-if="opt.sub" class="sbp-radio-sub">{{ opt.sub }}</div>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <div class="filter-sidebar-apply">
-            <button type="button" class="btn btn-primary" @click="toast.success('Showing ' + filteredCS.length + ' Continuity Steward' + (filteredCS.length === 1 ? '' : 's'))">Apply Filters</button>
-          </div>
-        </aside>
-
-        <!-- ── RESULTS PANEL ── -->
-        <div class="results-panel">
-
-          <!-- Topbar — count + sort select -->
-          <div class="results-topbar">
-            <div class="results-count">
-              <strong>{{ filteredCS.length }}</strong>
-              {{ filteredCS.length !== (csStewards?.length ?? 0) ? `of ${csStewards?.length ?? 0} ` : '' }}Continuity Steward{{ filteredCS.length === 1 ? '' : 's' }}
-            </div>
-            <div class="results-sort">
-              <span class="nw-sort-label">Sort:</span>
-              <select v-model="csSort" class="form-select nw-sort-select" style="min-width:160px">
-                <option value="best">Best Match</option>
-                <option value="rate_asc">Rate: Low to High</option>
-                <option value="rate_desc">Rate: High to Low</option>
-                <option value="newest">Newest</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Search toolbar — full width row below topbar -->
-          <div class="pn-toolbar" style="margin-bottom:14px;">
-            <div class="pn-search-wrap">
-              <span class="search-icon"><AegisIcon name="search-lg" :size="14" /></span>
-              <input v-model="csSearch" class="form-input" type="text" placeholder="Search by name, specialty, bio..." />
-            </div>
-          </div>
-
-          <div class="search-results-grid">
-            <div
-              v-for="cs in filteredCS"
-              :key="cs.id"
-              class="sbp-card spc-card"
-              @click="viewProfile(cs.slug, 'cs')"
-            >
-              <div class="spc-top-pills">
-                <!-- Designation status pill — takes priority over availability -->
-                <span v-if="cs.designation_status === 'active'"
-                  class="spc-status-icon ok"
-                  data-tooltip="You have an active agreement with this CS"
-                >
-                  <AegisIcon name="check-circle" :size="12" />
-                </span>
-                <span v-else-if="cs.designation_status === 'pending' || cs.designation_status === 'invited'"
-                  class="spc-status-icon pend"
-                  data-tooltip="Invitation sent — awaiting their response"
-                >
-                  <AegisIcon name="clock" :size="12" />
-                </span>
-                <span v-else
-                  class="spc-status-icon"
-                  :class="cs.cs_availability ? 'ok' : 'off'"
-                  :data-tooltip="cs.cs_availability ? 'Accepting new CS roles' : 'Not currently available'"
-                >
-                  <AegisIcon :name="cs.cs_availability ? 'user-check' : 'clock'" :size="12" />
-                </span>
-              </div>
-
-              <div class="spc-body">
-                <div class="spc-avatar">{{ cs.avatar_initials }}</div>
-                <div class="spc-name" style="color:var(--gold-dark);">{{ cs.display_name }}<span v-if="cs.credentials" style="font-size:11px;color:var(--text-3);font-weight:400;">, {{ cs.credentials }}</span></div>
-                <div class="spc-loc" v-if="cs.location">{{ cs.location }}</div>
-                <div class="spc-tags" v-if="cs.specialties?.length">
-                  <span v-for="tag in (cs.specialties ?? []).slice(0,3)" :key="tag" class="spc-tag">{{ tag }}</span>
-                  <span v-if="(cs.specialties ?? []).length > 3" class="spc-tag spc-tag-more">+{{ (cs.specialties ?? []).length - 3 }}</span>
-                </div>
-              </div>
-
-              <div v-if="cs.rate_min_cents || cs.rate_max_cents" class="spc-stats">{{ formatCsRate(cs) }}</div>
-
-              <div class="spc-actions" @click.stop style="flex-direction:column;gap:6px;align-items:stretch;">
-                <!-- Active agreement -->
-                <template v-if="cs.designation_status === 'active'">
-                  <span class="badge badge-green" style="font-size:11px;gap:4px;display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;">
-                    <AegisIcon name="check-circle" :size="11" /> Active CS Agreement
-                  </span>
-                  <button type="button" class="btn btn-outline" style="width:100%;justify-content:center;font-size:12px;display:inline-flex;align-items:center;gap:5px;" @click.stop="viewProfile(cs.slug, 'cs')">
-                    <AegisIcon name="eye" :size="13" /> View Profile
-                  </button>
-                </template>
-
-                <!-- Pending invitation -->
-                <template v-else-if="cs.designation_status === 'pending' || cs.designation_status === 'invited'">
-                  <span class="badge badge-yellow" style="font-size:11px;gap:4px;display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;">
-                    <AegisIcon name="clock" :size="11" /> Invitation Sent — Awaiting Response
-                  </span>
-                  <button type="button" class="btn btn-outline" style="width:100%;justify-content:center;font-size:12px;display:inline-flex;align-items:center;gap:5px;" @click.stop="viewProfile(cs.slug, 'cs')">
-                    <AegisIcon name="eye" :size="13" /> View Profile
-                  </button>
-                </template>
-
-                <!-- Available to designate -->
-                <template v-else>
-                  <button
-                    type="button"
-                    class="btn btn-primary"
-                    style="width:100%;justify-content:center;font-size:12px;display:inline-flex;align-items:center;gap:5px;"
-                    :disabled="!cs.cs_availability"
-                    :data-tooltip="!cs.cs_availability ? 'Not currently accepting new CS roles' : null"
-                    @click="openDesignate(cs)"
-                  >
-                    <AegisIcon name="shield" :size="13" /> Designate as My CS
-                  </button>
-                  <button type="button" class="btn btn-outline" style="width:100%;justify-content:center;font-size:12px;display:inline-flex;align-items:center;gap:5px;" @click.stop="viewProfile(cs.slug, 'cs')">
-                    <AegisIcon name="eye" :size="13" /> View Profile
-                  </button>
-                </template>
-              </div>
-            </div>
-          </div>
-
-          <AegisEmptyState
-            v-if="!filteredCS.length"
-            icon="shield"
-            title="No Continuity Stewards match your search"
-            description="Try adjusting your filters or clearing the search."
-          >
-            <template #actions>
-              <button type="button" class="btn btn-outline" @click="csClearAll">Clear All Filters</button>
-            </template>
-          </AegisEmptyState>
-        </div>
-      </div>
-
-      <!-- ── Practitioner CS Directory ── -->
-      <div style="margin-top:32px">
-        <div style="font-size:13px;font-weight:700;color:var(--text-2);letter-spacing:0.3px;margin-bottom:12px;text-transform:uppercase;">
-          Practitioners Available as CS
-        </div>
-        <div v-if="(csDirectory ?? []).length" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;">
-          <div
-            v-for="p in (csDirectory ?? [])"
-            :key="p.id"
-            class="spc-card"
-            style="cursor:pointer"
-            @click="p.slug ? viewProfile(p.slug) : null"
-          >
-            <div class="spc-body">
-              <div class="spc-avatar">{{ p.avatar_initials }}</div>
-              <div class="spc-name" style="color:var(--gold-dark);">
-                {{ p.display_name }}<span v-if="p.credentials" style="font-size:11px;color:var(--text-3);font-weight:400;">, {{ p.credentials }}</span>
-              </div>
-              <!-- Tier badge — Chapman decision #1. No license info — Chapman decision #3 -->
-              <div v-if="p.cs_tier_badge" style="margin-top:4px">
-                <span class="badge badge-gold" style="font-size:10px;">
-                  <AegisIcon name="star" :size="10" /> {{ p.cs_tier_badge }} Plan
-                </span>
-              </div>
-              <div v-if="p.location" class="spc-loc" style="margin-top:4px">{{ p.location }}</div>
-              <div v-if="p.specialty" class="spc-tags" style="margin-top:6px">
-                <span v-for="tag in String(p.specialty).split(',').slice(0,2)" :key="tag" class="spc-tag">{{ tag.trim() }}</span>
-              </div>
-            </div>
-            <div class="spc-actions" @click.stop>
-              <span v-if="p.designation_status === 'active'" class="badge badge-green" style="font-size:11px;padding:5px 8px;display:inline-flex;align-items:center;gap:4px;">
-                <AegisIcon name="check-circle" :size="10" /> Active CS
-              </span>
-              <span v-else-if="p.designation_status === 'pending' || p.designation_status === 'invited'" class="badge badge-yellow" style="font-size:11px;padding:5px 8px;display:inline-flex;align-items:center;gap:4px;">
-                <AegisIcon name="clock" :size="10" /> Invited
-              </span>
-              <button v-else type="button" class="btn btn-primary" style="width:100%;font-size:12px;justify-content:center;" @click.stop="router.visit(route('provider.cs.index'))">
-                <AegisIcon name="shield" :size="13" /> Designate as CS
-              </button>
-            </div>
-          </div>
-        </div>
-        <AegisEmptyState v-else icon="user-check" title="No practitioners available" description="No practitioners have listed themselves as available CS yet." />
-      </div>
-
-    </div><!-- /cs stewards -->
+    <!-- CS stewards tab removed per Chapman decision -->
 
     <!-- ══════════ SUPPORT STEWARDS DIRECTORY ══════════ -->
     <!-- SS directory panel removed per Chapman decision #4 -->
@@ -2178,13 +1908,6 @@
       :network="referralNetwork"
       :preselected-recipient="referralPreselectRecipient"
     />
-    <!-- Designate CS Modal — centralized DesignateCsModal -->
-    <DesignateCsModal
-      v-model="showDesignateModal"
-      :preselected-user="designateTarget"
-      context="network"
-      @success="onCsDesignated"
-    />
 
     </div><!-- /nw-page-root -->
 
@@ -2204,7 +1927,6 @@ import PostJobModal           from '@/components/modals/PostJobModal.vue'
 import BpEngageModal          from '@/components/modals/BpEngageModal.vue'
 import BpQuoteModal           from '@/components/modals/BpQuoteModal.vue'
 import BpScheduleModal        from '@/components/modals/BpScheduleModal.vue'
-import DesignateCsModal       from '@/components/modals/DesignateCsModal.vue'
 import { useModal }         from '@/composables/useModal'
 import { useToast }         from '@/composables/useToast'
 import { useConfirm }       from '@/composables/useConfirm'
@@ -2227,9 +1949,6 @@ const props = defineProps({
   stats:                        { type: Object, default: () => ({}) },
   initialScope:                 { type: String,  default: 'clinical' },
   networkConfig:                { type: Object, default: () => ({}) },
-  csStewards:                   { type: Array,  default: () => [] },
-  csFilters:                    { type: Object, default: () => ({ specialties: [], states: [] }) },
-  csDirectory:                  { type: Array,  default: () => [] },
   // ssDirectory removed per Chapman decision #4
 })
 
@@ -3201,79 +2920,7 @@ function openReferralForShadow(s) {
 
 // ── CS Steward directory ────────────────────────────────────────────────────
 // ── CS Steward directory ────────────────────────────────────────────────────
-const csSearch       = ref('')
-const csSpecialty    = ref('')
-const csAvailOnly    = ref(false)
-const csRateMax      = ref(0)
-const csRateCustom   = ref(0)
-const csSort         = ref('best')
-const designateTarget = ref(null)
-const showDesignateModal = ref(false)
-
-const csGroups = reactive({ specialty: true, rate: false, sort: false })
-
-const csSortOptions = [
-  { val: 'best',      label: 'Best Match',        sub: 'Default ordering' },
-  { val: 'rate_asc',  label: 'Rate: Low to High', sub: 'Lowest per-incident rate first' },
-  { val: 'rate_desc', label: 'Rate: High to Low', sub: 'Highest per-incident rate first' },
-  { val: 'newest',    label: 'Newest',             sub: 'Recently joined Aegis' },
-]
-
-
-function csClearAll() {
-  csSearch.value      = ''
-  csSpecialty.value   = ''
-  csAvailOnly.value   = false
-  csRateMax.value     = 0
-  csRateCustom.value  = 0
-  csSort.value        = 'best'
-  Object.keys(csGroups).forEach(k => { csGroups[k] = k === 'specialty' })
-  toast.info('All CS filters cleared')
-}
-
-const filteredCS = computed(() => {
-  let list = [...(props.csStewards ?? [])]
-  const q = csSearch.value.toLowerCase().trim()
-  if (q) list = list.filter(cs =>
-    (cs.display_name ?? '').toLowerCase().includes(q) ||
-    (cs.bio          ?? '').toLowerCase().includes(q) ||
-    (cs.specialties  ?? []).some(s => s.toLowerCase().includes(q))
-  )
-  if (csSpecialty.value)
-    list = list.filter(cs => (cs.specialties ?? []).some(s => s.toLowerCase().includes(csSpecialty.value.toLowerCase())))
-  if (csAvailOnly.value)
-    list = list.filter(cs => cs.cs_availability)
-  if (csRateMax.value > 0)
-    list = list.filter(cs => !cs.rate_max_cents || cs.rate_max_cents / 100 <= csRateMax.value)
-  if (csSort.value === 'rate_asc')
-    list = [...list].sort((a, b) => (a.rate_min_cents ?? 0) - (b.rate_min_cents ?? 0))
-  else if (csSort.value === 'rate_desc')
-    list = [...list].sort((a, b) => (b.rate_min_cents ?? 0) - (a.rate_min_cents ?? 0))
-  return list
-})
-
-// filteredSsDirectory removed per Chapman decision #4
-
-function formatCsRate(cs) {
-  if (!cs.rate_min_cents && !cs.rate_max_cents) return 'Rate TBD'
-  const min = cs.rate_min_cents ? '$' + Math.round(cs.rate_min_cents / 100) : ''
-  const max = cs.rate_max_cents ? '$' + Math.round(cs.rate_max_cents / 100) : ''
-  if (min && max && min !== max) return `${min}–${max}/incident`
-  return (min || max) + '/incident'
-}
-
-function openDesignate(cs) {
-  designateTarget.value = cs
-  showDesignateModal.value = true
-}
-
-function onCsDesignated() {
-  showDesignateModal.value = false
-  // Reload csStewards so card status updates in-place, then visit stewards page
-  router.reload({ only: ['csStewards'], preserveScroll: true, onSuccess: () => {
-    router.visit(route('provider.stewards.index'))
-  }})
-}
+// CS tab removed per Chapman decision
 
 
 const activeConfigPanel = ref('cfg-team')
