@@ -212,11 +212,11 @@ function submitEndRetainer() {
     onSuccess: () => {
       modals.value.endRetainer = false
       toast.success(endRetainerForm.action === 'suspend'
-        ? 'Retainer paused. Reinstate anytime from the Suspended tab.'
-        : 'Retainer terminated.')
+        ? 'Agreement paused. Reinstate anytime from the Suspended tab.'
+        : 'Agreement terminated.')
       router.reload({ only: ['stewards', 'pendingInvitations', 'suspended', 'csCount'] })
     },
-    onError:  () => toast.error('Could not end retainer.'),
+    onError:  () => toast.error('Could not end agreement.'),
     onFinish: () => { busyEndRetainer.value = false },
   })
 }
@@ -362,7 +362,7 @@ function saveNotifyPrefs() {
     <AegisHeroBanner
       eyebrow="Continuity Planning"
       title="Continuity Stewards"
-      subtitle="Designate trusted stewards to execute your practice continuity plan. Retainer agreements remain active until cancelled — invoices are generated only when a critical incident closes and steward tasks are completed."
+      subtitle="Designate trusted stewards to execute your practice continuity plan. Steward agreements remain active until cancelled — invoices are generated only when a critical incident closes and steward tasks are completed."
       quiet
     >
       <template #actions>
@@ -875,7 +875,7 @@ function saveNotifyPrefs() {
           <div class="toggle-row">
             <div class="toggle-info">
               <div class="toggle-label">CS added, removed, or updated</div>
-              <div class="toggle-desc">Alert when any Continuity Steward is added, removed, or has their retainer updated</div>
+              <div class="toggle-desc">Alert when any Continuity Steward is added, removed, or has their agreement updated</div>
             </div>
             <AegisToggle v-model="notifyToggles.steward_added_removed" />
           </div>

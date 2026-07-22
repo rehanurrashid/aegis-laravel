@@ -124,7 +124,7 @@
         <div class="alert alert-info" style="margin-bottom:16px;">
           <div class="alert-icon"><AegisIcon name="info" :size="16" /></div>
           <div class="alert-content">
-            <div class="alert-title">Standing Retainer Agreement</div>
+            <div class="alert-title">Continuity Steward Agreement</div>
             <div style="font-size:12px;">This is a persistent agreement — active from signing until cancelled by either party. No charges occur until a critical incident is verified and CS tasks are completed. Requires annual re-attestation to remain in effect.</div>
           </div>
         </div>
@@ -174,7 +174,7 @@
       <div v-if="preselectedUser" class="alert alert-info" style="margin-bottom:16px;">
         <div class="alert-icon"><AegisIcon name="info" :size="16" /></div>
         <div class="alert-content">
-          <div class="alert-title">Standing Retainer Agreement</div>
+          <div class="alert-title">Continuity Steward Agreement</div>
           <div style="font-size:12px;">This is a persistent agreement — active from signing until cancelled by either party. No charges occur until a critical incident is verified and CS tasks are completed. Requires annual re-attestation to remain in effect.</div>
         </div>
       </div>
@@ -271,10 +271,10 @@
 
     <!-- ══ STEP 5: Review & Send ══ -->
     <div v-if="step === 5" style="margin-top:16px;">
-      <div class="alert alert-success"><AegisIcon name="check" :size="14" /><div>Review the retainer terms below, apply your digital signature, then send.</div></div>
+      <div class="alert alert-success"><AegisIcon name="check" :size="14" /><div>Review the agreement terms below, apply your digital signature, then send.</div></div>
       <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;font-size:13px;line-height:1.75;color:var(--text-2);margin:14px 0;">
-        <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:10px;">Aegis Continuity Steward Retainer Agreement</div>
-        <h4 style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text);">Retainer Terms</h4>
+        <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:10px;">Aegis Continuity Steward Agreement</div>
+        <h4 style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text);">Agreement Terms</h4>
         <p><strong>Continuity Steward:</strong> {{ preselectedUser?.display_name || searchSelected?.display_name || form.display_name || '—' }}<span v-if="preselectedUser?.credentials || searchSelected?.credentials" style="color:var(--text-3);font-weight:400;">, {{ preselectedUser?.credentials || searchSelected?.credentials }}</span></p>
         <p v-if="!preselectedUser && !searchSelected"><strong>Email:</strong> <span :style="!form.email ? 'color:var(--text-4);font-style:italic;' : ''">{{ form.email || 'Not entered' }}</span></p>
         <p v-if="preselectedUser?.location"><strong>Location:</strong> {{ preselectedUser.location }}</p>
@@ -330,7 +330,7 @@
         <button type="button" class="btn btn-primary" :disabled="busy || !signed" style="display:inline-flex;align-items:center;gap:6px;" @click="submitDesignate">
           <span v-if="busy" class="spinner spinner-sm" />
           <AegisIcon v-else name="send" :size="14" />
-          {{ busy ? 'Sending…' : 'Send Retainer Agreement' }}
+          {{ busy ? 'Sending…' : 'Designate Continuity Steward' }}
         </button>
       </span>
     </template>
@@ -397,13 +397,13 @@ const stepNextLabel = computed(() => {
 
 const modalTitle = computed(() => {
   const titles = {
-    1: 'Retainer Agreement — Find Person',
-    2: 'Retainer Agreement — Role',
-    3: 'Retainer Agreement — Approved Incidents',
-    4: 'Retainer Agreement — Responsibilities',
-    5: 'Retainer Agreement — Review & Sign',
+    1: 'Add Continuity Steward — Step 1 of 5',
+    2: 'Add Continuity Steward — Step 2 of 5',
+    3: 'Add Continuity Steward — Step 3 of 5',
+    4: 'Add Continuity Steward — Step 4 of 5',
+    5: 'Add Continuity Steward — Step 5 of 5',
   }
-  return titles[step.value] ?? 'Sign CS Retainer Agreement'
+  return titles[step.value] ?? 'Add Continuity Steward'
 })
 
 // ── Search state (Step 1 / Tab A) ────────────────────────────────────────────
