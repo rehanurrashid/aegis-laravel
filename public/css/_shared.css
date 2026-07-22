@@ -7226,6 +7226,7 @@ html.theme-slate body {
 .orq-row--new       { border-left: 3px solid var(--gold-dark); }
 .orq-row--accepted  { border-left: 3px solid var(--green); }
 .orq-row--declined  { border-left: 3px solid var(--red, #ef4444); }
+.orq-row--countered { border-left: 3px solid var(--blue, #3b82f6); }
 .orq-row--withdrawn { border-left: 3px solid var(--border-dark); opacity: .7; }
 .orq-td--provider { width: 36%; }
 .orq-td--service  { width: 30%; }
@@ -7247,7 +7248,7 @@ a.orq-modal-name:hover { text-decoration: underline; }
 .sic-party-info { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .sic-party-name { font-size: 13px; font-weight: 700; color: var(--gold-dark); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 a.sic-party-name:hover { text-decoration: underline; color: var(--gold); }
-.sic-date-sub { font-size: 11px; color: var(--text-4); m
+.sic-date-sub { font-size: 11px; color: var(--text-4); margin-top: 1px; }
 
 /* ─── Outgoing request card/modal styles ──────────────────────────────────── */
 .orq-row { cursor: pointer; transition: background var(--transition); background: var(--surface, #fff); }
@@ -7255,6 +7256,7 @@ a.sic-party-name:hover { text-decoration: underline; color: var(--gold); }
 .orq-row--new       { border-left: 3px solid var(--gold-dark); }
 .orq-row--accepted  { border-left: 3px solid var(--green); }
 .orq-row--declined  { border-left: 3px solid var(--red, #ef4444); }
+.orq-row--countered { border-left: 3px solid var(--blue, #3b82f6); }
 .orq-row--withdrawn { border-left: 3px solid var(--border-dark); opacity: .7; }
 .orq-td--provider { width: 36%; }
 .orq-td--service  { width: 30%; }
@@ -7276,7 +7278,7 @@ a.orq-modal-name:hover { text-decoration: underline; }
 .sic-party-info { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .sic-party-name { font-size: 13px; font-weight: 700; color: var(--gold-dark); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 a.sic-party-name:hover { text-decoration: underline; color: var(--gold); }
-.sic-date-sub { font-size: 11px; color: var(--text-4); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sic-date-sub { font-size: 11px; color: var(--text-4); margin-top: 1px; }argin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sic-td { padding: 10px 12px; vertical-align: middle; font-size: 13px; border-bottom: 1px solid var(--border); }
 
 /* ── OUTGOING REQUESTS — card list ── */

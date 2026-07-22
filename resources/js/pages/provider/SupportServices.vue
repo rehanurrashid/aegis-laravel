@@ -834,7 +834,7 @@
         </AegisEmptyState>
 
         <template v-else>
-          <div class="sic-table-wrap">
+          <div class="sic-table-wrap" style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
             <table class="sic-table">
               <thead>
                 <tr>
@@ -849,7 +849,7 @@
                   v-for="r in props.psOutgoingRequests"
                   :key="r.id"
                   class="orq-row"
-                  :class="`orq-row--${r.status}`"
+                  :class="[`orq-row--${r.status}`, { 'orq-row--countered': r.status === 'countered' }]"
                   @click="psActiveOutgoing = r; psOutgoingDetail = true"
                 >
                   <td class="sic-td orq-td--provider">
