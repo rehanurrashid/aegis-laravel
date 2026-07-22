@@ -117,12 +117,13 @@
               <span v-else style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--gold-dark);">{{ fullName(s) }}</span>
               <span class="badge badge-gold"><AegisIcon name="shield" :size="10" style="margin-right:3px;" />{{ s.role === 'alternate' ? 'Alternate SS' : 'Primary SS' }}</span>
               <span class="badge badge-green"><span class="status-dot green"></span> Active</span>
-              <span v-if="s.ss_acknowledged_at || s.signed_at" style="font-size:11px;color:var(--text-3);">SS since {{ fmtDate(s.ss_acknowledged_at ?? s.signed_at) }}</span>
+              
             </div>
             <div style="font-size:12px;color:var(--text-3);margin-top:2px;">{{ subLine(s) }}</div>
             <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--text-3);">
               <span v-if="s.steward?.phone" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="phone" :size="13" />{{ s.steward.phone }}</span>
               <span v-if="s.steward?.email" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="mail" :size="13" />{{ s.steward.email }}</span>
+        <span v-if="s.signed_at || s.ss_acknowledged_at" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="edit" :size="13" />Signed {{ fmtDate(s.signed_at ?? s.ss_acknowledged_at) }}</span>
               <span v-else style="display:flex;align-items:center;gap:5px;"><AegisIcon name="message-square" :size="13" />Via Aegis Messaging</span>
               <span v-if="s.review_due_at" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="calendar" :size="13" />Review Due: {{ fmtDate(s.review_due_at) }}</span>
             </div>
@@ -172,6 +173,7 @@
           </div>
           <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-3);">
             <span v-if="s.steward?.email || s.email" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="mail" :size="13" />{{ s.steward?.email ?? s.email }}</span>
+              <span v-if="s.signed_at || s.ss_acknowledged_at" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="edit" :size="13" />Signed {{ fmtDate(s.signed_at ?? s.ss_acknowledged_at) }}</span>
             <span v-if="s.invited_at" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="calendar" :size="13" />Invited: {{ fmtDate(s.invited_at) }}</span>
             <span v-if="s.expires_at" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="clock" :size="13" />Expires: {{ fmtDate(s.expires_at) }}</span>
           </div>
@@ -257,7 +259,7 @@
           </div>
           <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-3);">
             <span v-if="s.steward?.email || s.email" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="mail" :size="13" />{{ s.steward?.email ?? s.email }}</span>
-            <span v-if="s.signed_at" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="file-text" :size="13" />SS since {{ fmtDate(s.signed_at) }}</span>
+            
           </div>
           <div v-if="s.declined_reason" style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:var(--red-dark);">
             <AegisIcon name="alert-circle" :size="13" />
@@ -346,7 +348,7 @@
               </div>
               <div style="font-size:12px;color:var(--text-3);margin-top:2px">
                 {{ item.provider?.organization }}{{ item.provider?.location ? ' · ' + item.provider.location : '' }}
-                <span v-if="item.signed_at"> · SS since {{ fmtDate(item.signed_at) }}</span>
+                
                 <span v-if="item.review_due_at"> · Review due {{ fmtDate(item.review_due_at) }}</span>
               </div>
             </div>

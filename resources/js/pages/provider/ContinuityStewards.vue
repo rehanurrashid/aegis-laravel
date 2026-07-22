@@ -474,7 +474,7 @@ function saveNotifyPrefs() {
             <span style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--gold-dark);cursor:pointer;" class="exec-name is-link">{{ stewardName(s) }}</span>
             <AegisBadge :label="csRoleLabel(s.role)" variant="gold" icon="shield" />
             <span class="badge badge-green"><span class="status-dot green"></span> Active</span>
-            <span v-if="s.signed_at" style="font-size:11px;color:var(--text-3);">Retainer since {{ fmtDate(s.signed_at) }}</span>
+            
             <span v-if="s.engagement_document?.status === 'fully_executed'" class="badge badge-green" :data-tooltip="'Retainer active since ' + fmtDate(s.signed_at)"><AegisIcon name="check" :size="11" /> Retainer Active</span>
             <span v-else-if="s.engagement_document?.status === 'countersign_pending'" class="badge badge-amber" data-tooltip="Agreement sent — awaiting countersignature"><AegisIcon name="clock" :size="11" /> Awaiting Countersignature</span>
             <span
@@ -619,7 +619,7 @@ function saveNotifyPrefs() {
             </div>
             <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-3);">
               <span v-if="s.email" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="mail" :size="13" />{{ s.email }}</span>
-              <span v-if="s.signed_at" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="file-text" :size="13" />Retainer since {{ fmtDate(s.signed_at) }}</span>
+              
               <span v-if="s.fee_cents > 0" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="dollar-sign" :size="13" />{{ formatMoney(s.fee_cents) }} — on incident close</span>
               <span v-else-if="s.fee_cents === 0" style="display:flex;align-items:center;gap:5px;"><AegisIcon name="dollar-sign" :size="13" />Reciprocal (no payment)</span>
             </div>
