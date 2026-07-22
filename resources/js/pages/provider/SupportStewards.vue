@@ -1233,7 +1233,7 @@ function submitCancelInvite() {
 /* ── ROLE OPTION ── */
 .role-option { display:flex; align-items:flex-start; gap:12px; padding:14px; border:1px solid var(--border); border-radius:var(--radius); cursor:pointer; transition:border-color var(--transition),background var(--transition); margin-bottom:10px; background:var(--surface); }
 .role-option:hover { border-color:var(--soft-gold); background:var(--badge-bg-gold); }
-.role-option.selected { border-color:transparent; background:var(--badge-bg-gold); box-shadow:0 0 0 1px var(--gold-dark); }
+.role-option.selected { border-color:var(--gold-dark); border-width:1px; background:var(--badge-bg-gold); }
 
 /* ── SIG BLOCK ── */
 .sig-block { border:2px dashed var(--border); border-radius:var(--radius); padding:20px; text-align:center; color:var(--text-3); font-size:13px; cursor:pointer; transition:border-color var(--transition),background var(--transition),color var(--transition); margin-top:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; }
