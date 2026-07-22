@@ -995,7 +995,6 @@ import BpFinanceTable from '@/components/ui/BpFinanceTable.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useMessageButton } from '@/composables/useMessageButton'
-import { useModal } from '@/composables/useModal'
 
 const props = defineProps({
   jobs:            { type: Array,  default: () => [] },

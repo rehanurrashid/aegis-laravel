@@ -6,7 +6,6 @@ namespace App\Http\Controllers\Provider;
 
 use App\Enums\DisputeReason;
 use App\Http\Controllers\Controller;
-use App\Services\EscrowService;
 use App\Models\Dispute;
 use App\Services\DisputeService;
 use Illuminate\Http\RedirectResponse;
@@ -17,8 +16,7 @@ use Inertia\Response;
 class DisputesController extends Controller
 {
     public function __construct(
-        private DisputeService $disputes,
-        private EscrowService  $escrow,
+        private DisputeService $disputes
     ) {}
 
     public function index(Request $request): Response
@@ -56,7 +54,7 @@ class DisputesController extends Controller
         ]);
 
         try {
-            $this->disputes->withEscrow($this->escrow)->open(
+            $this->disputes->withEscrow(app(\App\Services\EscrowService::class))->open(
                 disputer:            $request->user(),
                 subjectType:         $data['subject_type'],
                 subjectId:           $data['subject_id'],

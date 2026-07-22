@@ -9,7 +9,6 @@ use App\Enums\DisputeStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Dispute;
 use App\Services\DisputeService;
-use App\Services\EscrowService;
 use App\Services\PayoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,8 +19,7 @@ class DisputesController extends Controller
 {
     public function __construct(
         private DisputeService $disputes,
-        private PayoutService  $payouts,
-        private EscrowService  $escrow,
+        private PayoutService  $payouts
     ) {}
 
     public function index(Request $request): Response
@@ -121,7 +119,7 @@ class DisputesController extends Controller
             'summary'          => 'required|string|min:10|max:2000',
         ]);
         try {
-            $this->disputes->withEscrow($this->escrow)->resolve(
+            $this->disputes->withEscrow(app(\App\Services\EscrowService::class))->resolve(
                 dispute:         $dispute,
                 admin:           $request->user(),
                 resolution:      DisputeResolution::from($data['resolution']),

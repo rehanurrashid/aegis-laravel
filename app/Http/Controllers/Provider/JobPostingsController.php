@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
-use App\Services\EscrowService;
 use App\Enums\ContractStatus;
 use App\Enums\MilestoneStatus;
 use App\Models\BpMilestoneSubmission;
@@ -42,7 +41,6 @@ class JobPostingsController extends Controller
         private MessagingService $messaging,
         private \App\Services\InvoiceService $invoices,
         private PayoutService $payouts,
-        private EscrowService $escrow,
         private ServiceService $services,
     ) {}
 
@@ -640,7 +638,7 @@ class JobPostingsController extends Controller
      * Unified milestone review handler — dispatches to approve/revision/reject
      * based on the `action` field sent by MilestoneReviewModal.vue.
      *
-     * action = 'approved'           → ContractService::approveMilestone → EscrowService::releaseMilestone
+     * action = 'approved'           → ContractService::approveMilestone → PayoutService::chargeMilestone (Rev 2) or EscrowService::releaseMilestone (legacy)
      * action = 'revision_requested' → ContractService::requestRevision (notes required)
      * action = 'rejected'           → Returns error: use OpenDisputeModal directly
      */
@@ -665,7 +663,13 @@ class JobPostingsController extends Controller
         try {
             if ($action === 'approved') {
                 $this->contracts->approveMilestone($milestone, $provider);
-                $this->escrow->releaseMilestone($milestone, $provider);
+                // Rev 2 contracts: direct charge via PayoutService (no escrow).
+                // Legacy contracts (payment_structure IS NULL): use EscrowService resolved from container.
+                if ($contract->payment_structure !== null) {
+                    $this->payouts->chargeMilestone($milestone);
+                } else {
+                    app(\App\Services\EscrowService::class)->releaseMilestone($milestone, $provider);
+                }
 
                 // Check if all milestones are now settled — prompt review
                 $allDone = !$contract->milestones()
