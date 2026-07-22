@@ -25,6 +25,9 @@ use App\Services\ContractService;
 use App\Services\MessagingService;
 use App\Services\PayoutService;
 use App\Services\ProposalService;
+use App\Services\ServiceService;
+use App\Models\ServiceRequest;
+use App\Models\SessionRefundRequest as ServiceRefundRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -40,6 +43,7 @@ class JobPostingsController extends Controller
         private \App\Services\InvoiceService $invoices,
         private PayoutService $payouts,
         private EscrowService $escrow,
+        private ServiceService $services,
     ) {}
 
     public function index(Request $request): Response
@@ -235,6 +239,41 @@ class JobPostingsController extends Controller
                 ->exists();
         }
 
+        // ── Practitioner Support & Services — client-side data ─────────────────
+        $exploreFilters  = $request->only(['ps_q', 'ps_category', 'ps_format', 'ps_availability', 'ps_sort']);
+        $exploreFiltersN = array_filter([
+            'q'            => $exploreFilters['ps_q']           ?? null,
+            'category'     => $exploreFilters['ps_category']    ?? null,
+            'format'       => $exploreFilters['ps_format']      ?? null,
+            'availability' => $exploreFilters['ps_availability'] ?? null,
+            'sort'         => $exploreFilters['ps_sort']        ?? 'newest',
+        ]);
+
+        $explorePaginator   = $this->services->getForExplore($exploreFiltersN, $user->id, 12);
+        $exploreResults     = collect($explorePaginator->items())
+            ->map(fn($s) => $this->services->shapeForExplore($s))->values();
+
+        $outgoingRequests = $this->services->getRequestsSentByPractitioner($user->id)
+            ->map(fn($r) => $this->services->shapeOutgoingRequest($r))->values();
+
+        $clientSessionsPaginator = $this->services->getSessionsAsClient($user->id, 10);
+        $clientSessions = collect($clientSessionsPaginator->items())
+            ->map(fn($s) => $this->services->shapeClientSession($s))->values();
+
+        $incomingRefundRequests = ServiceRefundRequest::where('provider_id', $user->id)
+            ->with(['session.service', 'requester'])->orderByDesc('created_at')->get()
+            ->map(fn($r) => [
+                'id'            => $r->id,
+                'session_id'    => $r->session_id,
+                'amount_label'  => '$' . number_format($r->amount_requested_cents / 100, 2),
+                'reason'        => $r->reason,
+                'note'          => $r->note,
+                'status'        => $r->status,
+                'is_actionable' => $r->status === 'pending_review',
+                'requester_name'=> $r->requester?->display_name ?? 'Unknown',
+                'created_at'    => $r->created_at?->format('M j, Y'),
+            ])->values();
+
         return Inertia::render('provider/SupportServices', [
             'jobs'                 => $jobs,
             'proposalsByJob'       => $proposalsByJob,
@@ -246,6 +285,25 @@ class JobPostingsController extends Controller
             'escrowSummary'        => $escrowSummary,
             'has_valid_default_pm' => $hasValidDefaultPm,
             'bpStats'              => $bpStats,
+            // Practitioner Support & Services props
+            'psExploreResults'         => $exploreResults,
+            'psExploreMeta'            => [
+                'current_page' => $explorePaginator->currentPage(),
+                'last_page'    => $explorePaginator->lastPage(),
+                'total'        => $explorePaginator->total(),
+                'per_page'     => 12,
+            ],
+            'psExploreFilters'         => $exploreFiltersN,
+            'psOutgoingRequests'       => $outgoingRequests,
+            'psClientSessions'         => $clientSessions,
+            'psClientSessionsMeta'     => [
+                'current_page' => $clientSessionsPaginator->currentPage(),
+                'last_page'    => $clientSessionsPaginator->lastPage(),
+                'total'        => $clientSessionsPaginator->total(),
+                'per_page'     => 10,
+            ],
+            'psIncomingRefundRequests' => $incomingRefundRequests,
+            'psTier'                   => $user->tier?->value ?? 'access',
             'stats' => [
                 'open'                 => $jobs->where('status', 'open')->count(),
                 'draft'                => $jobs->where('status', 'draft')->count(),

@@ -318,6 +318,8 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
 
         // Support Requests (Job Postings)
         Route::get('/support-services', [ProviderJobPostingsController::class, 'index'])->name('jobs.index');
+        // Alias: Practitioner Support & Services — infinite scroll JSON endpoint
+        Route::get('/support-services/explore', [ServicesController::class, 'explore'])->name('jobs.ps.explore');
         Route::post('/support-services', [ProviderJobPostingsController::class, 'store'])->name('jobs.store');
         Route::put('/support-services/{job}', [ProviderJobPostingsController::class, 'update'])->name('jobs.update');
         Route::post('/support-services/{job}/status', [ProviderJobPostingsController::class, 'setStatus'])->name('jobs.status');

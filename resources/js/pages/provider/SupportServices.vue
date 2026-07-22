@@ -10,7 +10,7 @@
 -->
 <template>
   <AppLayout>
-    <AegisHeroBanner quiet eyebrow="Support &amp; Services" title="Request support and connect with business partners" subtitle="Find business partners for billing, marketing, IT, and operations — vetted on Aegis with HIPAA-trained backgrounds.">
+    <AegisHeroBanner quiet eyebrow="Support &amp; Services" title="Support &amp; Services" subtitle="Find peer practitioners and business partners to strengthen your practice — all in one place.">
       <template #actions>
         <button class="btn-hero-ghost is-on-light" @click="router.visit(route('provider.activity') + '?event_type=job_postings')">
           <AegisIcon name="activity" :size="14" />
@@ -37,7 +37,48 @@
         <div class="stat-chip-icon" style="background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="clock" :size="18" /></div>
         <div><div class="stat-chip-value">{{ stats.pending_proposals }}</div><div class="stat-chip-label">Awaiting Review</div></div>
       </div>
-      <div class="stat-chip">
+      <!-- ── Top-level section switcher ──────────────────────────────────── -->
+    <div class="ss-section-switcher" role="tablist">
+      <button
+        type="button" role="tab"
+        class="ss-section-btn"
+        :class="{ active: section === 'bp' }"
+        @click="section = 'bp'"
+      >
+        <AegisIcon name="briefcase" :size="16" />
+        <div>
+          <div class="ss-section-title">Business Partner Support &amp; Services</div>
+          <div class="ss-section-sub">IT, billing, compliance, marketing, legal &amp; more</div>
+        </div>
+      </button>
+      <button
+        v-if="isPracticeTier"
+        type="button" role="tab"
+        class="ss-section-btn"
+        :class="{ active: section === 'ps' }"
+        @click="section = 'ps'"
+      >
+        <AegisIcon name="users" :size="16" />
+        <div>
+          <div class="ss-section-title">Practitioner Support &amp; Services</div>
+          <div class="ss-section-sub">Supervision, consultation, training, mentorship &amp; more</div>
+        </div>
+      </button>
+      <div v-else class="ss-section-btn ss-section-btn--locked">
+        <AegisIcon name="lock" :size="16" />
+        <div>
+          <div class="ss-section-title">Practitioner Support &amp; Services</div>
+          <div class="ss-section-sub">Available on Practice plan — <a href="/provider/settings?section=billing&upgrade=1" class="link-gold">Upgrade</a></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         SECTION A: BUSINESS PARTNER SUPPORT & SERVICES
+    ════════════════════════════════════════════════════════════════════ -->
+    <div v-show="section === 'bp'">
+
+    <div class="stat-chip">
         <div class="stat-chip-icon" style="background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="check" :size="18" /></div>
         <div><div class="stat-chip-value">{{ stats.hired }}</div><div class="stat-chip-label">Hired</div></div>
       </div>
@@ -662,14 +703,281 @@
       post-route="provider.jobs.contract.review"
       dismiss-route="provider.jobs.contract.review.dismiss"
     />
+    </div><!-- /section bp -->
+
+    <!-- ════════════════════════════════════════════════════════════════════
+         SECTION B: PRACTITIONER SUPPORT & SERVICES
+    ════════════════════════════════════════════════════════════════════ -->
+    <div v-show="section === 'ps' && isPracticeTier">
+
+      <!-- Hero copy from Dr. Chapman -->
+      <div class="ps-hero">
+        <h2 class="ps-hero-title">Strengthen your practice and expand your expertise.</h2>
+        <p class="ps-hero-desc">Connect with practitioners offering professional expertise that supports continuity, clinical practice, and professional development. Explore supervision, consultation, training, continuity stewardship, mentorship, and other specialty services designed to strengthen your practice, expand your expertise, and support the care you provide.</p>
+      </div>
+
+      <!-- Sub-tabs -->
+      <div class="tabs-primary" role="tablist" style="margin-bottom:20px">
+        <button class="tab-primary" :class="{ active: psTab === 'ps-browse' }" role="tab" @click="psTab = 'ps-browse'">
+          <AegisIcon name="search" :size="14" /> Browse Services
+        </button>
+        <button class="tab-primary" :class="{ active: psTab === 'ps-requests' }" role="tab" @click="psTab = 'ps-requests'">
+          <AegisIcon name="send" :size="14" />
+          My Requests
+          <span v-if="psPendingOutgoing()" class="tab-count">{{ psPendingOutgoing() }}</span>
+        </button>
+        <button class="tab-primary" :class="{ active: psTab === 'ps-bookings' }" role="tab" @click="psTab = 'ps-bookings'">
+          <AegisIcon name="credit-card" :size="14" />
+          My Bookings
+          <span v-if="psClientBadge()" class="tab-count">{{ psClientBadge() }}</span>
+        </button>
+      </div>
+
+      <!-- ── Browse ──────────────────────────────────────────────────────── -->
+      <div v-show="psTab === 'ps-browse'">
+
+        <!-- Category chips from Dr. Chapman's spec -->
+        <div class="ps-category-chips">
+          <button
+            v-for="cat in psServiceCategories" :key="cat.value"
+            type="button"
+            class="ps-cat-chip"
+            :class="{ active: psExploreFilters.category === cat.value }"
+            @click="psExploreFilters.category = psExploreFilters.category === cat.value ? '' : cat.value; psDoSearch()"
+          >{{ cat.label }}</button>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="explore-filter-bar" style="margin-bottom:16px">
+          <div class="explore-filter-row explore-filter-row--search">
+            <div class="explore-filter-search">
+              <AegisIcon name="search" :size="14" />
+              <input
+                v-model="psExploreFilters.q"
+                type="text"
+                class="form-control"
+                placeholder="Search services, providers, specialties…"
+                @keydown.enter.prevent="psDoSearch"
+              />
+            </div>
+          </div>
+          <div class="explore-filter-row explore-filter-row--dropdowns">
+            <div class="explore-filter-select-wrap" :class="{ 'has-value': psExploreFilters.format }">
+              <AegisIcon name="monitor" :size="13" />
+              <select v-model="psExploreFilters.format" class="form-select explore-filter-select" @change="psDoSearch">
+                <option value="">Any Format</option>
+                <option value="telehealth">Virtual</option>
+                <option value="in_person">In-Person</option>
+                <option value="both">Virtual &amp; In-Person</option>
+              </select>
+            </div>
+            <div class="explore-filter-select-wrap" :class="{ 'has-value': psExploreFilters.availability }">
+              <AegisIcon name="calendar" :size="13" />
+              <select v-model="psExploreFilters.availability" class="form-select explore-filter-select" @change="psDoSearch">
+                <option value="">Any Availability</option>
+                <option value="open">Open — accepting</option>
+                <option value="limited">Limited spots</option>
+              </select>
+            </div>
+          </div>
+          <div class="explore-filter-row explore-filter-row--meta">
+            <span class="explore-count">{{ psExploreMeta.total ?? 0 }} result{{ (psExploreMeta.total ?? 0) !== 1 ? 's' : '' }}</span>
+            <button
+              v-if="psExploreFilters.q || psExploreFilters.category || psExploreFilters.format || psExploreFilters.availability"
+              type="button" class="explore-clear-btn"
+              @click="psClearFilters"
+            >
+              <AegisIcon name="x" :size="11" /> Clear filters
+            </button>
+          </div>
+        </div>
+
+        <AegisEmptyState
+          v-if="!psExploreResults.length && !psExploreLoading"
+          icon="search"
+          title="No services found"
+          subtitle="Try adjusting your filters or check back soon as more practitioners list their services."
+        />
+
+        <div class="explore-grid">
+          <ServiceExploreCard
+            v-for="svc in psExploreResults"
+            :key="svc.id"
+            :service="svc"
+            @request="psOpenRequest(svc)"
+          />
+        </div>
+
+        <div v-if="psExploreLoading" class="explore-loading">
+          <span class="spinner spinner-sm" /> Loading more…
+        </div>
+        <div ref="psExploreSentinel" class="explore-sentinel" aria-hidden="true"></div>
+        <div v-if="!psExploreLoading && psExploreMeta.current_page >= psExploreMeta.last_page && psExploreResults.length > 0" class="explore-end-note">
+          <AegisIcon name="check-circle" :size="13" />
+          {{ psExploreResults.length }} service{{ psExploreResults.length !== 1 ? 's' : '' }} shown
+        </div>
+
+        <ServiceRequestModal
+          ref="psSvcModalRef"
+          :provider-id="psSvcTarget.id"
+          :provider-label="psSvcTarget.label"
+        />
+      </div>
+
+      <!-- ── My Requests ────────────────────────────────────────────────── -->
+      <div v-show="psTab === 'ps-requests'">
+        <AegisEmptyState
+          v-if="!props.psOutgoingRequests.length"
+          icon="send"
+          title="No requests sent"
+          subtitle="Browse Practitioner Support & Services and send your first service request."
+        >
+          <button class="btn btn-primary" @click="psTab = 'ps-browse'">
+            <AegisIcon name="search" :size="13" /> Browse Services
+          </button>
+        </AegisEmptyState>
+
+        <template v-else>
+          <div class="sic-table-wrap">
+            <table class="sic-table">
+              <thead>
+                <tr>
+                  <th class="sic-th">Provider</th>
+                  <th class="sic-th">Service</th>
+                  <th class="sic-th">Status</th>
+                  <th class="sic-th"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="r in props.psOutgoingRequests"
+                  :key="r.id"
+                  class="orq-row"
+                  :class="`orq-row--${r.status}`"
+                  @click="psActiveOutgoing = r; psOutgoingDetail = true"
+                >
+                  <td class="sic-td orq-td--provider">
+                    <div class="sic-party">
+                      <div class="sic-avatar">
+                        <span class="sic-avatar-initials">{{ r.provider_avatar || psInitials(r.provider_name) }}</span>
+                      </div>
+                      <div class="sic-party-info">
+                        <a v-if="r.provider_slug" :href="`/public/provider/${r.provider_slug}`" class="sic-party-name" @click.stop>{{ r.provider_name }}</a>
+                        <span v-else class="sic-party-name">{{ r.provider_name }}</span>
+                        <span class="sic-date-sub">{{ r.provider_detail }}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="sic-td orq-td--service">
+                    <div class="orq-service-title">{{ r.service_title }}</div>
+                    <div class="sic-date-sub">{{ r.request_type }} · {{ r.time_label }}</div>
+                  </td>
+                  <td class="sic-td orq-td--status">
+                    <AegisBadge :label="psStatusLabel(r.status)" :variant="psStatusVariant(r.status)" />
+                  </td>
+                  <td class="sic-td orq-td--actions">
+                    <button type="button" class="btn-icon" @click.stop="psActiveOutgoing = r; psOutgoingDetail = true">
+                      <AegisIcon name="chevron-right" :size="15" />
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+
+        <!-- Outgoing detail modal -->
+        <AegisModal v-model="psOutgoingDetail" title="Request Details" size="md">
+          <template v-if="psActiveOutgoing">
+            <div class="orq-modal-provider">
+              <div class="orq-avatar orq-avatar--lg">
+                <span>{{ psActiveOutgoing.provider_avatar || psInitials(psActiveOutgoing.provider_name) }}</span>
+              </div>
+              <div class="orq-modal-party-info">
+                <a v-if="psActiveOutgoing.provider_slug" :href="`/public/provider/${psActiveOutgoing.provider_slug}`" class="orq-modal-name" target="_blank">{{ psActiveOutgoing.provider_name }}</a>
+                <div v-else class="orq-modal-name">{{ psActiveOutgoing.provider_name }}</div>
+                <div class="orq-modal-cred">{{ psActiveOutgoing.provider_detail }}</div>
+              </div>
+              <AegisBadge :label="psStatusLabel(psActiveOutgoing.status)" :variant="psStatusVariant(psActiveOutgoing.status)" style="margin-left:auto;flex-shrink:0" />
+            </div>
+            <div class="orq-modal-grid">
+              <div class="orq-modal-row"><span class="orq-modal-label"><AegisIcon name="briefcase" :size="12" /> Service</span><span class="orq-modal-value">{{ psActiveOutgoing.service_title }}</span></div>
+              <div class="orq-modal-row"><span class="orq-modal-label"><AegisIcon name="calendar" :size="12" /> Sent</span><span class="orq-modal-value">{{ psActiveOutgoing.sent_date_label }} ({{ psActiveOutgoing.time_label }})</span></div>
+              <div v-if="psActiveOutgoing.responded_at" class="orq-modal-row"><span class="orq-modal-label"><AegisIcon name="check-circle" :size="12" /> Responded</span><span class="orq-modal-value">{{ psActiveOutgoing.responded_at }}</span></div>
+            </div>
+            <div v-if="psActiveOutgoing.message" class="orq-modal-block">
+              <div class="orq-modal-block-label"><AegisIcon name="message-square" :size="13" /> Your message</div>
+              <div class="orq-modal-block-body">{{ psActiveOutgoing.message }}</div>
+            </div>
+            <div v-if="psActiveOutgoing.response_note" class="orq-modal-block orq-modal-block--response">
+              <div class="orq-modal-block-label"><AegisIcon name="corner-up-left" :size="13" /> Provider response</div>
+              <div class="orq-modal-block-body">{{ psActiveOutgoing.response_note }}</div>
+            </div>
+            <div v-else-if="psActiveOutgoing.status === 'new'" class="orq-modal-pending">
+              <AegisIcon name="clock" :size="14" /> Awaiting provider response — most providers respond within 72 hours.
+            </div>
+          </template>
+          <template #footer>
+            <button type="button" class="btn btn-outline" @click="psOutgoingDetail = false">Close</button>
+            <button v-if="psActiveOutgoing?.status === 'new'" type="button" class="btn btn-danger" @click="psOutgoingDetail = false; psWithdraw(psActiveOutgoing.id)">
+              <AegisIcon name="x" :size="13" /> Withdraw Request
+            </button>
+          </template>
+        </AegisModal>
+      </div>
+
+      <!-- ── My Bookings ─────────────────────────────────────────────────── -->
+      <div v-show="psTab === 'ps-bookings'">
+        <BookedSessionTable
+          :sessions="props.psClientSessions"
+          :meta="props.psClientSessionsMeta"
+          :show-invoice="true"
+          empty-title="No booked sessions yet"
+          empty-subtitle="Browse Practitioner Support & Services to book supervision, consultation, training and more."
+          @pay-deposit="psActiveSession = $event; psModals.payUpfront = true"
+          @pay-balance="psActiveSession = $event; psModals.payCompletion = true"
+          @request-refund="psActiveSession = $event; psModals.requestRefund = true"
+          @escalate-refund="psEscalateRefund($event)"
+          @open-invoice="psActiveSession = $event"
+          @page-change="psGoToClientPage"
+        >
+          <template #empty>
+            <button class="btn btn-primary" @click="psTab = 'ps-browse'">
+              <AegisIcon name="search" :size="13" /> Browse Services
+            </button>
+          </template>
+        </BookedSessionTable>
+
+        <!-- Payment modals -->
+        <PayUpfrontModal    v-model="psModals.payUpfront"    :session="psActiveSession" @success="psActiveSession = null" />
+        <PayCompletionModal v-model="psModals.payCompletion" :session="psActiveSession" @success="psActiveSession = null" />
+        <PayDepositModal    v-model="psModals.payDeposit"    :session="psActiveSession" @success="psActiveSession = null" />
+        <PayBalanceModal    v-model="psModals.payBalance"    :session="psActiveSession" @success="psActiveSession = null" />
+        <RequestRefundModal v-model="psModals.requestRefund" :session="psActiveSession" @success="psActiveSession = null" />
+        <ReviewRefundRequestModal v-model="psModals.reviewRefund" :refund-request="psActiveRefund" @success="psActiveRefund = null" />
+      </div>
+
+    </div><!-- /section ps -->
+
   </AppLayout>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import { syncFormEnhancements } from '@/plugins/FormEnhancerPlugin'
 import AppLayout from '@/layouts/AppLayout.vue'
+import BookedSessionTable        from '@/components/ui/BookedSessionTable.vue'
+import ServiceExploreCard        from '@/components/ui/ServiceExploreCard.vue'
+import PayUpfrontModal           from '@/components/modals/PayUpfrontModal.vue'
+import PayCompletionModal        from '@/components/modals/PayCompletionModal.vue'
+import PayDepositModal           from '@/components/modals/PayDepositModal.vue'
+import PayBalanceModal           from '@/components/modals/PayBalanceModal.vue'
+import RequestRefundModal        from '@/components/modals/RequestRefundModal.vue'
+import ReviewRefundRequestModal  from '@/components/modals/ReviewRefundRequestModal.vue'
+import ServiceRequestModal       from '@/components/modals/ServiceRequestModal.vue'
+import { useModal }              from '@/composables/useModal'
+import { useInfiniteScroll }     from '@/composables/useInfiniteScroll'
 import AegisPagination from '@/components/ui/AegisPagination.vue'
 import PostJobModal from '@/components/modals/PostJobModal.vue'
 import EditJobModal from '@/components/modals/EditJobModal.vue'
@@ -687,6 +995,7 @@ import BpFinanceTable from '@/components/ui/BpFinanceTable.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { useMessageButton } from '@/composables/useMessageButton'
+import { useModal } from '@/composables/useModal'
 
 const props = defineProps({
   jobs:            { type: Array,  default: () => [] },
@@ -703,17 +1012,323 @@ const props = defineProps({
     type: Object,
     default: () => ({ open: 0, draft: 0, paused: 0, filled: 0, closed: 0, total_jobs: 0, total_proposals: 0, pending_proposals: 0, hired: 0, total_spent_cents: 0, engagement_requests: 0 }),
   },
+  // Practitioner Support & Services props (Practice tier only)
+  psExploreResults:         { type: Array,   default: () => [] },
+  psExploreMeta:            { type: Object,  default: () => ({ current_page: 1, last_page: 1, total: 0, per_page: 12 }) },
+  psExploreFilters:         { type: Object,  default: () => ({}) },
+  psOutgoingRequests:       { type: Array,   default: () => [] },
+  psClientSessions:         { type: Array,   default: () => [] },
+  psClientSessionsMeta:     { type: Object,  default: () => ({ current_page: 1, last_page: 1, total: 0, per_page: 10 }) },
+  psIncomingRefundRequests: { type: Array,   default: () => [] },
+  psTier:                   { type: String,  default: 'access' },
 })
 
 const toast = useToast()
 const { confirmAction } = useConfirm()
 const { openConversation, loading: msgLoading } = useMessageButton()
+const { openModal } = useModal()
+
+// ── Top-level section switcher ────────────────────────────────────────────────
+// 'bp' = Business Partner Support & Services (all tiers)
+// 'ps' = Practitioner Support & Services (Practice tier only)
+const isPracticeTier = computed(() => props.psTier === 'practice')
+const section = ref('bp')
+onMounted(() => {
+  const s = new URLSearchParams(window.location.search).get('section')
+  if (s === 'ps' && isPracticeTier.value) section.value = 'ps'
+})
 
 const tab = ref('my-postings')
 const hiredSubTab = ref('active')
 
 watch(tab, () => syncFormEnhancements())
 const engagements = computed(() => Array.isArray(props.engagementRequests) ? props.engagementRequests : [])
+
+// ── Practitioner Support & Services state ─────────────────────────────────────
+const psTab              = ref('ps-browse')
+const psActiveOutgoing   = ref(null)
+const psActiveSession    = ref(null)
+const psOutgoingDetail   = ref(false)
+
+const psModals = reactive({
+  payUpfront: false, payCompletion: false,
+  payDeposit: false, payBalance: false,
+  requestRefund: false, reviewRefund: false,
+})
+
+const psActiveRefund     = ref(null)
+
+// Explore
+const psExploreFilters   = reactive({
+  q: props.psExploreFilters?.q ?? '',
+  category: props.psExploreFilters?.category ?? '',
+  format: props.psExploreFilters?.format ?? '',
+  availability: props.psExploreFilters?.availability ?? '',
+  sort: props.psExploreFilters?.sort ?? 'newest',
+})
+const psExploreLoading   = ref(false)
+const psExploreSentinel  = ref(null)
+const psExploreMeta      = ref({ ...props.psExploreMeta })
+const psExploreLocal     = ref([...props.psExploreResults])
+watch(() => props.psExploreResults, v => { psExploreLocal.value = [...v] })
+watch(() => props.psExploreMeta,    v => { psExploreMeta.value  = { ...v } })
+const psExploreResults   = computed(() => psExploreLocal.value)
+
+const psServiceCategories = [
+  { value: 'supervision',         label: 'Clinical Supervision' },
+  { value: 'consultation',        label: 'Consultation' },
+  { value: 'training',            label: 'Training' },
+  { value: 'coaching',            label: 'Coaching' },
+  { value: 'practice_continuity', label: 'Practice Continuity' },
+  { value: 'mentorship',          label: 'Mentorship' },
+  { value: 'other',               label: 'Other' },
+]
+
+function psClearFilters() {
+  Object.assign(psExploreFilters, { q: '', category: '', format: '', availability: '', sort: 'newest' })
+  psDoSearch()
+}
+function psDoSearch() {
+  psExploreLocal.value = []
+  router.visit(route('jobs.index'), {
+    method: 'get',
+    data: {
+      section: 'ps',
+      ps_q:            psExploreFilters.q || undefined,
+      ps_category:     psExploreFilters.category || undefined,
+      ps_format:       psExploreFilters.format || undefined,
+      ps_availability: psExploreFilters.availability || undefined,
+      ps_sort:         psExploreFilters.sort !== 'newest' ? psExploreFilters.sort : undefined,
+    },
+    preserveState: true, preserveScroll: true, replace: true,
+  })
+}
+
+const { observe: psObserve, disconnect: psDisconnect } = useInfiniteScroll(
+  psExploreSentinel,
+  psLoadMore,
+  { canLoad: computed(() => (psExploreMeta.value.current_page ?? 1) < (psExploreMeta.value.last_page ?? 1)) }
+)
+
+async function psLoadMore() {
+  if (psExploreLoading.value) return
+  const nextPage = (psExploreMeta.value.current_page ?? 1) + 1
+  if (nextPage > (psExploreMeta.value.last_page ?? 1)) return
+  psExploreLoading.value = true
+  try {
+    const params = new URLSearchParams({
+      page: String(nextPage),
+      ...(psExploreFilters.q            && { q: psExploreFilters.q }),
+      ...(psExploreFilters.category     && { category: psExploreFilters.category }),
+      ...(psExploreFilters.format       && { format: psExploreFilters.format }),
+      ...(psExploreFilters.availability && { availability: psExploreFilters.availability }),
+      ...(psExploreFilters.sort !== 'newest' && { sort: psExploreFilters.sort }),
+    })
+    const res = await window.axios.get(route('jobs.ps.explore') + '?' + params.toString())
+    psExploreLocal.value.push(...(res.data.results ?? []))
+    psExploreMeta.value = {
+      current_page: res.data.current_page,
+      last_page:    res.data.last_page,
+      total:        res.data.total,
+      per_page:     psExploreMeta.value.per_page,
+    }
+  } catch {
+    toast.error('Could not load more services.')
+  } finally {
+    psExploreLoading.value = false
+  }
+}
+
+onMounted(() => psObserve())
+onUnmounted(() => psDisconnect())
+
+const psSvcModalRef = ref(null)
+const psSvcTarget   = reactive({ id: '', label: '' })
+function psOpenRequest(svc) {
+  psSvcTarget.id    = svc.practitioner_id ?? ''
+  psSvcTarget.label = svc.practitioner_name ?? ''
+  psSvcModalRef.value?.preselect(svc.title ?? '')
+  openModal('serviceRequestModal')
+}
+
+function psPendingOutgoing() { return (props.psOutgoingRequests ?? []).filter(r => r.status === 'new').length }
+function psClientBadge() {
+  const u = (props.psClientSessions ?? []).filter(s => s.can_pay_deposit).length
+  const b = (props.psClientSessions ?? []).filter(s => s.can_pay_balance).length
+  return u + b
+}
+function psStatusLabel(s) { return { completed: 'Completed', accepted: 'Accepted', declined: 'Declined', countered: 'Counter Sent', new: 'New', scheduled: 'Scheduled', withdrawn: 'Withdrawn' }[s] ?? s }
+function psStatusVariant(s) { return { completed: 'green', accepted: 'green', declined: 'neutral', countered: 'blue', new: 'gold', scheduled: 'blue', withdrawn: 'neutral' }[s] ?? 'neutral' }
+function psInitials(name) { return (name || '').split(' ').slice(0,2).map(p => p[0] ?? '').join('').toUpperCase() || '?' }
+function psWithdraw(id) {
+  confirmAction({ title: 'Withdraw Request', message: 'Withdraw this service request?', btnLabel: 'Withdraw', type: 'danger' }, () => {
+    router.delete(route('provider.services.request.withdraw', { serviceRequest: id }), { preserveScroll: true, onSuccess: () => toast.info('Request withdrawn.') })
+  })
+}
+function psGoToClientPage(page) {
+  router.visit(route('jobs.index'), { data: { section: 'ps', ps_client_sessions_page: page }, preserveState: true, preserveScroll: true, replace: true })
+}
+function psEscalateRefund(ses) {
+  const rr = (props.psIncomingRefundRequests ?? []).find(r => r.session_id === ses.id) || { id: ses.refund_request_id }
+  if (!rr?.id) { toast.error('No denied refund request found.'); return }
+  confirmAction({ title: 'Escalate to Dispute', message: 'This will open a formal dispute reviewed by Aegis admin.', btnLabel: 'Escalate', type: 'danger' }, () => {
+    router.post(route('provider.services.refund.escalate', { refund: rr.id }), {}, {
+      preserveScroll: true, onSuccess: () => toast.success('Escalated. Our team will review.'), onError: () => toast.error('Could not escalate.')
+    })
+  })
+}
+
+
+// ── Practitioner Support & Services state ─────────────────────────────────────
+const psTab              = ref('ps-browse')
+const psActiveOutgoing   = ref(null)
+const psActiveSession    = ref(null)
+const psOutgoingDetail   = ref(false)
+
+const psModals = reactive({
+  payUpfront: false, payCompletion: false,
+  payDeposit: false, payBalance: false,
+  requestRefund: false, reviewRefund: false,
+})
+
+const psActiveRefund     = ref(null)
+
+// Explore
+const psExploreFilters   = reactive({
+  q: props.psExploreFilters?.q ?? '',
+  category: props.psExploreFilters?.category ?? '',
+  format: props.psExploreFilters?.format ?? '',
+  availability: props.psExploreFilters?.availability ?? '',
+  sort: props.psExploreFilters?.sort ?? 'newest',
+})
+const psExploreLoading   = ref(false)
+const psExploreSentinel  = ref(null)
+const psExploreMeta      = ref({ ...props.psExploreMeta })
+const psExploreLocal     = ref([...props.psExploreResults])
+watch(() => props.psExploreResults, v => { psExploreLocal.value = [...v] })
+watch(() => props.psExploreMeta,    v => { psExploreMeta.value  = { ...v } })
+
+const psExploreResults   = computed(() => psExploreLocal.value)
+
+const psServiceCategories = [
+  { value: 'supervision',         label: 'Clinical Supervision' },
+  { value: 'consultation',        label: 'Consultation' },
+  { value: 'training',            label: 'Training' },
+  { value: 'coaching',            label: 'Coaching' },
+  { value: 'practice_continuity', label: 'Practice Continuity' },
+  { value: 'mentorship',          label: 'Mentorship' },
+  { value: 'other',               label: 'Other' },
+]
+
+function psClearFilters() {
+  Object.assign(psExploreFilters, { q: '', category: '', format: '', availability: '', sort: 'newest' })
+  psDoSearch()
+}
+function psDoSearch() {
+  psExploreLocal.value = []
+  router.visit(route('jobs.index'), {
+    method: 'get',
+    data: {
+      section: 'ps',
+      ps_q:            psExploreFilters.q || undefined,
+      ps_category:     psExploreFilters.category || undefined,
+      ps_format:       psExploreFilters.format || undefined,
+      ps_availability: psExploreFilters.availability || undefined,
+      ps_sort:         psExploreFilters.sort !== 'newest' ? psExploreFilters.sort : undefined,
+    },
+    preserveState: true, preserveScroll: true, replace: true,
+  })
+}
+
+const { observe: psObserve, disconnect: psDisconnect } = useInfiniteScroll(
+  psExploreSentinel,
+  psLoadMore,
+  { canLoad: computed(() => (psExploreMeta.value.current_page ?? 1) < (psExploreMeta.value.last_page ?? 1)) }
+)
+
+async function psLoadMore() {
+  if (psExploreLoading.value) return
+  const nextPage = (psExploreMeta.value.current_page ?? 1) + 1
+  if (nextPage > (psExploreMeta.value.last_page ?? 1)) return
+  psExploreLoading.value = true
+  try {
+    const params = new URLSearchParams({
+      page: String(nextPage),
+      ...(psExploreFilters.q            && { q: psExploreFilters.q }),
+      ...(psExploreFilters.category     && { category: psExploreFilters.category }),
+      ...(psExploreFilters.format       && { format: psExploreFilters.format }),
+      ...(psExploreFilters.availability && { availability: psExploreFilters.availability }),
+      ...(psExploreFilters.sort !== 'newest' && { sort: psExploreFilters.sort }),
+    })
+    const res = await window.axios.get(route('jobs.ps.explore') + '?' + params.toString())
+    psExploreLocal.value.push(...(res.data.results ?? []))
+    psExploreMeta.value = {
+      current_page: res.data.current_page,
+      last_page:    res.data.last_page,
+      total:        res.data.total,
+      per_page:     psExploreMeta.value.per_page,
+    }
+  } catch {
+    toast.error('Could not load more services.')
+  } finally {
+    psExploreLoading.value = false
+  }
+}
+
+onMounted(() => psObserve())
+onUnmounted(() => psDisconnect())
+
+// ServiceRequestModal
+const psSvcModalRef = ref(null)
+const psSvcTarget   = reactive({ id: '', label: '' })
+function psOpenRequest(svc) {
+  psSvcTarget.id    = svc.practitioner_id ?? ''
+  psSvcTarget.label = svc.practitioner_name ?? ''
+  psSvcModalRef.value?.preselect(svc.title ?? '')
+  openModal('serviceRequestModal')
+}
+
+function psPendingOutgoing() {
+  return (props.psOutgoingRequests ?? []).filter(r => r.status === 'new').length
+}
+function psClientBadge() {
+  const upfront = (props.psClientSessions ?? []).filter(s => s.can_pay_deposit).length
+  const balance = (props.psClientSessions ?? []).filter(s => s.can_pay_balance).length
+  return upfront + balance
+}
+function psStatusLabel(s) {
+  return { completed: 'Completed', accepted: 'Accepted', declined: 'Declined', countered: 'Counter Sent', new: 'New', scheduled: 'Scheduled', withdrawn: 'Withdrawn' }[s] ?? s
+}
+function psStatusVariant(s) {
+  return { completed: 'green', accepted: 'green', declined: 'neutral', countered: 'blue', new: 'gold', scheduled: 'blue', withdrawn: 'neutral' }[s] ?? 'neutral'
+}
+function psInitials(name) {
+  return (name || '').split(' ').slice(0,2).map(p => p[0] ?? '').join('').toUpperCase() || '?'
+}
+function psWithdraw(id) {
+  confirmAction({ title: 'Withdraw Request', message: 'Withdraw this service request? The provider will be notified.', btnLabel: 'Withdraw', type: 'danger' }, () => {
+    router.delete(route('provider.services.request.withdraw', { serviceRequest: id }), {
+      preserveScroll: true, onSuccess: () => toast.info('Request withdrawn.')
+    })
+  })
+}
+function psGoToClientPage(page) {
+  router.visit(route('jobs.index'), {
+    data: { section: 'ps', ps_client_sessions_page: page },
+    preserveState: true, preserveScroll: true, replace: true,
+  })
+}
+function psEscalateRefund(ses) {
+  const rr = (props.psIncomingRefundRequests ?? []).find(r => r.session_id === ses.id) || { id: ses.refund_request_id }
+  if (!rr?.id) { toast.error('No denied refund request found.'); return }
+  confirmAction({ title: 'Escalate to Dispute', message: 'This will open a formal dispute reviewed by Aegis admin.', btnLabel: 'Escalate', type: 'danger' }, () => {
+    router.post(route('provider.services.refund.escalate', { refund: rr.id }), {}, {
+      preserveScroll: true,
+      onSuccess: () => toast.success('Escalated to dispute. Our team will review.'),
+      onError:   () => toast.error('Could not escalate. Please contact support.'),
+    })
+  })
+}
 
 // Requests tab pagination
 const PAGE_SIZE_REQ       = 10
@@ -1078,6 +1693,89 @@ function onUseTemplate(t) {
 </script>
 
 <style scoped>
+/* ── Section switcher ───────────────────────────────────────────────────── */
+.ss-section-switcher {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.ss-section-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+  flex: 1;
+  min-width: 240px;
+  text-align: left;
+}
+.ss-section-btn.active {
+  border-color: var(--gold);
+  background: var(--badge-bg-gold);
+}
+.ss-section-btn--locked {
+  opacity: .55;
+  cursor: default;
+}
+.ss-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.ss-section-sub {
+  font-size: 11px;
+  color: var(--text-3);
+  line-height: 1.4;
+}
+
+/* ── Practitioner Support hero ──────────────────────────────────────────── */
+.ps-hero {
+  padding: 20px 0 12px;
+}
+.ps-hero-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 8px;
+  font-family: var(--font-serif, serif);
+}
+.ps-hero-desc {
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.6;
+  max-width: 760px;
+  margin: 0 0 16px;
+}
+
+/* ── Category chips ─────────────────────────────────────────────────────── */
+.ps-category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.ps-cat-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.ps-cat-chip:hover   { border-color: var(--gold); color: var(--gold-dark); }
+.ps-cat-chip.active  { border-color: var(--gold); background: var(--badge-bg-gold); color: var(--gold-dark); }
+
 /* ── My Postings table ───────────────────────────────────────────── */
 .jp-my-table {
   background: var(--surface);
