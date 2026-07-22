@@ -449,7 +449,7 @@
     <AegisModal :model-value="isOpen('addDsrStep1Modal').value" :title="'Add Support Steward — Step ' + addSsStep + ' of 5'" size="lg" @update:model-value="v => !v && closeModal('addDsrStep1Modal')">
 
       <!-- Step indicator (same pattern as CS modal) -->
-      <div class="modal-steps" style="margin-bottom:20px;">
+      <div class="modal-steps" style="margin-bottom:22px;">
         <div v-for="(s, i) in ssSteps" :key="s.key" style="display:contents;">
           <div class="modal-step" :class="{ done: addSsStep > i + 1, active: addSsStep === i + 1 }">
             <div class="modal-step-num">
@@ -1423,7 +1423,7 @@ function submitCancelInvite() {
 .sig-block.signed { border-style:solid; border-color:var(--green-dark); background:var(--green-light); color:var(--green-dark); }
 
 /* ── MODAL STEPS ── */
-.modal-steps { display:flex; align-items:center; margin-bottom:20px; }
+.modal-steps { display:flex; align-items:center; margin-bottom:22px; }
 .modal-step { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:var(--text-3); white-space:nowrap; }
 .modal-step.active { color:var(--gold-dark); }
 .modal-step.done   { color:var(--green-dark); }
