@@ -55,7 +55,7 @@ class StewardService
             'expires_at'       => now()->addDays(14),
             'responsibilities' => isset($extra['responsibilities']) ? json_encode($extra['responsibilities']) : null,
             'payment_model'    => $extra['payment_model'] ?? null,
-            'fee_cents'        => $extra['fee_cents'] ?? null,
+            'fee_cents'        => $extra['fee_cents'] ?? 0,
         ]);
 
         $practitioner = User::find($plan->practitioner_id);
@@ -131,6 +131,7 @@ class StewardService
                 'status'     => 'pending',
                 'invited_at' => now(),
                 'expires_at' => now()->addDays(14),
+                'fee_cents'  => 0,
             ]);
 
             $practitioner = User::find($plan->practitioner_id);
