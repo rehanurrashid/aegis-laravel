@@ -449,14 +449,16 @@
     <AegisModal :model-value="isOpen('addDsrStep1Modal').value" title="Add Support Steward" size="lg" @update:model-value="v => !v && closeModal('addDsrStep1Modal')">
 
       <!-- Flow tabs -->
-      <div class="tabs-segmented" style="margin-bottom:20px;justify-content:center;" role="tablist">
+      <div style="display:flex;justify-content:center;margin-bottom:20px;">
+      <div class="tabs-segmented" style="margin-bottom:0;" role="tablist">
         <button type="button" class="tab-pill" :class="{ active: addSsFlow === 'existing' }" @click="addSsFlow = 'existing'">
           <AegisIcon name="user" :size="13" /> Existing Aegis User
         </button>
         <button type="button" class="tab-pill" :class="{ active: addSsFlow === 'external' }" @click="addSsFlow = 'external'">
           <AegisIcon name="mail" :size="13" /> External Invite
         </button>
-      </div>
+      </div><!-- /tabs-segmented -->
+      </div><!-- /tabs-center-wrap -->
 
       <!-- Flow A: existing user — live search with auto-fill -->
       <div v-show="addSsFlow === 'existing'">
@@ -567,7 +569,7 @@
         <div class="role-option" :class="{ selected: inviteForm.role === 'alternate' }" @click="inviteForm.role = 'alternate'">
           <input type="radio" name="dsrRole" value="alternate" :checked="inviteForm.role === 'alternate'" style="accent-color:var(--gold-dark)">
           <div>
-            <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--text)"><AegisIcon name="user" :size="14" /> Alternate Support Steward</div>
+            <div style="font-size:13px;font-weight:700;color:var(--text)">Alternate Support Steward</div>
             <div style="font-size:12px;color:var(--text-3);margin-top:3px">Steps in if the primary Support Steward is unavailable.</div>
           </div>
         </div>
