@@ -1043,6 +1043,21 @@ const hiredSubTab = ref('active')
 watch(tab, () => syncFormEnhancements())
 const engagements = computed(() => Array.isArray(props.engagementRequests) ? props.engagementRequests : [])
 
+// ── BP tab state ──────────────────────────────────────────────────────────────
+// Requests tab pagination
+const PAGE_SIZE_REQ       = 10
+const requestsPage        = ref(1)
+const totalRequestPages   = computed(() => Math.max(1, Math.ceil(engagements.value.length / PAGE_SIZE_REQ)))
+const pagedEngagements    = computed(() => engagements.value.slice((requestsPage.value - 1) * PAGE_SIZE_REQ, requestsPage.value * PAGE_SIZE_REQ))
+
+// Engagement request detail modal
+const showRequestDetail       = ref(false)
+const activeEngagementRequest = ref(null)
+function viewRequest(r) { activeEngagementRequest.value = r; showRequestDetail.value = true }
+const postingFilter       = ref('all')
+const applicationsJobFilter = ref('')
+const pipelineJobFilter   = ref('')
+
 // ── Practitioner Support & Services state ─────────────────────────────────────
 const psTab              = ref('ps-browse')
 const psActiveOutgoing   = ref(null)
