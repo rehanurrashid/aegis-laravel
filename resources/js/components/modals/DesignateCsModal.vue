@@ -22,8 +22,8 @@
       </div>
     </div>
 
-    <!-- ── MODE A: Step indicator ── -->
-    <div class="modal-steps">
+    <!-- ── Step indicator ── -->
+    <div class="modal-steps" style="margin-bottom:22px;">
       <div v-for="(s, i) in steps" :key="s.key" style="display:contents;">
         <div class="modal-step" :class="{ done: step > i + 1 || (preselectedUser && i === 0), active: step === i + 1 && !(preselectedUser && i === 0) }">
           <div class="modal-step-num">
@@ -37,51 +37,143 @@
     </div>
 
     <!-- ══ STEP 1 / MODE A: Find Person ══ -->
-    <div v-if="!preselectedUser && step === 1" style="margin-top:16px;">
-      <div class="alert alert-info" style="margin-bottom:16px;">
-        <div class="alert-icon"><AegisIcon name="info" :size="16" /></div>
-        <div class="alert-content">
-          <div class="alert-title">Standing Retainer Agreement</div>
-          <div style="font-size:12px;">This is a persistent agreement — active from signing until cancelled by either party. No charges occur until a critical incident is verified and CS tasks are completed. Requires annual re-attestation to remain in effect.</div>
+    <div v-if="!preselectedUser && step === 1" style="margin-top:4px;">
+
+      <!-- Tab switcher -->
+      <div class="segment-control" style="margin-bottom:20px;">
+        <button
+          type="button"
+          class="segment-btn"
+          :class="{ active: addCsFlow === 'existing' }"
+          @click="addCsFlow = 'existing'; clearSelection()"
+        >
+          <AegisIcon name="user" :size="14" /> Existing Aegis User
+        </button>
+        <button
+          type="button"
+          class="segment-btn"
+          :class="{ active: addCsFlow === 'external' }"
+          @click="addCsFlow = 'external'; clearSelection()"
+        >
+          <AegisIcon name="mail" :size="14" /> External Invite
+        </button>
+      </div>
+
+      <!-- ── TAB A: existing Aegis user ── -->
+      <div v-show="addCsFlow === 'existing'">
+        <!-- Selected chip -->
+        <div v-if="searchSelected" style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--badge-bg-gold);border:1px solid var(--gold-dark);border-radius:var(--radius);margin-bottom:16px;">
+          <div style="width:36px;height:36px;border-radius:var(--radius-sm);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            {{ searchSelected.initials }}
+          </div>
+          <div style="flex:1 1 0;min-width:0;">
+            <div style="font-size:13px;font-weight:700;color:var(--text);">{{ searchSelected.display_name }}{{ searchSelected.credentials ? ', ' + searchSelected.credentials : '' }}</div>
+            <div style="font-size:11px;color:var(--text-3);">{{ searchSelected.email }} &middot; <span style="color:var(--gold-dark);font-weight:600;">{{ searchSelected.role_label }}</span></div>
+          </div>
+          <button type="button" data-tooltip="Clear selection" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;" @click="clearSelection">
+            <AegisIcon name="x" :size="14" />
+          </button>
         </div>
+
+        <!-- Search input -->
+        <div v-else class="form-group" style="position:relative;">
+          <label class="form-label">Search by Name or Email <span style="color:var(--red-dark);">*</span></label>
+          <div style="position:relative;">
+            <input
+              :value="searchQuery"
+              type="text"
+              class="form-input"
+              :class="{ 'is-error': showSearchError }"
+              placeholder="Start typing a name or email…"
+              autocomplete="off"
+              @input="onSearchInput($event.target.value)"
+              @blur="hideDropdown"
+              @focus="showDropdown = searchResults.length > 0"
+            />
+            <div v-if="searchLoading" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);">
+              <span class="spinner spinner-sm" />
+            </div>
+          </div>
+          <div v-if="showSearchError" class="form-error">Please search and select a Continuity Steward.</div>
+
+          <!-- Dropdown -->
+          <div v-if="showDropdown && searchResults.length"
+            style="position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);margin-top:2px;max-height:220px;overflow-y:auto;">
+            <div v-for="user in searchResults" :key="user.id"
+              :style="designatedMap[user.id]
+                ? 'display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);cursor:not-allowed;opacity:0.55;'
+                : 'display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;'"
+              @mousedown.prevent="selectUser(user)"
+              @mouseover="!designatedMap[user.id] && ($event.currentTarget.style.background='var(--surface-2)')"
+              @mouseleave="$event.currentTarget.style.background=''">
+              <div style="width:32px;height:32px;border-radius:var(--radius-sm);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                {{ user.initials }}
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:600;color:var(--text);">{{ user.display_name }}{{ user.credentials ? ', ' + user.credentials : '' }}</div>
+                <div style="font-size:11px;color:var(--text-3);">{{ user.email }}</div>
+              </div>
+              <span v-if="designatedMap[user.id]" style="font-size:10px;font-weight:600;letter-spacing:0.2px;color:var(--text-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:2px 7px;flex-shrink:0;">Already designated</span>
+              <span v-else style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:var(--gold-dark);flex-shrink:0;">{{ user.role_label }}</span>
+            </div>
+          </div>
+          <div v-if="showDropdown && !searchResults.length && !searchLoading && searchQuery.length >= 2"
+            style="position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);margin-top:2px;padding:14px 12px;font-size:13px;color:var(--text-3);text-align:center;">
+            No Continuity Stewards found for "{{ searchQuery }}".<br>
+            <span style="font-size:12px;">Try the <strong>External Invite</strong> tab to invite someone new.</span>
+          </div>
+        </div>
+
+        <div style="font-size:12px;color:var(--text-3);margin-top:8px;">Search finds users with the Continuity Steward role, or Practitioners who have made themselves available as CS.</div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Email Address <span style="color:var(--red-dark);">*</span></label>
-        <input
-          v-model="form.email"
-          type="email"
-          class="form-control"
-          :class="{ 'is-error': fieldError('email') }"
-          placeholder="cs@example.com"
-          @blur="v$.email.$touch()"
-        />
-        <div v-if="fieldError('email')" class="form-error">{{ fieldError('email') }}</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Full Name <span style="color:var(--red-dark);">*</span></label>
-        <input
-          v-model="form.display_name"
-          type="text"
-          class="form-control"
-          :class="{ 'is-error': fieldError('display_name') }"
-          placeholder="Dr. Jane Smith"
-          @blur="v$.display_name.$touch()"
-        />
-        <div v-if="fieldError('display_name')" class="form-error">{{ fieldError('display_name') }}</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Relationship to You</label>
-        <select v-model="form.relationship" class="form-control form-select">
-          <option value="">— Select Relationship —</option>
-          <option>Designated Continuity Steward</option>
-          <option>Office Manager / Practice Administrator</option>
-          <option>Colleague Provider (Aegis User)</option>
-          <option>Colleague Provider (External)</option>
-          <option>Attorney / Legal Representative</option>
-          <option>Spouse / Domestic Partner</option>
-          <option>Family Member</option>
-          <option>Other</option>
-        </select>
+
+      <!-- ── TAB B: external invite ── -->
+      <div v-show="addCsFlow === 'external'">
+        <div class="alert alert-info" style="margin-bottom:16px;">
+          <div class="alert-icon"><AegisIcon name="info" :size="16" /></div>
+          <div class="alert-content">
+            <div class="alert-title">Standing Retainer Agreement</div>
+            <div style="font-size:12px;">This is a persistent agreement — active from signing until cancelled by either party. No charges occur until a critical incident is verified and CS tasks are completed. Requires annual re-attestation to remain in effect.</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address <span style="color:var(--red-dark);">*</span></label>
+          <input
+            v-model="form.email"
+            type="email"
+            class="form-input"
+            :class="{ 'is-error': fieldError('email') }"
+            placeholder="cs@example.com"
+            @blur="v$.email.$touch()"
+          />
+          <div v-if="fieldError('email')" class="form-error">{{ fieldError('email') }}</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Full Name <span style="color:var(--red-dark);">*</span></label>
+          <input
+            v-model="form.display_name"
+            type="text"
+            class="form-input"
+            :class="{ 'is-error': fieldError('display_name') }"
+            placeholder="Dr. Jane Smith"
+            @blur="v$.display_name.$touch()"
+          />
+          <div v-if="fieldError('display_name')" class="form-error">{{ fieldError('display_name') }}</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Relationship to You</label>
+          <select v-model="form.relationship" class="form-input form-select">
+            <option value="">— Select Relationship —</option>
+            <option>Designated Continuity Steward</option>
+            <option>Office Manager / Practice Administrator</option>
+            <option>Colleague Provider (Aegis User)</option>
+            <option>Colleague Provider (External)</option>
+            <option>Attorney / Legal Representative</option>
+            <option>Spouse / Domestic Partner</option>
+            <option>Family Member</option>
+            <option>Other</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -122,21 +214,22 @@
             type="number"
             min="0"
             step="5"
-            class="form-control"
+            class="form-input"
             placeholder="0 for no fee / reciprocal agreement"
             style="max-width:220px;"
             @input="form.fee_cents = feeInput ? Math.round(feeInput * 100) : 0"
           />
           <span style="font-size:12px;color:var(--text-3);">per incident</span>
         </div>
-        <div style="font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.4;">
-          <AegisIcon name="info" :size="11" /> Invoiced automatically when the critical incident closes and CS tasks are marked complete. You have 7 days to pay manually before your default payment method is auto-charged.
+        <div style="display:flex;align-items:flex-start;gap:5px;font-size:11px;color:var(--text-3);margin-top:6px;line-height:1.5;">
+          <AegisIcon name="info" :size="11" style="flex-shrink:0;margin-top:1px;" />
+          <span>Invoiced automatically when the critical incident closes and CS tasks are marked complete. You have 7 days to pay manually before your default payment method is auto-charged.</span>
         </div>
       </div>
 
       <div v-if="!preselectedUser" class="form-group" style="margin-top:14px;">
         <label class="form-label">Compensation Notes (Optional)</label>
-        <textarea v-model="form.message" class="form-control" style="min-height:60px;" placeholder="e.g., Reciprocal Continuity Plan, hourly compensation…"></textarea>
+        <textarea v-model="form.message" class="form-input" style="min-height:60px;" placeholder="e.g., Reciprocal Continuity Plan, hourly compensation…"></textarea>
       </div>
     </div>
 
@@ -180,7 +273,7 @@
       </div>
       <div class="form-group" style="margin-top:20px;">
         <label class="form-label">Special Instructions / Notes</label>
-        <textarea v-model="form.notes" class="form-control" style="min-height:70px;" placeholder="Any specific instructions, conditions, or context…"></textarea>
+        <textarea v-model="form.notes" class="form-input" style="min-height:70px;" placeholder="Any specific instructions, conditions, or context…"></textarea>
       </div>
     </div>
 
@@ -190,17 +283,17 @@
       <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;font-size:13px;line-height:1.75;color:var(--text-2);margin:14px 0;">
         <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:10px;">Aegis Continuity Steward Retainer Agreement</div>
         <h4 style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text);">Retainer Terms</h4>
-        <p><strong>Continuity Steward:</strong> {{ preselectedUser?.display_name || form.display_name || '—' }}<span v-if="preselectedUser?.credentials" style="color:var(--text-3);font-weight:400;">, {{ preselectedUser.credentials }}</span></p>
-        <p v-if="!preselectedUser"><strong>Email:</strong> <span :style="!form.email ? 'color:var(--text-4);font-style:italic;' : ''">{{ form.email || 'Not entered' }}</span></p>
+        <p><strong>Continuity Steward:</strong> {{ preselectedUser?.display_name || searchSelected?.display_name || form.display_name || '—' }}<span v-if="preselectedUser?.credentials || searchSelected?.credentials" style="color:var(--text-3);font-weight:400;">, {{ preselectedUser?.credentials || searchSelected?.credentials }}</span></p>
+        <p v-if="!preselectedUser && !searchSelected"><strong>Email:</strong> <span :style="!form.email ? 'color:var(--text-4);font-style:italic;' : ''">{{ form.email || 'Not entered' }}</span></p>
         <p v-if="preselectedUser?.location"><strong>Location:</strong> {{ preselectedUser.location }}</p>
         <p><strong>Role:</strong> {{ roleLabel(form.role) }}</p>
         <p v-if="form.relationship"><strong>Relationship:</strong> {{ form.relationship }}</p>
         <p v-if="form.fee_cents > 0"><strong>Fee per incident:</strong> ${{ (form.fee_cents / 100).toFixed(2) }}</p>
         <p v-else><strong>Fee per incident:</strong> $0 (Reciprocal / No Payment)</p>
         <p><strong>Signing Date:</strong> {{ new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) }}</p>
-        <p style="font-size:11px;color:var(--text-3);margin-top:12px;line-height:1.5;">
-          <AegisIcon name="info" :size="11" />
-          Retainer active indefinitely from date of signing. Invoiced only when a critical incident closes and CS tasks are marked complete. Annual re-attestation required. Either party may cancel at any time.
+        <p style="display:flex;align-items:flex-start;gap:5px;font-size:11px;color:var(--text-3);margin-top:12px;line-height:1.5;">
+          <AegisIcon name="info" :size="11" style="flex-shrink:0;margin-top:1px;" />
+          <span>Retainer active indefinitely from date of signing. Invoiced only when a critical incident closes and CS tasks are marked complete. Annual re-attestation required. Either party may cancel at any time.</span>
         </p>
       </div>
       <div
@@ -220,7 +313,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">Invitation Expiry</label>
-        <select v-model="form.expires_days" class="form-control form-select">
+        <select v-model="form.expires_days" class="form-input form-select">
           <option :value="30">30 days</option>
           <option :value="14">14 days</option>
           <option :value="7">7 days</option>
@@ -228,13 +321,12 @@
       </div>
       <div class="form-group">
         <label class="form-label">Personal Message (Optional)</label>
-        <textarea v-model="form.message" class="form-control" style="min-height:60px;" placeholder="Hi, I would like to formally designate you as my Continuity Steward on Aegis…"></textarea>
+        <textarea v-model="form.message" class="form-input" style="min-height:60px;" placeholder="Hi, I would like to formally designate you as my Continuity Steward on Aegis…"></textarea>
       </div>
     </div>
 
     <!-- ── FOOTER ── -->
     <template #footer>
-      <!-- Unified footer — same for both modes, step controls navigation -->
       <button type="button" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;" @click="stepBack">
         <AegisIcon v-if="step > (preselectedUser ? 2 : 1)" name="chevron-left" :size="14" />
         {{ step === (preselectedUser ? 2 : 1) ? 'Cancel' : 'Back' }}
@@ -262,9 +354,11 @@ import { useToast } from '@/composables/useToast'
 
 // ── Props & emits ────────────────────────────────────────────────────────────
 const props = defineProps({
-  modelValue:      { type: Boolean, default: false },
-  preselectedUser: { type: Object,  default: null  },
-  context:         { type: String,  default: 'plan' }, // 'plan' | 'network'
+  modelValue:         { type: Boolean, default: false },
+  preselectedUser:    { type: Object,  default: null  },
+  context:            { type: String,  default: 'plan' }, // 'plan' | 'network'
+  existingStewards:   { type: Array,   default: () => [] }, // active stewards
+  pendingInvitations: { type: Array,   default: () => [] }, // pending/invited
 })
 const emit = defineEmits(['update:modelValue', 'success'])
 
@@ -276,26 +370,40 @@ const innerOpen = computed({
   set: (v) => emit('update:modelValue', v),
 })
 
+// ── designatedMap — block re-designation ─────────────────────────────────────
+const designatedMap = computed(() => {
+  const map = {}
+  const roleLabel = (s) => {
+    const r = typeof s.role === 'object' ? s.role?.value : s.role
+    if (r === 'alternate') return 'Alternate CS'
+    if (r === 'secondary') return 'Support CS'
+    return 'Primary CS'
+  }
+  ;[...props.existingStewards, ...props.pendingInvitations].forEach(s => {
+    if (s.steward_id) map[s.steward_id] = roleLabel(s)
+  })
+  return map
+})
+
 // ── Step state ────────────────────────────────────────────────────────────────
 const step   = ref(1)
 const signed = ref(false)
 const busy   = ref(false)
 
 const steps = [
-  { key: 'find',       label: 'Find Person' },
-  { key: 'role',       label: 'Role Step-up' },
-  { key: 'incidents',  label: 'Approved Critical Incidents' },
+  { key: 'find',            label: 'Find Person' },
+  { key: 'role',            label: 'Role' },
+  { key: 'incidents',       label: 'Critical Incidents' },
   { key: 'responsibilities', label: 'Responsibilities' },
-  { key: 'send',       label: 'Send Retainer' },
+  { key: 'send',            label: 'Send' },
 ]
 
 const stepNextLabel = computed(() => {
-  const labels = { 1: 'Next: Role Step-up', 2: 'Next: Approved Critical Incidents', 3: 'Next: Responsibilities', 4: 'Next: Review & Send' }
+  const labels = { 1: 'Next', 2: 'Next', 3: 'Next', 4: 'Next: Review & Send' }
   return labels[step.value] ?? 'Next'
 })
 
 const modalTitle = computed(() => {
-  const prefix = props.preselectedUser ? 'Sign CS Retainer Agreement' : 'Sign CS Retainer Agreement'
   const titles = {
     1: 'Retainer Agreement — Find Person',
     2: 'Retainer Agreement — Role',
@@ -303,42 +411,95 @@ const modalTitle = computed(() => {
     4: 'Retainer Agreement — Responsibilities',
     5: 'Retainer Agreement — Review & Sign',
   }
-  return titles[step.value] ?? prefix
+  return titles[step.value] ?? 'Sign CS Retainer Agreement'
 })
 
-// ── Form (top-level useForm — never inside a function) ─────────────────────
+// ── Search state (Step 1 / Tab A) ────────────────────────────────────────────
+const addCsFlow     = ref('existing')
+const searchQuery   = ref('')
+const searchResults = ref([])
+const searchLoading = ref(false)
+const searchSelected = ref(null)
+const showDropdown  = ref(false)
+const showSearchError = ref(false)
+let searchTimer = null
+
+function onSearchInput(val) {
+  searchQuery.value   = val
+  searchSelected.value = null
+  form.user_id        = null
+  form.display_name   = val
+  form.email          = ''
+  showSearchError.value = false
+  if (val.length < 2) { searchResults.value = []; showDropdown.value = false; return }
+  clearTimeout(searchTimer)
+  searchLoading.value = true
+  searchTimer = setTimeout(async () => {
+    try {
+      const res = await window.axios.get(route('provider.stewards.search-users'), { params: { q: val } })
+      searchResults.value = res.data
+      showDropdown.value  = res.data.length > 0
+    } catch { searchResults.value = [] }
+    finally { searchLoading.value = false }
+  }, 280)
+}
+
+function selectUser(user) {
+  const alreadyRole = designatedMap.value[user.id]
+  if (alreadyRole) {
+    toast.error(`${user.display_name} is already designated as your ${alreadyRole}. Remove them first to re-designate.`)
+    showDropdown.value = false
+    return
+  }
+  searchSelected.value = user
+  form.user_id         = user.id
+  form.display_name    = user.display_name
+  form.email           = user.email
+  searchQuery.value    = user.display_name
+  searchResults.value  = []
+  showDropdown.value   = false
+  showSearchError.value = false
+}
+
+function hideDropdown() { setTimeout(() => { showDropdown.value = false }, 200) }
+
+function clearSelection() {
+  searchSelected.value = null
+  form.user_id         = null
+  form.display_name    = ''
+  form.email           = ''
+  searchQuery.value    = ''
+  showSearchError.value = false
+}
+
+// ── Form ─────────────────────────────────────────────────────────────────────
 const form = useForm({
-  user_id:          null,
-  email:            '',
-  display_name:     '',
-  role:             'primary',
-  fee_cents:        0,
-  relationship:     '',
-  message:          '',
-  notes:            '',
-  expires_days:     30,
-  incidentActive:   { death: true, short_term_incapacitation: true, long_term_incapacitation: true, missing_person: false, detainment: false, natural_disaster: false, geopolitical: false },
-  incidentVerify:   { death: false, short_term_incapacitation: false, long_term_incapacitation: false, missing_person: true, detainment: true, natural_disaster: true, geopolitical: true },
+  user_id:        null,
+  email:          '',
+  display_name:   '',
+  role:           'primary',
+  fee_cents:      0,
+  relationship:   '',
+  message:        '',
+  notes:          '',
+  expires_days:   30,
+  incidentActive: { death: true, short_term_incapacitation: true, long_term_incapacitation: true, missing_person: false, detainment: false, natural_disaster: false, geopolitical: false },
+  incidentVerify: { death: false, short_term_incapacitation: false, long_term_incapacitation: false, missing_person: true, detainment: true, natural_disaster: true, geopolitical: true },
 })
 
 const feeInput = ref(0)
-
-// Sync feeInput → form.fee_cents
 watch(feeInput, (v) => { form.fee_cents = v ? Math.round(Number(v) * 100) : 0 })
 
 // ── Vuelidate ────────────────────────────────────────────────────────────────
+const isExternal = computed(() => addCsFlow.value === 'external')
 const rules = computed(() => ({
-  email:        props.preselectedUser || form.user_id ? {} : {
-    required:  helpers.withMessage('Email is required', required),
-    email:     helpers.withMessage('Must be a valid email', emailRule),
-  },
-  display_name: props.preselectedUser || form.user_id ? {} : {
-    required:  helpers.withMessage('Name is required', required),
-    minLength: helpers.withMessage('Min 2 characters', minLength(2)),
-  },
-  role: {
-    required: helpers.withMessage('Please select a role', required),
-  },
+  email: isExternal.value
+    ? { required: helpers.withMessage('Email is required', required), email: helpers.withMessage('Must be a valid email', emailRule) }
+    : {},
+  display_name: isExternal.value
+    ? { required: helpers.withMessage('Name is required', required), minLength: helpers.withMessage('Min 2 characters', minLength(2)) }
+    : {},
+  role: { required: helpers.withMessage('Please select a role', required) },
 }))
 
 const v$ = useVuelidate(rules, form, { $scope: false })
@@ -349,14 +510,19 @@ function fieldError(field) {
   return f.$errors[0]?.$message ?? null
 }
 
-// ── Reset on open/close ───────────────────────────────────────────────────────
+// ── Reset on open ─────────────────────────────────────────────────────────────
 watch(() => props.modelValue, (open) => {
   if (!open) return
-  // Mode B (preselectedUser): skip Find Person step, start at Role Step-up
-  step.value   = props.preselectedUser ? 2 : 1
-  signed.value = false
-  busy.value   = false
-  feeInput.value = 0
+  step.value        = props.preselectedUser ? 2 : 1
+  signed.value      = false
+  busy.value        = false
+  feeInput.value    = 0
+  addCsFlow.value   = 'existing'
+  searchQuery.value = ''
+  searchResults.value = []
+  searchSelected.value = null
+  showDropdown.value = false
+  showSearchError.value = false
   form.reset()
   v$.value.$reset()
   if (props.preselectedUser) {
@@ -368,10 +534,16 @@ watch(() => props.modelValue, (open) => {
 // ── Navigation ────────────────────────────────────────────────────────────────
 async function stepNext() {
   if (step.value === 1) {
-    v$.value.email.$touch()
-    v$.value.display_name.$touch()
-    if (v$.value.email.$error || v$.value.display_name.$error) return
-    if (!form.user_id && !form.email.trim()) return
+    if (addCsFlow.value === 'existing') {
+      if (!form.user_id) {
+        showSearchError.value = true
+        return
+      }
+    } else {
+      v$.value.email.$touch()
+      v$.value.display_name.$touch()
+      if (v$.value.email.$error || v$.value.display_name.$error) return
+    }
   }
   if (step.value === 2) {
     v$.value.role.$touch()
@@ -399,10 +571,10 @@ async function submitDesignate() {
   busy.value = true
 
   const payload = {
-    role:          form.role,
-    fee_cents:     form.fee_cents,
-    message:       form.message,
-    expires_days:  form.expires_days,
+    role:         form.role,
+    fee_cents:    form.fee_cents,
+    message:      form.message,
+    expires_days: form.expires_days,
   }
 
   if (props.preselectedUser) {
@@ -418,7 +590,7 @@ async function submitDesignate() {
   router.post(route('provider.stewards.invite'), payload, {
     preserveScroll: true,
     onSuccess: () => {
-      const name = props.preselectedUser?.display_name ?? form.display_name
+      const name = props.preselectedUser?.display_name ?? searchSelected.value?.display_name ?? form.display_name
       toast.success((name || 'Continuity Steward') + (props.preselectedUser ? ' designated as your CS.' : ' invitation sent.'))
       emit('success')
       innerOpen.value = false
@@ -432,7 +604,7 @@ async function submitDesignate() {
   })
 }
 
-// ── Data ──────────────────────────────────────────────────────────────────────
+// ── Static data ───────────────────────────────────────────────────────────────
 const roleOptions = [
   { value: 'primary',   title: 'Primary Continuity Steward',   desc: 'First in line. Full authority to act. Best for a trusted colleague who is highly available.' },
   { value: 'secondary', title: 'Support Continuity Steward',   desc: 'Works alongside the Primary, sharing responsibilities during a critical moment.' },
@@ -444,7 +616,7 @@ function roleLabel(r) {
 }
 
 const alwaysActiveIncidents = [
-  { key: 'death',                    label: 'Death' },
+  { key: 'death',                     label: 'Death' },
   { key: 'short_term_incapacitation', label: 'Short-Term Incapacitation' },
   { key: 'long_term_incapacitation',  label: 'Long-Term Incapacitation' },
 ]

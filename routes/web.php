@@ -204,6 +204,7 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::post('/continuity-plan/tasks/reorder', [ContinuityPlanController::class, 'reorderTasks'])->name('plan.tasks.reorder');
 
         // Continuity Stewards
+        Route::get('/continuity-stewards/search-users', [ContinuityStewardController::class, 'csSearchUsers'])->name('stewards.search-users');
         Route::get('/continuity-stewards', [ContinuityStewardController::class, 'csIndex'])->name('stewards.index');
         Route::post('/continuity-stewards/invite', [ContinuityStewardController::class, 'csInvite'])->name('stewards.invite');
         Route::delete('/continuity-stewards/{steward}', [ContinuityStewardController::class, 'csRemove'])->name('stewards.remove');

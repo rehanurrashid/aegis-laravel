@@ -528,4 +528,56 @@ class ContinuityStewardController extends Controller
         return back()->with('success', 'Vault access updated.');
     }
 
+
+    // ── CS user search ────────────────────────────────────────────────────────
+    public function csSearchUsers(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $q      = trim($request->get('q', ''));
+        $authId = $request->user()->id;
+
+        if (strlen($q) < 2) {
+            return response()->json([]);
+        }
+
+        // CS Business users
+        $csUsers = \App\Models\User::where('role', \App\Enums\UserRole::ContinuitySteward->value)
+            ->where('id', '!=', $authId)
+            ->where(fn ($query) => $query
+                ->where('display_name', 'like', "%{$q}%")
+                ->orWhere('email', 'like', "%{$q}%")
+            )
+            ->limit(10)
+            ->get(['id', 'display_name', 'email', 'credentials', 'avatar_initials', 'role']);
+
+        // Practitioners who have made themselves available as CS
+        $practitionersAvailableAsCs = \App\Models\User::where('role', \App\Enums\UserRole::Practitioner->value)
+            ->where('id', '!=', $authId)
+            ->where(fn ($query) => $query
+                ->where('display_name', 'like', "%{$q}%")
+                ->orWhere('email', 'like', "%{$q}%")
+            )
+            ->whereHas('meta', fn ($m) =>
+                $m->where('meta_key', 'available_as_cs')->where('meta_value', '1')
+            )
+            ->limit(5)
+            ->get(['id', 'display_name', 'email', 'credentials', 'avatar_initials', 'role']);
+
+        $results = $csUsers->concat($practitionersAvailableAsCs)
+            ->unique('id')
+            ->take(10)
+            ->map(fn ($u) => [
+                'id'           => $u->id,
+                'display_name' => $u->display_name,
+                'email'        => $u->email,
+                'credentials'  => $u->credentials ?? '',
+                'initials'     => $u->avatar_initials
+                    ?? collect(explode(' ', $u->display_name))->map(fn ($w) => strtoupper($w[0] ?? ''))->take(2)->implode(''),
+                'role_label'   => $u->role === \App\Enums\UserRole::ContinuitySteward
+                    ? 'Continuity Steward'
+                    : 'Practitioner (Available as CS)',
+            ]);
+
+        return response()->json($results->values());
+    }
+
 }

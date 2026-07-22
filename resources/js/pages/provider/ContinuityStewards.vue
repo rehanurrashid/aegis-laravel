@@ -917,6 +917,8 @@ function saveNotifyPrefs() {
       v-model="modals.designateCs"
       :preselected-user="null"
       context="plan"
+      :existing-stewards="stewards"
+      :pending-invitations="pendingInvitations"
       @success="router.reload({ only: ['stewards', 'csCount', 'pendingInvitations'] })"
     />
 
