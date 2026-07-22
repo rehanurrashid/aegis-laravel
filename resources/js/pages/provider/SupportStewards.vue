@@ -647,9 +647,9 @@
           <p><strong>Role:</strong> {{ inviteForm.role === 'alternate' ? 'Alternate Support Steward' : 'Support Steward' }}</p>
           <p><strong>Invitation Expiry:</strong> {{ inviteForm.expires_days }} days</p>
           <p><strong>Agreement Date:</strong> {{ new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) }}</p>
-          <p style="font-size:11px;color:var(--text-3);margin-top:12px;line-height:1.5;">
-            <AegisIcon name="info" :size="11" />
-            This agreement authorizes the named individual to act as your Support Steward during a verified critical incident. Their access is limited to the responsibilities defined above and your Continuity Plan instructions.
+          <p style="display:flex;align-items:flex-start;gap:5px;font-size:11px;color:var(--text-3);margin-top:12px;line-height:1.5;">
+            <AegisIcon name="info" :size="11" style="flex-shrink:0;margin-top:1px;" />
+            <span>This agreement authorizes the named individual to act as your Support Steward during a verified critical incident. Their access is limited to the responsibilities defined above and your Continuity Plan instructions.</span>
           </p>
         </div>
         <div
