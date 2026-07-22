@@ -370,7 +370,7 @@ function saveNotifyPrefs() {
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
         <button type="button" class="btn-hero-solid is-on-light" style="display:inline-flex;align-items:center;gap:6px;" @click="handleAddCS">
-          <AegisIcon name="plus" :size="14" /> Sign Retainer Agreement
+          <AegisIcon name="plus" :size="14" /> Add Continuity Steward
         </button>
       </template>
     </AegisHeroBanner>
