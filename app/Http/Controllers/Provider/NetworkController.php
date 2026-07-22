@@ -396,7 +396,7 @@ class NetworkController extends Controller
                     'slug'               => $cs->slug ?? '',
                     'avatar_initials'    => $cs->avatar_initials ?? strtoupper(substr($cs->display_name, 0, 2)),
                     'credentials'        => $cs->credentials ?? '',
-                    'license_state'      => $meta['primary_state'] ?? $cs->location ?? '',
+                    // license_state omitted — Chapman decision: no clinical info on CS cards
                     'specialties'        => $specialty,
                     'bio'                => $meta['bio'] ?? $cs->bio ?? '',
                     'rate_min_cents'     => $rateMin,
@@ -408,7 +408,7 @@ class NetworkController extends Controller
             })->values();
 
         $csSpecialties = ['Trauma','Couples','EMDR','Grief','Anxiety','ADHD','Addiction','Family Systems','Other'];
-        $csStates      = ['AL','AK','AZ','AR','CA','CO','CT','DC','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
+        // $csStates removed — License State filter removed per Chapman decision (no clinical info on CS cards)
 
         // Practitioners available to serve as CS for others (available_as_cs meta = '1').
         // Chapman decision #1: show tier badge. Decision #3: no license/clinical info.
@@ -473,7 +473,7 @@ class NetworkController extends Controller
             ],
             'networkConfig'                => $this->loadNetworkConfig($user),
             'csStewards'                   => $csStewards,
-            'csFilters'                    => ['specialties' => $csSpecialties, 'states' => $csStates],
+            'csFilters'                    => ['specialties' => $csSpecialties],
             'csDirectory'                  => $csDirectory,
             // ssDirectory intentionally omitted — removed per Chapman decision #4
             'initialScope'                 => $request->query('tab', $request->query('scope', 'clinical')),

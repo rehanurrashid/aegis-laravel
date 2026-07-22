@@ -1753,28 +1753,6 @@
             </div>
           </div>
 
-          <!-- 2. License State -->
-          <div class="filter-group" :class="{ open: csGroups.state }">
-            <div class="filter-group-header" @click="csGroups.state = !csGroups.state">
-              <span class="filter-group-label">
-                <AegisIcon name="map-pin" :size="16" /> License State
-                <span v-if="csState" class="filter-group-count visible">1</span>
-              </span>
-              <span class="filter-chevron"><AegisIcon name="chevron-down" :size="14" /></span>
-            </div>
-            <div class="filter-group-body">
-              <input class="filter-inner-search" type="text" placeholder="Search states..." v-model="csStateSearch" />
-              <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">
-                <span
-                  v-for="st in filteredCsStates" :key="st"
-                  class="ftag"
-                  :class="{ selected: csState === st }"
-                  @click="csState = csState === st ? '' : st"
-                >{{ st }}</span>
-              </div>
-            </div>
-          </div>
-
           <!-- 3. Rate Range -->
           <div class="filter-group" :class="{ open: csGroups.rate }">
             <div class="filter-group-header" @click="csGroups.rate = !csGroups.rate">
@@ -1883,7 +1861,6 @@
               <div class="spc-body">
                 <div class="spc-avatar">{{ cs.avatar_initials }}</div>
                 <div class="spc-name" style="color:var(--gold-dark);">{{ cs.display_name }}<span v-if="cs.credentials" style="font-size:11px;color:var(--text-3);font-weight:400;">, {{ cs.credentials }}</span></div>
-                <div class="spc-role" v-if="cs.license_state">Licensed in {{ cs.license_state }}</div>
                 <div class="spc-loc" v-if="cs.location">{{ cs.location }}</div>
                 <div class="spc-tags" v-if="cs.specialties?.length">
                   <span v-for="tag in (cs.specialties ?? []).slice(0,3)" :key="tag" class="spc-tag">{{ tag }}</span>
@@ -3226,8 +3203,6 @@ function openReferralForShadow(s) {
 // ── CS Steward directory ────────────────────────────────────────────────────
 const csSearch       = ref('')
 const csSpecialty    = ref('')
-const csState        = ref('')
-const csStateSearch  = ref('')
 const csAvailOnly    = ref(false)
 const csRateMax      = ref(0)
 const csRateCustom   = ref(0)
@@ -3235,7 +3210,7 @@ const csSort         = ref('best')
 const designateTarget = ref(null)
 const showDesignateModal = ref(false)
 
-const csGroups = reactive({ specialty: true, state: false, rate: false, sort: false })
+const csGroups = reactive({ specialty: true, rate: false, sort: false })
 
 const csSortOptions = [
   { val: 'best',      label: 'Best Match',        sub: 'Default ordering' },
@@ -3244,18 +3219,10 @@ const csSortOptions = [
   { val: 'newest',    label: 'Newest',             sub: 'Recently joined Aegis' },
 ]
 
-const filteredCsStates = computed(() => {
-  const q = csStateSearch.value.toLowerCase().trim()
-  const states = props.csFilters?.states ?? []
-  if (!q) return states
-  return states.filter(s => s.toLowerCase().includes(q))
-})
 
 function csClearAll() {
   csSearch.value      = ''
   csSpecialty.value   = ''
-  csState.value       = ''
-  csStateSearch.value = ''
   csAvailOnly.value   = false
   csRateMax.value     = 0
   csRateCustom.value  = 0
@@ -3274,8 +3241,6 @@ const filteredCS = computed(() => {
   )
   if (csSpecialty.value)
     list = list.filter(cs => (cs.specialties ?? []).some(s => s.toLowerCase().includes(csSpecialty.value.toLowerCase())))
-  if (csState.value)
-    list = list.filter(cs => (cs.license_state ?? '').toLowerCase() === csState.value.toLowerCase())
   if (csAvailOnly.value)
     list = list.filter(cs => cs.cs_availability)
   if (csRateMax.value > 0)
