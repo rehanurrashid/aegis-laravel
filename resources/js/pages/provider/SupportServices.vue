@@ -1226,6 +1226,14 @@ const activeProposal = computed(() => {
 const showContract = ref(false)
 const activeContract = ref(null)
 
+// Hired contracts — used by ApplicantProfileModal to show which proposals are already hired
+const activeHiredContracts = computed(() =>
+  (props.activeContracts ?? []).filter(c => {
+    const s = val(c.status)
+    return ['active', 'pending_signature', 'pending_funding'].includes(s)
+  })
+)
+
 // ── Review modal — auto-opens on mount when a completed contract has no review yet ──
 // (page = usePage() already declared above near hasPaymentMethod)
 const showReview       = ref(false)
