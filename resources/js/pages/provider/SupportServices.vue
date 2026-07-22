@@ -37,7 +37,9 @@
         <div class="stat-chip-icon" style="background:var(--icon-bg-gold);color:var(--gold-dark)"><AegisIcon name="clock" :size="18" /></div>
         <div><div class="stat-chip-value">{{ stats.pending_proposals }}</div><div class="stat-chip-label">Awaiting Review</div></div>
       </div>
-      <!-- ── Top-level section switcher ──────────────────────────────────── -->
+    </div><!-- /stat-chips-row -->
+
+    <!-- ── Top-level section switcher ──────────────────────────────────── -->
     <div class="ss-section-switcher" role="tablist">
       <button
         type="button" role="tab"
@@ -1560,7 +1562,6 @@ function onUseTemplate(t) {
 .ss-section-btn.active {
   border-color: var(--gold);
   background: var(--badge-bg-gold);
-  box-shadow: 0 0 0 1px var(--gold);
 }
 .ss-section-btn--locked {
   opacity: .5;
