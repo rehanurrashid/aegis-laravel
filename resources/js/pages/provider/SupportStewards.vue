@@ -446,140 +446,253 @@
     <!-- ADD SUPPORT STEWARD — two-tab modal (Chapman decision #13) -->
     <!-- Tab A: existing Aegis user (match by name + email) -->
     <!-- Tab B: external invite (send onboarding email) -->
-    <AegisModal :model-value="isOpen('addDsrStep1Modal').value" title="Add Support Steward" size="lg" @update:model-value="v => !v && closeModal('addDsrStep1Modal')">
+    <AegisModal :model-value="isOpen('addDsrStep1Modal').value" :title="'Add Support Steward — Step ' + addSsStep + ' of 5'" size="lg" @update:model-value="v => !v && closeModal('addDsrStep1Modal')">
 
-      <!-- Flow tabs -->
-      <div style="display:flex;justify-content:center;margin-bottom:20px;">
-      <div class="tabs-segmented" style="margin-bottom:0;" role="tablist">
-        <button type="button" class="tab-pill" :class="{ active: addSsFlow === 'existing' }" @click="addSsFlow = 'existing'">
-          <AegisIcon name="user" :size="13" /> Existing Aegis User
-        </button>
-        <button type="button" class="tab-pill" :class="{ active: addSsFlow === 'external' }" @click="addSsFlow = 'external'">
-          <AegisIcon name="mail" :size="13" /> External Invite
-        </button>
-      </div><!-- /tabs-segmented -->
-      </div><!-- /tabs-center-wrap -->
-
-      <!-- Flow A: existing user — live search with auto-fill -->
-      <div v-show="addSsFlow === 'existing'">
-
-        <!-- Selected user confirmation banner -->
-        <div v-if="searchSelected" style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--badge-bg-gold);border:1px solid var(--gold-dark);border-radius:var(--radius);margin-bottom:16px;">
-          <div style="width:36px;height:36px;border-radius:var(--radius-sm);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            {{ searchSelected.initials }}
+      <!-- Step indicator (same pattern as CS modal) -->
+      <div class="modal-steps" style="margin-bottom:20px;">
+        <div v-for="(s, i) in ssSteps" :key="s.key" style="display:contents;">
+          <div class="modal-step" :class="{ done: addSsStep > i + 1, active: addSsStep === i + 1 }">
+            <div class="modal-step-num">
+              <AegisIcon v-if="addSsStep > i + 1" name="check" :size="12" />
+              <span v-else>{{ i + 1 }}</span>
+            </div>
+            {{ s.label }}
           </div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;font-weight:700;color:var(--text);">{{ searchSelected.display_name }}{{ searchSelected.credentials ? ', ' + searchSelected.credentials : '' }}</div>
-            <div style="font-size:11px;color:var(--text-3);">{{ searchSelected.email }} &middot; <span style="color:var(--gold-dark);font-weight:600;">{{ searchSelected.role_label }}</span></div>
+          <div v-if="i < ssSteps.length - 1" class="modal-step-divider"></div>
+        </div>
+      </div>
+
+      <!-- ══ STEP 1: Find Person ══ -->
+      <div v-if="addSsStep === 1">
+
+        <!-- Flow tabs -->
+        <div style="display:flex;justify-content:center;margin-bottom:20px;">
+          <div class="tabs-segmented" style="margin-bottom:0;" role="tablist">
+            <button type="button" class="tab-pill" :class="{ active: addSsFlow === 'existing' }" @click="addSsFlow = 'existing'">
+              <AegisIcon name="user" :size="13" /> Existing Aegis User
+            </button>
+            <button type="button" class="tab-pill" :class="{ active: addSsFlow === 'external' }" @click="addSsFlow = 'external'">
+              <AegisIcon name="mail" :size="13" /> External Invite
+            </button>
           </div>
-          <button type="button" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;" data-tooltip="Clear selection" @click="clearSelection">
-            <AegisIcon name="x" :size="14" />
-          </button>
         </div>
 
-        <div v-else>
-          <div class="form-group" style="position:relative;">
-            <label class="form-label">Search by Name or Email <span class="required">*</span></label>
-            <div style="position:relative;">
-              <input
-                :value="searchQuery"
-                class="form-input"
-                :class="{ 'is-error': fieldError('display_name') }"
-                type="text"
-                placeholder="Start typing a name or email…"
-                autocomplete="off"
-                @input="onSearchInput($event.target.value)"
-                @blur="v$.inviteForm.display_name.$touch(); hideDropdown()"
-                @focus="showDropdown = searchResults.length > 0"
-              >
-              <div v-if="searchLoading" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);">
-                <span class="spinner spinner-sm" />
+        <!-- Flow A: existing user -->
+        <div v-show="addSsFlow === 'existing'">
+          <div v-if="searchSelected" style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--badge-bg-gold);border:1px solid var(--gold-dark);border-radius:var(--radius);margin-bottom:16px;">
+            <div style="width:36px;height:36px;border-radius:var(--radius-sm);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              {{ searchSelected.initials }}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">{{ searchSelected.display_name }}{{ searchSelected.credentials ? ', ' + searchSelected.credentials : '' }}</div>
+              <div style="font-size:11px;color:var(--text-3);">{{ searchSelected.email }} &middot; <span style="color:var(--gold-dark);font-weight:600;">{{ searchSelected.role_label }}</span></div>
+            </div>
+            <button type="button" style="background:none;border:none;cursor:pointer;color:var(--text-3);padding:4px;" data-tooltip="Clear selection" @click="clearSelection">
+              <AegisIcon name="x" :size="14" />
+            </button>
+          </div>
+          <div v-else>
+            <div class="form-group" style="position:relative;">
+              <label class="form-label">Search by Name or Email <span class="required">*</span></label>
+              <div style="position:relative;">
+                <input
+                  :value="searchQuery"
+                  class="form-input"
+                  :class="{ 'is-error': fieldError('display_name') }"
+                  type="text"
+                  placeholder="Start typing a name or email…"
+                  autocomplete="off"
+                  @input="onSearchInput($event.target.value)"
+                  @blur="v$.inviteForm.display_name.$touch(); hideDropdown()"
+                  @focus="showDropdown = searchResults.length > 0"
+                >
+                <div v-if="searchLoading" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);">
+                  <span class="spinner spinner-sm" />
+                </div>
+              </div>
+              <div v-if="fieldError('display_name')" class="form-error">{{ fieldError('display_name') }}</div>
+              <div v-if="showDropdown && searchResults.length"
+                style="position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);margin-top:2px;max-height:220px;overflow-y:auto;">
+                <div v-for="user in searchResults" :key="user.id"
+                  style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);"
+                  @mousedown.prevent="selectUser(user)"
+                  @mouseover="$event.currentTarget.style.background='var(--surface-2)'"
+                  @mouseleave="$event.currentTarget.style.background=''">
+                  <div style="width:32px;height:32px;border-radius:var(--radius-sm);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    {{ user.initials }}
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:600;color:var(--text);">{{ user.display_name }}{{ user.credentials ? ', ' + user.credentials : '' }}</div>
+                    <div style="font-size:11px;color:var(--text-3);">{{ user.email }}</div>
+                  </div>
+                  <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:var(--gold-dark);flex-shrink:0;">{{ user.role_label }}</span>
+                </div>
+              </div>
+              <div v-if="showDropdown && !searchResults.length && !searchLoading && searchQuery.length >= 2"
+                style="position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);margin-top:2px;padding:14px 12px;font-size:13px;color:var(--text-3);text-align:center;">
+                No Support Stewards found for "{{ searchQuery }}".<br>
+                <span style="font-size:12px;">Try the <strong>External Invite</strong> tab to invite someone new.</span>
               </div>
             </div>
-            <div v-if="fieldError('display_name')" class="form-error">{{ fieldError('display_name') }}</div>
+            <div class="alert alert-info" style="margin-top:4px;">
+              <div class="alert-icon"><AegisIcon name="info" :size="13" /></div>
+              <div style="font-size:12px;">Search finds users with the Support Steward role, or Practitioners who have made themselves available as SS.</div>
+            </div>
+          </div>
+        </div>
 
-            <!-- Dropdown results -->
-            <div v-if="showDropdown && searchResults.length"
-              style="position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);margin-top:2px;max-height:220px;overflow-y:auto;">
-              <div
-                v-for="user in searchResults"
-                :key="user.id"
-                style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);"
-                @mousedown.prevent="selectUser(user)"
-                @mouseover="$event.currentTarget.style.background='var(--surface-2)'"
-                @mouseleave="$event.currentTarget.style.background=''"
-              >
-                <div style="width:32px;height:32px;border-radius:var(--radius-sm);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                  {{ user.initials }}
-                </div>
-                <div style="flex:1;min-width:0;">
-                  <div style="font-size:13px;font-weight:600;color:var(--text);">{{ user.display_name }}{{ user.credentials ? ', ' + user.credentials : '' }}</div>
-                  <div style="font-size:11px;color:var(--text-3);">{{ user.email }}</div>
-                </div>
-                <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:var(--gold-dark);flex-shrink:0;">{{ user.role_label }}</span>
+        <!-- Flow B: external invite -->
+        <div v-show="addSsFlow === 'external'">
+          <div class="alert alert-info" style="margin-bottom:14px">
+            <div class="alert-icon"><AegisIcon name="mail" :size="14" /></div>
+            <div>Send an onboarding invitation to someone who is not yet on Aegis. They will receive an email to create their account and accept your SS invitation.</div>
+          </div>
+          <div class="row-2">
+            <div class="form-group">
+              <label class="form-label">Full Name <span class="required">*</span></label>
+              <input v-model="inviteForm.display_name" class="form-input" :class="{ 'is-error': fieldError('display_name') }" type="text" placeholder="First Last" @blur="v$.inviteForm.display_name.$touch()">
+              <div v-if="fieldError('display_name')" class="form-error">{{ fieldError('display_name') }}</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email Address <span class="required">*</span></label>
+              <input v-model="inviteForm.email" class="form-input" :class="{ 'is-error': fieldError('email') }" type="email" placeholder="email@example.com" @blur="v$.inviteForm.email.$touch()">
+              <div v-if="fieldError('email')" class="form-error">{{ fieldError('email') }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ STEP 2: Role ══ -->
+      <div v-if="addSsStep === 2">
+        <div class="alert alert-info" style="margin-bottom:16px;">
+          <div class="alert-icon"><AegisIcon name="info" :size="14" /></div>
+          <div class="alert-content">
+            <div class="alert-title">Support Steward Role</div>
+            <div style="font-size:12px;">Select the role this person will hold. You can change this later from the steward's settings.</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <div class="role-option" :class="{ selected: inviteForm.role === 'support' }" @click="inviteForm.role = 'support'">
+            <input type="radio" name="dsrRole" value="support" :checked="inviteForm.role === 'support'" style="accent-color:var(--gold-dark)">
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--text)">Support Steward</div>
+              <div style="font-size:12px;color:var(--text-3);margin-top:3px">Supports communication, coordination, and key tasks during a critical moment, guided by your Continuity Plan.</div>
+            </div>
+          </div>
+          <div class="role-option" :class="{ selected: inviteForm.role === 'alternate' }" @click="inviteForm.role = 'alternate'">
+            <input type="radio" name="dsrRole" value="alternate" :checked="inviteForm.role === 'alternate'" style="accent-color:var(--gold-dark)">
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--text)">Alternate Support Steward</div>
+              <div style="font-size:12px;color:var(--text-3);margin-top:3px">Steps in if the primary Support Steward is unavailable.</div>
+            </div>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:14px;">
+          <label class="form-label">Personal Message (Optional)</label>
+          <textarea v-model="inviteForm.message" class="form-input" style="min-height:60px;" placeholder="e.g., I'd like to formally designate you as my Support Steward on Aegis…"></textarea>
+        </div>
+      </div>
+
+      <!-- ══ STEP 3: Approved Critical Incidents ══ -->
+      <div v-if="addSsStep === 3">
+        <div class="alert alert-info"><div class="alert-icon"><AegisIcon name="info" :size="14" /></div><div class="alert-content">Select which critical incidents authorize this Support Steward to act on your behalf.</div></div>
+        <div class="modal-section-label" style="margin-top:14px;">Always-Active Incidents</div>
+        <div class="list-group" style="margin-bottom:16px;">
+          <div v-for="inc in ssAlwaysActiveIncidents" :key="inc.key" class="list-group-item" style="gap:14px;">
+            <span style="flex:1;font-size:13px;font-weight:600;color:var(--text);">{{ inc.label }}</span>
+            <span style="font-size:12px;color:var(--text-4);">Always active</span>
+            <button type="button" class="toggle on" disabled aria-pressed="true" style="opacity:0.45;cursor:not-allowed;"></button>
+          </div>
+        </div>
+        <div class="modal-section-label">Opt-In Incidents</div>
+        <div class="list-group">
+          <div v-for="inc in ssOptInIncidents" :key="inc.key" class="list-group-item" style="gap:14px;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;" :style="inviteForm.incidentActive[inc.key] ? 'font-weight:600;color:var(--text);' : 'color:var(--text-3);'">{{ inc.label }}</div>
+              <div v-if="inviteForm.incidentActive[inc.key]" style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+                <input type="checkbox" :id="'ss_verify_' + inc.key" v-model="inviteForm.incidentVerify[inc.key]" style="accent-color:var(--gold-dark);width:14px;height:14px;" />
+                <label :for="'ss_verify_' + inc.key" style="font-size:12px;color:var(--text-3);cursor:pointer;margin:0;">Require verification</label>
               </div>
             </div>
-
-            <!-- No results -->
-            <div v-if="showDropdown && !searchResults.length && !searchLoading && searchQuery.length >= 2"
-              style="position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);margin-top:2px;padding:14px 12px;font-size:13px;color:var(--text-3);text-align:center;">
-              No Support Stewards found for "{{ searchQuery }}".<br>
-              <span style="font-size:12px;">Try the <strong>External Invite</strong> tab to invite someone new.</span>
-            </div>
-          </div>
-
-          <div class="alert alert-info" style="margin-top:4px;">
-            <div class="alert-icon"><AegisIcon name="info" :size="13" /></div>
-            <div style="font-size:12px;">Search finds users with the Support Steward role, or Practitioners who have made themselves available as SS.</div>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Flow B: external invite -->
-      <div v-show="addSsFlow === 'external'">
-        <div class="alert alert-info" style="margin-bottom:14px">
-          <div class="alert-icon"><AegisIcon name="mail" :size="14" /></div>
-          <div>Send an onboarding invitation to someone who is not yet on Aegis. They will receive an email to create their account and accept your SS invitation.</div>
-        </div>
-        <div class="row-2">
-          <div class="form-group">
-            <label class="form-label">Full Name <span class="required">*</span></label>
-            <input v-model="inviteForm.display_name" class="form-input" :class="{ 'is-error': fieldError('display_name') }" type="text" placeholder="First Last" @blur="v$.inviteForm.display_name.$touch()">
-            <div v-if="fieldError('display_name')" class="form-error">{{ fieldError('display_name') }}</div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Email Address <span class="required">*</span></label>
-            <input v-model="inviteForm.email" class="form-input" :class="{ 'is-error': fieldError('email') }" type="email" placeholder="email@example.com" @blur="v$.inviteForm.email.$touch()">
-            <div v-if="fieldError('email')" class="form-error">{{ fieldError('email') }}</div>
+            <button type="button" class="toggle" :class="{ on: inviteForm.incidentActive[inc.key] }" :aria-pressed="String(!!inviteForm.incidentActive[inc.key])" @click="inviteForm.incidentActive[inc.key] = !inviteForm.incidentActive[inc.key]; if (!inviteForm.incidentActive[inc.key]) inviteForm.incidentVerify[inc.key] = false" style="flex-shrink:0;"></button>
           </div>
         </div>
       </div>
 
-      <!-- Role picker (shared) -->
-      <div class="form-group" style="margin-top:16px">
-        <label class="form-label">Support Steward Role <span class="required">*</span></label>
-        <div class="role-option" :class="{ selected: inviteForm.role === 'support' }" @click="inviteForm.role = 'support'">
-          <input type="radio" name="dsrRole" value="support" :checked="inviteForm.role === 'support'" style="accent-color:var(--gold-dark)">
-          <div>
-            <div style="font-size:13px;font-weight:700;color:var(--text)">Support Steward</div>
-            <div style="font-size:12px;color:var(--text-3);margin-top:3px">Supports communication, coordination, and key tasks during a critical moment, guided by your Continuity Plan.</div>
+      <!-- ══ STEP 4: Responsibilities ══ -->
+      <div v-if="addSsStep === 4">
+        <div class="alert alert-info"><div class="alert-icon"><AegisIcon name="info" :size="14" /></div><div class="alert-content">Review and confirm the responsibilities this Support Steward is expected to carry out.</div></div>
+        <div v-for="section in ssResponsibilityGroups" :key="section.title" style="margin-top:18px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text);">{{ section.title }}</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <label v-for="item in section.items" :key="item" style="display:flex;align-items:flex-start;gap:10px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" checked style="margin-top:2px;accent-color:var(--gold-dark);" />
+              <div>{{ item }}</div>
+            </label>
           </div>
         </div>
-        <div class="role-option" :class="{ selected: inviteForm.role === 'alternate' }" @click="inviteForm.role = 'alternate'">
-          <input type="radio" name="dsrRole" value="alternate" :checked="inviteForm.role === 'alternate'" style="accent-color:var(--gold-dark)">
-          <div>
-            <div style="font-size:13px;font-weight:700;color:var(--text)">Alternate Support Steward</div>
-            <div style="font-size:12px;color:var(--text-3);margin-top:3px">Steps in if the primary Support Steward is unavailable.</div>
-          </div>
+        <div class="form-group" style="margin-top:20px;">
+          <label class="form-label">Special Instructions / Notes</label>
+          <textarea v-model="inviteForm.notes" class="form-input" style="min-height:70px;" placeholder="Any specific instructions, conditions, or context for this Support Steward…"></textarea>
         </div>
       </div>
 
+      <!-- ══ STEP 5: Review & Send ══ -->
+      <div v-if="addSsStep === 5">
+        <div class="alert alert-success"><AegisIcon name="check" :size="14" /><div>Review the agreement below, apply your digital signature, then send.</div></div>
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;font-size:13px;line-height:1.75;color:var(--text-2);margin:14px 0;">
+          <div style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--text);text-align:center;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:10px;">Aegis Support Steward Agreement</div>
+          <p><strong>Support Steward:</strong> {{ searchSelected?.display_name || inviteForm.display_name || '—' }}</p>
+          <p v-if="inviteForm.email"><strong>Email:</strong> {{ inviteForm.email }}</p>
+          <p><strong>Role:</strong> {{ inviteForm.role === 'alternate' ? 'Alternate Support Steward' : 'Support Steward' }}</p>
+          <p><strong>Invitation Expiry:</strong> {{ inviteForm.expires_days }} days</p>
+          <p><strong>Agreement Date:</strong> {{ new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) }}</p>
+          <p style="font-size:11px;color:var(--text-3);margin-top:12px;line-height:1.5;">
+            <AegisIcon name="info" :size="11" />
+            This agreement authorizes the named individual to act as your Support Steward during a verified critical incident. Their access is limited to the responsibilities defined above and your Continuity Plan instructions.
+          </p>
+        </div>
+        <div
+          class="upload-zone"
+          style="cursor:pointer;margin-bottom:14px;"
+          :style="ssSigned ? 'border-color:var(--green);background:var(--green-light,#f0fdf4);' : ''"
+          @click="ssSigned = !ssSigned"
+        >
+          <div class="upload-zone-icon" :style="ssSigned ? 'background:var(--green);border-radius:var(--radius-full);padding:6px;' : ''">
+            <AegisIcon v-if="ssSigned" name="check-circle" :size="20" style="color:#fff;" />
+            <AegisIcon v-else name="pencil" :size="20" />
+          </div>
+          <div class="upload-zone-title" :style="ssSigned ? 'color:var(--green);' : ''">
+            {{ ssSigned ? 'Signature applied — click to remove' : 'Click to apply your digital signature' }}
+          </div>
+          <div class="upload-zone-sub">By signing, you confirm all details above are accurate</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Invitation Expiry</label>
+          <select v-model="inviteForm.expires_days" class="form-input form-select">
+            <option value="30">30 days</option>
+            <option value="14">14 days</option>
+            <option value="7">7 days</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- ── Footer ── -->
       <template #footer>
-        <button class="btn btn-outline" @click="closeModal('addDsrStep1Modal')">Cancel</button>
-        <button class="btn btn-primary" :class="{ 'btn-spin': inviteForm.processing }" :disabled="inviteForm.processing" @click="submitInvite">
-          <AegisIcon name="check" :size="13" /> {{ inviteForm.processing ? 'Sending…' : addSsFlow === 'external' ? 'Send Invitation' : 'Designate as SS' }}
+        <button type="button" class="btn btn-outline" style="display:inline-flex;align-items:center;gap:6px;" @click="ssStepBack">
+          <AegisIcon v-if="addSsStep > 1" name="chevron-left" :size="14" />
+          {{ addSsStep === 1 ? 'Cancel' : 'Back' }}
         </button>
+        <button v-if="addSsStep < 5" type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;" @click="ssStepNext">
+          Next <AegisIcon name="chevron-right" :size="14" />
+        </button>
+        <span v-else :data-tooltip="!ssSigned ? 'Apply your digital signature first' : null" style="display:inline-flex;">
+          <button type="button" class="btn btn-primary" :disabled="inviteForm.processing || !ssSigned" style="display:inline-flex;align-items:center;gap:6px;" @click="submitInvite">
+            <span v-if="inviteForm.processing" class="spinner spinner-sm" />
+            <AegisIcon v-else name="send" :size="14" />
+            {{ inviteForm.processing ? 'Sending…' : addSsFlow === 'external' ? 'Send Invitation' : 'Designate as SS' }}
+          </button>
+        </span>
       </template>
     </AegisModal>
 
@@ -1010,7 +1123,9 @@ function msg(s) { msgSteward(s?.steward_id ?? s?.steward?.id ?? s?.id) }
 // ── Forms (all at top-level of setup) ────────────────────
 const inviteForm = useForm({
   user_id: null, email: '', display_name: '', role: 'support',
-  external: false, expires_days: '30', message: '',
+  external: false, expires_days: '30', message: '', notes: '',
+  incidentActive: { death: true, short_term_incapacitation: true, long_term_incapacitation: true, missing_person: false, detainment: false, natural_disaster: false, geopolitical: false },
+  incidentVerify: { death: false, short_term_incapacitation: false, long_term_incapacitation: false, missing_person: true, detainment: true, natural_disaster: true, geopolitical: true },
 })
 const editForm = useForm({
   display_name: '', credentials: '', relationship: '', phone: '', email: '', role: 'support', notes: '',
@@ -1020,6 +1135,49 @@ const resendForm    = useForm({ expires_days: '30', message: '' })
 
 
 const addSsFlow      = ref('existing') // 'existing' | 'external'
+const addSsStep      = ref(1)
+const ssSigned       = ref(false)
+
+const ssSteps = [
+  { key: 'find',            label: 'Find Person' },
+  { key: 'role',            label: 'Role' },
+  { key: 'incidents',       label: 'Critical Incidents' },
+  { key: 'responsibilities', label: 'Responsibilities' },
+  { key: 'send',            label: 'Send' },
+]
+
+const ssAlwaysActiveIncidents = [
+  { key: 'death',                     label: 'Death' },
+  { key: 'short_term_incapacitation', label: 'Short-Term Incapacitation' },
+  { key: 'long_term_incapacitation',  label: 'Long-Term Incapacitation' },
+]
+const ssOptInIncidents = [
+  { key: 'missing_person', label: 'Missing Person' },
+  { key: 'detainment',     label: 'Detainment' },
+  { key: 'natural_disaster', label: 'Natural Disaster' },
+  { key: 'geopolitical',   label: 'Geopolitical or Conflict-Related Events' },
+]
+const ssResponsibilityGroups = [
+  { title: 'Communication & Coordination', items: ['Notify active clients of the change in practice continuity', 'Coordinate with practice staff and active stakeholders', 'Relay communications between the practitioner and their professional network'] },
+  { title: 'Administrative Support', items: ['Access and follow the Continuity Plan stored in the Document Vault', 'Assist with scheduling transitions, session cancellations, and referrals', 'Support documentation and records handoff in a confidential manner'] },
+  { title: 'Regulatory & Operational Liaison', items: ['Coordinate with the Continuity Steward and designated legal contacts', 'Support notifications to licensing boards or malpractice carrier as directed', 'Assist in transitioning vendor relationships and practice operations'] },
+]
+
+async function ssStepNext() {
+  if (addSsStep.value === 1) {
+    v$.value.inviteForm.display_name.$touch()
+    if (addSsFlow.value === 'external') v$.value.inviteForm.email.$touch()
+    if (v$.value.inviteForm.display_name.$error) return
+    if (addSsFlow.value === 'external' && v$.value.inviteForm.email.$error) return
+    if (!inviteForm.user_id && !inviteForm.email.trim() && !inviteForm.display_name.trim()) return
+  }
+  if (addSsStep.value === 2 && !inviteForm.role) return
+  addSsStep.value = Math.min(addSsStep.value + 1, 5)
+}
+function ssStepBack() {
+  if (addSsStep.value <= 1) { closeModal('addDsrStep1Modal'); return }
+  addSsStep.value = Math.max(addSsStep.value - 1, 1)
+}
 
 // ── User search state (Existing Aegis User flow) ──────────────────────────
 const searchQuery    = ref('')
@@ -1127,6 +1285,8 @@ async function submitInvite() {
       closeModal('addDsrStep1Modal')
       inviteForm.reset()
       addSsFlow.value = 'existing'
+      addSsStep.value = 1
+      ssSigned.value = false
       searchQuery.value = ''
       searchResults.value = []
       searchSelected.value = null
