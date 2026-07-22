@@ -449,7 +449,7 @@
     <AegisModal :model-value="isOpen('addDsrStep1Modal').value" title="Add Support Steward" size="lg" @update:model-value="v => !v && closeModal('addDsrStep1Modal')">
 
       <!-- Flow tabs -->
-      <div class="tabs-segmented" style="margin-bottom:20px" role="tablist">
+      <div class="tabs-segmented" style="margin-bottom:20px;justify-content:center;" role="tablist">
         <button type="button" class="tab-pill" :class="{ active: addSsFlow === 'existing' }" @click="addSsFlow = 'existing'">
           <AegisIcon name="user" :size="13" /> Existing Aegis User
         </button>
