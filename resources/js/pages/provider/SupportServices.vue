@@ -727,6 +727,9 @@
           My Bookings
           <span v-if="psClientBadge()" class="tab-count">{{ psClientBadge() }}</span>
         </button>
+        <button class="tab-primary" :class="{ active: psTab === 'ps-help' }" role="tab" @click="psTab = 'ps-help'">
+          <AegisIcon name="info" :size="14" /> How It Works
+        </button>
       </div>
 
       <!-- ── Browse ──────────────────────────────────────────────────────── -->
@@ -951,6 +954,55 @@
         <ReviewRefundRequestModal v-model="psModals.reviewRefund" :refund-request="psActiveRefund" @success="psActiveRefund = null" />
       </div>
 
+      <!-- ── How It Works ────────────────────────────────────────────────── -->
+      <div v-show="psTab === 'ps-help'">
+        <div class="hiw-intro">
+          You can book clinical services from other practitioners on Aegis — supervision, consultation, training and coaching. You and the provider agree on payment terms upfront; all payments go directly to the provider via Stripe. Aegis does not hold your funds.
+        </div>
+        <div class="hiw-steps">
+          <div class="hiw-step">
+            <div class="hiw-step-icon hiw-step-icon--1">1</div>
+            <div class="hiw-step-body">
+              <div class="hiw-step-title">Find &amp; request a service</div>
+              <div class="hiw-step-desc">Use <strong>Browse Services</strong> to find practitioners offering supervision, consultation, training and coaching. Click <em>Request</em> on any listing, choose a preferred date and time, review the payment terms, and send your request.</div>
+            </div>
+          </div>
+          <div class="hiw-step">
+            <div class="hiw-step-icon hiw-step-icon--2">2</div>
+            <div class="hiw-step-body">
+              <div class="hiw-step-title">Wait for the provider to respond</div>
+              <div class="hiw-step-desc">Track your requests in <strong>My Requests</strong>. The provider typically responds within 72 hours — they may accept, counter-propose different terms or a different date, or decline.</div>
+            </div>
+          </div>
+          <div class="hiw-step">
+            <div class="hiw-step-icon hiw-step-icon--3">3</div>
+            <div class="hiw-step-body">
+              <div class="hiw-step-title">Pay to confirm the session</div>
+              <div class="hiw-step-desc">Once accepted, you'll be prompted to pay based on the agreed terms — the full amount, a split upfront portion, or nothing until after the session (if the provider allows it). Payment goes <strong>directly to the provider's Stripe account</strong>. Add a payment method under <strong>Settings → Billing</strong> first.</div>
+            </div>
+          </div>
+          <div class="hiw-step">
+            <div class="hiw-step-icon hiw-step-icon--4">4</div>
+            <div class="hiw-step-body">
+              <div class="hiw-step-title">Confirm the session is complete</div>
+              <div class="hiw-step-desc">After your session, go to <strong>My Bookings</strong> and confirm it took place. Depending on your agreed terms: if you split the payment, the completion portion charges now; if you agreed to pay in full after, the full amount charges now; if you already paid in full, nothing further is due.</div>
+            </div>
+          </div>
+          <div class="hiw-step">
+            <div class="hiw-step-icon hiw-step-icon--5">5</div>
+            <div class="hiw-step-body">
+              <div class="hiw-step-title">Request a refund if needed</div>
+              <div class="hiw-step-desc">If there was an issue, open the session from <strong>My Bookings</strong> and request a refund — for the upfront portion, the completion portion, or the full amount. The provider has <strong>5 days</strong> to respond. If denied, you can escalate to a formal dispute reviewed by Aegis admin.</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:20px">
+          <button class="btn btn-primary" @click="psTab = 'ps-browse'">
+            <AegisIcon name="search" :size="13" /> Browse Services
+          </button>
+        </div>
+      </div>
+
     </div><!-- /section ps -->
 
   </AppLayout>
@@ -1028,7 +1080,13 @@ const isPracticeTier = computed(() => props.psTier === 'practice')
 const section = ref('bp')
 onMounted(() => {
   const s = new URLSearchParams(window.location.search).get('section')
-  if (s === 'ps' && isPracticeTier.value) section.value = 'ps'
+  if (s === 'ps' && isPracticeTier.value) {
+    section.value = 'ps'
+    const pt = new URLSearchParams(window.location.search).get('ps_tab')
+    if (pt && ['ps-browse','ps-requests','ps-bookings','ps-help'].includes(pt)) {
+      psTab.value = pt
+    }
+  }
 })
 
 const tab = ref('my-postings')
@@ -2361,4 +2419,40 @@ a.ps-req-provider-name:hover { text-decoration: underline; }
   gap: 10px;
   flex-shrink: 0;
 }
+
+/* ── Reuse HIW styles from Services.vue ─────────────────────────────────── */
+.hiw-intro {
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.6;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: var(--badge-bg-gold);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--gold);
+}
+.hiw-steps { display: flex; flex-direction: column; gap: 0; }
+.hiw-step {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.hiw-step:last-child { border-bottom: none; }
+.hiw-step-icon {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+}
+.hiw-step-icon--1,
+.hiw-step-icon--2,
+.hiw-step-icon--3,
+.hiw-step-icon--4,
+.hiw-step-icon--5 { background: var(--badge-bg-gold); color: var(--gold-dark); }
+.hiw-step-body { min-width: 0; }
+.hiw-step-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.hiw-step-desc  { font-size: 12px; color: var(--text-3); line-height: 1.6; }
+.hiw-step-desc strong { color: var(--text-2); font-weight: 700; }
+.hiw-step-desc em { color: var(--gold-dark); font-style: normal; font-weight: 600; }
 </style>

@@ -118,21 +118,20 @@
           <button
             type="button"
             class="page-sidebar-item"
-            data-tooltip="Learn how accepting requests and receiving session payments works"
+            data-tooltip="Learn how to offer services, manage requests and get paid"
             @click="modals.howItWorksProvider = true"
           >
             <span class="page-sidebar-icon"><AegisIcon name="info" :size="15" /></span>
-            As a Provider
+            How It Works
           </button>
-          <button
-            type="button"
+          <a
+            href="/provider/support-services?section=ps&ps_tab=ps-help"
             class="page-sidebar-item"
-            data-tooltip="Book peer services via Support &amp; Services in the main navigation"
-            @click="modals.howItWorksClient = true"
+            data-tooltip="Go to Support &amp; Services to browse and book peer services"
           >
-            <span class="page-sidebar-icon"><AegisIcon name="info" :size="15" /></span>
-            As a Client
-          </button>
+            <span class="page-sidebar-icon"><AegisIcon name="search" :size="15" /></span>
+            Browse Peer Services
+          </a>
         </div>
 
       </nav>
@@ -863,6 +862,63 @@
       </div><!-- /svc-content -->
     </div><!-- /svc-layout -->
 
+    <!-- ── How It Works — As a Provider ─────────────────────────────────── -->
+    <AegisModal v-model="modals.howItWorksProvider" title="How It Works — As a Provider" size="lg">
+      <div class="hiw-intro">
+        You can offer clinical services — supervision, consultation, training, coaching — to other practitioners on Aegis. You set the default payment terms on each listing; clients may accept them or propose different terms. All payments go <strong>directly to your Stripe account</strong>.
+      </div>
+      <div class="hiw-steps">
+        <div class="hiw-step">
+          <div class="hiw-step-icon hiw-step-icon--1">1</div>
+          <div class="hiw-step-body">
+            <div class="hiw-step-title">Create a listing</div>
+            <div class="hiw-step-desc">Go to <strong>My Listings</strong> and publish a service. Set your title, category, price, format (virtual/in-person), availability, and default payment terms. Your listing appears in <strong>Support &amp; Services → Practitioner Support</strong> for other practitioners to find.</div>
+          </div>
+        </div>
+        <div class="hiw-step">
+          <div class="hiw-step-icon hiw-step-icon--2">2</div>
+          <div class="hiw-step-body">
+            <div class="hiw-step-title">Receive &amp; respond to requests</div>
+            <div class="hiw-step-desc">When a practitioner requests your service, it appears in <strong>Incoming Requests</strong>. Review their message, preferred date and credentials. Accept, send a counter-proposal, or decline. You can negotiate payment terms at accept time.</div>
+          </div>
+        </div>
+        <div class="hiw-step">
+          <div class="hiw-step-icon hiw-step-icon--3">3</div>
+          <div class="hiw-step-body">
+            <div class="hiw-step-title">Client pays the agreed upfront amount</div>
+            <div class="hiw-step-desc">Once you accept, the client pays based on the agreed terms — full payment, a split upfront portion, or nothing until after the session. Funds transfer <strong>directly to your Stripe Connect account</strong>. Aegis never holds your money.</div>
+          </div>
+        </div>
+        <div class="hiw-step">
+          <div class="hiw-step-icon hiw-step-icon--4">4</div>
+          <div class="hiw-step-body">
+            <div class="hiw-step-title">Client confirms complete — final payment collects</div>
+            <div class="hiw-step-desc">The client confirms the session from their <strong>My Bookings</strong>. Depending on agreed terms, the completion portion charges automatically (or nothing further if they already paid in full). Funds go straight to your Stripe account.</div>
+          </div>
+        </div>
+        <div class="hiw-step">
+          <div class="hiw-step-icon hiw-step-icon--5">5</div>
+          <div class="hiw-step-body">
+            <div class="hiw-step-title">Approve or deny refund requests</div>
+            <div class="hiw-step-desc">If a client requests a refund, you have <strong>5 days</strong> to respond. Approving issues a Stripe refund immediately. Denying lets the client escalate to a formal dispute reviewed by an Aegis admin.</div>
+          </div>
+        </div>
+        <div class="hiw-step">
+          <div class="hiw-step-icon hiw-step-icon--6">★</div>
+          <div class="hiw-step-body">
+            <div class="hiw-step-title">Connect Stripe to receive payouts</div>
+            <div class="hiw-step-desc">Go to <strong>Settings → My Services</strong> to complete Stripe Connect Express onboarding. You must be connected before clients can pay you.</div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <button class="btn btn-outline" @click="modals.howItWorksProvider = false">Close</button>
+        <button class="btn btn-primary" @click="modals.howItWorksProvider = false; activeTab = 'listings'">
+          <AegisIcon name="grid" :size="13" /> View My Listings
+        </button>
+      </template>
+    </AegisModal>
+
   </AppLayout>
 </template>
 
@@ -954,7 +1010,6 @@ const modals = reactive({
   outgoingDetail: false,
   requestDetail: false,
   howItWorksProvider: false,
-  howItWorksClient: false,
 })
 
 // ── Active item tracking ──────────────────────────────────────────────────────
