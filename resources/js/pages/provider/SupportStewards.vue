@@ -514,9 +514,11 @@
               <div v-if="showDropdown && searchResults.length"
                 style="position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);margin-top:2px;max-height:220px;overflow-y:auto;">
                 <div v-for="user in searchResults" :key="user.id"
-                  style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);"
+                  :style="designatedMap[user.id]
+                    ? 'display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);cursor:not-allowed;opacity:0.55;'
+                    : 'display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;'"
                   @mousedown.prevent="selectUser(user)"
-                  @mouseover="$event.currentTarget.style.background='var(--surface-2)'"
+                  @mouseover="!designatedMap[user.id] && ($event.currentTarget.style.background='var(--surface-2)')"
                   @mouseleave="$event.currentTarget.style.background=''">
                   <div style="width:32px;height:32px;border-radius:var(--radius-sm);background:var(--gold-dark);color:var(--text-inverted);font-family:var(--font-serif);font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                     {{ user.initials }}
@@ -525,7 +527,8 @@
                     <div style="font-size:13px;font-weight:600;color:var(--text);">{{ user.display_name }}{{ user.credentials ? ', ' + user.credentials : '' }}</div>
                     <div style="font-size:11px;color:var(--text-3);">{{ user.email }}</div>
                   </div>
-                  <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:var(--gold-dark);flex-shrink:0;">{{ user.role_label }}</span>
+                  <span v-if="designatedMap[user.id]" style="font-size:10px;font-weight:600;letter-spacing:0.2px;color:var(--text-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:2px 7px;flex-shrink:0;">Already designated</span>
+                  <span v-else style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;color:var(--gold-dark);flex-shrink:0;">{{ user.role_label }}</span>
                 </div>
               </div>
               <div v-if="showDropdown && !searchResults.length && !searchLoading && searchQuery.length >= 2"
@@ -998,6 +1001,17 @@ const pendingCount = computed(() => props.pending.length + props.invited.length)
 const rosterCount  = computed(() => props.stewards.length)
 const atLimit      = computed(() => props.ssCount >= props.ssMax)
 
+// Build a map of steward_id -> human role label for users already on the plan
+// (active, pending, or invited). Used to block re-designation in the search flow.
+const designatedMap = computed(() => {
+  const map = {}
+  ;[...props.stewards, ...props.pending, ...props.invited].forEach(s => {
+    if (!s.steward_id) return
+    map[s.steward_id] = s.role === 'alternate' ? 'Alternate Support Steward' : 'Primary Support Steward'
+  })
+  return map
+})
+
 // ── SS Availability (I'm SS For tab) ─────────────────────
 const availableAsSsToggle = ref(props.availableAsSs ?? false)
 const ssSaved = ref(false)
@@ -1207,7 +1221,13 @@ function onSearchInput(val) {
 }
 
 function selectUser(user) {
-  searchSelected.value = user
+  const alreadyRole = designatedMap.value[user.id]
+  if (alreadyRole) {
+    toast.error(`${user.display_name} is already designated as your ${alreadyRole}. Remove them first to re-designate.`)
+    showDropdown.value = false
+    return
+  }
+  searchSelected.value    = user
   inviteForm.user_id      = user.id
   inviteForm.display_name = user.display_name
   inviteForm.email        = user.email
