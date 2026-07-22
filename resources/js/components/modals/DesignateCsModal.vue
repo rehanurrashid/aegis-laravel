@@ -40,23 +40,15 @@
     <div v-if="!preselectedUser && step === 1" style="margin-top:4px;">
 
       <!-- Tab switcher -->
-      <div class="segment-control" style="margin-bottom:20px;">
-        <button
-          type="button"
-          class="segment-btn"
-          :class="{ active: addCsFlow === 'existing' }"
-          @click="addCsFlow = 'existing'; clearSelection()"
-        >
-          <AegisIcon name="user" :size="14" /> Existing Aegis User
-        </button>
-        <button
-          type="button"
-          class="segment-btn"
-          :class="{ active: addCsFlow === 'external' }"
-          @click="addCsFlow = 'external'; clearSelection()"
-        >
-          <AegisIcon name="mail" :size="14" /> External Invite
-        </button>
+      <div style="display:flex;justify-content:center;margin-bottom:20px;">
+        <div class="tabs-segmented" style="margin-bottom:0;" role="tablist">
+          <button type="button" class="tab-pill" :class="{ active: addCsFlow === 'existing' }" @click="addCsFlow = 'existing'; clearSelection()">
+            <AegisIcon name="user" :size="13" /> Existing Aegis User
+          </button>
+          <button type="button" class="tab-pill" :class="{ active: addCsFlow === 'external' }" @click="addCsFlow = 'external'; clearSelection()">
+            <AegisIcon name="mail" :size="13" /> External Invite
+          </button>
+        </div>
       </div>
 
       <!-- ── TAB A: existing Aegis user ── -->
