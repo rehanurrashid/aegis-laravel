@@ -834,51 +834,49 @@
         </AegisEmptyState>
 
         <template v-else>
-          <div class="sic-table-wrap" style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
-            <table class="sic-table">
-              <thead>
-                <tr>
-                  <th class="sic-th">Provider</th>
-                  <th class="sic-th">Service</th>
-                  <th class="sic-th">Status</th>
-                  <th class="sic-th"></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="r in props.psOutgoingRequests"
-                  :key="r.id"
-                  class="orq-row"
-                  :class="[`orq-row--${r.status}`, { 'orq-row--countered': r.status === 'countered' }]"
-                  @click="psActiveOutgoing = r; psOutgoingDetail = true"
-                >
-                  <td class="sic-td orq-td--provider">
-                    <div class="sic-party">
-                      <div class="sic-avatar">
-                        <span class="sic-avatar-initials">{{ r.provider_avatar || psInitials(r.provider_name) }}</span>
-                      </div>
-                      <div class="sic-party-info">
-                        <a v-if="r.provider_slug" :href="`/public/provider/${r.provider_slug}`" class="sic-party-name" @click.stop>{{ r.provider_name }}</a>
-                        <span v-else class="sic-party-name">{{ r.provider_name }}</span>
-                        <span class="sic-date-sub">{{ r.provider_detail }}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="sic-td orq-td--service">
-                    <div class="orq-service-title">{{ r.service_title }}</div>
-                    <div class="sic-date-sub">{{ r.request_type }} · {{ r.time_label }}</div>
-                  </td>
-                  <td class="sic-td orq-td--status">
-                    <AegisBadge :label="psStatusLabel(r.status)" :variant="psStatusVariant(r.status)" />
-                  </td>
-                  <td class="sic-td orq-td--actions">
-                    <button type="button" class="btn-icon" @click.stop="psActiveOutgoing = r; psOutgoingDetail = true">
-                      <AegisIcon name="chevron-right" :size="15" />
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <!-- Section header -->
+          <div class="ps-req-header">
+            <div class="ps-req-title">
+              <AegisIcon name="send" :size="15" />
+              {{ props.psOutgoingRequests.length }} request{{ props.psOutgoingRequests.length !== 1 ? 's' : '' }} sent
+            </div>
+          </div>
+
+          <!-- Requests list -->
+          <div class="ps-req-list">
+            <div
+              v-for="r in props.psOutgoingRequests"
+              :key="r.id"
+              class="ps-req-row"
+              :class="`ps-req-row--${r.status}`"
+              @click="psActiveOutgoing = r; psOutgoingDetail = true"
+            >
+              <!-- Left: status stripe + avatar + names -->
+              <div class="ps-req-provider">
+                <div class="sic-avatar">
+                  <span class="sic-avatar-initials">{{ r.provider_avatar || psInitials(r.provider_name) }}</span>
+                </div>
+                <div class="ps-req-provider-info">
+                  <a v-if="r.provider_slug" :href="`/public/provider/${r.provider_slug}`" class="ps-req-provider-name" @click.stop>{{ r.provider_name }}</a>
+                  <span v-else class="ps-req-provider-name">{{ r.provider_name }}</span>
+                  <span class="ps-req-provider-cred">{{ r.provider_detail }}</span>
+                </div>
+              </div>
+
+              <!-- Center: service -->
+              <div class="ps-req-service">
+                <div class="ps-req-service-title">{{ r.service_title }}</div>
+                <div class="ps-req-service-meta">{{ r.request_type }} · {{ r.time_label }}</div>
+              </div>
+
+              <!-- Right: badge + chevron -->
+              <div class="ps-req-actions">
+                <AegisBadge :label="psStatusLabel(r.status)" :variant="psStatusVariant(r.status)" />
+                <button type="button" class="btn-icon" @click.stop="psActiveOutgoing = r; psOutgoingDetail = true">
+                  <AegisIcon name="chevron-right" :size="15" />
+                </button>
+              </div>
+            </div>
           </div>
         </template>
 
@@ -2273,5 +2271,94 @@ function onUseTemplate(t) {
   .help-escrow-diagram { flex-direction: column; }
   .help-grid-2 { grid-template-columns: 1fr; }
   .help-grid-3 { grid-template-columns: 1fr; }
+}
+
+/* ── PS My Requests list ─────────────────────────────────────────────────── */
+.ps-req-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.ps-req-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.ps-req-list {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+.ps-req-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.ps-req-row:last-child { border-bottom: none; }
+.ps-req-row:hover     { background: var(--surface-2); }
+.ps-req-row--new        { border-left-color: var(--gold-dark); }
+.ps-req-row--accepted   { border-left-color: var(--green); }
+.ps-req-row--declined   { border-left-color: var(--red, #ef4444); }
+.ps-req-row--countered  { border-left-color: var(--blue, #3b82f6); }
+.ps-req-row--withdrawn  { border-left-color: var(--border-dark); opacity: .65; }
+
+.ps-req-provider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 220px;
+  min-width: 0;
+}
+.ps-req-provider-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ps-req-provider-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold-dark);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+a.ps-req-provider-name:hover { text-decoration: underline; }
+.ps-req-provider-cred {
+  font-size: 11px;
+  color: var(--text-4);
+  margin-top: 1px;
+}
+
+.ps-req-service {
+  flex: 1;
+  min-width: 0;
+}
+.ps-req-service-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.ps-req-service-meta {
+  font-size: 11px;
+  color: var(--text-4);
+}
+
+.ps-req-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 </style>
