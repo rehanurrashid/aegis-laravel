@@ -45,7 +45,7 @@
         <div class="alert-title">{{ docStats.pending_my_sig }} Agreement{{ docStats.pending_my_sig !== 1 ? 's' : '' }} Require Your Signature</div>
         <div>Review agreements that are pending your signature.</div>
         <div style="margin-top:10px">
-          <button class="btn btn-primary" @click="activeTab = 'pending_sign'">
+          <button class="btn btn-primary" @click="setActiveTab('pending_sign')">
             <AegisIcon name="pen-tool" :size="13" /> View Pending
           </button>
         </div>
@@ -60,32 +60,32 @@
 
         <div class="page-sidebar-group">
           <div class="page-sidebar-label">Documents</div>
-          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'all' }" @click="activeTab = 'all'">
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'all' }" @click="setActiveTab('all')">
             <span class="page-sidebar-icon"><AegisIcon name="file-text" :size="15" /></span>
             All Documents
             <span v-if="menuBadges.all > 0" class="page-sidebar-badge">{{ menuBadges.all }}</span>
           </button>
-          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'pending_sign' }" @click="activeTab = 'pending_sign'">
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'pending_sign' }" @click="setActiveTab('pending_sign')">
             <span class="page-sidebar-icon"><AegisIcon name="pen-tool" :size="15" /></span>
             Pending My Signature
             <span v-if="menuBadges.pending_sign > 0" class="page-sidebar-badge">{{ menuBadges.pending_sign }}</span>
           </button>
-          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'countersign' }" @click="activeTab = 'countersign'">
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'countersign' }" @click="setActiveTab('countersign')">
             <span class="page-sidebar-icon"><AegisIcon name="clock" :size="15" /></span>
             Awaiting Countersig.
             <span v-if="menuBadges.countersign > 0" class="page-sidebar-badge">{{ menuBadges.countersign }}</span>
           </button>
-          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'active' }" @click="activeTab = 'active'">
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'active' }" @click="setActiveTab('active')">
             <span class="page-sidebar-icon"><AegisIcon name="check-circle" :size="15" /></span>
             Active &amp; Signed
             <span v-if="menuBadges.active > 0" class="page-sidebar-badge">{{ menuBadges.active }}</span>
           </button>
-          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'expiring' }" @click="activeTab = 'expiring'">
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'expiring' }" @click="setActiveTab('expiring')">
             <span class="page-sidebar-icon"><AegisIcon name="calendar" :size="15" /></span>
             Expiring Soon
             <span v-if="menuBadges.expiring > 0" class="page-sidebar-badge">{{ menuBadges.expiring }}</span>
           </button>
-          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'archived' }" @click="activeTab = 'archived'">
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'archived' }" @click="setActiveTab('archived')">
             <span class="page-sidebar-icon"><AegisIcon name="archive" :size="15" /></span>
             Archived
           </button>
@@ -93,12 +93,12 @@
 
         <div class="page-sidebar-group">
           <div class="page-sidebar-label">Supporting Documents</div>
-          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'amendments' }" @click="activeTab = 'amendments'">
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'amendments' }" @click="setActiveTab('amendments')">
             <span class="page-sidebar-icon"><AegisIcon name="edit" :size="15" /></span>
             Amendments
             <span v-if="menuBadges.amendments > 0" class="page-sidebar-badge">{{ menuBadges.amendments }}</span>
           </button>
-          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'supporting' }" @click="activeTab = 'supporting'">
+          <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'supporting' }" @click="setActiveTab('supporting')">
             <span class="page-sidebar-icon"><AegisIcon name="upload" :size="15" /></span>
             Uploaded Files
             <span v-if="menuBadges.supporting > 0" class="page-sidebar-badge">{{ menuBadges.supporting }}</span>
@@ -130,8 +130,24 @@
       <!-- MAIN CONTENT -->
       <div class="doc-content">
 
-        <!-- FILTER BAR (not shown for supporting/templates tabs) -->
-        <div v-if="showFilterBar" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:center">
+        <!-- PARTY CATEGORY PILL ROW (shown on all document list views) -->
+        <div v-if="showDocList" class="doc-party-pills" role="tablist" aria-label="Filter by party">
+          <button
+            v-for="pill in partyPills"
+            :key="pill.key"
+            type="button"
+            role="tab"
+            class="tab-pill"
+            :class="{ active: categoryFilter === pill.key }"
+            @click="setCategoryFilter(pill.key)"
+          >
+            {{ pill.label }}
+            <span class="badge-pill">{{ livePillCounts[pill.key] ?? 0 }}</span>
+          </button>
+        </div>
+
+        <!-- SEARCH / TYPE FILTER BAR -->
+        <div v-if="showFilterBar" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
           <div class="input-group" style="min-width:220px;max-width:320px;flex:1">
             <span class="input-group-icon"><AegisIcon name="search" :size="14" /></span>
             <input class="form-input form-input-sm" type="text" v-model="searchQ" placeholder="Search agreements..." />
@@ -145,10 +161,6 @@
             <option value="SLA">SLA</option>
             <option value="BAA">BAA</option>
             <option value="ICA">ICA</option>
-          </select>
-          <select class="form-select form-select-sm" v-model="partyFilter" style="max-width:200px">
-            <option value="">All Parties</option>
-            <option v-for="s in props.stewards" :key="s.id" :value="s.id">{{ s.name }}</option>
           </select>
         </div>
 
@@ -170,8 +182,22 @@
           </div>
 
           <div class="ag-list">
+            <!-- Party-filtered empty state -->
+            <div v-if="filteredDocs.length === 0 && categoryFilter" class="card" style="padding:28px 24px;text-align:center">
+              <div style="color:var(--text-4);margin-bottom:10px"><AegisIcon name="filter" :size="24" /></div>
+              <div style="font-family:var(--font-serif);font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">
+                No {{ partyPills.find(p => p.key === categoryFilter)?.label }} Documents
+              </div>
+              <div style="font-size:13px;color:var(--text-3);margin-bottom:16px">
+                No documents match this party combination within the current view.
+              </div>
+              <button class="btn btn-outline" @click="setCategoryFilter('')">
+                <AegisIcon name="x" :size="13" /> Clear Party Filter
+              </button>
+            </div>
+            <!-- Default empty state -->
             <AegisEmptyState
-              v-if="filteredDocs.length === 0"
+              v-else-if="filteredDocs.length === 0"
               icon="file-text"
               :title="emptyTitle"
               :subtitle="emptySubtitle"
@@ -1127,7 +1153,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { usePage, router }   from '@inertiajs/vue3'
 import AppLayout             from '@/layouts/AppLayout.vue'
 import AegisDropzone         from '@/components/ui/AegisDropzone.vue'
@@ -1143,6 +1169,7 @@ const props = defineProps({
   supportingDocs:     { type: Array,   default: () => [] },
   docStats:           { type: Object,  default: () => ({ total:0, pending_my_sig:0, awaiting_counter:0, expiring:0, active:0, archived:0 }) },
   menuBadges:         { type: Object,  default: () => ({}) },
+  partyCounts:        { type: Object,  default: () => ({ all:0, pe:0, pd:0, de:0, tri:0 }) },
   stewards:           { type: Array,   default: () => [] },
   planStatus:         { type: String,  default: null },
   annualReviewDate:   { type: String,  default: null },
@@ -1158,12 +1185,73 @@ const page = usePage()
 const providerName = computed(() => page.props.auth?.user?.display_name || 'Provider')
 
 // ── Navigation state ────────────────────────────────────────────────────────
-const activeTab   = ref('all')
-const searchQ     = ref('')
-const typeFilter  = ref('')
-const partyFilter = ref('')
-const activeDocId = ref(null)
-const activeDoc   = computed(() => props.documents.find(d => d.id === activeDocId.value) ?? null)
+// Read initial values from URL params so back-button / share links work
+const _urlParams    = new URLSearchParams(window.location.search)
+const activeTab     = ref(_urlParams.get('category') || 'all')
+const categoryFilter = ref(_urlParams.get('party') || '')   // pe | pd | de | tri | ''
+const searchQ       = ref('')
+const typeFilter    = ref('')
+const activeDocId   = ref(null)
+const activeDoc     = computed(() => props.documents.find(d => d.id === activeDocId.value) ?? null)
+
+// Pill definitions
+const partyPills = [
+  { key: '',    label: 'All' },
+  { key: 'pe',  label: 'Provider & CS' },
+  { key: 'pd',  label: 'Provider & SS' },
+  { key: 'de',  label: 'SS & CS' },
+  { key: 'tri', label: 'Tri-Party' },
+]
+
+// Live pill counts — computed from the CURRENT sidebar-filtered set (client-side)
+// This gives instant counts without a round-trip; controller also sends partyCounts
+// for the initial load (which may differ if sidebar is not 'all')
+const livePillCounts = computed(() => {
+  const base = sidebarFilteredDocs.value
+  return {
+    '':    base.length,
+    pe:    base.filter(d => d.category === 'pe').length,
+    pd:    base.filter(d => d.category === 'pd').length,
+    de:    base.filter(d => d.category === 'de').length,
+    tri:   base.filter(d => d.category === 'tri').length,
+  }
+})
+
+// Sync URL params when sidebar tab or category filter changes
+function syncUrl() {
+  const params = new URLSearchParams(window.location.search)
+  if (activeTab.value && activeTab.value !== 'all') {
+    params.set('category', activeTab.value)
+  } else {
+    params.delete('category')
+  }
+  if (categoryFilter.value) {
+    params.set('party', categoryFilter.value)
+  } else {
+    params.delete('party')
+  }
+  const newUrl = params.toString()
+    ? `${window.location.pathname}?${params.toString()}`
+    : window.location.pathname
+  window.history.replaceState({}, '', newUrl)
+}
+
+watch(activeTab, () => {
+  categoryFilter.value = ''   // reset party filter on sidebar change
+  syncUrl()
+})
+watch(categoryFilter, syncUrl)
+
+// Also sync sidebar clicks to Inertia so partyCounts refreshes from server
+// (lightweight reload of just props — preserveScroll, preserveState)
+function setActiveTab(tab) {
+  activeTab.value = tab
+  router.reload({ only: ['documents', 'partyCounts', 'menuBadges', 'docStats'], preserveScroll: true, preserveState: true })
+}
+
+function setCategoryFilter(key) {
+  categoryFilter.value = key
+}
 
 // ── Busy flags ───────────────────────────────────────────────────────────────
 const signBusy      = ref(false)
@@ -1226,11 +1314,10 @@ const emptySubtitle = computed(() => {
   return map[activeTab.value] || ''
 })
 
-// ── Document filtering ───────────────────────────────────────────────────────
-const filteredDocs = computed(() => {
+// ── Document filtering — two-stage ───────────────────────────────────────────
+// Stage 1: sidebar status filter (drives pill counts)
+const sidebarFilteredDocs = computed(() => {
   let docs = props.documents
-
-  // Tab filter
   if (activeTab.value === 'pending_sign') {
     docs = docs.filter(d => d.status === 'pending_sign')
   } else if (activeTab.value === 'countersign') {
@@ -1242,7 +1329,17 @@ const filteredDocs = computed(() => {
   } else if (activeTab.value === 'archived') {
     docs = docs.filter(d => ['archived', 'terminated'].includes(d.status))
   }
-  // 'all' shows everything
+  return docs
+})
+
+// Stage 2: apply party category + search + type on top of sidebar result
+const filteredDocs = computed(() => {
+  let docs = sidebarFilteredDocs.value
+
+  // Party category pill filter
+  if (categoryFilter.value) {
+    docs = docs.filter(d => d.category === categoryFilter.value)
+  }
 
   // Search
   if (searchQ.value) {
@@ -1253,13 +1350,9 @@ const filteredDocs = computed(() => {
       d.people_label?.toLowerCase().includes(q)
     )
   }
-  // Type
+  // Doc type dropdown
   if (typeFilter.value) {
     docs = docs.filter(d => d.doc_type === typeFilter.value)
-  }
-  // Party
-  if (partyFilter.value) {
-    docs = docs.filter(d => d.party_b_id === partyFilter.value || d.counterparty?.id === partyFilter.value)
   }
 
   return docs
@@ -1715,6 +1808,15 @@ function submitSaveDraft() {
 .list-item-content { flex:1; min-width:0; }
 .list-item-title   { font-size:13px; font-weight:700; color:var(--text); }
 .list-item-desc    { font-size:12px; color:var(--text-3); margin-top:1px; }
+
+/* Party category pill row */
+.doc-party-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+  align-items: center;
+}
 
 @media (max-width: 860px) {
   .doc-layout { flex-direction: column; }

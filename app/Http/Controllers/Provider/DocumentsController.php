@@ -86,6 +86,25 @@ class DocumentsController extends Controller
             'supporting'        => $supportingDocs->count(),
         ];
 
+        // Party counts — scoped to current sidebar filter for accurate pill labels
+        $sidebarKey = $request->query('category', 'all');
+        $sidebarBase = match ($sidebarKey) {
+            'pending_sign' => $shapedDocs->filter(fn ($d) => $d['status'] === 'pending_sign'),
+            'countersign'  => $shapedDocs->filter(fn ($d) => in_array($d['status'], ['countersign', 'countersign_pending'])),
+            'active'       => $shapedDocs->filter(fn ($d) => in_array($d['status'], ['active', 'fully_executed'])),
+            'expiring'     => $shapedDocs->filter(fn ($d) => (bool) ($d['is_expiring'] ?? false)),
+            'archived'     => $shapedDocs->filter(fn ($d) => in_array($d['status'], ['archived', 'terminated'])),
+            default        => $shapedDocs,
+        };
+
+        $partyCounts = [
+            'all' => $sidebarBase->count(),
+            'pe'  => $sidebarBase->filter(fn ($d) => ($d['category'] ?? '') === 'pe')->count(),
+            'pd'  => $sidebarBase->filter(fn ($d) => ($d['category'] ?? '') === 'pd')->count(),
+            'de'  => $sidebarBase->filter(fn ($d) => ($d['category'] ?? '') === 'de')->count(),
+            'tri' => $sidebarBase->filter(fn ($d) => ($d['category'] ?? '') === 'tri')->count(),
+        ];
+
         // Active counterparties for wizard party B
         $stewards = $plan
             ? PlanSteward::where('plan_id', $plan->id)
@@ -108,6 +127,7 @@ class DocumentsController extends Controller
             'supportingDocs'     => $shapedSupporting,
             'docStats'           => $docStats,
             'menuBadges'         => $menuBadges,
+            'partyCounts'        => $partyCounts,
             'stewards'           => $stewards,
             'planStatus'         => $plan?->status?->value ?? null,
             'annualReviewDate'   => $plan?->annual_review_date?->toISOString() ?? null,
