@@ -250,17 +250,6 @@
                       <button class="btn-icon" data-tooltip="View agreement" @click="openViewModal(doc)"><AegisIcon name="eye" :size="14" /></button>
                       <button class="btn-icon" data-tooltip="More actions" @click="openActionsModal(doc)"><AegisIcon name="more" :size="14" /></button>
                     </template>
-                    <!-- Edit (draft) -->
-                    <template v-else-if="doc.primary_action === 'edit'">
-                      <button class="btn btn-outline" @click="openWizard">
-                        <AegisIcon name="pencil" :size="13" /> Continue Editing
-                      </button>
-                      <button
-                        class="btn-icon btn-icon-danger"
-                        data-tooltip="Delete draft"
-                        @click="confirmAction({ title:'Delete Draft', message:'Delete this draft? This cannot be undone.', confirmLabel:'Delete', destructive:true }, () => deleteDraft(doc))"
-                      ><AegisIcon name="trash" :size="14" /></button>
-                    </template>
                     <!-- View (active/archived/etc) -->
                     <template v-else>
                       <button class="btn-icon" data-tooltip="View agreement" @click="openViewModal(doc)"><AegisIcon name="eye" :size="14" /></button>
@@ -562,14 +551,8 @@
           {{ wizStep > 1 ? 'Back' : 'Cancel' }}
         </button>
         <div style="display:flex;gap:8px;margin-left:auto">
-          <button v-if="wizStep < 4" class="btn btn-outline" @click="openModal('draftSaveModal')">
-            <AegisIcon name="save" :size="13" /> Save Draft
-          </button>
           <button v-if="wizStep < 4" class="btn btn-primary" @click="wizardNext">
             Continue <AegisIcon name="arrow-right" :size="13" />
-          </button>
-          <button v-if="wizStep === 4" class="btn btn-outline" :disabled="sendBusy" @click="saveDraftFromReview">
-            <AegisIcon name="save" :size="13" /> Save as Draft
           </button>
           <button v-if="wizStep === 4" class="btn btn-primary" :disabled="sendBusy" @click="sendForSignature">
             <AegisIcon name="send" :size="13" /> {{ sendBusy ? 'Sending...' : 'Send for Signature' }}
@@ -1081,40 +1064,6 @@
     </AegisModal>
 
 
-    <!-- ═══ MODAL: DRAFT SAVE ═══ -->
-    <AegisModal
-      :model-value="isOpen('draftSaveModal').value"
-      title="Save as Draft"
-      size="sm"
-      @update:model-value="v => !v && closeModal('draftSaveModal')"
-    >
-      <p style="font-size:13px;color:var(--text-3);margin-bottom:14px">Your progress will be saved — return anytime to continue.</p>
-      <div class="form-group">
-        <label class="form-label">Draft Name</label>
-        <input
-          type="text"
-          class="form-input"
-          v-model="draftForm.name"
-          :placeholder="wiz.docType ? (wiz.docType + ' — Draft') : 'Draft Agreement'"
-        />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Notes <span style="color:var(--text-4)">(optional)</span></label>
-        <textarea class="form-textarea" rows="2" v-model="draftForm.notes" placeholder="Reminders about what still needs to be done..."></textarea>
-      </div>
-      <div class="alert alert-info" style="margin-bottom:0">
-        <div class="alert-icon"><AegisIcon name="info" :size="18" /></div>
-        <div class="alert-content">Drafts are private. The counterparty will not be notified until you send for signature.</div>
-      </div>
-      <template #footer>
-        <button class="btn btn-outline" @click="closeModal('draftSaveModal')">Cancel</button>
-        <button class="btn btn-primary" style="margin-left:auto" :disabled="draftBusy" @click="submitSaveDraft">
-          <AegisIcon name="save" :size="14" /> {{ draftBusy ? 'Saving...' : 'Save Draft' }}
-        </button>
-      </template>
-    </AegisModal>
-
-
     <!-- ═══ MODAL: SIGN SUCCESS ═══ -->
     <AegisModal
       :model-value="isOpen('signSuccessModal').value"
@@ -1244,7 +1193,6 @@ const terminateBusy = ref(false)
 const addDocBusy    = ref(false)
 const exportBusy    = ref(false)
 const amendBusy     = ref(false)
-const draftBusy     = ref(false)
 const remindBusy    = ref(false)
 
 // ── Signature state ──────────────────────────────────────────────────────────
@@ -1406,7 +1354,6 @@ const terminateForm = reactive({ reason:'', date:'', notes:'', confirm:'' })
 const addDocForm    = reactive({ name:'', type:'Supporting Document', relatedTo:'', notes:'' })
 const exportForm    = reactive({ format:'PDF Bundle (ZIP)', scope:'All documents', delivery:'download' })
 const amendForm     = reactive({ type:'', currentLang:'', proposed:'', reason:'', effectiveDate:'' })
-const draftForm     = reactive({ name:'', notes:'' })
 const amendFiles    = ref([])
 const addDocFiles   = ref([])
 const templateSearch = ref('')
@@ -1556,19 +1503,6 @@ function sendForSignature() {
   })
 }
 
-function saveDraftFromReview() {
-  draftBusy.value = true
-  router.post(route('provider.documents.request'), {
-    category: wiz.category, doc_type: wiz.docType,
-    reference: wiz.reference || draftForm.name,
-    notes: wiz.notes, is_draft: true,
-  }, {
-    preserveScroll: true,
-    onSuccess: () => { toast.info('Draft saved.'); closeWizard() },
-    onError:   () => toast.error('Could not save draft.'),
-    onFinish:  () => { draftBusy.value = false },
-  })
-}
 
 async function submitRenew() {
   v$.value.renew_effective.$touch()
@@ -1651,13 +1585,6 @@ function sendReminder(doc) {
   })
 }
 
-function deleteDraft(doc) {
-  router.delete(route('provider.documents.destroy', { document: doc.id }), {
-    preserveScroll: true,
-    onSuccess: () => toast.info('Draft deleted.'),
-    onError:   () => toast.error('Could not delete draft.'),
-  })
-}
 
 function deleteSupporting(doc) {
   router.delete(route('provider.documents.destroy', { document: doc.id }), {
@@ -1676,21 +1603,7 @@ function submitExport() {
   }, 1200)
 }
 
-function submitSaveDraft() {
-  draftBusy.value = true
-  router.post(route('provider.documents.request'), {
-    category: wiz.category,
-    doc_type:  wiz.docType,
-    reference: wiz.reference || draftForm.name,
-    notes:     draftForm.notes,
-    is_draft:  true,
-  }, {
-    preserveScroll: true,
-    onSuccess: () => { toast.info('Draft saved.'); closeModal('draftSaveModal'); closeWizard() },
-    onError:   () => toast.error('Could not save draft.'),
-    onFinish:  () => { draftBusy.value = false },
-  })
-}
+
 </script>
 
 <style scoped>
