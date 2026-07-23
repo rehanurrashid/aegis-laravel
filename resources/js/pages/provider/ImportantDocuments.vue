@@ -377,14 +377,11 @@
       @update:model-value="v => !v && closeWizard()"
     >
       <!-- ── Step indicator — global .modal-steps from _shared.css ── -->
-      <div class="modal-steps">
-        <div
-          v-for="(s, i) in stepLabels"
-          :key="s.short"
-        >
+      <div class="modal-steps" style="width:100%">
+        <template v-for="(s, i) in stepLabels" :key="s.short">
           <div
             :class="['modal-step', wizStep === i + 1 ? 'active' : wizStep > i + 1 ? 'done' : '']"
-            :style="wizStep > i + 1 ? 'cursor:pointer' : ''"
+            :style="wizStep > i + 1 ? 'cursor:pointer;flex:1' : 'flex:1'"
             @click="wizStep > i + 1 ? (wizStep = i + 1) : null"
           >
             <div class="modal-step-num">
@@ -394,7 +391,7 @@
             {{ s.label }}
           </div>
           <div v-if="i < stepLabels.length - 1" class="modal-step-divider"></div>
-        </div>
+        </template>
       </div>
 
       <!-- Step 1: Agreement Type -->
@@ -416,12 +413,11 @@
         </div>
         <div v-if="fieldError('wiz_category')" class="form-error" style="margin-top:6px">{{ fieldError('wiz_category') }}</div>
         <div class="form-row form-row-2" style="margin-top:16px">
-          <div class="form-group">
+          <div class="form-group" :class="{ 'is-error': fieldError('wiz_docType') }">
             <label class="form-label">Document Type <span class="required">*</span></label>
             <select
               class="form-select"
               v-model="wiz.docType"
-              :class="{ 'is-error': fieldError('wiz_docType') }"
               @blur="v$.wiz_docType.$touch()"
             >
               <option value="">Select Document Type</option>
@@ -822,12 +818,11 @@
         <div class="alert-icon"><AegisIcon name="info" :size="18" /></div>
         <div class="alert-content">Amendments require agreement from all original signatories. The other party will be notified and must accept or counter-propose changes before the amendment takes effect.</div>
       </div>
-      <div class="form-group">
+      <div class="form-group" :class="{ 'is-error': fieldError('amend_type') }">
         <label class="form-label">Amendment Type <span class="required">*</span></label>
         <select
           class="form-select"
           v-model="amendForm.type"
-          :class="{ 'is-error': fieldError('amend_type') }"
           @blur="v$.amend_type.$touch()"
         >
           <option value="">— Select Type —</option>
@@ -894,12 +889,11 @@
         <div class="alert-icon"><AegisIcon name="alert-triangle" :size="18" /></div>
         <div class="alert-content"><strong>This action terminates the agreement.</strong> The counterparty will be notified and all delegated permissions under this agreement will be revoked.</div>
       </div>
-      <div class="form-group">
+      <div class="form-group" :class="{ 'is-error': fieldError('term_reason') }">
         <label class="form-label">Reason for Termination <span class="required">*</span></label>
         <select
           class="form-select"
           v-model="terminateForm.reason"
-          :class="{ 'is-error': fieldError('term_reason') }"
           @blur="v$.term_reason.$touch()"
         >
           <option value="">— Select Reason —</option>
