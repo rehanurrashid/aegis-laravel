@@ -428,32 +428,53 @@
         </div>
       </div>
 
-      <!-- Step 2: Parties & Details -->
+      <!-- Step 2: Parties & Details — adapts per agreement category -->
       <div v-show="wizStep === 2">
-        <div class="party-grid">
+
+        <!-- Party summary bar — changes per category -->
+        <div class="party-grid" :class="catConfig.needsC ? 'party-grid-3' : ''">
           <div class="party-col provider">
-            <div class="party-label">Party A — Provider (You)</div>
+            <div class="party-label">{{ catConfig.partyALabel }}</div>
             <div class="party-name">{{ providerName }}</div>
             <div style="font-size:12px;color:var(--text-3);margin-top:2px">Practitioner · Plan Holder</div>
           </div>
           <div class="party-col cs">
-            <div class="party-label">Party B — Counterparty</div>
+            <div class="party-label">{{ catConfig.partyBLabel }}</div>
             <div v-if="wiz.partyB" class="party-name">{{ selectedPartyBName }}</div>
+            <div v-else style="font-size:13px;color:var(--text-4);font-style:italic">Select below</div>
+          </div>
+          <div v-if="catConfig.needsC" class="party-col ss">
+            <div class="party-label">{{ catConfig.partyCLabel }}</div>
+            <div v-if="wiz.partyC" class="party-name">{{ selectedPartyCName }}</div>
             <div v-else style="font-size:13px;color:var(--text-4);font-style:italic">Select below</div>
           </div>
         </div>
 
-        <label class="form-label" style="margin-bottom:8px">Select Counterparty <span class="required">*</span></label>
+        <!-- Context note for facilitated / tri-party -->
+        <div v-if="wiz.category === 'de'" class="alert alert-info" style="margin-bottom:14px">
+          <div class="alert-icon"><AegisIcon name="info" :size="18" /></div>
+          <div class="alert-content">You are the <strong>Facilitating Provider</strong> for this agreement. Select the CS and SS who will be the signing parties. Both must countersign.</div>
+        </div>
+        <div v-if="wiz.category === 'tri'" class="alert alert-info" style="margin-bottom:14px">
+          <div class="alert-icon"><AegisIcon name="info" :size="18" /></div>
+          <div class="alert-content">This is a <strong>Tri-Party Agreement</strong>. All three parties — you, the Continuity Steward, and the Support Steward — must sign for it to become fully executed.</div>
+        </div>
+
+        <!-- Party B picker (CS for pe/de/tri, SS for pd) -->
+        <label class="form-label" style="margin-bottom:8px">
+          {{ catConfig.partyBLabel }} <span class="required">*</span>
+        </label>
         <div class="input-group" style="margin-bottom:8px;max-width:340px">
           <span class="input-group-icon"><AegisIcon name="search" :size="14" /></span>
-          <input class="form-input" type="text" v-model="wiz.partyBSearch" placeholder="Search stewards..." />
+          <input class="form-input" type="text" v-model="wiz.partyBSearch"
+            :placeholder="'Search ' + (catConfig.filterB === 'continuity_steward' ? 'continuity stewards' : catConfig.filterB === 'support_steward' ? 'support stewards' : 'stewards') + '...'" />
         </div>
         <div
-          style="max-height:220px;overflow-y:auto;border-radius:var(--radius-sm);margin-bottom:6px"
+          style="max-height:200px;overflow-y:auto;border-radius:var(--radius-sm);margin-bottom:6px"
           :style="v$.wiz_partyB.$error ? 'border:1.5px solid var(--red)' : filteredPartyB.length === 0 ? 'border:1px solid var(--border)' : 'border:none'"
         >
-          <div v-if="filteredPartyB.length === 0" style="padding:24px;text-align:center;color:var(--text-4);font-size:13px">
-            No stewards found. Add stewards on the Continuity Stewards page first.
+          <div v-if="filteredPartyB.length === 0" style="padding:20px;text-align:center;color:var(--text-4);font-size:13px">
+            No {{ catConfig.filterB === 'continuity_steward' ? 'Continuity Stewards' : catConfig.filterB === 'support_steward' ? 'Support Stewards' : 'stewards' }} found. Add them first on the Stewards page.
           </div>
           <div
             v-for="p in filteredPartyB" :key="p.id"
@@ -471,7 +492,41 @@
         </div>
         <div v-if="fieldError('wiz_partyB')" class="form-error" style="margin-bottom:12px">{{ fieldError('wiz_partyB') }}</div>
 
-        <div class="form-row form-row-2">
+        <!-- Party C picker — only for DE and TRI -->
+        <template v-if="catConfig.needsC">
+          <label class="form-label" style="margin-top:10px;margin-bottom:8px">
+            {{ catConfig.partyCLabel }} <span class="required">*</span>
+          </label>
+          <div class="input-group" style="margin-bottom:8px;max-width:340px">
+            <span class="input-group-icon"><AegisIcon name="search" :size="14" /></span>
+            <input class="form-input" type="text" v-model="wiz.partyCSearch" placeholder="Search support stewards..." />
+          </div>
+          <div
+            style="max-height:200px;overflow-y:auto;border-radius:var(--radius-sm);margin-bottom:6px"
+            :style="v$.wiz_partyC.$error ? 'border:1.5px solid var(--red)' : filteredPartyC.length === 0 ? 'border:1px solid var(--border)' : 'border:none'"
+          >
+            <div v-if="filteredPartyC.length === 0" style="padding:20px;text-align:center;color:var(--text-4);font-size:13px">
+              No Support Stewards found. Add them first on the Stewards page.
+            </div>
+            <div
+              v-for="p in filteredPartyC" :key="p.id"
+              class="party-search-result"
+              :class="{ selected: wiz.partyC === p.id }"
+              @click="wiz.partyC = p.id; v$.wiz_partyC.$touch()"
+            >
+              <div class="party-avatar-sm" style="background:var(--purple-dark,#7c3aed)">{{ p.initials }}</div>
+              <div class="party-info-sm">
+                <div class="party-name-sm">{{ p.name }}</div>
+                <div class="party-meta-sm">{{ p.meta }}</div>
+              </div>
+              <AegisIcon v-if="wiz.partyC === p.id" name="check" :size="14" style="color:var(--gold-dark)" />
+            </div>
+          </div>
+          <div v-if="fieldError('wiz_partyC')" class="form-error" style="margin-bottom:12px">{{ fieldError('wiz_partyC') }}</div>
+        </template>
+
+        <!-- Dates -->
+        <div class="form-row form-row-2" style="margin-top:4px">
           <div class="form-group">
             <label class="form-label">Effective Date <span class="required">*</span></label>
             <input
@@ -535,8 +590,9 @@
           <div class="info-card-title">Agreement Summary</div>
           <div class="info-card-row"><span class="info-card-key">Type</span><span class="info-card-val">{{ wiz.docType || '—' }}</span></div>
           <div class="info-card-row"><span class="info-card-key">Category</span><span class="info-card-val">{{ selectedCatTitle }}</span></div>
-          <div class="info-card-row"><span class="info-card-key">Party A</span><span class="info-card-val">{{ providerName }}</span></div>
-          <div class="info-card-row"><span class="info-card-key">Party B</span><span class="info-card-val">{{ selectedPartyBName || '—' }}</span></div>
+          <div class="info-card-row"><span class="info-card-key">{{ catConfig.partyALabel }}</span><span class="info-card-val">{{ providerName }}</span></div>
+          <div class="info-card-row"><span class="info-card-key">{{ catConfig.partyBLabel }}</span><span class="info-card-val">{{ selectedPartyBName || '—' }}</span></div>
+          <div v-if="catConfig.needsC" class="info-card-row"><span class="info-card-key">{{ catConfig.partyCLabel }}</span><span class="info-card-val">{{ selectedPartyCName || '—' }}</span></div>
           <div class="info-card-row"><span class="info-card-key">Effective Date</span><span class="info-card-val">{{ wiz.effectiveDate || '—' }}</span></div>
           <div class="info-card-row"><span class="info-card-key">Expiration</span><span class="info-card-val">{{ wiz.expirationDate || 'No expiry set' }}</span></div>
           <div class="info-card-row"><span class="info-card-key">Auto-Renew</span><span class="info-card-val">{{ wiz.autoRenew ? 'Yes' : 'No' }}</span></div>
@@ -1304,10 +1360,11 @@ const stepLabels = [
 
 const wiz = reactive({
   category:'', docType:'', reference:'', partyBSearch:'', partyB:null,
+  partyCSearch:'', partyC:null,
   effectiveDate:'', expirationDate:'', autoRenew:false, notes:'',
 })
 
-function openWizard()  { wizStep.value=1; Object.assign(wiz, { category:'', docType:'', reference:'', partyBSearch:'', partyB:null, effectiveDate:'', expirationDate:'', autoRenew:false, notes:'' }); v$.value.$reset(); openModal('newAgreementModal') }
+function openWizard()  { wizStep.value=1; Object.assign(wiz, { category:'', docType:'', reference:'', partyBSearch:'', partyB:null, partyCSearch:'', partyC:null, effectiveDate:'', expirationDate:'', autoRenew:false, notes:'' }); v$.value.$reset(); openModal('newAgreementModal') }
 function closeWizard() { closeModal('newAgreementModal') }
 
 function wizardNext() {
@@ -1319,17 +1376,44 @@ function wizardNext() {
   if (wizStep.value === 2) {
     v$.value.wiz_partyB.$touch()
     v$.value.wiz_effectiveDate.$touch()
-    if (v$.value.wiz_partyB.$error || v$.value.wiz_effectiveDate.$error) return
+    if (catConfig.value.needsC) v$.value.wiz_partyC.$touch()
+    if (v$.value.wiz_partyB.$error || v$.value.wiz_effectiveDate.$error || (catConfig.value.needsC && v$.value.wiz_partyC.$error)) return
   }
   wizStep.value++
 }
 
 const selectedCatTitle   = computed(() => agrCategories.find(c => c.value === wiz.category)?.title || '—')
 const selectedPartyBName = computed(() => stewardOptions.value.find(p => p.id === wiz.partyB)?.name || '—')
-const filteredPartyB     = computed(() => {
-  const q = (wiz.partyBSearch || '').toLowerCase()
-  return q ? stewardOptions.value.filter(p => p.name.toLowerCase().includes(q)) : stewardOptions.value
+const selectedPartyCName = computed(() => stewardOptions.value.find(p => p.id === wiz.partyC)?.name || '—')
+
+// Category config — drives step 2 UX
+const catConfig = computed(() => {
+  switch (wiz.category) {
+    case 'pe':  return { partyALabel: 'Party A — Provider (You)', partyBLabel: 'Party B — Continuity Steward', needsC: false, filterB: 'continuity_steward', partyCLabel: '', filterC: '' }
+    case 'pd':  return { partyALabel: 'Party A — Provider (You)', partyBLabel: 'Party B — Support Steward',    needsC: false, filterB: 'support_steward',     partyCLabel: '', filterC: '' }
+    case 'de':  return { partyALabel: 'Facilitator — Provider (You)', partyBLabel: 'Party A — Continuity Steward', needsC: true, filterB: 'continuity_steward', partyCLabel: 'Party B — Support Steward', filterC: 'support_steward' }
+    case 'tri': return { partyALabel: 'Party A — Provider (You)', partyBLabel: 'Party B — Continuity Steward', needsC: true,  filterB: 'continuity_steward', partyCLabel: 'Party C — Support Steward', filterC: 'support_steward' }
+    default:    return { partyALabel: 'Party A — Provider (You)', partyBLabel: 'Party B — Counterparty',       needsC: false, filterB: '',                   partyCLabel: '', filterC: '' }
+  }
 })
+
+const csStewards = computed(() => props.stewards.filter(s => s.category === 'continuity_steward'))
+const ssStewards = computed(() => props.stewards.filter(s => s.category === 'support_steward'))
+
+const filteredPartyB = computed(() => {
+  const cfg = catConfig.value
+  const base = cfg.filterB ? props.stewards.filter(s => s.category === cfg.filterB) : props.stewards
+  const q = (wiz.partyBSearch || '').toLowerCase()
+  return q ? base.filter(p => p.name.toLowerCase().includes(q)) : base
+})
+
+const filteredPartyC = computed(() => {
+  const cfg = catConfig.value
+  const base = cfg.filterC ? props.stewards.filter(s => s.category === cfg.filterC) : props.stewards
+  const q = (wiz.partyCSearch || '').toLowerCase()
+  return q ? base.filter(p => p.name.toLowerCase().includes(q)) : base
+})
+
 const stewardOptions = computed(() => props.stewards)
 
 const agrCategories = [
@@ -1391,6 +1475,7 @@ const rules = computed(() => ({
   wiz_category:      { required: helpers.withMessage('Please select an agreement category.', required) },
   wiz_docType:       { required: helpers.withMessage('Document type is required.', required) },
   wiz_partyB:        { required: helpers.withMessage('Please select a counterparty.', required) },
+  wiz_partyC:        catConfig.value.needsC ? { required: helpers.withMessage('Please select the second counterparty.', required) } : {},
   wiz_effectiveDate: { required: helpers.withMessage('Effective date is required.', required) },
   sign_name:         { required: helpers.withMessage('Please type your full name.', required) },
   renew_effective:   { required: helpers.withMessage('Effective date is required.', required) },
@@ -1405,6 +1490,7 @@ const vModel = reactive({
   wiz_category:      computed({ get: () => wiz.category,           set: v => { wiz.category = v } }),
   wiz_docType:       computed({ get: () => wiz.docType,            set: v => { wiz.docType = v } }),
   wiz_partyB:        computed({ get: () => wiz.partyB,             set: v => { wiz.partyB = v } }),
+  wiz_partyC:        computed({ get: () => wiz.partyC,             set: v => { wiz.partyC = v } }),
   wiz_effectiveDate: computed({ get: () => wiz.effectiveDate,      set: v => { wiz.effectiveDate = v } }),
   sign_name:         computed({ get: () => signForm.name,          set: v => { signForm.name = v } }),
   renew_effective:   computed({ get: () => renewForm.effectiveDate, set: v => { renewForm.effectiveDate = v } }),
@@ -1481,7 +1567,11 @@ function sendForSignature() {
   v$.value.wiz_docType.$touch()
   v$.value.wiz_partyB.$touch()
   v$.value.wiz_effectiveDate.$touch()
-  if (v$.value.wiz_category.$error || v$.value.wiz_docType.$error || v$.value.wiz_partyB.$error || v$.value.wiz_effectiveDate.$error) {
+  if (catConfig.value.needsC) v$.value.wiz_partyC.$touch()
+  const hasError = v$.value.wiz_category.$error || v$.value.wiz_docType.$error ||
+    v$.value.wiz_partyB.$error || v$.value.wiz_effectiveDate.$error ||
+    (catConfig.value.needsC && v$.value.wiz_partyC.$error)
+  if (hasError) {
     toast.error('Please complete all required fields.')
     return
   }
@@ -1491,6 +1581,7 @@ function sendForSignature() {
     doc_type:        wiz.docType,
     reference:       wiz.reference,
     party_b_id:      wiz.partyB,
+    party_c_id:      wiz.partyC || null,
     effective_date:  wiz.effectiveDate,
     expiry_date:     wiz.expirationDate,
     auto_renew:      wiz.autoRenew ? 'yes' : 'no',
@@ -1650,11 +1741,13 @@ function submitExport() {
 
 /* Party grid in wizard */
 .agr-cat-card.is-error-border { border-color: var(--red); }
-.party-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+.party-grid   { display:grid; grid-template-columns:1fr 1fr;     gap:14px; margin-bottom:16px; }
+.party-grid-3 { grid-template-columns:1fr 1fr 1fr !important; }
 .party-col  { border:1px solid var(--border); border-radius:var(--radius-lg); padding:14px; position:relative; overflow:hidden; background:var(--surface); }
 .party-col::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
 .party-col.provider::before { background:var(--gold-dark); }
 .party-col.cs::before       { background:var(--purple-dark, #7c3aed); }
+.party-col.ss::before       { background:var(--blue-dark, #1d4ed8); }
 .party-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px; color:var(--text-4); }
 .party-name  { font-size:14px; font-weight:700; color:var(--text); }
 
