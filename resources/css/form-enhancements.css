@@ -282,9 +282,9 @@ span.flatpickr-weekday {
   border: 1px solid transparent !important;
   height: 36px !important;
   line-height: 34px !important;
-  max-width: calc(264px / 7) !important;
-  width: calc(264px / 7) !important;
-  margin: 0 !important;
+  max-width: calc((264px / 7) - 2px) !important;
+  width: calc((264px / 7) - 2px) !important;
+  margin: 1px !important;
   transition: background var(--transition), color var(--transition), border-color var(--transition) !important;
 }
 
