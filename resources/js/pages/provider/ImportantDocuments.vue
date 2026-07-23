@@ -549,7 +549,7 @@
       <div v-show="wizStep === 3">
         <div class="section-title" style="margin-bottom:12px">Standard Clauses</div>
         <div v-for="clause in clauses" :key="clause.id" class="clause-section">
-          <div class="clause-header" @click="clause.open = !clause.open">
+          <div class="clause-header" @click="ALL_CLAUSES.find(c => c.id === clause.id).open = !clause.open">
             <div class="clause-header-left">
               <div class="clause-num">{{ clause.num }}</div>
               <div class="clause-title">{{ clause.title }}</div>
@@ -560,11 +560,22 @@
           <div class="clause-body" v-show="clause.open">
             <div v-for="field in clause.fields" :key="field.label" class="form-group" style="margin-bottom:10px">
               <label class="form-label">{{ field.label }}</label>
-              <select v-if="field.type === 'select'" class="form-select" v-model="field.value">
+              <select v-if="field.type === 'select'" class="form-select"
+                :value="clauseValues[clause.id]?.[field.label]"
+                @change="clauseValues[clause.id][field.label] = $event.target.value"
+              >
                 <option v-for="opt in field.options" :key="opt">{{ opt }}</option>
               </select>
-              <textarea v-else-if="field.type === 'textarea'" class="form-textarea" rows="3" v-model="field.value" :placeholder="field.placeholder"></textarea>
-              <input v-else type="text" class="form-input" v-model="field.value" :placeholder="field.placeholder" />
+              <textarea v-else-if="field.type === 'textarea'" class="form-textarea" rows="3"
+                :value="clauseValues[clause.id]?.[field.label]"
+                @input="clauseValues[clause.id][field.label] = $event.target.value"
+                :placeholder="field.placeholder"
+              ></textarea>
+              <input v-else type="text" class="form-input"
+                :value="clauseValues[clause.id]?.[field.label]"
+                @input="clauseValues[clause.id][field.label] = $event.target.value"
+                :placeholder="field.placeholder"
+              />
             </div>
           </div>
         </div>
@@ -590,6 +601,23 @@
           <div class="info-card-row"><span class="info-card-key">Effective Date</span><span class="info-card-val">{{ wiz.effectiveDate || '—' }}</span></div>
           <div class="info-card-row"><span class="info-card-key">Expiration</span><span class="info-card-val">{{ wiz.expirationDate || 'No expiry set' }}</span></div>
         </div>
+
+        <!-- Clause summary -->
+        <div class="info-card" style="margin-bottom:14px">
+          <div class="info-card-title">Clauses Included ({{ clauses.length }})</div>
+          <div v-for="c in clauses" :key="c.id" style="padding:7px 0;border-bottom:1px solid var(--surface-3)">
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--text)">
+              <span style="width:18px;height:18px;border-radius:var(--radius-full);background:var(--surface-3);display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0">{{ c.num }}</span>
+              {{ c.title }}
+              <span class="clause-tag" :class="c.tagClass" style="margin-left:auto">{{ c.tagLabel }}</span>
+            </div>
+            <div v-for="f in c.fields" :key="f.label" style="font-size:11px;color:var(--text-3);margin-top:3px;padding-left:26px">
+              <span style="font-weight:600">{{ f.label }}:</span>
+              {{ clauseValues[c.id]?.[f.label] || '—' }}
+            </div>
+          </div>
+        </div>
+
         <div style="font-size:12px;color:var(--text-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;background:var(--surface-2)">
           By sending this agreement you confirm that all information is accurate. The counterparty will be notified to review and countersign. This agreement will become legally binding upon mutual execution.
         </div>
@@ -1351,7 +1379,7 @@ const wiz = reactive({
   effectiveDate:'', expirationDate:'', notes:'',
 })
 
-function openWizard()  { wizStep.value=1; Object.assign(wiz, { category:'', docType:'', reference:'', partyBSearch:'', partyB:null, partyCSearch:'', partyC:null, effectiveDate:'', expirationDate:'', notes:'' }); v$.value.$reset(); openModal('newAgreementModal') }
+function openWizard()  { wizStep.value=1; Object.assign(wiz, { category:'', docType:'', reference:'', partyBSearch:'', partyB:null, partyCSearch:'', partyC:null, effectiveDate:'', expirationDate:'', notes:'' }); resetClauses(); v$.value.$reset(); openModal('newAgreementModal') }
 function closeWizard() { closeModal('newAgreementModal') }
 
 function wizardNext() {
@@ -1410,13 +1438,64 @@ const agrCategories = [
   { value:'tri', icon:'layers',   title:'Tri-Party (All Three Roles)',   sub:'Single agreement binding Provider, CS, and SS' },
 ]
 
-const clauses = reactive([
-  { id:1, num:1, title:'Scope of Services & Delegation of Authority', open:true,  tagClass:'included',   tagLabel:'Included',   fields:[{ label:'Authorized activities', type:'textarea', value:'', placeholder:'e.g. CS is authorized to manage client referrals...' }, { label:'Explicit exclusions', type:'textarea', value:'', placeholder:'e.g. CS may not modify clinical treatment plans...' }] },
-  { id:2, num:2, title:'Confidentiality & PHI Obligations (HIPAA)',   open:false, tagClass:'included',   tagLabel:'Included',   fields:[{ label:'PHI Access Level', type:'select', value:'Read-Only', options:['Read-Only','Read/Write','No PHI Access'] }, { label:'Confidentiality Duration', type:'select', value:'Duration of agreement only', options:['Duration of agreement only','2 years post-termination','5 years post-termination','Perpetual'] }] },
-  { id:3, num:3, title:'Compensation & Fee Structure',                open:false, tagClass:'negotiable', tagLabel:'Negotiable', fields:[{ label:'Model', type:'select', value:'Fixed Monthly Retainer', options:['Fixed Monthly Retainer','Hourly Rate','Per-Task Fee'] }, { label:'Amount / Rate', type:'text', value:'', placeholder:'e.g. $2,500/mo' }, { label:'Payment Cycle', type:'select', value:'Monthly', options:['Monthly','Bi-Weekly','Weekly'] }] },
-  { id:4, num:4, title:'Termination & Exit Provisions',               open:false, tagClass:'standard',   tagLabel:'Standard',   fields:[{ label:'Notice Period', type:'select', value:'30 days', options:['7 days','14 days','30 days','60 days'] }, { label:'Immediate Termination Grounds', type:'text', value:'HIPAA breach, fraud, gross negligence, loss of licensure', placeholder:'' }] },
-  { id:5, num:5, title:'Liability, Indemnification & Insurance',      open:false, tagClass:'included',   tagLabel:'Included',   fields:[{ label:'Liability Cap', type:'select', value:'Capped at 3 months fees paid', options:['Capped at 3 months fees paid','Capped at total contract value','Capped at $1,000,000'] }, { label:'Insurance Requirement', type:'text', value:'Professional Liability min $1M / $3M aggregate', placeholder:'' }] },
-])
+// All possible clauses — filtered by category in computed below
+const ALL_CLAUSES = [
+  { id:1, num:1, categories:['pe','pd','de','tri'], title:'Scope of Services & Delegation of Authority', open:true,  tagClass:'included',   tagLabel:'Included',
+    fields:[
+      { label:'Authorized activities',  type:'textarea', value:'', placeholder:'e.g. CS is authorized to manage client referrals, schedule appointments, and triage calls during provider absence.' },
+      { label:'Explicit exclusions',    type:'textarea', value:'', placeholder:'e.g. CS may not modify clinical treatment plans, prescribe medications, or act as clinical supervisor.' },
+    ]},
+  { id:2, num:2, categories:['pe','pd','tri'], title:'Confidentiality & PHI Obligations (HIPAA)', open:false, tagClass:'included',   tagLabel:'Included',
+    fields:[
+      { label:'PHI Access Level',         type:'select', value:'Read-Only', options:['Read-Only','Read/Write','No PHI Access'] },
+      { label:'Confidentiality Duration', type:'select', value:'Duration of agreement only', options:['Duration of agreement only','2 years post-termination','5 years post-termination','Perpetual'] },
+    ]},
+  { id:3, num:3, categories:['pe','pd','tri'], title:'Compensation & Fee Structure', open:false, tagClass:'negotiable', tagLabel:'Negotiable',
+    fields:[
+      { label:'Model',         type:'select', value:'Fixed Monthly Retainer', options:['Fixed Monthly Retainer','Hourly Rate','Per-Task Fee'] },
+      { label:'Amount / Rate', type:'text',   value:'', placeholder:'e.g. $2,500/mo' },
+      { label:'Payment Cycle', type:'select', value:'Monthly', options:['Monthly','Bi-Weekly','Weekly'] },
+    ]},
+  { id:4, num:4, categories:['pe','pd','de','tri'], title:'Termination & Exit Provisions', open:false, tagClass:'standard',   tagLabel:'Standard',
+    fields:[
+      { label:'Notice Period',                  type:'select', value:'30 days', options:['7 days','14 days','30 days','60 days'] },
+      { label:'Immediate Termination Grounds',  type:'text',   value:'HIPAA breach, fraud, gross negligence, loss of licensure', placeholder:'' },
+    ]},
+  { id:5, num:5, categories:['pe','pd','tri'], title:'Liability, Indemnification & Insurance', open:false, tagClass:'included',   tagLabel:'Included',
+    fields:[
+      { label:'Liability Cap',          type:'select', value:'Capped at 3 months fees paid', options:['Capped at 3 months fees paid','Capped at total contract value','Capped at $1,000,000'] },
+      { label:'Insurance Requirement',  type:'text',   value:'Professional Liability min $1M / $3M aggregate', placeholder:'' },
+    ]},
+  { id:6, num:6, categories:['de'], title:'Coordination Protocol (SS & CS)', open:false, tagClass:'standard', tagLabel:'Standard',
+    fields:[
+      { label:'Primary contact method',   type:'select', value:'Email', options:['Email','Phone','Portal Messaging'] },
+      { label:'Escalation path',          type:'textarea', value:'', placeholder:'e.g. SS contacts CS → CS contacts Provider...' },
+    ]},
+]
+
+// Reactive clause state — field values only, keyed by clause id
+const clauseValues = reactive({})
+
+function resetClauses() {
+  ALL_CLAUSES.forEach(c => {
+    clauseValues[c.id] = {}
+    c.fields.forEach(f => { clauseValues[c.id][f.label] = f.value })
+  })
+  // Reset open state too
+  ALL_CLAUSES.forEach(c => { c.open = c.id === 1 })
+}
+resetClauses()
+
+// Only show clauses relevant to selected category
+const clauses = computed(() => {
+  const cat = wiz.category
+  return ALL_CLAUSES
+    .filter(c => !cat || c.categories.includes(cat))
+    .map(c => ({
+      ...c,
+      fields: c.fields.map(f => ({ ...f, value: clauseValues[c.id]?.[f.label] ?? f.value })),
+    }))
+})
 
 // ── Form reactive objects ────────────────────────────────────────────────────
 const signForm      = reactive({ name:'' })
@@ -1563,6 +1642,17 @@ function sendForSignature() {
     return
   }
   sendBusy.value = true
+
+  // Serialize clause field values into structured body text
+  const clauseBody = clauses.value.map(c => {
+    const lines = [`${c.num}. ${c.title}`]
+    c.fields.forEach(f => {
+      const val = clauseValues[c.id]?.[f.label]
+      if (val) lines.push(`   ${f.label}: ${val}`)
+    })
+    return lines.join('\n')
+  }).join('\n\n')
+
   router.post(route('provider.documents.request'), {
     category:        wiz.category,
     doc_type:        wiz.docType,
@@ -1572,6 +1662,7 @@ function sendForSignature() {
     effective_date:  wiz.effectiveDate,
     expiry_date:     wiz.expirationDate,
     notes:           wiz.notes,
+    proposed:        clauseBody,
   }, {
     preserveScroll: true,
     onSuccess: () => { toast.success('Agreement sent for signature.'); closeWizard() },
