@@ -117,7 +117,7 @@
       <div class="doc-content">
 
         <!-- PARTY CATEGORY PILL ROW (shown on all document list views) -->
-        <div v-if="showDocList" class="doc-party-pills" role="tablist" aria-label="Filter by party">
+        <nav v-if="showDocList" class="tabs-segmented" role="tablist" aria-label="Filter by party" style="margin-bottom:14px">
           <button
             v-for="pill in partyPills"
             :key="pill.key"
@@ -125,12 +125,13 @@
             role="tab"
             class="tab-pill"
             :class="{ active: categoryFilter === pill.key }"
+            :aria-selected="categoryFilter === pill.key"
             @click="setCategoryFilter(pill.key)"
           >
             {{ pill.label }}
             <span class="badge-pill">{{ livePillCounts[pill.key] ?? 0 }}</span>
           </button>
-        </div>
+        </nav>
 
         <!-- SEARCH / TYPE FILTER BAR -->
         <div v-if="showFilterBar" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
@@ -1792,14 +1793,6 @@ function submitSaveDraft() {
 .list-item-title   { font-size:13px; font-weight:700; color:var(--text); }
 .list-item-desc    { font-size:12px; color:var(--text-3); margin-top:1px; }
 
-/* Party category pill row */
-.doc-party-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 14px;
-  align-items: center;
-}
 
 @media (max-width: 860px) {
   .doc-layout { flex-direction: column; }
