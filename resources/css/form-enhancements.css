@@ -583,7 +583,6 @@ span.flatpickr-weekday {
 /* §2.12  Validation error */
 .is-error .ts-wrapper .ts-control {
   border-color: var(--red) !important;
-  box-shadow: var(--focus-ring-red) !important;
 }
 
 /* §2.13  Overflow escape — any ancestor with overflow:hidden clips .ts-dropdown
