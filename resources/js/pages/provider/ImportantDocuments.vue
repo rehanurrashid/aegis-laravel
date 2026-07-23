@@ -376,24 +376,24 @@
       size="xl"
       @update:model-value="v => !v && closeWizard()"
     >
-      <!-- Stepper header -->
-      <div style="margin:-8px -24px 20px;padding:14px 24px 16px;border-bottom:1px solid var(--border);background:var(--surface-2)">
-        <div style="font-size:12px;color:var(--text-3);font-weight:600;margin-bottom:12px">Step {{ wizStep }} of 4 — {{ stepSubs[wizStep - 1] }}</div>
-        <div class="workflow-stepper">
+      <!-- ── Step indicator — global .modal-steps from _shared.css ── -->
+      <div class="modal-steps">
+        <div
+          v-for="(s, i) in stepLabels"
+          :key="s.short"
+        >
           <div
-            v-for="(s, i) in stepLabels"
-            :key="s.short"
-            class="wf-step"
-            :class="{ done: i < wizStep - 1, current: i === wizStep - 1, future: i > wizStep - 1 }"
-            :style="i < wizStep - 1 ? 'cursor:pointer' : ''"
-            @click="i < wizStep - 1 ? (wizStep = i + 1) : null"
+            :class="['modal-step', wizStep === i + 1 ? 'active' : wizStep > i + 1 ? 'done' : '']"
+            :style="wizStep > i + 1 ? 'cursor:pointer' : ''"
+            @click="wizStep > i + 1 ? (wizStep = i + 1) : null"
           >
-            <div class="wf-node">
-              <AegisIcon v-if="i < wizStep - 1" name="check" :size="14" />
-              <span v-else>{{ i + 1 }}</span>
+            <div class="modal-step-num">
+              <AegisIcon v-if="wizStep > i + 1" name="check" :size="12" />
+              <template v-else>{{ i + 1 }}</template>
             </div>
-            <div class="wf-label">{{ s.line1 }}<br>{{ s.line2 }}</div>
+            {{ s.label }}
           </div>
+          <div v-if="i < stepLabels.length - 1" class="modal-step-divider"></div>
         </div>
       </div>
 
@@ -404,8 +404,8 @@
         <div class="agr-cat-grid">
           <div
             v-for="cat in agrCategories" :key="cat.value"
-            class="agr-cat-card" :class="{ selected: wiz.category === cat.value }"
-            @click="wiz.category = cat.value"
+            class="agr-cat-card" :class="{ selected: wiz.category === cat.value, 'is-error-border': v$.wiz_category.$error && !wiz.category }"
+            @click="wiz.category = cat.value; v$.wiz_category.$touch()"
           >
             <div class="agr-cat-avatar"><AegisIcon :name="cat.icon" :size="16" /></div>
             <div>
@@ -414,7 +414,8 @@
             </div>
           </div>
         </div>
-        <div class="form-row" style="margin-top:16px">
+        <div v-if="fieldError('wiz_category')" class="form-error" style="margin-top:6px">{{ fieldError('wiz_category') }}</div>
+        <div class="form-row form-row-2" style="margin-top:16px">
           <div class="form-group">
             <label class="form-label">Document Type <span class="required">*</span></label>
             <select
@@ -462,7 +463,10 @@
           <span class="input-group-icon"><AegisIcon name="search" :size="14" /></span>
           <input class="form-input" type="text" v-model="wiz.partyBSearch" placeholder="Search stewards..." />
         </div>
-        <div style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:14px">
+        <div
+          style="max-height:220px;overflow-y:auto;border-radius:var(--radius-sm);margin-bottom:6px"
+          :style="v$.wiz_partyB.$error ? 'border:1.5px solid var(--red)' : 'border:1px solid var(--border)'"
+        >
           <div v-if="filteredPartyB.length === 0" style="padding:24px;text-align:center;color:var(--text-4);font-size:13px">
             No stewards found. Add stewards on the Continuity Stewards page first.
           </div>
@@ -470,7 +474,7 @@
             v-for="p in filteredPartyB" :key="p.id"
             class="party-search-result"
             :class="{ selected: wiz.partyB === p.id }"
-            @click="wiz.partyB = p.id"
+            @click="wiz.partyB = p.id; v$.wiz_partyB.$touch()"
           >
             <div class="party-avatar-sm">{{ p.initials }}</div>
             <div class="party-info-sm">
@@ -480,8 +484,9 @@
             <AegisIcon v-if="wiz.partyB === p.id" name="check" :size="14" style="color:var(--gold-dark)" />
           </div>
         </div>
+        <div v-if="fieldError('wiz_partyB')" class="form-error" style="margin-bottom:12px">{{ fieldError('wiz_partyB') }}</div>
 
-        <div class="form-row">
+        <div class="form-row form-row-2">
           <div class="form-group">
             <label class="form-label">Effective Date <span class="required">*</span></label>
             <input
@@ -518,7 +523,7 @@
             </div>
             <AegisIcon :name="clause.open ? 'chevron-up' : 'chevron-down'" :size="14" />
           </div>
-          <div class="clause-body" :class="{ open: clause.open }">
+          <div class="clause-body" v-show="clause.open">
             <div v-for="field in clause.fields" :key="field.label" class="form-group" style="margin-bottom:10px">
               <label class="form-label">{{ field.label }}</label>
               <select v-if="field.type === 'select'" class="form-select" v-model="field.value">
@@ -770,7 +775,7 @@
         <div class="alert-icon"><AegisIcon name="info" :size="18" /></div>
         <div class="alert-content">A new agreement will be created with the updated dates. The current agreement will be archived after the new one is fully signed.</div>
       </div>
-      <div class="form-row">
+      <div class="form-row form-row-2">
         <div class="form-group">
           <label class="form-label">New Effective Date <span class="required">*</span></label>
           <input
@@ -838,7 +843,7 @@
         </select>
         <div v-if="fieldError('amend_type')" class="form-error">{{ fieldError('amend_type') }}</div>
       </div>
-      <div class="form-row">
+      <div class="form-row form-row-2">
         <div class="form-group">
           <label class="form-label">Current Language</label>
           <textarea class="form-textarea" rows="4" v-model="amendForm.currentLang" placeholder="Existing clause text..."></textarea>
@@ -950,7 +955,7 @@
       size="md"
       @update:model-value="v => !v && closeAddDoc()"
     >
-      <div class="form-row">
+      <div class="form-row form-row-2">
         <div class="form-group">
           <label class="form-label">Document Name <span class="required">*</span></label>
           <input
@@ -1349,16 +1354,10 @@ const amendmentDocs = computed(() =>
 // ── Wizard ───────────────────────────────────────────────────────────────────
 const wizStep    = ref(1)
 const stepLabels = [
-  { short:'type',    line1:'Agreement', line2:'Type'    },
-  { short:'parties', line1:'Parties &', line2:'Details' },
-  { short:'clauses', line1:'Clauses &', line2:'Terms'   },
-  { short:'review',  line1:'Review &',  line2:'Confirm' },
-]
-const stepSubs = [
-  'Select agreement type & category',
-  'Select parties and define the term',
-  'Configure clauses and terms',
-  'Review the complete draft',
+  { short:'type',    label:'Agreement Type'   },
+  { short:'parties', label:'Parties & Details' },
+  { short:'clauses', label:'Clauses & Terms'   },
+  { short:'review',  label:'Review & Confirm'  },
 ]
 
 const wiz = reactive({
@@ -1366,18 +1365,19 @@ const wiz = reactive({
   effectiveDate:'', expirationDate:'', autoRenew:false, notes:'',
 })
 
-function openWizard()  { wizStep.value=1; Object.assign(wiz, { category:'', docType:'', reference:'', partyBSearch:'', partyB:null, effectiveDate:'', expirationDate:'', autoRenew:false, notes:'' }); openModal('newAgreementModal') }
+function openWizard()  { wizStep.value=1; Object.assign(wiz, { category:'', docType:'', reference:'', partyBSearch:'', partyB:null, effectiveDate:'', expirationDate:'', autoRenew:false, notes:'' }); v$.value.$reset(); openModal('newAgreementModal') }
 function closeWizard() { closeModal('newAgreementModal') }
 
 function wizardNext() {
   if (wizStep.value === 1) {
+    v$.value.wiz_category.$touch()
     v$.value.wiz_docType.$touch()
-    if (v$.value.wiz_docType.$error) return
-    if (!wiz.category) { toast.warning('Please select an agreement category.'); return }
+    if (v$.value.wiz_category.$error || v$.value.wiz_docType.$error) return
   }
   if (wizStep.value === 2) {
+    v$.value.wiz_partyB.$touch()
     v$.value.wiz_effectiveDate.$touch()
-    if (v$.value.wiz_effectiveDate.$error) return
+    if (v$.value.wiz_partyB.$error || v$.value.wiz_effectiveDate.$error) return
   }
   wizStep.value++
 }
@@ -1391,10 +1391,10 @@ const filteredPartyB     = computed(() => {
 const stewardOptions = computed(() => props.stewards)
 
 const agrCategories = [
-  { value:'pe',  icon:'shield',     title:'Provider & Continuity Steward', sub:'MSA, SOW, NDA between you and a CS' },
-  { value:'pd',  icon:'phone',      title:'Provider & Support Steward',    sub:'SLA, NDA between you and an SS' },
-  { value:'de',  icon:'users',      title:'Team Agreements (Facilitated)', sub:'MOU between SS and CS — you are facilitator' },
-  { value:'tri', icon:'circle',     title:'Tri-Party (All Three Roles)',   sub:'Single agreement binding Provider, CS, and SS' },
+  { value:'pe',  icon:'shield',   title:'Provider & Continuity Steward', sub:'MSA, SOW, NDA between you and a CS' },
+  { value:'pd',  icon:'users-2',  title:'Provider & Support Steward',    sub:'SLA, NDA between you and an SS' },
+  { value:'de',  icon:'users',    title:'Team Agreements (Facilitated)', sub:'MOU between SS and CS — you are facilitator' },
+  { value:'tri', icon:'layers',   title:'Tri-Party (All Three Roles)',   sub:'Single agreement binding Provider, CS, and SS' },
 ]
 
 const clauses = reactive([
@@ -1447,7 +1447,9 @@ function useTemplate(tpl) {
 
 // ── Vuelidate ────────────────────────────────────────────────────────────────
 const rules = computed(() => ({
+  wiz_category:      { required: helpers.withMessage('Please select an agreement category.', required) },
   wiz_docType:       { required: helpers.withMessage('Document type is required.', required) },
+  wiz_partyB:        { required: helpers.withMessage('Please select a counterparty.', required) },
   wiz_effectiveDate: { required: helpers.withMessage('Effective date is required.', required) },
   sign_name:         { required: helpers.withMessage('Please type your full name.', required) },
   renew_effective:   { required: helpers.withMessage('Effective date is required.', required) },
@@ -1459,7 +1461,9 @@ const rules = computed(() => ({
 }))
 
 const vModel = reactive({
+  wiz_category:      computed({ get: () => wiz.category,           set: v => { wiz.category = v } }),
   wiz_docType:       computed({ get: () => wiz.docType,            set: v => { wiz.docType = v } }),
+  wiz_partyB:        computed({ get: () => wiz.partyB,             set: v => { wiz.partyB = v } }),
   wiz_effectiveDate: computed({ get: () => wiz.effectiveDate,      set: v => { wiz.effectiveDate = v } }),
   sign_name:         computed({ get: () => signForm.name,          set: v => { signForm.name = v } }),
   renew_effective:   computed({ get: () => renewForm.effectiveDate, set: v => { renewForm.effectiveDate = v } }),
@@ -1531,6 +1535,15 @@ function finalizeSignature() {
 }
 
 function sendForSignature() {
+  // Full validation before submit
+  v$.value.wiz_category.$touch()
+  v$.value.wiz_docType.$touch()
+  v$.value.wiz_partyB.$touch()
+  v$.value.wiz_effectiveDate.$touch()
+  if (v$.value.wiz_category.$error || v$.value.wiz_docType.$error || v$.value.wiz_partyB.$error || v$.value.wiz_effectiveDate.$error) {
+    toast.error('Please complete all required fields.')
+    return
+  }
   sendBusy.value = true
   router.post(route('provider.documents.request'), {
     category:        wiz.category,
@@ -1728,18 +1741,8 @@ function submitSaveDraft() {
 /* Legal doc */
 .legal-doc { border:1px solid var(--border); border-radius:var(--radius); background:var(--surface-2); padding:20px 22px; font-size:13px; color:var(--text-2); line-height:1.7; max-height:320px; overflow-y:auto; }
 
-/* Wizard stepper */
-.workflow-stepper { display:flex; align-items:flex-start; gap:0; overflow-x:auto; scrollbar-width:none; padding:4px 0; }
-.workflow-stepper::-webkit-scrollbar { display:none; }
-.wf-step { display:flex; flex-direction:column; align-items:center; flex:1; min-width:96px; position:relative; }
-.wf-step:not(:last-child)::after { content:''; position:absolute; top:16px; left:50%; right:-50%; height:2px; background:var(--border); z-index:0; }
-.wf-step.done:not(:last-child)::after,.wf-step.current:not(:last-child)::after { background:var(--gold-dark); }
-.wf-node { width:32px; height:32px; border-radius:var(--radius-full); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; position:relative; z-index:1; border:1px solid var(--border); background:var(--surface); color:var(--text-4); transition:all var(--transition); }
-.wf-step.done .wf-node,.wf-step.current .wf-node { background:var(--gold-dark); border-color:var(--gold-dark); color:var(--text-inverted); }
-.wf-label { font-size:11px; font-weight:700; color:var(--text-4); margin-top:8px; text-align:center; line-height:1.3; }
-.wf-step.done .wf-label,.wf-step.current .wf-label { color:var(--gold-dark); }
-
 /* Party grid in wizard */
+.agr-cat-card.is-error-border { border-color: var(--red); }
 .party-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
 .party-col  { border:1px solid var(--border); border-radius:var(--radius-lg); padding:14px; position:relative; overflow:hidden; background:var(--surface); }
 .party-col::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
@@ -1764,8 +1767,7 @@ function submitSaveDraft() {
 .clause-header-left   { display:flex; align-items:center; gap:10px; }
 .clause-num           { width:24px; height:24px; border-radius:var(--radius-sm); background:var(--primary); color:var(--text-inverted); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0; }
 .clause-title         { font-size:13px; font-weight:700; color:var(--text); }
-.clause-body          { padding:12px 14px; border-top:1px solid var(--border); display:none; }
-.clause-body.open     { display:block; }
+.clause-body          { padding:12px 14px; border-top:1px solid var(--border); }
 .clause-tag           { display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.4px; text-transform:uppercase; padding:2px 8px; border-radius:var(--radius-full); }
 .clause-tag.required   { background:var(--red-light);   color:var(--red-dark); }
 .clause-tag.negotiable { background:var(--blue-light);  color:var(--blue-dark); }
