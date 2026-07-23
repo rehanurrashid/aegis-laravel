@@ -368,6 +368,8 @@ Route::middleware(['auth', 'verified.email', 'subscription.active', 'role:practi
         Route::post('/important-documents/{document}/sign', [DocumentsController::class, 'sign'])->name('documents.sign');
         Route::post('/important-documents/{document}/remind', [DocumentsController::class, 'remind'])->name('documents.remind');
         Route::post('/important-documents/{document}/archive', [DocumentsController::class, 'archive'])->name('documents.archive');
+        Route::post('/important-documents/{document}/renew', [DocumentsController::class, 'renew'])->name('documents.renew');
+        Route::post('/important-documents/{document}/terminate', [DocumentsController::class, 'terminate'])->name('documents.terminate');
         Route::delete('/important-documents/{document}', [DocumentsController::class, 'archive'])->name('documents.destroy');
 
         // Critical Incident Activation

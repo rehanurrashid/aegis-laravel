@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Provider\StoreDocumentRequest;
+use App\Http\Requests\Provider\TerminateDocumentRequest;
+use App\Http\Requests\Provider\RenewDocumentRequest;
 use App\Http\Requests\Provider\UploadSupportingDocRequest;
 use App\Models\ContinuityDocument;
 use App\Models\ContinuityPlan;
@@ -33,59 +35,79 @@ class DocumentsController extends Controller
         $plan = $this->plans->getForPractitioner($user->id);
 
         $allDocs = $this->documents->getForPractitioner($user->id)
-            ->load(['signedBy', 'countersignedBy', 'holderSteward']);
+            ->load(['signedBy', 'countersignedBy', 'holderSteward', 'amendments']);
 
         $now = Carbon::now();
 
-        // Separate supporting docs from continuity plan documents
-        $continuityDocs   = $allDocs->filter(fn ($d) => !(bool) $d->is_supporting)->values();
-        $supportingDocs   = $allDocs->filter(fn ($d) => (bool) $d->is_supporting)->values();
+        $continuityDocs = $allDocs->filter(fn ($d) => !(bool) $d->is_supporting)->values();
+        $supportingDocs = $allDocs->filter(fn ($d) => (bool) $d->is_supporting)->values();
 
-        // Shape documents for Vue
         $shapedDocs = $continuityDocs->map(fn ($doc) => $this->shapeDoc($doc, $user, $now));
 
         $shapedSupporting = $supportingDocs->map(fn ($doc) => [
-            'id'           => $doc->id,
-            'title'        => $doc->title,
-            'meta'         => implode(' · ', array_filter([
+            'id'            => $doc->id,
+            'title'         => $doc->title,
+            'doc_type'      => $doc->doc_type,
+            'meta'          => implode(' · ', array_filter([
                 $doc->doc_type ? Str::upper($doc->doc_type) : null,
                 $doc->created_at?->format('M j, Y'),
                 $doc->holderSteward?->display_name,
             ])),
-            'badge_label'  => $this->badgeLabel($doc->status instanceof \App\Enums\DocumentStatus ? $doc->status->value : (string) $doc->status),
-            'badge_variant'=> $this->badgeVariant($doc->status instanceof \App\Enums\DocumentStatus ? $doc->status->value : (string) $doc->status),
+            'badge_label'   => $this->badgeLabel($this->statusVal($doc)),
+            'badge_variant' => $this->badgeVariant($this->statusVal($doc)),
+            'related_to'    => $doc->related_to,
+            'file_ref'      => $doc->file_ref,
+            'has_file'      => !empty($doc->file_ref),
         ])->values();
 
-        // Stats
+        // Stat chips
         $expiringCount = $continuityDocs->filter(
             fn ($d) => $d->expires_at && Carbon::parse($d->expires_at)->isBetween($now, $now->copy()->addDays(30))
         )->count();
 
-        $statusVal = fn ($d) => $d->status instanceof \App\Enums\DocumentStatus ? $d->status->value : (string) $d->status;
         $docStats = [
-            'total'    => $continuityDocs->count(),
-            'active'   => $continuityDocs->filter(fn ($d) => in_array($statusVal($d), ['active', 'fully_executed']))->count(),
-            'pending'  => $continuityDocs->filter(fn ($d) => in_array($statusVal($d), ['pending_sign', 'countersign_pending', 'countersign']))->count(),
-            'expiring' => $expiringCount,
+            'total'       => $continuityDocs->count(),
+            'pending_my_sig'    => $continuityDocs->filter(fn ($d) => in_array($this->statusVal($d), ['pending_sign']))->count(),
+            'awaiting_counter'  => $continuityDocs->filter(fn ($d) => in_array($this->statusVal($d), ['countersign_pending', 'countersign']))->count(),
+            'expiring'          => $expiringCount,
+            'active'            => $continuityDocs->filter(fn ($d) => in_array($this->statusVal($d), ['active', 'fully_executed']))->count(),
+            'archived'          => $continuityDocs->filter(fn ($d) => in_array($this->statusVal($d), ['archived', 'terminated']))->count(),
         ];
 
-        // Active CS for wizard party B
+        // Sidebar menu badges (per tab count)
+        $menuBadges = [
+            'all'               => $continuityDocs->count(),
+            'pending_sign'      => $docStats['pending_my_sig'],
+            'countersign'       => $docStats['awaiting_counter'],
+            'active'            => $docStats['active'],
+            'expiring'          => $expiringCount,
+            'archived'          => $docStats['archived'],
+            'amendments'        => $continuityDocs->filter(fn ($d) => $d->doc_type === 'plan_amendment' || !empty($d->amends_document_id))->count(),
+            'supporting'        => $supportingDocs->count(),
+        ];
+
+        // Active counterparties for wizard party B
         $stewards = $plan
             ? PlanSteward::where('plan_id', $plan->id)
                 ->where('status', 'active')
                 ->get()
-                ->map(fn ($ps) => [
-                    'id'       => $ps->steward_id,
-                    'initials' => $this->initials(User::find($ps->steward_id)?->display_name ?? '?'),
-                    'name'     => User::find($ps->steward_id)?->display_name ?? 'Unknown',
-                    'meta'     => Str::ucfirst(str_replace('_', ' ', $ps->steward_category ?? 'steward')) . ' · Active',
-                ])->values()->toArray()
+                ->map(function ($ps) {
+                    $u = User::find($ps->steward_id);
+                    return [
+                        'id'       => $ps->steward_id,
+                        'initials' => $this->initials($u?->display_name ?? '?'),
+                        'name'     => $u?->display_name ?? 'Unknown',
+                        'meta'     => Str::ucfirst(str_replace('_', ' ', $ps->steward_category ?? 'steward')) . ' · Active',
+                        'category' => $ps->steward_category ?? 'steward',
+                    ];
+                })->values()->toArray()
             : [];
 
         return Inertia::render('Provider/ImportantDocuments', [
-            'documents'     => $shapedDocs,
-            'supportingDocs'=> $shapedSupporting,
-            'docStats'      => $docStats,
+            'documents'          => $shapedDocs,
+            'supportingDocs'     => $shapedSupporting,
+            'docStats'           => $docStats,
+            'menuBadges'         => $menuBadges,
             'stewards'           => $stewards,
             'planStatus'         => $plan?->status?->value ?? null,
             'annualReviewDate'   => $plan?->annual_review_date?->toISOString() ?? null,
@@ -96,19 +118,15 @@ class DocumentsController extends Controller
 
     // ── Write actions ──────────────────────────────────────────────────────────
 
-    /**
-     * Create a new agreement from wizard, or save draft, or submit amendment.
-     */
     public function request(StoreDocumentRequest $request): RedirectResponse
     {
         $plan = $this->plans->getForPractitioner($request->user()->id);
         abort_if(!$plan, 404);
 
-        $data = $request->validated();
+        $data    = $request->validated();
         $isDraft = (bool) ($data['is_draft'] ?? false);
-        $isAmendment = isset($data['parent_id']);
+        $isAmend = isset($data['parent_id']);
 
-        // Build title from wizard fields when not explicitly given
         $title = $data['title'] ?? implode(' — ', array_filter([
             $data['doc_type'] ?? null,
             $data['category'] ?? null,
@@ -116,25 +134,26 @@ class DocumentsController extends Controller
         ])) ?: 'New Agreement';
 
         $this->documents->requestDocument($plan, $request->user(), [
-            'title'        => $title,
-            'doc_type'     => $data['doc_type'] ?? 'agreement',
-            'body'         => $data['proposed'] ?? $data['notes'] ?? null,
-            'status'       => $isDraft ? 'draft' : 'pending_sign',
-            'category'     => $data['category'] ?? null,
-            'party_b_id'   => $data['party_b_id'] ?? null,
-            'effective_date'=> $data['effective_date'] ?? null,
-            'auto_renew'   => str_contains(strtolower($data['auto_renew'] ?? ''), 'yes') ? 1 : 0,
-            'notes'        => $data['notes'] ?? null,
+            'title'              => $title,
+            'doc_type'           => $data['doc_type'] ?? 'agreement',
+            'body'               => $data['proposed'] ?? $data['notes'] ?? null,
+            'status'             => $isDraft ? 'draft' : 'pending_sign',
+            'category'           => $data['category'] ?? null,
+            'party_b_id'         => $data['party_b_id'] ?? null,
+            'effective_date'     => $data['effective_date'] ?? null,
+            'expires_at'         => $data['expiry_date'] ?? null,
+            'auto_renew'         => str_contains(strtolower($data['auto_renew'] ?? ''), 'yes') ? 1 : 0,
+            'notes'              => $data['notes'] ?? null,
             'amends_document_id' => $data['parent_id'] ?? null,
         ]);
 
-        $msg = $isDraft ? 'Draft saved.' : ($isAmendment ? 'Amendment request sent.' : 'Agreement sent for signature.');
+        $msg = $isDraft
+            ? 'Draft saved.'
+            : ($isAmend ? 'Amendment request sent.' : 'Agreement sent for signature.');
+
         return back()->with('success', $msg);
     }
 
-    /**
-     * Provider applies their signature. No form name field — uses display_name.
-     */
     public function sign(Request $request, ContinuityDocument $document): RedirectResponse
     {
         $this->authorize('sign', $document);
@@ -145,9 +164,6 @@ class DocumentsController extends Controller
         return back()->with('success', 'Agreement signed. Awaiting countersignature.');
     }
 
-    /**
-     * Send a reminder / renewal notification for a document.
-     */
     public function remind(Request $request, ContinuityDocument $document): RedirectResponse
     {
         abort_unless($document->practitioner_id === $request->user()->id, 403);
@@ -155,9 +171,47 @@ class DocumentsController extends Controller
         return back()->with('success', 'Reminder sent.');
     }
 
-    /**
-     * Archive or terminate a document.
-     */
+    public function renew(RenewDocumentRequest $request, ContinuityDocument $document): RedirectResponse
+    {
+        abort_unless($document->practitioner_id === $request->user()->id, 403);
+
+        $data = $request->validated();
+
+        // Create a new doc that supersedes this one
+        $plan = $this->plans->getForPractitioner($request->user()->id);
+        abort_if(!$plan, 404);
+
+        $newDoc = $this->documents->create($plan, [
+            'title'              => $document->title . ' (Renewed)',
+            'doc_type'           => $document->doc_type,
+            'body'               => $document->body,
+            'category'           => $document->category,
+            'status'             => 'pending_sign',
+            'party_b_id'         => $document->party_b_id,
+            'holder_steward_id'  => $document->holder_steward_id,
+            'effective_date'     => $data['effective_date'] ?? now()->toDateString(),
+            'expires_at'         => $data['expiry_date'] ?? null,
+            'auto_renew'         => $data['auto_renew'] ?? false,
+            'notes'              => $data['notes'] ?? null,
+            'amends_document_id' => $document->id,
+        ]);
+
+        // Mark old doc superseded
+        $document->update(['status' => 'archived', 'archived_at' => now()]);
+
+        return back()->with('success', 'Renewal initiated. New agreement sent for signature.');
+    }
+
+    public function terminate(TerminateDocumentRequest $request, ContinuityDocument $document): RedirectResponse
+    {
+        $this->authorize('archive', $document);
+
+        $data = $request->validated();
+        $this->documents->archive($document, $request->user(), $data['reason']);
+
+        return back()->with('success', 'Agreement terminated.');
+    }
+
     public function archive(Request $request, ContinuityDocument $document): RedirectResponse
     {
         $this->authorize('archive', $document);
@@ -165,34 +219,31 @@ class DocumentsController extends Controller
         return back()->with('success', 'Document archived.');
     }
 
-    /**
-     * Upload a supporting document.
-     */
     public function upload(UploadSupportingDocRequest $request): RedirectResponse
     {
         $plan = $this->plans->getForPractitioner($request->user()->id);
         abort_if(!$plan, 404);
 
-        $data = $request->validated();
+        $data    = $request->validated();
         $fileRef = null;
 
         if ($request->hasFile('file')) {
-            $path = $request->file('file')->store("docs/plan_{$plan->id}/supporting", 'local');
+            $path    = $request->file('file')->store("docs/plan_{$plan->id}/supporting", 'local');
             $fileRef = $path;
         }
 
         ContinuityDocument::create([
-            'id'             => 'cd_' . Str::lower(Str::random(12)),
-            'plan_id'        => $plan->id,
-            'practitioner_id'=> $request->user()->id,
-            'title'          => $data['name'],
-            'doc_type'       => strtolower(str_replace(' ', '_', $data['type'] ?? 'supporting')),
-            'status'         => 'active',
-            'is_supporting'  => true,
-            'related_to'     => $data['related_to'] ?? null,
-            'notes'          => $data['notes'] ?? null,
-            'file_ref'       => $fileRef,
-            'created_at'     => now(),
+            'id'              => 'cd_' . Str::lower(Str::random(12)),
+            'plan_id'         => $plan->id,
+            'practitioner_id' => $request->user()->id,
+            'title'           => $data['name'],
+            'doc_type'        => strtolower(str_replace(' ', '_', $data['type'] ?? 'supporting')),
+            'status'          => 'active',
+            'is_supporting'   => true,
+            'related_to'      => $data['related_to'] ?? null,
+            'notes'           => $data['notes'] ?? null,
+            'file_ref'        => $fileRef,
+            'created_at'      => now(),
         ]);
 
         return back()->with('success', 'Document uploaded.');
@@ -202,32 +253,25 @@ class DocumentsController extends Controller
 
     private function shapeDoc(ContinuityDocument $doc, User $user, Carbon $now): array
     {
-        $status       = $doc->status instanceof \App\Enums\DocumentStatus
-            ? $doc->status->value
-            : (string) $doc->status;
-        $expiresAt    = $doc->expires_at ? Carbon::parse($doc->expires_at) : null;
-        $isExpiring   = $expiresAt && $expiresAt->isBetween($now, $now->copy()->addDays(30));
-        $isExpired    = $expiresAt && $expiresAt->isPast();
+        $status     = $this->statusVal($doc);
+        $expiresAt  = $doc->expires_at ? Carbon::parse($doc->expires_at) : null;
+        $isExpiring = $expiresAt && $expiresAt->isBetween($now, $now->copy()->addDays(30));
+        $isExpired  = $expiresAt && $expiresAt->isPast();
+        $daysToExp  = $expiresAt && $expiresAt->isFuture() ? (int) $now->diffInDays($expiresAt) : null;
 
-        // Tab key
-        $catToTab = [
-            'pe'  => 'pe',
-            'pd'  => 'pd',
-            'de'  => 'de',
-            'tri' => 'tri',
-        ];
-        $tabKey = $catToTab[$doc->category ?? ''] ?? 'pe';
+        // Counterparty details
+        $counterparty   = null;
+        $people         = [['initials' => $this->initials($user->display_name), 'color' => 'gold']];
+        $partyBUser     = $doc->party_b_id ? User::find($doc->party_b_id) : null;
+        $holderUser     = $doc->holderSteward;
+        $counterpartUser = $partyBUser ?? $holderUser;
 
-        // People (counterparty if any)
-        $people = [['initials' => $this->initials($user->display_name), 'color' => 'gold']];
-        $counterparty = null;
-        if ($doc->holderSteward) {
-            $cs = $doc->holderSteward;
-            $people[] = ['initials' => $this->initials($cs->display_name), 'color' => 'dark'];
-            // Load countersignature data
+        if ($counterpartUser) {
+            $people[] = ['initials' => $this->initials($counterpartUser->display_name), 'color' => 'dark'];
             $counterparty = [
-                'name'      => $cs->display_name,
-                'initials'  => $this->initials($cs->display_name),
+                'id'        => $counterpartUser->id,
+                'name'      => $counterpartUser->display_name,
+                'initials'  => $this->initials($counterpartUser->display_name),
                 'meta'      => 'Continuity Steward · Active',
                 'signed_at' => $doc->countersigned_at
                     ? Carbon::parse($doc->countersigned_at)->format('M j, Y')
@@ -235,53 +279,66 @@ class DocumentsController extends Controller
             ];
         }
 
-        $peopleParts  = array_map(fn ($p) => $p['initials'], $people);
-        $peopleLabel  = $doc->holderSteward?->display_name
-            ? ($user->display_name . ' & ' . $doc->holderSteward->display_name)
+        $peopleLabel = $counterpartUser
+            ? ($user->display_name . ' & ' . $counterpartUser->display_name)
             : $user->display_name;
 
-        // When text
         [$whenText, $whenClass, $whenIcon] = $this->whenMeta($status, $expiresAt, $isExpiring, $isExpired, $doc);
 
-        // Primary action
-        $primaryAction = $this->primaryAction($status, $doc->practitioner_id, $user->id);
+        $primaryAction = $this->primaryAction($status);
+        $canAmend      = in_array($status, ['active', 'fully_executed']) && $doc->practitioner_id === $user->id;
+        $canTerminate  = !in_array($status, ['terminated', 'archived']) && $doc->practitioner_id === $user->id;
+        $canRemind     = in_array($status, ['countersign_pending', 'countersign', 'pending_sign']);
+        $amendCount    = $doc->amendments ? $doc->amendments->count() : 0;
 
         return [
-            'id'             => $doc->id,
-            'title'          => $doc->title,
-            'reference'      => $doc->reference ?? 'DOC-' . strtoupper(substr($doc->id, -6)),
-            'doc_type'       => $doc->doc_type,
-            'doc_type_label' => Str::upper($doc->doc_type ?? 'DOC') . ' · ' . $this->docTypeLabel($doc->doc_type),
-            'category_label' => $this->catLabel($doc->category),
-            'tab_key'        => $tabKey,
-            'status'         => $status,
-            'is_expiring'    => $isExpiring || $isExpired || $status === 'expiring',
-            'badge_label'    => $this->badgeLabel($status),
-            'badge_variant'  => $this->badgeVariant($status),
-            'people'         => $people,
-            'people_label'   => $peopleLabel,
-            'when_text'      => $whenText,
-            'when_class'     => $whenClass,
-            'when_icon'      => $whenIcon,
-            'primary_action' => $primaryAction,
-            'counterparty'   => $counterparty,
-            'body'           => $doc->body,
-            'history'        => $this->buildHistory($doc),
-            'effective_date' => $doc->effective_date?->format('M j, Y'),
-            'expiry_date'    => $expiresAt?->format('M j, Y'),
-            'version'        => null,
+            'id'               => $doc->id,
+            'title'            => $doc->title,
+            'reference'        => $doc->reference ?? 'DOC-' . strtoupper(substr($doc->id, -6)),
+            'doc_type'         => $doc->doc_type,
+            'doc_type_label'   => Str::upper($doc->doc_type ?? 'DOC') . ' · ' . $this->docTypeLabel($doc->doc_type),
+            'category'         => $doc->category,
+            'category_label'   => $this->catLabel($doc->category),
+            'status'           => $status,
+            'is_expiring'      => $isExpiring || $isExpired || $status === 'expiring',
+            'badge_label'      => $this->badgeLabel($status),
+            'badge_variant'    => $this->badgeVariant($status),
+            'people'           => $people,
+            'people_label'     => $peopleLabel,
+            'when_text'        => $whenText,
+            'when_class'       => $whenClass,
+            'when_icon'        => $whenIcon,
+            'primary_action'   => $primaryAction,
+            'can_amend'        => $canAmend,
+            'can_terminate'    => $canTerminate,
+            'can_remind'       => $canRemind,
+            'amendment_count'  => $amendCount,
+            'days_until_expiry'=> $daysToExp,
+            'counterparty'     => $counterparty,
+            'body'             => $doc->body,
+            'history'          => $this->buildHistory($doc),
+            'effective_date'   => $doc->effective_date?->format('M j, Y'),
+            'expiry_date'      => $expiresAt?->format('M j, Y'),
+            'party_b_id'       => $doc->party_b_id,
+            'amends_document_id' => $doc->amends_document_id,
         ];
     }
 
-    private function primaryAction(string $status, string $practitionerId, string $userId): string
+    private function statusVal(ContinuityDocument $doc): string
     {
-        if ($practitionerId !== $userId) return 'default';
+        return $doc->status instanceof \App\Enums\DocumentStatus
+            ? $doc->status->value
+            : (string) $doc->status;
+    }
+
+    private function primaryAction(string $status): string
+    {
         return match ($status) {
-            'pending_sign'                    => 'sign',
-            'draft'                           => 'edit',
-            'expiring', 'expired', 'countersign',
-            'countersign_pending'             => 'renew',
-            default                           => 'default',
+            'pending_sign'                         => 'sign',
+            'draft'                                => 'edit',
+            'countersign', 'countersign_pending'   => 'remind',
+            'expiring', 'expired'                  => 'renew',
+            default                                => 'view',
         };
     }
 
@@ -296,8 +353,11 @@ class DocumentsController extends Controller
         if ($status === 'draft') {
             return ['Draft — not yet sent', 'is-muted', null];
         }
-        if ($status === 'terminated' || $status === 'archived') {
-            return [$doc->archived_at ? Carbon::parse($doc->archived_at)->format('M j, Y') : 'Archived', 'is-muted', null];
+        if ($status === 'terminated') {
+            return [$doc->archived_at ? 'Terminated ' . Carbon::parse($doc->archived_at)->format('M j, Y') : 'Terminated', 'is-muted', null];
+        }
+        if ($status === 'archived') {
+            return [$doc->archived_at ? 'Archived ' . Carbon::parse($doc->archived_at)->format('M j, Y') : 'Archived', 'is-muted', null];
         }
         if ($isExpired) {
             return ['Expired ' . ($expiresAt?->format('M j, Y') ?? ''), 'is-danger', 'alert-triangle'];
@@ -314,32 +374,30 @@ class DocumentsController extends Controller
     private function badgeLabel(string $status): string
     {
         return match ($status) {
-            'active', 'fully_executed' => 'Active',
-            'pending_sign'             => 'Awaiting Signature',
-            'countersign',
-            'countersign_pending'      => 'Awaiting Countersig.',
-            'draft'                    => 'Draft',
-            'expiring'                 => 'Expiring Soon',
-            'expired'                  => 'Expired',
-            'archived'                 => 'Archived',
-            'terminated'               => 'Terminated',
-            'release_pending'          => 'Release Pending',
-            default                    => Str::ucfirst($status),
+            'active', 'fully_executed'        => 'Active',
+            'pending_sign'                    => 'Awaiting Signature',
+            'countersign', 'countersign_pending' => 'Awaiting Countersig.',
+            'draft'                           => 'Draft',
+            'expiring'                        => 'Expiring Soon',
+            'expired'                         => 'Expired',
+            'archived'                        => 'Archived',
+            'terminated'                      => 'Terminated',
+            'release_pending'                 => 'Release Pending',
+            default                           => Str::ucfirst($status),
         };
     }
 
     private function badgeVariant(string $status): string
     {
         return match ($status) {
-            'active', 'fully_executed' => 'green',
-            'pending_sign'             => 'gold',
-            'countersign',
-            'countersign_pending'      => 'blue',
-            'draft'                    => 'gray',
-            'expiring'                 => 'orange',
-            'expired', 'terminated'    => 'red',
-            'archived'                 => 'gray',
-            default                    => 'gray',
+            'active', 'fully_executed'        => 'green',
+            'pending_sign'                    => 'gold',
+            'countersign', 'countersign_pending' => 'blue',
+            'draft'                           => 'gray',
+            'expiring'                        => 'orange',
+            'expired', 'terminated'           => 'red',
+            'archived'                        => 'gray',
+            default                           => 'gray',
         };
     }
 
@@ -357,8 +415,11 @@ class DocumentsController extends Controller
             'steward_designation'  => 'Steward Designation',
             'client_notification'  => 'Client Notification',
             'plan_amendment'       => 'Plan Amendment',
+            'cs_retainer_agreement'=> 'CS Retainer Agreement',
+            'ss_authorization_agreement' => 'SS Authorization',
+            'fee_amendment'        => 'Fee Amendment',
             'records_release'      => 'Records Release',
-            'review_record'        => 'Review Record',
+            'plan_agreement'       => 'Continuity Plan Agreement',
             default                => Str::headline($type ?? 'Document'),
         };
     }
