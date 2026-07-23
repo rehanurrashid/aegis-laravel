@@ -21,7 +21,7 @@
     <!-- STAT CHIPS (sibling of hero, never inside) -->
     <div class="stat-chips-row">
       <AegisStatChip icon="file-text"  :value="docStats.total"          label="Total Documents" />
-      <AegisStatChip icon="pen-tool"   :value="docStats.pending_my_sig" label="Awaiting My Signature" />
+      <AegisStatChip icon="file-pen"   :value="docStats.pending_my_sig" label="Awaiting My Signature" />
       <AegisStatChip icon="clock"      :value="docStats.awaiting_counter" label="Awaiting Counterparty" />
       <AegisStatChip icon="calendar"   :value="docStats.expiring"       label="Expiring in 30 Days" />
     </div>
