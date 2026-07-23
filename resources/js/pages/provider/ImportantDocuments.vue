@@ -12,9 +12,6 @@
         <a :href="route('provider.activity', { event_type: 'document' })" class="btn-hero-ghost is-on-light" data-tooltip="Document activity log">
           <AegisIcon name="activity" :size="14" /> Activity
         </a>
-        <button class="btn-hero-ghost is-on-light" @click="openModal('templateModal')">
-          <AegisIcon name="book-open" :size="14" /> Browse Library
-        </button>
         <button class="btn-hero-solid is-on-light" @click="openWizard">
           <AegisIcon name="plus" :size="14" /> New Agreement
         </button>
@@ -46,7 +43,7 @@
         <div>Review agreements that are pending your signature.</div>
         <div style="margin-top:10px">
           <button class="btn btn-primary" @click="setActiveTab('pending_sign')">
-            <AegisIcon name="pen-tool" :size="13" /> View Pending
+            <AegisIcon name="file-pen" :size="13" /> View Pending
           </button>
         </div>
       </div>
@@ -66,7 +63,7 @@
             <span v-if="menuBadges.all > 0" class="page-sidebar-badge">{{ menuBadges.all }}</span>
           </button>
           <button type="button" role="tab" class="page-sidebar-item" :class="{ active: activeTab === 'pending_sign' }" @click="setActiveTab('pending_sign')">
-            <span class="page-sidebar-icon"><AegisIcon name="pen-tool" :size="15" /></span>
+            <span class="page-sidebar-icon"><AegisIcon name="file-pen" :size="15" /></span>
             Pending My Signature
             <span v-if="menuBadges.pending_sign > 0" class="page-sidebar-badge">{{ menuBadges.pending_sign }}</span>
           </button>
@@ -106,24 +103,13 @@
         </div>
 
         <div class="page-sidebar-group">
-          <div class="page-sidebar-label">Templates &amp; Tools</div>
-          <button type="button" role="tab" class="page-sidebar-item" @click="openModal('templateModal')">
-            <span class="page-sidebar-icon"><AegisIcon name="book-open" :size="15" /></span>
-            Sample Templates
-          </button>
+          <div class="page-sidebar-label">Tools</div>
           <button type="button" role="tab" class="page-sidebar-item" @click="openModal('exportModal')">
             <span class="page-sidebar-icon"><AegisIcon name="download" :size="15" /></span>
             Export Documents
           </button>
         </div>
 
-        <div class="page-sidebar-group">
-          <div class="page-sidebar-label">Activity</div>
-          <a :href="route('provider.activity', { event_type: 'document' })" class="page-sidebar-item">
-            <span class="page-sidebar-icon"><AegisIcon name="activity" :size="15" /></span>
-            View Activity Log
-          </a>
-        </div>
 
       </nav>
 
@@ -174,9 +160,6 @@
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn btn-outline" @click="openModal('addDocumentModal')">
                 <AegisIcon name="upload" :size="13" /> Add Supporting Doc
-              </button>
-              <button class="btn btn-primary" @click="openWizard">
-                <AegisIcon name="plus" :size="13" /> New Agreement
               </button>
             </div>
           </div>
@@ -245,10 +228,10 @@
                     <!-- Sign -->
                     <template v-if="doc.primary_action === 'sign'">
                       <button class="btn btn-primary" :disabled="signBusy" @click="openSignModal(doc)">
-                        <AegisIcon name="pen-tool" :size="13" /> {{ signBusy ? 'Signing...' : 'Sign' }}
+                        <AegisIcon name="file-pen" :size="13" /> {{ signBusy ? 'Signing...' : 'Sign' }}
                       </button>
                       <button class="btn-icon" data-tooltip="View agreement" @click="openViewModal(doc)"><AegisIcon name="eye" :size="14" /></button>
-                      <button class="btn-icon" data-tooltip="More actions" @click="openActionsModal(doc)"><AegisIcon name="more-horizontal" :size="14" /></button>
+                      <button class="btn-icon" data-tooltip="More actions" @click="openActionsModal(doc)"><AegisIcon name="more" :size="14" /></button>
                     </template>
                     <!-- Send reminder (awaiting countersig) -->
                     <template v-else-if="doc.primary_action === 'remind'">
@@ -256,7 +239,7 @@
                         <AegisIcon name="bell" :size="13" /> Send Reminder
                       </button>
                       <button class="btn-icon" data-tooltip="View agreement" @click="openViewModal(doc)"><AegisIcon name="eye" :size="14" /></button>
-                      <button class="btn-icon" data-tooltip="More actions" @click="openActionsModal(doc)"><AegisIcon name="more-horizontal" :size="14" /></button>
+                      <button class="btn-icon" data-tooltip="More actions" @click="openActionsModal(doc)"><AegisIcon name="more" :size="14" /></button>
                     </template>
                     <!-- Renew (expiring/expired) -->
                     <template v-else-if="doc.primary_action === 'renew'">
@@ -264,7 +247,7 @@
                         <AegisIcon name="refresh-cw" :size="13" /> Renew
                       </button>
                       <button class="btn-icon" data-tooltip="View agreement" @click="openViewModal(doc)"><AegisIcon name="eye" :size="14" /></button>
-                      <button class="btn-icon" data-tooltip="More actions" @click="openActionsModal(doc)"><AegisIcon name="more-horizontal" :size="14" /></button>
+                      <button class="btn-icon" data-tooltip="More actions" @click="openActionsModal(doc)"><AegisIcon name="more" :size="14" /></button>
                     </template>
                     <!-- Edit (draft) -->
                     <template v-else-if="doc.primary_action === 'edit'">
@@ -282,7 +265,7 @@
                       <button class="btn-icon" data-tooltip="View agreement" @click="openViewModal(doc)"><AegisIcon name="eye" :size="14" /></button>
                       <button v-if="doc.can_amend" class="btn-icon" data-tooltip="Request amendment" @click="openAmendModalDirect(doc)"><AegisIcon name="edit" :size="14" /></button>
                       <button class="btn-icon" data-tooltip="Download PDF" @click="toast.info('PDF download coming soon.')"><AegisIcon name="download" :size="14" /></button>
-                      <button class="btn-icon" data-tooltip="More actions" @click="openActionsModal(doc)"><AegisIcon name="more-horizontal" :size="14" /></button>
+                      <button class="btn-icon" data-tooltip="More actions" @click="openActionsModal(doc)"><AegisIcon name="more" :size="14" /></button>
                     </template>
                   </div>
                 </div>
@@ -324,7 +307,7 @@
                   <AegisBadge :label="doc.badge_label" :variant="doc.badge_variant" />
                   <div class="ag-actions">
                     <button class="btn btn-primary" v-if="doc.primary_action === 'sign'" @click="openSignModal(doc)">
-                      <AegisIcon name="pen-tool" :size="13" /> Sign
+                      <AegisIcon name="file-pen" :size="13" /> Sign
                     </button>
                     <button class="btn-icon" data-tooltip="View" @click="openViewModal(doc)"><AegisIcon name="eye" :size="14" /></button>
                   </div>
@@ -649,7 +632,7 @@
           :disabled="!signCheck1 || !signCheck2 || !signForm.name || signBusy"
           @click="finalizeSignature"
         >
-          <AegisIcon name="pen-tool" :size="13" /> {{ signBusy ? 'Signing...' : 'Apply Signature' }}
+          <AegisIcon name="file-pen" :size="13" /> {{ signBusy ? 'Signing...' : 'Apply Signature' }}
         </button>
       </template>
     </AegisModal>
@@ -711,7 +694,7 @@
             <AegisIcon name="edit" :size="13" /> Request Amendment
           </button>
           <button v-if="activeDoc?.primary_action === 'sign'" class="btn btn-primary" @click="closeModal('viewAgreementModal'); openSignModal(activeDoc)">
-            <AegisIcon name="pen-tool" :size="13" /> Sign Now
+            <AegisIcon name="file-pen" :size="13" /> Sign Now
           </button>
           <button v-if="activeDoc?.primary_action === 'renew'" class="btn btn-primary" @click="closeModal('viewAgreementModal'); openRenewModal(activeDoc)">
             <AegisIcon name="refresh-cw" :size="13" /> Renew
