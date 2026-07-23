@@ -470,7 +470,7 @@
             :placeholder="'Search ' + (catConfig.filterB === 'continuity_steward' ? 'continuity stewards' : catConfig.filterB === 'support_steward' ? 'support stewards' : 'stewards') + '...'" />
         </div>
         <div
-          style="max-height:200px;overflow-y:auto;border-radius:var(--radius-sm);margin-bottom:6px"
+          style="max-height:200px;overflow-y:auto;border-radius:var(--radius-sm);margin-bottom:6px;padding:6px"
           :style="v$.wiz_partyB.$error ? 'border:1.5px solid var(--red)' : filteredPartyB.length === 0 ? 'border:1px solid var(--border)' : 'border:none'"
         >
           <div v-if="filteredPartyB.length === 0" style="padding:20px;text-align:center;color:var(--text-4);font-size:13px">
@@ -502,7 +502,7 @@
             <input class="form-input" type="text" v-model="wiz.partyCSearch" placeholder="Search support stewards..." />
           </div>
           <div
-            style="max-height:200px;overflow-y:auto;border-radius:var(--radius-sm);margin-bottom:6px"
+            style="max-height:200px;overflow-y:auto;border-radius:var(--radius-sm);margin-bottom:6px;padding:6px"
             :style="v$.wiz_partyC.$error ? 'border:1.5px solid var(--red)' : filteredPartyC.length === 0 ? 'border:1px solid var(--border)' : 'border:none'"
           >
             <div v-if="filteredPartyC.length === 0" style="padding:20px;text-align:center;color:var(--text-4);font-size:13px">
@@ -1751,7 +1751,8 @@ function submitExport() {
 .party-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:6px; color:var(--text-4); }
 .party-name  { font-size:14px; font-weight:700; color:var(--text); }
 
-.party-search-result { border:1px solid var(--border); border-radius:var(--radius-sm); padding:11px 14px; margin-bottom:6px; cursor:pointer; transition:background var(--transition),border-color var(--transition); display:flex; align-items:center; gap:12px; background:var(--surface); font-size:13px; }
+.party-search-result { border:1px solid var(--border); border-radius:var(--radius-sm); padding:11px 14px; margin-bottom:4px; cursor:pointer; transition:background var(--transition),border-color var(--transition); display:flex; align-items:center; gap:12px; background:var(--surface); font-size:13px; }
+.party-search-result:last-child { margin-bottom:0; }
 .party-search-result:hover    { background:var(--surface-2); border-color:var(--gold-dark); }
 .party-search-result.selected { background:var(--badge-bg-gold); border-color:var(--gold-dark); }
 .party-search-result.selected .party-name-sm { color:var(--gold-dark); }
