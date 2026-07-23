@@ -655,21 +655,10 @@
             <span>This agreement authorizes the named individual to act as your Support Steward during a verified critical incident. Their access is limited to the responsibilities defined above and your Continuity Plan instructions.</span>
           </p>
         </div>
-        <div
-          class="upload-zone"
-          style="cursor:pointer;margin-bottom:14px;"
-          :style="ssSigned ? 'border-color:var(--green);background:var(--green-light,#f0fdf4);' : ''"
-          @click="ssSigned = !ssSigned"
-        >
-          <div class="upload-zone-icon" :style="ssSigned ? 'background:var(--green);border-radius:var(--radius-full);padding:6px;' : ''">
-            <AegisIcon v-if="ssSigned" name="check-circle" :size="20" style="color:#fff;" />
-            <AegisIcon v-else name="pencil" :size="20" />
-          </div>
-          <div class="upload-zone-title" :style="ssSigned ? 'color:var(--green);' : ''">
-            {{ ssSigned ? 'Signature applied — click to remove' : 'Click to apply your digital signature' }}
-          </div>
-          <div class="upload-zone-sub">By signing, you confirm all details above are accurate</div>
-        </div>
+        <AegisSignBox
+          v-model="ssSigned"
+          style="margin-bottom:14px"
+        />
         <div class="form-group">
           <label class="form-label">Invitation Expiry</label>
           <select v-model="inviteForm.expires_days" class="form-input form-select">
@@ -957,6 +946,7 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useMessageButton } from '@/composables/useMessageButton'
 import PlanReviewAlert from '@/components/PlanReviewAlert.vue'
 import EndStewardRetainerModal from '@/components/modals/EndStewardRetainerModal.vue'
+import AegisSignBox from '@/components/ui/AegisSignBox.vue'
 
 // ── Props ────────────────────────────────────────────────
 const props = defineProps({

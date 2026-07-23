@@ -288,21 +288,11 @@
           <span>Retainer active indefinitely from date of signing. Invoiced only when a critical incident closes and CS tasks are marked complete. Annual re-attestation required. Either party may cancel at any time.</span>
         </p>
       </div>
-      <div
-        class="upload-zone"
-        style="cursor:pointer;margin-bottom:14px;"
-        :style="signed ? 'border-color:var(--green);background:var(--green-light,#f0fdf4);' : ''"
-        @click="signed = !signed"
-      >
-        <div class="upload-zone-icon" :style="signed ? 'background:var(--green);border-radius:var(--radius-full);padding:6px;' : ''">
-          <AegisIcon v-if="signed" name="check-circle" :size="20" style="color:#fff;" />
-          <AegisIcon v-else name="pencil" :size="20" />
-        </div>
-        <div class="upload-zone-title" :style="signed ? 'color:var(--green);' : ''">
-          {{ signed ? 'Signature applied — click to remove' : 'Click to apply your digital signature' }}
-        </div>
-        <div class="upload-zone-sub">By signing, you confirm all details above are accurate</div>
-      </div>
+        <AegisSignBox
+          v-model="signed"
+          :signer-name="preselectedUser?.display_name || searchSelected?.display_name || form.display_name"
+          style="margin-bottom:14px"
+        />
       <div class="form-group">
         <label class="form-label">Invitation Expiry</label>
         <select v-model="form.expires_days" class="form-input form-select">
@@ -343,6 +333,7 @@ import { useForm, router } from '@inertiajs/vue3'
 import { useVuelidate } from '@vuelidate/core'
 import { required, email as emailRule, minLength, helpers } from '@vuelidate/validators'
 import { useToast } from '@/composables/useToast'
+import AegisSignBox from '@/components/ui/AegisSignBox.vue'
 
 // ── Props & emits ────────────────────────────────────────────────────────────
 const props = defineProps({

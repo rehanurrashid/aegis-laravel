@@ -654,9 +654,16 @@
           </div>
         </div>
 
-        <div style="font-size:12px;color:var(--text-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;background:var(--surface-2)">
+        <div style="font-size:12px;color:var(--text-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;background:var(--surface-2);margin-bottom:14px">
           By sending this agreement you confirm that all information is accurate. The counterparty will be notified to review and countersign. This agreement will become legally binding upon mutual execution.
         </div>
+
+        <AegisSignBox
+          v-model="wizSigned"
+          :signer-name="providerName"
+          label="Sign to create this agreement"
+          sublabel="Your signature is required before the agreement can be sent for countersignature"
+        />
       </div>
 
       <template #footer>
@@ -667,7 +674,7 @@
           <button v-if="wizStep < 4" class="btn btn-primary" @click="wizardNext">
             Continue <AegisIcon name="arrow-right" :size="13" />
           </button>
-          <button v-if="wizStep === 4" class="btn btn-primary" :disabled="sendBusy" @click="sendForSignature">
+          <button v-if="wizStep === 4" class="btn btn-primary" :disabled="sendBusy || !wizSigned" @click="sendForSignature">
             <span v-if="sendBusy" class="spinner spinner-sm" />
             <AegisIcon v-else name="file-pen" :size="13" />
             {{ sendBusy ? 'Signing…' : 'Create & Sign Agreement' }}
@@ -684,57 +691,39 @@
       size="md"
       @update:model-value="v => !v && closeSignModal()"
     >
-      <div v-if="activeDoc" class="info-card" style="margin-bottom:16px">
-        <div class="info-card-title">Agreement Details</div>
-        <div class="info-card-row"><span class="info-card-key">Document</span><span class="info-card-val">{{ activeDoc.title }}</span></div>
-        <div class="info-card-row"><span class="info-card-key">Reference</span><span class="info-card-val">{{ activeDoc.reference }}</span></div>
-        <div v-if="activeDoc.counterparty" class="info-card-row"><span class="info-card-key">Counterparty</span><span class="info-card-val">{{ activeDoc.counterparty.name }}</span></div>
-        <div v-if="activeDoc.effective_date" class="info-card-row"><span class="info-card-key">Effective</span><span class="info-card-val">{{ activeDoc.effective_date }}</span></div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Signature (type your full name) <span class="required">*</span></label>
-        <input
-          type="text"
-          class="form-input"
-          v-model="signForm.name"
-          :class="{ 'is-error': fieldError('sign_name') }"
-          @blur="v$.sign_name.$touch()"
-          :placeholder="providerName"
-        />
-        <div v-if="fieldError('sign_name')" class="form-error">{{ fieldError('sign_name') }}</div>
-        <div v-if="signForm.name" class="sig-preview">
-          <span class="sig-name-display">{{ signForm.name }}</span>
+      <template v-if="activeDoc">
+        <div class="info-card" style="margin-bottom:16px">
+          <div class="info-card-title">Agreement Details</div>
+          <div class="info-card-row"><span class="info-card-key">Document</span><span class="info-card-val">{{ activeDoc.title }}</span></div>
+          <div class="info-card-row"><span class="info-card-key">Reference</span><span class="info-card-val">{{ activeDoc.reference }}</span></div>
+          <div class="info-card-row"><span class="info-card-key">Type</span><span class="info-card-val">{{ activeDoc.doc_type_label }}</span></div>
+          <div v-if="activeDoc.counterparty" class="info-card-row"><span class="info-card-key">Counterparty</span><span class="info-card-val">{{ activeDoc.counterparty.name }}</span></div>
+          <div v-if="activeDoc.effective_date" class="info-card-row"><span class="info-card-key">Effective Date</span><span class="info-card-val">{{ activeDoc.effective_date }}</span></div>
         </div>
-      </div>
 
-      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
-        <label class="sig-check-row" style="padding:10px 0">
-          <input type="checkbox" v-model="signCheck1" style="accent-color:var(--gold-dark)" />
-          <span class="sig-check-label">I have read and understand this agreement in full</span>
-        </label>
-        <label class="sig-check-row" style="padding:10px 0">
-          <input type="checkbox" v-model="signCheck2" style="accent-color:var(--gold-dark)" />
-          <span class="sig-check-label">I confirm I have the legal authority to enter into this agreement</span>
-        </label>
-      </div>
+        <AegisSignBox
+          v-model="modalSigned"
+          :signer-name="providerName"
+          sublabel="By signing, you confirm you have read this agreement and have the legal authority to enter into it"
+          style="margin-bottom:14px"
+        />
 
-      <div class="alert alert-info" style="margin-top:14px;margin-bottom:0">
-        <div class="alert-icon"><AegisIcon name="info" :size="18" /></div>
-        <div class="alert-content">Your electronic signature is legally binding. Your IP address and timestamp will be recorded.</div>
-      </div>
+        <div style="font-size:11px;color:var(--text-4);line-height:1.6;text-align:center">
+          Your name, IP address, and timestamp will be recorded in the audit trail.
+        </div>
+      </template>
 
       <template #footer>
         <button class="btn btn-outline" @click="closeSignModal">Cancel</button>
         <button
           class="btn btn-primary"
           style="margin-left:auto"
-          :disabled="!signCheck1 || !signCheck2 || !signForm.name || signBusy"
+          :disabled="signBusy || !modalSigned"
           @click="finalizeSignature"
         >
           <span v-if="signBusy" class="spinner spinner-sm" />
           <AegisIcon v-else name="file-pen" :size="13" />
-          {{ signBusy ? 'Signing…' : 'Apply Signature' }}
+          {{ signBusy ? 'Signing…' : 'Sign Agreement' }}
         </button>
       </template>
     </AegisModal>
@@ -1216,6 +1205,7 @@ import { useConfirm }        from '@/composables/useConfirm'
 import PlanReviewAlert       from '@/components/PlanReviewAlert.vue'
 import { useVuelidate }      from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
+import AegisSignBox          from '@/components/ui/AegisSignBox.vue'
 import AegisPagination       from '@/components/ui/AegisPagination.vue'
 
 const props = defineProps({
@@ -1318,8 +1308,7 @@ const amendBusy     = ref(false)
 const remindBusy    = ref(false)
 
 // ── Signature state ──────────────────────────────────────────────────────────
-const signCheck1 = ref(false)
-const signCheck2 = ref(false)
+const modalSigned  = ref(false)  // sign modal sign box
 
 // ── Tab computed helpers ─────────────────────────────────────────────────────
 const showDocList  = computed(() => ['all','pending_sign','countersign','active','expiring','archived'].includes(activeTab.value))
@@ -1452,6 +1441,7 @@ const supportingTo         = computed(() => Math.min(supportingPage.value * PER_
 
 // ── Wizard ───────────────────────────────────────────────────────────────────
 const wizStep    = ref(1)
+const wizSigned  = ref(false)  // provider sign box on step 4
 const stepLabels = [
   { short:'type',    label:'Agreement Type'   },
   { short:'parties', label:'Parties & Details' },
@@ -1465,7 +1455,7 @@ const wiz = reactive({
   effectiveDate:'', expirationDate:'', notes:'',
 })
 
-function openWizard()  { wizStep.value=1; Object.assign(wiz, { category:'', docType:'', reference:'', partyBSearch:'', partyB:null, partyCSearch:'', partyC:null, effectiveDate:'', expirationDate:'', notes:'' }); resetClauses(); v$.value.$reset(); openModal('newAgreementModal') }
+function openWizard()  { wizStep.value=1; wizSigned.value=false; Object.assign(wiz, { category:'', docType:'', reference:'', partyBSearch:'', partyB:null, partyCSearch:'', partyC:null, effectiveDate:'', expirationDate:'', notes:'' }); resetClauses(); v$.value.$reset(); openModal('newAgreementModal') }
 function closeWizard() { closeModal('newAgreementModal') }
 
 function wizardNext() {
@@ -1584,7 +1574,6 @@ const clauses = computed(() => {
 })
 
 // ── Form reactive objects ────────────────────────────────────────────────────
-const signForm      = reactive({ name:'' })
 const renewForm     = reactive({ effectiveDate:'', expiryDate:'', notes:'' })
 const terminateForm = reactive({ reason:'', date:'', notes:'', confirm:'' })
 const addDocForm    = reactive({ name:'', type:'Supporting Document', relatedTo:'', notes:'' })
@@ -1629,7 +1618,6 @@ const rules = computed(() => ({
   wiz_partyB:        { required: helpers.withMessage('Please select a counterparty.', required) },
   wiz_partyC:        catConfig.value.needsC ? { required: helpers.withMessage('Please select the second counterparty.', required) } : {},
   wiz_effectiveDate: { required: helpers.withMessage('Effective date is required.', required) },
-  sign_name:         { required: helpers.withMessage('Please type your full name.', required) },
   renew_effective:   { required: helpers.withMessage('Effective date is required.', required) },
   term_reason:       { required: helpers.withMessage('Please select a reason.', required) },
   term_confirm:      { required: helpers.withMessage('Type TERMINATE to confirm.', required) },
@@ -1644,7 +1632,6 @@ const vModel = reactive({
   wiz_partyB:        computed({ get: () => wiz.partyB,             set: v => { wiz.partyB = v } }),
   wiz_partyC:        computed({ get: () => wiz.partyC,             set: v => { wiz.partyC = v } }),
   wiz_effectiveDate: computed({ get: () => wiz.effectiveDate,      set: v => { wiz.effectiveDate = v } }),
-  sign_name:         computed({ get: () => signForm.name,          set: v => { signForm.name = v } }),
   renew_effective:   computed({ get: () => renewForm.effectiveDate, set: v => { renewForm.effectiveDate = v } }),
   term_reason:       computed({ get: () => terminateForm.reason,   set: v => { terminateForm.reason = v } }),
   term_confirm:      computed({ get: () => terminateForm.confirm,  set: v => { terminateForm.confirm = v } }),
@@ -1662,11 +1649,11 @@ function fieldError(field) {
 // ── Modal openers ────────────────────────────────────────────────────────────
 function openViewModal(doc)    { activeDocId.value = doc.id; openModal('viewAgreementModal') }
 function openActionsModal(doc) { activeDocId.value = doc.id; openModal('agreementActionsModal') }
-function openSignModal(doc)    { activeDocId.value = doc.id; signForm.name = ''; signCheck1.value = false; signCheck2.value = false; v$.value.$reset(); openModal('signatureModal') }
+function openSignModal(doc)    { activeDocId.value = doc.id; modalSigned.value = false; openModal('signatureModal') }
 function openRenewModal(doc)   { activeDocId.value = doc.id; renewForm.effectiveDate = ''; renewForm.expiryDate = ''; openModal('renewalModal') }
 function openAmendModalDirect(doc) { activeDocId.value = doc.id; closeModal('viewAgreementModal'); setTimeout(() => openModal('amendmentModal'), 50) }
 
-function closeSignModal()  { closeModal('signatureModal'); signForm.name = ''; v$.value.$reset() }
+function closeSignModal()  { closeModal('signatureModal'); modalSigned.value = false }
 function closeTerminate()  { closeModal('terminateModal'); Object.assign(terminateForm, { reason:'', date:'', notes:'', confirm:'' }); v$.value.$reset() }
 function closeAmend()      { closeModal('amendmentModal'); Object.assign(amendForm, { type:'', currentLang:'', proposed:'', reason:'', effectiveDate:'' }); amendFiles.value = []; v$.value.$reset() }
 function closeAddDoc()     { closeModal('addDocumentModal'); Object.assign(addDocForm, { name:'', type:'Supporting Document', relatedTo:'', notes:'' }); addDocFiles.value = []; v$.value.$reset() }
@@ -1698,12 +1685,6 @@ function docCardClass(doc) {
 // ── Submit actions ───────────────────────────────────────────────────────────
 
 function finalizeSignature() {
-  v$.value.sign_name.$touch()
-  if (v$.value.sign_name.$error) return
-  if (!signCheck1.value || !signCheck2.value) {
-    toast.warning('Please confirm both attestation checkboxes.')
-    return
-  }
   signBusy.value = true
   router.post(route('provider.documents.sign', { document: activeDocId.value }), {}, {
     preserveScroll: true,
@@ -1886,10 +1867,6 @@ function submitExport() {
 .dot-red    { background:var(--red-dark); }
 .dot-gray   { background:var(--text-4); }
 
-/* Signature preview */
-.sig-preview { border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 16px; background:var(--surface-2); margin-top:8px; }
-.sig-name-display { font-family:var(--font-serif); font-size:20px; font-style:italic; color:var(--text); letter-spacing:0.4px; }
-
 /* Info card */
 .info-card       { border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; font-size:13px; background:var(--surface); }
 .info-card-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--text-4); margin-bottom:8px; }
@@ -1947,10 +1924,6 @@ function submitExport() {
 .agr-cat-avatar { width:36px; height:36px; border-radius:var(--radius-full); background:var(--gold-dark); color:var(--text-inverted); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .agr-cat-title  { font-size:13px; font-weight:700; color:var(--text); margin-bottom:2px; }
 .agr-cat-sub    { font-size:11px; color:var(--text-4); line-height:1.4; }
-
-/* Signature checkboxes */
-.sig-check-row   { display:flex; align-items:center; gap:10px; cursor:pointer; border-bottom:1px solid var(--border); }
-.sig-check-label { font-size:13px; color:var(--text-2); }
 
 /* List items in actions modal */
 .list-item       { border:1px solid var(--border); border-radius:var(--radius-sm); padding:11px 14px; margin-bottom:6px; cursor:pointer; transition:background var(--transition),border-color var(--transition); display:flex; align-items:center; gap:12px; background:var(--surface); font-size:13px; width:100%; text-align:left; }
