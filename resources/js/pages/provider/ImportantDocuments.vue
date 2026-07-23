@@ -547,18 +547,20 @@
 
       <!-- Step 3: Clauses & Notes -->
       <div v-show="wizStep === 3">
-        <div class="section-title" style="margin-bottom:12px">Standard Clauses</div>
-        <div v-for="clause in clauses" :key="clause.id" class="clause-section">
-          <div class="clause-header" @click="ALL_CLAUSES.find(c => c.id === clause.id).open = !clause.open">
+        <div class="section-title" style="margin-bottom:14px">Standard Clauses</div>
+        <div v-for="clause in clauses" :key="clause.id" class="clause-section" :class="{ 'is-open': clauseOpen[clause.id] }">
+          <button type="button" class="clause-header" @click="clauseOpen[clause.id] = !clauseOpen[clause.id]">
             <div class="clause-header-left">
               <div class="clause-num">{{ clause.num }}</div>
               <div class="clause-title">{{ clause.title }}</div>
-              <span class="clause-tag" :class="clause.tagClass">{{ clause.tagLabel }}</span>
             </div>
-            <AegisIcon :name="clause.open ? 'chevron-up' : 'chevron-down'" :size="14" />
-          </div>
-          <div class="clause-body" v-show="clause.open">
-            <div v-for="field in clause.fields" :key="field.label" class="form-group" style="margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+              <span class="clause-tag" :class="clause.tagClass">{{ clause.tagLabel }}</span>
+              <AegisIcon :name="clauseOpen[clause.id] ? 'chevron-up' : 'chevron-down'" :size="14" style="color:var(--text-4)" />
+            </div>
+          </button>
+          <div class="clause-body" v-show="clauseOpen[clause.id]">
+            <div v-for="field in clause.fields" :key="field.label" class="form-group" style="margin-bottom:12px">
               <label class="form-label">{{ field.label }}</label>
               <select v-if="field.type === 'select'" class="form-select"
                 :value="clauseValues[clause.id]?.[field.label]"
@@ -579,7 +581,7 @@
             </div>
           </div>
         </div>
-        <div class="form-group" style="margin-top:14px">
+        <div class="form-group" style="margin-top:16px">
           <label class="form-label">Additional Notes</label>
           <textarea class="form-textarea" rows="3" v-model="wiz.notes" placeholder="Any additional context or instructions for the counterparty..."></textarea>
         </div>
@@ -1475,14 +1477,14 @@ const ALL_CLAUSES = [
 
 // Reactive clause state — field values only, keyed by clause id
 const clauseValues = reactive({})
+const clauseOpen   = reactive({})
 
 function resetClauses() {
   ALL_CLAUSES.forEach(c => {
     clauseValues[c.id] = {}
     c.fields.forEach(f => { clauseValues[c.id][f.label] = f.value })
+    clauseOpen[c.id] = c.id === 1
   })
-  // Reset open state too
-  ALL_CLAUSES.forEach(c => { c.open = c.id === 1 })
 }
 resetClauses()
 
@@ -1837,15 +1839,18 @@ function submitExport() {
 .party-name-sm   { font-size:13px; font-weight:700; color:var(--text); }
 .party-meta-sm   { font-size:12px; color:var(--text-3); }
 
-/* Clause sections */
-.clause-section       { border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:10px; background:var(--surface); }
-.clause-header        { display:flex; align-items:center; justify-content:space-between; padding:11px 14px; background:var(--surface-2); cursor:pointer; transition:background var(--transition); }
-.clause-header:hover  { background:var(--surface-3); }
-.clause-header-left   { display:flex; align-items:center; gap:10px; }
-.clause-num           { width:24px; height:24px; border-radius:var(--radius-sm); background:var(--primary); color:var(--text-inverted); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0; }
-.clause-title         { font-size:13px; font-weight:700; color:var(--text); }
-.clause-body          { padding:12px 14px; border-top:1px solid var(--border); }
-.clause-tag           { display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.4px; text-transform:uppercase; padding:2px 8px; border-radius:var(--radius-full); }
+/* Clause accordion */
+.clause-section       { border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:8px; background:var(--surface); transition:border-color var(--transition),box-shadow var(--transition); }
+.clause-section.is-open { border-color:var(--gold); box-shadow:0 1px 6px rgba(160,129,62,0.08); }
+.clause-header        { display:flex; align-items:center; justify-content:space-between; padding:13px 16px; background:var(--surface); cursor:pointer; transition:background var(--transition); width:100%; border:none; text-align:left; gap:12px; }
+.clause-header:hover  { background:var(--surface-2); }
+.clause-section.is-open .clause-header { background:var(--badge-bg-gold); }
+.clause-header-left   { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
+.clause-num           { width:22px; height:22px; border-radius:var(--radius-full); border:1.5px solid var(--border); background:var(--surface); color:var(--text-3); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0; transition:all var(--transition); }
+.clause-section.is-open .clause-num { border-color:var(--gold-dark); background:var(--gold-dark); color:var(--text-inverted); }
+.clause-title         { font-size:13px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.clause-body          { padding:16px; border-top:1px solid var(--border); background:var(--surface); }
+.clause-tag           { display:inline-flex; align-items:center; font-size:10px; font-weight:700; letter-spacing:0.4px; text-transform:uppercase; padding:2px 8px; border-radius:var(--radius-full); white-space:nowrap; flex-shrink:0; }
 .clause-tag.included   { background:var(--green-light); color:var(--green-dark); }
 .clause-tag.negotiable { background:var(--blue-light);  color:var(--blue-dark); }
 .clause-tag.standard   { background:var(--surface-3);   color:var(--text-3); }
