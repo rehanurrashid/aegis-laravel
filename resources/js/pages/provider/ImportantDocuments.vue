@@ -229,7 +229,9 @@
                     <!-- Sign -->
                     <template v-if="doc.primary_action === 'sign'">
                       <button class="btn btn-primary" :disabled="signBusy" @click="openSignModal(doc)">
-                        <AegisIcon name="file-pen" :size="13" /> {{ signBusy ? 'Signing...' : 'Sign' }}
+                        <span v-if="signBusy" class="spinner spinner-sm" />
+                        <AegisIcon v-else name="file-pen" :size="13" />
+                        {{ signBusy ? 'Signing…' : 'Sign' }}
                       </button>
                       <button class="btn-icon" data-tooltip="View agreement" @click="openViewModal(doc)"><AegisIcon name="eye" :size="14" /></button>
                       <button class="btn-icon" data-tooltip="More actions" @click="openActionsModal(doc)"><AegisIcon name="more" :size="14" /></button>
@@ -237,7 +239,9 @@
                     <!-- Send reminder (awaiting countersig) -->
                     <template v-else-if="doc.primary_action === 'remind'">
                       <button class="btn btn-outline" :disabled="remindBusy" @click="sendReminder(doc)">
-                        <AegisIcon name="bell" :size="13" /> Send Reminder
+                        <span v-if="remindBusy" class="spinner spinner-sm" />
+                        <AegisIcon v-else name="bell" :size="13" />
+                        {{ remindBusy ? 'Sending…' : 'Send Reminder' }}
                       </button>
                       <button class="btn-icon" data-tooltip="View agreement" @click="openViewModal(doc)"><AegisIcon name="eye" :size="14" /></button>
                       <button class="btn-icon" data-tooltip="More actions" @click="openActionsModal(doc)"><AegisIcon name="more" :size="14" /></button>
@@ -634,7 +638,9 @@
             Continue <AegisIcon name="arrow-right" :size="13" />
           </button>
           <button v-if="wizStep === 4" class="btn btn-primary" :disabled="sendBusy" @click="sendForSignature">
-            <AegisIcon name="send" :size="13" /> {{ sendBusy ? 'Sending...' : 'Send for Signature' }}
+            <span v-if="sendBusy" class="spinner spinner-sm" />
+            <AegisIcon v-else name="send" :size="13" />
+            {{ sendBusy ? 'Sending…' : 'Send for Signature' }}
           </button>
         </div>
       </template>
@@ -696,7 +702,9 @@
           :disabled="!signCheck1 || !signCheck2 || !signForm.name || signBusy"
           @click="finalizeSignature"
         >
-          <AegisIcon name="file-pen" :size="13" /> {{ signBusy ? 'Signing...' : 'Apply Signature' }}
+          <span v-if="signBusy" class="spinner spinner-sm" />
+          <AegisIcon v-else name="file-pen" :size="13" />
+          {{ signBusy ? 'Signing…' : 'Apply Signature' }}
         </button>
       </template>
     </AegisModal>
@@ -857,7 +865,9 @@
       <template #footer>
         <button class="btn btn-outline" @click="closeModal('renewalModal')">Cancel</button>
         <button class="btn btn-primary" style="margin-left:auto" :disabled="renewBusy" @click="submitRenew">
-          <AegisIcon name="refresh-cw" :size="13" /> {{ renewBusy ? 'Processing...' : 'Initiate Renewal' }}
+          <span v-if="renewBusy" class="spinner spinner-sm" />
+          <AegisIcon v-else name="refresh-cw" :size="13" />
+          {{ renewBusy ? 'Processing…' : 'Initiate Renewal' }}
         </button>
       </template>
     </AegisModal>
@@ -928,7 +938,9 @@
       <template #footer>
         <button class="btn btn-outline" @click="closeAmend">Cancel</button>
         <button class="btn btn-primary" style="margin-left:auto" :disabled="amendBusy" @click="submitAmend">
-          <AegisIcon name="send" :size="13" /> {{ amendBusy ? 'Sending...' : 'Send Amendment Request' }}
+          <span v-if="amendBusy" class="spinner spinner-sm" />
+          <AegisIcon v-else name="send" :size="13" />
+          {{ amendBusy ? 'Sending…' : 'Send Amendment Request' }}
         </button>
       </template>
     </AegisModal>
@@ -992,7 +1004,9 @@
           :disabled="terminateForm.confirm !== 'TERMINATE' || terminateBusy"
           @click="submitTerminate"
         >
-          <AegisIcon name="x-circle" :size="13" /> {{ terminateBusy ? 'Terminating...' : 'Terminate Agreement' }}
+          <span v-if="terminateBusy" class="spinner spinner-sm" />
+          <AegisIcon v-else name="x-circle" :size="13" />
+          {{ terminateBusy ? 'Terminating…' : 'Terminate Agreement' }}
         </button>
       </template>
     </AegisModal>
@@ -1054,7 +1068,9 @@
       <template #footer>
         <button class="btn btn-outline" @click="closeAddDoc">Cancel</button>
         <button class="btn btn-primary" style="margin-left:auto" :disabled="addDocBusy" @click="submitAddDoc">
-          <AegisIcon name="upload" :size="13" /> {{ addDocBusy ? 'Uploading...' : 'Add Document' }}
+          <span v-if="addDocBusy" class="spinner spinner-sm" />
+          <AegisIcon v-else name="upload" :size="13" />
+          {{ addDocBusy ? 'Uploading…' : 'Add Document' }}
         </button>
       </template>
     </AegisModal>
@@ -1131,7 +1147,9 @@
       <template #footer>
         <button class="btn btn-outline" @click="closeModal('exportModal')">Cancel</button>
         <button class="btn btn-primary" style="margin-left:auto" :disabled="exportBusy" @click="submitExport">
-          <AegisIcon name="download" :size="13" /> {{ exportBusy ? 'Preparing...' : 'Export' }}
+          <span v-if="exportBusy" class="spinner spinner-sm" />
+          <AegisIcon v-else name="download" :size="13" />
+          {{ exportBusy ? 'Preparing…' : 'Export' }}
         </button>
       </template>
     </AegisModal>
