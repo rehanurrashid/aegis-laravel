@@ -1840,16 +1840,16 @@ function submitExport() {
 .party-meta-sm   { font-size:12px; color:var(--text-3); }
 
 /* Clause accordion */
-.clause-section       { border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:8px; background:var(--surface); transition:border-color var(--transition),box-shadow var(--transition); }
+.clause-section       { border:1px solid var(--border); border-radius:var(--radius); margin-bottom:8px; background:var(--surface); transition:border-color var(--transition),box-shadow var(--transition); }
 .clause-section.is-open { border-color:var(--gold); box-shadow:0 1px 6px rgba(160,129,62,0.08); }
-.clause-header        { display:flex; align-items:center; justify-content:space-between; padding:13px 16px; background:var(--surface); cursor:pointer; transition:background var(--transition); width:100%; border:none; text-align:left; gap:12px; }
+.clause-header        { display:flex; align-items:center; justify-content:space-between; padding:13px 16px; background:var(--surface); cursor:pointer; transition:background var(--transition); width:100%; border:none; text-align:left; gap:12px; border-radius:var(--radius); }
 .clause-header:hover  { background:var(--surface-2); }
-.clause-section.is-open .clause-header { background:var(--badge-bg-gold); }
+.clause-section.is-open .clause-header { background:var(--badge-bg-gold); border-radius:var(--radius) var(--radius) 0 0; }
 .clause-header-left   { display:flex; align-items:center; gap:10px; flex:1; min-width:0; }
 .clause-num           { width:22px; height:22px; border-radius:var(--radius-full); border:1.5px solid var(--border); background:var(--surface); color:var(--text-3); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0; transition:all var(--transition); }
 .clause-section.is-open .clause-num { border-color:var(--gold-dark); background:var(--gold-dark); color:var(--text-inverted); }
 .clause-title         { font-size:13px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.clause-body          { padding:16px; border-top:1px solid var(--border); background:var(--surface); }
+.clause-body          { padding:16px; border-top:1px solid var(--border); background:var(--surface); border-radius:0 0 var(--radius) var(--radius); }
 .clause-tag           { display:inline-flex; align-items:center; font-size:10px; font-weight:700; letter-spacing:0.4px; text-transform:uppercase; padding:2px 8px; border-radius:var(--radius-full); white-space:nowrap; flex-shrink:0; }
 .clause-tag.included   { background:var(--green-light); color:var(--green-dark); }
 .clause-tag.negotiable { background:var(--blue-light);  color:var(--blue-dark); }
