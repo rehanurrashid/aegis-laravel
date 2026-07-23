@@ -1411,11 +1411,11 @@ const agrCategories = [
 ]
 
 const clauses = reactive([
-  { id:1, num:1, title:'Scope of Services & Delegation of Authority', open:true,  tagClass:'required',   tagLabel:'Required',   fields:[{ label:'Authorized activities', type:'textarea', value:'', placeholder:'e.g. CS is authorized to manage client referrals...' }, { label:'Explicit exclusions', type:'textarea', value:'', placeholder:'e.g. CS may not modify clinical treatment plans...' }] },
-  { id:2, num:2, title:'Confidentiality & PHI Obligations (HIPAA)',   open:false, tagClass:'required',   tagLabel:'Required',   fields:[{ label:'PHI Access Level', type:'select', value:'Read-Only', options:['Read-Only','Read/Write','No PHI Access'] }, { label:'Confidentiality Duration', type:'select', value:'Duration of agreement only', options:['Duration of agreement only','2 years post-termination','5 years post-termination','Perpetual'] }] },
+  { id:1, num:1, title:'Scope of Services & Delegation of Authority', open:true,  tagClass:'included',   tagLabel:'Included',   fields:[{ label:'Authorized activities', type:'textarea', value:'', placeholder:'e.g. CS is authorized to manage client referrals...' }, { label:'Explicit exclusions', type:'textarea', value:'', placeholder:'e.g. CS may not modify clinical treatment plans...' }] },
+  { id:2, num:2, title:'Confidentiality & PHI Obligations (HIPAA)',   open:false, tagClass:'included',   tagLabel:'Included',   fields:[{ label:'PHI Access Level', type:'select', value:'Read-Only', options:['Read-Only','Read/Write','No PHI Access'] }, { label:'Confidentiality Duration', type:'select', value:'Duration of agreement only', options:['Duration of agreement only','2 years post-termination','5 years post-termination','Perpetual'] }] },
   { id:3, num:3, title:'Compensation & Fee Structure',                open:false, tagClass:'negotiable', tagLabel:'Negotiable', fields:[{ label:'Model', type:'select', value:'Fixed Monthly Retainer', options:['Fixed Monthly Retainer','Hourly Rate','Per-Task Fee'] }, { label:'Amount / Rate', type:'text', value:'', placeholder:'e.g. $2,500/mo' }, { label:'Payment Cycle', type:'select', value:'Monthly', options:['Monthly','Bi-Weekly','Weekly'] }] },
   { id:4, num:4, title:'Termination & Exit Provisions',               open:false, tagClass:'standard',   tagLabel:'Standard',   fields:[{ label:'Notice Period', type:'select', value:'30 days', options:['7 days','14 days','30 days','60 days'] }, { label:'Immediate Termination Grounds', type:'text', value:'HIPAA breach, fraud, gross negligence, loss of licensure', placeholder:'' }] },
-  { id:5, num:5, title:'Liability, Indemnification & Insurance',      open:false, tagClass:'required',   tagLabel:'Required',   fields:[{ label:'Liability Cap', type:'select', value:'Capped at 3 months fees paid', options:['Capped at 3 months fees paid','Capped at total contract value','Capped at $1,000,000'] }, { label:'Insurance Requirement', type:'text', value:'Professional Liability min $1M / $3M aggregate', placeholder:'' }] },
+  { id:5, num:5, title:'Liability, Indemnification & Insurance',      open:false, tagClass:'included',   tagLabel:'Included',   fields:[{ label:'Liability Cap', type:'select', value:'Capped at 3 months fees paid', options:['Capped at 3 months fees paid','Capped at total contract value','Capped at $1,000,000'] }, { label:'Insurance Requirement', type:'text', value:'Professional Liability min $1M / $3M aggregate', placeholder:'' }] },
 ])
 
 // ── Form reactive objects ────────────────────────────────────────────────────
@@ -1755,9 +1755,9 @@ function submitExport() {
 .clause-title         { font-size:13px; font-weight:700; color:var(--text); }
 .clause-body          { padding:12px 14px; border-top:1px solid var(--border); }
 .clause-tag           { display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.4px; text-transform:uppercase; padding:2px 8px; border-radius:var(--radius-full); }
-.clause-tag.required   { background:var(--red-light);   color:var(--red-dark); }
+.clause-tag.included   { background:var(--green-light); color:var(--green-dark); }
 .clause-tag.negotiable { background:var(--blue-light);  color:var(--blue-dark); }
-.clause-tag.standard   { background:var(--green-light); color:var(--green-dark); }
+.clause-tag.standard   { background:var(--surface-3);   color:var(--text-3); }
 
 /* Agreement category cards */
 .agr-cat-grid  { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:4px; }
