@@ -461,7 +461,7 @@
         </div>
         <div
           style="max-height:220px;overflow-y:auto;border-radius:var(--radius-sm);margin-bottom:6px"
-          :style="v$.wiz_partyB.$error ? 'border:1.5px solid var(--red)' : 'border:1px solid var(--border)'"
+          :style="v$.wiz_partyB.$error ? 'border:1.5px solid var(--red)' : filteredPartyB.length === 0 ? 'border:1px solid var(--border)' : 'border:none'"
         >
           <div v-if="filteredPartyB.length === 0" style="padding:24px;text-align:center;color:var(--text-4);font-size:13px">
             No stewards found. Add stewards on the Continuity Stewards page first.
