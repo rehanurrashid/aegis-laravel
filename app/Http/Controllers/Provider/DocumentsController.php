@@ -153,7 +153,7 @@ class DocumentsController extends Controller
             $data['reference'] ?? null,
         ])) ?: 'New Agreement';
 
-        $this->documents->requestDocument($plan, $request->user(), [
+        $doc = $this->documents->requestDocument($plan, $request->user(), [
             'title'              => $title,
             'doc_type'           => $data['doc_type'] ?? 'agreement',
             'body'               => $data['proposed'] ?? $data['notes'] ?? null,
@@ -167,9 +167,18 @@ class DocumentsController extends Controller
             'amends_document_id' => $data['parent_id'] ?? null,
         ]);
 
+        // Provider signs immediately on creation — agreement goes straight to
+        // countersign_pending so the counterparty is notified without an extra step.
+        if (!$isDraft && !$isAmend) {
+            $this->documents->sign($doc, $request->user(), [
+                'name' => $request->user()->display_name,
+                'ip'   => $request->ip(),
+            ]);
+        }
+
         $msg = $isDraft
             ? 'Draft saved.'
-            : ($isAmend ? 'Amendment request sent.' : 'Agreement sent for signature.');
+            : ($isAmend ? 'Amendment request sent.' : 'Agreement created and signed. Awaiting countersignature.');
 
         return back()->with('success', $msg);
     }

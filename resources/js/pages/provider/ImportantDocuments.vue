@@ -625,7 +625,7 @@
       <div v-show="wizStep === 4">
         <div class="alert alert-info" style="margin-bottom:14px">
           <div class="alert-icon"><AegisIcon name="info" :size="18" /></div>
-          <div class="alert-content">Review the agreement details before sending. The counterparty will receive an email notification to sign.</div>
+          <div class="alert-content">Review the agreement details before creating. You will sign immediately — the counterparty will be notified to countersign.</div>
         </div>
         <div class="info-card" style="margin-bottom:14px">
           <div class="info-card-title">Agreement Summary</div>
@@ -669,8 +669,8 @@
           </button>
           <button v-if="wizStep === 4" class="btn btn-primary" :disabled="sendBusy" @click="sendForSignature">
             <span v-if="sendBusy" class="spinner spinner-sm" />
-            <AegisIcon v-else name="send" :size="13" />
-            {{ sendBusy ? 'Sending…' : 'Send for Signature' }}
+            <AegisIcon v-else name="file-pen" :size="13" />
+            {{ sendBusy ? 'Signing…' : 'Create & Sign Agreement' }}
           </button>
         </div>
       </template>
@@ -1197,7 +1197,7 @@
           <AegisIcon name="check" :size="32" />
         </div>
         <div style="font-family:var(--font-serif);font-size:22px;font-weight:700;color:var(--text);margin-bottom:6px">Signed!</div>
-        <div style="font-size:13px;color:var(--text-3);margin-bottom:20px">Your signature was recorded. Awaiting countersignature from the counterparty.</div>
+        <div style="font-size:13px;color:var(--text-3);margin-bottom:20px">Your signature has been recorded. The counterparty will be notified to countersign.</div>
         <button class="btn btn-primary" @click="closeModal('signSuccessModal')">Done</button>
       </div>
     </AegisModal>
@@ -1751,8 +1751,8 @@ function sendForSignature() {
     proposed:        clauseBody,
   }, {
     preserveScroll: true,
-    onSuccess: () => { toast.success('Agreement sent for signature.'); closeWizard() },
-    onError:   () => toast.error('Could not send agreement.'),
+    onSuccess: () => { closeWizard(); openModal('signSuccessModal') },
+    onError:   () => toast.error('Could not create agreement.'),
     onFinish:  () => { sendBusy.value = false },
   })
 }
