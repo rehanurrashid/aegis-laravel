@@ -228,10 +228,10 @@
                   <div class="ag-actions">
                     <!-- Sign -->
                     <template v-if="doc.primary_action === 'sign'">
-                      <button class="btn btn-primary" :disabled="signBusy" @click="openSignModal(doc)">
-                        <span v-if="signBusy" class="spinner spinner-sm" />
+                      <button class="btn btn-primary" :disabled="signBusy(doc.id)" @click="openSignModal(doc)">
+                        <span v-if="signBusy(doc.id)" class="spinner spinner-sm" />
                         <AegisIcon v-else name="file-pen" :size="13" />
-                        {{ signBusy ? 'Signing…' : 'Sign' }}
+                        {{ signBusy(doc.id) ? 'Signing…' : 'Sign' }}
                       </button>
                       <button class="btn-icon" data-tooltip="View agreement" @click="openViewModal(doc)"><AegisIcon name="eye" :size="14" /></button>
                       <button class="btn-icon" data-tooltip="More actions" @click="openActionsModal(doc)"><AegisIcon name="more" :size="14" /></button>
@@ -718,12 +718,12 @@
         <button
           class="btn btn-primary"
           style="margin-left:auto"
-          :disabled="signBusy || !modalSigned"
+          :disabled="signBusy(activeDocId) || !modalSigned"
           @click="finalizeSignature"
         >
-          <span v-if="signBusy" class="spinner spinner-sm" />
+          <span v-if="signBusy(activeDocId)" class="spinner spinner-sm" />
           <AegisIcon v-else name="file-pen" :size="13" />
-          {{ signBusy ? 'Signing…' : 'Sign Agreement' }}
+          {{ signBusy(activeDocId) ? 'Signing…' : 'Sign Agreement' }}
         </button>
       </template>
     </AegisModal>
@@ -1298,7 +1298,8 @@ function setCategoryFilter(key) {
 }
 
 // ── Busy flags ───────────────────────────────────────────────────────────────
-const signBusy      = ref(false)
+const signingDocIds = reactive(new Set())   // per-doc busy state
+const signBusy = (docId) => signingDocIds.has(docId)  // helper: is this doc signing?
 const sendBusy      = ref(false)
 const renewBusy     = ref(false)
 const terminateBusy = ref(false)
@@ -1685,12 +1686,13 @@ function docCardClass(doc) {
 // ── Submit actions ───────────────────────────────────────────────────────────
 
 function finalizeSignature() {
-  signBusy.value = true
-  router.post(route('provider.documents.sign', { document: activeDocId.value }), {}, {
+  const docId = activeDocId.value
+  signingDocIds.add(docId)
+  router.post(route('provider.documents.sign', { document: docId }), {}, {
     preserveScroll: true,
     onSuccess: () => { closeSignModal(); openModal('signSuccessModal') },
     onError:   () => toast.error('Could not save signature.'),
-    onFinish:  () => { signBusy.value = false },
+    onFinish:  () => { signingDocIds.delete(docId) },
   })
 }
 
