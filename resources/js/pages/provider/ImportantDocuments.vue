@@ -543,12 +543,6 @@
             <input type="date" class="form-input" v-model="wiz.expirationDate" />
           </div>
         </div>
-        <div class="form-group" v-if="wiz.expirationDate">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-            <input type="checkbox" v-model="wiz.autoRenew" style="accent-color:var(--gold-dark)" />
-            Enable auto-renewal (extend by 1 year before expiry)
-          </label>
-        </div>
       </div>
 
       <!-- Step 3: Clauses & Notes -->
@@ -595,7 +589,6 @@
           <div v-if="catConfig.needsC" class="info-card-row"><span class="info-card-key">{{ catConfig.partyCLabel }}</span><span class="info-card-val">{{ selectedPartyCName || '—' }}</span></div>
           <div class="info-card-row"><span class="info-card-key">Effective Date</span><span class="info-card-val">{{ wiz.effectiveDate || '—' }}</span></div>
           <div class="info-card-row"><span class="info-card-key">Expiration</span><span class="info-card-val">{{ wiz.expirationDate || 'No expiry set' }}</span></div>
-          <div class="info-card-row"><span class="info-card-key">Auto-Renew</span><span class="info-card-val">{{ wiz.autoRenew ? 'Yes' : 'No' }}</span></div>
         </div>
         <div style="font-size:12px;color:var(--text-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;background:var(--surface-2)">
           By sending this agreement you confirm that all information is accurate. The counterparty will be notified to review and countersign. This agreement will become legally binding upon mutual execution.
@@ -826,12 +819,6 @@
           <label class="form-label">New Expiration Date <span style="color:var(--text-4)">(optional)</span></label>
           <input type="date" class="form-input" v-model="renewForm.expiryDate" />
         </div>
-      </div>
-      <div class="form-group">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
-          <input type="checkbox" v-model="renewForm.autoRenew" style="accent-color:var(--gold-dark)" />
-          Enable auto-renewal for the new agreement
-        </label>
       </div>
       <div class="form-group">
         <label class="form-label">Notes</label>
@@ -1361,10 +1348,10 @@ const stepLabels = [
 const wiz = reactive({
   category:'', docType:'', reference:'', partyBSearch:'', partyB:null,
   partyCSearch:'', partyC:null,
-  effectiveDate:'', expirationDate:'', autoRenew:false, notes:'',
+  effectiveDate:'', expirationDate:'', notes:'',
 })
 
-function openWizard()  { wizStep.value=1; Object.assign(wiz, { category:'', docType:'', reference:'', partyBSearch:'', partyB:null, partyCSearch:'', partyC:null, effectiveDate:'', expirationDate:'', autoRenew:false, notes:'' }); v$.value.$reset(); openModal('newAgreementModal') }
+function openWizard()  { wizStep.value=1; Object.assign(wiz, { category:'', docType:'', reference:'', partyBSearch:'', partyB:null, partyCSearch:'', partyC:null, effectiveDate:'', expirationDate:'', notes:'' }); v$.value.$reset(); openModal('newAgreementModal') }
 function closeWizard() { closeModal('newAgreementModal') }
 
 function wizardNext() {
@@ -1433,7 +1420,7 @@ const clauses = reactive([
 
 // ── Form reactive objects ────────────────────────────────────────────────────
 const signForm      = reactive({ name:'' })
-const renewForm     = reactive({ effectiveDate:'', expiryDate:'', autoRenew:false, notes:'' })
+const renewForm     = reactive({ effectiveDate:'', expiryDate:'', notes:'' })
 const terminateForm = reactive({ reason:'', date:'', notes:'', confirm:'' })
 const addDocForm    = reactive({ name:'', type:'Supporting Document', relatedTo:'', notes:'' })
 const exportForm    = reactive({ format:'PDF Bundle (ZIP)', scope:'All documents', delivery:'download' })
@@ -1584,7 +1571,6 @@ function sendForSignature() {
     party_c_id:      wiz.partyC || null,
     effective_date:  wiz.effectiveDate,
     expiry_date:     wiz.expirationDate,
-    auto_renew:      wiz.autoRenew ? 'yes' : 'no',
     notes:           wiz.notes,
   }, {
     preserveScroll: true,
@@ -1602,7 +1588,6 @@ async function submitRenew() {
   router.post(route('provider.documents.renew', { document: activeDocId.value }), {
     effective_date: renewForm.effectiveDate,
     expiry_date:    renewForm.expiryDate,
-    auto_renew:     renewForm.autoRenew,
     notes:          renewForm.notes,
   }, {
     preserveScroll: true,
