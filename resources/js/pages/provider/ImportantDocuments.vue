@@ -188,7 +188,7 @@
             />
 
             <article
-              v-for="doc in filteredDocs"
+              v-for="doc in pagedDocs"
               :key="doc.id"
               class="card ag-card"
               :class="docCardClass(doc)"
@@ -266,6 +266,16 @@
               </div>
             </article>
           </div>
+          <AegisPagination
+            v-if="docsTotalPages > 1"
+            :current-page="docsPage"
+            :total-pages="docsTotalPages"
+            :total="filteredDocs.length"
+            :from="docsFrom"
+            :to="docsTo"
+            style="margin-top:16px"
+            @change="docsPage = $event"
+          />
         </div>
 
         <!-- ── TAB: AMENDMENTS ── -->
@@ -283,7 +293,7 @@
               title="No Amendments"
               subtitle="Amendment documents will appear here when you or a counterparty request changes to an existing agreement."
             />
-            <article v-for="doc in amendmentDocs" :key="doc.id" class="card ag-card" :class="docCardClass(doc)">
+            <article v-for="doc in pagedAmendments" :key="doc.id" class="card ag-card" :class="docCardClass(doc)">
               <div class="ag-row">
                 <div class="ag-icon"><AegisIcon name="edit" :size="19" /></div>
                 <div class="ag-main">
@@ -309,6 +319,16 @@
               </div>
             </article>
           </div>
+          <AegisPagination
+            v-if="amendmentsTotalPages > 1"
+            :current-page="amendmentsPage"
+            :total-pages="amendmentsTotalPages"
+            :total="amendmentDocs.length"
+            :from="amendmentsFrom"
+            :to="amendmentsTo"
+            style="margin-top:16px"
+            @change="amendmentsPage = $event"
+          />
         </div>
 
         <!-- ── TAB: UPLOADED FILES (SUPPORTING DOCS) ── -->
@@ -330,7 +350,7 @@
               title="No Uploaded Files"
               subtitle="Upload amendments, references, or other documents to share with your stewards."
             />
-            <div v-for="sdoc in props.supportingDocs" :key="sdoc.id" class="list-group-item" style="gap:12px">
+            <div v-for="sdoc in pagedSupporting" :key="sdoc.id" class="list-group-item" style="gap:12px">
               <span class="doc-file-icon"><AegisIcon name="file-text" :size="16" /></span>
               <div style="flex:1;min-width:0">
                 <div style="font-size:13px;font-weight:700;color:var(--text)">{{ sdoc.title }}</div>
@@ -346,6 +366,16 @@
               ><AegisIcon name="trash" :size="14" /></button>
             </div>
           </div>
+          <AegisPagination
+            v-if="supportingTotalPages > 1"
+            :current-page="supportingPage"
+            :total-pages="supportingTotalPages"
+            :total="props.supportingDocs.length"
+            :from="supportingFrom"
+            :to="supportingTo"
+            style="margin-top:4px;margin-bottom:14px"
+            @change="supportingPage = $event"
+          />
 
           <div class="upload-zone" @click="openModal('addDocumentModal')">
             <div class="upload-zone-icon"><AegisIcon name="upload" :size="22" /></div>
@@ -1186,6 +1216,7 @@ import { useConfirm }        from '@/composables/useConfirm'
 import PlanReviewAlert       from '@/components/PlanReviewAlert.vue'
 import { useVuelidate }      from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
+import AegisPagination       from '@/components/ui/AegisPagination.vue'
 
 const props = defineProps({
   documents:          { type: Array,   default: () => [] },
@@ -1383,6 +1414,41 @@ const filteredDocs = computed(() => {
 const amendmentDocs = computed(() =>
   props.documents.filter(d => d.amends_document_id || d.doc_type === 'plan_amendment' || d.doc_type === 'fee_amendment')
 )
+
+// ── Pagination ────────────────────────────────────────────────────────────────
+const PER_PAGE = 10
+
+const docsPage       = ref(1)
+const amendmentsPage = ref(1)
+const supportingPage = ref(1)
+
+// Reset pages when filters/tab change
+watch([activeTab, categoryFilter, searchQ, typeFilter], () => { docsPage.value = 1 })
+watch(activeTab, () => { amendmentsPage.value = 1 })
+
+const pagedDocs = computed(() => {
+  const start = (docsPage.value - 1) * PER_PAGE
+  return filteredDocs.value.slice(start, start + PER_PAGE)
+})
+const docsTotalPages = computed(() => Math.max(1, Math.ceil(filteredDocs.value.length / PER_PAGE)))
+const docsFrom       = computed(() => filteredDocs.value.length ? (docsPage.value - 1) * PER_PAGE + 1 : 0)
+const docsTo         = computed(() => Math.min(docsPage.value * PER_PAGE, filteredDocs.value.length))
+
+const pagedAmendments = computed(() => {
+  const start = (amendmentsPage.value - 1) * PER_PAGE
+  return amendmentDocs.value.slice(start, start + PER_PAGE)
+})
+const amendmentsTotalPages = computed(() => Math.max(1, Math.ceil(amendmentDocs.value.length / PER_PAGE)))
+const amendmentsFrom       = computed(() => amendmentDocs.value.length ? (amendmentsPage.value - 1) * PER_PAGE + 1 : 0)
+const amendmentsTo         = computed(() => Math.min(amendmentsPage.value * PER_PAGE, amendmentDocs.value.length))
+
+const pagedSupporting = computed(() => {
+  const start = (supportingPage.value - 1) * PER_PAGE
+  return props.supportingDocs.slice(start, start + PER_PAGE)
+})
+const supportingTotalPages = computed(() => Math.max(1, Math.ceil(props.supportingDocs.length / PER_PAGE)))
+const supportingFrom       = computed(() => props.supportingDocs.length ? (supportingPage.value - 1) * PER_PAGE + 1 : 0)
+const supportingTo         = computed(() => Math.min(supportingPage.value * PER_PAGE, props.supportingDocs.length))
 
 // ── Wizard ───────────────────────────────────────────────────────────────────
 const wizStep    = ref(1)
