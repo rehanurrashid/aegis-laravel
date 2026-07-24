@@ -238,10 +238,10 @@
                     </template>
                     <!-- Send reminder (awaiting countersig) -->
                     <template v-else-if="doc.primary_action === 'remind'">
-                      <button class="btn btn-outline" :disabled="remindBusy" @click="sendReminder(doc)">
-                        <span v-if="remindBusy" class="spinner spinner-sm" />
+                      <button class="btn btn-outline" :disabled="remindBusy(doc.id)" @click="sendReminder(doc)">
+                        <span v-if="remindBusy(doc.id)" class="spinner spinner-sm" />
                         <AegisIcon v-else name="bell" :size="13" />
-                        {{ remindBusy ? 'Sending…' : 'Send Reminder' }}
+                        {{ remindBusy(doc.id) ? 'Sending…' : 'Send Reminder' }}
                       </button>
                       <button class="btn-icon" data-tooltip="View agreement" @click="openViewModal(doc)"><AegisIcon name="eye" :size="14" /></button>
                       <button class="btn-icon" data-tooltip="More actions" @click="openActionsModal(doc)"><AegisIcon name="more" :size="14" /></button>
@@ -1306,7 +1306,8 @@ const terminateBusy = ref(false)
 const addDocBusy    = ref(false)
 const exportBusy    = ref(false)
 const amendBusy     = ref(false)
-const remindBusy    = ref(false)
+const remindingDocIds = reactive(new Set())
+const remindBusy = (docId) => remindingDocIds.has(docId)
 
 // ── Signature state ──────────────────────────────────────────────────────────
 const modalSigned  = ref(false)  // sign modal sign box
@@ -1813,11 +1814,11 @@ async function submitAddDoc() {
 }
 
 function sendReminder(doc) {
-  remindBusy.value = true
+  remindingDocIds.add(doc.id)
   router.post(route('provider.documents.remind', { document: doc.id }), {}, {
     preserveScroll: true,
-    onSuccess: () => { toast.success('Reminder sent.'); remindBusy.value = false },
-    onError:   () => { toast.error('Could not send reminder.'); remindBusy.value = false },
+    onSuccess: () => { toast.success('Reminder sent.'); remindingDocIds.delete(doc.id) },
+    onError:   () => { toast.error('Could not send reminder.'); remindingDocIds.delete(doc.id) },
   })
 }
 
