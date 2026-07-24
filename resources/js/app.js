@@ -104,6 +104,26 @@ createInertiaApp({
 
             const flash = props?.flash
             if (!flash) return
+
+            // ── Dedup guard ──────────────────────────────────────────────────
+            // router.reload() (used by sidebar tab changes) re-fires 'navigate'
+            // with the same props — including any flash still in memory from
+            // the last real POST. We hash the flash content + component name
+            // and skip if it matches what we already showed.
+            const flashKey = (event.detail?.page?.component ?? '') + JSON.stringify({
+                s: flash.success || null,
+                e: flash.error   || null,
+                i: flash.info    || null,
+                w: flash.warning || null,
+            })
+            const isBlank = !flash.success && !flash.error && !flash.info && !flash.warning
+            if (isBlank) {
+                router._lastFlashKey = null
+                return
+            }
+            if (router._lastFlashKey === flashKey) return
+            router._lastFlashKey = flashKey
+
             try {
                 const ui = useUiStore()
                 if (flash.success) ui.showToast(flash.success, 'success')
