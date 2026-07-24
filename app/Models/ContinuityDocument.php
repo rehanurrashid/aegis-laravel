@@ -20,7 +20,7 @@ class ContinuityDocument extends Model
     public    $incrementing = false;
 
     protected $fillable = [
-        'id', 'plan_id', 'party_b_id', 'practitioner_id', 'reference', 'title',
+        'id', 'plan_id', 'party_b_id', 'party_c_id', 'practitioner_id', 'reference', 'title',
         'doc_type', 'category', 'body', 'notes', 'status',
         'amends_document_id', 'holder_steward_id', 'file_ref',
         'is_supporting', 'related_to', 'auto_renew',

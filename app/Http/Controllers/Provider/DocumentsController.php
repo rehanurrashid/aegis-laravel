@@ -160,6 +160,7 @@ class DocumentsController extends Controller
             'status'             => $isDraft ? 'draft' : 'pending_sign',
             'category'           => $data['category'] ?? null,
             'party_b_id'         => $data['party_b_id'] ?? null,
+            'party_c_id'         => $data['party_c_id'] ?? null,
             'effective_date'     => $data['effective_date'] ?? null,
             'expires_at'         => $data['expiry_date'] ?? null,
             'auto_renew'         => str_contains(strtolower($data['auto_renew'] ?? ''), 'yes') ? 1 : 0,
@@ -290,13 +291,13 @@ class DocumentsController extends Controller
 
         // Counterparty details
         $counterparty   = null;
-        $people         = [['initials' => $this->initials($user->display_name), 'color' => 'gold']];
+        $people         = [['initials' => $this->initials($user->display_name), 'color' => 'gold', 'name' => $user->display_name]];
         $partyBUser     = $doc->party_b_id ? User::find($doc->party_b_id) : null;
         $holderUser     = $doc->holderSteward;
         $counterpartUser = $partyBUser ?? $holderUser;
 
         if ($counterpartUser) {
-            $people[] = ['initials' => $this->initials($counterpartUser->display_name), 'color' => 'dark'];
+            $people[] = ['initials' => $this->initials($counterpartUser->display_name), 'color' => 'dark', 'name' => $counterpartUser->display_name];
             $counterparty = [
                 'id'        => $counterpartUser->id,
                 'name'      => $counterpartUser->display_name,
@@ -305,6 +306,18 @@ class DocumentsController extends Controller
                 'signed_at' => $doc->countersigned_at
                     ? Carbon::parse($doc->countersigned_at)->format('M j, Y')
                     : null,
+            ];
+        }
+
+        $partyCUser = $doc->party_c_id ? User::find($doc->party_c_id) : null;
+        $counterpartyC = null;
+        if ($partyCUser) {
+            $people[] = ['initials' => $this->initials($partyCUser->display_name), 'color' => 'blue', 'name' => $partyCUser->display_name];
+            $counterpartyC = [
+                'id'       => $partyCUser->id,
+                'name'     => $partyCUser->display_name,
+                'initials' => $this->initials($partyCUser->display_name),
+                'meta'     => 'Support Steward · Active',
             ];
         }
 
@@ -344,11 +357,13 @@ class DocumentsController extends Controller
             'amendment_count'  => $amendCount,
             'days_until_expiry'=> $daysToExp,
             'counterparty'     => $counterparty,
+            'counterparty_c'   => $counterpartyC,
             'body'             => $doc->body,
             'history'          => $this->buildHistory($doc),
             'effective_date'   => $doc->effective_date?->format('M j, Y'),
             'expiry_date'      => $expiresAt?->format('M j, Y'),
             'party_b_id'       => $doc->party_b_id,
+            'party_c_id'       => $doc->party_c_id,
             'amends_document_id' => $doc->amends_document_id,
         ];
     }

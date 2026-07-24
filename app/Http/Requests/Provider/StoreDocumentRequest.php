@@ -19,6 +19,7 @@ class StoreDocumentRequest extends FormRequest
             'category'       => ($isDraft ? 'nullable' : 'required') . '|string|max:32',
             'doc_type'       => ($isDraft ? 'nullable' : 'required') . '|string|max:64',
             'party_b_id'     => ($isDraft ? 'nullable' : 'required') . '|string|max:36',
+            'party_c_id'     => 'nullable|string|max:36',
             'effective_date' => ($isDraft ? 'nullable' : 'required') . '|date',
             // Always optional
             'reference'      => 'nullable|string|max:64',

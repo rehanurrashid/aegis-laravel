@@ -737,38 +737,86 @@
       @update:model-value="v => !v && closeModal('viewAgreementModal')"
     >
       <template v-if="activeDoc">
+
+        <!-- Status + meta row -->
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
           <AegisBadge :label="activeDoc.badge_label" :variant="activeDoc.badge_variant" />
           <span style="font-size:12px;color:var(--text-3)">{{ activeDoc.reference }}</span>
+          <span style="font-size:12px;color:var(--text-3)">{{ activeDoc.doc_type_label }}</span>
           <span style="font-size:12px;color:var(--text-3)">{{ activeDoc.category_label }}</span>
         </div>
+
+        <!-- Parties card — shows all parties (Provider + B + optional C) -->
         <div class="info-card" style="margin-bottom:14px">
           <div class="info-card-title">Parties</div>
-          <div class="info-card-row"><span class="info-card-key">Provider</span><span class="info-card-val">{{ providerName }}</span></div>
+          <div class="info-card-row">
+            <span class="info-card-key">Provider (Party A)</span>
+            <span class="info-card-val">
+              <span class="avatar avatar-xs avatar-gold" style="margin-right:6px">{{ providerName.split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase() }}</span>
+              {{ providerName }}
+            </span>
+          </div>
           <div v-if="activeDoc.counterparty" class="info-card-row">
-            <span class="info-card-key">Counterparty</span>
-            <span class="info-card-val">{{ activeDoc.counterparty.name }}</span>
+            <span class="info-card-key">{{ activeDoc.counterparty_c ? 'Continuity Steward (Party B)' : 'Counterparty' }}</span>
+            <span class="info-card-val">
+              <span class="avatar avatar-xs avatar-dark" style="margin-right:6px">{{ activeDoc.counterparty.initials }}</span>
+              {{ activeDoc.counterparty.name }}
+              <span v-if="activeDoc.counterparty.signed_at" style="font-size:11px;color:var(--green-dark);margin-left:6px">
+                <AegisIcon name="check-circle" :size="11" /> Signed {{ activeDoc.counterparty.signed_at }}
+              </span>
+            </span>
+          </div>
+          <div v-if="activeDoc.counterparty_c" class="info-card-row">
+            <span class="info-card-key">Support Steward (Party C)</span>
+            <span class="info-card-val">
+              <span class="avatar avatar-xs" style="background:var(--blue-dark,#1d4ed8);color:#fff;margin-right:6px">{{ activeDoc.counterparty_c.initials }}</span>
+              {{ activeDoc.counterparty_c.name }}
+            </span>
           </div>
           <div v-if="activeDoc.effective_date" class="info-card-row">
-            <span class="info-card-key">Effective</span><span class="info-card-val">{{ activeDoc.effective_date }}</span>
+            <span class="info-card-key">Effective Date</span>
+            <span class="info-card-val">{{ activeDoc.effective_date }}</span>
           </div>
           <div v-if="activeDoc.expiry_date" class="info-card-row">
-            <span class="info-card-key">Expires</span><span class="info-card-val">{{ activeDoc.expiry_date }}</span>
+            <span class="info-card-key">Expiration</span>
+            <span class="info-card-val">{{ activeDoc.expiry_date }}</span>
           </div>
         </div>
-        <div v-if="activeDoc.body" class="legal-doc">
-          <div style="white-space:pre-wrap;font-size:13px;line-height:1.7">{{ activeDoc.body }}</div>
-        </div>
-        <div v-else class="legal-doc" style="text-align:center;color:var(--text-4);padding:32px">
-          <AegisIcon name="file-text" :size="24" />
-          <div style="margin-top:8px">Full document body will appear here when available.</div>
+
+        <!-- Clauses — parsed structured view (mirrors review step) -->
+        <div v-if="parsedClauses.length" style="margin-bottom:14px">
+          <div class="info-card">
+            <div class="info-card-title">Clauses ({{ parsedClauses.length }})</div>
+            <div
+              v-for="c in parsedClauses"
+              :key="c.num"
+              style="padding:10px 0;border-bottom:1px solid var(--surface-3)"
+            >
+              <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">
+                <span style="width:20px;height:20px;border-radius:var(--radius-full);background:var(--gold-dark);color:var(--text-inverted);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">{{ c.num }}</span>
+                {{ c.title }}
+              </div>
+              <div
+                v-for="f in c.fields"
+                :key="f.label"
+                style="font-size:12px;color:var(--text-3);margin-left:28px;line-height:1.6"
+              >
+                <span style="font-weight:600;color:var(--text-2)">{{ f.label }}:</span> {{ f.value }}
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- History timeline -->
-        <div v-if="activeDoc.history && activeDoc.history.length" style="margin-top:16px">
+        <!-- Raw body fallback if not parseable -->
+        <div v-else-if="activeDoc.body" class="legal-doc" style="margin-bottom:14px">
+          <div style="white-space:pre-wrap;font-size:13px;line-height:1.7">{{ activeDoc.body }}</div>
+        </div>
+
+        <!-- Audit Trail -->
+        <div v-if="activeDoc.history && activeDoc.history.length">
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:8px">Audit Trail</div>
           <div v-for="h in activeDoc.history" :key="h.title" style="display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--surface-3)">
-            <div :class="['hist-dot', 'dot-' + h.dot]"></div>
+            <div :class="['hist-dot', 'dot-' + h.dot]" style="margin-top:3px"></div>
             <div style="flex:1">
               <div style="font-size:12px;font-weight:700;color:var(--text)">{{ h.title }}</div>
               <div style="font-size:12px;color:var(--text-3)">{{ h.desc }}</div>
@@ -776,6 +824,7 @@
             <div style="font-size:11px;color:var(--text-4);white-space:nowrap">{{ h.date }}</div>
           </div>
         </div>
+
       </template>
 
       <template #footer>
@@ -1237,6 +1286,30 @@ const searchQ       = ref('')
 const typeFilter    = ref('')
 const activeDocId   = ref(null)
 const activeDoc     = computed(() => props.documents.find(d => d.id === activeDocId.value) ?? null)
+
+// Parse the serialised clause body back into structured sections for display
+const parsedClauses = computed(() => {
+  const body = activeDoc.value?.body
+  if (!body) return []
+  const sections = []
+  // Body format: "1. Title\n   Field: Value\n   Field: Value\n\n2. Title..."
+  const blocks = body.split(/\n\n+/)
+  for (const block of blocks) {
+    const lines = block.split('\n').filter(l => l.trim())
+    if (!lines.length) continue
+    const titleLine = lines[0].trim()
+    const match = titleLine.match(/^(\d+)\.\s+(.+)$/)
+    if (!match) continue
+    const fields = lines.slice(1).map(l => {
+      const fl = l.trim()
+      const ci = fl.indexOf(': ')
+      if (ci === -1) return null
+      return { label: fl.slice(0, ci), value: fl.slice(ci + 2) }
+    }).filter(Boolean).filter(f => f.value && f.value !== '—')
+    sections.push({ num: match[1], title: match[2], fields })
+  }
+  return sections
+})
 
 // Pill definitions
 const partyPills = [
