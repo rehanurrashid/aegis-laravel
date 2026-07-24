@@ -37,7 +37,9 @@
         {{ modelValue ? signedLabel : unsignedLabel }}
       </div>
       <div v-if="modelValue && signerName" class="aegis-sign-box-signer">
-        Signed as <strong>{{ signerName }}</strong>
+        Signed as
+        <a v-if="signerUrl" :href="signerUrl" class="aegis-sign-box-name-link" target="_blank" @click.stop><strong>{{ signerName }}</strong></a>
+        <strong v-else>{{ signerName }}</strong>
       </div>
       <div v-else class="aegis-sign-box-sub">{{ computedSublabel }}</div>
     </div>
@@ -60,6 +62,7 @@ import AegisIcon from '@/components/ui/AegisIcon.vue'
 const props = defineProps({
   modelValue:  { type: Boolean, default: false },
   signerName:  { type: String,  default: '' },
+  signerUrl:   { type: String,  default: '' },
   label:       { type: String,  default: '' },
   sublabel:    { type: String,  default: '' },
 })
@@ -158,6 +161,15 @@ const signedLabel      = 'Signature applied — click to remove'
   color: var(--green-dark);
   margin-top: 2px;
 }
+
+.aegis-sign-box-name-link {
+  color: var(--green-dark);
+  text-decoration: none;
+  font-weight: 700;
+  opacity: 1;
+  transition: opacity var(--transition);
+}
+.aegis-sign-box-name-link:hover { opacity: 0.75; }
 
 /* Right status */
 .aegis-sign-box-status {

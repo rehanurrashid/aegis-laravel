@@ -643,9 +643,18 @@
           <div class="info-card-title">Agreement Summary</div>
           <div class="info-card-row"><span class="info-card-key">Type</span><span class="info-card-val">{{ wiz.docType || '—' }}</span></div>
           <div class="info-card-row"><span class="info-card-key">Category</span><span class="info-card-val">{{ selectedCatTitle }}</span></div>
-          <div class="info-card-row"><span class="info-card-key">{{ catConfig.partyALabel }}</span><span class="info-card-val">{{ providerName }}</span></div>
-          <div class="info-card-row"><span class="info-card-key">{{ catConfig.partyBLabel }}</span><span class="info-card-val">{{ selectedPartyBName || '—' }}</span></div>
-          <div v-if="catConfig.needsC" class="info-card-row"><span class="info-card-key">{{ catConfig.partyCLabel }}</span><span class="info-card-val">{{ selectedPartyCName || '—' }}</span></div>
+          <div class="info-card-row"><span class="info-card-key">{{ catConfig.partyALabel }}</span><span class="info-card-val">
+            <a v-if="providerSlug" :href="profileUrl(providerSlug, 'provider')" class="name-link" target="_blank">{{ providerName }}</a>
+            <span v-else>{{ providerName }}</span>
+          </span></div>
+          <div class="info-card-row"><span class="info-card-key">{{ catConfig.partyBLabel }}</span><span class="info-card-val">
+            <a v-if="selectedPartyBSlug" :href="profileUrl(selectedPartyBSlug, selectedPartyBRole)" class="name-link" target="_blank">{{ selectedPartyBName }}</a>
+            <span v-else>{{ selectedPartyBName || '—' }}</span>
+          </span></div>
+          <div v-if="catConfig.needsC" class="info-card-row"><span class="info-card-key">{{ catConfig.partyCLabel }}</span><span class="info-card-val">
+            <a v-if="selectedPartyCSlug" :href="profileUrl(selectedPartyCSlug, selectedPartyCRole)" class="name-link" target="_blank">{{ selectedPartyCName }}</a>
+            <span v-else>{{ selectedPartyCName || '—' }}</span>
+          </span></div>
           <div class="info-card-row"><span class="info-card-key">Effective Date</span><span class="info-card-val">{{ wiz.effectiveDate || '—' }}</span></div>
           <div class="info-card-row"><span class="info-card-key">Expiration</span><span class="info-card-val">{{ wiz.expirationDate || 'No expiry set' }}</span></div>
         </div>
@@ -673,6 +682,7 @@
         <AegisSignBox
           v-model="wizSigned"
           :signer-name="providerName"
+          :signer-url="providerSlug ? profileUrl(providerSlug, 'provider') : ''"
           label="Sign to create this agreement"
           sublabel="Your signature is required before the agreement can be sent for countersignature"
         />
@@ -719,6 +729,7 @@
         <AegisSignBox
           v-model="modalSigned"
           :signer-name="providerName"
+          :signer-url="providerSlug ? profileUrl(providerSlug, 'provider') : ''"
           sublabel="By signing, you confirm you have read this agreement and have the legal authority to enter into it"
           style="margin-bottom:14px"
         />
@@ -1584,7 +1595,11 @@ function wizardNext() {
 
 const selectedCatTitle   = computed(() => agrCategories.find(c => c.value === wiz.category)?.title || '—')
 const selectedPartyBName = computed(() => stewardOptions.value.find(p => p.id === wiz.partyB)?.name || '—')
+const selectedPartyBSlug = computed(() => stewardOptions.value.find(p => p.id === wiz.partyB)?.slug || null)
+const selectedPartyBRole = computed(() => stewardOptions.value.find(p => p.id === wiz.partyB)?.role || 'cs')
 const selectedPartyCName = computed(() => stewardOptions.value.find(p => p.id === wiz.partyC)?.name || '—')
+const selectedPartyCSlug = computed(() => stewardOptions.value.find(p => p.id === wiz.partyC)?.slug || null)
+const selectedPartyCRole = computed(() => stewardOptions.value.find(p => p.id === wiz.partyC)?.role || 'ss')
 
 // Category config — drives step 2 UX
 const catConfig = computed(() => {
@@ -1952,8 +1967,8 @@ function submitExport() {
 
 <style scoped>
 /* Name links — inline profile links */
-.name-link { color:inherit; text-decoration:none; border-bottom:1px solid var(--gold); transition:color var(--transition),border-color var(--transition); }
-.name-link:hover { color:var(--gold-dark); border-bottom-color:var(--gold-dark); }
+.name-link { color:var(--gold-dark); text-decoration:none; transition:opacity var(--transition); }
+.name-link:hover { opacity:0.75; }
 
 /* Layout */
 .doc-layout  { display: flex; align-items: flex-start; gap: 22px; }
