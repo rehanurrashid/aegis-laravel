@@ -118,6 +118,8 @@ class DocumentsController extends Controller
                         'name'     => $u?->display_name ?? 'Unknown',
                         'meta'     => Str::ucfirst(str_replace('_', ' ', $ps->steward_category ?? 'steward')) . ' · Active',
                         'category' => $ps->steward_category ?? 'steward',
+                        'slug'     => $u?->slug ?? null,
+                        'role'     => $ps->steward_category ?? 'steward',
                     ];
                 })->values()->toArray()
             : [];
@@ -291,17 +293,19 @@ class DocumentsController extends Controller
 
         // Counterparty details
         $counterparty   = null;
-        $people         = [['initials' => $this->initials($user->display_name), 'color' => 'gold', 'name' => $user->display_name]];
+        $people         = [['initials' => $this->initials($user->display_name), 'color' => 'gold', 'name' => $user->display_name, 'slug' => $user->slug ?? null, 'role' => 'provider']];
         $partyBUser     = $doc->party_b_id ? User::find($doc->party_b_id) : null;
         $holderUser     = $doc->holderSteward;
         $counterpartUser = $partyBUser ?? $holderUser;
 
         if ($counterpartUser) {
-            $people[] = ['initials' => $this->initials($counterpartUser->display_name), 'color' => 'dark', 'name' => $counterpartUser->display_name];
+            $people[] = ['initials' => $this->initials($counterpartUser->display_name), 'color' => 'dark', 'name' => $counterpartUser->display_name, 'slug' => $counterpartUser->slug ?? null, 'role' => 'cs'];
             $counterparty = [
                 'id'        => $counterpartUser->id,
                 'name'      => $counterpartUser->display_name,
                 'initials'  => $this->initials($counterpartUser->display_name),
+                'slug'      => $counterpartUser->slug ?? null,
+                'role'      => 'continuity_steward',
                 'meta'      => 'Continuity Steward · Active',
                 'signed_at' => $doc->countersigned_at
                     ? Carbon::parse($doc->countersigned_at)->format('M j, Y')
@@ -312,11 +316,13 @@ class DocumentsController extends Controller
         $partyCUser = $doc->party_c_id ? User::find($doc->party_c_id) : null;
         $counterpartyC = null;
         if ($partyCUser) {
-            $people[] = ['initials' => $this->initials($partyCUser->display_name), 'color' => 'blue', 'name' => $partyCUser->display_name];
+            $people[] = ['initials' => $this->initials($partyCUser->display_name), 'color' => 'blue', 'name' => $partyCUser->display_name, 'slug' => $partyCUser->slug ?? null, 'role' => 'ss'];
             $counterpartyC = [
                 'id'       => $partyCUser->id,
                 'name'     => $partyCUser->display_name,
                 'initials' => $this->initials($partyCUser->display_name),
+                'slug'     => $partyCUser->slug ?? null,
+                'role'     => 'support_steward',
                 'meta'     => 'Support Steward · Active',
             ];
         }

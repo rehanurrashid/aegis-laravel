@@ -208,13 +208,19 @@
                   </div>
                   <div class="ag-line">
                     <span class="ag-people">
-                      <span
-                        v-for="person in (doc.people || [])"
-                        :key="person.initials"
-                        class="avatar avatar-xs"
-                        :class="person.color === 'gold' ? 'avatar-gold' : 'avatar-dark'"
-                      >{{ person.initials }}</span>
-                      <span class="ag-name">{{ doc.people_label }}</span>
+                      <template v-for="person in (doc.people || [])" :key="person.initials">
+                        <span
+                          class="avatar avatar-xs"
+                          :class="person.color === 'gold' ? 'avatar-gold' : 'avatar-dark'"
+                        >{{ person.initials }}</span>
+                      </template>
+                      <span class="ag-name">
+                        <template v-for="(person, i) in (doc.people || [])" :key="person.initials + i">
+                          <template v-if="i > 0"> &amp; </template>
+                          <a v-if="person.slug" :href="profileUrl(person.slug, person.role)" class="name-link" target="_blank" @click.stop>{{ person.name }}</a>
+                          <span v-else>{{ person.name }}</span>
+                        </template>
+                      </span>
                     </span>
                     <span v-if="doc.when_text" class="sep"></span>
                     <span v-if="doc.when_text" class="ag-when" :class="doc.when_class">
@@ -518,7 +524,10 @@
           >
             <div class="party-avatar-sm">{{ p.initials }}</div>
             <div class="party-info-sm">
-              <div class="party-name-sm">{{ p.name }}</div>
+              <div class="party-name-sm">
+                <a v-if="p.slug" :href="profileUrl(p.slug, p.role)" class="name-link" target="_blank" @click.stop>{{ p.name }}</a>
+                <span v-else>{{ p.name }}</span>
+              </div>
               <div class="party-meta-sm">{{ p.meta }}</div>
             </div>
             <AegisIcon v-if="wiz.partyB === p.id" name="check" :size="14" style="color:var(--gold-dark)" />
@@ -550,7 +559,10 @@
             >
               <div class="party-avatar-sm" style="background:var(--purple-dark,#7c3aed)">{{ p.initials }}</div>
               <div class="party-info-sm">
-                <div class="party-name-sm">{{ p.name }}</div>
+                <div class="party-name-sm">
+                  <a v-if="p.slug" :href="profileUrl(p.slug, p.role)" class="name-link" target="_blank" @click.stop>{{ p.name }}</a>
+                  <span v-else>{{ p.name }}</span>
+                </div>
                 <div class="party-meta-sm">{{ p.meta }}</div>
               </div>
               <AegisIcon v-if="wiz.partyC === p.id" name="check" :size="14" style="color:var(--gold-dark)" />
@@ -697,7 +709,10 @@
           <div class="info-card-row"><span class="info-card-key">Document</span><span class="info-card-val">{{ activeDoc.title }}</span></div>
           <div class="info-card-row"><span class="info-card-key">Reference</span><span class="info-card-val">{{ activeDoc.reference }}</span></div>
           <div class="info-card-row"><span class="info-card-key">Type</span><span class="info-card-val">{{ activeDoc.doc_type_label }}</span></div>
-          <div v-if="activeDoc.counterparty" class="info-card-row"><span class="info-card-key">Counterparty</span><span class="info-card-val">{{ activeDoc.counterparty.name }}</span></div>
+          <div v-if="activeDoc.counterparty" class="info-card-row"><span class="info-card-key">Counterparty</span><span class="info-card-val">
+            <a v-if="activeDoc.counterparty.slug" :href="profileUrl(activeDoc.counterparty.slug, activeDoc.counterparty.role)" class="name-link" target="_blank">{{ activeDoc.counterparty.name }}</a>
+            <span v-else>{{ activeDoc.counterparty.name }}</span>
+          </span></div>
           <div v-if="activeDoc.effective_date" class="info-card-row"><span class="info-card-key">Effective Date</span><span class="info-card-val">{{ activeDoc.effective_date }}</span></div>
         </div>
 
@@ -753,14 +768,16 @@
             <span class="info-card-key">Provider (Party A)</span>
             <span class="info-card-val">
               <span class="avatar avatar-xs avatar-gold" style="margin-right:6px">{{ providerName.split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase() }}</span>
-              {{ providerName }}
+              <a v-if="providerSlug" :href="profileUrl(providerSlug, 'provider')" class="name-link" target="_blank">{{ providerName }}</a>
+              <span v-else>{{ providerName }}</span>
             </span>
           </div>
           <div v-if="activeDoc.counterparty" class="info-card-row">
             <span class="info-card-key">{{ activeDoc.counterparty_c ? 'Continuity Steward (Party B)' : 'Counterparty' }}</span>
             <span class="info-card-val">
               <span class="avatar avatar-xs avatar-dark" style="margin-right:6px">{{ activeDoc.counterparty.initials }}</span>
-              {{ activeDoc.counterparty.name }}
+              <a v-if="activeDoc.counterparty.slug" :href="profileUrl(activeDoc.counterparty.slug, activeDoc.counterparty.role)" class="name-link" target="_blank">{{ activeDoc.counterparty.name }}</a>
+              <span v-else>{{ activeDoc.counterparty.name }}</span>
               <span v-if="activeDoc.counterparty.signed_at" style="font-size:11px;color:var(--green-dark);margin-left:6px">
                 <AegisIcon name="check-circle" :size="11" /> Signed {{ activeDoc.counterparty.signed_at }}
               </span>
@@ -770,7 +787,8 @@
             <span class="info-card-key">Support Steward (Party C)</span>
             <span class="info-card-val">
               <span class="avatar avatar-xs" style="background:var(--blue-dark,#1d4ed8);color:#fff;margin-right:6px">{{ activeDoc.counterparty_c.initials }}</span>
-              {{ activeDoc.counterparty_c.name }}
+              <a v-if="activeDoc.counterparty_c.slug" :href="profileUrl(activeDoc.counterparty_c.slug, activeDoc.counterparty_c.role)" class="name-link" target="_blank">{{ activeDoc.counterparty_c.name }}</a>
+              <span v-else>{{ activeDoc.counterparty_c.name }}</span>
             </span>
           </div>
           <div v-if="activeDoc.effective_date" class="info-card-row">
@@ -1276,6 +1294,22 @@ const { confirmAction } = useConfirm()
 const page = usePage()
 
 const providerName = computed(() => page.props.auth?.user?.display_name || 'Provider')
+const providerSlug = computed(() => page.props.auth?.user?.slug ?? null)
+
+// Build correct public profile URL based on role
+function profileUrl(slug, role) {
+  if (!slug) return null
+  const map = {
+    provider:           '/public/provider/',
+    cs:                 '/public/continuity-steward/',
+    ss:                 '/public/support-steward/',
+    continuity_steward: '/public/continuity-steward/',
+    support_steward:    '/public/support-steward/',
+    business:           '/public/business/',
+  }
+  const base = map[role] ?? '/public/provider/'
+  return base + slug
+}
 
 // ── Navigation state ────────────────────────────────────────────────────────
 // Read initial values from URL params so back-button / share links work
@@ -1917,6 +1951,10 @@ function submitExport() {
 </script>
 
 <style scoped>
+/* Name links — inline profile links */
+.name-link { color:inherit; text-decoration:none; border-bottom:1px solid var(--gold); transition:color var(--transition),border-color var(--transition); }
+.name-link:hover { color:var(--gold-dark); border-bottom-color:var(--gold-dark); }
+
 /* Layout */
 .doc-layout  { display: flex; align-items: flex-start; gap: 22px; }
 .doc-content { flex: 1; min-width: 0; }
