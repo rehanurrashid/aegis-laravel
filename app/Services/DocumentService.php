@@ -37,8 +37,10 @@ class DocumentService
             'notes'            => $data['notes'] ?? null,
             'status'           => $data['status'] ?? 'draft',
             'party_b_id'       => $data['party_b_id'] ?? null,
+            'party_c_id'       => $data['party_c_id'] ?? null,
             'holder_steward_id'=> $data['party_b_id'] ?? null,
             'effective_date'   => $data['effective_date'] ?? null,
+            'expires_at'       => $data['expires_at'] ?? null,
             'auto_renew'       => $data['auto_renew'] ?? false,
             'is_supporting'    => $data['is_supporting'] ?? false,
             'related_to'       => $data['related_to'] ?? null,
@@ -113,7 +115,7 @@ class DocumentService
             'log', $signer->id
         );
 
-        // Notify CS — awaiting countersignature
+        // Notify CS (party B) — awaiting countersignature
         $recipients = $this->activity->getPlanStewardRecipients($doc->plan_id);
         foreach ($recipients as $r) {
             if ($r['portal'] === 'continuity_steward') {
@@ -126,6 +128,18 @@ class DocumentService
                     'notification', $signer->id
                 );
             }
+        }
+
+        // Also notify Party C (support steward) for tri-party agreements
+        if ($doc->party_c_id) {
+            $this->activity->log(
+                $doc->party_c_id, 'support_steward', 'document', ActivitySeverity::Info,
+                'document_signed',
+                $signer->display_name . ' signed: ' . $doc->title,
+                'This tri-party agreement is awaiting countersignature from all parties.',
+                'continuity_document', $doc->id, $signer->id,
+                'notification', $signer->id
+            );
         }
 
         event(new DocumentSigned($doc->fresh(), $signer, false));
@@ -212,8 +226,10 @@ class DocumentService
 
     public function archive(ContinuityDocument $doc, ?User $actor = null, string $reason = 'archived'): ContinuityDocument
     {
+        $isTerm = !in_array($reason, ['archived', 'superseded', 'renewed']);
+
         $doc->update([
-            'status'      => 'archived',
+            'status'      => $isTerm ? 'terminated' : 'archived',
             'archived_at' => now(),
         ]);
 
@@ -221,21 +237,33 @@ class DocumentService
             // Actor log
             $this->activity->log(
                 $actor->id, 'provider', 'document', ActivitySeverity::Warning,
-                'document_archived',
-                'You archived: ' . $doc->title,
-                'The agreement has been archived and access revoked.',
+                $isTerm ? 'document_terminated' : 'document_archived',
+                'You ' . ($isTerm ? 'terminated' : 'archived') . ': ' . $doc->title,
+                'The agreement has been ' . ($isTerm ? 'terminated' : 'archived') . ' and access revoked.',
                 'continuity_document', $doc->id, null,
                 'log', $actor->id
             );
 
-            // Notify CS/counterparty
+            // Notify Party B (CS)
             $recipientId = $doc->party_b_id ?? $doc->holder_steward_id;
-            if ($recipientId) {
+            if ($recipientId && $recipientId !== $actor->id) {
                 $this->activity->log(
                     $recipientId, 'continuity_steward', 'document', ActivitySeverity::Warning,
-                    'document_archived',
-                    $actor->display_name . ' archived: ' . $doc->title,
-                    'This agreement has been terminated. Your access associated with it has been revoked.',
+                    $isTerm ? 'document_terminated' : 'document_archived',
+                    $actor->display_name . ' ' . ($isTerm ? 'terminated' : 'archived') . ': ' . $doc->title,
+                    'This agreement has been ' . ($isTerm ? 'terminated' : 'archived') . '. Your access associated with it has been revoked.',
+                    'continuity_document', $doc->id, $actor->id,
+                    'notification', $actor->id
+                );
+            }
+
+            // Notify Party C (SS) for tri-party
+            if ($doc->party_c_id && $doc->party_c_id !== $actor->id) {
+                $this->activity->log(
+                    $doc->party_c_id, 'support_steward', 'document', ActivitySeverity::Warning,
+                    $isTerm ? 'document_terminated' : 'document_archived',
+                    $actor->display_name . ' ' . ($isTerm ? 'terminated' : 'archived') . ': ' . $doc->title,
+                    'This agreement has been ' . ($isTerm ? 'terminated' : 'archived') . '.',
                     'continuity_document', $doc->id, $actor->id,
                     'notification', $actor->id
                 );

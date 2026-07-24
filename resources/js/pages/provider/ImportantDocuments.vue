@@ -789,7 +789,7 @@
               <span class="avatar avatar-xs avatar-dark" style="margin-right:6px">{{ activeDoc.counterparty.initials }}</span>
               <a v-if="activeDoc.counterparty.slug" :href="profileUrl(activeDoc.counterparty.slug, activeDoc.counterparty.role)" class="name-link" target="_blank">{{ activeDoc.counterparty.name }}</a>
               <span v-else>{{ activeDoc.counterparty.name }}</span>
-              <span v-if="activeDoc.counterparty.signed_at" style="font-size:11px;color:var(--green-dark);margin-left:6px">
+              <span v-if="activeDoc.counterparty.signed_at" style="display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--green-dark);margin-left:6px;white-space:nowrap">
                 <AegisIcon name="check-circle" :size="11" /> Signed {{ activeDoc.counterparty.signed_at }}
               </span>
             </span>
@@ -841,18 +841,6 @@
           <div style="white-space:pre-wrap;font-size:13px;line-height:1.7">{{ activeDoc.body }}</div>
         </div>
 
-        <!-- Audit Trail -->
-        <div v-if="activeDoc.history && activeDoc.history.length">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-4);margin-bottom:8px">Audit Trail</div>
-          <div v-for="h in activeDoc.history" :key="h.title" style="display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--surface-3)">
-            <div :class="['hist-dot', 'dot-' + h.dot]" style="margin-top:3px"></div>
-            <div style="flex:1">
-              <div style="font-size:12px;font-weight:700;color:var(--text)">{{ h.title }}</div>
-              <div style="font-size:12px;color:var(--text-3)">{{ h.desc }}</div>
-            </div>
-            <div style="font-size:11px;color:var(--text-4);white-space:nowrap">{{ h.date }}</div>
-          </div>
-        </div>
 
       </template>
 

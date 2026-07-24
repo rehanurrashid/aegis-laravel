@@ -208,30 +208,34 @@ class DocumentsController extends Controller
         abort_unless($document->practitioner_id === $request->user()->id, 403);
 
         $data = $request->validated();
-
-        // Create a new doc that supersedes this one
         $plan = $this->plans->getForPractitioner($request->user()->id);
         abort_if(!$plan, 404);
 
-        $newDoc = $this->documents->create($plan, [
+        // Create renewal via requestDocument so activity log + event fire correctly
+        $newDoc = $this->documents->requestDocument($plan, $request->user(), [
             'title'              => $document->title . ' (Renewed)',
             'doc_type'           => $document->doc_type,
             'body'               => $document->body,
             'category'           => $document->category,
             'status'             => 'pending_sign',
             'party_b_id'         => $document->party_b_id,
-            'holder_steward_id'  => $document->holder_steward_id,
+            'party_c_id'         => $document->party_c_id,
             'effective_date'     => $data['effective_date'] ?? now()->toDateString(),
             'expires_at'         => $data['expiry_date'] ?? null,
-            'auto_renew'         => $data['auto_renew'] ?? false,
             'notes'              => $data['notes'] ?? null,
             'amends_document_id' => $document->id,
         ]);
 
-        // Mark old doc superseded
-        $document->update(['status' => 'archived', 'archived_at' => now()]);
+        // Provider auto-signs the renewal immediately
+        $this->documents->sign($newDoc, $request->user(), [
+            'name' => $request->user()->display_name,
+            'ip'   => $request->ip(),
+        ]);
 
-        return back()->with('success', 'Renewal initiated. New agreement sent for signature.');
+        // Archive old document as renewed (not terminated)
+        $this->documents->archive($document, null, 'renewed');
+
+        return back()->with('success', 'Renewal created and signed. Counterparty notified.');
     }
 
     public function terminate(TerminateDocumentRequest $request, ContinuityDocument $document): RedirectResponse
@@ -365,7 +369,6 @@ class DocumentsController extends Controller
             'counterparty'     => $counterparty,
             'counterparty_c'   => $counterpartyC,
             'body'             => $doc->body,
-            'history'          => $this->buildHistory($doc),
             'effective_date'   => $doc->effective_date?->format('M j, Y'),
             'expiry_date'      => $expiresAt?->format('M j, Y'),
             'party_b_id'       => $doc->party_b_id,
